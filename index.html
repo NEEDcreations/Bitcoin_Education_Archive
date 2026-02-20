@@ -6,32 +6,36 @@
     <title>Bitcoin Education Archive</title>
     <style>
         body { background-color: #020617; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
-        aside { width: 300px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { padding: 20px; border-bottom: 1px solid #1e293b; color: #f97316; font-weight: bold; font-size: 1.2rem; text-transform: uppercase; }
+        aside { width: 330px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 25px; border-bottom: 1px solid #1e293b; color: #f97316; font-weight: 900; font-size: 1.3rem; text-transform: uppercase; letter-spacing: 1px; }
         .channels { flex: 1; overflow-y: auto; padding: 15px; }
-        .group-title { font-size: 0.7rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1.5px; margin: 25px 0 10px 10px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; }
-        .channel-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
+        .group-title { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1.5px; margin: 25px 0 10px 10px; font-weight: 800; opacity: 0.6; }
+        .channel-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 12px 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 1rem; margin-bottom: 2px; }
         .channel-btn:before { content: "# "; color: #f97316; opacity: 0.4; font-weight: bold; }
         .channel-btn:hover { background: rgba(255,255,255,0.05); color: white; }
-        .channel-btn.active { color: #f97316; background: rgba(249, 115, 22, 0.1); font-weight: 700; }
+        .channel-btn.active { color: #fff; background: #f97316; font-weight: 700; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3); }
         
-        main { flex: 1; overflow-y: auto; padding: 60px 40px; }
-        .content-area { max-width: 850px; margin: 0 auto; }
-        .breadcrumb { font-size: 0.8rem; color: #f97316; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: block; }
-        h1 { font-size: 3.5rem; margin: 0 0 30px 0; line-height: 1.1; color: white; letter-spacing: -1.5px; }
-        .article-img { width: 100%; border-radius: 12px; margin-bottom: 40px; border: 1px solid #1e293b; background: #000; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .article-text { font-size: 1.25rem; line-height: 1.8; color: #cbd5e1; border-top: 1px solid #1e293b; padding-top: 40px; }
-        .article-text h3 { color: white; margin-top: 50px; border-left: 4px solid #f97316; padding-left: 20px; font-size: 1.8rem; }
-        .article-text p { margin-bottom: 30px; }
-        .article-text strong { color: white; }
-        .thread-sep { border-top: 1px dashed #1e293b; margin: 60px 0; }
-        .callout { background: rgba(249, 115, 22, 0.05); border-left: 4px solid #f97316; padding: 25px; border-radius: 0 12px 12px 0; margin: 40px 0; color: #f1f5f9; font-style: italic; }
+        main { flex: 1; overflow-y: auto; padding: 80px 50px; background: radial-gradient(circle at top right, #0f172a, #020617); }
+        .content-area { max-width: 900px; margin: 0 auto; }
+        .breadcrumb { font-size: 0.85rem; color: #f97316; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 1px; }
+        h1 { font-size: 4rem; margin: 0 0 40px 0; line-height: 1; color: white; letter-spacing: -2px; font-weight: 900; }
+        .article-img { width: 100%; border-radius: 16px; margin-bottom: 50px; border: 1px solid #1e293b; background: #000; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7); }
+        .article-text { font-size: 1.3rem; line-height: 1.8; color: #cbd5e1; border-top: 1px solid #1e293b; padding-top: 50px; }
+        .article-text h3 { color: white; margin-top: 60px; border-left: 5px solid #f97316; padding-left: 20px; font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; }
+        .article-text p { margin-bottom: 35px; }
+        .article-text strong { color: white; font-weight: 700; }
+        .article-text ul { margin-bottom: 35px; list-style: none; padding: 0; }
+        .article-text li:before { content: "→"; color: #f97316; margin-right: 15px; font-weight: bold; }
+        .article-text li { margin-bottom: 15px; padding-left: 5px; }
+        
+        .thread-sep { border-top: 1px dashed #1e293b; margin: 80px 0; }
+        .callout { background: rgba(249, 115, 22, 0.08); border-left: 5px solid #f97316; padding: 35px; border-radius: 0 16px 16px 0; margin: 50px 0; color: #fff; font-style: italic; font-size: 1.4rem; }
         
         @media (max-width: 1024px) {
             body { flex-direction: column; }
-            aside { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #1e293b; max-height: 250px; }
-            main { padding: 40px 20px; }
-            h1 { font-size: 2.5rem; }
+            aside { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #1e293b; max-height: 300px; }
+            main { padding: 50px 25px; }
+            h1 { font-size: 2.8rem; }
         }
     </style>
 </head>
@@ -39,129 +43,127 @@
     <aside>
         <div class="sidebar-header">Bitcoin Archive</div>
         <div class="channels">
-            <div class="group-title">Introduction</div>
-            <button onclick="load('fundamentals', this)" class="channel-btn active">bitcoin-fundamentals</button>
+            <div class="group-title">Foundations</div>
+            <button onclick="load('first', this)" class="channel-btn active">start-here</button>
             <button onclick="load('properties', this)" class="channel-btn">bitcoin-properties</button>
-            <button onclick="load('analogies', this)" class="channel-btn">analogies-explained</button>
+            <button onclick="load('analogies', this)" class="channel-btn">the-analogies</button>
             
             <div class="group-title">Lightning Network</div>
             <button onclick="load('lightning', this)" class="channel-btn">lightning-101</button>
-            <button onclick="load('routing', this)" class="channel-btn">routing-privacy</button>
-            <button onclick="load('nodes', this)" class="channel-btn">node-operations</button>
+            <button onclick="load('privacy', this)" class="channel-btn">privacy-onion-routing</button>
+            <button onclick="load('liquidity', this)" class="channel-btn">inbound-liquidity</button>
             
             <div class="group-title">Technical Threads</div>
-            <button onclick="load('byzantine', this)" class="channel-btn">byzantine-generals</button>
+            <button onclick="load('nodes', this)" class="channel-btn">node-operations</button>
             <button onclick="load('mining', this)" class="channel-btn">mining-mev</button>
-            <button onclick="load('dust', this)" class="channel-btn">what-is-dust</button>
+            <button onclick="load('dust', this)" class="channel-btn">understanding-dust</button>
+            <button onclick="load('rbf', this)" class="channel-btn">rbf-fee-bumping</button>
             
-            <div class="group-title">Global Adoption</div>
+            <div class="group-title">History & Adoption</div>
             <button onclick="load('el-salvador', this)" class="channel-btn">el-salvador-story</button>
             <button onclick="load('global', this)" class="channel-btn">global-adoption</button>
-            
-            <div class="group-title">More</div>
-            <button onclick="load('funny', this)" class="channel-btn">memes-funny</button>
+            <button onclick="load('history', this)" class="channel-btn">miami-2022</button>
         </div>
     </aside>
-    <main id="main-content">
+    <main id="scroll-target">
         <div class="content-area" id="view"></div>
     </main>
 
     <script>
         const data = {
-            'fundamentals': {
-                cat: 'Introduction',
-                title: 'Bitcoin Fundamentals',
+            'first': {
+                cat: 'Start Here',
+                title: 'The Mission',
                 img: 'assets/bitcoin-concept.jpg',
-                html: '<h3>What is Bitcoin?</h3><p>At its core, Bitcoin is a system of <strong>digital scarcity</strong>. Before Bitcoin, digital files could be copied infinitely. Bitcoin created the first digital asset that cannot be forged or duplicated.</p><p>It is a peer-to-peer network that allows anyone in the world to move value without needing a bank, a government, or a payment processor.</p><div class="callout">"Bitcoin is a swarm of cyber-hornets serving the goddess of wisdom, feeding on the fire of truth, exponentially growing ever smarter, faster, and stronger behind a wall of encrypted energy." — Michael Saylor</div><h3>Digital Gold</h3><p>Bitcoin is often compared to gold because it is hard to produce, has a finite supply, and is highly durable. However, it is "better gold" because it can be sent across the planet instantly for almost no cost.</p>'
+                html: '<h3>Welcome to the Archive</h3><p>This library is a curated restoration of the high-level Bitcoin education threads from our Discord server. It is designed for those who want to understand the <strong>why</strong> behind Bitcoin before diving into the <strong>how</strong>.</p><p>Explore the channels in the sidebar to learn about foundational properties, technical breakthroughs, and the global adoption occurring right now.</p>'
             },
             'properties': {
-                cat: 'Introduction',
-                title: 'Properties of Bitcoin',
+                cat: 'Foundations',
+                title: 'Bitcoin Properties',
                 img: 'assets/bitcoin-gold.jpg',
-                html: '<h3>The 21 Million Cap</h3><p>The most important property of Bitcoin is its <strong>Absolute Scarcity</strong>. There will only ever be 21 million BTC. This is baked into the code and enforced by every node on the network.</p><h3>Decentralized & Distributed</h3><p>Bitcoin has no CEO, no marketing department, and no vulnerability. It is run by thousands of independent participants globally. To "shut down" Bitcoin, you would have to shut down every single computer running the software simultaneously.</p><h3>Portability</h3><p>Unlike bars of gold, you can carry a billion dollars worth of Bitcoin in your head (by memorizing a 12-word seed phrase). It is the most portable form of wealth ever created.</p>'
+                html: '<h3>Absolute Scarcity</h3><p>There will only ever be 21 million Bitcoin. This is the first time in human history we have a money that cannot be inflated by any government or group.</p><h3>Decentralization</h3><p>Bitcoin is run by a global web of independent computers. Because there is no single point of failure, Bitcoin is the most secure and resilient network on the planet.</p><h3>Censorship Resistance</h3><p>In Bitcoin, transactions are permissionless. No bank can block your payment, and no state can seize your wealth if you hold your own keys.</p>'
             },
             'analogies': {
-                cat: 'Introduction',
-                title: 'Analogies Explained',
+                cat: 'Foundations',
+                title: 'The Analogies',
                 img: 'assets/lightning.jpg',
-                html: '<h3>The Airport & Courier</h3><p>Think of Bitcoin as the airport runways. They are big, expensive to build, and move huge containers. These are "Layer 1" transactions.</p><p><strong>Lightning</strong> is the airport courier. He picks up 100 small envelopes, puts them in one bag, and rides a bike around the terminal. It is fast, cheap, and settles instantly. Only when the bag is full does it go back to the big runway to be recorded.</p><div class="thread-sep"></div><h3>The Bar Tab</h3><p>Opening a channel is like opening a tab at a bar. You hand over your credit card once (On-chain transaction). You order 15 drinks (Lightning payments). At the end of the night, you pay the total bill once (Settlement). The blockchain only ever sees the card swipe and the final total.</p>'
+                html: '<h3>The Airport Runway</h3><p>Bitcoin (Layer 1) is the massive airport runway. It moves the big cargo planes. It is incredibly secure but slow.</p><p><strong>Lightning</strong> is the bicycle courier in the hangar. He moves thousands of tiny envelopes instantly. He only goes back to the runway once the job is done.</p><div class="thread-sep"></div><h3>The Bar Tab</h3><p>A Lightning channel is like opening a tab at a pub. You swipe your card once (On-chain). You grab 10 drinks instantly (Lightning). You pay the final total when you leave (Settlement).</p>'
             },
             'lightning': {
                 cat: 'Lightning Network',
                 title: 'Lightning 101',
                 img: 'assets/lightning.jpg',
-                html: '<h3>Instant Global Scaling</h3><p>Lightning allows Bitcoin to scale to billions of transactions per second. It works by creating bi-directional "payment channels" between users.</p><h3>Near-Zero Fees</h3><p>Because these payments don\'t need to be recorded on the main blockchain immediately, the fees are nearly zero. You can send a single Satoshi (0.00000001 BTC) across the world for a fraction of a penny.</p>'
+                html: '<h3>Scaling to Billions</h3><p>Lightning allows Bitcoin to handle millions of transactions per second. It brings the speed of a credit card to the security of the Bitcoin network.</p><h3>Finality</h3><p>Unlike credit cards, which can be reversed weeks later, Lightning payments are final the second they are received.</p>'
             },
-            'routing': {
+            'privacy': {
                 cat: 'Lightning Network',
-                title: 'Routing & Privacy',
+                title: 'Onion Routing',
                 img: 'assets/privacy.jpg',
-                html: '<h3>Onion Routing</h3><p>Just like the Tor network, Lightning payments are wrapped in encrypted layers. Each node in the path can only see the previous jump and the next jump. They never know the original sender or the final destination.</p><h3>Channel Liquidity</h3><p>To receive money on Lightning, you need <strong>Inbound Liquidity</strong>. This means someone has to have a channel open to you with funds on their side ready to be sent your way.</p>'
+                html: '<h3>Default Privacy</h3><p>Lightning uses Onion Routing (similar to the Tor browser). Payments are wrapped in layers of encryption.</p><p>When a payment moves through the network, each node only knows the "previous hop" and the "next hop." No one node knows the full path from sender to receiver.</p>'
+            },
+            'liquidity': {
+                cat: 'Lightning Network',
+                title: 'Inbound Liquidity',
+                img: 'assets/nodes.jpg',
+                html: '<h3>The Pipes Analogy</h3><p>Think of channels like pipes filled with water. If all the water is on your side, you can send but you cannot receive. You need someone to "push" water to their side of the pipe to give you <strong>Inbound Liquidity</strong>.</p>'
             },
             'nodes': {
-                cat: 'Lightning Network',
-                title: 'Node Operations',
-                img: 'assets/nodes.jpg',
-                html: '<h3>The Rule Enforcers</h3><p>Nodes are the heart of Bitcoin. When you run a node, you verify that no one is cheating, no one is double-spending, and the 21 million limit is being respected.</p><h3>Don\'t Trust, Verify</h3><p>If you don\'t run your own node, you are trusting someone else\'s node to tell you the truth about your money. Sovereignty starts with your own hardware.</p>'
-            },
-            'byzantine': {
                 cat: 'Technical Threads',
-                title: 'Byzantine Generals',
-                img: 'assets/blockchain.jpg',
-                html: '<h3>The Consensus Problem</h3><p>How do distant armies agree on an attack time if messengers might be captured or are traitors? Before Bitcoin, this "Byzantine Generals Problem" was unsolved for digital money.</p><h3>Proof of Work</h3><p>Satoshi solved it with Proof of Work. To send a message, you must do a massive amount of computational work. This makes it too expensive to lie, forcing everyone to agree on the same undeniable chain of events.</p>'
+                title: 'Running a Node',
+                img: 'assets/nodes.jpg',
+                html: '<h3>Don\'t Trust, Verify</h3><p>Running a node is how you verify that the Bitcoin you received is real. Without a node, you are trusting a third party to tell you the truth.</p><h3>Enforcing Rules</h3><p>Nodes are the legal system of Bitcoin. They ensure that no one tries to spend the same coin twice and that the 21 million cap is never changed.</p>'
             },
             'mining': {
                 cat: 'Technical Threads',
                 title: 'Mining & MEV',
                 img: 'assets/analysis.jpg',
-                html: '<h3>Miners as Janitors</h3><p>Miners don\'t "create" Bitcoin out of nothing; they provide security and process transactions. In return for this work (and the electricity cost), they are paid in new Bitcoin and transaction fees.</p><h3>What is MEV?</h3><p><strong>Miner Extractable Value</strong> refers to the profit miners can make by choosing which transactions to include in a block and in what order. In Bitcoin, this is much less of an issue than in other blockchains due to its simple design.</p>'
+                html: '<h3>Encrypted Energy</h3><p>Miners use electricity to secure the network. They turn raw energy into truth. In return, they earn the block reward and transaction fees.</p><h3>MEV</h3><p>Miner Extractable Value is the profit miners can make by reordering transactions. In Bitcoin, this is mitigated by its simple, robust design compared to other chains.</p>'
             },
             'dust': {
                 cat: 'Technical Threads',
                 title: 'What is Dust?',
                 img: 'assets/analysis.jpg',
-                html: '<h3>Tiny Fragments</h3><p>"Dust" refers to an amount of Bitcoin that is so small that the fee to spend it would be higher than the value itself.</p><p>Users should be careful not to create many tiny "dust" outputs in their wallets, as they can become effectively unspendable when network fees are high.</p>'
+                html: '<h3>Unspendable Chips</h3><p>"Dust" describes an amount of Bitcoin so small that the cost to spend it (the fee) is higher than the value itself. It is important to consolidate your funds to avoid creating dust.</p>'
+            },
+            'rbf': {
+                cat: 'Technical Threads',
+                title: 'Replace-By-Fee',
+                img: 'assets/analysis.jpg',
+                html: '<h3>The Fee Bump</h3><p>If your transaction is stuck in the mempool because the fee was too low, RBF allows you to "broadcast" a new version with a higher fee to move to the front of the line.</p>'
             },
             'el-salvador': {
-                cat: 'Global Adoption',
-                title: '🇸🇻 El Salvador Story',
+                cat: 'History & Adoption',
+                title: 'Legal Tender',
                 img: 'assets/el-salvador.jpg',
-                html: '<h3>The Great Experiment</h3><p>In 2021, El Salvador made history by becoming the first country to adopt Bitcoin as legal tender. The goal was to provide financial access to the 70% of the population that has no bank account.</p><h3>Remittances</h3><p>Before Bitcoin, Salvadorans lost millions of dollars every year to fees from Western Union and MoneyGram. Now, they can send money home instantly via Lightning for free.</p>'
+                html: '<h3>The Salvadoran Move</h3><p>In 2021, El Salvador became the first sovereign nation to embrace the Bitcoin Standard. They realized that waiting for the IMF or World Bank was no longer an option.</p><h3>Impact</h3><p>Remittance costs plummeted, and for the first time, millions of citizens had a bank in their pocket.</p>'
             },
             'global': {
-                cat: 'Global Adoption',
+                cat: 'History & Adoption',
                 title: 'Global Adoption',
                 img: 'assets/history.jpg',
-                html: '<h3>Miami 2022</h3><p>The 2022 Miami Bitcoin conference was a major milestone, showing that the industry had moved from "niche hobby" to "global financial force."</p><h3>Central African Republic</h3><p>Following El Salvador, the CAR became the second country to adopt Bitcoin, proving that developing nations are leading the charge away from the legacy fiat system.</p>'
+                html: '<h3>The Next Wave</h3><p>From the Central African Republic to communities in Africa and Asia, Bitcoin is being used as a tool for financial freedom in places where the local currency is failing.</p>'
             },
-            'funny': {
-                cat: 'More',
-                title: 'Memes & Culture',
-                img: 'assets/bitcoin-meme.jpg',
-                html: '<h3>Have Fun Staying Poor (HFSP)</h3><p>A famous Bitcoin phrase used when critics dismiss Bitcoin without understanding it. It represents the confidence the community has in the long-term success of the network.</p><h3>The HODL Meme</h3><p>Originating from a typo on an old Bitcoin forum, "HODL" became the philosophy of never selling your Bitcoin, regardless of price fluctuations, because you believe in the decentralized future.</p>'
+            'history': {
+                cat: 'History & Adoption',
+                title: 'Miami 2022',
+                img: 'assets/history.jpg',
+                html: '<h3>The Milestone</h3><p>The 2022 Bitcoin Conference in Miami signaled the transition of Bitcoin from a niche tech experiment to a global economic juggernaut, attended by thousands of leaders and activists.</p>'
             }
         };
 
         function load(id, btn) {
             const p = data[id];
             if (!p) return;
-            
             document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
             if (btn) btn.classList.add('active');
-
-            document.getElementById('view').innerHTML = 
-                '<span class="breadcrumb">' + p.cat + '</span>' + 
-                '<h1>' + p.title + '</h1>' +
-                '<img src="' + p.img + '" class="article-img">' + 
-                '<div class="article-text">' + p.html + '</div>';
-            
-            document.getElementById('main-content').scrollTop = 0;
+            document.getElementById('view').innerHTML = '<span class="breadcrumb">' + p.cat + '</span>' + '<h1>' + p.title + '</h1>' + '<img src="' + p.img + '" class="article-img">' + '<div class="article-text">' + p.html + '</div>';
+            document.getElementById('scroll-target').scrollTop = 0;
             history.replaceState(null, null, "#" + id);
         }
 
         window.onload = function() {
-            const hash = window.location.hash.substring(1);
-            load(hash || 'fundamentals');
+            const h = window.location.hash.substring(1);
+            load(h || 'first');
         };
     </script>
 </body>
