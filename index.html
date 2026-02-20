@@ -4,154 +4,106 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Education Archive</title>
-    <!-- Force clear cache -->
-    <meta http-equiv="cache-control" content="no-cache">
-    <meta http-equiv="expires" content="0">
-    <meta http-equiv="pragma" content="no-cache">
     <style>
-        :root { --primary: #f97316; --bg: #020617; --card: #0f172a; --border: #1e293b; --text: #f1f5f9; --text-muted: #94a3b8; }
-        * { box-sizing: border-box; }
-        body { background-color: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; margin: 0; padding: 0; min-height: 100vh; }
+        body { background-color: #020617; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
+        aside { width: 300px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid #1e293b; color: #f97316; font-weight: bold; font-size: 1.2rem; text-transform: uppercase; }
+        .channels { flex: 1; overflow-y: auto; padding: 15px; }
+        .group-title { font-size: 0.7rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1.5px; margin: 20px 0 10px 10px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .channel-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
+        .channel-btn:before { content: "# "; color: #f97316; opacity: 0.4; }
+        .channel-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+        .channel-btn.active { color: #f97316; background: rgba(249, 115, 22, 0.1); font-weight: 700; }
         
-        .header { background: #0f172a; padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
-        .logo { color: var(--primary); font-weight: 900; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
-        .menu-btn { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        
-        #layout { display: flex; min-height: calc(100vh - 60px); width: 100%; position: relative; }
-        
-        #sidebar { width: 300px; background: #0f172a; border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; flex-shrink: 0; }
-        .channel-group { margin-bottom: 30px; }
-        .group-title { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1.5px; margin-bottom: 15px; font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; }
-        .channel-link { display: block; color: var(--text-muted); text-decoration: none; padding: 10px 12px; border-radius: 6px; font-size: 0.95rem; margin-bottom: 4px; transition: 0.2s; cursor: pointer; border: none; background: transparent; width: 100%; text-align: left; }
-        .channel-link:before { content: "# "; color: var(--primary); opacity: 0.4; font-weight: bold; }
-        .channel-link:hover { background: rgba(255,255,255,0.05); color: white; }
-        .channel-link.active { color: var(--primary); background: rgba(249, 115, 22, 0.1); font-weight: 700; }
-
-        #main-view { flex: 1; padding: 60px 40px; }
+        main { flex: 1; overflow-y: auto; padding: 60px 40px; }
         .content-area { max-width: 800px; margin: 0 auto; }
-        .breadcrumb { font-size: 0.8rem; color: var(--primary); font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: block; }
-        h1 { font-size: 3rem; margin: 0 0 30px 0; line-height: 1.1; letter-spacing: -1px; }
+        .breadcrumb { font-size: 0.8rem; color: #f97316; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: block; }
+        h1 { font-size: 3rem; margin: 0 0 30px 0; line-height: 1.1; color: white; }
+        .article-img { width: 100%; border-radius: 12px; margin-bottom: 40px; border: 1px solid #1e293b; background: #000; }
+        .article-text { font-size: 1.2rem; line-height: 1.7; color: #cbd5e1; border-top: 1px solid #1e293b; padding-top: 40px; }
+        .article-text h3 { color: white; margin-top: 40px; border-left: 4px solid #f97316; padding-left: 15px; }
         
-        .article-text { font-size: 1.2rem; line-height: 1.7; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 40px; }
-        .article-text h3 { color: white; margin-top: 40px; font-size: 1.6rem; border-left: 4px solid var(--primary); padding-left: 15px; }
-        .article-text p { margin-bottom: 25px; }
-        .article-img { width: 100%; border-radius: 12px; margin-bottom: 40px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: block; }
-
         @media (max-width: 1024px) {
-            #sidebar { position: fixed; top: 60px; left: 0; width: 100%; height: calc(100vh - 60px); z-index: 90; display: none; }
-            #sidebar.open { display: block; }
-            #main-view { padding: 40px 20px; }
+            body { flex-direction: column; }
+            aside { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #1e293b; }
+            main { padding: 40px 20px; }
             h1 { font-size: 2.2rem; }
-        }
-        @media (min-width: 1025px) {
-            .menu-btn { display: none; }
         }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="logo">Bitcoin Education Archive</div>
-        <button class="menu-btn" onclick="toggleSidebar()">MENU</button>
-    </header>
-
-    <div id="layout">
-        <aside id="sidebar">
-            <div class="channel-group">
-                <div class="group-title">Introduction</div>
-                <button onclick="changePage('fundamentals')" class="channel-link active" id="btn-fundamentals">bitcoin-fundamentals</button>
-                <button onclick="changePage('analogies')" class="channel-link" id="btn-analogies">analogies-explained</button>
-            </div>
-            <div class="channel-group">
-                <div class="group-title">Lightning Network</div>
-                <button onclick="changePage('lightning')" class="channel-link" id="btn-lightning">lightning-101</button>
-                <button onclick="changePage('nodes')" class="channel-link" id="btn-nodes">node-operations</button>
-            </div>
-            <div class="channel-group">
-                <div class="group-title">Global Reach</div>
-                <button onclick="changePage('el-salvador')" class="channel-link" id="btn-el-salvador">el-salvador-story</button>
-            </div>
-        </aside>
-
-        <main id="main-view">
-            <div class="content-area" id="injected-content">
-                <!-- CONTENT LOADS HERE INSTANTLY -->
-                <div style="padding: 100px; text-align: center; color: #64748b;">Initializing Archive...</div>
-            </div>
-        </main>
-    </div>
+    <aside>
+        <div class="sidebar-header">Bitcoin Archive</div>
+        <div class="channels">
+            <div class="group-title">Introduction</div>
+            <button onclick="load('fundamentals', this)" class="channel-btn active">bitcoin-fundamentals</button>
+            <button onclick="load('analogies', this)" class="channel-btn">analogies-explained</button>
+            <div class="group-title">Lightning Network</div>
+            <button onclick="load('lightning', this)" class="channel-btn">lightning-101</button>
+            <button onclick="load('nodes', this)" class="channel-btn">node-operations</button>
+            <div class="group-title">Global Reach</div>
+            <button onclick="load('el-salvador', this)" class="channel-btn">el-salvador-story</button>
+        </div>
+    </aside>
+    <main>
+        <div class="content-area" id="view">
+            <!-- Loading... -->
+        </div>
+    </main>
 
     <script>
-        const PAGE_DATA = {
+        const data = {
             'fundamentals': {
                 cat: 'Level 1: The Basics',
                 title: 'Bitcoin Fundamentals',
                 img: 'assets/bitcoin-gold.jpg',
-                html: `<h3>Properties of Digital Gold</h3><p>Bitcoin is the first global, digital, and decentralized monetary system. It is controlled by mathematics and consensus rules rather than politics or banks.</p><h3>Absolute Scarcity</h3><p>There will only ever be 21 million Bitcoin. This ensures no central authority can print more money and steal your purchasing power through inflation.</p><h3>Decentralization</h3><p>Bitcoin is run by thousands of individual participants (nodes) across every continent. There is no single headquarters to raid and no CEO to jail.</p>`
+                html: '<h3>Properties of Digital Gold</h3><p>Bitcoin is the first global, digital, and decentralized monetary system. It is controlled by code rather than banks.</p><h3>Absolute Scarcity</h3><p>There will only ever be 21 million Bitcoin. This ensures no central authority can print more money and steal your value.</p>'
             },
             'analogies': {
                 cat: 'Level 1: The Basics',
                 title: 'Analogies Explained',
                 img: 'assets/lightning.jpg',
-                html: `<h3>The Airport Analogy</h3><p>Bitcoin is like the big runways and cargo planes. Secure, but too slow for a cup of coffee.</p><p><strong>Lightning</strong> is the airport courier. You open a "terminal" (channel) and move small packages instantly. You only use the big runway to settle the final bill.</p><h3>The Bar Tab</h3><p>Every beer you order is recorded on a coaster (Lightning). At the end of the night, you pay one total bill on the blockchain to settle the tab.</p>`
+                html: '<h3>The Airport Analogy</h3><p>Bitcoin is the big runway. <strong>Lightning</strong> is the airport courier moving small packages instantly between people.</p><h3>The Bar Tab</h3><p>Opening a bar tab is like opening a Lightning channel. You lock your card once, and get many drinks instantly.</p>'
             },
             'lightning': {
                 cat: 'Level 2: Lightning',
                 title: 'Lightning 101',
                 img: 'assets/privacy.jpg',
-                html: `<h3>Scaling to Billions</h3><p>Lightning allows millions of transactions per second with instant settlement and near-zero fees.</p><h3>Privacy</h3><p>Payments are "wrapped" in layers (Onion Routing) so nodes in the path only know where to pass the money next, never who sent it or why.</p>`
+                html: '<h3>Scaling to Billions</h3><p>Lightning allows millions of transactions per second with near-zero fees.</p><h3>Privacy</h3><p>Payments use Onion Routing so nodes only know the next jump, never the whole path.</p>'
             },
             'nodes': {
                 cat: 'Level 2: Lightning',
                 title: 'Node Operations',
                 img: 'assets/nodes.jpg',
-                html: `<h3>Don't Trust, Verify</h3><p>Running a node means YOU enforce the rules. You check every block to ensure the Bitcoin you receive is real and follows the 21 million cap.</p>`
+                html: '<h3>Don\'t Trust, Verify</h3><p>Running a node means YOU enforce the rules of Bitcoin. You verify every transaction without a middleman.</p>'
             },
             'el-salvador': {
                 cat: 'Global Adoption',
-                title: '🇸🇻 El Salvador Legal Tender',
+                title: 'El Salvador Legal Tender',
                 img: 'assets/el-salvador.jpg',
-                html: `<p>In 2021, El Salvador became the first nation to adopt Bitcoin as legal tender, bringing financial inclusion to millions of unbanked citizens.</p>`
+                html: '<p>In 2021, El Salvador became the first nation to adopt Bitcoin as legal tender, bringing financial tools to millions.</p>'
             }
         };
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
-
-        function changePage(id) {
-            const data = PAGE_DATA[id];
-            if (!data) return;
-
-            // Close sidebar on mobile
-            document.getElementById('sidebar').classList.remove('open');
-
-            // Highlight button
-            document.querySelectorAll('.channel-link').forEach(btn => btn.classList.remove('active'));
-            const activeBtn = document.getElementById('btn-' + id);
-            if (activeBtn) activeBtn.classList.add('active');
-
-            // Inject Content
-            const target = document.getElementById('injected-content');
-            target.innerHTML = `
-                <span class="breadcrumb">\${data.cat}</span>
-                <h1>\${data.title}</h1>
-                <img src="\${data.img}" class="article-img" alt="\${data.title}">
-                <div class="article-text">\${data.html}</div>
-            `;
+        function load(id, btn) {
+            const p = data[id];
+            if (!p) return;
             
-            // Scroll to top
+            // Buttons
+            document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            // HTML
+            document.getElementById('view').innerHTML = 
+                '<span class="breadcrumb">' + p.cat + '</span>' + 
+                '<h1>' + p.title + '</h1>' +
+                '<img src="' + p.img + '" class="article-img">' + 
+                '<div class="article-text">' + p.html + '</div>';
+            
             window.scrollTo(0,0);
-            document.getElementById('main-view').scrollTop = 0;
-            
-            // Update URL
-            history.replaceState(null, null, "#" + id);
         }
 
-        // Start Up
-        window.onload = function() {
-            const currentHash = window.location.hash.substring(1);
-            changePage(currentHash || 'fundamentals');
-        };
+        window.onload = function() { load('fundamentals'); };
     </script>
 </body>
 </html>
