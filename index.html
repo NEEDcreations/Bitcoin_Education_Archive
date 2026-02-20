@@ -37,14 +37,9 @@
         article li { margin-bottom: 12px; }
 
         .callout { background: #f9731611; border-left: 4px solid var(--primary); padding: 20px; border-radius: 0 8px 8px 0; margin: 30px 0; font-style: italic; }
-        
-        /* Image Styling */
         .article-img { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 30px 0; max-height: 400px; object-fit: cover; background: #000; }
-
-        /* Mega-channel grouping */
         .thread-sep { border-top: 1px dashed var(--border); margin: 60px 0; }
 
-        /* Mobile Adjustments */
         @media (max-width: 768px) {
             body { flex-direction: column; }
             aside { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 200px; }
@@ -59,70 +54,139 @@
             <a href="#" style="text-decoration:none"><h1>Bitcoin Archive</h1></a>
         </div>
         <div class="channels">
-            <div class="channel-group">
-                <div class="group-title">Curated Lessons</div>
-                <a href="#properties" class="channel-link active">bitcoin-fundamentals</a>
-                <a href="#analogies" class="channel-link">explain-like-im-five</a>
+            <div class="channel-group" id="group-curated">
+                <div class="group-title">Introduction</div>
+                <a href="#fundamentals" class="channel-link active">bitcoin-fundamentals</a>
+                <a href="#analogies" class="channel-link">analogies-explained</a>
             </div>
             <div class="channel-group">
                 <div class="group-title">Lightning Network</div>
-                <a href="#lightning-mega" class="channel-link">lightning-deep-dive</a>
-                <a href="#node-mega" class="channel-link">node-operations</a>
+                <a href="#lightning-network" class="channel-link">lightning-101</a>
+                <a href="#node-ops" class="channel-link">node-operations</a>
             </div>
             <div class="channel-group">
-                <div class="group-title">Global Adoption</div>
-                <a href="#adoption-mega" class="channel-link">global-stories</a>
-            </div>
-            <div class="channel-group">
-                <div class="group-title">Market & Data</div>
-                <a href="#analysis-mega" class="channel-link">onchain-analysis</a>
+                <div class="group-title">Global & Market</div>
+                <a href="#adoption" class="channel-link">global-adoption</a>
+                <a href="#analysis" class="channel-link">market-analysis</a>
             </div>
         </div>
     </aside>
 
     <main id="content-anchor">
-        <div class="content-wrapper">
-            <!-- Content injected via script -->
-        </div>
+        <div class="content-wrapper"></div>
     </main>
 
     <script>
         const content = {
-            'properties': {
-                cat: 'Curated Lessons',
+            'fundamentals': {
+                cat: 'Introduction',
                 title: 'Bitcoin Fundamentals',
                 image: 'assets/bitcoin-gold.jpg',
-                body: `<h3>The Properties of Bitcoin</h3><p>To understand Bitcoin, you must understand why it is different from any money that came before it. It is digital, global, and decentralized.</p><strong>Absolute Scarcity</strong><p>Only 21 million will ever exist. Unlike the Dollar or Euro, Bitcoin cannot be printed into oblivion.</p><strong>Censorship Resistance</strong><p>It is permissionless. No bank or state can stop you from using your wealth.</p><div class="thread-sep"></div><h3>Why Only Bitcoin?</h3><p>While there are thousands of "cryptos," Bitcoin remains the only one that is truly decentralized. It has no leader to jail and no headquarters to shut down.</p>`
+                body: `
+                    <h3>What is Bitcoin?</h3>
+                    <p>Bitcoin is a decentralized digital currency, without a central bank or single administrator, that can be sent from user to user on the peer-to-peer bitcoin network without the need for intermediaries.</p>
+                    
+                    <h3>The Properties of Bitcoin</h3>
+                    <ul>
+                        <li><strong>Scarcity:</strong> Only 21 million BTC will ever exist.</li>
+                        <li><strong>Decentralization:</strong> No central authority or headquarters.</li>
+                        <li><strong>Divisibility:</strong> One BTC is divisible into 100 million units called Satoshis.</li>
+                        <li><strong>Immutability:</strong> Transactions cannot be reversed once confirmed.</li>
+                    </ul>
+
+                    <div class="callout">"Bitcoin is the first system where we have a known, fixed supply that is verified by everyone and controlled by no one."</div>
+
+                    <div class="thread-sep"></div>
+
+                    <h3>Why Only Bitcoin?</h3>
+                    <p>Bitcoin is unique because it is the only network that has achieved true decentralization. Other projects often have "founding teams" or companies that can change the rules at will. In Bitcoin, the rules are enforced by the participants themselves.</p>
+                `
             },
             'analogies': {
-                cat: 'Explain Like I\'m Five',
-                title: 'Analogies & Simple Logic',
+                cat: 'Introduction',
+                title: 'Analogies Explained',
                 image: 'assets/lightning.jpg',
-                body: `<h3>The Airport Analogy</h3><p>Bitcoin is the big runway. Lighting is the courier service. We use the big runways for massive settling, and the courier for the small, instant daily packages.</p><div class="thread-sep"></div><h3>The Bar Tab Concept</h3><p>Opening a channel is like opening a tab at a bar. You lock your card once, get 10 drinks (Lightning), and pay one single bill at the end of the night (On-chain).</p>`
+                body: `
+                    <h3>The Airport Analogy</h3>
+                    <p>Think of the Bitcoin blockchain as the heavy infrastructure: the massive runways and cargo planes. They move huge amounts of value, but they are expensive and slow to move for small things.</p>
+                    <p><strong>The Courier:</strong> Lightning is like the courier service at the airport. You open a "terminal" (channel) and move small packages (Sats) instantly between people. You only use the big runway to settle up at the end.</p>
+
+                    <div class="thread-sep"></div>
+
+                    <h3>The Bar Tab Analogy</h3>
+                    <p>Imagine going to a bar. Instead of paying for every single sip of beer with your credit card (which would be slow and cluttered), you open a tab.</p>
+                    <p>You lock your card at the desk once. All night, the bartender just scribbles marks on a coaster (Lightning transactions). At the end of the night, you settle the total bill in one go (On-chain settlement).</p>
+                `
             },
-            'lightning-mega': {
+            'lightning-network': {
                 cat: 'Lightning Network',
-                title: 'Lightning Deep Dive',
-                image: 'assets/lightning.jpg',
-                body: `<h3>What is Lightning?</h3><p>A "Layer 2" protocol that scales Bitcoin to billions of people. It provides the speed of Visa with the finality of Bitcoin.</p><div class="thread-sep"></div><h3>Privacy on Lightning</h3><img src="assets/privacy.jpg" class="article-img"><p>Lightning uses <strong>Onion Routing</strong>. Like Tor, each node in a payment path only knows its immediate neighbors, making it extremely hard to track who sent what to whom.</p>`
+                title: 'Lightning 101',
+                image: 'assets/privacy.jpg',
+                body: `
+                    <h3>Layer 2 Scaling</h3>
+                    <p>Lightning is a "Layer 2" protocol built on top of Bitcoin. It enables near-instant, extremely low-fee transactions by keeping most data off the main blockchain.</p>
+                    
+                    <h3>Privacy & Onion Routing</h3>
+                    <p>Just like the Tor browser, Lightning uses Onion Routing. When you send a payment, it passes through several nodes. Each node only knows who gave them the payment and where to pass it next. They never know the original sender or final recipient.</p>
+
+                    <div class="thread-sep"></div>
+
+                    <h3>Channel States</h3>
+                    <p>Lightning channels can be closed in several ways:</p>
+                    <ul>
+                        <li><strong>Collaborative:</strong> Both parties agree, fees are low.</li>
+                        <li><strong>Force Close:</strong> One party disappears; funds are locked for a short time for safety.</li>
+                        <li><strong>Penalty:</strong> Someone tries to cheat; the honest party takes all the funds.</li>
+                    </ul>
+                `
             },
-            'node-mega': {
-                cat: 'Network Tech',
+            'node-ops': {
+                cat: 'Lightning Network',
                 title: 'Node Operations',
                 image: 'assets/nodes.jpg',
-                body: `<h3>Don't Trust, Verify</h3><p>Running a node is the only way to be 100% sure you are using real Bitcoin. If you don't run a node, you are trusting someone else's.</p><div class="thread-sep"></div><h3>Fee Management & RBF</h3><p><strong>Replace-By-Fee (RBF)</strong> allows you to "bump" a stuck transaction by offering miners a higher fee. It effectively speeds up your payment when the network is busy.</p>`
+                body: `
+                    <h3>Six Reasons to Run a Node</h3>
+                    <ol>
+                        <li><strong>Privacy:</strong> You don't tell a third party how much Bitcoin you have.</li>
+                        <li><strong>Sovereignty:</strong> You enforce the consensus rules yourself.</li>
+                        <li><strong>Security:</strong> You verify every transaction you receive.</li>
+                        <li><strong>Network Health:</strong> You help the network stay resilient by sharing data.</li>
+                        <li><strong>Building:</strong> You need a node to build Bitcoin apps or route Lightning payments.</li>
+                        <li><strong>No Permission:</strong> You use your wealth on your own terms.</li>
+                    </ol>
+
+                    <div class="thread-sep"></div>
+
+                    <h3>Fee Management (RBF)</h3>
+                    <p><strong>Replace-By-Fee (RBF)</strong> is a tool to unstick transactions. If you sent a payment with too low a fee, you can use RBF to "bump" the fee, making it move to the front of the line for miners.</p>
+                `
             },
-            'adoption-mega': {
-                cat: 'Global Adoption',
-                title: 'Global Bitcoin Stories',
+            'adoption': {
+                cat: 'Global & Market',
+                title: 'Global Adoption',
                 image: 'assets/el-salvador.jpg',
-                body: `<h3>🇸🇻 El Salvador</h3><p>The first nation to accept Bitcoin as Legal Tender. Millions now have bank accounts in their pockets for the first time.</p><div class="thread-sep"></div><h3>Miami 2022 & CAR</h3><img src="assets/history.jpg" class="article-img"><p>From the massive 2022 Miami conference to the adoption in the Central African Republic, the "Bitcoin Standard" is spreading to every corner of the planet.</p>`
+                body: `
+                    <h3>🇸🇻 El Salvador</h3>
+                    <p>In 2021, El Salvador became the first country to adopt Bitcoin as legal tender. This move was designed to bank the unbanked and lower the cost of remittances for millions of citizens.</p>
+                    
+                    <div class="thread-sep"></div>
+
+                    <h3>Miami 2022 & The Global Stage</h3>
+                    <img src="assets/history.jpg" class="article-img">
+                    <p>Major conferences like Bitcoin Miami have become the crossroads for international adoption, bringing together developers, leaders, and citizens from the CAR, El Salvador, and beyond.</p>
+                `
             },
-            'analysis-mega': {
-                cat: 'Market & Data',
-                title: 'On-Chain Analysis',
+            'analysis': {
+                cat: 'Global & Market',
+                title: 'Market Analysis',
                 image: 'assets/analysis.jpg',
-                body: `<h3>Market Mechanics</h3><p>Bitcoin's supply is transparent. Unlike traditional markets, we can see exactly how many coins are moving and how many are being "HODLed" for years.</p><h3>TA & Models</h3><p>We analyze metrics like Stock-to-Flow and hash rate to understand the underlying health and scarcity of the network.</p>`
+                body: `
+                    <h3>Transparent Supply</h3>
+                    <p>Unlike gold or fiat currency, we know exactly how many Bitcoins exist at any second. On-chain analysis lets us see how many coins are "HODLed" (saved long-term) and how many are liquid.</p>
+                    
+                    <h3>Stock-to-Flow & Hash Rate</h3>
+                    <p>We analyze the <strong>Stock-to-Flow</strong> model to understand scarcity over time, and the <strong>Hash Rate</strong> to measure the total computational power securing the network. Both are at all-time highs, showing a healthy, unstoppable global money.</p>
+                `
             }
         };
 
@@ -133,6 +197,12 @@
             const data = content[id];
             if (!data) return;
             
+            // Highlight the correct sidebar link
+            links.forEach(l => {
+                l.classList.remove('active');
+                if(l.getAttribute('href') === '#' + id) l.classList.add('active');
+            });
+
             wrapper.innerHTML = \`
                 <div class="lesson-header">
                     <div class="breadcrumb">\${data.cat}</div>
@@ -151,14 +221,21 @@
                 const id = link.getAttribute('href').substring(1);
                 if (content[id]) {
                     e.preventDefault();
-                    links.forEach(l => l.classList.remove('active'));
-                    link.classList.add('active');
                     render(id);
+                    // Update location hash without jumping
+                    history.pushState(null, null, '#' + id);
                 }
             });
         });
 
-        render('properties');
+        // Handle initial load and back/forward
+        window.addEventListener('popstate', () => {
+            const hash = window.location.hash.substring(1) || 'fundamentals';
+            render(hash);
+        });
+
+        const initialHash = window.location.hash.substring(1) || 'fundamentals';
+        render(initialHash);
     </script>
 </body>
 </html>
