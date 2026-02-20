@@ -22,21 +22,25 @@
         .channel-link.active { background: #f9731622; color: var(--primary); font-weight: 600; }
 
         /* Main Content Area */
-        main { flex: 1; overflow-y: auto; background: var(--bg); }
-        .content-wrapper { max-width: 800px; margin: 0 auto; padding: 60px 40px; }
+        main { flex: 1; overflow-y: auto; background: var(--bg); position: relative; }
+        .content-wrapper { max-width: 850px; margin: 0 auto; padding: 60px 40px; }
         
         .lesson-header { margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 30px; }
         .breadcrumb { font-size: 0.8rem; color: var(--primary); font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
         h2 { font-size: 3rem; margin: 0; letter-spacing: -1px; line-height: 1.1; }
         
         article { font-size: 1.15rem; color: var(--text-muted); }
-        article h3 { color: var(--text); margin-top: 40px; font-size: 1.5rem; }
+        article h3 { color: var(--text); margin-top: 40px; font-size: 1.5rem; border-left: 4px solid var(--primary); padding-left: 15px; }
         article p { margin-bottom: 24px; }
         article strong { color: var(--text); }
         article ul { margin-bottom: 24px; }
         article li { margin-bottom: 12px; }
 
         .callout { background: #f9731611; border-left: 4px solid var(--primary); padding: 20px; border-radius: 0 8px 8px 0; margin: 30px 0; font-style: italic; }
+        
+        /* Image Styling */
+        .article-img { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 30px 0; max-height: 400px; object-contain: cover; background: #000; }
+        .img-caption { font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-top: -20px; margin-bottom: 30px; }
 
         /* Mobile Adjustments */
         @media (max-width: 768px) {
@@ -50,27 +54,24 @@
 <body>
     <aside>
         <div class="sidebar-header">
-            <h1>Bitcoin Archive</h1>
+            <a href="#" style="text-decoration:none"><h1>Bitcoin Archive</h1></a>
         </div>
         <div class="channels">
             <div class="channel-group">
                 <div class="group-title">Introduction</div>
                 <a href="#properties" class="channel-link active">bitcoin-properties</a>
                 <a href="#why-bitcoin" class="channel-link">why-only-bitcoin</a>
-                <a href="#basics" class="channel-link">the-basics</a>
             </div>
             <div class="channel-group">
                 <div class="group-title">Lightning Network</div>
                 <a href="#lightning-intro" class="channel-link">what-is-lightning</a>
                 <a href="#airport" class="channel-link">airport-analogy</a>
                 <a href="#bar-tab" class="channel-link">bar-tab-analogy</a>
-                <a href="#channels" class="channel-link">channel-states</a>
             </div>
             <div class="channel-group">
-                <div class="group-title">Advanced Mining & Tech</div>
-                <a href="#byzantine" class="channel-link">byzantine-generals</a>
-                <a href="#rbf" class="channel-link">rbf-bump-fees</a>
+                <div class="group-title">Advanced Tech</div>
                 <a href="#nodes" class="channel-link">node-running</a>
+                <a href="#byzantine" class="channel-link">byzantine-generals</a>
             </div>
             <div class="channel-group">
                 <div class="group-title">Global Adoption</div>
@@ -81,89 +82,96 @@
 
     <main id="content-anchor">
         <div class="content-wrapper">
-            <div id="properties-view">
-                <div class="lesson-header">
-                    <div class="breadcrumb">Level 1: The Basics</div>
-                    <h2>The Properties of Bitcoin</h2>
-                </div>
-                <article>
-                    <p>To understand why Bitcoin is revolutionary, we must first look at its properties. Unlike government-issued money, Bitcoin is the first <strong>digital, global, decentralized</strong> money in human history.</p>
-                    
-                    <h3>1. Absolute Scarcity</h3>
-                    <p>There will only ever be <strong>21 million</strong> Bitcoin. No king, president, or central bank can print more. This makes it "hard money"—wealth that cannot be diluted by inflation.</p>
-                    
-                    <h3>2. Decentralization</h3>
-                    <p>Bitcoin has no "headquarters." It is run by thousands of independent computers (nodes) across the globe. No single person can shut it down or change the rules.</p>
-                    
-                    <h3>3. Censorship Resistance</h3>
-                    <p>Because there is no central authority, nobody can stop you from sending Bitcoin to someone else. It is "permissionless" money.</p>
-
-                    <div class="callout">
-                        "Bitcoin is the first system where we have a known, fixed supply that is verified by everyone and controlled by no one."
-                    </div>
-
-                    <h3>4. Portability & Divisibility</h3>
-                    <p>You can carry $1 billion in your pocket on a thumb drive. One Bitcoin can be divided into 100,000,000 smaller units called <strong>Satoshi</strong> (or "Sats").</p>
-                </article>
-            </div>
+            <!-- Initial content will be injected here via script -->
         </div>
     </main>
 
     <script>
-        // Simple router logic to make it feel like Discord channels
         const content = {
             'properties': {
                 cat: 'Level 1: The Basics',
                 title: 'Properties of Bitcoin',
-                body: `<p>To understand why Bitcoin is revolutionary, we must look at its properties. Unlike government money, it is digital, global, and decentralized.</p><h3>1. Absolute Scarcity</h3><p>There will only ever be 21 million Bitcoin. No one can print more.</p><h3>2. Decentralization</h3><p>No headquarters. Validated by thousands of nodes globally.</p><h3>3. Censorship Resistance</h3><p>Permissionless. No one can stop your transactions.</p>`
+                image: 'assets/bitcoin-gold.jpg',
+                body: `<p>To understand why Bitcoin is revolutionary, we must look at its properties. Unlike government money, it is digital, global, and decentralized.</p><h3>Absolute Scarcity</h3><p>There will only ever be 21 million Bitcoin. No one can print more. This protect savers from inflation.</p><h3>Decentralization</h3><p>Verified by thousands of nodes globally. No central authority can close it down or freeze accounts.</p>`
             },
             'why-bitcoin': {
                 cat: 'Level 1: The Basics',
                 title: 'Why Only Bitcoin?',
+                image: 'assets/bitcoin-gold.jpg',
                 body: `<p>Many "cryptocurrencies" exist, but Bitcoin is unique because it achieved meaningful decentralization. Most other projects have founders, foundations, or groups that can change the rules.</p><h3>Digital Gold</h3><p>Bitcoin is often called digital gold because it is hard to produce and impossible to fake.</p>`
             },
             'lightning-intro': {
                 cat: 'Lightning Network',
                 title: 'What is Lightning?',
-                body: `<p>Lightning is a "Layer 2" built on top of Bitcoin. It allows millions of transactions per second, making it possible to buy a piece of gum or tip 1 cent instantly.</p><h3>Instant & Cheap</h3><p>By moving transactions off the main chain into "channels," we get the security of Bitcoin with the speed of a credit card.</p>`
+                image: 'assets/lightning.jpg',
+                body: `<p>Lightning is a "Layer 2" built on top of Bitcoin. It allows millions of transactions per second, making it possible to buy coffee instantly.</p><h3>Instant & Cheap</h3><p>By moving transactions off the main chain into "channels," we get the security of Bitcoin with the speed of a credit card.</p>`
             },
             'airport': {
                 cat: 'Lightning Network',
                 title: 'The Airport Analogy',
+                image: 'assets/lightning.jpg',
                 body: `<p>Bitcoin is like the big runways and cargo planes. Secure, but slow for small tasks.</p><h3>Courier Service</h3><p>Lightning is the local courier at the airport. It uses smaller "terminals" (channels) to move packages instantly between people.</p>`
+            },
+            'bar-tab': {
+                cat: 'Lightning Network',
+                title: 'The Bar Tab Analogy',
+                image: 'assets/lightning.jpg',
+                body: `<p>Opening a bar tab is like an on-chain Bitcoin transaction.</p><h3>Drinks & Settlement</h3><p>Every beer you order is just a scribble on a coaster—this is a Lightning payment. You settle the final bill on-chain once.</p>`
+            },
+            'nodes': {
+                cat: 'Advanced Tech',
+                title: 'Running a Bitcoin Node',
+                image: 'assets/nodes.jpg',
+                body: `<p>Running a node is how you verify Bitcoin for yourself. It is the ultimate sovereignty tool.</p><h3>Don't Trust, Verify</h3><p>When you run a node, you are checking every block and every transaction to ensure they follow the rules.</p>`
             },
             'byzantine': {
                 cat: 'Advanced Tech',
                 title: 'Byzantine Generals',
+                image: 'assets/nodes.jpg',
                 body: `<p>The core problem: How do armys that don't trust each other agree on a plan? Satoshi solved this with Proof of Work, making it too expensive to lie.</p>`
+            },
+            'el-salvador': {
+                cat: 'Global Adoption',
+                title: 'El Salvador Legal Tender',
+                image: 'assets/el-salvador.jpg',
+                body: `<p>In 2021, El Salvador became the first nation to adopt Bitcoin as legal tender.</p><h3>Financial Inclusion</h3><p>Millions of unbanked citizens now have access to a global financial system through their phones.</p>`
             }
         };
 
-        const links = document.querySelectorAll('.channel-link');
         const wrapper = document.querySelector('.content-wrapper');
+        const links = document.querySelectorAll('.channel-link');
+
+        function render(id) {
+            const data = content[id];
+            if (!data) return;
+            
+            wrapper.innerHTML = \`
+                <div class="lesson-header">
+                    <div class="breadcrumb">\${data.cat}</div>
+                    <h2>\${data.title}</h2>
+                </div>
+                <article>
+                    \${data.image ? \`<img src="\${data.image}" class="article-img" alt="\${data.title}">\` : ''}
+                    \${data.body}
+                </article>
+            \`;
+            document.getElementById('content-anchor').scrollTop = 0;
+        }
 
         links.forEach(link => {
             link.addEventListener('click', (e) => {
                 const id = link.getAttribute('href').substring(1);
                 if (content[id]) {
                     e.preventDefault();
-                    
-                    // Update active state
                     links.forEach(l => l.classList.remove('active'));
                     link.classList.add('active');
-
-                    // Update Content
-                    wrapper.innerHTML = `
-                        <div class="lesson-header">
-                            <div class="breadcrumb">\${content[id].cat}</div>
-                            <h2>\${content[id].title}</h2>
-                        </div>
-                        <article>\${content[id].body}</article>
-                    `;
-                    document.getElementById('content-anchor').scrollTop = 0;
+                    render(id);
                 }
             });
         });
+
+        // Load initial
+        render('properties');
     </script>
 </body>
 </html>
