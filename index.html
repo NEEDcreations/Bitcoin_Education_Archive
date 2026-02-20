@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Education Archive</title>
+    <style>
+        body { background-color: #0f172a; color: #f1f5f9; font-family: system-ui, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { border-bottom: 2px solid #f97316; padding-bottom: 20px; margin-bottom: 40px; text-align: center; }
+        h1 { color: #f97316; font-size: 2.5rem; margin: 0; }
+        .intro { color: #94a3b8; font-size: 1.1rem; margin-top: 10px; }
+        .article { background: #1e293b; border-radius: 12px; padding: 30px; margin-bottom: 30px; border: 1px solid #334155; }
+        h2 { color: #fff; border-left: 4px solid #f97316; padding-left: 15px; margin-top: 0; }
+        h3 { color: #fb923c; margin-top: 25px; }
+        p { margin-bottom: 15px; font-size: 1.1rem; }
+        .badge { display: inline-block; background: rgba(249, 115, 22, 0.2); color: #fb923c; padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; }
+        footer { text-align: center; margin-top: 60px; padding: 20px; border-top: 1px solid #334155; color: #64748b; font-size: 0.9rem; }
+        a { color: #f97316; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bitcoin Education Archive</h1>
+            <p class="intro">Curated lessons from the Bitcoin community Discord.</p>
+        </header>
+
+        <section class="article">
+            <span class="badge">Lightning Network</span>
+            <h2>The Airport Analogy</h2>
+            <p>Bitcoin is like the big runways and cargo planes. It is secure, but too slow and expensive for small things like a cup of coffee.</p>
+            <h3>The Courier Service</h3>
+            <p>Lightning is like the airport courier. Instead of a cargo jet, you set up a "terminal" (a channel) between people. You can send thousands of small packages back and forth instantly for almost nothing.</p>
+            <p>You only use the blockchain twice: to open the terminal and to close it when you settle the final bill.</p>
+        </section>
+
+        <section class="article">
+            <span class="badge">Basic Concepts</span>
+            <h2>The Bar Tab Concept</h2>
+            <p>When you go to a bar, you don't pay for every beer individually. That would be slow and clutter your bank statement.</p>
+            <h3>Opening the Tab</h3>
+            <p>Opening a bar tab is like an on-chain Bitcoin transaction. You lock your card at the desk.</p>
+            <h3>Drinks & Settlement</h3>
+            <p>Every beer you order is just a scribble on a coaster—this is a Lightning payment. At the end of the night, you pay once for the whole total. That single final charge on your statement is the only thing the blockchain sees.</p>
+        </section>
+
+        <section class="article">
+            <span class="badge">Technical Fundamentals</span>
+            <h2>Byzantine Generals Problem</h2>
+            <p>How do distant armies agree on a plan if they don't trust each other and some might be traitors? This is the core problem Bitcoin solves.</p>
+            <h3>The Consensus Solution</h3>
+            <p>Satoshi used "Proof of Work." To send a valid message, a general must solve a massive puzzle that costs real energy. This makes lying too expensive and proves to everyone else that the message is real.</p>
+        </section>
+
+        <footer>
+            &copy; 2026 Bitcoin Education Archive &bull; <a href="https://needcreations.github.io/Frontier_Forge/">Back to Frontier Forge</a>
+        </footer>
+    </div>
+</body>
+</html>
