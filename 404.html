@@ -18,16 +18,35 @@
         footer { text-align: center; margin-top: 60px; padding: 20px; border-top: 1px solid #334155; color: #64748b; font-size: 0.9rem; }
         a { color: #f97316; text-decoration: none; }
         a:hover { text-decoration: underline; }
+        .toc { background: #0f172a; border: 1px solid #334155; padding: 20px; border-radius: 12px; margin-bottom: 40px; }
+        .toc h2 { border: none; padding: 0; font-size: 1.2rem; margin-bottom: 15px; color: #94a3b8; }
+        .toc ul { list-style: none; padding: 0; display: grid; grid-template-cols: 1fr 1fr; gap: 10px; }
+        .toc a { color: #cbd5e1; font-size: 0.9rem; }
+        .toc a:hover { color: #f97316; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Bitcoin Education Archive</h1>
-            <p class="intro">Curated lessons from the Bitcoin community Discord.</p>
+            <p class="intro">Curated lessons from the Bitcoin community Discord backup (Sept 2024).</p>
         </header>
 
-        <section class="article">
+        <nav class="toc">
+            <h2>Quick Navigation</h2>
+            <ul>
+                <li><a href="#airport">The Airport Analogy</a></li>
+                <li><a href="#bar-tab">The Bar Tab Concept</a></li>
+                <li><a href="#byzantine">Byzantine Generals Problem</a></li>
+                <li><a href="#el-salvador">El Salvador Adoption</a></li>
+                <li><a href="#node-running">Why Run a Node?</a></li>
+                <li><a href="#lightning-close">Lightning Close States</a></li>
+                <li><a href="#rbf">Replace-By-Fee (RBF)</a></li>
+                <li><a href="#privacy">Privacy on Lightning</a></li>
+            </ul>
+        </nav>
+
+        <section class="article" id="airport">
             <span class="badge">Lightning Network</span>
             <h2>The Airport Analogy</h2>
             <p>Bitcoin is like the big runways and cargo planes. It is secure, but too slow and expensive for small things like a cup of coffee.</p>
@@ -36,7 +55,7 @@
             <p>You only use the blockchain twice: to open the terminal and to close it when you settle the final bill.</p>
         </section>
 
-        <section class="article">
+        <section class="article" id="bar-tab">
             <span class="badge">Basic Concepts</span>
             <h2>The Bar Tab Concept</h2>
             <p>When you go to a bar, you don't pay for every beer individually. That would be slow and clutter your bank statement.</p>
@@ -46,12 +65,61 @@
             <p>Every beer you order is just a scribble on a coaster—this is a Lightning payment. At the end of the night, you pay once for the whole total. That single final charge on your statement is the only thing the blockchain sees.</p>
         </section>
 
-        <section class="article">
+        <section class="article" id="byzantine">
             <span class="badge">Technical Fundamentals</span>
             <h2>Byzantine Generals Problem</h2>
             <p>How do distant armies agree on a plan if they don't trust each other and some might be traitors? This is the core problem Bitcoin solves.</p>
             <h3>The Consensus Solution</h3>
             <p>Satoshi used "Proof of Work." To send a valid message, a general must solve a massive puzzle that costs real energy. This makes lying too expensive and proves to everyone else that the message is real.</p>
+        </section>
+
+        <section class="article" id="el-salvador">
+            <span class="badge">Global Adoption</span>
+            <h2>🇸🇻 El Salvador Adoption</h2>
+            <p>In 2021, El Salvador became the first country to make Bitcoin legal tender. This wasn't just about price; it was about banking the unbanked.</p>
+            <h3>The Impact</h3>
+            <p>With the Chivo wallet and Lightning, millions of Salvadorans gained access to digital payments for the first time. It proved that a nation can move away from dependence on legacy financial systems using open-source code.</p>
+        </section>
+
+        <section class="article" id="node-running">
+            <span class="badge">Node Operations</span>
+            <h2>6 Reasons to Run a Node</h2>
+            <p>Don't trust, verify. Running your own node is the only way to truly use Bitcoin without permission.</p>
+            <ul>
+                <li><strong>Privacy:</strong> Nobody knows which addresses belong to you.</li>
+                <li><strong>Sovereignty:</strong> You enforce the rules of the network yourself.</li>
+                <li><strong>Security:</strong> Verify that the coins you received are actual Bitcoin.</li>
+                <li><strong>Network Strength:</strong> You help propagate valid blocks to others.</li>
+                <li><strong>Development:</strong> Essential for building apps on top of Bitcoin.</li>
+                <li><strong>Lightning:</strong> Required to route payments and earn routing fees.</li>
+            </ul>
+        </section>
+
+        <section class="article" id="lightning-close">
+            <span class="badge">Lightning Network</span>
+            <h2>Lightning Channel Close States</h2>
+            <p>How does a channel end? There are three main ways:</p>
+            <ul>
+                <li><strong>Collaborative Close:</strong> Both parties agree to close. Fastest and cheapest (lowest fees).</li>
+                <li><strong>Force Close (Unilateral):</strong> One party closes without the other. Funds are locked for a "timelock" period for security.</li>
+                <li><strong>Penalty Close (Breach):</strong> If one party tries to cheat with an old balance, the other party can take 100% of the funds in the channel.</li>
+            </ul>
+        </section>
+
+        <section class="article" id="rbf">
+            <span class="badge">Technical Fundamentals</span>
+            <h2>Replace-By-Fee (RBF)</h2>
+            <p>Stuck transaction? RBF allows you to "bump" the fee of a pending transaction to get it confirmed faster.</p>
+            <h3>How it works</h3>
+            <p>You broadcast a new version of the same transaction but with a higher fee. Miners will see the higher profit and prioritize the new version, effectively cancelling the old stuck one.</p>
+        </section>
+
+        <section class="article" id="privacy">
+            <span class="badge">Privacy</span>
+            <h2>Privacy on Lightning</h2>
+            <p>While on-chain Bitcoin is a public ledger, Lightning offers much higher default privacy.</p>
+            <h3>Onion Routing</h3>
+            <p>Just like Tor, Lightning payments are "wrapped" in layers. Each node in the path only knows where the payment came from and where it's going next—they never know the original sender or the final recipient.</p>
         </section>
 
         <footer>
