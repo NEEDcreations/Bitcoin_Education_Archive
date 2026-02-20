@@ -5,227 +5,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Education Archive</title>
     <style>
-        :root { --primary: #f97316; --bg: #020617; --card: #0f172a; --border: #1e293b; --text: #f1f5f9; --text-muted: #94a3b8; }
-        * { box-sizing: border-box; }
-        body { background-color: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; margin: 0; display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+        body { background-color: #020617; color: #f1f5f9; font-family: sans-serif; margin: 0; padding: 0; min-height: 100vh; }
+        .mobile-header { background: #0f172a; padding: 15px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .logo { color: #f97316; font-weight: bold; font-size: 1.2rem; }
+        .menu-btn { background: #f97316; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
         
-        /* Sidebar / Channel List */
-        aside { width: 300px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 20; transition: transform 0.3s ease; }
-        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
-        .sidebar-header h1 { font-size: 1.2rem; margin: 0; color: var(--primary); }
+        #sidebar { background: #0f172a; position: fixed; top: 60px; left: 0; width: 100%; height: calc(100vh - 60px); z-index: 90; padding: 20px; overflow-y: auto; display: none; }
+        #sidebar.active { display: block; }
         
-        .channels { flex: 1; overflow-y: auto; padding: 10px; }
-        .channel-group { margin-bottom: 20px; }
-        .group-title { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); padding: 10px; letter-spacing: 1px; }
-        .channel-link { display: flex; align-items: center; padding: 8px 12px; color: var(--text-muted); text-decoration: none; border-radius: 6px; font-size: 0.95rem; transition: 0.2s; cursor: pointer; border: none; background: transparent; width: 100%; text-align: left; }
-        .channel-link:before { content: "#"; margin-right: 8px; font-weight: bold; opacity: 0.5; }
-        .channel-link:hover { background: #1e293b; color: var(--text); }
-        .channel-link.active { background: #f9731622; color: var(--primary); font-weight: 600; }
+        .channel-group { margin-bottom: 25px; }
+        .group-title { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 10px; font-weight: 800; }
+        .channel-link { display: block; color: #94a3b8; text-decoration: none; padding: 10px; border-radius: 5px; font-size: 1rem; margin-bottom: 5px; background: rgba(255,255,255,0.03); }
+        .channel-link:before { content: "# "; color: #f97316; opacity: 0.5; }
+        .channel-link.active { color: #f97316; background: rgba(249, 115, 22, 0.1); font-weight: bold; }
 
-        /* Main Content Area */
-        main { flex: 1; overflow-y: auto; background: var(--bg); position: relative; height: 100%; }
-        .content-wrapper { max-width: 850px; margin: 0 auto; padding: 60px 40px; min-height: 100%; }
+        .content { max-width: 800px; margin: 0 auto; padding: 30px 20px; }
+        .lesson-header { border-bottom: 1px solid #1e293b; margin-bottom: 30px; padding-bottom: 20px; }
+        .breadcrumb { font-size: 0.8rem; color: #f97316; font-weight: bold; text-transform: uppercase; }
+        h1 { font-size: 2.2rem; margin: 10px 0; line-height: 1.2; }
         
-        .lesson-header { margin-bottom: 40px; border-bottom: 1px solid var(--border); padding-bottom: 30px; }
-        .breadcrumb { font-size: 0.8rem; color: var(--primary); font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-        h2 { font-size: 3rem; margin: 0; letter-spacing: -1px; line-height: 1.1; }
+        article { font-size: 1.1rem; line-height: 1.6; color: #cbd5e1; }
+        article h3 { color: #fff; margin-top: 30px; border-left: 4px solid #f97316; padding-left: 15px; }
+        .article-img { width: 100%; border-radius: 10px; margin: 20px 0; display: block; border: 1px solid #1e293b; }
         
-        article { font-size: 1.15rem; color: var(--text-muted); }
-        article h3 { color: var(--text); margin-top: 40px; font-size: 1.5rem; border-left: 4px solid var(--primary); padding-left: 15px; }
-        article p { margin-bottom: 24px; }
-        article strong { color: var(--text); }
-        article ul, article ol { margin-bottom: 24px; padding-left: 20px; }
-        article li { margin-bottom: 12px; }
-
-        .callout { background: #f9731611; border-left: 4px solid var(--primary); padding: 20px; border-radius: 0 8px 8px 0; margin: 30px 0; font-style: italic; color: var(--text); }
-        .article-img { width: 100%; border-radius: 12px; border: 1px solid var(--border); margin: 30px 0; max-height: 400px; object-fit: cover; background: #000; display: block; }
-        .thread-sep { border-top: 1px dashed var(--border); margin: 60px 0; }
-
-        /* Mobile Menu Toggle */
-        .menu-toggle { display: none; position: fixed; top: 15px; right: 20px; z-index: 100; background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; font-size: 0.8rem; }
-
-        /* Mobile Adjustments */
-        @media (max-width: 1024px) {
-            aside { position: fixed; height: 100vh; left: 0; top: 0; transform: translateX(-100%); }
-            aside.open { transform: translateX(0); }
-            .menu-toggle { display: block; }
-            .content-wrapper { padding: 80px 20px; }
-            h2 { font-size: 2rem; }
+        @media (min-width: 1024px) {
+            .mobile-header { display: none; }
+            body { display: flex; }
+            #sidebar { display: block; position: sticky; top: 0; width: 300px; height: 100vh; border-right: 1px solid #1e293b; }
+            .content { flex: 1; margin: 0; padding: 60px; max-width: 900px; }
         }
     </style>
 </head>
 <body>
-    <button class="menu-toggle" onclick="toggleMenu()">MENU</button>
+    <div class="mobile-header">
+        <div class="logo">Bitcoin Archive</div>
+        <button class="menu-btn" onclick="toggleMenu()">CHANNELS</button>
+    </div>
+
     <aside id="sidebar">
-        <div class="sidebar-header">
-            <a href="https://needcreations.github.io/Frontier_Forge/" style="text-decoration:none"><h1>Bitcoin Archive</h1></a>
+        <div class="channel-group">
+            <div class="group-title">Introduction</div>
+            <a href="#fundamentals" class="channel-link" onclick="loadPage('fundamentals')">bitcoin-fundamentals</a>
+            <a href="#analogies" class="channel-link" onclick="loadPage('analogies')">analogies-explained</a>
         </div>
-        <div class="channels">
-            <div class="channel-group">
-                <div class="group-title">Introduction</div>
-                <button onclick="render('fundamentals')" class="channel-link active" data-id="fundamentals">bitcoin-fundamentals</button>
-                <button onclick="render('analogies')" class="channel-link" data-id="analogies">analogies-explained</button>
-            </div>
-            <div class="channel-group">
-                <div class="group-title">Lightning Network</div>
-                <button onclick="render('lightning')" class="channel-link" data-id="lightning">lightning-101</button>
-                <button onclick="render('nodes')" class="channel-link" data-id="nodes">node-operations</button>
-            </div>
-            <div class="channel-group">
-                <div class="group-title">Global & Market</div>
-                <button onclick="render('adoption')" class="channel-link" data-id="adoption">global-adoption</button>
-                <button onclick="render('analysis')" class="channel-link" data-id="analysis">market-analysis</button>
-            </div>
+        <div class="channel-group">
+            <div class="group-title">Lightning Network</div>
+            <a href="#lightning" class="channel-link" onclick="loadPage('lightning')">lightning-101</a>
+            <a href="#nodes" class="channel-link" onclick="loadPage('nodes')">node-operations</a>
+        </div>
+        <div class="channel-group">
+            <div class="group-title">Global Adoption</div>
+            <a href="#el-salvador" class="channel-link" onclick="loadPage('el-salvador')">el-salvador-story</a>
         </div>
     </aside>
 
-    <main id="content-anchor">
-        <div class="content-wrapper" id="content-target">
-            <!-- Initial content will be loaded by script -->
-        </div>
+    <main class="content" id="main-content">
+        <!-- Content will be injected here -->
     </main>
 
     <script>
-        const content = {
+        const pages = {
             'fundamentals': {
                 cat: 'Introduction',
                 title: 'Bitcoin Fundamentals',
-                image: 'assets/bitcoin-gold.jpg',
-                body: `
-                    <h3>What is Bitcoin?</h3>
-                    <p>Bitcoin is a decentralized digital currency, without a central bank or single administrator, that can be sent from user to user on the peer-to-peer bitcoin network without the need for intermediaries.</p>
-                    <h3>The Properties of Bitcoin</h3>
-                    <ul>
-                        <li><strong>Scarcity:</strong> Only 21 million BTC will ever exist.</li>
-                        <li><strong>Decentralization:</strong> No central authority or headquarters.</li>
-                        <li><strong>Divisibility:</strong> One BTC is divisible into 100 million units called Satoshis.</li>
-                        <li><strong>Immutability:</strong> Transactions cannot be reversed once confirmed.</li>
-                    </ul>
-                    <div class="callout">"Bitcoin is the first system where we have a known, fixed supply that is verified by everyone and controlled by no one."</div>
-                    <div class="thread-sep"></div>
-                    <h3>Why Only Bitcoin?</h3>
-                    <p>Bitcoin is unique because it is the only network that has achieved true decentralization. Other projects often have "founding teams" or companies that can change the rules at will. In Bitcoin, the rules are enforced by the participants themselves.</p>
-                `
+                img: 'assets/bitcoin-gold.jpg',
+                body: `<h3>The Properties of Bitcoin</h3><p>Bitcoin is the first digital, global, decentralized money. Unlike government "fiat" currencies, Bitcoin is controlled by code, not people.</p><p><strong>Scarcity:</strong> Only 21 million will ever exist. This makes it impossible to "print" more and devalue your savings.</p><h3>Decentralization</h3><p>Verified by thousands of independent computers (nodes). No single player can shut it down or change the rules.</p>`
             },
             'analogies': {
                 cat: 'Introduction',
                 title: 'Analogies Explained',
-                image: 'assets/lightning.jpg',
-                body: `
-                    <h3>The Airport Analogy</h3>
-                    <p>Think of the Bitcoin blockchain as the heavy infrastructure: the massive runways and cargo planes. They move huge amounts of value, but they are expensive and slow to move for small things.</p>
-                    <p><strong>The Courier:</strong> Lightning is like the courier service at the airport. You open a "terminal" (channel) and move small packages (Sats) instantly between people. You only use the big runway to settle up at the end.</p>
-                    <div class="thread-sep"></div>
-                    <h3>The Bar Tab Analogy</h3>
-                    <p>Imagine going to a bar. Instead of paying for every single sip of beer with your credit card (which would be slow and cluttered), you open a tab.</p>
-                    <p>You lock your card at the desk once. All night, the bartender just scribbles marks on a coaster (Lightning transactions). At the end of the night, you settle the total bill in one go (On-chain settlement).</p>
-                `
+                img: 'assets/lightning.jpg',
+                body: `<h3>The Airport Analogy</h3><p>Think of Bitcoin as the massive runways and cargo planes. Secure, but too slow for small things like a cup of coffee.</p><p><strong>Lightning:</strong> This is the airport courier. You setup a "terminal" (channel) and move small packages instantly. You only use the big runway to settle the final bill.</p><h3>The Bar Tab</h3><p>Every beer you order is a "Lightning" payment (a scribble on a coaster). At the end of the night, you pay once on the blockchain to settle the tab.</p>`
             },
             'lightning': {
                 cat: 'Lightning Network',
                 title: 'Lightning 101',
-                image: 'assets/privacy.jpg',
-                body: `
-                    <h3>Layer 2 Scaling</h3>
-                    <p>Lightning is a "Layer 2" protocol built on top of Bitcoin. It enables near-instant, extremely low-fee transactions by keeping most data off the main blockchain.</p>
-                    <h3>Privacy & Onion Routing</h3>
-                    <p>Just like the Tor browser, Lightning uses Onion Routing. When you send a payment, it passes through several nodes. Each node only knows who gave them the payment and where to pass it next. They never know the original sender or final recipient.</p>
-                    <div class="thread-sep"></div>
-                    <h3>Channel States</h3>
-                    <p>Lightning channels can be closed in several ways:</p>
-                    <ul>
-                        <li><strong>Collaborative:</strong> Both parties agree, fees are low.</li>
-                        <li><strong>Force Close:</strong> One party disappears; funds are locked for a short time for safety.</li>
-                        <li><strong>Penalty:</strong> Someone tries to cheat; the honest party takes all the funds.</li>
-                    </ul>
-                `
+                img: 'assets/privacy.jpg',
+                body: `<h3>Layer 2 Scaling</h3><p>Lightning allows millions of transactions per second with near-zero fees. It makes Bitcoin usable for daily purchases.</p><h3>Onion Routing</h3><p>Just like Tor, your payments are "wrapped" in layers. Nodes only know their neighbors, making it extremely private by default.</p>`
             },
             'nodes': {
-                cat: 'Network Tech',
+                cat: 'Lightning Network',
                 title: 'Node Operations',
-                image: 'assets/nodes.jpg',
-                body: `
-                    <h3>Six Reasons to Run a Node</h3>
-                    <ol>
-                        <li><strong>Privacy:</strong> You don't tell a third party how much Bitcoin you have.</li>
-                        <li><strong>Sovereignty:</strong> You enforce the consensus rules yourself.</li>
-                        <li><strong>Security:</strong> You verify every transaction you receive.</li>
-                        <li><strong>Network Health:</strong> You help the network stay resilient by sharing data.</li>
-                        <li><strong>Building:</strong> You need a node to build Bitcoin apps or route Lightning payments.</li>
-                        <li><strong>No Permission:</strong> You use your wealth on your own terms.</li>
-                    </ol>
-                    <div class="thread-sep"></div>
-                    <h3>Fee Management (RBF)</h3>
-                    <p><strong>Replace-By-Fee (RBF)</strong> is a tool to unstick transactions. If you sent a payment with too low a fee, you can use RBF to "bump" the fee, making it move to the front of the line for miners.</p>
-                `
+                img: 'assets/nodes.jpg',
+                body: `<h3>Don't Trust, Verify</h3><p>Running a node means YOU enforce the rules of Bitcoin. You verify every transaction you receive without asking a middleman for permission.</p><h3>Replace-By-Fee (RBF)</h3><p>Allows you to "bump" a stuck transaction by paying a slightly higher fee to get it confirmed faster.</p>`
             },
-            'adoption': {
-                cat: 'Global & Market',
-                title: 'Global Adoption',
-                image: 'assets/el-salvador.jpg',
-                body: `
-                    <h3>🇸🇻 El Salvador</h3>
-                    <p>In 2021, El Salvador became the first country to adopt Bitcoin as legal tender. This move was designed to bank the unbanked and lower the cost of remittances for millions of citizens.</p>
-                    <div class="thread-sep"></div>
-                    <h3>Miami 2022 & The Global Stage</h3>
-                    <p>Major conferences like Bitcoin Miami have become the crossroads for international adoption, bringing together developers, leaders, and citizens from the CAR, El Salvador, and beyond.</p>
-                    <img src="assets/history.jpg" class="article-img">
-                `
-            },
-            'analysis': {
-                cat: 'Global & Market',
-                title: 'Market Analysis',
-                image: 'assets/analysis.jpg',
-                body: `
-                    <h3>Transparent Supply</h3>
-                    <p>Unlike gold or fiat currency, we know exactly how many Bitcoins exist at any second. On-chain analysis lets us see how many coins are "HODLed" (saved long-term) and how many are liquid.</p>
-                    <h3>Stock-to-Flow & Hash Rate</h3>
-                    <p>We analyze the <strong>Stock-to-Flow</strong> model to understand scarcity over time, and the <strong>Hash Rate</strong> to measure the total computational power securing the network.</p>
-                `
+            'el-salvador': {
+                cat: 'Global Adoption',
+                title: '🇸🇻 El Salvador Story',
+                img: 'assets/el-salvador.jpg',
+                body: `<p>In 2021, El Salvador became the first nation to adopt Bitcoin as legal tender. It proved that a nation can move away from dependence on legacy systems using open-source code.</p><h3>Financial Inclusion</h3><p>Millions of citizens gained access to digital payments for the first time via their mobile phones.</p>`
             }
         };
 
-        const target = document.getElementById('content-target');
-        const sidebar = document.getElementById('sidebar');
-
         function toggleMenu() {
-            sidebar.classList.toggle('open');
+            document.getElementById('sidebar').classList.toggle('active');
         }
 
-        function render(id) {
-            const data = content[id];
-            if (!data) return;
-            
-            // Close mobile menu
-            sidebar.classList.remove('open');
+        function loadPage(id) {
+            const page = pages[id];
+            if (!page) return;
 
-            // Update active state in UI
+            // Close menu on mobile
+            document.getElementById('sidebar').classList.remove('active');
+
+            // Update Active Link highlight
             document.querySelectorAll('.channel-link').forEach(link => {
                 link.classList.remove('active');
-                if (link.dataset.id === id) link.classList.add('active');
+                if (link.getAttribute('href') === '#' + id) link.classList.add('active');
             });
 
             // Inject Content
-            target.innerHTML = `
+            document.getElementById('main-content').innerHTML = `
                 <div class="lesson-header">
-                    <div class="breadcrumb">\${data.cat}</div>
-                    <h2>\${data.title}</h2>
+                    <div class="breadcrumb">\${page.cat}</div>
+                    <h1>\${page.title}</h1>
                 </div>
                 <article>
-                    \${data.image ? \`<img src="\${data.image}" class="article-img" alt="\${data.title}">\` : ''}
-                    \${data.body}
+                    <img src="\${page.img}" class="article-img">
+                    \${page.body}
                 </article>
             `;
-            
-            document.getElementById('content-anchor').scrollTop = 0;
-            window.location.hash = id;
+            window.scrollTo(0,0);
         }
 
-        // Handle URL hash on load
-        window.onload = () => {
-            const hash = window.location.hash.substring(1);
-            render(hash || 'fundamentals');
-        };
+        // Load fundamental page on startup
+        const hash = window.location.hash.substring(1);
+        loadPage(hash || 'fundamentals');
     </script>
 </body>
 </html>
