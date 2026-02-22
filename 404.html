@@ -30,7 +30,7 @@
         /* Messages */
         .messages { max-width: 950px; margin: 0 auto; padding: 0 60px 80px; }
         .msg { padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        .msg-author { color: #f97316; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; }
+        .msg-author { display: none; }
         .msg-text { color: #cbd5e1; font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; }
         .msg-text strong, .msg-text b { color: #fff; }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 14px; border: 1px solid #1e293b; cursor: pointer; transition: 0.2s; }
@@ -301,7 +301,7 @@
         let html = '';
         d.msgs.forEach(m => {
             html += '<div class="msg">';
-            html += '<div class="msg-author">' + (m.author || 'needcreations') + '</div>';
+            // no author names
             if (m.text) html += '<div class="msg-text">' + m.text + '</div>';
             if (m.link) html += '<div style="margin-top:8px"><a class="msg-link" href="' + m.link + '" target="_blank">' + m.link + '</a></div>';
             if (m.imgs) m.imgs.forEach(img => {
