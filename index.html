@@ -102,13 +102,13 @@
 <body>
     <!-- Mobile top bar -->
     <div class="mobile-bar">
-        <h2>₿ Bitcoin Education</h2>
+        <h2 onclick="goHome()" style="cursor:pointer;">₿ Bitcoin Education</h2>
         <button onclick="toggleMenu()">☰ Menu</button>
     </div>
 
     <aside id="sidebar">
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
-        <div class="sidebar-header">
+        <div class="sidebar-header" onclick="goHome()" style="cursor:pointer;">
             <div>
                 <h2>₿ Bitcoin Education</h2>
                 <p>Discord Server Archive</p>
@@ -319,6 +319,16 @@
 
     function toggleMenu() {
         document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function goHome() {
+        document.getElementById('home').classList.remove('hidden');
+        document.getElementById('hero').innerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
+        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('main').scrollTop = 0;
+        history.replaceState(null, null, window.location.pathname);
+        if (isMobile()) document.getElementById('sidebar').classList.remove('open');
     }
 
     function go(id, btn) {
