@@ -9,13 +9,13 @@
         body { background: #020617; color: #e2e8f0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
         /* Sidebar */
-        aside { width: 420px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
+        aside { width: 320px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e293b; }
         .sidebar-header h2 { color: #f97316; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; }
         .sidebar-header p { color: #64748b; font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
         .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #475569; letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
-        .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.8rem; font-family: inherit; word-break: break-word; line-height: 1.4; }
+        .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.9rem; font-family: inherit; }
         .ch-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
         .ch-btn.active { background: rgba(249,115,22,0.15); color: #f97316; font-weight: 700; }
         .ch-btn::before { content: "# "; color: #475569; font-weight: 700; }
@@ -24,7 +24,7 @@
         main { flex: 1; overflow-y: auto; }
         .hero { padding: 80px 60px 40px; max-width: 950px; margin: 0 auto; }
         .hero .cat { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: #f97316; font-weight: 800; margin-bottom: 12px; }
-        .hero h1 { font-size: 2.2rem; font-weight: 900; color: #fff; letter-spacing: -0.5px; line-height: 1.2; margin-bottom: 16px; }
+        .hero h1 { font-size: 2.4rem; font-weight: 900; color: #fff; letter-spacing: -0.5px; line-height: 1.25; margin-bottom: 16px; }
         .hero .desc { color: #64748b; font-size: 1rem; border-bottom: 1px solid #1e293b; padding-bottom: 30px; margin-bottom: 0; }
         
         /* Messages */
@@ -62,15 +62,15 @@
         <div class="channels">
             <div class="cat-label">Properties Layer 1</div>
             <button class="ch-btn active" onclick="go('whitepaper',this)">📄 whitepaper</button>
-            <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant-ungovernable-incorruptible-trustless-unconfiscatable-updatable</button>
-            <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable-hedge-scalable-p2p-instant-open-source-auditable-inaliable</button>
-            <button class="ch-btn" onclick="go('secure',this)">™ secure-fungible-immutable-incorruptible-immalleable-infallible-reliable-predictable-irreplicable</button>
-            <button class="ch-btn" onclick="go('money',this)">💰 money-deflationary-salable-durable-anti-fragile-divisible-portable-transmittable-verifiable-fair</button>
-            <button class="ch-btn" onclick="go('peaceful',this)">☮ peaceful-neutral-voluntary-open-universal-permissionless-borderless-global-inevitable-unstoppable</button>
-            <button class="ch-btn" onclick="go('dominant',this)">🏆 dominant-recognizable-brand-legitimate-limitless-infinite-exponential-transformative-revolutionary</button>
-            <button class="ch-btn" onclick="go('organic',this)">🌳 organic-empowering-elegant-freedom-centric-irrefutable-unseizable-irreversible-unbreakable</button>
-            <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy-inviolate-dilution-proof-frictionless-freely-accessible-settlement-finality</button>
-            <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable-deflationary-pseudonymous-opt-in-resilient-adiabatic-egalitarian</button>
+            <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
+            <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable</button>
+            <button class="ch-btn" onclick="go('secure',this)">™ secure-fungible</button>
+            <button class="ch-btn" onclick="go('money',this)">💰 money-deflationary</button>
+            <button class="ch-btn" onclick="go('peaceful',this)">☮ peaceful-neutral</button>
+            <button class="ch-btn" onclick="go('dominant',this)">🏆 dominant-recognizable</button>
+            <button class="ch-btn" onclick="go('organic',this)">🌳 organic-empowering</button>
+            <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy</button>
+            <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable</button>
             <button class="ch-btn" onclick="go('use-cases',this)">✔ use-cases</button>
         </div>
     </aside>
