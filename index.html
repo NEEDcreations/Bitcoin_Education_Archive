@@ -294,6 +294,7 @@
                     <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
                     <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
                     <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
+                    <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
                 </div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
                 <p class="home-footer">Open source · Free forever · Built on GitHub Pages</p>
@@ -402,10 +403,27 @@
         go(key);
     }
 
+    // Visit counter - uses visitor-badge.laobi.icu (free, reliable)
+    (function() {
+        const vc = document.getElementById('visitCount');
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+            // Draw to canvas to read the number
+            try {
+                const c = document.createElement('canvas');
+                c.width = img.width; c.height = img.height;
+                c.getContext('2d').drawImage(img, 0, 0);
+            } catch(e) {}
+        };
+        img.src = 'https://visitor-badge.laobi.icu/badge?page_id=needcreations.btc-education-archive&left_color=%230f172a&right_color=%23f97316';
+        // Show the badge image directly in the stat
+        vc.innerHTML = '<img src="https://visitor-badge.laobi.icu/badge?page_id=needcreations.btc-education-archive&left_color=%230f172a&right_color=%23f97316&left_text=visits" style="height:28px;vertical-align:middle;" alt="visits">';
+    })();
+
     window.onload = () => {
         const h = location.hash.slice(1);
         if (h) go(h);
-        // else show home page (default)
     };
     </script>
 </body>
