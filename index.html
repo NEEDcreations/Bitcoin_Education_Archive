@@ -9,13 +9,13 @@
         body { background: #020617; color: #e2e8f0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; }
         
         /* Sidebar */
-        aside { width: 320px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
+        aside { width: 420px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e293b; }
         .sidebar-header h2 { color: #f97316; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; }
         .sidebar-header p { color: #64748b; font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
         .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #475569; letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
-        .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.9rem; font-family: inherit; }
+        .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.8rem; font-family: inherit; word-break: break-word; line-height: 1.4; }
         .ch-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
         .ch-btn.active { background: rgba(249,115,22,0.15); color: #f97316; font-weight: 700; }
         .ch-btn::before { content: "# "; color: #475569; font-weight: 700; }
@@ -24,7 +24,7 @@
         main { flex: 1; overflow-y: auto; }
         .hero { padding: 80px 60px 40px; max-width: 950px; margin: 0 auto; }
         .hero .cat { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: #f97316; font-weight: 800; margin-bottom: 12px; }
-        .hero h1 { font-size: 3.2rem; font-weight: 900; color: #fff; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 16px; }
+        .hero h1 { font-size: 2.2rem; font-weight: 900; color: #fff; letter-spacing: -0.5px; line-height: 1.2; margin-bottom: 16px; }
         .hero .desc { color: #64748b; font-size: 1rem; border-bottom: 1px solid #1e293b; padding-bottom: 30px; margin-bottom: 0; }
         
         /* Messages */
@@ -62,15 +62,15 @@
         <div class="channels">
             <div class="cat-label">Properties Layer 1</div>
             <button class="ch-btn active" onclick="go('whitepaper',this)">📄 whitepaper</button>
-            <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized</button>
-            <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable</button>
-            <button class="ch-btn" onclick="go('secure',this)">™ secure-fungible</button>
-            <button class="ch-btn" onclick="go('money',this)">💰 money-deflationary</button>
-            <button class="ch-btn" onclick="go('peaceful',this)">☮ peaceful-neutral</button>
-            <button class="ch-btn" onclick="go('dominant',this)">🏆 dominant-brand</button>
-            <button class="ch-btn" onclick="go('organic',this)">🌳 organic-empowering</button>
-            <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy</button>
-            <button class="ch-btn" onclick="go('programmable',this)">🤖 programmable</button>
+            <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant-ungovernable-incorruptible-trustless-unconfiscatable-updatable</button>
+            <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable-hedge-scalable-p2p-instant-open-source-auditable-inaliable</button>
+            <button class="ch-btn" onclick="go('secure',this)">™ secure-fungible-immutable-incorruptible-immalleable-infallible-reliable-predictable-irreplicable</button>
+            <button class="ch-btn" onclick="go('money',this)">💰 money-deflationary-salable-durable-anti-fragile-divisible-portable-transmittable-verifiable-fair</button>
+            <button class="ch-btn" onclick="go('peaceful',this)">☮ peaceful-neutral-voluntary-open-universal-permissionless-borderless-global-inevitable-unstoppable</button>
+            <button class="ch-btn" onclick="go('dominant',this)">🏆 dominant-recognizable-brand-legitimate-limitless-infinite-exponential-transformative-revolutionary</button>
+            <button class="ch-btn" onclick="go('organic',this)">🌳 organic-empowering-elegant-freedom-centric-irrefutable-unseizable-irreversible-unbreakable</button>
+            <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy-inviolate-dilution-proof-frictionless-freely-accessible-settlement-finality</button>
+            <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable-deflationary-pseudonymous-opt-in-resilient-adiabatic-egalitarian</button>
             <button class="ch-btn" onclick="go('use-cases',this)">✔ use-cases</button>
         </div>
     </aside>
@@ -101,7 +101,7 @@
         },
         'decentralized': {
             cat: 'Properties Layer 1',
-            title: '👪 Decentralized · Censorship Resistant · Ungovernable',
+            title: '👪 decentralized-censorship-resistant-ungovernable-incorruptible-trustless-unconfiscatable-updatable',
             desc: 'No person, group, or central authority controls Bitcoin.',
             msgs: [
                 { text: '<b>DECENTRALIZATION</b>\nThere are three main reasons that Bitcoin is decentralized. One is that there is no person, group, or central authority in charge of Bitcoin. There is no Bitcoin CEO or Bitcoin board of directors or head of marketing. No one can decide to mint more than the max supply of Bitcoin.' },
@@ -113,7 +113,7 @@
         },
         'scarce': {
             cat: 'Properties Layer 1',
-            title: '🍀 Scarce · Unforgeable · Scalable · P2P',
+            title: '🍀 scarce-unforgeable-hedge-scalable-p2p-instant-open-source-auditable-inaliable',
             desc: 'There will only ever be 21,000,000 Bitcoin.',
             msgs: [
                 { text: '<b>SCARCITY / UNFORGEABILITY</b>\nBitcoin\'s supply is limited, which makes it different than fiat currency like USD and other cryptocurrencies like Ethereum. There will only ever be 21,000,000* Bitcoin. So far, 19.1 million have been mined. Additionally, 2-3 million coins are actually either lost due to people losing their keys, or intentionally burned to permanently reduce the supply, so the actual supply is well below 21 million.' },
@@ -124,7 +124,7 @@
         },
         'secure': {
             cat: 'Properties Layer 1',
-            title: '™ Secure · Fungible · Immutable · Irreplicable',
+            title: '™ secure-fungible-immutable-incorruptible-immalleable-infallible-reliable-predictable-irreplicable',
             desc: 'Bitcoin is a honeypot of over $800 billion and has been under attack every day since 2013.',
             msgs: [
                 { text: '<b>SECURITY</b>\nIt is quite impossible to hack the Bitcoin network. Bitcoin is a honeypot of over $800 billion and has been under attack every hour of every day since gaining significant value around 2013. Every day that passes, Bitcoin\'s security gets stronger. This is because more and more computers join the network.' },
@@ -137,7 +137,7 @@
         },
         'money': {
             cat: 'Properties Layer 1',
-            title: '💰 Money · Deflationary · Salable · Durable',
+            title: '💰 money-deflationary-salable-durable-anti-fragile-divisible-portable-transmittable-verifiable-fair',
             desc: 'Money is the token or representation of value.',
             msgs: [
                 { text: '<b>MONEY</b>\nMoney is the token or representation of value. It was created after the system of barter became inefficient. There are key features that define money and the properties of Bitcoin that fit the mold: durability (Bitcoin can\'t be destroyed), portability (send it anywhere instantly), divisibility (1 Bitcoin = 100,000,000 satoshis), uniformity (every Bitcoin is the same), limited supply (21 million cap), and acceptability (growing every day).' },
@@ -148,7 +148,7 @@
         },
         'peaceful': {
             cat: 'Properties Layer 1',
-            title: '☮ Peaceful · Neutral · Permissionless · Borderless',
+            title: '☮ peaceful-neutral-voluntary-open-universal-permissionless-borderless-global-inevitable-unstoppable',
             desc: 'No one will force you to use Bitcoin. You can choose to opt-in.',
             msgs: [
                 { text: '<b>PEACEFUL / NEUTRAL / VOLUNTARY / OPEN / UNIVERSAL / PERMISSIONLESS / BORDERLESS / GLOBAL</b>\nNo one will force you to use Bitcoin. You can choose to opt-in if you want. You don\'t need permission or special access to transact or develop on the Bitcoin network. There are no gatekeepers preventing you from joining.' },
@@ -157,7 +157,7 @@
         },
         'dominant': {
             cat: 'Properties Layer 1',
-            title: '🏆 Dominant · Recognizable · Limitless · Revolutionary',
+            title: '🏆 dominant-recognizable-brand-legitimate-limitless-infinite-exponential-transformative-revolutionary',
             desc: 'The top 10 cryptocurrencies have traded hands many times since 2009 — all except spot #1.',
             msgs: [
                 { text: '<b>DOMINANT / RECOGNIZABLE BRAND</b>\nThe top 10 cryptocurrencies have traded hands many times since 2009...all except spot #1. Bitcoin has a head start, and by now, everyone in the world has at least heard of Bitcoin. Nothing will catch it or replace it.' },
@@ -171,7 +171,7 @@
         },
         'organic': {
             cat: 'Properties Layer 1',
-            title: '🌳 Organic · Empowering · Elegant · Freedom-Centric',
+            title: '🌳 organic-empowering-elegant-freedom-centric-irrefutable-unseizable-irreversible-unbreakable',
             desc: 'Bitcoin started as an idea with no marketing team.',
             msgs: [
                 { text: '<b>ORGANIC</b>\nBitcoin started as an idea, then turned into a collectible (that originally had no value), and is now valued at $40,000. For most of the world, Bitcoin was a grassroots movement and revolution to protect citizens from inflation and totalitarianism. There is no marketing team or marketing budget.' },
@@ -182,7 +182,7 @@
         },
         'supranational': {
             cat: 'Properties Layer 1',
-            title: '🕊 Supranational · Lindy · Inviolate',
+            title: '🕊 supranational-lindy-inviolate-dilution-proof-frictionless-freely-accessible-settlement-finality',
             desc: 'Not part of any government. Consensual and inclusive.',
             msgs: [
                 { text: '<b>SUPRANATIONAL</b>\nNot part of any government.\n\n<b>LINDY</b>\nThe future life expectancy of some non-perishable things, like a technology or an idea, is proportional to their current age.\n\n<b>INVIOLATE</b>\nIt doesn\'t force itself on anyone — making it consensual. It doesn\'t exclude anyone from using it — making it inclusive.', imgs: ['images/properties/supranational_supranational_1_9k5rfCuRanEgJLQGWOs28g.jpeg'] }
@@ -190,7 +190,7 @@
         },
         'programmable': {
             cat: 'Properties Layer 1',
-            title: '🤖 Programmable · Interoperable · Egalitarian',
+            title: '🤖 programable-interoperable-deflationary-pseudonymous-opt-in-resilient-adiabatic-egalitarian',
             desc: 'Adiabatic — or "thermodynamically sound" as put by Saylor.',
             msgs: [
                 { text: 'Adiabatic — or "thermodynamically sound" as put by Saylor.', imgs: ['images/properties/programmable_programmable_F6UGCD-bAAAqjmY.jpg', 'images/properties/programmable_programmable_F6PpDq8W4AIK9rf.png'] },
