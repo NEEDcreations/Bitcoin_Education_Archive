@@ -18,7 +18,7 @@
         .search-input { width: 100%; padding: 10px 14px; background: #020617; border: 1px solid #1e293b; border-radius: 8px; color: #e2e8f0; font-size: 0.9rem; font-family: inherit; outline: none; }
         .search-input:focus { border-color: #f97316; }
         .search-input::placeholder { color: #475569; }
-        .search-results { padding: 12px; display: none; }
+        .search-results { padding: 12px; display: none; overflow-y: auto; flex: 1; background: #0f172a; }
         .search-results.active { display: block; }
         .sr-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; margin-bottom: 2px; border-left: 3px solid transparent; }
         .sr-item:hover { background: rgba(255,255,255,0.04); color: #fff; border-left-color: #f97316; }
@@ -55,8 +55,11 @@
         .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
         
         @media (max-width: 900px) {
-            body { flex-direction: column; }
-            aside { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid #1e293b; }
+            body { flex-direction: column; height: auto; overflow: auto; }
+            aside { width: 100%; height: auto; max-height: none; border-right: none; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+            .channels { max-height: 250px; }
+            .search-results { max-height: 300px; }
+            main { overflow-y: visible; }
             .hero { padding: 40px 24px 24px; }
             .hero h1 { font-size: 2rem; }
             .messages { padding: 0 24px 60px; }
@@ -307,7 +310,7 @@
             return;
         }
         sr.innerHTML = results.slice(0, 30).map(r =>
-            '<div class="sr-item" onclick="doSearch(\'\');document.getElementById(\'searchInput\').value=\'\';go(\'' + r.key + '\')">' +
+            '<div class="sr-item" onclick="doSearch(\'\');document.getElementById(\'searchInput\').value=\'\';go(\'' + r.key + '\');document.getElementById(\'main\').scrollIntoView();">' +
             '<div class="sr-cat">' + r.cat + '</div>' +
             '<div>' + r.title + '</div>' +
             '<div class="sr-match">' + r.match + '</div></div>'
