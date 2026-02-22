@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>U.S. Strategic Bitcoin Reserve Explained: Executive Order, BITCOIN Act Status & Timeline 2025</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Complete guide to the U.S. Strategic Bitcoin Reserve: Trump's 2025 executive order securing 200,000+ BTC, Senator Lummis's BITCOIN Act proposing 1M BTC purchase, timeline, FAQs, and latest updates on America's Bitcoin holdings.">
+    <meta name="keywords" content="Strategic Bitcoin Reserve, BITCOIN Act, Senator Lummis, Donald Trump, Executive Order, Bitcoin reserve, cryptocurrency policy, national Bitcoin reserve, US Bitcoin holdings, Cynthia Lummis, digital assets, Bitcoin stockpile, seized Bitcoin">
+    <meta name="author" content="orangesurf">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://strategicbitcoinreserve.com/" />
+    <meta property="og:title" content="U.S. Strategic Bitcoin Reserve Explained: Executive Order, BITCOIN Act Status & Timeline 2025" />
+    <meta property="og:description" content="Complete guide to the U.S. Strategic Bitcoin Reserve: Trump's 2025 executive order securing 200,000+ BTC, Senator Lummis's BITCOIN Act proposing 1M BTC purchase, timeline, FAQs, and latest updates." />
+    <meta property="og:image" content="https://strategicbitcoinreserve.com/banner.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1000" />
+    <meta property="og:image:height" content="500" />
+    <meta property="og:image:alt" content="Strategic Bitcoin Reserve - U.S. Government Bitcoin Holdings" />
+    <meta property="article:published_time" content="2024-07-31T00:00:00Z" />
+    <meta property="article:modified_time" content="2026-01-11T00:00:00Z" />
+    <meta property="article:author" content="https://x.com/orangesurfbtc" />
+    <meta property="article:section" content="Cryptocurrency Policy" />
+    <meta property="article:tag" content="Bitcoin" />
+    <meta property="article:tag" content="Strategic Reserve" />
+    <meta property="article:tag" content="Cryptocurrency Policy" />
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@orangesurfbtc" />
+    <meta name="twitter:creator" content="@orangesurfbtc" />
+    <meta name="twitter:url" content="https://strategicbitcoinreserve.com/" />
+    <meta name="twitter:title" content="U.S. Strategic Bitcoin Reserve Explained: Executive Order, BITCOIN Act Status & Timeline 2025" />
+    <meta name="twitter:description" content="Complete guide to the U.S. Strategic Bitcoin Reserve: Trump's 2025 executive order securing 200,000+ BTC, Senator Lummis's BITCOIN Act proposing 1M BTC purchase, timeline, FAQs, and latest updates." />
+    <meta name="twitter:image" content="https://strategicbitcoinreserve.com/banner.png" />
+    <meta name="twitter:image:alt" content="Strategic Bitcoin Reserve - U.S. Government Bitcoin Holdings" />
+    <link rel="canonical" href="https://strategicbitcoinreserve.com/" />
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://strategicbitcoinreserve.com/#website",
+          "url": "https://strategicbitcoinreserve.com/",
+          "name": "Strategic Bitcoin Reserve",
+          "description": "The U.S. Strategic Bitcoin Reserve, established in 2025 via executive order, secures seized bitcoin as a national asset. The pending BITCOIN Act proposes acquiring 1 million BTC to bolster the economy and reduce national debt.",
+          "publisher": {
+            "@id": "https://strategicbitcoinreserve.com/#organization"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://strategicbitcoinreserve.com/#organization",
+          "name": "Strategic Bitcoin Reserve Info",
+          "url": "https://strategicbitcoinreserve.com/",
+          "logo": "https://strategicbitcoinreserve.com/banner.png",
+          "sameAs": [
+            "https://twitter.com/orangesurfbtc"
+          ]
+        },
+        {
+          "@type": "Article",
+          "@id": "https://strategicbitcoinreserve.com/#article",
+          "headline": "U.S. Strategic Bitcoin Reserve Explained: Executive Order, BITCOIN Act Status & Timeline 2025",
+          "description": "Complete guide to the U.S. Strategic Bitcoin Reserve: Trump's 2025 executive order securing 200,000+ BTC, Senator Lummis's BITCOIN Act proposing 1M BTC purchase, timeline, FAQs, and latest updates on America's Bitcoin holdings.",
+          "image": "https://strategicbitcoinreserve.com/banner.png",
+          "datePublished": "2024-07-31",
+          "dateModified": "2026-01-11",
+          "author": {
+            "@type": "Person",
+            "name": "orangesurf",
+            "url": "https://x.com/orangesurfbtc"
+          },
+          "publisher": {
+            "@id": "https://strategicbitcoinreserve.com/#organization"
+          },
+          "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://strategicbitcoinreserve.com/"
+          },
+          "about": [
+            {
+              "@type": "Thing",
+              "name": "Bitcoin",
+              "sameAs": "https://en.wikipedia.org/wiki/Bitcoin"
+            },
+            {
+              "@type": "Thing",
+              "name": "Strategic Reserve",
+              "sameAs": "https://en.wikipedia.org/wiki/Strategic_reserve"
+            }
+          ],
+          "keywords": "Strategic Bitcoin Reserve, BITCOIN Act, Senator Lummis, Donald Trump, Executive Order, Bitcoin reserve, cryptocurrency policy, national Bitcoin reserve, US Bitcoin holdings"
+        },
+        {
+          "@type": "Event",
+          "name": "Strategic Bitcoin Reserve Executive Order Signed",
+          "startDate": "2025-03-06",
+          "endDate": "2025-03-06",
+          "eventStatus": "https://schema.org/EventScheduled",
+          "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+          "location": {
+            "@type": "Place",
+            "name": "White House",
+            "address": {
+              "@type": "PostalAddress",
+              "addressCountry": "US"
+            }
+          },
+          "description": "President Donald J. Trump signed an Executive Order to establish a Strategic Bitcoin Reserve to be capitalized with bitcoin owned by the Department of Treasury.",
+          "organizer": {
+            "@type": "GovernmentOrganization",
+            "name": "White House"
+          }
+        },
+        {
+          "@type": "Event",
+          "name": "BITCOIN Act Introduced in Senate",
+          "startDate": "2024-07-31",
+          "endDate": "2024-07-31",
+          "eventStatus": "https://schema.org/EventScheduled",
+          "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+          "location": {
+            "@type": "Place",
+            "name": "U.S. Senate",
+            "address": {
+              "@type": "PostalAddress",
+              "addressCountry": "US"
+            }
+          },
+          "description": "Senator Lummis officially introduces the Boosting Innovation, Technology and Competitiveness through Optimized Investment Nationwide (BITCOIN) Act in the U.S. Senate.",
+          "organizer": {
+            "@type": "Person",
+            "name": "Senator Cynthia Lummis"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is the Strategic Bitcoin Reserve?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The U.S. Strategic Bitcoin Reserve is a government initiative established by President Donald J. Trump through an executive order on March 7, 2025. It holds Bitcoin seized from criminal and civil forfeiture proceedings as a store of reserve assets, with a commitment not to sell these holdings. The reserve currently holds approximately 200,000 Bitcoin worth over $17 billion."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is the BITCOIN Act?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The BITCOIN Act (Boosting Innovation, Technology and Competitiveness through Optimized Investment Nationwide Act) is legislation introduced by Senator Cynthia Lummis that proposes purchasing 1 million Bitcoin over time, representing approximately 5% of Bitcoin's total supply. The Bitcoin would be held for at least 20 years and could potentially be used to reduce national debt."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How much Bitcoin does the U.S. government currently hold?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "According to White House AI and crypto tsar David Sacks, the U.S. government currently holds approximately 200,000 to 207,000 Bitcoin, valued at around $17.5-18.6 billion. These holdings primarily come from Bitcoin seized in criminal and civil asset forfeiture proceedings."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Will the U.S. government buy more Bitcoin?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The executive order authorizes the Secretaries of Treasury and Commerce to develop budget-neutral acquisition strategies that impose no incremental costs on taxpayers. However, large-scale Bitcoin purchases would require Congressional approval through legislation like the BITCOIN Act, which is currently pending in the Senate Banking Committee."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "When will the BITCOIN Act be voted on?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The BITCOIN Act was introduced on July 31, 2024, and referred to the Senate Committee on Banking, Housing, and Urban Affairs. A Senate vote has not yet been scheduled. On March 11, 2025, Congressman Nick Begich announced he will introduce the BITCOIN Act of 2025 to the House with 6 co-sponsors. The timeline for votes in both chambers remains to be determined."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What are the arguments against a Strategic Bitcoin Reserve?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Critics like Nic Carter argue that a Strategic Bitcoin Reserve could undermine confidence in the dollar as the global reserve currency, potentially causing market panic and inflation. Skeptics also question whether Bitcoin has strategic value comparable to commodities like oil, and raise concerns about wealth transfer to existing Bitcoin holders and the reserve's vulnerability to reversal by future administrations."
+              }
+            }
+          ]
+        },
+        {
+          "@type": "VideoObject",
+          "@id": "https://strategicbitcoinreserve.com/#video1",
+          "name": "The Strategic Bitcoin Reserve - Matthew Pines & American HODL",
+          "description": "Matthew Pines (Bitcoin Policy Institute) and American HODL discuss the Strategic Bitcoin Reserve, exploring nation-state game theory behind Bitcoin accumulation and whether this signals the beginning of a global Bitcoin arms race.",
+          "thumbnailUrl": "https://img.youtube.com/vi/73bpcCHTYzA/maxresdefault.jpg",
+          "uploadDate": "2024-07-27",
+          "contentUrl": "https://www.youtube.com/watch?v=73bpcCHTYzA",
+          "embedUrl": "https://www.youtube.com/embed/73bpcCHTYzA",
+          "publisher": {
+            "@type": "Organization",
+            "name": "YouTube",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://www.youtube.com/img/desktop/yt_1200.png"
+            }
+          }
+        },
+        {
+          "@type": "VideoObject",
+          "@id": "https://strategicbitcoinreserve.com/#video2",
+          "name": "The Strategic Bitcoin Reserve - Bitcoin Policy Institute Forum",
+          "description": "On March 11th, alongside honorary co-host Senator Cynthia Lummis, top executives, public officials, and policy experts will convene in DC to shape America's Bitcoin strategy. Bitcoin Policy Institute forum with honorary co-host Senator Cynthia Lummis.",
+          "thumbnailUrl": "https://img.youtube.com/vi/vrkIUnmLYDI/maxresdefault.jpg",
+          "uploadDate": "2025-03-11",
+          "contentUrl": "https://youtu.be/vrkIUnmLYDI",
+          "embedUrl": "https://www.youtube.com/embed/vrkIUnmLYDI",
+          "publisher": {
+            "@type": "Organization",
+            "name": "YouTube",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://www.youtube.com/img/desktop/yt_1200.png"
+            }
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "@id": "https://strategicbitcoinreserve.com/#breadcrumb",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://strategicbitcoinreserve.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Strategic Bitcoin Reserve Guide",
+              "item": "https://strategicbitcoinreserve.com/#article"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+  </head>
+  <body>
+
+    <div class="top-banner">
+      <div class="banner-content">
+        <span class="banner-amount">Amount Pending Confirmation</span>
+        <span class="banner-separator">|</span>
+        <span class="banner-status">Strategic Bitcoin Reserve <a href="https://www.whitehouse.gov/fact-sheets/2025/03/fact-sheet-president-donald-j-trump-establishes-the-strategic-bitcoin-reserve-and-u-s-digital-asset-stockpile/" class="proposal-link" target="_blank">Created</a></span>
+      </div>
+    </div>
+
+    <nav>
+      <ul>
+        <li><a href="index.html" class="active">Home</a></li>
+        <li><a href="timeline.html">Timeline</a></li>
+        <li><a href="bitcoin-act.html">Bitcoin ACT</a></li>
+        <li><a href="faq.html">FAQ</a></li>
+        <li><a href="media.html">Media</a></li>
+        <li><a href="skeptics.html">Skeptics</a></li>
+        <li><a href="videos.html">Videos</a></li>
+      </ul>
+    </nav>
+
+    <header>
+      <h1>Strategic Bitcoin Reserve</h1>
+    </header>
+
+    <main class="content-container">
+      <div class="single-column">
+
+        <div class="tab-container">
+          <div class="tab-nav">
+            <button class="tab-button active" onclick="switchTab(event, 'summary')">Summary</button>
+            <button class="tab-button" onclick="switchTab(event, 'facts')">Key Facts</button>
+            <button class="tab-button" onclick="switchTab(event, 'impact')">Impact</button>
+          </div>
+
+          <div id="summary" class="tab-content active">
+            <article class="summary">
+              <h2>Summary</h2>
+              <p>The U.S. Strategic Bitcoin Reserve was established by President Donald J. Trump through an <a href="https://www.whitehouse.gov/fact-sheets/2025/03/fact-sheet-president-donald-j-trump-establishes-the-strategic-bitcoin-reserve-and-u-s-digital-asset-stockpile/" target="_blank">executive order</a> on March 7, 2025. This reserve will be capitalized with bitcoin seized by the Department of Treasury from criminal and civil forfeiture proceedings and shall be maintained as a store of reserve assets, with a commitment not to sell these holdings. Other federal agencies are now assessing their authority to transfer bitcoin to this reserve, and the Secretaries of Treasury and Commerce are tasked with developing budget-neutral strategies to acquire additional bitcoin without taxpayer costs.</p>
+              <p>In parallel, U.S. Senator Cynthia Lummis (R-WY) has proposed the <a href="https://www.lummis.senate.gov/wp-content/uploads/BITCOIN-Act-FINAL.pdf" target="_blank">BITCOIN Act</a>. This legislation aims to expand the reserve by purchasing 1 million Bitcoin (approximately 5% of the total supply) over time, to be held for at least 20 years and potentially used to reduce national debt. The bill seeks to reinforce America's financial leadership and address inflation concerns.</p>
+            </article>
+          </div>
+
+          <div id="facts" class="tab-content">
+            <section class="key-facts">
+              <h2>Key Facts About the Strategic Bitcoin Reserve</h2>
+              <ul>
+                <li><strong>Current Holdings:</strong> Approximately 200,000-207,000 Bitcoin (worth $17.5-18.6 billion as of March 2025)</li>
+                <li><strong>Source of Bitcoin:</strong> Primarily seized from criminal and civil asset forfeiture proceedings</li>
+                <li><strong>No-Sell Policy:</strong> The government has committed not to sell Bitcoin deposited into the Strategic Bitcoin Reserve</li>
+                <li><strong>Proposed Expansion:</strong> BITCOIN Act proposes purchasing 1 million BTC (about 5% of total Bitcoin supply)</li>
+                <li><strong>Holding Period:</strong> Bitcoin would be held for at least 20 years under the BITCOIN Act</li>
+                <li><strong>Budget Neutral Requirement:</strong> Any additional acquisitions must impose no incremental costs on taxpayers</li>
+                <li><strong>Legislative Status:</strong> BITCOIN Act pending in Senate Banking Committee; House version introduced March 2025</li>
+              </ul>
+            </section>
+          </div>
+
+          <div id="impact" class="tab-content">
+            <section class="potential-impact">
+              <h2>Potential Impact and Implications</h2>
+              <p><strong>Economic Benefits:</strong> Proponents argue that Bitcoin could serve as a hedge against inflation and dollar devaluation, potentially strengthening America's fiscal position. Former Federal Reserve Bank of Atlanta Vice President Gerald Dwyer estimates that diversifying 2.7% of the government's portfolio into Bitcoin could improve returns by 2 percentage points annually based on historical performance.</p>
+              <p><strong>Global Competition:</strong> The Strategic Bitcoin Reserve may signal the beginning of a global Bitcoin accumulation race among nations. Several countries are already exploring or implementing similar strategies, raising questions about nation-state game theory and Bitcoin's role in international finance.</p>
+              <p><strong>Market Effects:</strong> The announcement of the reserve and potential large-scale government Bitcoin purchases could significantly impact Bitcoin prices and market dynamics. Bitcoin prices have shown volatility in response to policy announcements, falling 5% when clarification emerged that immediate government buying wasn't planned.</p>
+              <p><strong>Policy Precedent:</strong> This initiative represents a historic shift in U.S. cryptocurrency policy, potentially legitimizing Bitcoin as a strategic asset class alongside traditional reserves like gold and foreign currencies.</p>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      // Wait for DOM to load
+      document.addEventListener('DOMContentLoaded', function() {
+        window.switchTab = function(evt, tabName) {
+          // Hide all tab content
+          var tabContents = document.getElementsByClassName('tab-content');
+          for (var i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove('active');
+          }
+
+          // Remove active class from all buttons
+          var tabButtons = document.getElementsByClassName('tab-button');
+          for (var i = 0; i < tabButtons.length; i++) {
+            tabButtons[i].classList.remove('active');
+          }
+
+          // Show the selected tab and mark button as active
+          document.getElementById(tabName).classList.add('active');
+          evt.currentTarget.classList.add('active');
+        };
+      });
+    </script>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-logo"></div>
+        <div class="footer-text">
+          made by <a href="https://x.com/orangesurfbtc" class="footer-link" target="_blank" rel="noopener noreferrer">orangesurf</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Education Archive — Properties Layer 1</title>
+    <title>Bitcoin Education Archive</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #020617; color: #e2e8f0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; }
@@ -57,7 +57,7 @@
     <aside>
         <div class="sidebar-header">
             <h2>₿ Bitcoin Education</h2>
-            <p>Properties Layer 1 — Read-Only Archive</p>
+            <p>Discord Server Archive</p>
         </div>
         <div class="channels">
             <div class="cat-label">Properties Layer 1</div>
@@ -72,6 +72,35 @@
             <button class="ch-btn" onclick="go('supranational',this)">🕊 supranational-lindy</button>
             <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable</button>
             <button class="ch-btn" onclick="go('use-cases',this)">✔ use-cases</button>
+
+            <div class="cat-label">Experienced Topics</div>
+            <button class="ch-btn" onclick="go('maximalism',this)">💯 maximalism</button>
+            <button class="ch-btn" onclick="go('problems-of-money',this)">📉 problems-of-money</button>
+            <button class="ch-btn" onclick="go('self-custody',this)">🔑 self-custody-security</button>
+            <button class="ch-btn" onclick="go('privacy-nonkyc',this)">🤫 privacy-nonkyc</button>
+            <button class="ch-btn" onclick="go('nodes',this)">💻 nodes</button>
+            <button class="ch-btn" onclick="go('mining',this)">🌋 mining</button>
+            <button class="ch-btn" onclick="go('pow-vs-pos',this)">💪 pow-vs-pos</button>
+            <button class="ch-btn" onclick="go('energy',this)">💡 energy</button>
+            <button class="ch-btn" onclick="go('difficulty-adjustment',this)">😤 difficulty-adjustment</button>
+            <button class="ch-btn" onclick="go('layer-2-lightning',this)">⚡ layer-2-lightning</button>
+            <button class="ch-btn" onclick="go('fedi-ark',this)">🛡 fedi-ark</button>
+            <button class="ch-btn" onclick="go('chaumian-mints',this)">💸 chaumian-mints-ecash</button>
+            <button class="ch-btn" onclick="go('ctv-covenants',this)">📜 ctv-bip119-covenants</button>
+            <button class="ch-btn" onclick="go('extension-blocks',this)">🚧 extension-blocks</button>
+            <button class="ch-btn" onclick="go('op-codes',this)">👨‍💻 op-codes-simplicity</button>
+            <button class="ch-btn" onclick="go('bitvm',this)">🖥 bitvm</button>
+            <button class="ch-btn" onclick="go('layer-3-sidechains',this)">📱 layer-3-sidechains</button>
+            <button class="ch-btn" onclick="go('stablecoins',this)">🪙 stablecoins</button>
+            <button class="ch-btn" onclick="go('smart-contracts',this)">📱 smart-contracts</button>
+            <button class="ch-btn" onclick="go('blockchain-timechain',this)">⛓ blockchain-timechain</button>
+            <button class="ch-btn" onclick="go('regulation',this)">🏛 regulation-policy</button>
+            <button class="ch-btn" onclick="go('cryptography',this)">🔒 cryptography-cypherpunks</button>
+            <button class="ch-btn" onclick="go('core-source-code',this)">💾 core-source-code</button>
+            <button class="ch-btn" onclick="go('developers',this)">🖥 developers</button>
+            <button class="ch-btn" onclick="go('investment-strategy',this)">🤑 investment-strategy</button>
+            <button class="ch-btn" onclick="go('evidence-against-alts',this)">⚠ evidence-against-alts</button>
+            <button class="ch-btn" onclick="go('consensus',this)">🌐 consensus</button>
         </div>
     </aside>
     <main id="main">
@@ -80,6 +109,7 @@
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
 
+    <script src="experienced_data.js"></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -223,7 +253,7 @@
     };
 
     function go(id, btn) {
-        const d = D[id]; if (!d) return;
+        const d = D[id] || (typeof E !== 'undefined' && E[id]); if (!d) return;
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
