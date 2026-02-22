@@ -136,6 +136,29 @@
             <button class="ch-btn" onclick="go('health',this)">🥩 health</button>
             <button class="ch-btn" onclick="go('web5',this)">5⃣ web5</button>
             <button class="ch-btn" onclick="go('memes-funny',this)">😂 memes-funny</button>
+
+            <div class="cat-label">Additional Info</div>
+            <button class="ch-btn" onclick="go('governance',this)">🏛 governance</button>
+            <button class="ch-btn" onclick="go('vbyte',this)">🏋 vByte</button>
+            <button class="ch-btn" onclick="go('feedback_loops',this)">➰ feedback-loops</button>
+            <button class="ch-btn" onclick="go('oracle',this)">🔮 oracle</button>
+            <button class="ch-btn" onclick="go('consensus',this)">🤝 consensus</button>
+            <button class="ch-btn" onclick="go('submarine_swap',this)">⛵ submarine-swap</button>
+            <button class="ch-btn" onclick="go('ordinals__nfts_on_bitcoin__and_block_spa',this)">🔢 ordinals-nfts-block-space</button>
+            <button class="ch-btn" onclick="go('peace_and_anti-war',this)">☮ peace-and-anti-war</button>
+            <button class="ch-btn" onclick="go('sidechains',this)">♻ sidechains</button>
+            <button class="ch-btn" onclick="go('time',this)">⏰ time</button>
+            <button class="ch-btn" onclick="go('mev',this)">⛏ MEV</button>
+            <button class="ch-btn" onclick="go('soft_vs_hard_forks',this)">🍴 soft-vs-hard-forks</button>
+            <button class="ch-btn" onclick="go('time_preference',this)">🕑 time-preference</button>
+            <button class="ch-btn" onclick="go('simplified_payment_verification__spv',this)">✔ SPV</button>
+            <button class="ch-btn" onclick="go('free_and_open_source_software__foss',this)">💿 FOSS</button>
+            <button class="ch-btn" onclick="go('1_first_principles',this)">1⃣ first-principles</button>
+            <button class="ch-btn" onclick="go('philosophy',this)">🍎 philosophy</button>
+            <button class="ch-btn" onclick="go('2__solved_technical_problems',this)">2⃣ solved-technical-problems</button>
+
+            <div class="cat-label">Referral Links</div>
+            <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
         </div>
     </aside>
     <main id="main">
@@ -146,6 +169,7 @@
 
     <script src="experienced_data.js"></script>
     <script src="resources_data.js"></script>
+    <script src="helpdesk_data.js"></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -289,7 +313,7 @@
     };
 
     function go(id, btn) {
-        const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]); if (!d) return;
+        const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]) || (typeof H !== 'undefined' && H[id]); if (!d) return;
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
@@ -302,8 +326,10 @@
         d.msgs.forEach(m => {
             html += '<div class="msg">';
             // no author names
-            if (m.text) html += '<div class="msg-text">' + m.text + '</div>';
-            if (m.link) html += '<div style="margin-top:8px"><a class="msg-link" href="' + m.link + '" target="_blank">' + m.link + '</a></div>';
+            if (m.text) {
+                let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                html += '<div class="msg-text">' + t + '</div>';
+            }
             if (m.imgs) m.imgs.forEach(img => {
                 html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
             });
