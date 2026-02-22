@@ -10,7 +10,7 @@
         
         /* Sidebar */
         aside { width: 320px; background: #0f172a; border-right: 1px solid #1e293b; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e293b; }
+        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; }
         .sidebar-header h2 { color: #f97316; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; }
         .sidebar-header p { color: #64748b; font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
@@ -20,10 +20,10 @@
         .search-input::placeholder { color: #475569; }
         .search-results { padding: 12px; display: none; overflow-y: auto; flex: 1; background: #0f172a; }
         .search-results.active { display: block; }
-        .sr-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; margin-bottom: 2px; border-left: 3px solid transparent; }
-        .sr-item:hover { background: rgba(255,255,255,0.04); color: #fff; border-left-color: #f97316; }
-        .sr-item .sr-cat { font-size: 0.65rem; color: #475569; text-transform: uppercase; }
-        .sr-item .sr-match { color: #f97316; font-size: 0.8rem; margin-top: 2px; }
+        .sr-item { padding: 10px 14px; border-radius: 8px; cursor: pointer; color: #94a3b8; font-size: 0.9rem; margin-bottom: 4px; border-left: 3px solid transparent; transition: 0.15s; }
+        .sr-item:hover, .sr-item:active { background: rgba(249,115,22,0.1); color: #fff; border-left-color: #f97316; }
+        .sr-item .sr-cat { font-size: 0.65rem; color: #475569; text-transform: uppercase; letter-spacing: 1px; }
+        .sr-item .sr-match { color: #f97316; font-size: 0.8rem; margin-top: 4px; line-height: 1.4; }
         .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #475569; letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
         .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.9rem; font-family: inherit; }
         .ch-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
@@ -40,37 +40,52 @@
         /* Messages */
         .messages { max-width: 950px; margin: 0 auto; padding: 0 60px 80px; }
         .msg { padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        .msg-author { display: none; }
         .msg-text { color: #cbd5e1; font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; }
         .msg-text strong, .msg-text b { color: #fff; }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 14px; border: 1px solid #1e293b; cursor: pointer; transition: 0.2s; }
         .msg-img:hover { border-color: #f97316; box-shadow: 0 8px 30px rgba(249,115,22,0.15); }
         .msg-link { color: #38bdf8; text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
-        .scroll-top { color: #f97316; font-weight: 800; font-size: 0.85rem; text-align: center; padding: 30px; opacity: 0.5; }
         
         /* Lightbox */
-        .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100; justify-content: center; align-items: center; cursor: zoom-out; }
+        .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; justify-content: center; align-items: center; cursor: zoom-out; }
         .lightbox.open { display: flex; }
         .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
         
+        /* Mobile nav bar */
+        .mobile-bar { display: none; }
+
+        /* Mobile */
         @media (max-width: 900px) {
-            body { flex-direction: column; height: auto; overflow: auto; }
-            aside { width: 100%; height: auto; max-height: none; border-right: none; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
-            .channels { max-height: 250px; }
-            .search-results { max-height: 300px; }
-            main { overflow-y: visible; }
-            .hero { padding: 40px 24px 24px; }
-            .hero h1 { font-size: 2rem; }
-            .messages { padding: 0 24px 60px; }
+            aside { display: none; position: fixed; inset: 0; z-index: 100; width: 100%; max-width: 100%; }
+            aside.open { display: flex; }
+            body { flex-direction: column; }
+            main { flex: 1; overflow-y: auto; }
+            .hero { padding: 30px 20px 20px; }
+            .hero h1 { font-size: 1.6rem; }
+            .messages { padding: 0 20px 60px; }
+            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #0f172a; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+            .mobile-bar h2 { color: #f97316; font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            .mobile-bar button { background: none; border: 1px solid #1e293b; color: #94a3b8; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+            .mobile-bar button:active { background: rgba(249,115,22,0.15); color: #f97316; border-color: #f97316; }
+            .mobile-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: #94a3b8; font-size: 1.8rem; cursor: pointer; z-index: 101; line-height: 1; }
         }
     </style>
 </head>
 <body>
-    <aside>
+    <!-- Mobile top bar -->
+    <div class="mobile-bar">
+        <h2>₿ Bitcoin Education</h2>
+        <button onclick="toggleMenu()">☰ Menu</button>
+    </div>
+
+    <aside id="sidebar">
+        <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
-            <h2>₿ Bitcoin Education</h2>
-            <p>Discord Server Archive</p>
+            <div>
+                <h2>₿ Bitcoin Education</h2>
+                <p>Discord Server Archive</p>
+            </div>
         </div>
         <div class="search-box">
             <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)">
@@ -250,8 +265,15 @@
         document.getElementById('lb').classList.add('open');
     }
 
+    function isMobile() { return window.innerWidth <= 900; }
+
+    function toggleMenu() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
     function go(id, btn) {
-        const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]) || (typeof H !== 'undefined' && H[id]); if (!d) return;
+        const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]) || (typeof H !== 'undefined' && H[id]);
+        if (!d) return;
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
@@ -263,7 +285,6 @@
         let html = '';
         d.msgs.forEach(m => {
             html += '<div class="msg">';
-            // no author names
             if (m.text) {
                 let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
                 html += '<div class="msg-text">' + t + '</div>';
@@ -277,27 +298,35 @@
         document.getElementById('msgs').innerHTML = html;
         document.getElementById('main').scrollTop = 0;
         history.replaceState(null, null, '#' + id);
+
+        // On mobile, close the menu after selecting
+        if (isMobile()) {
+            document.getElementById('sidebar').classList.remove('open');
+        }
     }
 
     function doSearch(q) {
         const sr = document.getElementById('searchResults');
         const cl = document.getElementById('channelList');
-        if (!q || q.length < 2) { sr.classList.remove('active'); sr.innerHTML = ''; cl.style.display = ''; return; }
+        if (!q || q.length < 2) {
+            sr.classList.remove('active');
+            sr.innerHTML = '';
+            cl.style.display = '';
+            return;
+        }
         q = q.toLowerCase();
         const all = Object.assign({}, D||{}, E||{}, R||{}, H||{});
         let results = [];
         for (const [key, ch] of Object.entries(all)) {
-            // Search title
             if (ch.title.toLowerCase().includes(q)) {
                 results.push({key, title: ch.title, cat: ch.cat, match: 'Channel name match'});
                 continue;
             }
-            // Search message content
             for (const m of (ch.msgs || [])) {
                 if (m.text && m.text.toLowerCase().includes(q)) {
                     let idx = m.text.toLowerCase().indexOf(q);
-                    let start = Math.max(0, idx - 40);
-                    let snippet = '...' + m.text.substring(start, idx + q.length + 40).replace(/<[^>]+>/g, '') + '...';
+                    let start = Math.max(0, idx - 30);
+                    let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + q.length + 30).replace(/<[^>]+>/g, '') + '...';
                     results.push({key, title: ch.title, cat: ch.cat, match: snippet});
                     break;
                 }
@@ -306,15 +335,21 @@
         cl.style.display = 'none';
         sr.classList.add('active');
         if (results.length === 0) {
-            sr.innerHTML = '<div style="padding:12px;color:#475569;">No results found</div>';
+            sr.innerHTML = '<div style="padding:16px;color:#475569;text-align:center;">No results found</div>';
             return;
         }
         sr.innerHTML = results.slice(0, 30).map(r =>
-            '<div class="sr-item" onclick="doSearch(\'\');document.getElementById(\'searchInput\').value=\'\';go(\'' + r.key + '\');document.getElementById(\'main\').scrollIntoView();">' +
+            '<div class="sr-item" onclick="selectResult(\'' + r.key + '\')">' +
             '<div class="sr-cat">' + r.cat + '</div>' +
             '<div>' + r.title + '</div>' +
             '<div class="sr-match">' + r.match + '</div></div>'
         ).join('');
+    }
+
+    function selectResult(key) {
+        document.getElementById('searchInput').value = '';
+        doSearch('');
+        go(key);
     }
 
     window.onload = () => go(location.hash.slice(1) || 'whitepaper');
