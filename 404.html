@@ -47,6 +47,33 @@
         .msg-link { color: #38bdf8; text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
         
+        /* Home Page */
+        .home-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 60px 30px; background: radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(121,45,228,0.06) 0%, transparent 60%); }
+        .home-page.hidden { display: none; }
+        .home-inner { max-width: 650px; }
+        .home-logos { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 40px; }
+        .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
+        .home-ln { filter: drop-shadow(0 0 30px rgba(121,45,228,0.4)); }
+        .home-title { font-size: 3.5rem; font-weight: 900; color: #fff; letter-spacing: -2px; line-height: 1.1; margin-bottom: 20px; }
+        .home-subtitle { font-size: 1.2rem; color: #64748b; margin-bottom: 40px; line-height: 1.6; }
+        .home-credits { background: rgba(255,255,255,0.03); border: 1px solid #1e293b; border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
+        .home-credits p { color: #94a3b8; font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
+        .home-credits p:last-child { margin-bottom: 0; }
+        .home-credits strong { color: #f97316; }
+        .home-stats { display: flex; justify-content: center; gap: 40px; margin-bottom: 40px; }
+        .home-stat { display: flex; flex-direction: column; align-items: center; }
+        .home-stat-num { font-size: 2rem; font-weight: 900; color: #f97316; }
+        .home-stat-label { font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+        .home-cta { background: #f97316; color: #fff; border: none; padding: 16px 40px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
+        .home-cta:hover { background: #ea580c; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(249,115,22,0.3); }
+        .home-footer { margin-top: 30px; color: #334155; font-size: 0.85rem; }
+
+        @media (max-width: 900px) {
+            .home-title { font-size: 2.4rem; }
+            .home-stats { gap: 24px; }
+            .home-stat-num { font-size: 1.5rem; }
+        }
+
         /* Lightbox */
         .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; justify-content: center; align-items: center; cursor: zoom-out; }
         .lightbox.open { display: flex; }
@@ -250,6 +277,28 @@
         </div>
     </aside>
     <main id="main">
+        <!-- Home / Landing -->
+        <div id="home" class="home-page">
+            <div class="home-inner">
+                <div class="home-logos">
+                    <svg class="home-btc" viewBox="0 0 64 64" width="80" height="80"><circle cx="32" cy="32" r="30" fill="#f7931a"/><text x="32" y="43" text-anchor="middle" font-size="34" font-weight="bold" fill="#fff" font-family="Arial">₿</text></svg>
+                    <svg class="home-ln" viewBox="0 0 64 64" width="70" height="70"><circle cx="32" cy="32" r="30" fill="#792de4"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>
+                </div>
+                <h1 class="home-title">Bitcoin Education<br>Archive</h1>
+                <p class="home-subtitle">A curated library of Bitcoin education — preserved from Discord for the world.</p>
+                <div class="home-credits">
+                    <p><strong>Lead Curator:</strong> Phil aka NEEDcreations</p>
+                    <p><strong>Other Contributors:</strong> Hundreds of Bitcoiners from the Bitcoin Education Discord community</p>
+                </div>
+                <div class="home-stats">
+                    <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
+                    <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
+                    <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
+                </div>
+                <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
+                <p class="home-footer">Open source · Free forever · Built on GitHub Pages</p>
+            </div>
+        </div>
         <div class="hero" id="hero"></div>
         <div class="messages" id="msgs"></div>
     </main>
@@ -274,6 +323,7 @@
     function go(id, btn) {
         const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]) || (typeof H !== 'undefined' && H[id]);
         if (!d) return;
+        document.getElementById('home').classList.add('hidden');
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
@@ -352,7 +402,11 @@
         go(key);
     }
 
-    window.onload = () => go(location.hash.slice(1) || 'whitepaper');
+    window.onload = () => {
+        const h = location.hash.slice(1);
+        if (h) go(h);
+        // else show home page (default)
+    };
     </script>
 </body>
 </html>
