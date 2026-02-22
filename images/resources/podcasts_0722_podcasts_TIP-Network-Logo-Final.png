@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ 	<meta charset="UTF-8" />
+ 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+ 	<title data-i18n="meta.title">Snapinsta - Download Instagram Videos, Reels, Stories for FREE</title>
+  	<meta name="description" data-i18n="meta.description" content="Download Instagram videos in high-definition for free with our Instagram video downloader. Easily save videos from posts, reels, and stories. Better experience than Snapinsta." />
+	<meta property="og:url" content="https://netdna-ssl.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" data-i18n="meta.title" content="Snapinsta - Download Instagram Videos, Reels, Stories for FREE" />
+    <meta property="og:description" data-i18n="meta.description" content="Download Instagram videos in high-definition for free with our Instagram video downloader. Easily save videos from posts, reels, and stories. Better experience than Snapinsta." />
+    <meta property="og:site_name" content="Instagram Video Downloader" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:image" content="https://netdna-ssl.com/image/screenshot.avif" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" data-i18n="meta.title" content="Snapinsta - Download Instagram Videos, Reels, Stories for FREE" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" data-i18n="meta.title" content="Snapinsta - Download Instagram Videos, Reels, Stories for FREE" />
+    <meta name="twitter:description" data-i18n="meta.description" content="Download Instagram videos in high-definition for free with our Instagram video downloader. Easily save videos from posts, reels, and stories. Better experience than Snapinsta." />
+    <meta name="twitter:site" content="Instagram Video Downloader" />
+    <meta name="twitter:image" content="https://netdna-ssl.com/image/screenshot.avif" />
+    <link rel="canonical" href="https://netdna-ssl.com/" id="canonical-link" />
+    <meta name="robots" content="index, follow" />
+	<link rel="shortcut icon" href="../image/favicon.ico" type="image/x-icon">
+	
+	   <!-- Hreflang tags for SEO -->
+    <link rel="alternate" hreflang="en" href="https://netdna-ssl.com/" />
+    <link rel="alternate" hreflang="vi" href="https://netdna-ssl.com/vi/" />
+    <link rel="alternate" hreflang="id" href="https://netdna-ssl.com/id/" />
+    <link rel="alternate" hreflang="es" href="https://netdna-ssl.com/es/" />
+    <link rel="alternate" hreflang="ru" href="https://netdna-ssl.com/ru/" />
+    <link rel="alternate" hreflang="fr" href="https://netdna-ssl.com/fr/" />
+    <link rel="alternate" hreflang="pt" href="https://netdna-ssl.com/pt/" />
+    <link rel="alternate" hreflang="de" href="https://netdna-ssl.com/de/" />
+    <link rel="alternate" hreflang="tr" href="https://netdna-ssl.com/tr/" />
+    <link rel="alternate" hreflang="it" href="https://netdna-ssl.com/it/" />
+    <link rel="alternate" hreflang="x-default" href="https://netdna-ssl.com/" />
+    <script src="tailwindcss.js"></script>
+    <style>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        .checkmark {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        .crossmark {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+    </style>
+      <script defer src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5937918249138963"
+     crossorigin="anonymous"></script>
+     <script src="https://analytics.ahrefs.com/analytics.js" data-key="ptV7uQ6HxhBGSyNP2M6czQ" async></script>
+     
+     <!-- i18n Scripts -->
+     <script src="translations.js"></script>
+     <script src="i18n.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
+    
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full bg-white/80 backdrop-blur-md z-50 border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                    </svg>
+                    <span class="text-gray-900 font-bold text-xl"><a href="/" class="lang-link" data-i18n="nav.brand">Instagram Downloader<br/><span style="font-size:14px;">NetDNA-SSL</span></a></span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+               	 <a href="#howto" class="text-gray-700 hover:text-purple-600 transition" data-i18n="nav.howto">How to Use</a>
+                    <a href="#features" class="text-gray-700 hover:text-purple-600 transition" data-i18n="nav.features">Features</a>
+                    <a href="#comparison" class="text-gray-700 hover:text-purple-600 transition" data-i18n="nav.comparison">Comparison</a>
+                    <a href="#reviews" class="text-gray-700 hover:text-purple-600 transition" data-i18n="nav.reviews">Reviews</a>
+                    
+                    <a href="#faq" class="text-gray-700 hover:text-purple-600 transition" data-i18n="nav.faq">FAQ</a>
+                </div>
+                <button onclick="toggleMobileMenu()" class="md:hidden text-gray-900">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden fixed inset-0 bg-white z-40 pt-16">
+        <div class="flex flex-col items-center space-y-6 pt-8">
+         <a href="#howto" onclick="toggleMobileMenu()" class="text-gray-900 text-lg" data-i18n="nav.howto">How to Use</a>
+            <a href="#features" onclick="toggleMobileMenu()" class="text-gray-900 text-lg" data-i18n="nav.features">Features</a>
+            <a href="#comparison" onclick="toggleMobileMenu()" class="text-gray-900 text-lg" data-i18n="nav.comparison">Comparison</a>
+            <a href="#reviews" onclick="toggleMobileMenu()" class="text-gray-900 text-lg" data-i18n="nav.reviews">Reviews</a>
+           
+            <a href="#faq" onclick="toggleMobileMenu()" class="text-gray-900 text-lg" data-i18n="nav.faq">FAQ</a>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="pt-32 pb-20 px-4 bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
+                <svg class="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>
+                </svg>
+                <span class="text-white text-sm font-medium" data-i18n="hero.badge">100% Free • No Registration • HD Quality</span>
+            </div>
+            
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight" data-i18n="hero.title">
+                Instagram Videos Downloader
+            </h1>
+            
+            <p class="text-xl text-purple-100 mb-12 max-w-2xl mx-auto" data-i18n="hero.subtitle">
+                Fast, free, and secure Instagram videos downloader. Save videos, Reels, and Stories instantly just few clicks.
+            </p>
+
+           <!-- Download Box -->
+		   <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 sm:p-8 border border-white/20 shadow-2xl">
+                <div class="flex flex-col sm:flex-row gap-3">
+            
+				<div class="flex-1 relative">
+                        <input
+                            type="text"
+                            id="urlInput"
+                            data-i18n-placeholder="hero.placeholder"
+                            placeholder="Paste URL Instagram here..."
+                            class="w-full px-6 py-4 pr-28 rounded-xl bg-white/90 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 text-lg"
+                        />
+                        <button
+                            onclick="handlePaste()"
+                            id="pasteBtn"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition flex items-center justify-center space-x-2"
+                            title="Paste from clipboard"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            <span class="hidden sm:inline" data-i18n="hero.paste">Paste</span>
+                        </button>
+                    </div>
+                    <button
+                        onclick="handleDownload()"
+                        id="downloadBtn"
+                        class="px-8 py-4 bg-gradient-to-r from-green-400 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-500 hover:to-emerald-600 transition transform hover:scale-105 flex items-center justify-center space-x-2 text-lg shadow-lg shadow-green-500/50 sm:min-w-[160px]"
+                    >
+                        <svg id="downloadIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+                        </svg>
+                        <span id="downloadText" data-i18n="hero.download">Download</span>
+                    </button>
+                </div>
+                <div class="flex items-center justify-center space-x-6 mt-6 text-sm text-purple-100">
+                    <div class="flex items-center space-x-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                        </svg>
+                        <span data-i18n="hero.safe">100% Safe</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                        <span data-i18n="hero.instant">Instant Download</span>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>
+                        </svg>
+                        <span data-i18n="hero.nowatermark">No Watermark</span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-purple-200 mt-6 text-sm" data-i18n="hero.supports">
+                ✓ Supports Videos, Photos, Reels, Stories, IGTV • ✓ Original Quality • ✓ All Devices
+            </p>
+        </div>
+    </section>
+
+    <!-- How to Use -->
+    <section id="howto" class="py-16 px-4 bg-gradient-to-br from-pink-50 to-purple-50">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 text-center mb-4" data-i18n="howto.title">
+                How to Download Instagram Videos
+            </h2>
+            <p class="text-gray-600 text-center mb-12 text-lg" data-i18n="howto.subtitle">Simple 3-step process</p>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Step 1 -->
+                <div class="bg-white rounded-2xl p-8 relative overflow-hidden shadow-lg border border-pink-100">
+                    <div class="absolute top-6 left-6">
+                        <span class="text-5xl font-bold text-pink-500">1</span>
+                    </div>
+                    
+                    <div class="mt-16 mb-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3" data-i18n="howto.step1">
+                            To get a profile link <span class="font-bold">Press the dots ⋯</span> in the top right corner of an Instagram account
+                        </h3>
+                    </div>
+
+                    <!-- Illustration -->
+                    <div class="relative h-32 flex items-center justify-center">
+                        <div class="relative">
+                            <!-- Phone mockup -->
+                            <div class="bg-gray-50 rounded-2xl shadow-lg p-4 w-48">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full"></div>
+                                        <div class="space-y-1">
+                                            <div class="w-16 h-2 bg-gray-300 rounded"></div>
+                                            <div class="w-12 h-2 bg-gray-200 rounded"></div>
+                                        </div>
+                                    </div>
+                                    <!-- Three dots -->
+                                    <div class="flex space-x-1">
+                                        <div class="w-1.5 h-1.5 bg-gray-800 rounded-full"></div>
+                                        <div class="w-1.5 h-1.5 bg-gray-800 rounded-full"></div>
+                                        <div class="w-1.5 h-1.5 bg-gray-800 rounded-full"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <div class="w-full h-2 bg-gray-200 rounded"></div>
+                                    <div class="w-full h-2 bg-gray-200 rounded"></div>
+                                    <div class="w-3/4 h-2 bg-gray-200 rounded"></div>
+                                </div>
+                            </div>
+                            <!-- Pointer to dots -->
+                            <div class="absolute -top-4 -right-4 bg-white rounded-full p-3 shadow-xl border-2 border-pink-500">
+                                <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-white rounded-2xl p-8 relative overflow-hidden shadow-lg border border-pink-100">
+                    <div class="absolute top-6 left-6">
+                        <span class="text-5xl font-bold text-pink-500">2</span>
+                    </div>
+                    
+                    <div class="mt-16 mb-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3" data-i18n="howto.step2">
+                            Choose <span class="font-bold">Copy the link 🔗</span> and Paste the copied URL into the search bar on netdna-ssl.com
+                        </h3>
+                    </div>
+
+                    <!-- Illustration -->
+                    <div class="relative h-32 flex items-center justify-center">
+                        <div class="relative">
+                            <!-- Copy button -->
+                            <div class="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl shadow-xl px-6 py-4 transform -rotate-3">
+                                <div class="flex items-center space-x-2 text-white">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101m-.758-4.899a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/>
+                                    </svg>
+                                    <span class="font-semibold text-sm" data-i18n="howto.copyurl">Copy Profile URL</span>
+                                </div>
+                            </div>
+                            <!-- Cursor pointer -->
+                            <div class="absolute -bottom-2 right-4">
+                                <svg class="w-8 h-8 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M3 3h7v2H5v14h14v-5h2v7H3V3zm9 4l1.4 1.4L8.8 13H21v2H8.8l4.6 4.6L12 21l-7-7 7-7z"/>
+                                </svg>
+                            </div>
+                            <!-- URL field in background -->
+                            <div class="absolute -top-8 right-0 bg-gray-50 rounded-lg shadow-md px-4 py-2 text-xs text-gray-500 transform rotate-6">
+                                <div class="flex items-center space-x-1">
+                                    <span class="text-pink-600 font-mono">🔗 URL</span>
+                                    <span class="text-gray-400" data-i18n="howto.orusername">or Username</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-white rounded-2xl p-8 relative overflow-hidden shadow-lg border border-pink-100">
+                    <div class="absolute top-6 left-6">
+                        <span class="text-5xl font-bold text-pink-500">3</span>
+                    </div>
+                    
+                    <div class="mt-16 mb-6">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-3" data-i18n="howto.step3">
+                            Tap the <span class="font-bold">Download ⬇️</span> button to start download Instagram videos without watermark
+                        </h3>
+                    </div>
+
+                    <!-- Illustration -->
+                    <div class="relative h-32 flex items-center justify-center">
+                        <div class="relative">
+                            <!-- URL input -->
+                            <div class="bg-gray-50 rounded-xl shadow-lg px-4 py-3 mb-3 w-56">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101m-.758-4.899a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/>
+                                    </svg>
+                                    <span class="text-xs font-mono text-gray-500" data-i18n="howto.urlorusername">URL or Username</span>
+                                </div>
+                            </div>
+                            <!-- Download button -->
+                            <div class="bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl shadow-2xl px-6 py-4 transform hover:scale-105 transition-transform">
+                                <div class="flex items-center justify-center space-x-2 text-white">
+                                    <div class="bg-white/20 rounded-lg p-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+                                        </svg>
+                                    </div>
+                                    <span class="font-bold" data-i18n="howto.downloadbtn">Download</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="py-16 px-4 bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl sm:text-4xl font-bold text-white text-center mb-4" data-i18n="features.title">
+                All Instagram Content Types
+            </h2>
+            <p class="text-purple-100 text-center mb-12 text-lg" data-i18n="features.subtitle">Download any content from Instagram</p>
+            
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Video Downloader -->
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/20 transition transform hover:scale-105">
+                    <svg class="w-12 h-12 text-pink-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/>
+                    </svg>
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="features.video.title">Instagram Video Downloader</h3>
+                    <p class="text-purple-100 text-sm leading-relaxed" data-i18n="features.video.desc"> Download high-quality Instagram videos with just one click. Instantly download your favorite video posts to your device and watch offline at your convenience without losing quality.</p>
+                </div>
+                
+                <!-- Photo Downloader -->
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/20 transition transform hover:scale-105">
+                    <svg class="w-12 h-12 text-pink-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                    </svg>
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="features.photo.title">Instagram Photo Downloader</h3>
+                    <p class="text-purple-100 text-sm leading-relaxed" data-i18n="features.photo.desc">Easily download Instagram high definition photos straight to your gallery. It is great for storing memories, making collections, or holding inspiration. Save higher-resolution attachments - download single images or entire photo carousels and save them in original resolution.</p>
+                </div>
+                
+                <!-- Reels Downloader -->
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/20 transition transform hover:scale-105">
+                    <svg class="w-12 h-12 text-pink-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect width="18" height="18" x="3" y="3" rx="2"/><path d="m16 10-4-4-4 4"/><path d="M12 6v8"/><path d="m8 18 4 4 4-4"/>
+                    </svg>
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="features.reels.title">Instagram Reels Downloader</h3>
+                    <p class="text-purple-100 text-sm leading-relaxed" data-i18n="features.reels.desc">Download trending reels from the social media platform Instagram with the original quality and sound. Store funny clips, how-to and artsy videos for friends to view or for yourself to watch offline.</p>
+                </div>
+                
+                <!-- Stories Saver -->
+                <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/20 transition transform hover:scale-105">
+                    <svg class="w-12 h-12 text-pink-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                    </svg>
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="features.stories.title">Instagram Stories Saver</h3>
+                    <p class="text-purple-100 text-sm leading-relaxed" data-i18n="features.stories.desc">Save Instagram Stories before they disappear after 24 hours. Get all the important updates, announcements or behind-the-scenes content from your favorite accounts. Download stories with full quality.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits -->
+    <section class="py-16 px-4 bg-white">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 text-center mb-4">
+                <span data-i18n="benefits.title1">Why do I need an</span> <span class="text-purple-600" data-i18n="benefits.title2">Instagram video downloader</span>?
+            </h2>
+            <p class="text-gray-600 text-center mb-12 text-lg max-w-3xl mx-auto" data-i18n="benefits.subtitle">
+                If content is your currency, don't let great clips vanish. Here's when our downloader earns its keep:
+            </p>
+            
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition">
+                    <div class="flex items-start gap-4">
+                        <span class="text-4xl font-bold text-purple-200">01</span>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="benefits.item1.title">Catch Stories Before They Vanish</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed" data-i18n="benefits.item1.desc">Save DIY hacks, recipes, and tip threads for swipe-free reference.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition">
+                    <div class="flex items-start gap-4">
+                        <span class="text-4xl font-bold text-purple-200">02</span>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="benefits.item2.title">Scout Locations and Mood</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed" data-i18n="benefits.item2.desc">Save angle, color, and transition reels for your next shoot deck.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition">
+                    <div class="flex items-start gap-4">
+                        <span class="text-4xl font-bold text-purple-200">03</span>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="benefits.item3.title">Train Smarter</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed" data-i18n="benefits.item3.desc">Keep training programs and form demos in your camera roll for gym use.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition">
+                    <div class="flex items-start gap-4">
+                        <span class="text-4xl font-bold text-purple-200">04</span>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="benefits.item4.title">Brief Pros with Clarity</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed" data-i18n="benefits.item4.desc">Share hair, cosmetics, and fashion looks with your stylist or creative team.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition">
+                    <div class="flex items-start gap-4">
+                        <span class="text-4xl font-bold text-purple-200">05</span>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="benefits.item5.title">Shop with Certainty</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed" data-i18n="benefits.item5.desc">Save product try-ons and IGTV lookbooks to show retail staff exactly what you want.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:border-purple-300 hover:shadow-lg transition">
+                    <div class="flex items-start gap-4">
+                        <span class="text-4xl font-bold text-purple-200">06</span>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" data-i18n="benefits.item6.title">Share Privately</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed" data-i18n="benefits.item6.desc">Send the file directly to clients or friends – no platform tracking, no extra compression.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-gray-500 text-center text-lg italic" data-i18n="benefits.footer">
+                Own your inspiration. Keep the media you rely on, organized and available offline anytime.
+            </p>
+        </div>
+    </section>
+
+    <!-- Key Features & Benefits -->
+    <section class="py-16 px-4 bg-gradient-to-br from-purple-900 via-purple-700 to-pink-600">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl sm:text-4xl font-bold text-center mb-12">
+                <span class="text-white" data-i18n="keyfeatures.title1">Key Features & Benefits</span>
+                <span class="text-purple-200" data-i18n="keyfeatures.title2"> of Our Instagram Video Downloader</span>
+            </h2>
+            
+            <div class="grid sm:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item1.title">Universal coverage:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item1.desc">Auto-detects Reels, Stories, Posts, IGTV, and Carousels from pasted links.</p>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item2.title">Studio-grade quality:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item2.desc">Keep the audio track, use the highest resolution, and receive sharp frames for editing.</p>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item3.title">100% web-based:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item3.desc">No app, extensions, or upkeep. It works instantaneously on recent browsers.</p>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item4.title">No watermark. No fluff:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item4.desc">Downloads are clean and production-ready, ensuring excellent brand graphics.</p>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item5.title">Fast & reliable:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item5.desc">Optimized fetching and caching ensure stable performance for lengthy videos.</p>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item6.title">Cross-platform by default:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item6.desc">iOS, Android, Windows, macOS, and Linux allows for seamless device switching.</p>
+                </div>
+                
+                <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition col-span-1 sm:col-span-2">
+                    <h3 class="text-lg font-semibold text-white mb-2" data-i18n="keyfeatures.item7.title">Privacy-first:</h3>
+                    <p class="text-purple-100 leading-relaxed" data-i18n="keyfeatures.item7.desc">NO login, NO account linkage, NO history. Links sustain your business.</p>
+                </div>
+            </div>
+            
+            <p class="text-purple-200 text-center text-lg" data-i18n="keyfeatures.footer">
+                Built for marketers, creators, and social teams who move fast – and need assets even faster.
+            </p>
+        </div>
+    </section>
+
+    <!-- COMPARISON SECTION -->
+    <section id="comparison" class="py-20 px-4 bg-gradient-to-br from-gray-50 to-purple-50">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-16">
+                <div class="inline-flex items-center space-x-2 bg-purple-100 px-4 py-2 rounded-full mb-4">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-purple-700 text-sm font-semibold" data-i18n="comparison.badge">SIDE-BY-SIDE COMPARISON</span>
+                </div>
+                
+                <h2 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+                    <span data-i18n="comparison.title1">Why Choose</span> <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">NetDNA</span> <span data-i18n="comparison.title2">Over Snapinsta?</span>
+                </h2>
+                
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                    <span data-i18n="comparison.subtitle1">All three tools download Instagram content, but NetDNA delivers a</span> <span class="font-semibold text-purple-600" data-i18n="comparison.subtitle2">faster, cleaner, and more reliable experience</span> <span data-i18n="comparison.subtitle3">that power users demand.</span>
+                </p>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
+                <!-- Table Header -->
+                <div class="grid grid-cols-3 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 text-white">
+                    <div class="p-4 sm:p-6 text-center border-r border-white/20">
+                        <h3 class="text-base sm:text-lg font-semibold" data-i18n="comparison.table.features">Features</h3>
+                    </div>
+                    <div class="p-4 sm:p-6 text-center border-r border-white/20">
+                        <div class="flex flex-col items-center space-y-2">
+                            <svg class="w-8 sm:w-10 h-8 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                            </svg>
+                            <h3 class="text-lg sm:text-xl font-bold">NetDNA</h3>
+                            <span class="text-xs bg-white/20 px-2 sm:px-3 py-1 rounded-full" data-i18n="comparison.table.toprated">TOP RATED</span>
+                        </div>
+                    </div>
+                    <div class="p-4 sm:p-6 text-center border-r border-white/20">
+                        <div class="flex flex-col items-center space-y-2">
+                            <svg class="w-8 sm:w-10 h-8 sm:h-10 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                            <h3 class="text-lg sm:text-xl font-bold opacity-90">Snapinsta</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Rows -->
+                <div class="divide-y divide-gray-100">
+                    <!-- Download Speed -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.speed">⚡ Speed</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.downloadtime">Download time</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.ultrafast">Ultra Fast</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="bg-yellow-100 w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-yellow-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.moderate">Moderate</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HD Quality -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.quality">🎥 Quality</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.maxres">Max resolution</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.fullhd">Full HD+</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.hd">HD</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No Watermark -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.watermark">🚫 Watermark</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.cleanfiles">Clean files</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.never">Never</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="bg-yellow-100 w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-yellow-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.sometimes">Sometimes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ads Experience -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.ads">📺 Ads</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.userexp">User experience</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.minimal">Minimal</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="crossmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-red-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.heavy">Heavy</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Experience -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.mobile">📱 Mobile</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.optimization">Optimization</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.perfect">Perfect</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="bg-yellow-100 w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-yellow-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.basic">Basic</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Privacy -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.privacy">🔒 Privacy</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.dataprotection">Data protection</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.toplevel">Top Level</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.secure">Secure</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Registration -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.signup">👤 Sign Up</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.required">Required?</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.no">No</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.no">No</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Content Support -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.content">🎬 Content</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.allformats">All formats</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.alltypes">All Types</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.most">Most</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Download Limits -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.limits">⚡ Limits</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.dailycaps">Daily caps</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.generous">Generous</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="bg-yellow-100 w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-yellow-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.some">Some</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Support -->
+                    <div class="grid grid-cols-3 hover:bg-purple-50/50 transition">
+                        <div class="p-3 sm:p-6 flex items-center border-r border-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-900 mb-1 text-sm sm:text-base" data-i18n="comparison.table.support">💬 Support</div>
+                                <div class="text-xs sm:text-sm text-gray-500 hidden sm:block" data-i18n="comparison.table.helpavailable">Help available</div>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="checkmark w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-green-600 font-bold text-xs sm:text-sm" data-i18n="comparison.table.24/7">24/7</span>
+                            </div>
+                        </div>
+                        <div class="p-3 sm:p-6 border-r border-gray-100 flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="bg-yellow-100 w-8 sm:w-10 h-8 sm:h-10 rounded-full flex items-center justify-center mb-2 mx-auto">
+                                    <svg class="w-4 sm:w-6 h-4 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-yellow-600 font-semibold text-xs sm:text-sm" data-i18n="comparison.table.limited">Limited</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Winner Banner -->
+            <div class="mt-12 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 rounded-2xl p-8 text-center shadow-2xl transform hover:scale-105 transition-transform">
+                <div class="flex items-center justify-center space-x-3 mb-4">
+                    <svg class="w-12 h-12 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <h3 class="text-3xl font-bold text-white" data-i18n="comparison.winner.title">The Clear Winner</h3>
+                    <svg class="w-12 h-12 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                </div>
+                <p class="text-xl text-purple-100 mb-6 max-w-3xl mx-auto" data-i18n="comparison.winner.desc">
+                    NetDNA combines blazing-fast speeds, premium quality, and a distraction-free experience – all without compromising your privacy or adding watermarks to your downloads.
+                </p>
+                <a href="#" class="lang-link inline-flex items-center space-x-2 bg-white text-purple-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-purple-50 transition transform hover:scale-105 shadow-xl">
+                    <span data-i18n="comparison.winner.cta">Start Downloading with NetDNA</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                </a>
+            </div>
+
+            <!-- Bottom Stats -->
+            <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg border border-purple-100">
+                    <div class="text-4xl font-bold text-purple-600 mb-2">2.5x</div>
+                    <div class="text-gray-600 font-medium" data-i18n="comparison.stats.faster">Faster Downloads</div>
+                    <div class="text-sm text-gray-500 mt-1" data-i18n="comparison.stats.vscompetitors">vs. competitors</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg border border-purple-100">
+                    <div class="text-4xl font-bold text-purple-600 mb-2">0</div>
+                    <div class="text-gray-600 font-medium" data-i18n="comparison.stats.watermarks">Watermarks Ever</div>
+                    <div class="text-sm text-gray-500 mt-1" data-i18n="comparison.stats.cleanfiles">100% clean files</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg border border-purple-100">
+                    <div class="text-4xl font-bold text-purple-600 mb-2">5M+</div>
+                    <div class="text-gray-600 font-medium" data-i18n="comparison.stats.users">Happy Users</div>
+                    <div class="text-sm text-gray-500 mt-1" data-i18n="comparison.stats.counting">and counting</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- REVIEWS SECTION -->
+    <section id="reviews" class="py-20 px-4 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-16">
+                <div class="inline-flex items-center space-x-2 bg-yellow-100 px-4 py-2 rounded-full mb-4">
+                    <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    <span class="text-yellow-700 text-sm font-semibold" data-i18n="reviews.badge">TRUSTED BY MILLIONS</span>
+                </div>
+                
+                <h2 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+                    <span data-i18n="reviews.title1">What Users Say About</span> <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600" data-i18n="reviews.title2">NetDNA Instagram Downloader</span>
+                </h2>
+                
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                    <span data-i18n="reviews.subtitle1">Real reviews from content creators, marketers, and everyday users who trust NetDNA for</span> <strong class="text-purple-600" data-i18n="reviews.subtitle2">Instagram video downloads</strong>
+                </p>
+
+                <!-- Rating Summary -->
+                <div class="mt-8 flex items-center justify-center space-x-8">
+                    <div class="text-center">
+                        <div class="text-5xl font-bold text-gray-900">4.9</div>
+                        <div class="flex items-center justify-center mt-2 space-x-1">
+                            <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1" data-i18n="reviews.avgrating">Average rating</p>
+                    </div>
+                    <div class="h-16 w-px bg-gray-200"></div>
+                    <div class="text-center">
+                        <div class="text-5xl font-bold text-gray-900">12K+</div>
+                        <p class="text-sm text-gray-500 mt-3" data-i18n="reviews.totalreviews">Total reviews</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Review 1 -->
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition transform hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                SM
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">Sarah Martinez</h4>
+                                <p class="text-xs text-gray-500" data-i18n="reviews.review1.role">Content Creator</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded-full">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <span class="text-xs text-green-600 font-medium" data-i18n="reviews.verified">Verified</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-600">5.0</span>
+                    </div>
+                    
+                    <p class="text-gray-700 leading-relaxed mb-3" data-i18n="reviews.review1.text">
+                    "Super  <strong class="text-purple-600">Instagram Video Downloader</strong> I've ever used! The speed is amazing, and it also allows me to download Instagram Reels in high definition. No watermarks, no hassle. It is ideal for my content creation process!"
+                       
+                    </p>
+                    
+                    <p class="text-xs text-gray-500" data-i18n="reviews.review1.date">2 days ago</p>
+                </div>
+
+                <!-- Review 2 -->
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition transform hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                JC
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">James Chen</h4>
+                                <p class="text-xs text-gray-500" data-i18n="reviews.review2.role">Social Media Manager</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded-full">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <span class="text-xs text-green-600 font-medium" data-i18n="reviews.verified">Verified</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-600">5.0</span>
+                    </div>
+                    
+                    <p class="text-gray-700 leading-relaxed mb-3" data-i18n="reviews.review2.text">
+                      "Managing client accounts needs a reliable Instagram Downloader. <strong class="text-purple-600">Download Instagram Stories</strong> with NetDNA and save them to report "The quality is better than Snapinsta!"
+                    </p>
+                    
+                    <p class="text-xs text-gray-500" data-i18n="reviews.review2.date">5 days ago</p>
+                </div>
+
+                <!-- Review 3 -->
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition transform hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                EP
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">Emily Parker</h4>
+                                <p class="text-xs text-gray-500" data-i18n="reviews.review3.role">Digital Marketer</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded-full">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <span class="text-xs text-green-600 font-medium" data-i18n="reviews.verified">Verified</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-600">5.0</span>
+                    </div>
+                    
+                    <p class="text-gray-700 leading-relaxed mb-3" data-i18n="reviews.review3.text">
+                      "For <strong class="text-purple-600">downloading Instagram videos</strong>, I have used multiple tools but NetDNA is faster and more trustworthy compared to Snapinsta. It is perfect for archiving competitive content and trend analysis!"
+                    </p>
+                    
+                    <p class="text-xs text-gray-500" data-i18n="reviews.review3.date">1 week ago</p>
+                </div>
+
+                <!-- Review 4 -->
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition transform hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                MR
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">Michael Rodriguez</h4>
+                                <p class="text-xs text-gray-500" data-i18n="reviews.review4.role">Video Editor</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded-full">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <span class="text-xs text-green-600 font-medium" data-i18n="reviews.verified">Verified</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-600">5.0</span>
+                    </div>
+                    
+                    <p class="text-gray-700 leading-relaxed mb-3" data-i18n="reviews.review4.text">
+                      "As a video editor, quality is vitally important. Additionally, our <strong class="text-purple-600">Instagram Reels downloader</strong> does an excellent job of maintaining the original resolution. This means that there is no loss of quality. That is just what I require for my client tasks!"
+                    </p>
+                    
+                    <p class="text-xs text-gray-500" data-i18n="reviews.review4.date">1 week ago</p>
+                </div>
+
+                <!-- Review 5 -->
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition transform hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-rose-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                LT
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">Lisa Thompson</h4>
+                                <p class="text-xs text-gray-500" data-i18n="reviews.review5.role">Influencer</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded-full">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <span class="text-xs text-green-600 font-medium" data-i18n="reviews.verified">Verified</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-600">5.0</span>
+                    </div>
+                    
+                    <p class="text-gray-700 leading-relaxed mb-3" data-i18n="reviews.review5.text">
+                      "It is quite simple to download content from Instagram! In addition to repurposing information across different platforms, I use it to back up my own writings. The application that allows users to <strong class="text-purple-600">download Instagram Stories</strong> is a lifesaver!"
+                    </p>
+                    
+                    <p class="text-xs text-gray-500" data-i18n="reviews.review5.date">2 weeks ago</p>
+                </div>
+
+                <!-- Review 6 -->
+                <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition transform hover:-translate-y-1">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                DK
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-900">David Kim</h4>
+                                <p class="text-xs text-gray-500" data-i18n="reviews.review6.role">E-commerce Owner</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 bg-green-100 px-2 py-1 rounded-full">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            <span class="text-xs text-green-600 font-medium" data-i18n="reviews.verified">Verified</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center mb-3">
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        <span class="ml-2 text-sm text-gray-600">5.0</span>
+                    </div>
+                    
+                    <p class="text-gray-700 leading-relaxed mb-3" data-i18n="reviews.review6.text">
+                      "Because I run an online store, it is necessary for me to <strong class="text-purple-600">download Instagram videos</strong> published by influencers as promptly as possible. The best Instagram video downloader is NetDNA since it is quick, free, and it always works! I am more satisfied with NetDNA than Snapinsta."
+                    </p>
+                    
+                    <p class="text-xs text-gray-500" data-i18n="reviews.review6.date">2 weeks ago</p>
+                </div>
+            </div>
+
+            <!-- CTA Section -->
+            <div class="mt-16 text-center bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 border border-purple-100">
+                <h3 class="text-2xl font-bold text-gray-900 mb-4" data-i18n="reviews.cta.title">
+                    Join Thousands of Happy Users Today
+                </h3>
+                <p class="text-gray-600 mb-6 max-w-2xl mx-auto">
+                    <span data-i18n="reviews.cta.subtitle1">Start downloading Instagram videos, reels, stories, and photos with the most trusted</span> <strong class="text-purple-600" data-i18n="reviews.cta.subtitle2">Instagram downloader</strong> <span data-i18n="reviews.cta.subtitle3">- completely free and no registration required!</span>
+                </p>
+                <a href="#" class="lang-link inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition transform hover:scale-105 shadow-xl">
+                    <span data-i18n="reviews.cta.button">Try NetDNA Now - It's Free!</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="py-16 px-4 bg-gradient-to-br from-purple-50 to-pink-50">
+        <div class="max-w-3xl mx-auto">
+            <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 text-center mb-12" data-i18n="faq.title">
+                Frequently Asked Questions
+            </h2>
+            
+            <div class="space-y-4">
+                <!-- FAQ Item 1 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(0)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q1">Can I download Instagram videos from deleted or deactivated accounts?</span>
+                        <svg id="faq-icon-0" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-0" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a1">
+                     When the account has been deactivated or deleted, Instagram removes the videos from the servers and no one can download them. But if you had the URL copied upon deleting, it doesn't work anymore. Hence, the reason is that a lot of users prefer to download key videos instead of waiting.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(1)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q2">Will downloading Instagram videos drain my mobile data quickly?</span>
+                        <svg id="faq-icon-1" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-1" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a2">
+                      Yes, it can. An HD 1-minute Instagram video takes around 15-50MB. Download over WiFi if you have a low data plan. Length, resolution and compression determine file size for a video file – longer videos at a higher quality will use a larger quantity of data to download.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(2)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q3">Can I download Instagram videos that were originally uploaded from TikTok or YouTube?</span>
+                        <svg id="faq-icon-2" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-2" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a3">
+                  Absolutely. Any video that is posted on Instagram can be downloaded from Instagram regardless of where it originated. But the version downloaded will be a copy of Instagram's trans-coded version that's likely to be different in quality when compared to the original TikTok or YouTube source.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(3)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q4">What if I accidentally paste my own Instagram password instead of the video URL?</span>
+                        <svg id="faq-icon-3" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-3" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a4">
+                      Not to worry – our system checks that the input is an Instagram URL and will automatically disqualify anything else. We don't have any means to capture, store, or utilize passwords. If you paste anything that isn't a proper Instagram link, you'll merely see an error message prompting you to provide the appropriate URL.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(4)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q5">Can I download someone's entire Instagram video collection at once?</span>
+                        <svg id="faq-icon-4" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-4" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a5">
+                       Not automatically. You need to paste them one by one and download separately for each video. This is by design – downloading full profiles in bulk may constitute a breach of privacy and copyright laws in many countries. Keep in mind that you download one video at a time from each creator, and you'll need to seek their permission if you want to use more than one.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 6 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-hidden overflow-hidden">
+                    <button onclick="toggleFaq(5)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q6">Do Instagram video downloads work during Instagram outages or server issues?</span>
+                        <svg id="faq-icon-5" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div
+					
+					
+                    <div id="faq-content-5" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a6">
+                      No. Our downloader relies on Instagram because we download videos directly from Instagram servers in real time. Downloads will not function during Instagram outages, downtime, or maintenance periods, until they restore their service. We are as dependable as the Instagram app itself.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 7 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(6)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q7">Can I download Instagram videos that require age verification or sensitive content warnings?</span>
+                        <svg id="faq-icon-6" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-6" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a7">
+                      Only if you can view them openly without logging in. Our program doesn't employ authorized sessions, therefore it can't access anything behind age gates, sensitive content warnings, or mature content filters. Video must be freely accessible.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 8 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(7)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q8">Will the downloaded video file show who originally posted it?</span>
+                        <svg id="faq-icon-7" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-7" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a8">
+                      The MP4 file you download contains only the video and music without any information about the username, caption, likes or comments. If you think you might need this information later, we suggest changing the name of the file to the user name of the creator or storing the original Instagram URL in an alternative conversation.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 9 -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(8)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q9">Can I download Instagram videos that have been edited with third-party filters or effects?</span>
+                        <svg id="faq-icon-8" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-8" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a9">
+                     Absolutely, you will be able to download everything that is displayed on Instagram, including all of the filters, effects, transitions, text overlays, and edits. The version that is ultimately published on Instagram is the one that you will subsequently receive. There is no difference between the video that you download and the one that plays when you watch it on the platform.
+                    </div>
+                </div>
+
+                <!-- FAQ Item 10 -->
+                 <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(9)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q10">How is NetDNA different from other tools like SnapInsta or SaveFrom?</span>
+                        <svg id="faq-icon-9" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-9" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a10">
+                     Unlike SnapInsta, SaveFrom, iGram, InstaSave, Toolzu, DownloadGram or InstaDownloader, the NETDNA platform (netdna-ssl.com) uses a new generation CDN network that helps download speeds up to 3 times faster. Users can download videos, reels, stories and Instagram photos in just one click. NETDNA's system automatically recognizes video formats and optimizes them for fast downloads without losing image or sound quality.
+                    </div>
+                </div>   
+                
+                
+                <!-- FAQ Item 11 -->
+                  <div class="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
+                    <button onclick="toggleFaq(10)" class="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition">
+                        <span class="text-gray-900 font-semibold pr-4" data-i18n="faq.q11">What happens if Instagram changes its video format or compression in the future?</span>
+                        <svg id="faq-icon-10" class="w-5 h-5 text-purple-600 transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div id="faq-content-10" class="hidden px-6 pb-4 text-gray-600" data-i18n="faq.a11">
+                      Instagram technological changes trigger automatic tool updates. To be compatible with Instagram's frequent changes in video encoding, CDN structure, and file formats, our systems update as quickly as possible. Since it handles public videos, our downloader will continue to work regardless of Instagram's backend modifications.
+                    </div>
+                </div>          
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-50 border-t border-gray-200 py-12 px-4">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
+                <div class="lg:col-span-1">
+                    <div class="flex items-center space-x-2 mb-6">
+                        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                        </svg>
+                        <span class="text-gray-900 font-bold text-xl" data-i18n="footer.brand">Instagram Downloader</span>
+                    </div>
+                    <div class="relative mb-4">
+                        <button onclick="toggleLanguageMenu()" id="languageBtn" class="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+                            </svg>
+                            <span id="currentLang" class="text-sm font-medium">EN</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                        </button>
+                        
+                        <div id="languageMenu" class="hidden absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-3 z-50 w-[320px]">
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="changeLanguage('en', 'English')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇬🇧 English
+                                </button>
+                                <button onclick="changeLanguage('it', 'Italiano')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇮🇹 Italiano
+                                </button>
+                                <button onclick="changeLanguage('de', 'Deutsch')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇩🇪 Deutsch
+                                </button>
+                                <button onclick="changeLanguage('fr', 'Français')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇫🇷 Français
+                                </button>
+                                <button onclick="changeLanguage('es', 'Español')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇪🇸 Español
+                                </button>
+                                <button onclick="changeLanguage('pt', 'Português')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇵🇹 Português
+                                </button>
+                                <button onclick="changeLanguage('tr', 'Türkçe')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇹🇷 Türkçe
+                                </button>
+                                <button onclick="changeLanguage('ru', 'Русский')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇷🇺 Русский
+                                </button>
+                                <button onclick="changeLanguage('vi', 'Tiếng Việt')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇻🇳 Tiếng Việt
+                                </button>
+                                <button onclick="changeLanguage('id', 'Indonesia')" class="lang-switcher px-3 py-2.5 text-left hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition text-sm rounded-lg whitespace-nowrap">
+                                    🇮🇩 Indonesia
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <p class="text-gray-500 text-sm mb-2" data-i18n="footer.questions">Any questions?</p>
+                        <a rel="nofollow" href="#" class="flex items-center space-x-2 text-gray-700 hover:text-purple-600 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                            </svg>
+                            <span class="text-sm"><span class="__cf_email__" data-cfemail="9aedf5eddaf4ffeefef4fbb7e9e9f6b4f9f5f7">[email&#160;protected]</span></span>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-gray-600 font-semibold text-sm uppercase mb-4 tracking-wide" data-i18n="footer.inflact">INFLACT</h3>
+                    <ul class="space-y-3">
+                        <li><a rel="nofollow" href="/about-us/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.about">About Us</a></li>
+                        <li><a rel="nofollow" href="/contact/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.contact">Contacts</a></li>
+                    </ul>
+                </div>
+
+                 <div>
+                    <h3 class="text-gray-600 font-semibold text-sm uppercase mb-4 tracking-wide" data-i18n="footer.legal">LEGAL</h3>
+                    <ul class="space-y-3">
+                        <li><a rel="nofollow" href="/terms-and-conditions/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.terms">Terms of Service</a></li>
+                        <li><a rel="nofollow" href="/privacy-policy/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.privacy">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-gray-600 font-semibold text-sm uppercase mb-4 tracking-wide" data-i18n="footer.tools">TOOLS</h3>
+                    <ul class="space-y-3">
+                        <li><a href="/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.videodownloader">Instagram Video Downloader</a></li>
+                        <li><a href="/instagram-reels-downloader/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.reelsdownloader">Instagram Reels Downloader</a></li>
+                    </ul>
+                </div>
+ 
+                <div>
+                    <h3 class="text-gray-600 font-semibold text-sm uppercase mb-4 tracking-wide" data-i18n="footer.tools">TOOLS</h3>
+                    <ul class="space-y-3">
+                        <li><a href="/instagram-photo-downloader/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.photodownloader">Instagram Photo Downloader</a></li>
+                        <li><a href="/instagram-story-downloader/" class="lang-link text-gray-900 hover:text-purple-600 transition text-sm" data-i18n="footer.storydownloader">Instagram Story Downloader</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 pt-8">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+                    <div class="flex-1">
+                        <p class="text-gray-500 text-xs mb-2" data-i18n="footer.copyright">Copyright © 2025</p>
+                        <p class="text-gray-500 text-xs leading-relaxed max-w-2xl" data-i18n="footer.disclaimer">
+                            Netdna-ssl is an independent download video instagram service and is neither endorsed by nor affiliated with Instagram. All trademarks, service marks, trade names, product names, and logos appearing on this application, including those of Instagram™, are the property of Instagram. Service provider: Wiseway SIA, Avotu iela 23-3, Riga, LV-1011, Latvia
+                        </p>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <a href="#" class="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                            <span class="text-sm">Youtube</span>
+                        </a>
+                        <a href="#" class="flex items-center space-x-2 text-gray-600 hover:text-blue-500 transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                            </svg>
+                            <span class="text-sm">Telegram</span>
+                        </a>
+                        <a href="#" class="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                            <span class="text-sm">X</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Language selector
+        function toggleLanguageMenu() {
+            const menu = document.getElementById('languageMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        function changeLanguage(code, name) {
+            // Update language selector display
+            const langMap = {
+                'en': 'EN', 'vi': 'VI', 'id': 'ID', 'es': 'ES',
+                'ru': 'RU', 'fr': 'FR', 'pt': 'PT', 'de': 'DE',
+                'tr': 'TR', 'it': 'IT'
+            };
+            
+            document.getElementById('currentLang').textContent = langMap[code];
+            document.getElementById('languageMenu').classList.add('hidden');
+            
+            // Change language using i18n
+            if (window.i18n && window.i18n.changeLanguage) {
+                window.i18n.changeLanguage(code);
+            }
+        }
+
+        // Close language menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const languageBtn = document.getElementById('languageBtn');
+            const languageMenu = document.getElementById('languageMenu');
+            if (languageBtn && !languageBtn.contains(event.target) && languageMenu && !languageMenu.contains(event.target)) {
+                languageMenu.classList.add('hidden');
+            }
+        });
+
+        // Handle Paste function
+        async function handlePaste() {
+            const urlInput = document.getElementById('urlInput');
+            const pasteBtn = document.getElementById('pasteBtn');
+            
+            try {
+                const text = await navigator.clipboard.readText();
+                urlInput.value = text;
+                urlInput.focus();
+                
+                // Visual feedback
+                pasteBtn.classList.add('bg-white/40');
+                setTimeout(() => {
+                    pasteBtn.classList.remove('bg-white/40');
+                }, 200);
+            } catch (err) {
+                // Fallback if clipboard API is not available
+                urlInput.focus();
+                alert('Please paste the URL manually or allow clipboard access in your browser settings');
+            }
+        }
+
+        let isLoading = false;
+        async function handleDownload() {
+            const urlInput = document.getElementById('urlInput');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const downloadIcon = document.getElementById('downloadIcon');
+            const downloadText = document.getElementById('downloadText');
+            
+            if (!urlInput || !downloadBtn || !downloadIcon || !downloadText) {
+                alert('UI elements not found. Please refresh the page.');
+                return;
+            }
+            
+            if (!urlInput.value || isLoading) return;
+            
+            isLoading = true;
+            downloadBtn.disabled = true;
+            downloadIcon.innerHTML = '<div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>';
+            downloadText.textContent = 'Processing...';
+            
+            const message = document.getElementById('message');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            
+            if (message && loading && error) {
+                message.classList.remove('hidden');
+                loading.classList.remove('hidden');
+                error.classList.add('hidden');
+            }
+            
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: urlInput.value.trim() }),
+                });
+                
+                const result = await response.json();
+                console.log('Response:', result);
+                
+                if (result.success && result.redirectUrl) {
+                    // Redirect đến trang success phù hợp
+                    setTimeout(() => {
+                        window.location.href = result.redirectUrl;
+                    }, 1000);
+                } else {
+                    throw new Error(result.message || 'Unknown error');
+                }
+                
+            } catch (err) {
+                console.error('Error:', err);
+                
+                if (error && loading) {
+                    loading.classList.add('hidden');
+                    error.classList.remove('hidden');
+                    const errorText = document.getElementById('errorText');
+                    if (errorText) errorText.textContent = err.message;
+                } else {
+                    alert(err.message);
+                }
+            } finally {
+                isLoading = false;
+                downloadBtn.disabled = false;
+                downloadIcon.innerHTML = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>';
+                downloadText.textContent = 'Download';
+            }
+        }
+
+      // FAQ Toggle Function
+        let openFaqIndex = null;
+        function toggleFaq(index) {
+            const content = document.getElementById(`faq-content-${index}`);
+            const icon = document.getElementById(`faq-icon-${index}`);
+            
+            if (openFaqIndex === index) {
+                content.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+                openFaqIndex = null;
+            } else {
+                if (openFaqIndex !== null) {
+                    document.getElementById(`faq-content-${openFaqIndex}`).classList.add('hidden');
+                    document.getElementById(`faq-icon-${openFaqIndex}`).classList.remove('rotate-180');
+                }
+                content.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+                openFaqIndex = index;
+            }
+        }
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Close mobile menu if open
+                    const mobileMenu = document.getElementById('mobileMenu');
+                    if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                }
+            });
+        });
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"41453a49da114d1782e5ef680480a9f2","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

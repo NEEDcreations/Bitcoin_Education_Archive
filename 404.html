@@ -101,6 +101,41 @@
             <button class="ch-btn" onclick="go('investment-strategy',this)">🤑 investment-strategy</button>
             <button class="ch-btn" onclick="go('evidence-against-alts',this)">⚠ evidence-against-alts</button>
             <button class="ch-btn" onclick="go('consensus',this)">🌐 consensus</button>
+
+            <div class="cat-label">Resources</div>
+            <button class="ch-btn" onclick="go('one-stop-shop',this)">🛑 one-stop-shop</button>
+            <button class="ch-btn" onclick="go('faq-glossary',this)">❓ faq-glossary</button>
+            <button class="ch-btn" onclick="go('nostr',this)">💜 nostr</button>
+            <button class="ch-btn" onclick="go('misconceptions-fud',this)">🤡 misconceptions-fud</button>
+            <button class="ch-btn" onclick="go('books',this)">📚 books</button>
+            <button class="ch-btn" onclick="go('videos',this)">📺 videos</button>
+            <button class="ch-btn" onclick="go('podcasts',this)">🔊 podcasts</button>
+            <button class="ch-btn" onclick="go('articles-threads',this)">📃 articles-threads</button>
+            <button class="ch-btn" onclick="go('informational-sites',this)">📃 informational-sites</button>
+            <button class="ch-btn" onclick="go('curriculum',this)">🎓 curriculum</button>
+            <button class="ch-btn" onclick="go('research-theses',this)">✍ research-theses</button>
+            <button class="ch-btn" onclick="go('games',this)">🎮 games</button>
+            <button class="ch-btn" onclick="go('music',this)">🎵 music</button>
+            <button class="ch-btn" onclick="go('movies-tv',this)">🎬 movies-tv</button>
+            <button class="ch-btn" onclick="go('hardware',this)">💻 hardware</button>
+            <button class="ch-btn" onclick="go('poems-stories',this)">📒 poems-stories</button>
+            <button class="ch-btn" onclick="go('apps-tools',this)">🍎 apps-tools</button>
+            <button class="ch-btn" onclick="go('projects-diy',this)">🔧 projects-diy</button>
+            <button class="ch-btn" onclick="go('art-inspiration',this)">🤩 art-inspiration</button>
+            <button class="ch-btn" onclick="go('graphics',this)">🎨 graphics</button>
+            <button class="ch-btn" onclick="go('charts',this)">📊 charts</button>
+            <button class="ch-btn" onclick="go('swag-merch',this)">👕 swag-merch</button>
+            <button class="ch-btn" onclick="go('jobs-earn',this)">👷 jobs-earn</button>
+            <button class="ch-btn" onclick="go('social-media',this)">👍 social-media</button>
+            <button class="ch-btn" onclick="go('fun-facts',this)">🎉 fun-facts</button>
+            <button class="ch-btn" onclick="go('news-adoption',this)">📰 news-adoption</button>
+            <button class="ch-btn" onclick="go('history',this)">📆 history</button>
+            <button class="ch-btn" onclick="go('international',this)">🌍 international</button>
+            <button class="ch-btn" onclick="go('satoshi-nakamoto',this)">🦸 satoshi-nakamoto</button>
+            <button class="ch-btn" onclick="go('giga-chad',this)">👑 giga-chad</button>
+            <button class="ch-btn" onclick="go('health',this)">🥩 health</button>
+            <button class="ch-btn" onclick="go('web5',this)">5⃣ web5</button>
+            <button class="ch-btn" onclick="go('memes-funny',this)">😂 memes-funny</button>
         </div>
     </aside>
     <main id="main">
@@ -110,6 +145,7 @@
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
 
     <script src="experienced_data.js"></script>
+    <script src="resources_data.js"></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -253,7 +289,7 @@
     };
 
     function go(id, btn) {
-        const d = D[id] || (typeof E !== 'undefined' && E[id]); if (!d) return;
+        const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]); if (!d) return;
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
