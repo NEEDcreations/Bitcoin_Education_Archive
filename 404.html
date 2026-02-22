@@ -14,6 +14,16 @@
         .sidebar-header h2 { color: #f97316; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 900; }
         .sidebar-header p { color: #64748b; font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
+        .search-box { padding: 12px; border-bottom: 1px solid #1e293b; }
+        .search-input { width: 100%; padding: 10px 14px; background: #020617; border: 1px solid #1e293b; border-radius: 8px; color: #e2e8f0; font-size: 0.9rem; font-family: inherit; outline: none; }
+        .search-input:focus { border-color: #f97316; }
+        .search-input::placeholder { color: #475569; }
+        .search-results { padding: 12px; display: none; }
+        .search-results.active { display: block; }
+        .sr-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; margin-bottom: 2px; border-left: 3px solid transparent; }
+        .sr-item:hover { background: rgba(255,255,255,0.04); color: #fff; border-left-color: #f97316; }
+        .sr-item .sr-cat { font-size: 0.65rem; color: #475569; text-transform: uppercase; }
+        .sr-item .sr-match { color: #f97316; font-size: 0.8rem; margin-top: 2px; }
         .cat-label { font-size: 0.65rem; text-transform: uppercase; color: #475569; letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
         .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #94a3b8; padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.9rem; font-family: inherit; }
         .ch-btn:hover { background: rgba(255,255,255,0.04); color: #cbd5e1; }
@@ -59,7 +69,11 @@
             <h2>₿ Bitcoin Education</h2>
             <p>Discord Server Archive</p>
         </div>
-        <div class="channels">
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)">
+        </div>
+        <div class="search-results" id="searchResults"></div>
+        <div class="channels" id="channelList">
             <div class="cat-label">Properties Layer 1</div>
             <button class="ch-btn active" onclick="go('whitepaper',this)">📄 whitepaper</button>
             <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
@@ -223,6 +237,7 @@
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
 
+    <script src="properties_data.js"></script>
     <script src="experienced_data.js"></script>
     <script src="resources_data.js"></script>
     <script src="helpdesk_data.js"></script>
@@ -231,142 +246,6 @@
         document.getElementById('lb-img').src = src;
         document.getElementById('lb').classList.add('open');
     }
-
-    const D = {
-        'whitepaper': {
-            cat: 'Properties Layer 1',
-            title: '📄 The Whitepaper',
-            desc: 'On October 31, 2008, the Whitepaper that first described Bitcoin was published.',
-            msgs: [
-                { text: 'On October 31, 2008, the Whitepaper that first described Bitcoin was published on a mailing list for those interested in cryptography.\n\nYou should read it if you never have before. Most of it is very easy to understand. It\'s only 8 pages of text:', link: 'https://bitcoin.org/bitcoin.pdf' },
-                { text: 'Here\'s my Tweet thread describing the Whitepaper:', link: 'https://twitter.com/NEEDcreations/status/1495550707776245760' },
-                { text: 'I also recommend "The Book of Satoshi" as a concise introduction to many of the discussions Satoshi engaged in at the public release of bitcoin.', author: 'premitive1' },
-                { text: 'The Book Of Satoshi: The Collected Writings of Bitcoin Creator Satoshi Nakamoto\nAttached free PDF', link: 'https://amzn.to/3dWTytJ', imgs: ['images/properties/whitepaper_whitepaper_51S2_2BeHGvlL._SR600_2c315_PIWhiteStrip_2cBottomLeft_2c0_2c35_PIStarR.jpg'] },
-                { text: '', imgs: ['images/properties/whitepaper_whitepaper_FgZPcObWQAE_Vcp.jpg'] }
-            ]
-        },
-        'decentralized': {
-            cat: 'Properties Layer 1',
-            title: '👪 decentralized-censorship-resistant-ungovernable-incorruptible-trustless-unconfiscatable-updatable',
-            desc: 'No person, group, or central authority controls Bitcoin.',
-            msgs: [
-                { text: '<b>DECENTRALIZATION</b>\nThere are three main reasons that Bitcoin is decentralized. One is that there is no person, group, or central authority in charge of Bitcoin. There is no Bitcoin CEO or Bitcoin board of directors or head of marketing. No one can decide to mint more than the max supply of Bitcoin.' },
-                { text: '<b>CENSORSHIP RESISTANT / UNGOVERNABLE / INCORRUPTIBLE</b>\nThere is no CEO or president of Bitcoin. No one is in charge of Bitcoin, and therefore there is no counterparty risk to deal with. There is no one person or group to bribe, arrest, or kill to stop Bitcoin. Bitcoin is not a company, it is a protocol.' },
-                { text: '<b>UPDATING THE CODE / STRUCTURED GOVERNANCE CONSENSUS</b>\nDecisions to change or update the Bitcoin Core code require a deep consensus from members of the network. There is a process that starts with a Bitcoin Improvement Proposal (BIP). For one very particular Taproot activation method, after the BIP received mass technical consensus among developers it went on to a signaling vote among miners. Miners had 3 months to signal support of the upgrade. 90% of the miners needed to signal their support for the upgrade to activate.' },
-                { text: 'In general, no one in particular controls the Bitcoin Core code. It\'s practically impossible to fully comprehend Bitcoin as a system. The definition (control) of Bitcoin the protocol is like the definition of a language. Languages emerge spontaneously; the consensus over the meaning of words is organic and dynamic.' },
-                { text: 'Decentralization', imgs: ['images/properties/decentralized_decentralization.png', 'images/properties/decentralized_decentralized_FcejdshXoAAGa3k.jpg'] }
-            ]
-        },
-        'scarce': {
-            cat: 'Properties Layer 1',
-            title: '🍀 scarce-unforgeable-hedge-scalable-p2p-instant-open-source-auditable-inaliable',
-            desc: 'There will only ever be 21,000,000 Bitcoin.',
-            msgs: [
-                { text: '<b>SCARCITY / UNFORGEABILITY</b>\nBitcoin\'s supply is limited, which makes it different than fiat currency like USD and other cryptocurrencies like Ethereum. There will only ever be 21,000,000* Bitcoin. So far, 19.1 million have been mined. Additionally, 2-3 million coins are actually either lost due to people losing their keys, or intentionally burned to permanently reduce the supply, so the actual supply is well below 21 million.' },
-                { text: '<b>SCALABILITY</b>\nYou might have heard that Bitcoin can only process only upwards of 7 transactions per second. This is somewhat true, but only about Bitcoin\'s base layer. See ⚡layer-2-lightning for Bitcoin\'s solution to this problem.\n\n<b>PEER-TO-PEER (P2P) / INSTANT</b>\nBitcoin provides direct person to person transactions without needing any intermediary.' },
-                { text: '<b>OPEN SOURCE / AUDITABLE</b>\nBitcoin\'s code is open sourced meaning it is public and fully auditable by anyone. Anyone can propose changes or updates through "Bitcoin Improvement Protocols" or BIPs.\n\n<b>INALIENABLE</b>\nNo one can take away your Bitcoin from you.' },
-                { text: 'Thread on scarcity:', link: 'https://twitter.com/real_vijay/status/1032509404409548800' }
-            ]
-        },
-        'secure': {
-            cat: 'Properties Layer 1',
-            title: '™ secure-fungible-immutable-incorruptible-immalleable-infallible-reliable-predictable-irreplicable',
-            desc: 'Bitcoin is a honeypot of over $800 billion and has been under attack every day since 2013.',
-            msgs: [
-                { text: '<b>SECURITY</b>\nIt is quite impossible to hack the Bitcoin network. Bitcoin is a honeypot of over $800 billion and has been under attack every hour of every day since gaining significant value around 2013. Every day that passes, Bitcoin\'s security gets stronger. This is because more and more computers join the network.' },
-                { text: 'The private keys for your Bitcoin wallet (your seed phrase) is also quite impossible to hack by brute force. There are 2^160 potential Bitcoin wallets, which renders it humanly impossible to guess.', link: 'https://www.youtube.com/watch?v=S9JGmA5_unY' },
-                { text: '<b>IMMUTABILITY / INCORRUPTIBILITY</b>\nBitcoin is immutable in that its monetary policy is set in stone and it can not be changed. This was made possible for three main reasons:\n1) Bitcoin didn\'t have a premine.\n2) There is no official foundation behind Bitcoin.\n3) The founder (Satoshi) stepped down.\n\nIn conjunction with decentralization, these 3 factors make it virtually impossible to change the core protocol of Bitcoin.' },
-                { text: '<b>INFALLIBLE / RELIABLE</b>\nThe protocol that fuels Bitcoin is apparently infallible. Even if we can never exclude the idea that a flaw may one day be found, this scenario is unlikely as the code has been peer reviewed by hundreds of thousands of coders including the world\'s brightest. Cryptography that is used in Bitcoin has also been used for decades in other applications.' },
-                { text: '<b>PREDICTABLE</b>\nThe supply issuance of Bitcoin is known in advance; it is written in the code of the protocol. The supply issuance gets cut in half every 4 years. Currently, 6.25 bitcoin get minted about every 10 minutes. In 2024, 3.125 bitcoin will get minted about every 10 minutes.' },
-                { text: '<b>IRREPLICABLE</b>\nBitcoin is impossible to be replicated. It can be copied, as it has been thousands of times with forks and altcoins, but its immaculate conception and rise from collectible to an asset/money can not be replicated. You can\'t rediscover/reinvent digital scarcity. It is a one time discovery.' }
-            ]
-        },
-        'money': {
-            cat: 'Properties Layer 1',
-            title: '💰 money-deflationary-salable-durable-anti-fragile-divisible-portable-transmittable-verifiable-fair',
-            desc: 'Money is the token or representation of value.',
-            msgs: [
-                { text: '<b>MONEY</b>\nMoney is the token or representation of value. It was created after the system of barter became inefficient. There are key features that define money and the properties of Bitcoin that fit the mold: durability (Bitcoin can\'t be destroyed), portability (send it anywhere instantly), divisibility (1 Bitcoin = 100,000,000 satoshis), uniformity (every Bitcoin is the same), limited supply (21 million cap), and acceptability (growing every day).' },
-                { text: 'As bitcoin gets readily adopted over time and demand goes up while its liquid supply decreases as issuance goes down and more and more people decide to hold their bitcoin long term, the price will keep going up until (seemingly) all of the world\'s wealth is in bitcoin.\n\n<b>MEDIUM OF EXCHANGE (PAYING)</b>\nBitcoin can be used to pay for goods and services directly.' },
-                { text: '<b>BITCOIN PAYMENTS</b>\nA simple way to explain how Bitcoin payments work is to compare it to email. Anyone with your email can send you an email in the same way that anyone with your Bitcoin address can send you Bitcoin. Anyone with an internet connection can send any amount of bitcoin to anyone else in the world.' },
-                { text: '<b>FAIR</b>\nThere are a few reasons why Bitcoin is fair. First of all, the way it came into existence and was distributed is fair. There was no premine, no opportunity to purchase a large supply of the coins before anyone else has access. This is what most altcoins, such as Ethereum, do.' }
-            ]
-        },
-        'peaceful': {
-            cat: 'Properties Layer 1',
-            title: '☮ peaceful-neutral-voluntary-open-universal-permissionless-borderless-global-inevitable-unstoppable',
-            desc: 'No one will force you to use Bitcoin. You can choose to opt-in.',
-            msgs: [
-                { text: '<b>PEACEFUL / NEUTRAL / VOLUNTARY / OPEN / UNIVERSAL / PERMISSIONLESS / BORDERLESS / GLOBAL</b>\nNo one will force you to use Bitcoin. You can choose to opt-in if you want. You don\'t need permission or special access to transact or develop on the Bitcoin network. There are no gatekeepers preventing you from joining.' },
-                { text: '<b>INEVITABLE / UNSTOPPABLE</b>\nWhen China banned Bitcoin (again and again over the years), Bitcoin just moves. When Bitcoin exchanges get banned, they move offshore. When citizens aren\'t allowed to invest in Bitcoin, they start buying Bitcoin with stablecoins. When Bitcoin mining gets banned, the miners just move to friendlier states.' }
-            ]
-        },
-        'dominant': {
-            cat: 'Properties Layer 1',
-            title: '🏆 dominant-recognizable-brand-legitimate-limitless-infinite-exponential-transformative-revolutionary',
-            desc: 'The top 10 cryptocurrencies have traded hands many times since 2009 — all except spot #1.',
-            msgs: [
-                { text: '<b>DOMINANT / RECOGNIZABLE BRAND</b>\nThe top 10 cryptocurrencies have traded hands many times since 2009...all except spot #1. Bitcoin has a head start, and by now, everyone in the world has at least heard of Bitcoin. Nothing will catch it or replace it.' },
-                { text: '<b>LEGITIMATE</b>\nBitcoin\'s code is public and has been audited probably tens of thousands of times. The developers are very careful when they make changes. Everything is thoroughly tested. Additionally, Bitcoin\'s monetary policy is very clear. Bitcoin is scarce, sound money. There are no false promises.' },
-                { text: '<b>LIMITLESS</b>\nWhile Bitcoin\'s supply is capped, the potential of Bitcoin is limitless. Everything that is advertised and being developed on other coins that is important will be built on top of Bitcoin. Bitcoin scales exceptionally.' },
-                { text: '<b>INFINITE</b>\nYou\'ve probably seen ∞/21 million before (infinity divided by 21 million). What this means is that all of the world\'s wealth (hundreds of trillions of dollars) will eventually funnel into Bitcoin. The process is already underway.' },
-                { text: '<b>EXPONENTIAL</b>\nBitcoin\'s growth is exponential and will resemble a J shaped curve.' },
-                { text: '<b>TRANSFORMATIVE</b>\nYou don\'t find Bitcoin, Bitcoin finds you. Bitcoin changes you. It lowers your time preference, meaning it makes you think about having a good future as opposed to mindlessly consuming in the present. Studying Bitcoin takes you down the rabbit hole of economics, policy making, nature, and philosophy.' },
-                { text: '<b>REVOLUTIONARY</b>\nWe are fixing a 10,000 year old problem that has always plagued humans. We are fixing money. Bitcoin removes the human element that always leads to corruption. Bitcoin is a revolution.' }
-            ]
-        },
-        'organic': {
-            cat: 'Properties Layer 1',
-            title: '🌳 organic-empowering-elegant-freedom-centric-irrefutable-unseizable-irreversible-unbreakable',
-            desc: 'Bitcoin started as an idea with no marketing team.',
-            msgs: [
-                { text: '<b>ORGANIC</b>\nBitcoin started as an idea, then turned into a collectible (that originally had no value), and is now valued at $40,000. For most of the world, Bitcoin was a grassroots movement and revolution to protect citizens from inflation and totalitarianism. There is no marketing team or marketing budget.' },
-                { text: '<b>EMPOWERING</b>\nLearning about Bitcoin is empowering. You feel a moment of euphoria when it "clicks" for you. Bitcoin knowledge makes you stronger, more intelligent, happier, and peaceful.' },
-                { text: '<b>ELEGANT</b>\nBitcoin\'s code is elegantly designed. More on this later.' },
-                { text: '<b>FREEDOM CENTRIC</b>\nBitcoin is freedom money. Bitcoin is all about being self-sovereign...taking control of your property, wealth and savings and being able to have a voice.' }
-            ]
-        },
-        'supranational': {
-            cat: 'Properties Layer 1',
-            title: '🕊 supranational-lindy-inviolate-dilution-proof-frictionless-freely-accessible-settlement-finality',
-            desc: 'Not part of any government. Consensual and inclusive.',
-            msgs: [
-                { text: '<b>SUPRANATIONAL</b>\nNot part of any government.\n\n<b>LINDY</b>\nThe future life expectancy of some non-perishable things, like a technology or an idea, is proportional to their current age.\n\n<b>INVIOLATE</b>\nIt doesn\'t force itself on anyone — making it consensual. It doesn\'t exclude anyone from using it — making it inclusive.', imgs: ['images/properties/supranational_supranational_1_9k5rfCuRanEgJLQGWOs28g.jpeg'] }
-            ]
-        },
-        'programmable': {
-            cat: 'Properties Layer 1',
-            title: '🤖 programable-interoperable-deflationary-pseudonymous-opt-in-resilient-adiabatic-egalitarian',
-            desc: 'Adiabatic — or "thermodynamically sound" as put by Saylor.',
-            msgs: [
-                { text: 'Adiabatic — or "thermodynamically sound" as put by Saylor.', imgs: ['images/properties/programmable_programmable_F6UGCD-bAAAqjmY.jpg', 'images/properties/programmable_programmable_F6PpDq8W4AIK9rf.png'] },
-                { text: '<b>EGALITARIAN</b>\nBitcoin is a fair system that is open to everyone.' }
-            ]
-        },
-        'use-cases': {
-            cat: 'Properties Layer 1',
-            title: '✔ Use Cases',
-            desc: 'Bitcoin is money. A better money than anything used in all of human history.',
-            msgs: [
-                { text: 'Bitcoin is money. A better money than anything used in all of human history. Bitcoin is better at being gold than gold. Bitcoin is better at being fiat than fiat.\nGold is really good at transporting value over time. Fiat is really good at transporting value over space. Bitcoin is good at both of these.' },
-                { text: 'With Bitcoin, you are able to transact with anyone, anytime, in any amount, person-to-person with no intermediary bank or government. There is nobody necessary to process or approve your transactions and nobody in the way to delay or deny your transactions.' },
-                { text: 'Remittance transfers using apps like Twitter, Strike, and the Lightning Network have much cheaper fees than traditional avenues like Western Union.\n\nAdditionally, Bitcoin can be used:\n- international p2p payments (tips, direct payment for services/products)\n- transfer of personal wealth across borders\n- donations and fundraising\n- store of value and savings\n- hedge against inflation and geopolitical instability' },
-                { text: 'Equipped with only a cell phone and an internet connection, Bitcoin enables you to be your own banker. There is no need anymore for anyone to have a traditional bank account. In fact, billions of unbanked citizens across the world will leap frog traditional banking with Bitcoin.' },
-                { text: 'Bitcoin mining promotes renewable energy usage and also makes use of otherwise wasted energy. It turns wasted energy into wealth. Bitcoin solves the problem of channeling (moving) energy geographically to where it\'s needed most.' },
-                { text: 'Specific use cases by country listed in this thread:', link: 'https://twitter.com/skwp/status/1335627973915971592', imgs: ['images/properties/use-cases_21_reasons_bitcoin_will_save_the_world.jpg'] },
-                { text: '<b>21 REASONS BITCOIN WILL SAVE THE WORLD (outlined by the members of this server)</b>\n1. Self sovereignty. Take control of your savings. Take control of your future.\n2. Censorship resistance. No government, bank or person stands between you and your money.\n3. Remittance payments with little to no fees.\n4. Universal access. Open 24/7/365.\n5. Sound money with a fixed supply.\n6. Protection against inflation.\n7. Financial inclusion for the unbanked.\n8. Transparent and auditable.\n9. Neutral and permissionless.\n10. Promotes renewable energy.' },
-                { text: '11. Bitcoin counters the Cantillon Effect, where those closest to the money spigot get the most benefits (and the rich get richer).\n12. More than 2/3 of the energy produced in the world is waste energy. Bitcoin mining utilizes this waste.\n13. Censorship-resistant donations.\n14. Financial freedom for people under authoritarian regimes.\n15. Property rights for billions who have none.' },
-                { text: '16. Bitcoin enables very fast, low fee, secure transactions of any amount to anyone in the world at any time.\n17. Bitcoin, unlike legacy banking services, is open before 9AM and doesn\'t close after 5PM or on weekends or holidays.\n18. You can transact with anyone without having to trust them or rely on a third party.\n19. Machine-to-machine payments.\n20. Micropayments and streaming money.\n21. A peaceful revolution fixing a 10,000 year old problem with money.' },
-                { text: 'One underrated feature of Bitcoin is that it can be spent in any amount imaginable.\n\nHigh value payments are great for wealthy elites, but the low value payments will change the world.\n\nSo many new use cases that simply aren\'t possible with cash, credit cards, and bank wires.', imgs: ['images/properties/use-cases_20220214_064714.jpg'] },
-                { text: 'As we\'re seeing today with the Ukraine/Russia conflict, Bitcoin is a safe haven. It is a hedge against geopolitical risk, because Bitcoin isn\'t controlled by any government. Sanctions can not be made on your Bitcoin!' },
-                { text: 'If you pay with credit card, the merchant has to pay 3% fee and they pass that on to you through increasing prices. With bitcoin it\'s basically free.' },
-                { text: 'Human Rights and Bitcoin in countries all over the world:', link: 'https://twitter.com/gladstein/status/1539472491474694144', imgs: ['images/properties/use-cases_use-cases_GLxkLaLjeCIQGqax.jpg'] },
-                { text: 'Circumventing authoritarian regimes:', imgs: ['images/properties/use-cases_use-cases_FJjbvnFUYAEf4oa.png', 'images/properties/use-cases_use-cases_FJjh3M6VcAc2DnD.png'] },
-                { text: 'Here are dozens of human rights and humanitarian use cases for Bitcoin which cannot be done with dollars or any fiat money (Gladstein):', link: 'https://www.journalofdemocracy.org/online-exclusive/how-to-dictator-proof-your-money/', imgs: ['images/properties/use-cases_use-cases_GettyImages-1233884338-scaled.jpg'] },
-                { text: '', imgs: ['images/properties/use-cases_use_case.jpg'] }
-            ]
-        }
-    };
 
     function go(id, btn) {
         const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]) || (typeof H !== 'undefined' && H[id]); if (!d) return;
@@ -395,6 +274,44 @@
         document.getElementById('msgs').innerHTML = html;
         document.getElementById('main').scrollTop = 0;
         history.replaceState(null, null, '#' + id);
+    }
+
+    function doSearch(q) {
+        const sr = document.getElementById('searchResults');
+        const cl = document.getElementById('channelList');
+        if (!q || q.length < 2) { sr.classList.remove('active'); sr.innerHTML = ''; cl.style.display = ''; return; }
+        q = q.toLowerCase();
+        const all = Object.assign({}, D||{}, E||{}, R||{}, H||{});
+        let results = [];
+        for (const [key, ch] of Object.entries(all)) {
+            // Search title
+            if (ch.title.toLowerCase().includes(q)) {
+                results.push({key, title: ch.title, cat: ch.cat, match: 'Channel name match'});
+                continue;
+            }
+            // Search message content
+            for (const m of (ch.msgs || [])) {
+                if (m.text && m.text.toLowerCase().includes(q)) {
+                    let idx = m.text.toLowerCase().indexOf(q);
+                    let start = Math.max(0, idx - 40);
+                    let snippet = '...' + m.text.substring(start, idx + q.length + 40).replace(/<[^>]+>/g, '') + '...';
+                    results.push({key, title: ch.title, cat: ch.cat, match: snippet});
+                    break;
+                }
+            }
+        }
+        cl.style.display = 'none';
+        sr.classList.add('active');
+        if (results.length === 0) {
+            sr.innerHTML = '<div style="padding:12px;color:#475569;">No results found</div>';
+            return;
+        }
+        sr.innerHTML = results.slice(0, 30).map(r =>
+            '<div class="sr-item" onclick="doSearch(\'\');document.getElementById(\'searchInput\').value=\'\';go(\'' + r.key + '\')">' +
+            '<div class="sr-cat">' + r.cat + '</div>' +
+            '<div>' + r.title + '</div>' +
+            '<div class="sr-match">' + r.match + '</div></div>'
+        ).join('');
     }
 
     window.onload = () => go(location.hash.slice(1) || 'whitepaper');
