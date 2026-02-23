@@ -248,16 +248,82 @@ function createNacho() {
         .nacho-x:hover { opacity: 1; }
         #nacho-text { word-wrap: break-word; }
 
-        /* Clippy-style idle animations */
-        @keyframes nachoIdle1 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-        @keyframes nachoIdle2 { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
-        @keyframes nachoIdle3 { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        @keyframes nachoPeek { 0% { transform: translateX(-20px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+        /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
-        #nacho-avatar.idle-bob { animation: nachoIdle1 3s ease-in-out infinite; }
-        #nacho-avatar.idle-wiggle { animation: nachoIdle2 2.5s ease-in-out infinite; }
-        #nacho-avatar.idle-pulse { animation: nachoIdle3 2s ease-in-out infinite; }
-        #nacho-avatar.peek { animation: nachoPeek 0.5s ease-out; }
+        /* 1. Tap tap — like Clippy tapping on the screen */
+        @keyframes nachoTap {
+            0%, 100% { transform: translateY(0); }
+            10% { transform: translateY(-6px); }
+            20% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+            40% { transform: translateY(0); }
+        }
+        /* 2. Lean and look — Clippy tilting to peek at your screen */
+        @keyframes nachoLean {
+            0%, 100% { transform: rotate(0deg) translateX(0); }
+            30% { transform: rotate(8deg) translateX(3px); }
+            50% { transform: rotate(8deg) translateX(3px); }
+            80% { transform: rotate(0deg) translateX(0); }
+        }
+        /* 3. Bored wiggle — Clippy fidgeting when idle */
+        @keyframes nachoWiggle {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(-6deg); }
+            30% { transform: rotate(5deg); }
+            45% { transform: rotate(-4deg); }
+            60% { transform: rotate(3deg); }
+            75% { transform: rotate(-2deg); }
+            90% { transform: rotate(0deg); }
+        }
+        /* 4. Bounce — Clippy's excited hop */
+        @keyframes nachoBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            20% { transform: translateY(-8px) scale(1.05); }
+            40% { transform: translateY(0) scale(0.97); }
+            55% { transform: translateY(-4px) scale(1.02); }
+            70% { transform: translateY(0) scale(0.99); }
+            85% { transform: translateY(-2px) scale(1.01); }
+        }
+        /* 5. Stretch — Clippy stretching/yawning */
+        @keyframes nachoStretch {
+            0%, 100% { transform: scaleY(1) scaleX(1); }
+            25% { transform: scaleY(1.12) scaleX(0.92); }
+            50% { transform: scaleY(0.92) scaleX(1.08); }
+            75% { transform: scaleY(1.05) scaleX(0.97); }
+        }
+        /* 6. Look around — Clippy looking left and right */
+        @keyframes nachoLook {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-5px); }
+            40% { transform: translateX(-5px); }
+            60% { transform: translateX(5px); }
+            80% { transform: translateX(5px); }
+        }
+        /* 7. Wave — Clippy waving at you */
+        @keyframes nachoWave {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(-12deg); }
+            30% { transform: rotate(10deg); }
+            45% { transform: rotate(-8deg); }
+            60% { transform: rotate(6deg); }
+            75% { transform: rotate(-3deg); }
+        }
+        /* 8. Sleepy bob — Clippy nodding off */
+        @keyframes nachoSleepy {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            30% { transform: translateY(2px) rotate(3deg); }
+            50% { transform: translateY(3px) rotate(5deg); }
+            70% { transform: translateY(2px) rotate(3deg); }
+        }
+
+        #nacho-avatar.anim-tap { animation: nachoTap 2s ease-in-out infinite; }
+        #nacho-avatar.anim-lean { animation: nachoLean 3.5s ease-in-out infinite; }
+        #nacho-avatar.anim-wiggle { animation: nachoWiggle 2.5s ease-in-out infinite; }
+        #nacho-avatar.anim-bounce { animation: nachoBounce 1.8s ease-in-out infinite; }
+        #nacho-avatar.anim-stretch { animation: nachoStretch 3s ease-in-out infinite; }
+        #nacho-avatar.anim-look { animation: nachoLook 4s ease-in-out infinite; }
+        #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
+        #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
         /* Mobile */
         @media (max-width: 768px) {
@@ -287,7 +353,7 @@ function createNacho() {
     container.id = 'nacho-container';
     if (!nachoVisible) container.classList.add('hidden');
     container.innerHTML =
-        '<div id="nacho-avatar" class="idle-bob" onclick="nachoClick()" title="Nacho the Honey Badger — Click me!">' +
+        '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Honey Badger — Click me!">' +
             '<span id="nacho-face">' + POSES.default + '</span>' +
             '<span class="nacho-name">Nacho</span>' +
         '</div>' +
@@ -351,10 +417,13 @@ function startIdleCycle() {
         idleIndex = (idleIndex + 1) % IDLE_SEQUENCE.length;
         setPose(IDLE_SEQUENCE[idleIndex]);
 
-        // Randomly switch idle animation
-        avatar.classList.remove('idle-bob', 'idle-wiggle', 'idle-pulse');
-        const anims = ['idle-bob', 'idle-wiggle', 'idle-pulse'];
-        avatar.classList.add(pickRandom(anims));
+        // Randomly switch idle animation — Clippy-style fidgeting
+        const allAnims = ['anim-tap', 'anim-lean', 'anim-wiggle', 'anim-bounce', 'anim-stretch', 'anim-look', 'anim-wave', 'anim-sleepy'];
+        allAnims.forEach(a => avatar.classList.remove(a));
+        // Match animation to expression
+        const poseAnimMap = { 'default': ['anim-tap','anim-look','anim-wiggle'], 'eyes': ['anim-lean','anim-look'], 'think': ['anim-lean','anim-tap'], 'cheese': ['anim-bounce','anim-wiggle'], 'cool': ['anim-lean','anim-tap'], 'sleep': ['anim-sleepy'], 'wave': ['anim-wave'], 'celebrate': ['anim-bounce'], 'fire': ['anim-bounce','anim-wiggle'], 'love': ['anim-stretch','anim-tap'], 'brain': ['anim-lean','anim-look'], 'point': ['anim-tap','anim-lean'] };
+        const choices = poseAnimMap[currentPose] || ['anim-tap','anim-wiggle'];
+        avatar.classList.add(pickRandom(choices));
     }, 8000);
 }
 
@@ -386,7 +455,7 @@ function _showBubble(text, pose) {
 
     // Stop idle animation while talking
     if (avatar) {
-        avatar.classList.remove('idle-bob', 'idle-wiggle', 'idle-pulse');
+        ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(a => avatar.classList.remove(a));
     }
 
     textEl.textContent = text;
@@ -404,7 +473,7 @@ window.hideBubble = function() {
     // Resume idle after a beat
     setTimeout(function() {
         resetPose();
-        if (avatar) avatar.classList.add('idle-bob');
+        if (avatar) avatar.classList.add('anim-tap');
     }, 500);
 };
 
