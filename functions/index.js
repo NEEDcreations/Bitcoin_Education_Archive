@@ -122,3 +122,133 @@ exports.totpStatus = functions.https.onCall(async (data, context) => {
         sessionVerified: sessionDoc.exists && sessionDoc.data().verified === true
     };
 });
+
+// =============================================
+// Streak Reminder Push Notifications
+// Runs daily at 8pm UTC (adjustable)
+// =============================================
+exports.streakReminder = functions.pubsub
+    .schedule('0 20 * * *')   // 8:00 PM UTC daily
+    .timeZone('UTC')
+    .onRun(async (context) => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Find users with push tokens who visited yesterday but NOT today
+        // (their streak is about to expire at midnight)
+        const tokensSnap = await db.collection('push_tokens').get();
+        if (tokensSnap.empty) return null;
+
+        const messages = [];
+
+        for (const tokenDoc of tokensSnap.docs) {
+            const uid = tokenDoc.id;
+            const token = tokenDoc.data().token;
+            if (!token) continue;
+
+            // Get user data
+            try {
+                const userDoc = await db.collection('users').doc(uid).get();
+                if (!userDoc.exists) continue;
+
+                const userData = userDoc.data();
+                const lastVisit = userData.lastVisit;
+                const streak = userData.streak || 0;
+
+                // Only notify if they have an active streak (2+) and haven't visited today
+                if (streak >= 2 && lastVisit && lastVisit !== today) {
+                    messages.push({
+                        token: token,
+                        notification: {
+                            title: '🔥 Your ' + streak + '-day streak is about to expire!',
+                            body: 'Visit the Bitcoin Education Archive before midnight to keep it alive. Don\'t lose your progress!'
+                        },
+                        data: {
+                            url: 'https://bitcoineducation.quest'
+                        },
+                        webpush: {
+                            fcmOptions: {
+                                link: 'https://bitcoineducation.quest'
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.log('Error checking user ' + uid + ':', e.message);
+            }
+        }
+
+        if (messages.length === 0) return null;
+
+        // Send notifications (batch up to 500)
+        const batches = [];
+        for (let i = 0; i < messages.length; i += 500) {
+            batches.push(messages.slice(i, i + 500));
+        }
+
+        let sent = 0;
+        let failed = 0;
+        for (const batch of batches) {
+            const results = await admin.messaging().sendEach(batch);
+            results.responses.forEach((resp, idx) => {
+                if (resp.success) {
+                    sent++;
+                } else {
+                    failed++;
+                    // Remove invalid tokens
+                    if (resp.error && (
+                        resp.error.code === 'messaging/invalid-registration-token' ||
+                        resp.error.code === 'messaging/registration-token-not-registered'
+                    )) {
+                        const uid = batches[0][idx] ? null : null; // Can't easily get UID here
+                        // We'll clean up stale tokens separately
+                    }
+                }
+            });
+        }
+
+        console.log('Streak reminders sent: ' + sent + ', failed: ' + failed);
+        return null;
+    });
+
+// =============================================
+// Clean up stale/invalid push tokens (weekly)
+// =============================================
+exports.cleanPushTokens = functions.pubsub
+    .schedule('0 3 * * 0')   // 3 AM UTC every Sunday
+    .timeZone('UTC')
+    .onRun(async (context) => {
+        const tokensSnap = await db.collection('push_tokens').get();
+        let cleaned = 0;
+
+        for (const tokenDoc of tokensSnap.docs) {
+            const token = tokenDoc.data().token;
+            if (!token) {
+                await tokenDoc.ref.delete();
+                cleaned++;
+                continue;
+            }
+
+            // Try a dry-run send to check if token is still valid
+            try {
+                await admin.messaging().send({
+                    token: token,
+                    data: { test: 'true' }
+                }, true); // dry run
+            } catch (e) {
+                if (e.code === 'messaging/invalid-registration-token' ||
+                    e.code === 'messaging/registration-token-not-registered') {
+                    await tokenDoc.ref.delete();
+                    // Also remove from user doc
+                    try {
+                        await db.collection('users').doc(tokenDoc.id).update({
+                            pushToken: admin.firestore.FieldValue.delete()
+                        });
+                    } catch (e2) {}
+                    cleaned++;
+                }
+            }
+        }
+
+        console.log('Cleaned ' + cleaned + ' stale push tokens');
+        return null;
+    });
