@@ -1013,6 +1013,13 @@ function showSettingsPage(tab) {
         html = html.replace(/border-bottom:1px solid var\(--border\);">' + 'Not yet' + '</', 'border-bottom:none;">' + 'Not yet' + '</');
         html += '</div>';
 
+        // Privacy note
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔒 Privacy</div>' +
+            '<div style="color:var(--text);font-size:0.85rem;line-height:1.6;">' +
+            '<strong style="color:#22c55e;">We do not sell, share, or monetize your data. Ever.</strong><br>' +
+            'The only data we store is your username, points, and progress — just enough to power your experience. No tracking, no ads, no third-party analytics. Your data is yours.</div></div>';
+
         // Export data
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Data</div>' +
