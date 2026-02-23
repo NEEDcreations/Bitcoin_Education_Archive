@@ -348,7 +348,10 @@
             <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></svg>
             <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
         </div>
-        <button onclick="toggleMenu()">☰ Menu</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span id="mobileUserInfo" onclick="if(auth&&auth.currentUser&&!auth.currentUser.isAnonymous){showUsernamePrompt()}else{toggleMenu()}" style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;display:none;"></span>
+            <button onclick="toggleMenu()">☰ Menu</button>
+        </div>
     </div>
 
     <aside id="sidebar">
@@ -572,6 +575,7 @@
                         We built a channel just for you. Visit <a href="#one-stop-shop" onclick="go('one-stop-shop');return false;" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">one-stop-shop</a> to hit the highlights of Bitcoin.
                     </div>
                 </div>
+                <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
                 <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;margin-top:12px;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Account / Sign In</button>
                 <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">

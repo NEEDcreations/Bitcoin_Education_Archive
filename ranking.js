@@ -571,6 +571,26 @@ function updateUserDisplay(lv) {
     el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
         '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
         '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' + streakBit;
+
+    // Update mobile top bar user info
+    const mobileInfo = document.getElementById('mobileUserInfo');
+    if (mobileInfo) {
+        const streak = (currentUser.streak || 0) > 0 ? ' 🔥' + currentUser.streak : '';
+        mobileInfo.innerHTML = lv.emoji + ' ' + (currentUser.username || 'Anon') + streak;
+        mobileInfo.style.display = 'inline';
+    }
+
+    // Update home page welcome banner
+    const wb = document.getElementById('welcomeBanner');
+    if (wb && currentUser.username) {
+        const streak = currentUser.streak || 0;
+        const streakText = streak > 0 ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + ' day streak</span>' : '';
+        wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
+            '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + currentUser.username + '!</span>' +
+            '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
+            streakText;
+        wb.style.display = 'block';
+    }
 }
 
 function showLevelUpCelebration(lv) {
