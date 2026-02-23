@@ -113,10 +113,22 @@ async function handleEmailSignIn() {
 
 // Google Sign-In
 async function signInWithGoogle() {
-    try {
-        const provider = new firebase.auth.GoogleAuthProvider();
+    await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+}
 
-        // Get current anonymous user data before signing in
+// Twitter/X Sign-In
+async function signInWithTwitter() {
+    await signInWithProvider(new firebase.auth.TwitterAuthProvider());
+}
+
+// GitHub Sign-In
+async function signInWithGithub() {
+    await signInWithProvider(new firebase.auth.GithubAuthProvider());
+}
+
+// Generic provider sign-in (reused by Google, Twitter, GitHub)
+async function signInWithProvider(provider) {
+    try {
         const anonUser = auth.currentUser;
         let anonData = null;
         if (anonUser) {
@@ -127,20 +139,16 @@ async function signInWithGoogle() {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
 
-        // Check if this Google user already has data
         const existingDoc = await db.collection('users').doc(user.uid).get();
-
         if (!existingDoc.exists) {
             if (anonData) {
-                // Migrate anonymous data to Google account
-                anonData.email = user.email;
+                anonData.email = user.email || '';
                 if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
                 await db.collection('users').doc(user.uid).set(anonData);
             } else {
-                // New Google user — create account
                 await db.collection('users').doc(user.uid).set({
                     username: user.displayName || 'Bitcoiner',
-                    email: user.email,
+                    email: user.email || '',
                     points: 0,
                     channelsVisited: 0,
                     totalVisits: 1,
@@ -153,9 +161,9 @@ async function signInWithGoogle() {
 
         hideUsernamePrompt();
         loadUser(user.uid);
-        showToast('✅ Signed in as ' + (user.displayName || user.email));
+        showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
     } catch(e) {
-        console.log('Google sign-in error:', e);
+        console.log('Provider sign-in error:', e);
         if (e.code !== 'auth/popup-closed-by-user') {
             showToast('Sign-in error. Please try again.');
         }
@@ -553,9 +561,11 @@ function showSignInPrompt() {
         '<input type="email" id="signinEmail" placeholder="📧 Enter your email" style="width:100%;padding:14px 18px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:16px;text-align:center;" onkeydown="if(event.key===\'Enter\')sendSignInLink()">' +
         '<button onclick="sendSignInLink()" style="width:100%;padding:14px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Magic Link →</button>' +
         '<div id="signinStatus" style="margin-top:12px;font-size:0.85rem;"></div>' +
-        '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
-        '<button onclick="signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">' +
-        '<img src=https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg width=18 height=18> Sign in with Google</button></div>' +
+        '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;">' +
+        '<button onclick="signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><img src=https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg width=18 height=18> Google</button>' +
+        '<button onclick="signInWithTwitter()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">𝕏 Twitter/X</button>' +
+        '<button onclick="signInWithGithub()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><img src=https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/github.svg width=18 height=18> GitHub</button>' +
+        '</div>' +
         '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;">Continue as guest</span>';
     modal.classList.add('open');
 }
