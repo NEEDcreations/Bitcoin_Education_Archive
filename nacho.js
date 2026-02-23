@@ -1,6 +1,6 @@
 // =============================================
 // 🦡 Nacho - Bitcoin Education Archive Mascot
-// "Nacho cheese, nacho keys."
+// "Nacho keys, nacho cheese."
 // Inspired by Clippy (Microsoft Office '97)
 // =============================================
 
@@ -26,7 +26,7 @@ const POSES = {
 const CLIPPY_HELPS = {
     // Channel-specific
     'whitepaper': { pose: 'brain', text: "It looks like you're reading the whitepaper! Would you like me to... just kidding, I'm a badger. But this is where it all started! 📜" },
-    'self-custody': { pose: 'point', text: "It looks like you're learning about self-custody! Remember: Nacho cheese, nacho keys. 🧀🔑" },
+    'self-custody': { pose: 'point', text: "It looks like you're learning about self-custody! Remember: Nacho keys, nacho cheese. 🧀🔑" },
     'investment-strategy': { pose: 'think', text: "It looks like you're planning your stack strategy! Pro tip: DCA and chill. 📈" },
     'mining': { pose: 'fire', text: "It looks like you're interested in mining! Fun fact: Honey badgers dig too. We have a lot in common. ⛏️" },
     'privacy-nonkyc': { pose: 'eyes', text: "It looks like you value your privacy! Good. A wise badger never reveals his burrow location. 🕵️" },
@@ -68,7 +68,7 @@ const MOTIVATION = [
 
 // ---- Fun / Personality (Clippy idle chatter) ----
 const FUN = [
-    { pose: 'cheese', text: "Nacho cheese, nacho keys. It's not just a tagline, it's a lifestyle. 🧀🔑" },
+    { pose: 'cheese', text: "Nacho keys, nacho cheese. It's not just a tagline, it's a lifestyle. 🧀🔑" },
     { pose: 'cool', text: "Honey badgers are immune to snake venom. I'm immune to FUD. Coincidence? 🤔" },
     { pose: 'think', text: "If Satoshi had a pet, it would definitely be a honey badger. I will not elaborate. 🦡" },
     { pose: 'cheese', text: "My seed phrase? 24 different types of cheese. Very secure. 🔐🧀" },
