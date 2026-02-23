@@ -253,8 +253,8 @@
         .daily-title { color: var(--heading); font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
         .daily-desc { color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
 
-        .home-cta { background: #f97316; color: #fff; border: none; padding: 16px 40px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
-        .home-cta:hover { background: #ea580c; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(249,115,22,0.3); }
+        .home-cta { background: var(--accent); color: #fff; border: none; padding: 22px 60px; border-radius: 16px; font-size: 1.4rem; font-weight: 800; cursor: pointer; font-family: inherit; transition: 0.2s; letter-spacing: 0.5px; box-shadow: 0 4px 20px var(--accent-glow); margin-bottom: 30px; }
+        .home-cta:hover { background: #ea580c; transform: translateY(-3px); box-shadow: 0 12px 40px rgba(249,115,22,0.4); }
         .suggest-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 30px; text-align: left; }
         .suggest-input { width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; font-family: inherit; outline: none; margin-bottom: 10px; resize: vertical; }
         .suggest-input:focus { border-color: var(--accent); }
@@ -524,8 +524,8 @@
                     <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
                     <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
                 </div>
-                <div class="daily-channel" id="dailyChannel"></div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
+                <div class="daily-channel" id="dailyChannel"></div>
                 <div class="suggest-box">
                     <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic</h3>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Want to see something added to the archive? Let us know!</p>
