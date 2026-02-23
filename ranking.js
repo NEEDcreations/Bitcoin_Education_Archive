@@ -38,6 +38,7 @@ let readTimer = null;
 let readSeconds = 0;
 let lastReadAward = 0;
 let rankingReady = false;
+let allTimeChannels = new Set(); // tracks channels already awarded across all sessions
 
 // Initialize Firebase
 function initRanking() {
@@ -62,6 +63,10 @@ async function loadUser(uid) {
     const doc = await db.collection('users').doc(uid).get();
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        // Restore visited channels so we don't re-award
+        if (currentUser.visitedChannelsList) {
+            currentUser.visitedChannelsList.forEach(ch => allTimeChannels.add(ch));
+        }
         rankingReady = true;
         updateRankUI();
         awardVisitPoints();
@@ -97,32 +102,33 @@ async function awardVisitPoints() {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
+    // Only award once per day — no refresh exploits
+    if (currentUser.lastVisit === today) return;
+
     let streakBonus = false;
-    let updates = {
-        totalVisits: firebase.firestore.FieldValue.increment(1),
-    };
+    let pointsToAdd = POINTS.visit;
+    let newStreak = 1;
 
-    if (currentUser.lastVisit !== today) {
-        // New day visit
-        updates.lastVisit = today;
-        updates.points = firebase.firestore.FieldValue.increment(POINTS.visit);
-
-        if (currentUser.lastVisit === yesterday) {
-            updates.streak = firebase.firestore.FieldValue.increment(1);
-            if ((currentUser.streak || 0) + 1 >= 5 && (currentUser.streak || 0) + 1 % 5 === 0) {
-                updates.points = firebase.firestore.FieldValue.increment(POINTS.visit + POINTS.streak);
-                streakBonus = true;
-            }
-        } else if (currentUser.lastVisit !== today) {
-            updates.streak = 1;
+    if (currentUser.lastVisit === yesterday) {
+        newStreak = (currentUser.streak || 0) + 1;
+        if (newStreak % 5 === 0) {
+            pointsToAdd += POINTS.streak;
+            streakBonus = true;
         }
-
-        await db.collection('users').doc(currentUser.uid).update(updates);
-        currentUser.points = (currentUser.points || 0) + POINTS.visit + (streakBonus ? POINTS.streak : 0);
-        currentUser.lastVisit = today;
-        showToast('+' + POINTS.visit + ' pts — Daily visit!' + (streakBonus ? ' 🔥+' + POINTS.streak + ' streak bonus!' : ''));
-        updateRankUI();
     }
+
+    await db.collection('users').doc(currentUser.uid).update({
+        totalVisits: firebase.firestore.FieldValue.increment(1),
+        lastVisit: today,
+        streak: newStreak,
+        points: firebase.firestore.FieldValue.increment(pointsToAdd)
+    });
+
+    currentUser.points = (currentUser.points || 0) + pointsToAdd;
+    currentUser.lastVisit = today;
+    currentUser.streak = newStreak;
+    showToast('+' + POINTS.visit + ' pts — Daily visit!' + (streakBonus ? ' 🔥+' + POINTS.streak + ' streak bonus!' : ''));
+    updateRankUI();
 }
 
 async function awardPoints(pts, reason) {
@@ -139,19 +145,22 @@ async function awardPoints(pts, reason) {
 async function onChannelOpen(channelId) {
     if (!currentUser || !rankingReady) return;
 
-    if (!sessionChannels.has(channelId)) {
+    // Only award points for channels NEVER visited before (persisted)
+    if (!allTimeChannels.has(channelId)) {
+        allTimeChannels.add(channelId);
         sessionChannels.add(channelId);
         await db.collection('users').doc(currentUser.uid).update({
             channelsVisited: firebase.firestore.FieldValue.increment(1),
-            points: firebase.firestore.FieldValue.increment(POINTS.openChannel)
+            points: firebase.firestore.FieldValue.increment(POINTS.openChannel),
+            visitedChannelsList: firebase.firestore.FieldValue.arrayUnion(channelId)
         });
         currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
         currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
         showToast('+' + POINTS.openChannel + ' pts — Explored #' + channelId);
         updateRankUI();
 
-        // Bonus for exploring 10+
-        if (sessionChannels.size === 10) {
+        // Bonus for exploring 10+ unique channels total
+        if (allTimeChannels.size === 10) {
             await awardPoints(POINTS.explore10, 'Explorer bonus! 10 channels 🎉');
         }
     }
