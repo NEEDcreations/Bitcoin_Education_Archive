@@ -88,9 +88,11 @@ function getBadgeHTML() {
     let html = '<div class="badges-grid">';
     for (const badge of BADGE_DEFS) {
         const earned = earnedBadges.has(badge.id);
-        html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" title="' + badge.desc + '">' +
+        const tip = earned ? '✅ ' + badge.desc : '🔒 ' + badge.desc;
+        html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '">' +
             '<div class="badge-emoji">' + (earned ? badge.emoji : '🔒') + '</div>' +
             '<div class="badge-name">' + badge.name + '</div>' +
+            '<div class="badge-tooltip">' + tip + '</div>' +
         '</div>';
     }
     html += '</div>';
