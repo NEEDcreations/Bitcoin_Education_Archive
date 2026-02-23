@@ -512,6 +512,7 @@
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
         </div>
         <button class="quest-start-btn" onclick="startQuestManual()">⚡ Start a Quest</button>
+        <button class="quest-start-btn" onclick="startScholarQuest()" style="background:linear-gradient(135deg,#f7931a,#ea580c);margin-top:4px;">🎓 Scholar Certification</button>
         <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ Powered by 603btc.com</a>
         <div id="rankBar"></div>
     </aside>
@@ -540,6 +541,12 @@
                     <div id="newbieMsg" style="display:none;margin-top:12px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.95rem;line-height:1.5;">
                         We built a channel just for you. Visit <a href="#one-stop-shop" onclick="go('one-stop-shop');return false;" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">one-stop-shop</a> to hit the highlights of Bitcoin.
                     </div>
+                </div>
+                <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
+                    <div style="font-size:1.5rem;margin-bottom:6px;">🎓</div>
+                    <div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:4px;">Bitcoin Scholar Certification</div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Think you know Bitcoin? Take the 25-question timed exam to earn your certificate.</p>
+                    <button onclick="startScholarQuest()" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Take the Exam →</button>
                 </div>
                 <div class="daily-channel" id="dailyChannel"></div>
                 <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;">
@@ -600,6 +607,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer></script>
     <script src="ranking.js" defer></script>
     <script src="quests.js" defer></script>
+    <script src="scholar.js" defer></script>
     <script src="badges.js" defer></script>
     <script>
     function openImg(src) {
