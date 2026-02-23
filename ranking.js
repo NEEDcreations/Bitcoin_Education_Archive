@@ -978,6 +978,22 @@ function showSettingsPage(tab) {
             '</div></div>';
 
     } else if (settingsTab === 'security') {
+        // Email verification status
+        const emailVerified = user.emailVerified;
+        const hasEmail = user.email || (user.providerData && user.providerData.some(function(p) { return p.providerId === 'password'; }));
+        
+        if (hasEmail) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Email Verification</div>';
+            if (emailVerified) {
+                html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Email verified</div><div style="color:var(--text-muted);font-size:0.8rem;">' + user.email + '</div></div></div>';
+            } else {
+                html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Email not verified</div><div style="color:var(--text-muted);font-size:0.8rem;">Required for 2FA. Check your inbox or resend below.</div></div></div>' +
+                    '<button onclick="sendEmailVerification()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">📧 Send Verification Email</button>';
+            }
+            html += '</div>';
+        }
+
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Two-Factor Authentication</div>';
 
@@ -986,10 +1002,14 @@ function showSettingsPage(tab) {
         if (enrolled) {
             html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Your account is protected with phone verification</div></div></div>' +
                 '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable 2FA</button>';
+        } else if (!hasEmail) {
+            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔒</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA available with email sign-in</div><div style="color:var(--text-muted);font-size:0.8rem;">Link an email to your account first (in Account tab), then you can enable 2FA.</div></div></div>';
+        } else if (!emailVerified) {
+            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Verify your email first</div><div style="color:var(--text-muted);font-size:0.8rem;">You must verify your email address before you can enable 2FA.</div></div></div>';
         } else {
             html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔓</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is not enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Add phone verification for extra security</div></div></div>' +
                 '<div id="mfaSetup">' +
-                '<input type="tel" id="mfaPhone" placeholder="+1 (555) 123-4567" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
+                '<input type="tel" id="mfaPhone" placeholder="+1 555 123 4567" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
                 '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Send Verification Code</button>' +
                 '<div id="mfaVerify" style="display:none;margin-top:8px;"><input type="text" id="mfaCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
                 '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable 2FA</button></div>' +
@@ -1212,26 +1232,52 @@ async function startMFAEnroll() {
     const phone = document.getElementById('mfaPhone').value.trim();
     const status = document.getElementById('mfaStatus');
     if (!phone || phone.length < 10) {
-        status.innerHTML = '<span style="color:#ef4444;">Please enter a valid phone number with country code</span>';
+        status.innerHTML = '<span style="color:#ef4444;">Please enter a valid phone number with country code (e.g. +1555123456)</span>';
         return;
     }
+    const user = auth.currentUser;
+
+    // Check email verification - required for MFA
+    if (!user.emailVerified) {
+        status.innerHTML = '<span style="color:#ef4444;">⚠️ You must verify your email before enabling 2FA.<br>Check your inbox for a verification email, or </span><a onclick="sendEmailVerification()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">resend it</a>';
+        return;
+    }
+
     status.innerHTML = '<span style="color:var(--text-muted);">Sending code...</span>';
     try {
-        const user = auth.currentUser;
+        // Reset recaptcha each time
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+            window.recaptchaVerifier = null;
+        }
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            size: 'invisible',
+            callback: function() { console.log('reCAPTCHA solved'); }
+        });
+
         const session = await user.multiFactor.getSession();
         const phoneOpts = { phoneNumber: phone, session: session };
         const phoneProvider = new firebase.auth.PhoneAuthProvider();
-
-        // Create invisible recaptcha
-        if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('mfaSetup', { size: 'invisible' });
-        }
         mfaVerificationId = await phoneProvider.verifyPhoneNumber(phoneOpts, window.recaptchaVerifier);
         document.getElementById('mfaVerify').style.display = 'block';
-        status.innerHTML = '<span style="color:#22c55e;">Code sent! Check your phone.</span>';
+        status.innerHTML = '<span style="color:#22c55e;">✅ Code sent! Check your phone.</span>';
     } catch(e) {
         console.log('MFA enroll error:', e);
-        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Error sending code. Make sure you use +country code format.') + '</span>';
+        if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null; }
+        let msg = e.message || 'Error sending code.';
+        if (e.code === 'auth/requires-recent-login') msg = 'Please sign out and sign back in, then try again.';
+        if (e.code === 'auth/invalid-phone-number') msg = 'Invalid phone number. Use format: +1234567890';
+        if (e.code === 'auth/unverified-email') msg = 'Please verify your email first before enabling 2FA.';
+        status.innerHTML = '<span style="color:#ef4444;">' + msg + '</span>';
+    }
+}
+
+async function sendEmailVerification() {
+    try {
+        await auth.currentUser.sendEmailVerification();
+        showToast('📧 Verification email sent! Check your inbox.');
+    } catch(e) {
+        showToast('Error sending verification email. Try again later.');
     }
 }
 
