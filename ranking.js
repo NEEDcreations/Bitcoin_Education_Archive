@@ -1017,6 +1017,14 @@ function showSettingsPage(tab) {
         }
         html += '</div>';
 
+        // Authenticator App (TOTP)
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Authenticator App</div>' +
+            '<div id="totpSection"><div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Loading...</div></div></div>';
+
+        // Load TOTP status after render
+        setTimeout(loadTotpStatus, 100);
+
         // Session info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Session</div>' +
@@ -1310,6 +1318,110 @@ async function disable2FA() {
         }
     } catch(e) {
         showToast('Error disabling 2FA');
+    }
+}
+
+// TOTP Authenticator App functions
+async function loadTotpStatus() {
+    const section = document.getElementById('totpSection');
+    if (!section) return;
+    
+    try {
+        const totpStatus = firebase.functions().httpsCallable('totpStatus');
+        const result = await totpStatus();
+        
+        if (result.data.enabled) {
+            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+                '<span style="color:#22c55e;font-size:1.2rem;">✅</span>' +
+                '<div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Authenticator app enabled</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">Google Authenticator, Authy, etc.</div></div></div>' +
+                '<div style="display:flex;gap:8px;"><input type="text" id="totpDisableCode" placeholder="Enter code to disable" maxlength="6" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;">' +
+                '<button onclick="disableTotp()" style="padding:10px 16px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Disable</button></div>' +
+                '<div id="totpStatus" style="margin-top:6px;font-size:0.8rem;"></div>';
+        } else {
+            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+                '<span style="color:var(--text-faint);font-size:1.2rem;">📱</span>' +
+                '<div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
+                '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Set Up Authenticator App</button>' +
+                '<div id="totpSetupArea" style="display:none;margin-top:12px;"></div>' +
+                '<div id="totpStatus" style="margin-top:6px;font-size:0.8rem;"></div>';
+        }
+    } catch(e) {
+        console.log('TOTP status error:', e);
+        section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+            '<span style="color:var(--text-faint);font-size:1.2rem;">📱</span>' +
+            '<div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
+            '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Set Up Authenticator App</button>' +
+            '<div id="totpSetupArea" style="display:none;margin-top:12px;"></div>' +
+            '<div id="totpStatus" style="margin-top:6px;font-size:0.8rem;"></div>';
+    }
+}
+
+async function startTotpSetup() {
+    const area = document.getElementById('totpSetupArea');
+    const status = document.getElementById('totpStatus');
+    if (!area) return;
+    
+    status.innerHTML = '<span style="color:var(--text-muted);">Generating QR code...</span>';
+    area.style.display = 'block';
+    
+    try {
+        const totpSetup = firebase.functions().httpsCallable('totpSetup');
+        const result = await totpSetup();
+        
+        area.innerHTML = '<div style="text-align:center;margin-bottom:12px;">' +
+            '<div style="color:var(--text);font-size:0.85rem;margin-bottom:8px;">Scan this QR code with your authenticator app:</div>' +
+            '<img src="' + result.data.qr + '" style="width:200px;height:200px;border-radius:8px;background:#fff;padding:8px;margin:0 auto;display:block;">' +
+            '<div style="margin-top:8px;color:var(--text-faint);font-size:0.75rem;">Or enter this key manually:</div>' +
+            '<div style="color:var(--accent);font-family:monospace;font-size:0.85rem;letter-spacing:2px;margin-top:4px;word-break:break-all;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + result.data.secret + '\');showToast(\'📋 Copied!\')">' + result.data.secret + ' 📋</div>' +
+            '</div>' +
+            '<input type="text" id="totpVerifyCode" placeholder="Enter 6-digit code from app" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
+            '<button onclick="verifyTotpSetup()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable</button>';
+        status.innerHTML = '';
+    } catch(e) {
+        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Error generating QR code') + '</span>';
+    }
+}
+
+async function verifyTotpSetup() {
+    const code = document.getElementById('totpVerifyCode').value.trim();
+    const status = document.getElementById('totpStatus');
+    
+    if (!code || code.length !== 6) {
+        status.innerHTML = '<span style="color:#ef4444;">Enter the 6-digit code from your app</span>';
+        return;
+    }
+    
+    status.innerHTML = '<span style="color:var(--text-muted);">Verifying...</span>';
+    
+    try {
+        const totpVerify = firebase.functions().httpsCallable('totpVerify');
+        await totpVerify({ code: code });
+        showToast('✅ Authenticator app enabled!');
+        showSettingsPage('security');
+    } catch(e) {
+        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Invalid code. Try again.') + '</span>';
+    }
+}
+
+async function disableTotp() {
+    const code = document.getElementById('totpDisableCode').value.trim();
+    const status = document.getElementById('totpStatus');
+    
+    if (!code || code.length !== 6) {
+        status.innerHTML = '<span style="color:#ef4444;">Enter your current authenticator code to disable</span>';
+        return;
+    }
+    
+    try {
+        const totpDisable = firebase.functions().httpsCallable('totpDisable');
+        await totpDisable({ code: code });
+        showToast('Authenticator app disabled');
+        showSettingsPage('security');
+    } catch(e) {
+        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Invalid code') + '</span>';
     }
 }
 
