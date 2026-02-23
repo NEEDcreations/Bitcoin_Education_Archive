@@ -290,8 +290,9 @@ async function signInWithProvider(provider) {
 
         loadUser(user.uid);
 
-        // If this is a NEW user, show giveaway prompt before closing
+        // If this is a NEW user, attach referral and show giveaway prompt
         if (!existingDoc.exists) {
+            if (typeof attachReferral === 'function') attachReferral(user.uid);
             showGiveawayPrompt(user.uid, user.displayName || user.email || 'Bitcoiner');
         } else {
             hideUsernamePrompt();
@@ -447,6 +448,9 @@ async function loadUser(uid) {
         // Update auth button text if signed in with a provider
         updateAuthButton();
 
+        // Initialize Orange Tickets system
+        if (typeof onUserLoadedTickets === 'function') onUserLoadedTickets();
+
     } else {
         // User exists in auth but not in Firestore — recreate their doc
         const user = auth.currentUser;
@@ -588,6 +592,11 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     // Hide giveaway banner after registration
     var banner = document.getElementById('giveawayBanner');
     if (banner) banner.style.display = 'none';
+
+    // Attach referral if user came via referral link
+    if (typeof attachReferral === 'function') attachReferral(uid);
+    // Initialize Orange Tickets for new user
+    if (typeof onUserLoadedTickets === 'function') onUserLoadedTickets();
 }
 
 async function awardVisitPoints() {
@@ -822,13 +831,14 @@ function updateRankUI() {
     const signInLink = isAnon && currentUser.username ? '<div style="font-size:0.7rem;margin-top:4px;"><a href="#" onclick="event.stopPropagation();showSignInPrompt();return false;" style="color:var(--link);text-decoration:none;">🔗 Sign in to sync across devices</a></div>' : '';
 
     const streakHtml = (currentUser.streak || 0) > 0 ? '<span class="rank-streak" style="color:#f97316;font-size:0.7rem;font-weight:700;">🔥 ' + currentUser.streak + ' day streak</span>' : '';
+    const ticketHtml = (currentUser.orangeTickets || 0) > 0 ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;margin-left:6px;">🎟️' + currentUser.orangeTickets + '</span>' : '';
 
     bar.innerHTML =
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
             '<span class="rank-user">' + (currentUser.username || 'Anon') + '</span>' +
             '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
-            streakHtml +
+            streakHtml + ticketHtml +
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
 
@@ -1097,9 +1107,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;">';
-    ['account', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Account', prefs: 'Prefs', security: 'Security', data: 'Data' };
+    ['account', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Data' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;padding:8px 4px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -1146,6 +1156,34 @@ function showSettingsPage(tab) {
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'tickets') {
+        // Orange Tickets & Referral Program
+        const isAnon = !user || user.isAnonymous;
+        if (isAnon) {
+            html += '<div style="text-align:center;padding:40px 20px;">' +
+                '<div style="font-size:3rem;margin-bottom:12px;">🎟️</div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;margin-bottom:8px;">Orange Tickets</div>' +
+                '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;">Sign in with Google, Twitter, or GitHub to start earning Orange Tickets and get your referral link!</div>' +
+                '</div>';
+        } else {
+            html += typeof renderTicketsSection === 'function' ? renderTicketsSection() : '';
+            html += typeof renderReferralSection === 'function' ? renderReferralSection() : '';
+
+            // How it works
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How It Works</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.7;">' +
+                '<strong style="color:var(--text);">📅 Daily Login:</strong> Earn 1 Orange Ticket each day you visit the site.<br>' +
+                '<strong style="color:var(--text);">🤝 Referrals:</strong> Share your unique link. When someone signs up through your link, logs in, and earns 2,100+ points (Maxi rank), you earn 5 Orange Tickets.<br>' +
+                '<strong style="color:var(--text);">⏳ Verification:</strong> Referrals are verified automatically when your friend hits the points threshold.' +
+                '</div></div>';
+        }
+
+        // Load referral stats asynchronously
+        if (!isAnon && typeof loadReferralStatsUI === 'function') {
+            setTimeout(loadReferralStatsUI, 100);
+        }
 
     } else if (settingsTab === 'prefs') {
         // Language
@@ -1352,6 +1390,7 @@ function showSettingsPage(tab) {
         html += statRow('Saved Favorites', localFavs, '⭐');
         html += statRow('Hidden Badges Found', hiddenBadges + ' / 5', '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
+        html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '🎟️');
 
         html += '</div>';
 
