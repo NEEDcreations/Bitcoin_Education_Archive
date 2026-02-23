@@ -256,6 +256,10 @@
         </div>
         <div class="search-results" id="searchResults"></div>
         <div class="channels" id="channelList">
+            <div id="favsSection" style="display:none;">
+                <div class="cat-label">⭐ Your Saved Channels</div>
+                <div id="favsList"></div>
+            </div>
             <div class="cat-label">Properties Layer 1</div>
             <button class="ch-btn active" onclick="go('whitepaper',this)">📄 whitepaper</button>
             <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
@@ -493,6 +497,35 @@
         document.getElementById('sidebar').classList.toggle('open');
     }
 
+    function getFavs() { return JSON.parse(localStorage.getItem('btc_favs') || '[]'); }
+    function setFavs(f) { localStorage.setItem('btc_favs', JSON.stringify(f)); renderFavs(); }
+
+    function toggleFav(id, btn) {
+        let favs = getFavs();
+        if (favs.includes(id)) {
+            favs = favs.filter(f => f !== id);
+            if (btn) btn.innerHTML = '☆ Save';
+        } else {
+            favs.push(id);
+            if (btn) btn.innerHTML = '⭐ Saved';
+        }
+        setFavs(favs);
+    }
+
+    function renderFavs() {
+        const favs = getFavs();
+        const section = document.getElementById('favsSection');
+        const list = document.getElementById('favsList');
+        if (favs.length === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+        list.innerHTML = favs.map(id => {
+            const meta = CHANNELS[id];
+            if (!meta) return '';
+            const short = meta.title.length > 28 ? meta.title.substring(0, 28) + '...' : meta.title;
+            return '<button class="ch-btn" onclick="go(\'' + id + '\',this)">⭐ ' + short + '</button>';
+        }).join('');
+    }
+
     function copyLink(url, btn) {
         navigator.clipboard.writeText(url).then(() => {
             btn.classList.add('copied');
@@ -540,6 +573,7 @@
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
                 '<a class="share-btn" href="https://njump.me/?q=' + encodeURIComponent(shareText + ' ' + shareUrl) + '" target="_blank">🟣 Nostr</a>' +
                 '<button class="share-btn" onclick="copyLink(\'' + shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" id="favBtn" onclick="toggleFav(\'' + id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>';
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#475569;text-align:center;">Loading...</div>';
         document.getElementById('main').scrollTop = 0;
@@ -801,6 +835,8 @@
                 }
             });
         });
+
+        renderFavs();
 
         const h = location.hash.slice(1);
         if (h) go(h);
