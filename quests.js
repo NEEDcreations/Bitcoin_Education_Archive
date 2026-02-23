@@ -447,10 +447,58 @@ async function submitQuest() {
     if (inner) inner.scrollTop = 0;
 }
 
+function playHooraySound() {
+    if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+        const now = ctx.currentTime;
+
+        // Rising major chord arpeggio: C5 → E5 → G5 → C6
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            g.gain.setValueAtTime(0.15 * vol, now + i * 0.1);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.4);
+            osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.4);
+
+            // Bright shimmer layer
+            const osc2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            osc2.connect(g2); g2.connect(ctx.destination);
+            osc2.type = 'triangle';
+            osc2.frequency.value = freq * 2;
+            g2.gain.setValueAtTime(0.06 * vol, now + i * 0.1);
+            g2.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.3);
+            osc2.start(now + i * 0.1); osc2.stop(now + i * 0.1 + 0.3);
+        });
+
+        // Final sustained major chord — the hooray moment
+        [1047, 1319, 1568].forEach((freq) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            g.gain.setValueAtTime(0.12 * vol, now + 0.45);
+            g.gain.linearRampToValueAtTime(0.1 * vol, now + 0.7);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+            osc.start(now + 0.45); osc.stop(now + 1.3);
+        });
+    } catch(e) {}
+}
+
 function showQuestFinalResults() {
     const score = window._questScore;
     const msg = window._questMsg;
     const pts = window._questPts;
+
+    // Play hooray sound if they passed
+    if (score >= 3) playHooraySound();
 
     // Hide the questions
     const questionsDiv = document.querySelector('.quest-questions');

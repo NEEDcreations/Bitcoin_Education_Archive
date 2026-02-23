@@ -360,6 +360,7 @@ async function showScholarFinalResults() {
     const inner = document.getElementById('questInner');
 
     if (passed) {
+        if (typeof playHooraySound === 'function') playHooraySound();
         scholarPassed = true;
         localStorage.setItem('btc_scholar_passed', 'true');
 
