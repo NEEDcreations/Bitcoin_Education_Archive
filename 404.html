@@ -1244,6 +1244,8 @@
         if (isMobile()) document.getElementById('sidebar').classList.remove('open');
         // Show continue reading
         showContinueReading();
+        // Refresh exploration map to reflect newly visited channels
+        if (typeof renderExplorationMap === 'function') renderExplorationMap();
     }
 
     function showContinueReading() {
