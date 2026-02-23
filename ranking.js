@@ -821,8 +821,11 @@ function showSettingsPage(tab) {
     const user = auth.currentUser;
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
 
+    // X close button
+    let html = '<button onclick="hideUsernamePrompt()" style="position:absolute;top:12px;right:12px;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">✕</button>';
+
     // Tab bar
-    let html = '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">';
+    html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;">';
     ['account', 'prefs', 'security', 'data'].forEach(t => {
         const labels = { account: '👤 Account', prefs: '🎨 Prefs', security: '🔒 Security', data: '📊 Data' };
         const active = settingsTab === t;
@@ -864,11 +867,11 @@ function showSettingsPage(tab) {
         // Change username
         const currentName = currentUser ? currentUser.username || '' : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Change Username</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Current: <strong style="color:var(--text);">' + currentName + '</strong></div>' +
-            '<div style="display:flex;gap:8px;"><input type="text" id="newUsername" value="" placeholder="Enter new username" maxlength="20" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onclick="this.focus()">' +
-            '<button onclick="changeUsername()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button></div>' +
-            '<div id="usernameStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
+            '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
+            '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
@@ -981,6 +984,23 @@ function showSettingsPage(tab) {
         }
 
     } else if (settingsTab === 'data') {
+        // Refresh data from Firebase if available
+        if (auth.currentUser && typeof db !== 'undefined') {
+            db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+                if (doc.exists && currentUser) {
+                    const fresh = doc.data();
+                    currentUser.points = fresh.points || 0;
+                    currentUser.streak = fresh.streak || 0;
+                    currentUser.totalVisits = fresh.totalVisits || 0;
+                    currentUser.channelsVisited = fresh.channelsVisited || 0;
+                    // Re-render if data changed
+                    const ptsEl = document.getElementById('statPts');
+                    if (ptsEl && ptsEl.textContent !== (fresh.points || 0).toLocaleString()) {
+                        showSettingsPage('data');
+                    }
+                }
+            }).catch(function() {});
+        }
         const pts = currentUser ? (currentUser.points || 0) : 0;
         const chVisited = currentUser ? (currentUser.channelsVisited || 0) : 0;
         const totalVisits = currentUser ? (currentUser.totalVisits || 0) : 0;
@@ -1001,6 +1021,7 @@ function showSettingsPage(tab) {
             return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">' + icon + ' ' + label + '</span><span style="color:var(--text);font-weight:600;font-size:0.85rem;">' + value + '</span></div>';
         }
 
+        html += '<div id="statPts" style="display:none;">' + pts.toLocaleString() + '</div>';
         html += statRow('Total Points', pts.toLocaleString(), '⭐');
         html += statRow('Current Streak', streak + ' days', '🔥');
         html += statRow('Total Site Visits', totalVisits, '👁️');
