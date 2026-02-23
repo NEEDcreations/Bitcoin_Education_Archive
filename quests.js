@@ -271,60 +271,48 @@ function playWarriorDrum() {
         const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
         const now = ctx.currentTime;
 
-        function kick(time, power) {
-            // Sub-bass body — the heavy thud
+        function gorillaHit(time) {
+            // Ultra-deep chest pound — starts at 55Hz drops to 20Hz
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain); gain.connect(ctx.destination);
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(150 * power, now + time);
-            osc.frequency.exponentialRampToValueAtTime(30, now + time + 0.25);
-            gain.gain.setValueAtTime(0.5 * vol, now + time);
-            gain.gain.setValueAtTime(0.5 * vol, now + time + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.4);
-            osc.start(now + time); osc.stop(now + time + 0.4);
+            osc.frequency.setValueAtTime(55, now + time);
+            osc.frequency.exponentialRampToValueAtTime(20, now + time + 0.5);
+            gain.gain.setValueAtTime(0.6 * vol, now + time);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.55);
+            osc.start(now + time); osc.stop(now + time + 0.55);
 
-            // Second harmonic for warmth
-            const osc2 = ctx.createOscillator();
-            const g2 = ctx.createGain();
-            osc2.connect(g2); g2.connect(ctx.destination);
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(80 * power, now + time);
-            osc2.frequency.exponentialRampToValueAtTime(20, now + time + 0.35);
-            g2.gain.setValueAtTime(0.35 * vol, now + time);
-            g2.gain.exponentialRampToValueAtTime(0.001, now + time + 0.45);
-            osc2.start(now + time); osc2.stop(now + time + 0.45);
+            // Sub-bass layer at 30Hz for pure chest rumble
+            const sub = ctx.createOscillator();
+            const sg = ctx.createGain();
+            sub.connect(sg); sg.connect(ctx.destination);
+            sub.type = 'sine';
+            sub.frequency.value = 30;
+            sg.gain.setValueAtTime(0.5 * vol, now + time);
+            sg.gain.exponentialRampToValueAtTime(0.001, now + time + 0.6);
+            sub.start(now + time); sub.stop(now + time + 0.6);
 
-            // Noise slap — the stick hit
-            const buf = ctx.createBuffer(1, ctx.sampleRate * 0.04, ctx.sampleRate);
+            // Low-pass filtered noise — muffled skin slap
+            const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
             const data = buf.getChannelData(0);
-            for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / data.length, 6);
+            for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / data.length, 4);
             const noise = ctx.createBufferSource();
             const nGain = ctx.createGain();
             const nFilter = ctx.createBiquadFilter();
             noise.buffer = buf;
             nFilter.type = 'lowpass';
-            nFilter.frequency.value = 2000;
+            nFilter.frequency.value = 400;
             noise.connect(nFilter); nFilter.connect(nGain); nGain.connect(ctx.destination);
-            nGain.gain.setValueAtTime(0.2 * vol * power, now + time);
-            nGain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.05);
+            nGain.gain.setValueAtTime(0.3 * vol, now + time);
+            nGain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.06);
             noise.start(now + time);
         }
 
-        // War drum pattern: boom - boom - BOOM
-        kick(0, 0.8);
-        kick(0.25, 0.9);
-        kick(0.55, 1.2);
-
-        // Deep sub rumble after the big hit
-        const sub = ctx.createOscillator();
-        const sg = ctx.createGain();
-        sub.connect(sg); sg.connect(ctx.destination);
-        sub.type = 'sine';
-        sub.frequency.value = 25;
-        sg.gain.setValueAtTime(0.25 * vol, now + 0.55);
-        sg.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
-        sub.start(now + 0.55); sub.stop(now + 1.3);
+        // Three identical gorilla pounds — even, primal, relentless
+        gorillaHit(0);
+        gorillaHit(0.35);
+        gorillaHit(0.7);
     } catch(e) {}
 }
 
