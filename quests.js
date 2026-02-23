@@ -356,20 +356,32 @@ async function submitQuest() {
         });
     }
 
+    // Hide submit and skip buttons
     const submitBtn = document.getElementById('questSubmitBtn');
-    submitBtn.style.display = 'none';
-    document.querySelector('.quest-skip').style.display = 'none';
+    if (submitBtn) submitBtn.style.display = 'none';
+    const skipBtn = document.querySelector('.quest-skip');
+    if (skipBtn) skipBtn.style.display = 'none';
 
-    const resultDiv = document.createElement('div');
-    resultDiv.className = 'quest-result';
-    resultDiv.innerHTML = '<div class="quest-result-msg">' + msg + '</div>';
+    // Hide the questions to make room for results
+    const questionsDiv = document.querySelector('.quest-questions');
+    if (questionsDiv) questionsDiv.style.display = 'none';
 
-    if (score < 3 && !isRetry) {
-        resultDiv.innerHTML += '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest</button>';
+    // Update header with score
+    const header = document.querySelector('.quest-header');
+    if (header) {
+        header.innerHTML = '<div class="quest-badge">⚡ QUEST COMPLETE</div>' +
+            '<h2>' + currentQuest.title + '</h2>' +
+            '<div style="font-size:3rem;margin:20px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
+            '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
+            '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
+            (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' points earned!</div>' : '') +
+            (score < 3 && !isRetry ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest for 25 pts</button>' : '') +
+            '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
-    resultDiv.innerHTML += '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
 
-    document.getElementById('questInner').appendChild(resultDiv);
+    // Scroll modal to top
+    const inner = document.getElementById('questInner');
+    if (inner) inner.scrollTop = 0;
 }
 
 function retryQuest() {
