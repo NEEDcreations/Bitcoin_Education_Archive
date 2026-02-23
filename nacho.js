@@ -142,8 +142,8 @@ function createNacho() {
     style.textContent = `
         #nacho-container {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
+            bottom: 24px;
+            left: 330px;
             z-index: 250;
             display: flex;
             align-items: flex-end;
@@ -154,8 +154,8 @@ function createNacho() {
         #nacho-container.hidden { opacity: 0; transform: translateY(30px); pointer-events: none; }
 
         #nacho-avatar {
-            width: 80px;
-            height: 80px;
+            width: 110px;
+            height: 110px;
             background: none;
             border-radius: 0;
             display: flex;
@@ -163,24 +163,24 @@ function createNacho() {
             justify-content: center;
             cursor: pointer;
             pointer-events: auto;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+            filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
             transition: transform 0.15s;
             user-select: none;
             position: relative;
             flex-shrink: 0;
             z-index: 2;
         }
-        #nacho-avatar:hover { transform: scale(1.1) rotate(-3deg); }
+        #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
         #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -14px;
+            bottom: -16px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             color: #f7931a;
             font-weight: 800;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
             white-space: nowrap;
             text-transform: uppercase;
             text-shadow: 0 1px 4px rgba(0,0,0,0.5);
@@ -191,11 +191,11 @@ function createNacho() {
             background: var(--card-bg, #1a1a2e);
             border: 1px solid var(--border, #333);
             border-radius: 16px;
-            padding: 14px 18px 14px 16px;
-            max-width: 280px;
-            min-width: 180px;
+            padding: 16px 20px 16px 18px;
+            max-width: 300px;
+            min-width: 200px;
             color: var(--text, #e0e0e0);
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             line-height: 1.55;
             pointer-events: auto;
             box-shadow: 0 8px 32px rgba(0,0,0,0.4);
@@ -205,7 +205,7 @@ function createNacho() {
             cursor: pointer;
             position: relative;
             margin-left: -6px;
-            margin-bottom: 10px;
+            margin-bottom: 16px;
         }
         #nacho-bubble::before {
             content: '';
@@ -330,28 +330,35 @@ function createNacho() {
         #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
         #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
-        /* Mobile */
-        @media (max-width: 768px) {
-            #nacho-container { bottom: 75px; left: 10px; }
-            #nacho-avatar { width: 64px; height: 64px; }
-            #nacho-bubble { max-width: 230px; min-width: 150px; font-size: 0.8rem; padding: 12px 14px; }
+        /* Tablet — sidebar is 280px */
+        @media (max-width: 1100px) {
+            #nacho-container { left: 290px; }
+            #nacho-avatar { width: 95px; height: 95px; }
+        }
+        /* Mobile — sidebar hidden, Nacho goes bottom-left */
+        @media (max-width: 900px) {
+            #nacho-container { bottom: 80px; left: 12px; }
+            #nacho-avatar { width: 60px; height: 60px; }
+            #nacho-bubble { max-width: 220px; min-width: 140px; font-size: 0.8rem; padding: 12px 14px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: 70px; left: 6px; }
-            #nacho-avatar { width: 58px; height: 58px; }
-            #nacho-bubble { max-width: 200px; }
+            #nacho-container { bottom: 75px; left: 8px; }
+            #nacho-avatar { width: 52px; height: 52px; }
+            #nacho-bubble { max-width: 190px; }
         }
 
         /* Bring-back toggle */
         #nacho-toggle {
-            position: fixed; bottom: 20px; left: 20px; z-index: 250;
-            width: 32px; height: 32px;
+            position: fixed; bottom: 24px; left: 330px; z-index: 250;
+            width: 36px; height: 36px;
             background: var(--card-bg, #1a1a2e); border: 1px solid var(--border, #333);
             border-radius: 50%; display: none; align-items: center; justify-content: center;
-            font-size: 0.9rem; cursor: pointer; opacity: 0.3; transition: opacity 0.2s;
+            font-size: 1rem; cursor: pointer; opacity: 0.3; transition: opacity 0.2s;
         }
         #nacho-toggle:hover { opacity: 1; }
-        @media (max-width: 768px) { #nacho-toggle { bottom: 75px; left: 10px; } }
+        @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
+        @media (max-width: 900px) { #nacho-toggle { bottom: 80px; left: 12px; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: 75px; left: 8px; } }
     `;
     document.head.appendChild(style);
 
