@@ -1053,15 +1053,18 @@
     }
 
     async function goRandom() {
+        window._keepFloatingBtn = true;
         const keys = Object.keys(CHANNELS);
         const randomId = keys[Math.floor(Math.random() * keys.length)];
         await go(randomId);
-        showFloatingBtn('__random__', '🎲', 'Next Channel');
+        showFloatingBtn('__random__', '🎲', 'Next Random Channel');
+        window._keepFloatingBtn = false;
     }
 
     async function goRandomFromChannel(channelId, emoji, label) {
+        window._keepFloatingBtn = true;
         const meta = CHANNELS[channelId];
-        if (!meta) return;
+        if (!meta) { window._keepFloatingBtn = false; return; }
         let d;
         if (channelCache[channelId]) {
             d = channelCache[channelId];
@@ -1102,12 +1105,13 @@
                     el.style.borderColor = '';
                 }, 2000);
                 showFloatingBtn(channelId, emoji, label);
+                window._keepFloatingBtn = false;
             }
         }, 300);
     }
 
-    function goRandomMeme() { return goRandomFromChannel('memes-funny', '😂', 'Next Meme'); }
-    function goRandomArt() { return goRandomFromChannel('art-inspiration', '🎨', 'Next Art'); }
+    function goRandomMeme() { return goRandomFromChannel('memes-funny', '😂', 'Next Random Meme'); }
+    function goRandomArt() { return goRandomFromChannel('art-inspiration', '🎨', 'Next Random Art'); }
 
     function showFloatingBtn(channelId, emoji, label) {
         var btn = document.getElementById('floatingRandomBtn');
@@ -1327,11 +1331,10 @@
     async function go(id, btn, fromPopState) {
         const meta = CHANNELS[id];
         if (!meta) return;
-        // Hide floating random button when navigating to a different channel (unless it's the random channel button)
-        var fb = document.getElementById('floatingRandomBtn');
-        if (fb && fb.style.display !== 'none') {
-            var isRandomChannel = fb.textContent.indexOf('Next Channel') !== -1;
-            if (!isRandomChannel && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
+        // Hide floating random button when navigating to a different channel
+        if (!window._keepFloatingBtn) {
+            var fb = document.getElementById('floatingRandomBtn');
+            if (fb && fb.style.display !== 'none' && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
         }
 
         localStorage.setItem('btc_last_channel', id);
