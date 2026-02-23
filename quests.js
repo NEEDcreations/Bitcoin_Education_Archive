@@ -378,7 +378,7 @@ async function submitQuest() {
             '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
             '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
             (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' points earned!</div>' : '') +
-            (score < 3 && !isRetry ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest for 25 pts</button>' : '') +
+            (score < 3 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retry Quest' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
 
