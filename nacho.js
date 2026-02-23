@@ -80,6 +80,8 @@ const FUN = [
     { pose: 'cool', text: "I've been orange-pilled since birth. Perks of being an orange animal. 🟠" },
     { pose: 'think', text: "Roses are red, fiat is dead, stack sats instead! 🌹" },
     { pose: 'default', text: "In a world of unlimited printing, be a limited supply. Like Bitcoin. And like me — there's only one Nacho. 🦌" },
+    { pose: 'cool', text: "Live Free or Die — that's the New Hampshire motto. Also my approach to Bitcoin. 🦌🗻" },
+    { pose: 'fire', text: "These antlers aren't just for show. I'm the strongest buck in NH and the most orange-pilled. 💪🦌" },
     { pose: 'cheese', text: "Bitcoin fixes everything. Except my cheese addiction. Some things are unfixable. 🧀" },
     { pose: 'eyes', text: "I've been watching you learn. Not in a creepy way. In a proud deer way. 👀" },
     { pose: 'sleep', text: "*yawns* Don't mind me, just HODLing this corner of your screen... 💤" },
@@ -91,9 +93,9 @@ const FUN = [
 
 // ---- Welcome Messages ----
 const WELCOME = [
-    { pose: 'wave', text: "👋 Hi! I'm Nacho, your friendly Bitcoin deer! Click me anytime for tips. I won't bite... probably." },
-    { pose: 'wave', text: "👋 Welcome back! Nacho missed you! Ready to learn something new today?" },
-    { pose: 'wave', text: "👋 Hey there! Nacho here. I'll be hanging out in this corner if you need me!" },
+    { pose: 'wave', text: "👋 Hey! I'm Nacho — a strong buck from New Hampshire! Click me anytime for Bitcoin tips and wisdom. 🦌💪" },
+    { pose: 'wave', text: "👋 Welcome back! Your friendly NH buck missed you! Ready to tackle some Bitcoin knowledge today? 💪" },
+    { pose: 'wave', text: "👋 Nacho here — the strongest buck in New Hampshire and your Bitcoin guide! Let's learn something! 🦌" },
 ];
 
 // ---- Channel Reactions ----
