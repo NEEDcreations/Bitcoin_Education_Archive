@@ -277,7 +277,7 @@ function createNacho() {
         #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -16px;
+            bottom: -24px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.7rem;
@@ -287,6 +287,8 @@ function createNacho() {
             white-space: nowrap;
             text-transform: uppercase;
             text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            line-height: 1.3;
+            text-align: center;
         }
 
         /* Clippy-style speech bubble */
@@ -471,7 +473,7 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
-            '<span class="nacho-name">Nacho</span>' +
+            '<span class="nacho-name">Nacho<br><span style="font-size:0.5rem;opacity:0.7;letter-spacing:0;">click to ask!</span></span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="hideBubble()">' +
             '<div class="nacho-header">' +
@@ -596,6 +598,7 @@ window.hideBubble = function() {
 };
 
 // ---- Click for random message ----
+let nachoClickCount = 0;
 window.nachoClick = function() {
     const now = Date.now();
     if (now - lastClickTime < CLICK_COOLDOWN) return;
@@ -608,6 +611,14 @@ window.nachoClick = function() {
     const bubble = document.getElementById('nacho-bubble');
     if (bubble && bubble.classList.contains('show')) {
         hideBubble();
+        return;
+    }
+
+    nachoClickCount++;
+
+    // Every 3rd click opens the Ask Nacho input
+    if (nachoClickCount % 3 === 0 && typeof showNachoInput === 'function') {
+        showNachoInput();
         return;
     }
 
