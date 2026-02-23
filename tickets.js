@@ -10,6 +10,7 @@ const TICKET_CONFIG = {
     dailyLogin: 1,
     referral: 5,
     referralPointsThreshold: 2100,
+    pointsPerTicket: 5,  // Each ticket earned = 5 points towards reward system
 };
 
 // ---- Generate or retrieve referral code ----
@@ -48,18 +49,25 @@ async function awardDailyTicket() {
     const today = new Date().toISOString().split('T')[0];
     if (currentUser.lastTicketDate === today) return; // Already awarded today
 
-    const tickets = (currentUser.orangeTickets || 0) + TICKET_CONFIG.dailyLogin;
+    const ticketsToAdd = TICKET_CONFIG.dailyLogin;
+    const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
+    const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
     await db.collection('users').doc(currentUser.uid).update({
-        orangeTickets: tickets,
+        orangeTickets: newTickets,
         lastTicketDate: today,
+        points: firebase.firestore.FieldValue.increment(bonusPoints),
     });
 
-    currentUser.orangeTickets = tickets;
+    currentUser.orangeTickets = newTickets;
     currentUser.lastTicketDate = today;
+    currentUser.points = (currentUser.points || 0) + bonusPoints;
 
-    showToast('🎟️ +' + TICKET_CONFIG.dailyLogin + ' Orange Ticket — Daily login!');
+    showToast('🎟️ +' + ticketsToAdd + ' Orange Ticket — Daily login! (+' + bonusPoints + ' pts)');
     updateRankUI();
+
+    // Check ticket badges after earning
+    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
 }
 
 // ---- Attach referral to new user on account creation ----
@@ -157,13 +165,19 @@ async function checkReferralQualifications() {
         }
 
         if (ticketsEarned > 0) {
+            const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
             const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
             await db.collection('users').doc(currentUser.uid).update({
                 orangeTickets: newTotal,
+                points: firebase.firestore.FieldValue.increment(bonusPoints),
             });
             currentUser.orangeTickets = newTotal;
-            showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 5 ? 's' : '') + ' verified!');
+            currentUser.points = (currentUser.points || 0) + bonusPoints;
+            showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 5 ? 's' : '') + ' verified! (+' + bonusPoints + ' pts)');
             updateRankUI();
+
+            // Check ticket badges after earning
+            if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
         }
     } catch (e) {
         console.log('Referral check error:', e);
@@ -222,7 +236,7 @@ function renderTicketsSection() {
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🎟️ Orange Tickets</div>' +
         '<div style="color:#f7931a;font-weight:800;font-size:1.3rem;">' + tickets + '</div></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Earn tickets by logging in daily (+1) and referring friends (+5 per verified referral).' +
+        'Earn tickets by logging in daily (+1) and referring friends (+5 per verified referral). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
         '<div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">' +

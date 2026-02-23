@@ -1176,7 +1176,9 @@ function showSettingsPage(tab) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.7;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> Earn 1 Orange Ticket each day you visit the site.<br>' +
                 '<strong style="color:var(--text);">🤝 Referrals:</strong> Share your unique link. When someone signs up through your link, logs in, and earns 2,100+ points (Maxi rank), you earn 5 Orange Tickets.<br>' +
-                '<strong style="color:var(--text);">⏳ Verification:</strong> Referrals are verified automatically when your friend hits the points threshold.' +
+                '<strong style="color:var(--text);">⏳ Verification:</strong> Referrals are verified automatically when your friend hits the points threshold.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus Points:</strong> Each ticket earned = 5 bonus points towards your rank.<br>' +
+                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock badges at 25 🎟️, 50 🎫, and 100 🏆 tickets!' +
                 '</div></div>';
         }
 
@@ -1388,7 +1390,7 @@ function showSettingsPage(tab) {
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
-        html += statRow('Hidden Badges Found', hiddenBadges + ' / 5', '🏅');
+        html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
         html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '🎟️');
 
