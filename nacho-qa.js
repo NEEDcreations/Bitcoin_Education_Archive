@@ -7,6 +7,10 @@
 // Knowledge base: keywords → answer + channel recommendation
 const NACHO_KB = [
     // === BASICS ===
+    { keys: ['what is a sat','what is a satoshi','what are sats','what are satoshis','how many sats','sats in a bitcoin','sat meaning','smallest unit','sat denomination'],
+      answer: "A sat (short for satoshi) is the smallest unit of Bitcoin — 1 sat = 0.00000001 BTC. There are 100 million sats in one Bitcoin. Named after Bitcoin's creator, Satoshi Nakamoto! Most everyday Lightning payments are measured in sats. ⚡",
+      channel: 'sats__or__bits', channelName: 'Sats or Bits' },
+
     { keys: ['what is bitcoin','explain bitcoin','bitcoin basics','new to bitcoin','beginner','getting started','what\'s bitcoin'],
       answer: "Bitcoin is digital money that no one controls — no banks, no governments. It's scarce (only 21 million), decentralized, and can be sent to anyone on Earth instantly.",
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
@@ -234,16 +238,19 @@ function findAnswer(input) {
         for (const key of entry.keys) {
             if (input === key) { score = 100; break; } // Exact match
             if (input.includes(key)) { score = Math.max(score, 50 + key.length); } // Contains match (longer = better)
-            // Word overlap scoring
+            // Word overlap scoring — require exact word match for short words
             const keyWords = key.split(/\s+/);
             const inputWords = input.split(/\s+/);
             let wordMatches = 0;
             for (const kw of keyWords) {
                 if (kw.length < 3) continue;
-                if (inputWords.some(iw => iw.includes(kw) || kw.includes(iw))) wordMatches++;
+                for (const iw of inputWords) {
+                    if (iw === kw) { wordMatches += 2; } // Exact word match (strong)
+                    else if (kw.length >= 6 && (iw.includes(kw) || kw.includes(iw))) { wordMatches++; } // Substring only for long words
+                }
             }
             if (wordMatches > 0) {
-                score = Math.max(score, wordMatches * 20);
+                score = Math.max(score, wordMatches * 15);
             }
         }
         if (score > bestScore) {
