@@ -91,9 +91,11 @@
         .msg { padding: 20px 0; border-bottom: 1px solid var(--msg-border); }
         .msg-text { color: var(--text); font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; max-width: 100%; }
         .msg-text strong, .msg-text b { color: var(--heading); }
-        .tw-preview { margin: 8px 0; }
-        .tw-load-btn { display: inline-block; margin-left: 8px; padding: 4px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 0.8rem; cursor: pointer; font-family: inherit; transition: 0.2s; vertical-align: middle; }
-        .tw-load-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .tw-preview { margin: 8px 0; padding: 10px 14px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: 0.2s; position: relative; }
+        .tw-preview:hover { border-color: var(--accent); box-shadow: 0 0 12px rgba(247,147,26,0.15); }
+        .tw-preview-url { color: var(--text-dim); font-size: 0.85rem; word-break: break-all; }
+        .tw-preview-hint { color: var(--text-faint); font-size: 0.75rem; margin-top: 4px; }
+        .tw-load-btn { display: none; }
         .tw-embedded { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 8px 0; background: var(--card-bg); }
         .tw-embedded .tw-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.8rem; color: var(--text-faint); }
         .tw-embedded .tw-body { color: var(--text); font-size: 0.95rem; line-height: 1.6; }
@@ -756,13 +758,14 @@
                         t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
                             return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
                         });
-                        // Restore Twitter embeds as click-to-load
+                        // Restore Twitter embeds as click-to-load cards
                         t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
                             const twUrl = twEmbeds[parseInt(idx)];
                             const twId = 'tw_' + Math.random().toString(36).substr(2, 8);
-                            return '<div class="tw-preview" id="' + twId + '">' +
-                                '<a class="msg-link" href="' + twUrl + '" target="_blank">' + twUrl + '</a>' +
-                                '<button class="tw-load-btn" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl.replace(/'/g, "\\'") + '\')">𝕏 Load Tweet</button>' +
+                            const isMob = typeof isMobile === 'function' && isMobile();
+                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl.replace(/'/g, "\\'") + '\')">' +
+                                '<div class="tw-preview-url">𝕏 ' + twUrl.replace(/https?:\/\/(www\.)?/, '') + '</div>' +
+                                '<div class="tw-preview-hint">' + (isMob ? 'Tap to display tweet' : 'Click to display tweet') + '</div>' +
                                 '</div>';
                         });
                         t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
@@ -1069,7 +1072,7 @@
             let html = '';
             nextBatch.forEach(m => {
                 html += '<div class="msg">';
-                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8);return '<div class="tw-preview" id="'+tid+'"><a class="msg-link" href="'+u+'" target="_blank">'+u+'</a><button class="tw-load-btn" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')">𝕏 Load Tweet</button></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile();return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-url">𝕏 '+u.replace(/https?:\/\/(www\.)?/,'')+'</div><div class="tw-preview-hint">'+(mob?'Tap to display tweet':'Click to display tweet')+'</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; } });
                 html += '</div>';
             });
