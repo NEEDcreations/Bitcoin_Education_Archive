@@ -75,6 +75,12 @@
         .msg-img:hover { border-color: var(--accent); box-shadow: 0 8px 30px var(--accent-glow); }
         .msg-link { color: var(--link); text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
+        /* Share buttons */
+        .share-bar { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+        .share-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-dim); font-family: inherit; transition: 0.2s; }
+        .share-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .share-btn.copied { background: var(--accent); color: #fff; border-color: var(--accent); }
+
         .load-more-btn { display: block; width: 100%; padding: 16px; margin: 30px 0; background: var(--accent-bg); border: 1px solid var(--accent-glow); border-radius: 12px; color: var(--accent); font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
         .load-more-btn:hover { background: var(--accent-glow); }
         .msg-img { content-visibility: auto; }
@@ -470,6 +476,14 @@
         document.getElementById('sidebar').classList.toggle('open');
     }
 
+    function copyLink(url, btn) {
+        navigator.clipboard.writeText(url).then(() => {
+            btn.classList.add('copied');
+            btn.textContent = '✅ Copied!';
+            setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '🔗 Copy Link'; }, 2000);
+        });
+    }
+
     function goRandom() {
         const keys = Object.keys(CHANNELS);
         const randomKey = keys[Math.floor(Math.random() * keys.length)];
@@ -499,10 +513,17 @@
         if (btn) btn.classList.add('active');
 
         // Show loading state
+        const shareUrl = 'https://bitcoineducation.quest/#' + id;
+        const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
-            '<p class="desc">' + meta.desc + '</p>';
+            '<p class="desc">' + meta.desc + '</p>' +
+            '<div class="share-bar">' +
+                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
+                '<a class="share-btn" href="https://njump.me/?q=' + encodeURIComponent(shareText + ' ' + shareUrl) + '" target="_blank">🟣 Nostr</a>' +
+                '<button class="share-btn" onclick="copyLink(\'' + shareUrl + '\', this)">🔗 Copy Link</button>' +
+            '</div>';
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#475569;text-align:center;">Loading...</div>';
         document.getElementById('main').scrollTop = 0;
         history.replaceState(null, null, '#' + id);
