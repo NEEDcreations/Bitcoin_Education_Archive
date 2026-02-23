@@ -146,6 +146,22 @@
             .rank-toast { right: 15px; bottom: 15px; font-size: 0.8rem; }
         }
 
+        /* Badge Toast */
+        .badge-toast { position: fixed; bottom: 30px; left: 30px; display: flex; gap: 14px; align-items: center; background: var(--bg-side); border: 1px solid #22c55e; padding: 16px 20px; border-radius: 14px; z-index: 300; opacity: 0; transform: translateY(20px); transition: 0.4s; box-shadow: 0 8px 30px rgba(34,197,94,0.2); }
+        .badge-toast.show { opacity: 1; transform: translateY(0); }
+        .badge-toast-emoji { font-size: 2rem; }
+        .badge-toast-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #22c55e; font-weight: 800; }
+        .badge-toast-name { color: var(--heading); font-weight: 700; font-size: 1rem; }
+        .badge-toast-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+        /* Badges Grid */
+        .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 12px; }
+        .badge-item { text-align: center; padding: 12px 6px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-bg); transition: 0.2s; }
+        .badge-item.earned { border-color: var(--accent-glow); }
+        .badge-item.locked { opacity: 0.4; }
+        .badge-emoji { font-size: 1.5rem; margin-bottom: 4px; }
+        .badge-name { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
+
         /* Quest Modal */
         #questModal { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 260; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; }
         #questModal.open { display: flex; }
@@ -470,6 +486,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer></script>
     <script src="ranking.js" defer></script>
     <script src="quests.js" defer></script>
+    <script src="badges.js" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;

@@ -254,6 +254,11 @@ async function toggleLeaderboard() {
         });
         html += '</div>';
 
+        // Badges section
+        if (typeof getBadgeHTML === 'function') {
+            html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
+        }
+
         // Level guide
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
