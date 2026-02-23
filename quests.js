@@ -287,6 +287,40 @@ const QUESTION_BANK = {
         { q: 'The first Bitcoin block is called:', a: 'The Genesis Block (Block 0)', wrong: ['The Alpha Block', 'Block One', 'The Origin Block'] },
         { q: 'Hal Finney received:', a: 'The first Bitcoin transaction from Satoshi', wrong: ['The last Bitcoin ever', 'A medal from the government', 'The Bitcoin trademark'] },
     ],
+
+    // General Bitcoin knowledge (available for any quest)
+    '_general': [
+        { q: 'What is the smallest unit of Bitcoin called?', a: 'A satoshi', wrong: ['A bit', 'A wei', 'A penny'] },
+        { q: 'Bitcoin was launched in which year?', a: '2009', wrong: ['2008', '2010', '2012'] },
+        { q: 'Bitcoin transactions are recorded on:', a: 'A public distributed ledger', wrong: ['A private server', 'A bank database', 'An email chain'] },
+        { q: 'Who can send you Bitcoin?', a: 'Anyone who knows your address', wrong: ['Only your bank', 'Only verified users', 'Only people in your country'] },
+        { q: 'Bitcoin operates on:', a: '24/7, 365 days a year', wrong: ['Banking hours only', 'Weekdays only', 'It shuts down for maintenance'] },
+        { q: 'The total number of Bitcoins that will ever exist is:', a: 'Exactly 21 million', wrong: ['Unlimited', '100 million', 'It changes yearly'] },
+        { q: 'Bitcoin is often abbreviated as:', a: 'BTC', wrong: ['BTN', 'BCN', 'BIT'] },
+        { q: 'A Bitcoin wallet stores:', a: 'Private keys, not actual Bitcoin', wrong: ['Physical coins', 'Digital files of Bitcoin', 'Pictures of Bitcoin'] },
+        { q: 'To receive Bitcoin you need:', a: 'A Bitcoin address', wrong: ['A bank account', 'A social security number', 'A credit card'] },
+        { q: 'The Bitcoin network is maintained by:', a: 'Thousands of volunteers running nodes worldwide', wrong: ['A company in California', 'The United Nations', 'A single supercomputer'] },
+        { q: 'Bitcoin confirmation time depends on:', a: 'Network congestion and fee paid', wrong: ['Time of day', 'Your internet speed', 'Which country you are in'] },
+        { q: 'A mempool is:', a: 'Where unconfirmed transactions wait to be included in a block', wrong: ['A mining pool', 'A type of wallet', 'A cryptocurrency exchange'] },
+        { q: 'Bitcoin difficulty adjustment ensures:', a: 'Blocks are found roughly every 10 minutes regardless of hash power', wrong: ['Prices stay stable', 'Miners earn the same amount', 'Transactions are free'] },
+        { q: 'SegWit stands for:', a: 'Segregated Witness', wrong: ['Secure Widget', 'Sequential Witness', 'Segment Width'] },
+        { q: 'A Bitcoin address starts with:', a: '1, 3, or bc1', wrong: ['0x', 'BTC', 'Any letter'] },
+        { q: 'The Lightning Network whitepaper was published by:', a: 'Joseph Poon and Thaddeus Dryja', wrong: ['Satoshi Nakamoto', 'Vitalik Buterin', 'Elon Musk'] },
+        { q: 'Bitcoin hash rate measures:', a: 'The total computing power securing the network', wrong: ['Transaction speed', 'Number of users', 'Price changes'] },
+        { q: 'A nonce in mining is:', a: 'A number miners change to find a valid block hash', wrong: ['A type of fee', 'A wallet address', 'A block reward'] },
+        { q: 'The term "NGMI" in Bitcoin culture means:', a: 'Not Gonna Make It', wrong: ['New Global Money Index', 'Next Generation Mining Interface', 'Network Growth Metric Indicator'] },
+        { q: 'Hyperbitcoinization refers to:', a: 'Mass voluntary adoption of Bitcoin as money', wrong: ['A Bitcoin price crash', 'A mining difficulty spike', 'A new altcoin launch'] },
+        { q: 'Strike, Cash App, and River are all:', a: 'Apps that let you buy Bitcoin', wrong: ['Mining pools', 'Altcoins', 'Bitcoin forks'] },
+        { q: 'Nostr is:', a: 'A decentralized social protocol popular in the Bitcoin community', wrong: ['A mining algorithm', 'A Bitcoin fork', 'An exchange'] },
+        { q: 'The phrase "fix the money, fix the world" means:', a: 'Sound money leads to better societal outcomes', wrong: ['Print more money', 'Ban all currencies', 'Use only credit cards'] },
+        { q: 'A timelock in Bitcoin allows:', a: 'Locking funds until a specific block height or time', wrong: ['Freezing the blockchain', 'Stopping mining', 'Deleting transactions'] },
+        { q: 'Block reward plus transaction fees equals:', a: 'The total miner revenue per block', wrong: ['The Bitcoin price', 'The network speed', 'The difficulty level'] },
+        { q: 'Ordinals on Bitcoin are:', a: 'A way to inscribe data on individual satoshis', wrong: ['A ranking system for miners', 'A type of wallet', 'A government regulation'] },
+        { q: 'A paper wallet is:', a: 'A printed private key for cold storage', wrong: ['A paper receipt from an ATM', 'A bank statement', 'A type of fiat currency'] },
+        { q: 'The Lightning Network can theoretically handle:', a: 'Millions of transactions per second', wrong: ['7 per second', '100 per second', '1 per minute'] },
+        { q: 'A watch-only wallet lets you:', a: 'Monitor a balance without being able to spend', wrong: ['Mine Bitcoin', 'Create new coins', 'Edit the blockchain'] },
+        { q: 'Pleb is a term of endearment in Bitcoin meaning:', a: 'An everyday Bitcoiner, not wealthy but committed', wrong: ['A professional trader', 'A mining executive', 'A government official'] },
+    ],
 };
 
 // State
@@ -347,7 +381,10 @@ function onChannelVisitForQuest(channelId) {
 }
 
 function generateAndShowQuest(manual) {
-    // Collect available questions from visited channels
+    // Track previously asked questions to avoid repeats
+    const askedQuestions = JSON.parse(localStorage.getItem('btc_asked_questions') || '[]');
+
+    // Collect available questions from visited channels + general pool
     let pool = [];
     for (const chId of visitedForQuest) {
         const questions = QUESTION_BANK[chId];
@@ -355,9 +392,12 @@ function generateAndShowQuest(manual) {
             questions.forEach(q => pool.push({...q, source: chId}));
         }
     }
+    // Always include general knowledge questions
+    if (QUESTION_BANK['_general']) {
+        QUESTION_BANK['_general'].forEach(q => pool.push({...q, source: '_general'}));
+    }
 
     if (pool.length < 5) {
-        // Not enough questions yet — add some from any visited channel\'s category
         for (const [chId, questions] of Object.entries(QUESTION_BANK)) {
             questions.forEach(q => {
                 if (!pool.some(p => p.q === q.q)) {
@@ -368,16 +408,28 @@ function generateAndShowQuest(manual) {
         }
     }
 
-    if (pool.length < 5) return; // Still not enough
+    if (pool.length < 5) return;
+
+    // Filter out already-asked questions first
+    let freshPool = pool.filter(q => !askedQuestions.includes(q.q));
+
+    // If we've asked most questions, reset the tracker
+    if (freshPool.length < 5) {
+        localStorage.setItem('btc_asked_questions', '[]');
+        freshPool = pool;
+    }
 
     // Shuffle and pick 5
-    pool.sort(() => Math.random() - 0.5);
+    freshPool.sort(() => Math.random() - 0.5);
 
-    // Skip questions from completed quests
     const questId = 'quest_dynamic_' + questCount;
     if (completedQuests.has(questId)) return;
 
-    const selected = pool.slice(0, 5);
+    const selected = freshPool.slice(0, 5);
+
+    // Track these questions as asked
+    const newAsked = [...askedQuestions, ...selected.map(q => q.q)];
+    localStorage.setItem('btc_asked_questions', JSON.stringify(newAsked));
 
     // Build multiple choice format
     const questions = selected.map(q => {
