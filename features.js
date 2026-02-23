@@ -79,15 +79,15 @@ function renderExplorationMap() {
 
 // ---- HIDDEN BADGES ----
 const HIDDEN_BADGES = [
-    { id: 'night_owl', name: 'Night Owl', emoji: '🦉', desc: 'Visit the archive after midnight', check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
-    { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', desc: 'Visit 10+ channels in one session', check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 10; } },
-    { id: 'genesis', name: 'Genesis Reader', emoji: '📜', desc: 'Read the whitepaper channel', check: function() { return typeof currentChannelId !== 'undefined' && currentChannelId === 'whitepaper'; } },
-    { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', desc: 'Pass the Scholar Certification', check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
-    { id: 'collector', name: 'Collector', emoji: '💎', desc: 'Save 10+ channels to favorites', check: function() { return JSON.parse(localStorage.getItem('btc_favs') || '[]').length >= 10; } },
-    { id: 'ticket_bronze', name: 'Ticket Fish', emoji: '🐟', desc: 'Earn 25 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 25; } },
-    { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', desc: 'Earn 50 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; } },
-    { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', desc: 'Earn 100 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; } },
-    { id: 'nacho_friend', name: 'Nacho\'s Friend', emoji: '🦌', desc: 'Interact with Nacho', check: function() { return localStorage.getItem('btc_nacho_clicked') === 'true'; } },
+    { id: 'nacho_friend', name: 'Nacho\'s Friend', emoji: '🦌', pts: 25, desc: 'Interact with Nacho', check: function() { return localStorage.getItem('btc_nacho_clicked') === 'true'; } },
+    { id: 'night_owl', name: 'Night Owl', emoji: '🦉', pts: 50, desc: 'Visit the archive after midnight', check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
+    { id: 'genesis', name: 'Genesis Reader', emoji: '📜', pts: 75, desc: 'Read the whitepaper channel', check: function() { return typeof currentChannelId !== 'undefined' && currentChannelId === 'whitepaper'; } },
+    { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', pts: 100, desc: 'Visit 10+ channels in one session', check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 10; } },
+    { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', check: function() { return JSON.parse(localStorage.getItem('btc_favs') || '[]').length >= 10; } },
+    { id: 'ticket_bronze', name: 'Ticket Fish', emoji: '🐟', pts: 200, desc: 'Earn 25 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 25; } },
+    { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', pts: 300, desc: 'Pass the Scholar Certification', check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
+    { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', pts: 500, desc: 'Earn 50 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; } },
+    { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; } },
 ];
 
 function checkHiddenBadges() {
@@ -97,6 +97,10 @@ function checkHiddenBadges() {
             earned.push(badge.id);
             localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
             showBadgeUnlock(badge);
+            // Award points for badge
+            if (badge.pts && typeof awardPoints === 'function') {
+                awardPoints(badge.pts, badge.emoji + ' ' + badge.name + ' badge!');
+            }
             // Save to Firebase
             if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
                 db.collection('users').doc(auth.currentUser.uid).update({
@@ -116,7 +120,8 @@ function showBadgeUnlock(badge) {
         '<div style="font-size:3rem;margin-bottom:12px;animation:badgeBounce 0.6s;">' + badge.emoji + '</div>' +
         '<div style="color:#f7931a;font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🔓 HIDDEN BADGE UNLOCKED!</div>' +
         '<div style="color:var(--heading);font-size:1.3rem;font-weight:800;margin-bottom:6px;">' + badge.name + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;">' + badge.desc + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:12px;">' + badge.desc + '</div>' +
+        (badge.pts ? '<div style="color:#f7931a;font-size:1.1rem;font-weight:800;margin-bottom:20px;">+' + badge.pts + ' points! ⭐</div>' : '<div style="margin-bottom:20px;"></div>') +
         '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! 🎉</button></div>';
     document.body.appendChild(overlay);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
