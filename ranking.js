@@ -1550,13 +1550,14 @@ function hideUsernamePrompt() {
     document.getElementById('usernameModal').classList.remove('open');
 }
 
-function submitUsername() {
+async function submitUsername() {
     const input = document.getElementById('usernameInput');
     const emailInput = document.getElementById('emailInput');
     const name = input.value.trim();
     const email = emailInput ? emailInput.value.trim() : '';
     if (name.length < 2 || name.length > 20) {
         input.style.borderColor = '#ef4444';
+        showToast('Username must be 2-20 characters');
         return;
     }
     if (containsProfanity(name)) {
@@ -1564,13 +1565,17 @@ function submitUsername() {
         showToast('⚠️ That username is not allowed. Please choose another.');
         return;
     }
-    createUser(name, email);
-
-    // If they entered an email, link their account
-    if (email) {
-        sendMagicLink(email).then(sent => {
-            if (sent) showToast('📧 Check your email to link your account across devices!');
-        });
+    try {
+        await createUser(name, email);
+        // If they entered an email, link their account
+        if (email) {
+            sendMagicLink(email).then(sent => {
+                if (sent) showToast('📧 Check your email to link your account across devices!');
+            });
+        }
+    } catch(e) {
+        console.log('submitUsername error:', e);
+        showToast('Error creating account. Please try again.');
     }
 }
 
