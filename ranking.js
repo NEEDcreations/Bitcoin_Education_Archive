@@ -67,6 +67,20 @@ async function loadUser(uid) {
         if (currentUser.visitedChannelsList) {
             currentUser.visitedChannelsList.forEach(ch => allTimeChannels.add(ch));
         }
+        // Sync read checkmarks from Firebase to local
+        if (currentUser.readChannels) {
+            let local = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+            let merged = [...new Set([...local, ...currentUser.readChannels])];
+            localStorage.setItem('btc_visited_channels', JSON.stringify(merged));
+            restoreVisitedUI();
+        }
+        // Sync favorites from Firebase to local
+        if (currentUser.favorites) {
+            let localFavs = JSON.parse(localStorage.getItem('btc_favs') || '[]');
+            let mergedFavs = [...new Set([...localFavs, ...currentUser.favorites])];
+            localStorage.setItem('btc_favs', JSON.stringify(mergedFavs));
+            if (typeof renderFavs === 'function') renderFavs();
+        }
         rankingReady = true;
         updateRankUI();
         awardVisitPoints();
@@ -173,8 +187,44 @@ async function onChannelOpen(channelId) {
     readSeconds = 0;
     lastReadAward = 0;
 
+    // Sync read channel to Firebase
+    syncReadToFirebase(channelId);
+
     // Notify quest system
     if (typeof onChannelVisitForQuest === 'function') onChannelVisitForQuest(channelId);
+}
+
+// Sync read checkmarks to Firebase
+async function syncReadToFirebase(channelId) {
+    if (!currentUser || !db || !auth.currentUser) return;
+    try {
+        await db.collection('users').doc(auth.currentUser.uid).update({
+            readChannels: firebase.firestore.FieldValue.arrayUnion(channelId)
+        });
+    } catch(e) {}
+}
+
+// Sync favorites to Firebase (called from index.html)
+async function syncFavsToFirebase() {
+    if (!currentUser || !db || !auth.currentUser) return;
+    try {
+        const favs = JSON.parse(localStorage.getItem('btc_favs') || '[]');
+        await db.collection('users').doc(auth.currentUser.uid).update({
+            favorites: favs
+        });
+    } catch(e) {}
+}
+
+// Restore visited UI checkmarks
+function restoreVisitedUI() {
+    const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    visited.forEach(id => {
+        document.querySelectorAll('.ch-btn').forEach(b => {
+            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
+                b.classList.add('visited');
+            }
+        });
+    });
 }
 
 function startReadTimer() {

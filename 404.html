@@ -604,6 +604,8 @@
             if (btn) btn.innerHTML = '⭐ Saved';
         }
         setFavs(favs);
+        // Sync to Firebase
+        if (typeof syncFavsToFirebase === 'function') syncFavsToFirebase();
     }
 
     function renderFavs() {
