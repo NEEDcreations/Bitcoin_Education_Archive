@@ -563,6 +563,8 @@
                     </div>
                 </div>
                 <div class="daily-channel" id="dailyChannel"></div>
+                <div id="quoteOfDay" style="margin-top:16px;"></div>
+                <div id="explorationMap" style="margin-top:16px;"></div>
                 <div id="newbieBtnWrap" style="margin-top:20px;margin-bottom:20px;">
                     <button id="newbieBtn" onclick="document.getElementById('newbieMsg').style.display='block';this.style.display='none';" style="padding:14px 32px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🟢 Brand new to Bitcoin?</button>
                     <div id="newbieMsg" style="display:none;margin-top:12px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.95rem;line-height:1.5;">
@@ -571,6 +573,18 @@
                 </div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
                 <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;margin-top:12px;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Account / Sign In</button>
+                <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">
+                    <div style="font-size:1.2rem;margin-bottom:6px;">🃏</div>
+                    <div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:4px;">Study with Flashcards</div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Prepare for Quests! Pick a topic and study with interactive flashcards.</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+                        <button onclick="startFlashcards('Bitcoin Basics')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">₿ Bitcoin Basics</button>
+                        <button onclick="startFlashcards('Security & Storage')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔑 Security & Storage</button>
+                        <button onclick="startFlashcards('Lightning Network')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">⚡ Lightning Network</button>
+                        <button onclick="startFlashcards('Mining & Energy')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">⛏️ Mining & Energy</button>
+                        <button onclick="startFlashcards('Economics & Money')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">💰 Economics & Money</button>
+                    </div>
+                </div>
                 <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;">
                     <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic</h3>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0;">Want to see something added to the archive? Let us know!</p>
@@ -638,6 +652,7 @@
     <script src="ranking.js" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
+    <script src="features.js" defer></script>
     <script src="badges.js" defer></script>
     <script>
     function openImg(src) {
@@ -838,6 +853,10 @@
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
         navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
         navHtml += '</div>';
+        // Read Next suggestions
+        if (typeof renderReadNext === 'function') {
+            navHtml += renderReadNext(id);
+        }
         msgsEl.innerHTML += navHtml;
 
         msgsEl.classList.add('fade-in');

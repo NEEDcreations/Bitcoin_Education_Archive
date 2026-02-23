@@ -543,11 +543,14 @@ function updateRankUI() {
     const isAnon = auth.currentUser && auth.currentUser.isAnonymous;
     const signInLink = isAnon && currentUser.username ? '<div style="font-size:0.7rem;margin-top:4px;"><a href="#" onclick="event.stopPropagation();showSignInPrompt();return false;" style="color:var(--link);text-decoration:none;">🔗 Sign in to sync across devices</a></div>' : '';
 
+    const streakHtml = (currentUser.streak || 0) > 0 ? '<span class="rank-streak" style="color:#f97316;font-size:0.7rem;font-weight:700;">🔥 ' + currentUser.streak + ' day streak</span>' : '';
+
     bar.innerHTML =
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
             '<span class="rank-user">' + (currentUser.username || 'Anon') + '</span>' +
             '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
+            streakHtml +
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
 
@@ -564,9 +567,10 @@ function updateUserDisplay(lv) {
         el.onclick = function() { toggleLeaderboard(); };
         document.body.appendChild(el);
     }
+    const streakBit = (currentUser.streak || 0) > 0 ? '<span style="color:#f97316;font-weight:700;font-size:0.7rem;">🔥' + currentUser.streak + '</span>' : '';
     el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
         '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
-        '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + (currentUser.points || 0).toLocaleString() + ' pts</span>';
+        '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' + streakBit;
 }
 
 function showLevelUpCelebration(lv) {
