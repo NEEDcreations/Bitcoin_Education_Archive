@@ -718,6 +718,16 @@
         }
     };
 
+    function shareNostr(text, url) {
+        const note = text + '\n\n' + url;
+        // Copy to clipboard first
+        navigator.clipboard.writeText(note).then(() => {
+            showToast('📋 Note copied! Paste it in Primal to post.');
+        }).catch(() => {});
+        // Open Primal home where they can paste
+        window.open('https://primal.net/home', '_blank');
+    }
+
     function copyLink(url, btn) {
         navigator.clipboard.writeText(url).then(() => {
             btn.classList.add('copied');
@@ -767,7 +777,7 @@
             '<p class="desc">' + meta.desc + '</p>' +
             '<div class="share-bar">' +
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<a class="share-btn" href="https://primal.net/new?text=' + encodeURIComponent(shareText + '\n\n' + shareUrl) + '" target="_blank">🟣 Nostr</a>' +
+                '<button class="share-btn" onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\', \'' + shareUrl + '\')">🟣 Nostr</button>' +
                 '<button class="share-btn" onclick="copyLink(\'' + shareUrl + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\'' + id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
