@@ -22,8 +22,12 @@
     <title>Bitcoin Education Archive</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { overflow-x: hidden; }
+        html, body { overflow-x: hidden; scroll-behavior: smooth; }
         img { max-width: 100%; height: auto; }
+        
+        /* Smooth page load */
+        body { opacity: 0; animation: bodyFadeIn 0.4s ease-out 0.1s forwards; }
+        @keyframes bodyFadeIn { to { opacity: 1; } }
         
         /* Theme Variables */
         :root {
@@ -68,17 +72,19 @@
         .sr-item .sr-cat { font-size: 0.65rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
         .sr-item .sr-match { color: var(--accent); font-size: 0.8rem; margin-top: 4px; line-height: 1.4; }
         .cat-label { font-size: 0.65rem; text-transform: uppercase; color: var(--text-faint); letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
-        .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-dim); padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.9rem; font-family: inherit; }
-        .ch-btn:hover { background: var(--card-bg); color: var(--text); }
-        .ch-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+        .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-dim); padding: 11px 14px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 0.9rem; font-family: inherit; position: relative; }
+        .ch-btn:hover { background: var(--card-bg); color: var(--text); transform: translateX(2px); }
+        .ch-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; border-left: 3px solid var(--accent); }
         .ch-btn.visited::after { content: " ✓"; color: #22c55e; font-size: 0.75rem; font-weight: 800; }
         .ch-btn::before { content: "# "; color: var(--text-faint); font-weight: 700; }
+        .ch-btn:active { transform: scale(0.98); }
         
         /* Main */
         main { flex: 1; overflow-y: auto; }
         
         /* Smooth page transitions */
         @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .fade-in { animation: fadeSlideIn 0.35s ease-out; }
 
         .hero { padding: 80px 60px 40px; max-width: 950px; margin: 0 auto; }
@@ -188,7 +194,8 @@
         /* Username Modal */
         #usernameModal { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 250; justify-content: center; align-items: center; }
         #usernameModal.open { display: flex; }
-        .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; }
+        .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; max-height: 90vh; overflow-y: auto; }
+        @media (max-width: 900px) { .username-box { padding: 24px 20px; width: 95%; max-height: 85vh; } }
         .username-box h2 { color: #fff; margin-bottom: 8px; font-size: 1.5rem; }
         .username-box p { color: #64748b; margin-bottom: 24px; font-size: 0.95rem; }
         .username-box input { width: 100%; padding: 14px 18px; background: #020617; border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit; outline: none; margin-bottom: 16px; text-align: center; }
@@ -277,8 +284,9 @@
         .daily-title { color: var(--heading); font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
         .daily-desc { color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
 
-        .home-cta { background: var(--accent); color: #fff; border: none; padding: 22px 60px; border-radius: 16px; font-size: 1.4rem; font-weight: 800; cursor: pointer; font-family: inherit; transition: 0.2s; letter-spacing: 0.5px; box-shadow: 0 4px 20px var(--accent-glow); margin-bottom: 30px; }
-        .home-cta:hover { background: #ea580c; transform: translateY(-3px); box-shadow: 0 12px 40px rgba(249,115,22,0.4); }
+        .home-cta { background: var(--accent); color: #fff; border: none; padding: 22px 60px; border-radius: 16px; font-size: 1.4rem; font-weight: 800; cursor: pointer; font-family: inherit; transition: 0.3s; letter-spacing: 0.5px; box-shadow: 0 4px 20px var(--accent-glow); margin-bottom: 30px; }
+        .home-cta:hover { background: #ea580c; transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 40px rgba(249,115,22,0.4); }
+        .home-cta:active { transform: translateY(0) scale(0.98); }
         .suggest-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 30px; text-align: left; }
         .suggest-input { width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; font-family: inherit; outline: none; margin-bottom: 10px; resize: vertical; }
         .suggest-input:focus { border-color: var(--accent); }
@@ -323,7 +331,7 @@
             #volumeSlider { position: absolute; top: 24px; right: 148px; z-index: 101; width: 40px !important; }
             .hero { padding: 24px 16px 16px; }
             .hero h1 { font-size: 1.4rem; }
-            .messages { padding: 0 16px 100px; }
+            .messages { padding: 0 16px 120px; }
             .msg-text { font-size: 0.95rem; }
             .msg-img { max-width: 100%; height: auto; }
             .msg-link { font-size: 0.85rem; }
@@ -570,6 +578,7 @@
                         All YouTube links are embedded for you and contain videos that supplement the information in each channel. Additionally, channels are filled with tweets that were posted on Twitter over the last few years, and you can expand these tweets to view them in the channel.
                     </div>
                 </div>
+                <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div class="daily-channel" id="dailyChannel"></div>
                 <div id="quoteOfDay" style="margin-top:16px;"></div>
                 <div id="explorationMap" style="margin-top:16px;"></div>
@@ -580,8 +589,10 @@
                     </div>
                 </div>
                 <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
-                <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
-                <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;margin-top:12px;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Account / Sign In</button>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:10px;">
+                    <button class="home-cta" onclick="go('whitepaper')" style="margin-bottom:0;">Start Exploring →</button>
+                    <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Account / Sign In</button>
+                </div>
                 <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">
                     <div style="font-size:1.2rem;margin-bottom:6px;">🃏</div>
                     <div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:4px;">Study with Flashcards</div>
@@ -1014,7 +1025,48 @@
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
         if (isMobile()) document.getElementById('sidebar').classList.remove('open');
+        // Show continue reading
+        showContinueReading();
     }
+
+    function showContinueReading() {
+        const el = document.getElementById('continueReading');
+        if (!el) return;
+        const lastCh = localStorage.getItem('btc_last_channel');
+        if (lastCh && CHANNELS[lastCh]) {
+            const meta = CHANNELS[lastCh];
+            el.style.display = 'block';
+            el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\'' + lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
+                '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
+                '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">' + meta.cat + '</div></div>';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+
+    // Keyboard shortcuts (desktop)
+    document.addEventListener('keydown', function(e) {
+        // Don't fire in inputs
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        // S = focus search
+        if (e.key === 's' || e.key === '/') {
+            e.preventDefault();
+            var si = document.getElementById('searchInput');
+            if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); }
+        }
+        // R = random channel
+        if (e.key === 'r' && !e.ctrlKey && !e.metaKey) { goRandom(); }
+        // H = go home
+        if (e.key === 'h' && !e.ctrlKey && !e.metaKey) { goHome(); }
+        // Escape = close modals
+        if (e.key === 'Escape') {
+            if (document.getElementById('lb').classList.contains('open')) document.getElementById('lb').classList.remove('open');
+            if (document.getElementById('usernameModal').classList.contains('open')) hideUsernamePrompt();
+            if (document.getElementById('questModal').classList.contains('open')) document.getElementById('questModal').classList.remove('open');
+            if (isMobile() && document.getElementById('sidebar').classList.contains('open')) document.getElementById('sidebar').classList.remove('open');
+        }
+    });
 
     // Cache loaded channel data
     const channelCache = {};
@@ -1081,6 +1133,7 @@
         const meta = CHANNELS[id];
         if (!meta) return;
 
+        localStorage.setItem('btc_last_channel', id);
         playChannelSound();
         document.getElementById('home').classList.add('hidden');
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
@@ -1105,7 +1158,9 @@
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\'' + id + '\')">🖼️ Gallery View</button>' : '');
         document.getElementById('hero').classList.remove('fade-in');
-        document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:var(--text-faint);text-align:center;">Loading...</div>';
+        document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
+            '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
+            '<div style="color:var(--text-faint);font-size:0.85rem;">Loading channel...</div></div>';
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
 
@@ -1422,6 +1477,7 @@
         });
 
         renderFavs();
+        showContinueReading();
 
         // Handle browser back/forward buttons
         window.addEventListener('popstate', function(e) {
