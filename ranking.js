@@ -1142,6 +1142,17 @@ function showSettingsPage(tab) {
             '<input type="range" min="0" max="1" step="0.05" value="' + vol + '" oninput="setVolume(this.value)" style="flex:1;accent-color:#f7931a;cursor:pointer;">' +
             '</div></div>';
 
+        // Push Notifications
+        const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔔 Push Notifications</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Get notified about new content, streaks, and announcements</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Notifications</span>' +
+            '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
+            '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
+            '</div>';
+
         // Theme
         const isDark = document.body.getAttribute('data-theme') !== 'light';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -1770,3 +1781,118 @@ if (typeof firebase !== 'undefined') {
 } else {
     window.addEventListener('load', initRanking);
 }
+
+// =============================================
+// Push Notifications
+// =============================================
+const VAPID_KEY = 'BF_YipiWF9DWsA4HA44xJwYOZkHuLZ1lE9nBxiF96Ba7mgGgWA3IsG4aUjEnc_PoLuYpsxRLsmjsHSjEvL_Xt-E';
+
+async function togglePushNotifications() {
+    const btn = document.getElementById('pushToggleBtn');
+    const status = document.getElementById('pushStatus');
+    const isEnabled = localStorage.getItem('btc_push_enabled') === 'true';
+
+    if (isEnabled) {
+        // Disable
+        localStorage.setItem('btc_push_enabled', 'false');
+        // Remove token from Firestore
+        if (auth && auth.currentUser) {
+            try {
+                await db.collection('users').doc(auth.currentUser.uid).update({
+                    pushToken: firebase.firestore.FieldValue.delete()
+                });
+            } catch(e) {}
+        }
+        if (btn) { btn.textContent = 'OFF'; btn.style.background = 'var(--bg-side)'; btn.style.color = 'var(--text-muted)'; }
+        if (status) status.textContent = 'Notifications disabled.';
+        showToast('🔕 Push notifications disabled');
+        return;
+    }
+
+    // Enable
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        if (status) status.innerHTML = '❌ Push notifications are not supported on this browser.';
+        return;
+    }
+
+    if (btn) { btn.textContent = '...'; btn.disabled = true; }
+    if (status) status.textContent = 'Requesting permission...';
+
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            if (status) status.innerHTML = '❌ Permission denied. Enable notifications in your browser settings.';
+            if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
+            return;
+        }
+
+        // Register service worker
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+
+        // Get FCM token
+        const messaging = firebase.messaging();
+        const token = await messaging.getToken({
+            vapidKey: VAPID_KEY,
+            serviceWorkerRegistration: registration
+        });
+
+        if (!token) {
+            if (status) status.innerHTML = '❌ Could not get push token. Try again.';
+            if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
+            return;
+        }
+
+        // Save token to Firestore
+        if (auth && auth.currentUser) {
+            await db.collection('users').doc(auth.currentUser.uid).update({
+                pushToken: token,
+                pushEnabledAt: new Date().toISOString()
+            });
+            // Also save to a push_tokens collection for easy admin access
+            await db.collection('push_tokens').doc(auth.currentUser.uid).set({
+                token: token,
+                username: currentUser ? currentUser.username : 'Unknown',
+                enabledAt: firebase.firestore.FieldValue.serverTimestamp(),
+                uid: auth.currentUser.uid
+            });
+        }
+
+        localStorage.setItem('btc_push_enabled', 'true');
+        if (btn) { btn.textContent = 'ON'; btn.style.background = '#22c55e'; btn.style.color = '#fff'; btn.disabled = false; }
+        if (status) status.innerHTML = '✅ Notifications enabled! You\'ll receive updates about new content.';
+        showToast('🔔 Push notifications enabled!');
+
+        // Listen for foreground messages
+        messaging.onMessage(function(payload) {
+            const title = payload.notification?.title || 'Bitcoin Education Archive';
+            const body = payload.notification?.body || '';
+            if (typeof showToast === 'function') showToast('🔔 ' + title + (body ? ': ' + body : ''));
+        });
+
+    } catch(e) {
+        console.log('Push notification error:', e);
+        if (status) status.innerHTML = '❌ Error: ' + e.message;
+        if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
+    }
+}
+
+// Auto-setup foreground listener if already enabled
+(function() {
+    if (localStorage.getItem('btc_push_enabled') === 'true' && 'serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                try {
+                    if (typeof firebase !== 'undefined' && firebase.messaging) {
+                        const messaging = firebase.messaging();
+                        messaging.onMessage(function(payload) {
+                            const title = payload.notification?.title || 'Bitcoin Education Archive';
+                            const body = payload.notification?.body || '';
+                            if (typeof showToast === 'function') showToast('🔔 ' + title + (body ? ': ' + body : ''));
+                        });
+                    }
+                } catch(e) {}
+            }, 3000);
+        });
+    }
+})();
