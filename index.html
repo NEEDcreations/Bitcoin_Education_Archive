@@ -487,22 +487,42 @@
         go(key);
     }
 
-    // Visit counter - uses visitor-badge.laobi.icu (free, reliable)
+    // Unique visit counter via Firebase
     (function() {
         const vc = document.getElementById('visitCount');
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = function() {
-            // Draw to canvas to read the number
-            try {
-                const c = document.createElement('canvas');
-                c.width = img.width; c.height = img.height;
-                c.getContext('2d').drawImage(img, 0, 0);
-            } catch(e) {}
-        };
-        img.src = 'https://visitor-badge.laobi.icu/badge?page_id=needcreations.btc-education-archive&left_color=%230f172a&right_color=%23f97316';
-        // Show the badge image directly in the stat
-        vc.innerHTML = '<img src="https://visitor-badge.laobi.icu/badge?page_id=needcreations.btc-education-archive&left_color=%230f172a&right_color=%23f97316&left_text=visits" style="height:28px;vertical-align:middle;" alt="visits">';
+        function updateVisitDisplay() {
+            if (typeof firebase === 'undefined' || !firebase.firestore) return;
+            const fdb = firebase.firestore();
+            const today = new Date().toISOString().split('T')[0];
+            const visitorId = localStorage.getItem('btc_visitor_id') || ('v_' + Math.random().toString(36).substr(2, 12));
+            localStorage.setItem('btc_visitor_id', visitorId);
+
+            // Check if this visitor already counted today
+            const visitRef = fdb.collection('visits').doc(visitorId);
+            visitRef.get().then(doc => {
+                if (!doc.exists || doc.data().lastVisit !== today) {
+                    // New unique visit — increment counter and mark visitor
+                    const counterRef = fdb.collection('stats').doc('visits');
+                    fdb.runTransaction(t => {
+                        return t.get(counterRef).then(counterDoc => {
+                            const newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
+                            t.set(counterRef, { total: newCount });
+                            t.set(visitRef, { lastVisit: today });
+                            return newCount;
+                        });
+                    }).then(newCount => {
+                        vc.textContent = newCount.toLocaleString();
+                    });
+                } else {
+                    // Already counted today — just display current total
+                    fdb.collection('stats').doc('visits').get().then(d => {
+                        if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
+                    });
+                }
+            }).catch(() => { vc.textContent = '—'; });
+        }
+        // Wait a moment for Firebase to init
+        setTimeout(updateVisitDisplay, 2000);
     })();
 
     window.onload = () => {
