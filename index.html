@@ -213,6 +213,7 @@
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 70px; width: auto; }
             #lbFloatBtn { bottom: 70px !important; right: 16px !important; padding: 10px 14px !important; font-size: 0.85rem !important; z-index: 140; }
+            #floatingRandomBtn { bottom: 130px !important; right: auto !important; left: 50% !important; transform: translateX(-50%) !important; }
             #userDisplay { top: auto !important; bottom: 56px !important; right: auto !important; left: 16px !important; font-size: 0.75rem !important; padding: 6px 10px !important; }
             .rank-toast { right: 15px; bottom: 80px; font-size: 0.8rem; }
         }
@@ -1135,8 +1136,7 @@
         if (!btn) {
             btn = document.createElement('button');
             btn.id = 'floatingRandomBtn';
-            var isMob = window.innerWidth <= 900;
-            btn.style.cssText = 'position:fixed;bottom:' + (isMob ? '130px' : '80px') + ';' + (isMob ? 'left:50%;transform:translateX(-50%);right:auto;' : 'right:20px;') + 'z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
+            btn.style.cssText = 'position:fixed;bottom:80px;right:180px;z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
             document.body.appendChild(btn);
         }
         btn.innerHTML = emoji + ' ' + label;
