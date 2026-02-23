@@ -371,11 +371,37 @@ async function submitQuest() {
     const skipBtn = document.querySelector('.quest-skip');
     if (skipBtn) skipBtn.style.display = 'none';
 
-    // Hide the questions to make room for results
+    // Store results for the "See Results" screen
+    window._questScore = score;
+    window._questMsg = msg;
+    window._questPts = pts;
+
+    // Update header to show score summary + Review Your Answers prompt
+    const header = document.querySelector('.quest-header');
+    if (header) {
+        header.innerHTML = '<div class="quest-badge">⚡ QUEST COMPLETE</div>' +
+            '<h2>' + currentQuest.title + '</h2>' +
+            '<div style="font-size:2.5rem;margin:12px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
+            '<div style="font-size:1.5rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + score + ' / 5 Correct</div>' +
+            '<div style="font-size:0.95rem;color:var(--text-muted);margin-bottom:16px;">Review your answers below — <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
+            '<button class="quest-done" onclick="showQuestFinalResults()" style="margin-bottom:8px;">See Results →</button>';
+    }
+
+    // Scroll modal to top so user sees the header, then can scroll through answers
+    const inner = document.getElementById('questInner');
+    if (inner) inner.scrollTop = 0;
+}
+
+function showQuestFinalResults() {
+    const score = window._questScore;
+    const msg = window._questMsg;
+    const pts = window._questPts;
+
+    // Hide the questions
     const questionsDiv = document.querySelector('.quest-questions');
     if (questionsDiv) questionsDiv.style.display = 'none';
 
-    // Update header with score
+    // Show final results screen
     const header = document.querySelector('.quest-header');
     if (header) {
         header.innerHTML = '<div class="quest-badge">⚡ QUEST COMPLETE</div>' +
@@ -388,7 +414,6 @@ async function submitQuest() {
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
     }
 
-    // Scroll modal to top
     const inner = document.getElementById('questInner');
     if (inner) inner.scrollTop = 0;
 }

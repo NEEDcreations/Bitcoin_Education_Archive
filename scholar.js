@@ -318,6 +318,46 @@ async function submitScholarQuest() {
     const modal = document.getElementById('questModal');
     const inner = document.getElementById('questInner');
 
+    // Highlight correct/wrong answers on all questions
+    const questions = inner.querySelectorAll('.quest-q');
+    questions.forEach((q, i) => {
+        const opts = q.querySelectorAll('.quest-opt');
+        opts.forEach((opt, j) => {
+            opt.disabled = true;
+            if (j === scholarQuestions[i].answer) opt.classList.add('correct');
+            if (j === scholarAnswers[i] && j !== scholarQuestions[i].answer) opt.classList.add('wrong');
+        });
+    });
+
+    // Hide submit button, show review screen
+    const submitBtn = document.getElementById('scholarSubmitBtn');
+    if (submitBtn) submitBtn.style.display = 'none';
+    const timerEl = document.getElementById('scholarTimer');
+    if (timerEl) timerEl.style.display = 'none';
+
+    // Store results for final screen
+    window._scholarScore = score;
+    window._scholarPassed = passed;
+
+    // Add review header and "See Results" button at the top
+    const reviewBanner = document.createElement('div');
+    reviewBanner.style.cssText = 'text-align:center;padding:20px;margin-bottom:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;';
+    reviewBanner.innerHTML = '<div style="font-size:2rem;margin-bottom:8px;">' + (passed ? '🎓' : '📝') + '</div>' +
+        '<div style="font-size:1.4rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + score + ' / 25 Correct</div>' +
+        '<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:12px;">Review your answers — <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
+        '<button onclick="showScholarFinalResults()" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">See Results →</button>';
+    inner.insertBefore(reviewBanner, inner.firstChild);
+    inner.scrollTop = 0;
+    return;
+}
+
+async function showScholarFinalResults() {
+    const score = window._scholarScore;
+    const passed = window._scholarPassed;
+    const today = new Date().toISOString().split('T')[0];
+    const modal = document.getElementById('questModal');
+    const inner = document.getElementById('questInner');
+
     if (passed) {
         scholarPassed = true;
         localStorage.setItem('btc_scholar_passed', 'true');
