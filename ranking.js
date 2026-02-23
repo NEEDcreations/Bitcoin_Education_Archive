@@ -58,47 +58,57 @@ function initRanking() {
             return;
         }
 
-        // Ensure auth state persists across page refreshes
-        let authResolved = false;
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
-            auth.onAuthStateChanged(user => {
-                authResolved = true;
-                if (user) {
-                    // If we get an anonymous user but a Google user might be coming,
-                    // skip loading anonymous data until we're sure
-                    if (user.isAnonymous && !currentUser) {
-                        // Delay loading anonymous user — real auth might override
-                        setTimeout(function() {
-                            // Only load if still the same anonymous user
-                            if (auth.currentUser && auth.currentUser.uid === user.uid && auth.currentUser.isAnonymous) {
-                                loadUser(user.uid);
-                            }
-                        }, 500);
-                        return;
-                    }
-                    // Don't reload if we already have this user
-                    if (currentUser && currentUser.uid === user.uid) {
-                        updateAuthButton();
-                        return;
-                    }
+        // Wait for auth to fully resolve before doing anything
+        // This prevents the race condition where anonymous user loads before Google auth restores
+        let firstAuthEvent = true;
+        auth.onAuthStateChanged(user => {
+            if (firstAuthEvent) {
+                firstAuthEvent = false;
+                if (user && !user.isAnonymous) {
+                    // Real user restored immediately — load them
                     loadUser(user.uid);
-                    // Start session timeout for non-anonymous users
-                    if (!user.isAnonymous) {
-                        resetSessionTimer();
-                        ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-                            document.addEventListener(evt, resetSessionTimer, { passive: true });
-                        });
-                    }
+                    resetSessionTimer();
+                    ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+                        document.addEventListener(evt, resetSessionTimer, { passive: true });
+                    });
                 } else {
-                    // No user — wait briefly then sign in anonymously
-                    currentUser = null;
+                    // Got anonymous or null on first event — wait for potential real user
                     setTimeout(function() {
-                        if (!auth.currentUser) {
+                        const current = auth.currentUser;
+                        if (current && !current.isAnonymous) {
+                            // Real user arrived during the wait
+                            loadUser(current.uid);
+                            resetSessionTimer();
+                            ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+                                document.addEventListener(evt, resetSessionTimer, { passive: true });
+                            });
+                        } else if (current && current.isAnonymous) {
+                            loadUser(current.uid);
+                        } else {
+                            // No user at all — sign in anonymously
                             auth.signInAnonymously().then(() => {});
                         }
-                    }, 300);
+                    }, 1500);
                 }
-            });
+                return;
+            }
+            // Subsequent auth changes (sign in, sign out, etc.)
+            if (user) {
+                if (currentUser && currentUser.uid === user.uid) {
+                    updateAuthButton();
+                    return;
+                }
+                loadUser(user.uid);
+                if (!user.isAnonymous) {
+                    resetSessionTimer();
+                    ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+                        document.addEventListener(evt, resetSessionTimer, { passive: true });
+                    });
+                }
+            } else {
+                currentUser = null;
+                auth.signInAnonymously().then(() => {});
+            }
         });
     } catch(e) {
         console.log('Ranking init error:', e);
