@@ -187,12 +187,15 @@ function onChannelVisitForQuest(channelId) {
         visitedForQuest.push(channelId);
     }
 
-    // Check if we should trigger a quest
-    const nextTrigger = QUEST_TRIGGERS.find(t => t > (questCount + completedQuests.size) * 3 / 2);
-    if (visitedForQuest.length >= (QUEST_TRIGGERS[questCount] || 999)) {
-        // Enough channels visited — trigger a quest based on what they've read
-        if (!currentQuest) {
-            setTimeout(() => generateAndShowQuest(), 2000);
+    // Check if we hit a trigger threshold
+    const visited = visitedForQuest.length;
+    for (const trigger of QUEST_TRIGGERS) {
+        if (visited === trigger && !currentQuest) {
+            setTimeout(() => {
+                if (typeof showToast === 'function') showToast('⚡ You\'ve explored ' + trigger + ' channels! A Quest is ready!');
+                setTimeout(() => generateAndShowQuest(), 3000);
+            }, 2000);
+            break;
         }
     }
 }
