@@ -123,7 +123,7 @@ const NACHO_KB = [
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
     // === ALTCOINS ===
-    { keys: ['ethereum','eth','altcoin','shitcoin','other crypto','which crypto','best crypto','alt coins','solana','cardano','xrp','dogecoin','doge'],
+    { keys: ['ethereum','eth','altcoin','altcoin','other crypto','which crypto','best crypto','alt coins','solana','cardano','xrp','dogecoin','doge'],
       answer: "There's Bitcoin and then there's everything else. Altcoins are mostly venture capital funded projects that don't share Bitcoin's properties — no fair launch, no true decentralization. Bitcoin only.",
       channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
 
@@ -283,16 +283,63 @@ window.showNachoInput = function() {
 };
 
 // ---- Process user question ----
+// ---- Inappropriate input filter ----
+const NACHO_BLOCKED_WORDS = [
+    'fuck','shit','ass','bitch','dick','cock','pussy','cunt','damn','bastard',
+    'slut','whore','fag','nigger','nigga','retard','penis','vagina','porn',
+    'sex','anal','cum','dildo','tits','boob','nude','naked','hentai','milf',
+    'orgasm','molest','rape','pedo','nazi','hitler','kkk','jihad','terrorist',
+    'murder','suicide','stfu','gtfo','wank','twat','piss','douche','skank',
+    'thot','incel','onlyfans','xnxx','pornhub','xvideos','kys','die',
+    'kill you','hate you','stupid','idiot','dumb','ugly','loser',
+];
+
+const NACHO_POLITE_DEFLECTIONS = [
+    "Whoa there! 🦌 I'm just a friendly deer who talks about Bitcoin. Let's keep things positive! Ask me something about Bitcoin instead!",
+    "Hey now, let's keep it family-friendly! 🦌 I'm here to help you learn about Bitcoin. What would you like to know?",
+    "That's not really my area of expertise! I'm a Bitcoin deer, not a... whatever that was. 🦌 Try asking me about wallets, mining, or Lightning!",
+    "My antlers are tingling — and not in a good way! 😅 Let's stick to Bitcoin topics. What can I help you learn?",
+    "I'm going to pretend I didn't hear that! 🦌 How about we talk about something cool, like how the Lightning Network works?",
+    "Even the strongest buck in NH knows when to change the subject! 🦌 Ask me about Bitcoin — I promise it's more interesting!",
+];
+
+function isInappropriate(text) {
+    var lower = text.toLowerCase().replace(/[^a-z\s]/g, '');
+    var words = lower.split(/\s+/);
+    for (var i = 0; i < words.length; i++) {
+        for (var j = 0; j < NACHO_BLOCKED_WORDS.length; j++) {
+            if (words[i] === NACHO_BLOCKED_WORDS[j]) return true;
+        }
+    }
+    // Check for multi-word matches and embedded profanity
+    var compressed = lower.replace(/\s/g, '');
+    for (var k = 0; k < NACHO_BLOCKED_WORDS.length; k++) {
+        if (NACHO_BLOCKED_WORDS[k].length >= 4 && compressed.includes(NACHO_BLOCKED_WORDS[k])) return true;
+    }
+    return false;
+}
+
 window.nachoAnswer = function() {
     var inp = document.getElementById('nachoInput');
     if (!inp) return;
     var q = inp.value.trim();
     if (!q) return;
 
-    var match = findAnswer(q);
     var bubble = document.getElementById('nacho-bubble');
     var textEl = document.getElementById('nacho-text');
     if (!bubble || !textEl) return;
+
+    // Check for inappropriate input FIRST
+    if (isInappropriate(q)) {
+        if (typeof setPose === 'function') setPose('default');
+        var deflection = NACHO_POLITE_DEFLECTIONS[Math.floor(Math.random() * NACHO_POLITE_DEFLECTIONS.length)];
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + deflection + '</div>' +
+            '<button onclick="showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
+        clearTimeout(window._nachoBubbleTimeout);
+        return;
+    }
+
+    var match = findAnswer(q);
 
     if (match) {
         if (typeof setPose === 'function') setPose('brain');
