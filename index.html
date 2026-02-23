@@ -1058,6 +1058,7 @@
         const keys = Object.keys(CHANNELS);
         const randomId = keys[Math.floor(Math.random() * keys.length)];
         go(randomId);
+        showFloatingBtn('__random__', '🎲', 'Next Channel');
     }
 
     async function goRandomFromChannel(channelId, emoji, label) {
@@ -1119,7 +1120,9 @@
             document.body.appendChild(btn);
         }
         btn.innerHTML = emoji + ' ' + label;
-        btn.onclick = function() { goRandomFromChannel(channelId, emoji, label); };
+        btn.onclick = channelId === '__random__'
+            ? function() { goRandom(); }
+            : function() { goRandomFromChannel(channelId, emoji, label); };
         btn.style.display = 'flex';
         function hideOnNav() {
             btn.style.display = 'none';
@@ -1326,9 +1329,12 @@
     async function go(id, btn, fromPopState) {
         const meta = CHANNELS[id];
         if (!meta) return;
-        // Hide floating random button when navigating to a different channel
+        // Hide floating random button when navigating to a different channel (unless it's the random channel button)
         var fb = document.getElementById('floatingRandomBtn');
-        if (fb && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
+        if (fb && fb.style.display !== 'none') {
+            var isRandomChannel = fb.textContent.indexOf('Next Channel') !== -1;
+            if (!isRandomChannel && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
+        }
 
         localStorage.setItem('btc_last_channel', id);
         playChannelSound();
