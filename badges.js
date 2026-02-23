@@ -73,7 +73,7 @@ function checkBadges() {
 }
 
 // Major badges that deserve a share prompt
-const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_3', 'quest_5'];
+const MAJOR_BADGES = ['explorer_10', 'explorer_25', 'explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_3', 'quest_5'];
 
 function showBadgeToast(badge) {
     // Play celebration sound
