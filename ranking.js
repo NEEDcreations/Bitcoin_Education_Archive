@@ -313,9 +313,17 @@ function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
     if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        btn.textContent = '👤 My Account';
+        btn.textContent = '⚙️ My Account & Settings';
+        btn.style.borderColor = '#22c55e';
+        btn.style.color = '#22c55e';
+        btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
+        btn.onmouseout = function() { this.style.background='none'; this.style.color='#22c55e'; };
     } else {
         btn.textContent = 'Create Account / Sign In';
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.color = 'var(--accent)';
+        btn.onmouseover = function() { this.style.background='var(--accent)'; this.style.color='#fff'; };
+        btn.onmouseout = function() { this.style.background='none'; this.style.color='var(--accent)'; };
     }
 }
 
@@ -588,7 +596,8 @@ function updateUserDisplay(lv) {
         wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
             '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + currentUser.username + '!</span>' +
             '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
-            streakText;
+            streakText +
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">⚙️ Tap here for Account & Settings</div>';
         wb.style.display = 'block';
     }
 }
@@ -853,10 +862,12 @@ function showSettingsPage(tab) {
         html += '</div>';
 
         // Change username
+        const currentName = currentUser ? currentUser.username || '' : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Username</div>' +
-            '<div style="display:flex;gap:8px;"><input type="text" id="newUsername" placeholder="' + (currentUser ? currentUser.username || '' : '') + '" maxlength="20" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;">' +
-            '<button onclick="changeUsername()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Save</button></div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Change Username</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Current: <strong style="color:var(--text);">' + currentName + '</strong></div>' +
+            '<div style="display:flex;gap:8px;"><input type="text" id="newUsername" value="" placeholder="Enter new username" maxlength="20" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onclick="this.focus()">' +
+            '<button onclick="changeUsername()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button></div>' +
             '<div id="usernameStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
@@ -897,15 +908,36 @@ function showSettingsPage(tab) {
         }
 
     } else if (settingsTab === 'data') {
+        const pts = currentUser ? (currentUser.points || 0) : 0;
+        const chVisited = currentUser ? (currentUser.channelsVisited || 0) : 0;
+        const totalVisits = currentUser ? (currentUser.totalVisits || 0) : 0;
+        const streak = currentUser ? (currentUser.streak || 0) : 0;
+        const localVisited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+        const localFavs = JSON.parse(localStorage.getItem('btc_favs') || '[]').length;
+        const hiddenBadges = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]').length;
+
+        html += '<div style="text-align:center;margin-bottom:16px;">' +
+            '<div style="font-size:2rem;margin-bottom:4px;">' + lvl.emoji + '</div>' +
+            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' pts</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;">' + lvl.name + '</div></div>';
+
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Your Stats</div>';
-        if (currentUser) {
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Total Points</span><span style="color:var(--accent);font-weight:700;font-size:0.85rem;">' + (currentUser.points || 0).toLocaleString() + '</span></div>';
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Channels Visited</span><span style="color:var(--text);font-size:0.85rem;">' + (currentUser.channelsVisited || 0) + '</span></div>';
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Total Visits</span><span style="color:var(--text);font-size:0.85rem;">' + (currentUser.totalVisits || 0) + '</span></div>';
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Current Streak</span><span style="color:var(--text);font-size:0.85rem;">🔥 ' + (currentUser.streak || 0) + ' days</span></div>';
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Level</span><span style="color:var(--text);font-size:0.85rem;">' + lvl.emoji + ' ' + lvl.name + '</span></div>';
+
+        function statRow(label, value, icon) {
+            return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">' + icon + ' ' + label + '</span><span style="color:var(--text);font-weight:600;font-size:0.85rem;">' + value + '</span></div>';
         }
+
+        html += statRow('Total Points', pts.toLocaleString(), '⭐');
+        html += statRow('Current Streak', streak + ' days', '🔥');
+        html += statRow('Total Site Visits', totalVisits, '👁️');
+        html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
+        html += statRow('Saved Favorites', localFavs, '⭐');
+        html += statRow('Hidden Badges Found', hiddenBadges + ' / 5', '🏅');
+        html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
+
+        // Remove last border
+        html = html.replace(/border-bottom:1px solid var\(--border\);">' + 'Not yet' + '</', 'border-bottom:none;">' + 'Not yet' + '</');
         html += '</div>';
 
         // Export data
