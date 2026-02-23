@@ -232,6 +232,7 @@ function startScholarQuest() {
     scholarAnswers = new Array(25).fill(-1);
     scholarTimeLeft = 600;
 
+    if (typeof playWarriorDrum === 'function') playWarriorDrum();
     renderScholarQuest();
     startScholarTimer();
 }

@@ -264,9 +264,65 @@ function getQuestTitle(num) {
     return titles[num % titles.length];
 }
 
+function playWarriorDrum() {
+    if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+        const now = ctx.currentTime;
+
+        // Deep war drums — three hits with descending pitch
+        [0, 0.18, 0.34].forEach((t, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(80 - i * 8, now + t);
+            osc.frequency.exponentialRampToValueAtTime(40, now + t + 0.3);
+            gain.gain.setValueAtTime(0.25 * vol, now + t);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.35);
+            osc.start(now + t); osc.stop(now + t + 0.35);
+
+            // Noise burst for attack transient
+            const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / data.length, 3);
+            const noise = ctx.createBufferSource();
+            const nGain = ctx.createGain();
+            noise.buffer = buf;
+            noise.connect(nGain); nGain.connect(ctx.destination);
+            nGain.gain.setValueAtTime(0.18 * vol, now + t);
+            nGain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.08);
+            noise.start(now + t);
+        });
+
+        // Final big hit
+        const osc2 = ctx.createOscillator();
+        const g2 = ctx.createGain();
+        osc2.connect(g2); g2.connect(ctx.destination);
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(60, now + 0.55);
+        osc2.frequency.exponentialRampToValueAtTime(30, now + 1.1);
+        g2.gain.setValueAtTime(0.3 * vol, now + 0.55);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+        osc2.start(now + 0.55); osc2.stop(now + 1.1);
+
+        // Sub rumble on the big hit
+        const sub = ctx.createOscillator();
+        const sg = ctx.createGain();
+        sub.connect(sg); sg.connect(ctx.destination);
+        sub.type = 'sine';
+        sub.frequency.value = 35;
+        sg.gain.setValueAtTime(0.15 * vol, now + 0.55);
+        sg.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        sub.start(now + 0.55); sub.stop(now + 1.2);
+    } catch(e) {}
+}
+
 function showQuest(quest, retry) {
     currentQuest = quest;
     isRetry = retry;
+    playWarriorDrum();
 
     const modal = document.getElementById('questModal');
     const inner = document.getElementById('questInner');
