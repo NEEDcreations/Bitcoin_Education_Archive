@@ -341,7 +341,10 @@
                 <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></svg>
                 <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
             </div>
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
+            <div style="display:flex;gap:6px;">
+                <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" style="font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:8px;cursor:pointer;">🔊</button>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
+            </div>
         </div>
         <div class="search-box">
             <div style="display:flex;gap:8px;">
@@ -630,6 +633,11 @@
             document.body.setAttribute('data-theme', 'light');
             setTimeout(() => { const b = document.getElementById('themeBtn'); if(b) b.textContent = '☀️'; }, 0);
         }
+        // Set audio button state
+        setTimeout(() => {
+            const ab = document.getElementById('audioBtn');
+            if (ab) ab.textContent = localStorage.getItem('btc_audio') === 'false' ? '🔇' : '🔊';
+        }, 0);
     })();
 
     function toggleMenu() {
@@ -854,10 +862,49 @@
     // Cache loaded channel data
     const channelCache = {};
 
+    // Audio system
+    let audioEnabled = localStorage.getItem('btc_audio') !== 'false';
+    function playChannelSound() {
+        if (!audioEnabled) return;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // Soft click/pop sound
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.15);
+            // Second tone for pleasant chime
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.frequency.value = 1318.5;
+            osc2.type = 'sine';
+            gain2.gain.setValueAtTime(0.05, ctx.currentTime + 0.05);
+            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+            osc2.start(ctx.currentTime + 0.05);
+            osc2.stop(ctx.currentTime + 0.25);
+        } catch(e) {}
+    }
+    function toggleAudio() {
+        audioEnabled = !audioEnabled;
+        localStorage.setItem('btc_audio', audioEnabled);
+        const btn = document.getElementById('audioBtn');
+        if (btn) btn.textContent = audioEnabled ? '🔊' : '🔇';
+        if (typeof showToast === 'function') showToast(audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
+    }
+
     async function go(id, btn) {
         const meta = CHANNELS[id];
         if (!meta) return;
 
+        playChannelSound();
         document.getElementById('home').classList.add('hidden');
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');

@@ -195,6 +195,7 @@ function launchConfetti() {
 
 // Celebration sound
 function playBadgeSound() {
+    if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         // Play a cheerful ascending chime
