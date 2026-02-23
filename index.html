@@ -47,6 +47,10 @@
         .msg-link { color: #38bdf8; text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
         
+        /* Sidebar Promo */
+        .sidebar-promo { display: block; text-align: center; padding: 12px; color: #475569; font-size: 0.8rem; text-decoration: none; border-top: 1px solid #1e293b; transition: 0.2s; letter-spacing: 0.5px; }
+        .sidebar-promo:hover { color: #f97316; background: rgba(249,115,22,0.05); }
+
         /* Ranking Bar */
         #rankBar { display: none; flex-direction: column; padding: 12px 20px; border-top: 1px solid #1e293b; background: #020617; cursor: pointer; }
         .rank-info { display: flex; align-items: center; gap: 10px; }
@@ -324,6 +328,7 @@
             <div class="cat-label">Referral Links</div>
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
         </div>
+        <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ 603btc.com</a>
         <div id="rankBar"></div>
     </aside>
     <main id="main">
@@ -360,7 +365,7 @@
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning points as you explore the archive!</p>
             <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
-            <input type="email" id="emailInput" placeholder="Email (optional)" style="margin-top:0;">
+            <input type="email" id="emailInput" placeholder="📧 Email (optional — not required)" style="margin-top:0;">
             <p style="color:#475569;font-size:0.75rem;margin:-8px 0 16px;">We'll never spam you. Only used if we launch future Bitcoin education updates.</p>
             <button onclick="submitUsername()">Start Learning →</button>
             <span class="skip" onclick="hideUsernamePrompt()">Skip for now</span>
