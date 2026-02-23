@@ -223,13 +223,8 @@ async function loadUser(uid) {
         awardVisitPoints();
         startReadTimer();
 
-        // If anonymous user without a username, prompt after 60 seconds
-        if (auth.currentUser && auth.currentUser.isAnonymous && !currentUser.username) {
-            setTimeout(showUsernamePrompt, 60000);
-        }
     } else {
-        // Brand new user - show username prompt after 60 seconds
-        setTimeout(showUsernamePrompt, 60000);
+        // New user - they can click "Create Account / Sign In" on home page
     }
 }
 
