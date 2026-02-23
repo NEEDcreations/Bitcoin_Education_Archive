@@ -420,11 +420,25 @@ async function createUser(username, email) {
     // Wait for auth to be ready if not yet
     if (!auth.currentUser) {
         try {
-            await auth.signInAnonymously();
+            const cred = await auth.signInAnonymously();
+            // Wait a moment for auth.currentUser to update
+            if (!auth.currentUser) {
+                await new Promise(resolve => {
+                    const unsub = auth.onAuthStateChanged(user => {
+                        if (user) { unsub(); resolve(); }
+                    });
+                    setTimeout(() => { resolve(); }, 3000); // timeout fallback
+                });
+            }
         } catch(e) {
+            console.log('Anonymous sign-in error:', e);
             showToast('Error creating account. Please try again.');
             return;
         }
+    }
+    if (!auth.currentUser) {
+        showToast('Error: Could not authenticate. Please refresh and try again.');
+        return;
     }
     const uid = auth.currentUser.uid;
     username = sanitizeInput(username);
