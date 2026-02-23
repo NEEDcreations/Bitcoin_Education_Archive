@@ -616,6 +616,13 @@
                         All YouTube links are embedded for you and contain videos that supplement the information in each channel. Additionally, channels are filled with tweets that were posted on Twitter over the last few years, and you can expand these tweets to view them in the channel.
                     </div>
                 </div>
+                <div id="giveawayBanner" style="margin-bottom:16px;padding:20px;background:linear-gradient(135deg,#f7931a 0%,#ea580c 100%);border-radius:16px;text-align:center;cursor:pointer;box-shadow:0 4px 20px rgba(247,147,26,0.3);position:relative;overflow:hidden;" onclick="showUsernamePrompt()">
+                    <div style="position:absolute;top:-20px;right:-20px;font-size:5rem;opacity:0.15;pointer-events:none;">⚡</div>
+                    <div style="font-size:1.8rem;margin-bottom:6px;">🎉 25,000 SATS GIVEAWAY 🎉</div>
+                    <div style="color:rgba(255,255,255,0.95);font-size:1rem;font-weight:600;">New users are entered for a chance to win!</div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:0.85rem;margin-top:6px;">Create an account & register below ⬇️</div>
+                    <div style="display:inline-block;margin-top:12px;padding:10px 24px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.5);border-radius:10px;color:#fff;font-weight:700;font-size:0.95rem;letter-spacing:0.5px;">Sign Up Now →</div>
+                </div>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div class="daily-channel" id="dailyChannel"></div>
                 <div id="quoteOfDay" style="margin-top:16px;"></div>
@@ -699,6 +706,20 @@
             <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
             <input type="email" id="emailInput" placeholder="📧 Email (optional)" style="margin-top:0;">
             <p style="color:#475569;font-size:0.75rem;margin:-8px 0 16px;">We'll never spam you. Only used if we launch future Bitcoin education updates.</p>
+            <div id="giveawaySection" style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left;">
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">
+                    <input type="checkbox" id="giveawayCheckbox" style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">
+                    <span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>
+                </label>
+                <input type="text" id="giveawayLnAddress" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;display:none;" oninput="this.style.borderColor='var(--border)'">
+                <p id="giveawayNote" style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;display:none;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>
+            </div>
+            <script>
+                document.getElementById('giveawayCheckbox').addEventListener('change', function() {
+                    document.getElementById('giveawayLnAddress').style.display = this.checked ? 'block' : 'none';
+                    document.getElementById('giveawayNote').style.display = this.checked ? 'block' : 'none';
+                });
+            </script>
             <button onclick="submitUsername()">Start Learning →</button>
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or sign in to sync across devices:</p>

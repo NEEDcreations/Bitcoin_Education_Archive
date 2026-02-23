@@ -449,7 +449,7 @@ function containsProfanity(str) {
     return false;
 }
 
-async function createUser(username, email) {
+async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     // Wait for auth to be ready if not yet
     if (!auth.currentUser) {
         try {
@@ -492,6 +492,23 @@ async function createUser(username, email) {
         created: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (email) userData.email = email;
+    if (enteredGiveaway && giveawayLnAddress) {
+        userData.giveaway = {
+            entered: true,
+            lightningAddress: giveawayLnAddress,
+            enteredAt: new Date().toISOString()
+        };
+        // Also save to a separate giveaway collection for easy admin access
+        try {
+            await db.collection('giveaway_entries').doc(uid).set({
+                username: username,
+                lightningAddress: giveawayLnAddress,
+                email: email || null,
+                enteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                uid: uid
+            });
+        } catch(e) { console.log('Giveaway entry save error:', e); }
+    }
     await db.collection('users').doc(uid).set(userData);
     currentUser = { uid, ...userData };
     rankingReady = true;
@@ -499,6 +516,9 @@ async function createUser(username, email) {
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
+    // Hide giveaway banner after registration
+    var banner = document.getElementById('giveawayBanner');
+    if (banner) banner.style.display = 'none';
 }
 
 async function awardVisitPoints() {
@@ -692,6 +712,9 @@ function getLevel(points) {
 
 function updateRankUI() {
     if (!currentUser) return;
+    // Hide giveaway banner for existing users
+    var gBanner = document.getElementById('giveawayBanner');
+    if (gBanner && currentUser.username) gBanner.style.display = 'none';
     const lv = getLevel(currentUser.points || 0);
     const bar = document.getElementById('rankBar');
     if (!bar) return;
@@ -1653,13 +1676,32 @@ async function submitUsername() {
         showToast('⚠️ That username is not allowed. Please choose another.');
         return;
     }
+
+    // Check giveaway registration
+    const giveawayCheckbox = document.getElementById('giveawayCheckbox');
+    const giveawayLnInput = document.getElementById('giveawayLnAddress');
+    let giveawayLnAddress = '';
+    let enteredGiveaway = false;
+    if (giveawayCheckbox && giveawayCheckbox.checked) {
+        giveawayLnAddress = giveawayLnInput ? giveawayLnInput.value.trim() : '';
+        if (!giveawayLnAddress) {
+            if (giveawayLnInput) giveawayLnInput.style.borderColor = '#ef4444';
+            showToast('⚡ Please enter a Lightning address to enter the giveaway!');
+            return;
+        }
+        enteredGiveaway = true;
+    }
+
     try {
-        await createUser(name, email);
+        await createUser(name, email, enteredGiveaway, giveawayLnAddress);
         // If they entered an email, link their account
         if (email) {
             sendMagicLink(email).then(sent => {
                 if (sent) showToast('📧 Check your email to link your account across devices!');
             });
+        }
+        if (enteredGiveaway) {
+            showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!');
         }
     } catch(e) {
         console.log('submitUsername error:', e);
