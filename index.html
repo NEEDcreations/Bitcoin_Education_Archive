@@ -968,13 +968,13 @@
         if (isMobile()) document.getElementById('sidebar').classList.remove('open');
     }
 
-    function goHome() {
+    function goHome(fromPopState) {
         document.getElementById('home').classList.remove('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
-        history.replaceState(null, null, window.location.pathname);
+        if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
         if (isMobile()) document.getElementById('sidebar').classList.remove('open');
     }
 
@@ -1039,7 +1039,7 @@
         if (slider) slider.value = audioEnabled ? audioVolume : 0;
     }
 
-    async function go(id, btn) {
+    async function go(id, btn, fromPopState) {
         const meta = CHANNELS[id];
         if (!meta) return;
 
@@ -1069,7 +1069,7 @@
         document.getElementById('hero').classList.remove('fade-in');
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:var(--text-faint);text-align:center;">Loading...</div>';
         document.getElementById('main').scrollTop = 0;
-        history.replaceState(null, null, '#' + id);
+        if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
 
         // On mobile, close the menu immediately
         if (isMobile()) {
@@ -1384,6 +1384,16 @@
         });
 
         renderFavs();
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function(e) {
+            const hash = location.hash.slice(1);
+            if (hash) {
+                go(hash, null, true);
+            } else {
+                goHome(true);
+            }
+        });
 
         const h = location.hash.slice(1);
         if (h) go(h);
