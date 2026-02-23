@@ -823,8 +823,8 @@ function showSettingsPage(tab) {
 
     // Tab bar
     let html = '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">';
-    ['account', 'security', 'data'].forEach(t => {
-        const labels = { account: '👤 Account', security: '🔒 Security', data: '📊 Data' };
+    ['account', 'prefs', 'security', 'data'].forEach(t => {
+        const labels = { account: '👤 Account', prefs: '🎨 Prefs', security: '🔒 Security', data: '📊 Data' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;padding:10px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;">' + labels[t] + '</button>';
     });
@@ -871,6 +871,79 @@ function showSettingsPage(tab) {
             '<div id="usernameStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'prefs') {
+        // Language
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌐 Language</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Translate the site to your preferred language</div>' +
+            '<select id="langSelect" onchange="changeLanguage(this.value)" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;cursor:pointer;">' +
+            '<option value="">English (Default)</option>' +
+            '<option value="es">🇪🇸 Español</option>' +
+            '<option value="pt">🇧🇷 Português</option>' +
+            '<option value="fr">🇫🇷 Français</option>' +
+            '<option value="de">🇩🇪 Deutsch</option>' +
+            '<option value="it">🇮🇹 Italiano</option>' +
+            '<option value="nl">🇳🇱 Nederlands</option>' +
+            '<option value="ru">🇷🇺 Русский</option>' +
+            '<option value="uk">🇺🇦 Українська</option>' +
+            '<option value="ar">🇸🇦 العربية</option>' +
+            '<option value="zh-CN">🇨🇳 中文 (简体)</option>' +
+            '<option value="zh-TW">🇹🇼 中文 (繁體)</option>' +
+            '<option value="ja">🇯🇵 日本語</option>' +
+            '<option value="ko">🇰🇷 한국어</option>' +
+            '<option value="hi">🇮🇳 हिन्दी</option>' +
+            '<option value="th">🇹🇭 ไทย</option>' +
+            '<option value="vi">🇻🇳 Tiếng Việt</option>' +
+            '<option value="tr">🇹🇷 Türkçe</option>' +
+            '<option value="pl">🇵🇱 Polski</option>' +
+            '<option value="sv">🇸🇪 Svenska</option>' +
+            '<option value="cs">🇨🇿 Čeština</option>' +
+            '</select>' +
+            '<div id="langStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
+            '</div>';
+
+        // Set saved language in dropdown
+        setTimeout(function() {
+            const sel = document.getElementById('langSelect');
+            const saved = localStorage.getItem('btc_lang') || '';
+            if (sel) sel.value = saved;
+        }, 50);
+
+        // Font Size
+        const savedSize = localStorage.getItem('btc_font_size') || 'medium';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔤 Font Size</div>' +
+            '<div style="display:flex;gap:8px;">';
+        ['small', 'medium', 'large'].forEach(size => {
+            const active = savedSize === size;
+            const label = size.charAt(0).toUpperCase() + size.slice(1);
+            const px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
+            html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
+        });
+        html += '</div></div>';
+
+        // Sound settings
+        const soundOn = typeof audioEnabled === 'undefined' || audioEnabled;
+        const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔊 Sound</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Sound Effects</span>' +
+            '<button onclick="toggleAudio();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (soundOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (soundOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (soundOn ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span style="color:var(--text-muted);font-size:0.8rem;">Volume</span>' +
+            '<input type="range" min="0" max="1" step="0.05" value="' + vol + '" oninput="setVolume(this.value)" style="flex:1;accent-color:#f7931a;cursor:pointer;">' +
+            '</div></div>';
+
+        // Theme
+        const isDark = document.body.getAttribute('data-theme') !== 'light';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌓 Theme</div>' +
+            '<div style="display:flex;gap:8px;">' +
+            '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
+            '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
+            '</div></div>';
 
     } else if (settingsTab === 'security') {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -952,6 +1025,93 @@ function showSettingsPage(tab) {
     box.innerHTML = html;
     modal.classList.add('open');
 }
+
+// Language translation via Google Translate
+function changeLanguage(lang) {
+    const status = document.getElementById('langStatus');
+    if (!lang) {
+        // Reset to English
+        const frame = document.querySelector('.goog-te-banner-frame');
+        if (frame) frame.remove();
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + location.hostname;
+        localStorage.setItem('btc_lang', '');
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Switched to English</span>';
+        setTimeout(() => location.reload(), 500);
+        return;
+    }
+    localStorage.setItem('btc_lang', lang);
+    document.cookie = 'googtrans=/en/' + lang + '; path=/;';
+    document.cookie = 'googtrans=/en/' + lang + '; path=/; domain=.' + location.hostname;
+    if (status) status.innerHTML = '<span style="color:var(--text-muted);">Translating...</span>';
+    // Load Google Translate if not loaded
+    if (!document.getElementById('gtranslate')) {
+        const s = document.createElement('script');
+        s.id = 'gtranslate';
+        s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateReady';
+        document.head.appendChild(s);
+        window.googleTranslateReady = function() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'gtranslateWidget');
+            setTimeout(() => {
+                triggerGoogleTranslate(lang);
+                if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Translated!</span>';
+            }, 1500);
+        };
+        // Hidden widget container
+        const div = document.createElement('div');
+        div.id = 'gtranslateWidget';
+        div.style.display = 'none';
+        document.body.appendChild(div);
+    } else {
+        triggerGoogleTranslate(lang);
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Translated!</span>';
+    }
+}
+
+function triggerGoogleTranslate(lang) {
+    const sel = document.querySelector('.goog-te-combo');
+    if (sel) {
+        sel.value = lang;
+        sel.dispatchEvent(new Event('change'));
+    }
+}
+
+// Restore language on load
+(function() {
+    const saved = localStorage.getItem('btc_lang');
+    if (saved) {
+        document.cookie = 'googtrans=/en/' + saved + '; path=/;';
+        document.cookie = 'googtrans=/en/' + saved + '; path=/; domain=.' + location.hostname;
+        const s = document.createElement('script');
+        s.id = 'gtranslate';
+        s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateReady';
+        document.head.appendChild(s);
+        window.googleTranslateReady = function() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'gtranslateWidget');
+        };
+        const div = document.createElement('div');
+        div.id = 'gtranslateWidget';
+        div.style.display = 'none';
+        document.body.appendChild(div);
+    }
+})();
+
+// Font size
+function setFontSize(size) {
+    localStorage.setItem('btc_font_size', size);
+    const px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
+    document.documentElement.style.fontSize = px;
+    showSettingsPage('prefs');
+}
+
+// Restore font size on load
+(function() {
+    const saved = localStorage.getItem('btc_font_size');
+    if (saved) {
+        const px = saved === 'small' ? '14px' : saved === 'medium' ? '16px' : '18px';
+        document.documentElement.style.fontSize = px;
+    }
+})();
 
 // Change username
 async function changeUsername() {
