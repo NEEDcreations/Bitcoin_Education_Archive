@@ -170,8 +170,52 @@ async function handleEmailSignIn() {
         // Clean URL
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
 
+        // Check if this was a new registration (pending username from signup form)
+        const pendingUsername = localStorage.getItem('btc_pending_username');
+        const pendingEmail = localStorage.getItem('btc_pending_email');
+        const pendingGiveaway = localStorage.getItem('btc_pending_giveaway');
+
+        if (pendingUsername && !existingDoc.exists) {
+            // New user verifying their email — create their full account now
+            const userData = {
+                username: pendingUsername,
+                email: email,
+                points: 0,
+                channelsVisited: 0,
+                totalVisits: 1,
+                streak: 1,
+                lastVisit: new Date().toISOString().split('T')[0],
+                created: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            if (pendingGiveaway) {
+                userData.giveaway = {
+                    entered: true,
+                    lightningAddress: pendingGiveaway,
+                    enteredAt: new Date().toISOString()
+                };
+                try {
+                    await db.collection('giveaway_entries').doc(emailUid).set({
+                        username: pendingUsername,
+                        lightningAddress: pendingGiveaway,
+                        email: email,
+                        enteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        uid: emailUid
+                    });
+                } catch(e) {}
+            }
+            await db.collection('users').doc(emailUid).set(userData);
+
+            // Attach referral if they came via referral link
+            if (typeof attachReferral === 'function') attachReferral(emailUid);
+        }
+
+        // Clean up pending data
+        localStorage.removeItem('btc_pending_username');
+        localStorage.removeItem('btc_pending_email');
+        localStorage.removeItem('btc_pending_giveaway');
+
         loadUser(emailUid);
-        showToast('✅ Signed in as ' + email);
+        showToast('✅ Email verified! Signed in as ' + (pendingUsername || email));
     } catch(e) {
         console.log('Email sign-in error:', e);
         showToast('Sign-in error. Please try again.');
@@ -1832,15 +1876,33 @@ async function submitUsername() {
     }
 
     try {
-        await createUser(name, email, enteredGiveaway, giveawayLnAddress);
-        // If they entered an email, link their account
         if (email) {
-            sendMagicLink(email).then(sent => {
-                if (sent) showToast('📧 Check your email to link your account across devices!');
-            });
-        }
-        if (enteredGiveaway) {
-            showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!');
+            // Email provided: send verification link FIRST, create account after they click it
+            localStorage.setItem('btc_pending_username', name);
+            localStorage.setItem('btc_pending_email', email);
+            if (enteredGiveaway && giveawayLnAddress) {
+                localStorage.setItem('btc_pending_giveaway', giveawayLnAddress);
+            }
+            const sent = await sendMagicLink(email);
+            if (sent) {
+                const box = document.getElementById('usernameModal').querySelector('.username-box');
+                box.innerHTML = '<div style="text-align:center;padding:20px;">' +
+                    '<div style="font-size:3rem;margin-bottom:16px;">📧</div>' +
+                    '<h2 style="color:var(--heading);margin-bottom:12px;">Check Your Email!</h2>' +
+                    '<p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;margin-bottom:8px;">We sent a verification link to:</p>' +
+                    '<p style="color:var(--accent);font-weight:700;font-size:1.05rem;margin-bottom:20px;">' + email + '</p>' +
+                    '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">Click the link in the email to verify and activate your account. Check your spam folder if you don\'t see it.</p>' +
+                    '<button onclick="hideUsernamePrompt()" style="margin-top:20px;padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Got it!</button>' +
+                    '</div>';
+            } else {
+                showToast('Error sending verification email. Please try again.');
+            }
+        } else {
+            // No email: create anonymous account immediately
+            await createUser(name, email, enteredGiveaway, giveawayLnAddress);
+            if (enteredGiveaway) {
+                showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!');
+            }
         }
     } catch(e) {
         console.log('submitUsername error:', e);
