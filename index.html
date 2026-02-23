@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A curated Bitcoin education archive with 146 channels, 8800+ messages, and 3000+ images — preserved from Discord for the world.">
+    <meta name="theme-color" content="#020617">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preload" href="channel_index.js" as="script">
     <title>Bitcoin Education Archive</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,6 +50,9 @@
         .msg-img:hover { border-color: #f97316; box-shadow: 0 8px 30px rgba(249,115,22,0.15); }
         .msg-link { color: #38bdf8; text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
+        .load-more-btn { display: block; width: 100%; padding: 16px; margin: 30px 0; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.2); border-radius: 12px; color: #f97316; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
+        .load-more-btn:hover { background: rgba(249,115,22,0.2); }
+        .msg-img { content-visibility: auto; }
         
         /* Sidebar Promo */
         .sidebar-promo { display: block; text-align: center; padding: 12px; color: #475569; font-size: 0.8rem; text-decoration: none; border-top: 1px solid #1e293b; transition: 0.2s; letter-spacing: 0.5px; }
@@ -372,11 +379,11 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="ranking.js"></script>
     <script src="channel_index.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer></script>
+    <script src="ranking.js" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -439,21 +446,67 @@
             }
         }
 
-        // Render messages
-        let html = '';
-        d.msgs.forEach(m => {
-            html += '<div class="msg">';
-            if (m.text) {
-                let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
-                html += '<div class="msg-text">' + t + '</div>';
-            }
-            if (m.imgs) m.imgs.forEach(img => {
-                html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
-            });
-            html += '</div>';
-        });
+        // Render messages in batches for performance
+        const PAGE_SIZE = 50;
+        let currentPage = 0;
+        const allMsgs = d.msgs;
 
-        document.getElementById('msgs').innerHTML = html;
+        function renderBatch(startIdx) {
+            const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
+            let html = '';
+            batch.forEach(m => {
+                html += '<div class="msg">';
+                if (m.text) {
+                    let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                    html += '<div class="msg-text">' + t + '</div>';
+                }
+                if (m.imgs) m.imgs.forEach(img => {
+                    html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+                });
+                html += '</div>';
+            });
+            return html;
+        }
+
+        let msgsHtml = renderBatch(0);
+        if (allMsgs.length > PAGE_SIZE) {
+            msgsHtml += '<button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreMsgs()">Load more (' + (allMsgs.length - PAGE_SIZE) + ' remaining)</button>';
+        }
+        document.getElementById('msgs').innerHTML = msgsHtml;
+
+        // Store for load-more
+        window._currentMsgs = allMsgs;
+        window._currentOffset = PAGE_SIZE;
+        window.loadMoreMsgs = function() {
+            const offset = window._currentOffset;
+            const msgs = window._currentMsgs;
+            const container = document.getElementById('msgs');
+            const btn = document.getElementById('loadMoreBtn');
+            const remaining = msgs.length - offset;
+            const nextBatch = msgs.slice(offset, offset + PAGE_SIZE);
+            
+            let html = '';
+            nextBatch.forEach(m => {
+                html += '<div class="msg">';
+                if (m.text) {
+                    let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                    html += '<div class="msg-text">' + t + '</div>';
+                }
+                if (m.imgs) m.imgs.forEach(img => {
+                    html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+                });
+                html += '</div>';
+            });
+            
+            btn.insertAdjacentHTML('beforebegin', html);
+            window._currentOffset = offset + PAGE_SIZE;
+            
+            if (window._currentOffset >= msgs.length) {
+                btn.remove();
+            } else {
+                btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)';
+            }
+        };
 
         // Ranking: award points for opening channel
         if (typeof onChannelOpen === 'function') onChannelOpen(id);
