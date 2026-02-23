@@ -226,6 +226,26 @@ function getBadgeHTML() {
             '<div class="badge-tooltip">' + tip + '</div>' +
         '</div>';
     }
+
+    // Hidden badges
+    if (typeof HIDDEN_BADGES !== 'undefined') {
+        const earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+        const anyEarned = earnedHidden.length > 0;
+        if (anyEarned) {
+            html += '</div><h4 style="margin-top:12px;">🔓 Hidden Badges</h4><div class="badges-grid">';
+            for (const badge of HIDDEN_BADGES) {
+                const unlocked = earnedHidden.includes(badge.id);
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '">' +
+                    '<div class="badge-emoji">' + (unlocked ? badge.emoji : '❓') + '</div>' +
+                    '<div class="badge-name">' + (unlocked ? badge.name : '???') + '</div>' +
+                    '<div class="badge-tooltip">' + (unlocked ? '✅ ' + badge.desc : '🔒 Keep exploring to unlock!') + '</div>' +
+                '</div>';
+            }
+        } else {
+            html += '</div><div style="text-align:center;padding:8px;color:var(--text-faint);font-size:0.8rem;margin-top:8px;">🔓 5 hidden badges to discover...</div><div class="badges-grid" style="display:none;">';
+        }
+    }
+
     html += '</div>';
     return html;
 }
