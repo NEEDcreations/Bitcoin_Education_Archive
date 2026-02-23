@@ -1,0 +1,13 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#020617"/>
+  <rect x="0" y="0" width="1200" height="4" fill="#f97316"/>
+  <circle cx="540" cy="200" r="60" fill="#f7931a"/>
+  <text x="540" y="218" text-anchor="middle" font-size="56" font-weight="bold" fill="#fff" font-family="Arial">₿</text>
+  <circle cx="660" cy="200" r="50" fill="#792de4"/>
+  <polygon points="676,160 658,210 668,210 664,240 680,190 670,190" fill="#fff"/>
+  <text x="600" y="340" text-anchor="middle" font-size="52" font-weight="900" fill="#fff" font-family="Arial, sans-serif">Bitcoin Education</text>
+  <text x="600" y="400" text-anchor="middle" font-size="52" font-weight="900" fill="#fff" font-family="Arial, sans-serif">Archive</text>
+  <text x="600" y="470" text-anchor="middle" font-size="22" fill="#64748b" font-family="Arial">146 Channels · 8,800+ Messages · 3,000+ Images</text>
+  <text x="600" y="520" text-anchor="middle" font-size="20" fill="#f97316" font-family="Arial">bitcoineducation.quest</text>
+  <rect x="0" y="626" width="1200" height="4" fill="#f97316"/>
+</svg>
