@@ -216,6 +216,9 @@ async function handleEmailSignIn() {
 
         loadUser(emailUid);
         showToast('✅ Email verified! Signed in as ' + (pendingUsername || email));
+        if (pendingGiveaway) {
+            setTimeout(function() { showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!'); }, 2000);
+        }
     } catch(e) {
         console.log('Email sign-in error:', e);
         showToast('Sign-in error. Please try again.');
@@ -1892,6 +1895,7 @@ async function submitUsername() {
                     '<p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;margin-bottom:8px;">We sent a verification link to:</p>' +
                     '<p style="color:var(--accent);font-weight:700;font-size:1.05rem;margin-bottom:20px;">' + email + '</p>' +
                     '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">Click the link in the email to verify and activate your account. Check your spam folder if you don\'t see it.</p>' +
+                    (enteredGiveaway ? '<p style="color:#f7931a;font-size:0.85rem;font-weight:600;margin-top:12px;">🎉 Your giveaway entry will be saved once you verify!</p>' : '') +
                     '<button onclick="hideUsernamePrompt()" style="margin-top:20px;padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Got it!</button>' +
                     '</div>';
             } else {
