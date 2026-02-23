@@ -111,6 +111,57 @@ async function handleEmailSignIn() {
     }
 }
 
+// Google Sign-In
+async function signInWithGoogle() {
+    try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // Get current anonymous user data before signing in
+        const anonUser = auth.currentUser;
+        let anonData = null;
+        if (anonUser) {
+            const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+            if (anonDoc.exists) anonData = anonDoc.data();
+        }
+
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+
+        // Check if this Google user already has data
+        const existingDoc = await db.collection('users').doc(user.uid).get();
+
+        if (!existingDoc.exists) {
+            if (anonData) {
+                // Migrate anonymous data to Google account
+                anonData.email = user.email;
+                if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
+                await db.collection('users').doc(user.uid).set(anonData);
+            } else {
+                // New Google user — create account
+                await db.collection('users').doc(user.uid).set({
+                    username: user.displayName || 'Bitcoiner',
+                    email: user.email,
+                    points: 0,
+                    channelsVisited: 0,
+                    totalVisits: 1,
+                    streak: 1,
+                    lastVisit: new Date().toISOString().split('T')[0],
+                    created: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+
+        hideUsernamePrompt();
+        loadUser(user.uid);
+        showToast('✅ Signed in as ' + (user.displayName || user.email));
+    } catch(e) {
+        console.log('Google sign-in error:', e);
+        if (e.code !== 'auth/popup-closed-by-user') {
+            showToast('Sign-in error. Please try again.');
+        }
+    }
+}
+
 // Send magic link email
 async function sendMagicLink(email) {
     const actionCodeSettings = {
@@ -502,6 +553,9 @@ function showSignInPrompt() {
         '<input type="email" id="signinEmail" placeholder="📧 Enter your email" style="width:100%;padding:14px 18px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:16px;text-align:center;" onkeydown="if(event.key===\'Enter\')sendSignInLink()">' +
         '<button onclick="sendSignInLink()" style="width:100%;padding:14px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Magic Link →</button>' +
         '<div id="signinStatus" style="margin-top:12px;font-size:0.85rem;"></div>' +
+        '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+        '<button onclick="signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+        '<img src=https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg width=18 height=18> Sign in with Google</button></div>' +
         '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;">Continue as guest</span>';
     modal.classList.add('open');
 }
