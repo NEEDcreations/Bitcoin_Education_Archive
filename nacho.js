@@ -469,6 +469,9 @@ function _showBubble(text, pose) {
 }
 
 window.hideBubble = function() {
+    // Mark interaction for badge
+    localStorage.setItem('btc_nacho_clicked', 'true');
+    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
     const bubble = document.getElementById('nacho-bubble');
     const avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
@@ -485,6 +488,10 @@ window.nachoClick = function() {
     const now = Date.now();
     if (now - lastClickTime < CLICK_COOLDOWN) return;
     lastClickTime = now;
+
+    // Mark interaction for badge
+    localStorage.setItem('btc_nacho_clicked', 'true');
+    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
 
     const bubble = document.getElementById('nacho-bubble');
     if (bubble && bubble.classList.contains('show')) {

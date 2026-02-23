@@ -87,6 +87,7 @@ const HIDDEN_BADGES = [
     { id: 'ticket_bronze', name: 'Ticket Fish', emoji: '🐟', desc: 'Earn 25 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 25; } },
     { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', desc: 'Earn 50 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; } },
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', desc: 'Earn 100 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; } },
+    { id: 'nacho_friend', name: 'Nacho\'s Friend', emoji: '🦌', desc: 'Interact with Nacho', check: function() { return localStorage.getItem('btc_nacho_clicked') === 'true'; } },
 ];
 
 function checkHiddenBadges() {
