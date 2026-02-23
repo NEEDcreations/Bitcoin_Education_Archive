@@ -626,6 +626,38 @@ async function toggleLeaderboard() {
     lb.classList.add('open');
     if (fab) fab.style.display = 'none';
 
+    // Leaderboard open sound — dramatic reveal
+    if (typeof audioEnabled === 'undefined' || audioEnabled) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+            // Rising whoosh + chime
+            const now = ctx.currentTime;
+            // Whoosh sweep
+            const osc1 = ctx.createOscillator();
+            const g1 = ctx.createGain();
+            osc1.connect(g1); g1.connect(ctx.destination);
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(200, now);
+            osc1.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+            g1.gain.setValueAtTime(0.08 * vol, now);
+            g1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            osc1.start(now); osc1.stop(now + 0.2);
+            // Trophy chime — two bright notes
+            [880, 1175].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.connect(g); g.connect(ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                g.gain.setValueAtTime(0.1 * vol, now + 0.1 + i * 0.08);
+                g.gain.exponentialRampToValueAtTime(0.001, now + 0.1 + i * 0.08 + 0.3);
+                osc.start(now + 0.1 + i * 0.08);
+                osc.stop(now + 0.1 + i * 0.08 + 0.3);
+            });
+        } catch(e) {}
+    }
+
     try {
         const snap = await db.collection('users').orderBy('points', 'desc').limit(100).get();
         let allUsers = [];
