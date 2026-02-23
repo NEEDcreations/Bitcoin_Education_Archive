@@ -76,11 +76,13 @@ async function handleEmailSignIn() {
     if (!email) return;
 
     try {
-        // Get current anonymous user data before linking
+        // Save anonymous user info BEFORE sign-in changes auth state
         const anonUser = auth.currentUser;
+        let anonUid = null;
         let anonData = null;
-        if (anonUser) {
-            const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+        if (anonUser && anonUser.isAnonymous) {
+            anonUid = anonUser.uid;
+            const anonDoc = await db.collection('users').doc(anonUid).get();
             if (anonDoc.exists) anonData = anonDoc.data();
         }
 
@@ -96,8 +98,21 @@ async function handleEmailSignIn() {
             // Migrate anonymous data to email account
             anonData.email = email;
             await db.collection('users').doc(emailUid).set(anonData);
-        } else if (!existingDoc.exists) {
-            // Brand new email user — will get prompted for username
+        } else if (existingDoc.exists && anonData) {
+            // Existing email user — merge points if anon had more
+            const existData = existingDoc.data();
+            if ((anonData.points || 0) > (existData.points || 0)) {
+                await existingDoc.ref.update({
+                    points: anonData.points,
+                    channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
+                    totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                });
+            }
+        }
+
+        // Delete the old anonymous user document to prevent duplicates on leaderboard
+        if (anonUid && anonUid !== emailUid) {
+            try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
         // Clean URL
