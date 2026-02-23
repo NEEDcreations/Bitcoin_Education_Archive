@@ -720,9 +720,13 @@
         const nextId = currentIdx < channelKeys.length - 1 ? channelKeys[currentIdx + 1] : channelKeys[0];
         const nextTitle = CHANNELS[nextId] ? CHANNELS[nextId].title : nextId;
 
-        let navHtml = '<div style="display:flex;gap:12px;justify-content:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;">';
-        navHtml += '<button onclick="go(\'' + nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next → ' + nextTitle.substring(0, 30) + (nextTitle.length > 30 ? '...' : '') + '</button>';
+        const prevId = currentIdx > 0 ? channelKeys[currentIdx - 1] : channelKeys[channelKeys.length - 1];
+        const prevTitle = CHANNELS[prevId] ? CHANNELS[prevId].title : prevId;
+
+        let navHtml = '<div style="display:flex;gap:12px;justify-content:center;align-items:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;flex-wrap:wrap;">';
+        navHtml += '<button onclick="go(\'' + prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
         navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
+        navHtml += '<button onclick="go(\'' + nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
         navHtml += '</div>';
         msgsEl.innerHTML += navHtml;
 
