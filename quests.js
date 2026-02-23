@@ -385,7 +385,7 @@ function retryQuest() {
 function startQuestManual() {
     if (currentQuest) return; // Already showing one
     if (visitedForQuest.length < 1) {
-        if (typeof showToast === 'function') showToast('Explore some channels first!');
+        if (typeof showToast === 'function') showToast('Explore some channels first to unlock a Quest!');
         return;
     }
     generateAndShowQuest(true);
