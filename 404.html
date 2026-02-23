@@ -91,10 +91,14 @@
         .msg { padding: 20px 0; border-bottom: 1px solid var(--msg-border); }
         .msg-text { color: var(--text); font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; max-width: 100%; }
         .msg-text strong, .msg-text b { color: var(--heading); }
-        .tw-preview { margin: 8px 0; padding: 10px 14px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: 0.2s; position: relative; }
-        .tw-preview:hover { border-color: var(--accent); box-shadow: 0 0 12px rgba(247,147,26,0.15); }
-        .tw-preview-url { color: var(--text-dim); font-size: 0.85rem; word-break: break-all; }
-        .tw-preview-hint { color: var(--text-faint); font-size: 0.75rem; margin-top: 4px; }
+        .tw-preview { margin: 12px 0; padding: 16px 20px; background: linear-gradient(135deg, rgba(29,155,240,0.08), rgba(247,147,26,0.08)); border: 1px solid rgba(29,155,240,0.3); border-radius: 12px; cursor: pointer; transition: 0.3s; position: relative; display: flex; align-items: center; gap: 14px; }
+        .tw-preview:hover { border-color: #1d9bf0; box-shadow: 0 0 20px rgba(29,155,240,0.2); transform: translateY(-1px); }
+        .tw-preview-icon { font-size: 1.8rem; flex-shrink: 0; }
+        .tw-preview-content { flex: 1; min-width: 0; }
+        .tw-preview-url { color: var(--text); font-size: 0.9rem; font-weight: 600; word-break: break-all; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tw-preview-hint { color: #1d9bf0; font-size: 0.85rem; margin-top: 4px; font-weight: 600; }
+        .tw-preview-arrow { color: #1d9bf0; font-size: 1.2rem; flex-shrink: 0; transition: 0.2s; }
+        .tw-preview:hover .tw-preview-arrow { transform: translateX(3px); }
         .tw-load-btn { display: none; }
         .tw-embedded { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 8px 0; background: var(--card-bg); }
         .tw-embedded .tw-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.8rem; color: var(--text-faint); }
@@ -763,9 +767,15 @@
                             const twUrl = twEmbeds[parseInt(idx)];
                             const twId = 'tw_' + Math.random().toString(36).substr(2, 8);
                             const isMob = typeof isMobile === 'function' && isMobile();
+                            const handle = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
+                            const displayHandle = handle ? '@' + handle[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
                             return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl.replace(/'/g, "\\'") + '\')">' +
-                                '<div class="tw-preview-url">𝕏 ' + twUrl.replace(/https?:\/\/(www\.)?/, '') + '</div>' +
-                                '<div class="tw-preview-hint">' + (isMob ? 'Tap to display tweet' : 'Click to display tweet') + '</div>' +
+                                '<div class="tw-preview-icon">𝕏</div>' +
+                                '<div class="tw-preview-content">' +
+                                '<div class="tw-preview-url">' + displayHandle + '</div>' +
+                                '<div class="tw-preview-hint">' + (isMob ? '▶ Tap to display tweet' : '▶ Click to display tweet') + '</div>' +
+                                '</div>' +
+                                '<div class="tw-preview-arrow">→</div>' +
                                 '</div>';
                         });
                         t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
@@ -1072,7 +1082,7 @@
             let html = '';
             nextBatch.forEach(m => {
                 html += '<div class="msg">';
-                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile();return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-url">𝕏 '+u.replace(/https?:\/\/(www\.)?/,'')+'</div><div class="tw-preview-hint">'+(mob?'Tap to display tweet':'Click to display tweet')+'</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; } });
                 html += '</div>';
             });
