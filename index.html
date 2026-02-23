@@ -75,6 +75,10 @@
         .msg-img:hover { border-color: var(--accent); box-shadow: 0 8px 30px var(--accent-glow); }
         .msg-link { color: var(--link); text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
+        /* Reading progress bar */
+        .progress-bar { position: fixed; top: 0; left: 0; width: 0%; height: 3px; background: linear-gradient(90deg, #f97316, #eab308); z-index: 300; transition: width 0.15s; pointer-events: none; }
+        @media (max-width: 900px) { .progress-bar { top: 52px; } }
+
         /* Share buttons */
         .share-bar { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
         .share-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-dim); font-family: inherit; transition: 0.2s; }
@@ -401,6 +405,7 @@
         <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ Powered by 603btc.com</a>
         <div id="rankBar"></div>
     </aside>
+    <div class="progress-bar" id="progressBar"></div>
     <main id="main">
         <!-- Home / Landing -->
         <div id="home" class="home-page">
@@ -738,6 +743,13 @@
         // Wait a moment for Firebase to init
         setTimeout(updateVisitDisplay, 2000);
     })();
+
+    // Reading progress bar
+    document.getElementById('main').addEventListener('scroll', function() {
+        const el = this;
+        const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
+        document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, pct)) + '%';
+    });
 
     window.onload = () => {
         const h = location.hash.slice(1);
