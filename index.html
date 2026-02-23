@@ -313,39 +313,77 @@
         .mobile-bar { display: none; }
 
         /* Mobile */
+        /* Tablet breakpoint */
+        @media (max-width: 1100px) and (min-width: 901px) {
+            aside { width: 280px; }
+            .hero { padding: 60px 40px 30px; }
+            .messages { padding: 0 40px 80px; }
+            .ch-btn { font-size: 0.85rem; padding: 9px 12px; }
+        }
+
+        /* Mobile breakpoint */
         @media (max-width: 900px) {
             aside { display: none; position: fixed; inset: 0; z-index: 100; width: 100%; max-width: 100%; }
             aside.open { display: flex; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; }
-            .hero { padding: 30px 20px 20px; }
-            .hero h1 { font-size: 1.6rem; }
-            .messages { padding: 0 20px 60px; }
-            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-            .mobile-bar h2 { color: var(--accent); font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-            .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
+            .mobile-bar h2 { color: var(--accent); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+            .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
-            .mobile-close { position: absolute; top: 16px; right: 16px; background: var(--bg-side); border: 1px solid var(--border); color: var(--text-dim); font-size: 1.2rem; cursor: pointer; z-index: 101; line-height: 1; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-            .theme-toggle { position: absolute; top: 16px; right: 60px; z-index: 101; }
-            #audioBtn { position: absolute; top: 16px; right: 104px; z-index: 101; }
-            #volumeSlider { position: absolute; top: 24px; right: 148px; z-index: 101; width: 40px !important; }
-            .hero { padding: 24px 16px 16px; }
-            .hero h1 { font-size: 1.4rem; }
+            .mobile-close { position: absolute; top: 16px; right: 16px; background: var(--bg-side); border: 1px solid var(--border); color: var(--text-dim); font-size: 1.2rem; cursor: pointer; z-index: 101; line-height: 1; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+            .theme-toggle { position: absolute; top: 16px; right: 64px; z-index: 101; }
+            #audioBtn { position: absolute; top: 16px; right: 108px; z-index: 101; }
+            #volumeSlider { position: absolute; top: 24px; right: 152px; z-index: 101; width: 40px !important; }
+            .hero { padding: 20px 16px 14px; }
+            .hero h1 { font-size: 1.4rem; line-height: 1.3; }
+            .hero .desc { font-size: 0.9rem; }
             .messages { padding: 0 16px 120px; }
-            .msg-text { font-size: 0.95rem; }
-            .msg-img { max-width: 100%; height: auto; }
+            .msg { padding: 16px 0; }
+            .msg-text { font-size: 0.95rem; line-height: 1.7; }
+            .msg-img { max-width: 100%; height: auto; border-radius: 8px; }
             .msg-link { font-size: 0.85rem; }
             .share-bar { gap: 6px; }
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
-            .back-to-top { bottom: 70px; left: 16px; right: auto; width: 38px; height: 38px; font-size: 1.1rem; }
-            .home-title { font-size: 2rem; }
-            .home-stats { gap: 16px; flex-wrap: wrap; }
+            .back-to-top { bottom: 70px; left: 16px; right: auto; width: 40px; height: 40px; font-size: 1.1rem; }
+            .home-page { padding: 30px 16px; min-height: auto; }
+            .home-title { font-size: 2rem; letter-spacing: -1px; }
+            .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
+            .home-stats { gap: 12px; flex-wrap: wrap; }
             .home-stat-num { font-size: 1.3rem; }
-            .home-credits { padding: 16px; }
+            .home-stat-label { font-size: 0.7rem; }
+            .home-credits { padding: 14px; }
             .home-credits p { font-size: 0.85rem; }
+            .home-logos svg { width: 56px; height: 56px; }
             .daily-channel { padding: 14px; }
-            .home-cta { padding: 14px 30px; font-size: 1rem; }
+            .home-cta { padding: 16px 30px; font-size: 1.05rem; width: 100%; }
             .quest-start-btn { margin: 6px 10px; }
+            .ch-btn { padding: 12px 14px; font-size: 0.9rem; -webkit-tap-highlight-color: transparent; }
+            .cat-label { margin: 16px 0 6px 10px; }
+            /* Quest modal mobile */
+            #questInner { padding: 24px 18px; border-radius: 16px; }
+            .quest-header h2 { font-size: 1.2rem; }
+            .quest-q-text { font-size: 0.95rem; }
+            .quest-opt { padding: 14px 16px; font-size: 0.9rem; }
+            /* Badge toast mobile */
+            .badge-toast { bottom: 70px; left: 10px; right: 10px; }
+            /* Lightbox mobile */
+            .lightbox img { max-width: 95vw; max-height: 85vh; }
+            /* YouTube embeds mobile */
+            .yt-embed { max-width: 100%; }
+            /* Twitter previews mobile */
+            .tw-preview { padding: 12px 14px; }
+        }
+
+        /* Small phones */
+        @media (max-width: 380px) {
+            .home-title { font-size: 1.6rem; }
+            .home-stats { gap: 8px; }
+            .home-stat-num { font-size: 1.1rem; }
+            .mobile-bar h2 { font-size: 0.75rem; }
+            .hero h1 { font-size: 1.2rem; }
+            .msg-text { font-size: 0.9rem; }
+            .home-cta { padding: 14px 20px; font-size: 0.95rem; }
         }
         /* Hide Google Translate bar */
         .goog-te-banner-frame { display: none !important; }
