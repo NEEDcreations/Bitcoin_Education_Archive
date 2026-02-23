@@ -135,6 +135,7 @@ const MOTIVATION = [
 const FUN = [
     // Nacho originals
     { pose: 'cheese', text: "Nacho keys, nacho cheese. It's not just a tagline, it's a lifestyle. 🧀🔑" },
+    { pose: 'fire', text: "Nacho sats... They're all mine! 💰🦌" },
     { pose: 'cheese', text: "My seed phrase? 24 different types of cheese. Very secure. Very delicious. 🔐🧀" },
     { pose: 'cheese', text: "Bitcoin fixes everything. Except my cheese addiction. Some things are unfixable. 🧀" },
     { pose: 'cool', text: "Live Free or Die — that's the New Hampshire motto. Also my approach to Bitcoin. 🦌🗻" },
