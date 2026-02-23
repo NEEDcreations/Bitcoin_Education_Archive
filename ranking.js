@@ -47,15 +47,83 @@ function initRanking() {
         db = firebase.firestore();
         auth = firebase.auth();
 
-        auth.signInAnonymously().then(() => {
-            auth.onAuthStateChanged(user => {
-                if (user) {
-                    loadUser(user.uid);
-                }
-            });
+        // Check if returning from email magic link
+        if (firebase.auth.isSignInWithEmailLink(window.location.href)) {
+            handleEmailSignIn();
+            return;
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loadUser(user.uid);
+            } else {
+                // No user — sign in anonymously
+                auth.signInAnonymously().then(() => {});
+            }
         });
     } catch(e) {
         console.log('Ranking init error:', e);
+    }
+}
+
+// Handle email magic link return
+async function handleEmailSignIn() {
+    let email = localStorage.getItem('btc_signin_email');
+    if (!email) {
+        email = prompt('Please enter your email to confirm sign-in:');
+    }
+    if (!email) return;
+
+    try {
+        // Get current anonymous user data before linking
+        const anonUser = auth.currentUser;
+        let anonData = null;
+        if (anonUser) {
+            const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+            if (anonDoc.exists) anonData = anonDoc.data();
+        }
+
+        // Sign in with email link
+        const result = await auth.signInWithEmailLink(email, window.location.href);
+        localStorage.removeItem('btc_signin_email');
+
+        // Check if this email user already has data
+        const emailUid = result.user.uid;
+        const existingDoc = await db.collection('users').doc(emailUid).get();
+
+        if (!existingDoc.exists && anonData) {
+            // Migrate anonymous data to email account
+            anonData.email = email;
+            await db.collection('users').doc(emailUid).set(anonData);
+        } else if (!existingDoc.exists) {
+            // Brand new email user — will get prompted for username
+        }
+
+        // Clean URL
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+
+        loadUser(emailUid);
+        showToast('✅ Signed in as ' + email);
+    } catch(e) {
+        console.log('Email sign-in error:', e);
+        showToast('Sign-in error. Please try again.');
+        auth.signInAnonymously();
+    }
+}
+
+// Send magic link email
+async function sendMagicLink(email) {
+    const actionCodeSettings = {
+        url: window.location.origin + window.location.pathname,
+        handleCodeInApp: true,
+    };
+    try {
+        await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+        localStorage.setItem('btc_signin_email', email);
+        return true;
+    } catch(e) {
+        console.log('Magic link error:', e);
+        return false;
     }
 }
 
@@ -299,12 +367,15 @@ function updateRankUI() {
             '<div class="rank-next">' + (lv.next.min - currentUser.points) + ' pts to ' + lv.next.emoji + ' ' + lv.next.name + '</div>';
     }
 
+    const isAnon = auth.currentUser && auth.currentUser.isAnonymous;
+    const signInLink = isAnon && currentUser.username ? '<div style="font-size:0.7rem;margin-top:4px;"><a href="#" onclick="event.stopPropagation();showSignInPrompt();return false;" style="color:var(--link);text-decoration:none;">🔗 Sign in to sync across devices</a></div>' : '';
+
     bar.innerHTML =
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
             '<span class="rank-user">' + (currentUser.username || 'Anon') + '</span>' +
             '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
-        '</div>' + progressHtml;
+        '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
 }
 
@@ -413,6 +484,40 @@ function submitUsername() {
         return;
     }
     createUser(name, email);
+
+    // If they entered an email, link their account
+    if (email) {
+        sendMagicLink(email).then(sent => {
+            if (sent) showToast('📧 Check your email to link your account across devices!');
+        });
+    }
+}
+
+// Show sign-in modal for returning users on new device
+function showSignInPrompt() {
+    const modal = document.getElementById('usernameModal');
+    const box = modal.querySelector('.username-box');
+    box.innerHTML = '<h2>👋 Welcome Back!</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:24px;">Sign in with your email to restore your progress, points, and badges.</p>' +
+        '<input type="email" id="signinEmail" placeholder="📧 Enter your email" style="width:100%;padding:14px 18px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:16px;text-align:center;" onkeydown="if(event.key===\'Enter\')sendSignInLink()">' +
+        '<button onclick="sendSignInLink()" style="width:100%;padding:14px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Magic Link →</button>' +
+        '<div id="signinStatus" style="margin-top:12px;font-size:0.85rem;"></div>' +
+        '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;">Continue as guest</span>';
+    modal.classList.add('open');
+}
+
+async function sendSignInLink() {
+    const email = document.getElementById('signinEmail').value.trim();
+    const status = document.getElementById('signinStatus');
+    if (!email) { status.innerHTML = '<span style="color:#ef4444;">Please enter your email</span>'; return; }
+
+    status.innerHTML = '<span style="color:var(--text-muted);">Sending...</span>';
+    const sent = await sendMagicLink(email);
+    if (sent) {
+        status.innerHTML = '<span style="color:#22c55e;">✅ Magic link sent! Check your email and click the link to sign in.</span>';
+    } else {
+        status.innerHTML = '<span style="color:#ef4444;">Error sending link. Please try again.</span>';
+    }
 }
 
 // Init on load
