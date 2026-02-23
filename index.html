@@ -236,6 +236,15 @@
 
         .home-cta { background: #f97316; color: #fff; border: none; padding: 16px 40px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
         .home-cta:hover { background: #ea580c; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(249,115,22,0.3); }
+        .suggest-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 30px; text-align: left; }
+        .suggest-input { width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; font-family: inherit; outline: none; margin-bottom: 10px; resize: vertical; }
+        .suggest-input:focus { border-color: var(--accent); }
+        .suggest-input::placeholder { color: var(--text-faint); }
+        .suggest-submit { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
+        .suggest-submit:hover { filter: brightness(1.1); }
+        .suggest-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+        #suggestStatus { text-align: center; margin-top: 10px; font-size: 0.85rem; }
+
         .home-footer { margin-top: 30px; color: #334155; font-size: 0.85rem; }
 
         @media (max-width: 900px) {
@@ -498,6 +507,14 @@
                 </div>
                 <div class="daily-channel" id="dailyChannel"></div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
+                <div class="suggest-box">
+                    <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic</h3>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Want to see something added to the archive? Let us know!</p>
+                    <input type="text" id="suggestName" placeholder="Your name (optional)" class="suggest-input">
+                    <textarea id="suggestText" placeholder="What topic or content should we add?" class="suggest-input" rows="3"></textarea>
+                    <button class="suggest-submit" onclick="submitSuggestion()">Submit Suggestion</button>
+                    <div id="suggestStatus"></div>
+                </div>
                 <p class="home-footer">Open source · Free forever · Built on GitHub Pages</p>
             </div>
         </div>
@@ -927,6 +944,37 @@
         // Wait a moment for Firebase to init
         setTimeout(updateVisitDisplay, 2000);
     })();
+
+    // Suggest a topic
+    async function submitSuggestion() {
+        const name = document.getElementById('suggestName').value.trim();
+        const text = document.getElementById('suggestText').value.trim();
+        const status = document.getElementById('suggestStatus');
+        const btn = document.querySelector('.suggest-submit');
+
+        if (!text) { status.innerHTML = '<span style="color:#ef4444;">Please enter a suggestion!</span>'; return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                await firebase.firestore().collection('suggestions').add({
+                    name: name || 'Anonymous',
+                    suggestion: text,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            status.innerHTML = '<span style="color:#22c55e;">✅ Thank you! Your suggestion has been submitted.</span>';
+            document.getElementById('suggestName').value = '';
+            document.getElementById('suggestText').value = '';
+            btn.textContent = 'Submitted!';
+            setTimeout(() => { btn.textContent = 'Submit Suggestion'; btn.disabled = false; }, 3000);
+        } catch(e) {
+            status.innerHTML = '<span style="color:#ef4444;">Error submitting. Please try again.</span>';
+            btn.textContent = 'Submit Suggestion';
+            btn.disabled = false;
+        }
+    }
 
     // Daily featured channel
     (function() {
