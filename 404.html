@@ -10,6 +10,8 @@
     <title>Bitcoin Education Archive</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { overflow-x: hidden; }
+        img { max-width: 100%; height: auto; }
         
         /* Theme Variables */
         :root {
@@ -73,9 +75,9 @@
         .hero .desc { color: var(--text-muted); font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 30px; margin-bottom: 0; }
         
         /* Messages */
-        .messages { max-width: 950px; margin: 0 auto; padding: 0 60px 80px; }
+        .messages { max-width: 950px; margin: 0 auto; padding: 0 60px 80px; overflow-x: hidden; }
         .msg { padding: 20px 0; border-bottom: 1px solid var(--msg-border); }
-        .msg-text { color: var(--text); font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; }
+        .msg-text { color: var(--text); font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; max-width: 100%; }
         .msg-text strong, .msg-text b { color: var(--heading); }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 14px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
         .msg-img:hover { border-color: var(--accent); box-shadow: 0 8px 30px var(--accent-glow); }
@@ -255,6 +257,23 @@
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
             .mobile-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: var(--text-dim); font-size: 1.8rem; cursor: pointer; z-index: 101; line-height: 1; }
+            .hero { padding: 24px 16px 16px; }
+            .hero h1 { font-size: 1.4rem; }
+            .messages { padding: 0 16px 60px; }
+            .msg-text { font-size: 0.95rem; }
+            .msg-img { max-width: 100%; height: auto; }
+            .msg-link { font-size: 0.85rem; }
+            .share-bar { gap: 6px; }
+            .share-btn { padding: 6px 10px; font-size: 0.75rem; }
+            .back-to-top { bottom: 20px; right: 20px; width: 38px; height: 38px; font-size: 1.1rem; }
+            .home-title { font-size: 2rem; }
+            .home-stats { gap: 16px; flex-wrap: wrap; }
+            .home-stat-num { font-size: 1.3rem; }
+            .home-credits { padding: 16px; }
+            .home-credits p { font-size: 0.85rem; }
+            .daily-channel { padding: 14px; }
+            .home-cta { padding: 14px 30px; font-size: 1rem; }
+            .quest-start-btn { margin: 6px 10px; }
         }
     </style>
 </head>
