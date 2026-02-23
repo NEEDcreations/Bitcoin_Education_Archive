@@ -738,7 +738,11 @@
                         html += '<div class="msg-text">' + t + '</div>';
                     }
                     if (m.imgs) m.imgs.forEach(img => {
-                        html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+                        if (m.link) {
+                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>';
+                        } else {
+                            html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+                        }
                     });
                     html += '</div>';
                 });
@@ -932,7 +936,7 @@
             nextBatch.forEach(m => {
                 html += '<div class="msg">';
                 if (m.text) { let t = m.text; let yt=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
-                if (m.imgs) m.imgs.forEach(img => { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; });
+                if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; } });
                 html += '</div>';
             });
             btn.insertAdjacentHTML('beforebegin', html);
