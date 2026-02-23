@@ -323,24 +323,47 @@ async function loadUser(uid) {
         if (currentUser.visitedChannelsList) {
             currentUser.visitedChannelsList.forEach(ch => allTimeChannels.add(ch));
         }
-        // Sync read checkmarks from Firebase to local
+
+        const isRealUser = auth.currentUser && !auth.currentUser.isAnonymous;
+
+        // Sync read checkmarks: for real users, use Firebase as source of truth
         if (currentUser.readChannels) {
-            let local = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
-            let merged = [...new Set([...local, ...currentUser.readChannels])];
-            localStorage.setItem('btc_visited_channels', JSON.stringify(merged));
+            if (isRealUser) {
+                localStorage.setItem('btc_visited_channels', JSON.stringify(currentUser.readChannels));
+            } else {
+                let local = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+                let merged = [...new Set([...local, ...currentUser.readChannels])];
+                localStorage.setItem('btc_visited_channels', JSON.stringify(merged));
+            }
+            restoreVisitedUI();
+        } else if (isRealUser) {
+            // Real user with no readChannels in Firebase — clear local
+            localStorage.setItem('btc_visited_channels', '[]');
             restoreVisitedUI();
         }
-        // Sync favorites from Firebase to local
+
+        // Sync favorites: for real users, use Firebase as source of truth
         if (currentUser.favorites) {
-            let localFavs = JSON.parse(localStorage.getItem('btc_favs') || '[]');
-            let mergedFavs = [...new Set([...localFavs, ...currentUser.favorites])];
-            localStorage.setItem('btc_favs', JSON.stringify(mergedFavs));
+            if (isRealUser) {
+                localStorage.setItem('btc_favs', JSON.stringify(currentUser.favorites));
+            } else {
+                let localFavs = JSON.parse(localStorage.getItem('btc_favs') || '[]');
+                let mergedFavs = [...new Set([...localFavs, ...currentUser.favorites])];
+                localStorage.setItem('btc_favs', JSON.stringify(mergedFavs));
+            }
+            if (typeof renderFavs === 'function') renderFavs();
+        } else if (isRealUser) {
+            localStorage.setItem('btc_favs', '[]');
             if (typeof renderFavs === 'function') renderFavs();
         }
         rankingReady = true;
         updateRankUI();
         awardVisitPoints();
         startReadTimer();
+
+        // Refresh exploration map and home page elements
+        if (typeof renderExplorationMap === 'function') renderExplorationMap();
+        if (typeof showContinueReading === 'function') showContinueReading();
 
         // Update auth button text if signed in with a provider
         updateAuthButton();
@@ -441,6 +464,8 @@ async function createUser(username, email) {
         return;
     }
     const uid = auth.currentUser.uid;
+    // Clear any leftover data from previous users on this browser
+    clearUserData();
     username = sanitizeInput(username);
     if (containsProfanity(username)) {
         showToast('⚠️ That username is not allowed. Please choose another.');
@@ -1566,10 +1591,22 @@ async function executeDeleteAccount() {
 }
 
 function signOutUser() {
+    clearUserData();
     auth.signOut().then(() => {
         hideUsernamePrompt();
         location.reload();
     });
+}
+
+// Clear user-specific localStorage but keep preferences (theme, font, audio, lang)
+function clearUserData() {
+    const userKeys = [
+        'btc_visited_channels', 'btc_favs', 'btc_hidden_badges',
+        'btc_asked_questions', 'btc_scholar_passed', 'btc_scholar_attempt_date',
+        'btc_badges', 'btc_last_channel', 'btc_signin_email'
+    ];
+    userKeys.forEach(function(key) { localStorage.removeItem(key); });
+    currentUser = null;
 }
 
 function hideUsernamePrompt() {
