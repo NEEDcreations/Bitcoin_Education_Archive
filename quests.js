@@ -272,47 +272,49 @@ function playWarriorDrum() {
         const now = ctx.currentTime;
 
         function gorillaHit(time) {
-            // Ultra-deep chest pound — starts at 55Hz drops to 20Hz
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(55, now + time);
-            osc.frequency.exponentialRampToValueAtTime(20, now + time + 0.5);
-            gain.gain.setValueAtTime(0.6 * vol, now + time);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.55);
-            osc.start(now + time); osc.stop(now + time + 0.55);
+            // Impact tone — sharp attack at 150Hz dropping to 60Hz
+            const osc1 = ctx.createOscillator();
+            const g1 = ctx.createGain();
+            osc1.connect(g1); g1.connect(ctx.destination);
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(150, now + time);
+            osc1.frequency.exponentialRampToValueAtTime(60, now + time + 0.15);
+            g1.gain.setValueAtTime(0.7 * vol, now + time);
+            g1.gain.exponentialRampToValueAtTime(0.001, now + time + 0.4);
+            osc1.start(now + time); osc1.stop(now + time + 0.4);
 
-            // Sub-bass layer at 30Hz for pure chest rumble
-            const sub = ctx.createOscillator();
-            const sg = ctx.createGain();
-            sub.connect(sg); sg.connect(ctx.destination);
-            sub.type = 'sine';
-            sub.frequency.value = 30;
-            sg.gain.setValueAtTime(0.5 * vol, now + time);
-            sg.gain.exponentialRampToValueAtTime(0.001, now + time + 0.6);
-            sub.start(now + time); sub.stop(now + time + 0.6);
+            // Drum body resonance — 80Hz sustained thump
+            const osc2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            osc2.connect(g2); g2.connect(ctx.destination);
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(80, now + time);
+            osc2.frequency.exponentialRampToValueAtTime(50, now + time + 0.3);
+            g2.gain.setValueAtTime(0.5 * vol, now + time);
+            g2.gain.exponentialRampToValueAtTime(0.001, now + time + 0.5);
+            osc2.start(now + time); osc2.stop(now + time + 0.5);
 
-            // Low-pass filtered noise — muffled skin slap
-            const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+            // Skin slap — short burst of low-pass noise
+            const len = Math.floor(ctx.sampleRate * 0.08);
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
             const data = buf.getChannelData(0);
-            for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / data.length, 4);
+            for (let j = 0; j < len; j++) data[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 2);
             const noise = ctx.createBufferSource();
-            const nGain = ctx.createGain();
-            const nFilter = ctx.createBiquadFilter();
+            const ng = ctx.createGain();
+            const filt = ctx.createBiquadFilter();
             noise.buffer = buf;
-            nFilter.type = 'lowpass';
-            nFilter.frequency.value = 400;
-            noise.connect(nFilter); nFilter.connect(nGain); nGain.connect(ctx.destination);
-            nGain.gain.setValueAtTime(0.3 * vol, now + time);
-            nGain.gain.exponentialRampToValueAtTime(0.001, now + time + 0.06);
+            filt.type = 'lowpass';
+            filt.frequency.value = 800;
+            noise.connect(filt); filt.connect(ng); ng.connect(ctx.destination);
+            ng.gain.setValueAtTime(0.4 * vol, now + time);
+            ng.gain.exponentialRampToValueAtTime(0.001, now + time + 0.1);
             noise.start(now + time);
         }
 
-        // Three identical gorilla pounds — even, primal, relentless
+        // Three identical gorilla war pounds
         gorillaHit(0);
-        gorillaHit(0.35);
-        gorillaHit(0.7);
+        gorillaHit(0.4);
+        gorillaHit(0.8);
     } catch(e) {}
 }
 
