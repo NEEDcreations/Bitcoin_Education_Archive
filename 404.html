@@ -999,10 +999,10 @@
     // Suggest a topic
     function expandSuggest() {
         const fields = document.getElementById('suggestFields');
-        const box = document.getElementById('suggestBox');
         if (fields.style.display === 'none') {
             fields.style.display = 'block';
-            box.style.cursor = 'default';
+        } else {
+            fields.style.display = 'none';
         }
     }
 

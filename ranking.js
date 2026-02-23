@@ -222,8 +222,13 @@ async function loadUser(uid) {
         updateRankUI();
         awardVisitPoints();
         startReadTimer();
+
+        // If anonymous user without a username, prompt after 60 seconds
+        if (auth.currentUser && auth.currentUser.isAnonymous && !currentUser.username) {
+            setTimeout(showUsernamePrompt, 60000);
+        }
     } else {
-        // New user - show username prompt after 60 seconds
+        // Brand new user - show username prompt after 60 seconds
         setTimeout(showUsernamePrompt, 60000);
     }
 }
