@@ -159,7 +159,7 @@ let visitedForQuest = []; // Track channel visit order for quiz generation
 let questCount = 0;
 
 // Quest triggers: after visiting X channels
-const QUEST_TRIGGERS = [3, 7, 12, 18, 25, 35, 50];
+const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
 
 function initQuests() {
     if (typeof auth !== 'undefined' && auth.currentUser) {
@@ -197,7 +197,7 @@ function onChannelVisitForQuest(channelId) {
     }
 }
 
-function generateAndShowQuest() {
+function generateAndShowQuest(manual) {
     // Collect available questions from visited channels
     let pool = [];
     for (const chId of visitedForQuest) {
@@ -380,6 +380,18 @@ function retryQuest() {
         q.answer = q.options.indexOf(correctAnswer);
     });
     showQuest(currentQuest, true);
+}
+
+function startQuestManual() {
+    if (currentQuest) return; // Already showing one
+    if (visitedForQuest.length < 1) {
+        if (typeof showToast === 'function') showToast('Explore some channels first!');
+        return;
+    }
+    generateAndShowQuest(true);
+    if (typeof isMobile === 'function' && isMobile()) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
 }
 
 function skipQuest() { closeQuest(); }
