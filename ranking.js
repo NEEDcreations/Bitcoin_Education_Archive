@@ -59,9 +59,23 @@ function initRanking() {
         }
 
         // Ensure auth state persists across page refreshes
+        let authResolved = false;
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
             auth.onAuthStateChanged(user => {
+                authResolved = true;
                 if (user) {
+                    // If we get an anonymous user but a Google user might be coming,
+                    // skip loading anonymous data until we're sure
+                    if (user.isAnonymous && !currentUser) {
+                        // Delay loading anonymous user — real auth might override
+                        setTimeout(function() {
+                            // Only load if still the same anonymous user
+                            if (auth.currentUser && auth.currentUser.uid === user.uid && auth.currentUser.isAnonymous) {
+                                loadUser(user.uid);
+                            }
+                        }, 500);
+                        return;
+                    }
                     // Don't reload if we already have this user
                     if (currentUser && currentUser.uid === user.uid) {
                         updateAuthButton();
@@ -76,9 +90,13 @@ function initRanking() {
                         });
                     }
                 } else {
-                    // No user — sign in anonymously
+                    // No user — wait briefly then sign in anonymously
                     currentUser = null;
-                    auth.signInAnonymously().then(() => {});
+                    setTimeout(function() {
+                        if (!auth.currentUser) {
+                            auth.signInAnonymously().then(() => {});
+                        }
+                    }, 300);
                 }
             });
         });
