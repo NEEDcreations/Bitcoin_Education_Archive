@@ -1065,8 +1065,10 @@
         window._randomChannelHistory.push(randomId);
         if (window._randomChannelHistory.length > Math.floor(keys.length * 0.3)) window._randomChannelHistory.shift();
         await go(randomId);
-        window._keepFloatingBtn = false;
-        setTimeout(function() { showFloatingBtn('__random__', '🎲', 'Next Random Channel'); }, 100);
+        setTimeout(function() {
+            window._keepFloatingBtn = false;
+            showFloatingBtn('__random__', '🎲', 'Next Random Channel');
+        }, 300);
     }
 
     async function goRandomFromChannel(channelId, emoji, label) {
