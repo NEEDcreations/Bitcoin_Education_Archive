@@ -553,6 +553,7 @@ async function awardVisitPoints() {
     currentUser.streak = newStreak;
     showToast('+' + POINTS.visit + ' pts — Daily visit!' + (streakBonus ? ' 🔥+' + POINTS.streak + ' streak bonus!' : ''));
     updateRankUI();
+    refreshLeaderboardIfOpen();
 }
 
 async function awardPoints(pts, reason) {
@@ -563,6 +564,20 @@ async function awardPoints(pts, reason) {
     currentUser.points = (currentUser.points || 0) + pts;
     showToast('+' + pts + ' pts — ' + reason);
     updateRankUI();
+    refreshLeaderboardIfOpen();
+}
+
+// Auto-refresh leaderboard if it's currently open
+function refreshLeaderboardIfOpen() {
+    var lb = document.getElementById('leaderboard');
+    if (lb && lb.classList.contains('open') && !lb.classList.contains('minimized')) {
+        // Debounce: wait a moment for Firestore to propagate
+        clearTimeout(window._lbRefreshTimer);
+        window._lbRefreshTimer = setTimeout(function() {
+            toggleLeaderboard(); // close
+            toggleLeaderboard(); // re-open with fresh data
+        }, 800);
+    }
 }
 
 // Called from go() when user opens a channel
@@ -582,6 +597,7 @@ async function onChannelOpen(channelId) {
         currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
         showToast('+' + POINTS.openChannel + ' pts — Explored #' + channelId);
         updateRankUI();
+        refreshLeaderboardIfOpen();
 
         // Show leaderboard on first channel open
         if (typeof showLeaderboardAuto === 'function') showLeaderboardAuto();
@@ -696,6 +712,7 @@ function startReadTimer() {
             currentUser.points = (currentUser.points || 0) + POINTS.readTime;
             showToast('+' + POINTS.readTime + ' pts — Reading time 📖');
             updateRankUI();
+            refreshLeaderboardIfOpen();
         }
     }, 1000);
 }
