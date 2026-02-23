@@ -278,8 +278,36 @@ function resetSessionTimer() {
 }
 
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
+function isInAppBrowser() {
+    var ua = navigator.userAgent || '';
+    return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|BytedanceWebview|musical_ly|TikTok|Weibo|MicroMessenger|LinkedInApp/i.test(ua);
+}
+
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
+    if (isInAppBrowser()) {
+        // Show helpful message instead of letting it fail
+        var modal = document.getElementById('usernameModal');
+        var box = modal ? modal.querySelector('.username-box') : null;
+        if (box) {
+            box.innerHTML = '<div style="text-align:center;padding:20px;">' +
+                '<div style="font-size:3rem;margin-bottom:16px;">🌐</div>' +
+                '<h2 style="color:var(--heading);margin-bottom:12px;">Open in Your Browser</h2>' +
+                '<p style="color:var(--text-muted);font-size:0.9rem;line-height:1.6;margin-bottom:16px;">Google sign-in doesn\'t work inside app browsers (Twitter, Facebook, etc). Please open this page in <strong>Safari</strong>, <strong>Chrome</strong>, or your default browser.</p>' +
+                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;text-align:left;">' +
+                '<div style="color:var(--text);font-size:0.85rem;line-height:1.7;">' +
+                '📱 <strong>On iPhone:</strong> Tap the ⋯ or share icon → "Open in Safari"<br>' +
+                '🤖 <strong>On Android:</strong> Tap ⋮ menu → "Open in Chrome"' +
+                '</div></div>' +
+                '<button onclick="navigator.clipboard.writeText(window.location.href).then(function(){showToast(\'🔗 Link copied! Paste it in your browser.\')}).catch(function(){})" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">📋 Copy Link to Clipboard</button>' +
+                '<button onclick="hideUsernamePrompt()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;">Close</button>' +
+                '</div>';
+            modal.classList.add('open');
+        } else {
+            showToast('⚠️ Please open this site in Safari or Chrome to sign in with Google.');
+        }
+        return;
+    }
     try {
         // Save anonymous user info BEFORE popup changes auth state
         const anonUser = auth.currentUser;
