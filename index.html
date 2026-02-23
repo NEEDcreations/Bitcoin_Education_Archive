@@ -556,6 +556,12 @@
                     <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
                     <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
                 </div>
+                <div style="margin-top:16px;margin-bottom:8px;">
+                    <button onclick="var msg=document.getElementById('contentNote');if(msg.style.display==='none'){msg.style.display='block';this.textContent='📌 A note about the content in our channels ▲'}else{msg.style.display='none';this.textContent='📌 A note about the content in our channels ▼'}" style="padding:10px 20px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:10px;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;">📌 A note about the content in our channels ▼</button>
+                    <div id="contentNote" style="display:none;margin-top:12px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.95rem;line-height:1.6;">
+                        All YouTube links are embedded for you and contain videos that supplement the information in each channel. Additionally, channels are filled with tweets that were posted on Twitter over the last few years, and you can expand these tweets to view them in the channel.
+                    </div>
+                </div>
                 <div class="daily-channel" id="dailyChannel"></div>
                 <div id="newbieBtnWrap" style="margin-top:20px;margin-bottom:20px;">
                     <button id="newbieBtn" onclick="document.getElementById('newbieMsg').style.display='block';this.style.display='none';" style="padding:14px 32px;background:none;border:2px solid #22c55e;color:#22c55e;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='#22c55e'">🟢 Brand new to Bitcoin?</button>
