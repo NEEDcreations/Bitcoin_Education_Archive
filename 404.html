@@ -947,6 +947,9 @@
         navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
         navHtml += '<button onclick="go(\'' + nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
         navHtml += '</div>';
+        navHtml += '<div style="text-align:center;padding-bottom:10px;">';
+        navHtml += '<button onclick="goRandomMeme()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">😂 Random Meme</button>';
+        navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
         navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
         navHtml += '</div>';
