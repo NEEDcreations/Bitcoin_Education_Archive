@@ -227,14 +227,45 @@ function restoreVisitedUI() {
     });
 }
 
+let lastActivityTime = Date.now();
+let lastScrollPos = 0;
+let hasScrolledSinceLastAward = false;
+
+// Track user activity
+function trackActivity() {
+    lastActivityTime = Date.now();
+}
+function trackScroll() {
+    const main = document.getElementById('main');
+    if (main && Math.abs(main.scrollTop - lastScrollPos) > 30) {
+        lastScrollPos = main.scrollTop;
+        hasScrolledSinceLastAward = true;
+        lastActivityTime = Date.now();
+    }
+}
+
+// Listen for real user activity
+document.addEventListener('mousemove', trackActivity);
+document.addEventListener('keydown', trackActivity);
+document.addEventListener('touchstart', trackActivity);
+document.addEventListener('click', trackActivity);
+setInterval(trackScroll, 2000);
+
 function startReadTimer() {
     if (readTimer) clearInterval(readTimer);
     readTimer = setInterval(async () => {
         if (!currentUser || !rankingReady) return;
-        if (document.hidden) return; // Don't count if tab not focused
+        if (document.hidden) return; // Tab not focused
+
+        // Must have been active in last 45 seconds AND scrolled since last award
+        const idleSeconds = (Date.now() - lastActivityTime) / 1000;
+        if (idleSeconds > 45) return; // AFK
+        if (!hasScrolledSinceLastAward) return; // No scrolling
+
         readSeconds++;
         if (readSeconds - lastReadAward >= 30) {
             lastReadAward = readSeconds;
+            hasScrolledSinceLastAward = false; // Reset — must scroll again for next award
             await db.collection('users').doc(currentUser.uid).update({
                 points: firebase.firestore.FieldValue.increment(POINTS.readTime)
             });
