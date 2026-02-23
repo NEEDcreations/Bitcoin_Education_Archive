@@ -209,9 +209,43 @@ function startScholarQuest() {
 
     // Check cooldown (failed today already)
     const today = new Date().toISOString().split('T')[0];
-    if (scholarAttemptDate === today) {
+    if (scholarAttemptDate === today && scholarQuestions.length === 0) {
         if (typeof showToast === 'function') showToast('⏰ You can retry the Scholar Certification tomorrow. Keep studying!');
         return;
+    }
+
+    // Resume active exam if one exists
+    if (scholarQuestions.length > 0 && scholarTimeLeft > 0) {
+        renderScholarQuest();
+        startScholarTimer();
+        return;
+    }
+
+    // Also check sessionStorage for persisted exam
+    var saved = sessionStorage.getItem('btc_scholar_active');
+    if (saved) {
+        try {
+            var state = JSON.parse(saved);
+            var elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+            var remaining = 600 - elapsed;
+            if (remaining > 0) {
+                scholarQuestions = state.questions;
+                scholarAnswers = state.answers;
+                scholarTimeLeft = remaining;
+                renderScholarQuest();
+                startScholarTimer();
+                return;
+            } else {
+                // Time expired while away
+                scholarQuestions = state.questions;
+                scholarAnswers = state.answers;
+                scholarTimeLeft = 0;
+                submitScholarQuest();
+                return;
+            }
+        } catch(e) {
+            sessionStorage.removeItem('btc_scholar_active');
+        }
     }
 
     // Fisher-Yates shuffle for unbiased randomization
@@ -231,6 +265,13 @@ function startScholarQuest() {
     });
     scholarAnswers = new Array(25).fill(-1);
     scholarTimeLeft = 600;
+
+    // Persist exam state
+    sessionStorage.setItem('btc_scholar_active', JSON.stringify({
+        questions: scholarQuestions,
+        answers: scholarAnswers,
+        startedAt: Date.now()
+    }));
 
     if (typeof playWarriorDrum === 'function') playWarriorDrum();
     renderScholarQuest();
@@ -267,6 +308,24 @@ function renderScholarQuest() {
 
     inner.innerHTML = html;
     modal.classList.add('open');
+
+    // Restore previously selected answers
+    scholarAnswers.forEach(function(aIdx, qIdx) {
+        if (aIdx >= 0) {
+            var qDiv = document.getElementById('scholarQ' + qIdx);
+            if (qDiv) {
+                var opts = qDiv.querySelectorAll('.quest-opt');
+                if (opts[aIdx]) opts[aIdx].classList.add('selected');
+            }
+        }
+    });
+    var answered = scholarAnswers.filter(function(a) { return a >= 0; }).length;
+    var prog = document.getElementById('scholarProgress');
+    if (prog) prog.textContent = answered + ' / 25 answered';
+    if (answered === 25) {
+        var sub = document.getElementById('scholarSubmitBtn');
+        if (sub) sub.disabled = false;
+    }
 }
 
 function selectScholarAnswer(btn, qIdx, aIdx) {
@@ -274,6 +333,16 @@ function selectScholarAnswer(btn, qIdx, aIdx) {
     siblings.forEach(s => s.classList.remove('selected'));
     btn.classList.add('selected');
     scholarAnswers[qIdx] = aIdx;
+
+    // Persist answer to sessionStorage
+    var saved = sessionStorage.getItem('btc_scholar_active');
+    if (saved) {
+        try {
+            var state = JSON.parse(saved);
+            state.answers = scholarAnswers;
+            sessionStorage.setItem('btc_scholar_active', JSON.stringify(state));
+        } catch(e) {}
+    }
 
     // Update progress
     const answered = scholarAnswers.filter(a => a >= 0).length;
@@ -305,6 +374,7 @@ function startScholarTimer() {
 
 async function submitScholarQuest() {
     clearInterval(scholarTimer);
+    sessionStorage.removeItem('btc_scholar_active');
 
     const today = new Date().toISOString().split('T')[0];
     scholarAttemptDate = today;
