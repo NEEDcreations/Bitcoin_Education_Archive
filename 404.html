@@ -1195,12 +1195,7 @@
         });
     }
 
-    function goRandom() {
-        const keys = Object.keys(CHANNELS);
-        const randomKey = keys[Math.floor(Math.random() * keys.length)];
-        go(randomKey);
-        if (isMobile()) document.getElementById('sidebar').classList.remove('open');
-    }
+    // goRandom defined above with floating button support
 
     let supportRevealed = false;
     function handleSupportClick() {
