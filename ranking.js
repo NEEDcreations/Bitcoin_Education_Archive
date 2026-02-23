@@ -20,6 +20,7 @@ const LEVELS = [
     { name: 'Hodler',     emoji: '💎', min: 1337 },
     { name: 'Maxi',       emoji: '🔥', min: 2100 },
     { name: 'Cypherpunk', emoji: '🛡️', min: 4444 },
+    { name: 'Whale',      emoji: '🐋', min: 10000 },
     { name: 'Satoshi',    emoji: '👑', min: 21000 },
 ];
 
@@ -741,6 +742,7 @@ function getLevelFlavor(name) {
         'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
         'Maxi': 'There is no second best. You know it.',
         'Cypherpunk': 'Privacy. Sovereignty. Code is law. You get it.',
+        'Whale': 'Moving markets and moving minds. You\'re a force of nature.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
     return flavors[name] || 'You\'re leveling up!';
