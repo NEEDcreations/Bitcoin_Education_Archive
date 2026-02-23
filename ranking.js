@@ -361,6 +361,16 @@ async function loadUser(uid) {
         awardVisitPoints();
         startReadTimer();
 
+        // Restore badges and scholar status from Firebase
+        if (isRealUser) {
+            if (currentUser.hiddenBadges) {
+                localStorage.setItem('btc_hidden_badges', JSON.stringify(currentUser.hiddenBadges));
+            }
+            if (currentUser.scholarPassed) {
+                localStorage.setItem('btc_scholar_passed', 'true');
+            }
+        }
+
         // Refresh exploration map and home page elements
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof showContinueReading === 'function') showContinueReading();
@@ -591,6 +601,21 @@ async function syncFavsToFirebase() {
         await db.collection('users').doc(auth.currentUser.uid).update({
             favorites: favs
         });
+    } catch(e) {}
+}
+
+// Sync badges and scholar status to Firebase
+async function syncProgressToFirebase() {
+    if (!currentUser || !db || !auth.currentUser) return;
+    try {
+        const updates = {};
+        const hiddenBadges = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+        if (hiddenBadges.length > 0) updates.hiddenBadges = hiddenBadges;
+        const scholarPassed = localStorage.getItem('btc_scholar_passed') === 'true';
+        if (scholarPassed) updates.scholarPassed = true;
+        if (Object.keys(updates).length > 0) {
+            await db.collection('users').doc(auth.currentUser.uid).update(updates);
+        }
     } catch(e) {}
 }
 
