@@ -1059,8 +1059,8 @@
         const keys = Object.keys(CHANNELS);
         const randomId = keys[Math.floor(Math.random() * keys.length)];
         await go(randomId);
-        showFloatingBtn('__random__', '🎲', 'Next Random Channel');
         window._keepFloatingBtn = false;
+        setTimeout(function() { showFloatingBtn('__random__', '🎲', 'Next Random Channel'); }, 100);
     }
 
     async function goRandomFromChannel(channelId, emoji, label) {
@@ -1106,8 +1106,8 @@
                     el.style.boxShadow = '';
                     el.style.borderColor = '';
                 }, 2000);
-                showFloatingBtn(channelId, emoji, label);
                 window._keepFloatingBtn = false;
+                showFloatingBtn(channelId, emoji, label);
             }
         }, 300);
     }
@@ -1120,7 +1120,8 @@
         if (!btn) {
             btn = document.createElement('button');
             btn.id = 'floatingRandomBtn';
-            btn.style.cssText = 'position:fixed;bottom:130px;right:20px;z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
+            var isMob = window.innerWidth <= 900;
+            btn.style.cssText = 'position:fixed;bottom:' + (isMob ? '130px' : '80px') + ';' + (isMob ? 'left:50%;transform:translateX(-50%);right:auto;' : 'right:20px;') + 'z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
             document.body.appendChild(btn);
         }
         btn.innerHTML = emoji + ' ' + label;
