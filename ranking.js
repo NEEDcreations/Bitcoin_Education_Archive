@@ -456,6 +456,12 @@ function showLeaderboardAuto() {
     toggleLeaderboard();
 }
 
+function expandLeaderboard() {
+    document.querySelectorAll('.lb-extra').forEach(el => el.style.display = 'flex');
+    const btn = document.getElementById('lbShowMore');
+    if (btn) btn.remove();
+}
+
 function minimizeLeaderboard() {
     const lb = document.getElementById('leaderboard');
     const fab = document.getElementById('lbFloatBtn');
@@ -488,23 +494,34 @@ async function toggleLeaderboard() {
     if (fab) fab.style.display = 'none';
 
     try {
-        const snap = await db.collection('users').orderBy('points', 'desc').limit(20).get();
+        const snap = await db.collection('users').orderBy('points', 'desc').limit(100).get();
+        let allUsers = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d.points > 0) allUsers.push({ id: doc.id, ...d });
+        });
+
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="minimizeLeaderboard()" title="Minimize" style="margin-right:8px;">−</button><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
         html += '<div class="lb-list">';
-        let rank = 0;
-        snap.forEach(doc => {
-            rank++;
-            const d = doc.data();
+
+        const showInitial = Math.min(10, allUsers.length);
+        allUsers.forEach((d, i) => {
+            const rank = i + 1;
             const lv = getLevel(d.points || 0);
-            const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+            const isMe = auth.currentUser && d.id === auth.currentUser.uid;
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            html += '<div class="lb-row' + (isMe ? ' lb-me' : '') + '">' +
+            const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            html += '<div' + hidden + '>' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-name">' + lv.emoji + ' ' + (d.username || 'Anon') + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
             '</div>';
         });
+
+        if (allUsers.length > 10) {
+            html += '<button id="lbShowMore" onclick="expandLeaderboard()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show all ' + allUsers.length + ' users ▼</button>';
+        }
         html += '</div>';
 
         // Badges section
