@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, 8800+ messages, and 3000+ images — for the world.">
-    <meta name="theme-color" content="#020617">
+    <meta name="theme-color" content="#f7931a">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BTC Archive">
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preload" href="channel_index.js" as="script">
 
@@ -1723,6 +1730,13 @@
     };
     </script>
 <div id="recaptcha-container"></div>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function() {});
+    });
+}
+</script>
 </body>
 </html>
 <!-- v1771873982 -->
