@@ -288,15 +288,84 @@ async function signInWithProvider(provider) {
             try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
-        hideUsernamePrompt();
         loadUser(user.uid);
-        showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+
+        // If this is a NEW user, show giveaway prompt before closing
+        if (!existingDoc.exists) {
+            showGiveawayPrompt(user.uid, user.displayName || user.email || 'Bitcoiner');
+        } else {
+            hideUsernamePrompt();
+            showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+        }
     } catch(e) {
         console.log('Provider sign-in error:', e);
         if (e.code !== 'auth/popup-closed-by-user') {
             showToast('Sign-in error. Please try again.');
         }
     }
+}
+
+// Show giveaway registration for new provider sign-ins
+function showGiveawayPrompt(uid, displayName) {
+    const modal = document.getElementById('usernameModal');
+    const box = modal.querySelector('.username-box');
+    box.innerHTML =
+        '<h2>🎉 Welcome, ' + displayName + '!</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:16px;">Your account is all set. Want to enter the giveaway?</p>' +
+        '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left;">' +
+            '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">' +
+                '<input type="checkbox" id="giveawayCheckboxProvider" checked style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">' +
+                '<span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>' +
+            '</label>' +
+            '<input type="text" id="giveawayLnProvider" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;">' +
+            '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
+        '</div>' +
+        '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
+        '<span class="skip" onclick="hideUsernamePrompt();showToast(\'✅ Signed in as ' + displayName.replace(/'/g, "\\'") + '\')" style="color:var(--text-faint);font-size:0.85rem;cursor:pointer;display:block;text-align:center;">Skip giveaway</span>';
+    modal.classList.add('open');
+
+    // Toggle lightning address visibility
+    document.getElementById('giveawayCheckboxProvider').addEventListener('change', function() {
+        document.getElementById('giveawayLnProvider').style.display = this.checked ? 'block' : 'none';
+    });
+}
+
+async function submitGiveawayProvider(uid, displayName) {
+    var checkbox = document.getElementById('giveawayCheckboxProvider');
+    var lnInput = document.getElementById('giveawayLnProvider');
+    var lnAddress = lnInput ? lnInput.value.trim() : '';
+
+    if (checkbox && checkbox.checked) {
+        if (!lnAddress) {
+            if (lnInput) lnInput.style.borderColor = '#ef4444';
+            showToast('⚡ Please enter a Lightning address!');
+            return;
+        }
+        // Save giveaway entry
+        try {
+            await db.collection('users').doc(uid).update({
+                giveaway: {
+                    entered: true,
+                    lightningAddress: lnAddress,
+                    enteredAt: new Date().toISOString()
+                }
+            });
+            await db.collection('giveaway_entries').doc(uid).set({
+                username: displayName,
+                lightningAddress: lnAddress,
+                enteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+                uid: uid
+            });
+            showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!');
+        } catch(e) {
+            console.log('Giveaway save error:', e);
+        }
+    }
+
+    hideUsernamePrompt();
+    showToast('✅ Signed in as ' + displayName);
+    var banner = document.getElementById('giveawayBanner');
+    if (banner) banner.style.display = 'none';
 }
 
 // Send magic link email
