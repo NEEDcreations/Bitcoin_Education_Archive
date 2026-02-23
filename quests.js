@@ -321,6 +321,72 @@ const QUESTION_BANK = {
         { q: 'A watch-only wallet lets you:', a: 'Monitor a balance without being able to spend', wrong: ['Mine Bitcoin', 'Create new coins', 'Edit the blockchain'] },
         { q: 'Pleb is a term of endearment in Bitcoin meaning:', a: 'An everyday Bitcoiner, not wealthy but committed', wrong: ['A professional trader', 'A mining executive', 'A government official'] },
     ],
+
+    // New questions from Discord 2025 content migration
+    'mining': [
+        { q: 'What milestone did Bitcoin hash rate reach in September 2025?', a: '1 Zettahash per second', wrong: ['500 Exahash', '10 Petahash', '100 Terahash'] },
+        { q: 'Pleb Pool and Atlas Pool are examples of:', a: 'Solo Bitcoin mining pools', wrong: ['Lightning wallets', 'Bitcoin exchanges', 'Hardware wallets'] },
+        { q: 'D-Central Technologies specializes in:', a: 'Home mining equipment and support', wrong: ['Bitcoin trading', 'Lightning channels', 'Cold storage'] },
+        { q: 'Constellation Heating combines mining with:', a: 'Heating swimming pools', wrong: ['Cooling data centers', 'Wind power', 'Solar panels'] },
+    ],
+    'layer-2-lightning': [
+        { q: 'Satogram allows you to:', a: 'Send messages across the Lightning network', wrong: ['Mine Bitcoin', 'Create NFTs', 'Swap altcoins'] },
+        { q: 'Lightning Cats and Lightning Goats let you:', a: 'Feed real animals using Lightning payments', wrong: ['Trade animal NFTs', 'Mine with animal power', 'Buy pets with Bitcoin'] },
+        { q: 'Pay With Flash is a service for:', a: 'Businesses to accept Bitcoin payments', wrong: ['Mining Bitcoin', 'Cold storage', 'Coin mixing'] },
+        { q: 'LNgigs is a Bitcoin-powered:', a: 'Freelance marketplace', wrong: ['Mining pool', 'Exchange', 'Hardware wallet'] },
+        { q: 'The Lightning Network whitepaper was written by:', a: 'Joseph Poon and Thaddeus Dryja', wrong: ['Satoshi Nakamoto', 'Vitalik Buterin', 'Adam Back'] },
+    ],
+    'privacy-nonkyc': [
+        { q: 'The first recorded address poisoning attack on Bitcoin happened in:', a: '2025', wrong: ['2021', '2013', '2009'] },
+        { q: 'Shielded CSV on Bitcoin promises:', a: 'Better than Zcash-level privacy as an L1.5', wrong: ['Faster mining', 'Bigger blocks', 'More altcoins'] },
+        { q: 'Briar messenger is engineered for:', a: 'Privacy in hostile environments using Tor', wrong: ['Fast video calls', 'Social media sharing', 'Cloud storage'] },
+    ],
+    'problems-of-money': [
+        { q: 'The Cantillon Effect describes how:', a: 'Those closest to new money benefit most from inflation', wrong: ['Bitcoin mining gets harder', 'Banks lose money', 'Gold prices drop'] },
+        { q: 'ShadowStats.com tracks:', a: 'Real inflation rates vs official government numbers', wrong: ['Bitcoin mining difficulty', 'Lightning channel capacity', 'Altcoin prices'] },
+        { q: '"The Four Horsemen" documentary (2013) exposes:', a: 'The fiat monetary system scam', wrong: ['Bitcoin mining farms', 'Social media dangers', 'Space exploration'] },
+    ],
+    'nodes': [
+        { q: 'Clark Moody dashboard is useful for tracking:', a: 'Bitcoin network stats and Knots adoption', wrong: ['Altcoin prices', 'Social media followers', 'Email subscribers'] },
+        { q: 'Matt Hill is the founder and CEO of:', a: 'Start9 (node-in-a-box solution)', wrong: ['Bitcoin Magazine', 'Coinbase', 'Blockstream'] },
+        { q: 'The Bitcoin Commons governance model proposes:', a: 'Coordination without authority for Bitcoin implementations', wrong: ['Central planning of upgrades', 'Voting on block size', 'Government oversight'] },
+    ],
+    'risks__threats__attack_vectors__weaknes': [
+        { q: 'Which Bitcoin address type is better for quantum resistance?', a: 'SegWit (bc1q) because Taproot exposes the public key', wrong: ['Taproot (bc1p)', 'Legacy (1...)', 'All are equally vulnerable'] },
+        { q: 'BIP 360 proposes:', a: 'Pay to Quantum Resistant Hash', wrong: ['Bigger blocks', 'Faster mining', 'New altcoin support'] },
+    ],
+    'investment-strategy': [
+        { q: 'The biggest drawdown in Bitcoin history was:', a: '94% decline from $32 to $2 in July 2011', wrong: ['50% in 2018', '70% in 2022', '80% in 2014'] },
+        { q: 'MNAV.com tracks:', a: 'Bitcoin treasury companies and their metrics', wrong: ['Lightning channels', 'Mining pools', 'Altcoin prices'] },
+    ],
+    'history': [
+        { q: 'Laszlo\'s famous pizza order was called from:', a: 'London (Laszlo was in Florida)', wrong: ['New York', 'San Francisco', 'Tokyo'] },
+        { q: 'The Bitcoin Wiki has been online since:', a: '2010', wrong: ['2015', '2009', '2013'] },
+        { q: 'Tim Draper is known in Bitcoin for:', a: 'Buying seized Silk Road Bitcoin at US Marshals auction', wrong: ['Creating the Lightning Network', 'Writing the whitepaper', 'Mining the genesis block'] },
+        { q: 'The "Lightning Torch" was:', a: 'A Lightning payment passed between notable Bitcoiners', wrong: ['A mining competition', 'A hardware wallet', 'A documentary'] },
+    ],
+    'evidence-against-alts': [
+        { q: 'Ethereum\'s original sale page reveals that ETH was:', a: 'Pre-sold as a security to fund development', wrong: ['Mined fairly like Bitcoin', 'Distributed equally', 'Created by Satoshi'] },
+    ],
+    'smart-contracts': [
+        { q: 'Bitcoin\'s scripting language has supported smart contracts:', a: 'Since the beginning — Bitcoin always had them', wrong: ['Only after Taproot in 2021', 'Only after SegWit in 2017', 'Never — only Ethereum has them'] },
+        { q: 'OP_RETURN is used in Bitcoin to:', a: 'Embed small amounts of data in transactions', wrong: ['Return sent Bitcoin', 'Cancel transactions', 'Mine faster'] },
+    ],
+    'chaumian-mints': [
+        { q: 'Cashu is an implementation of:', a: 'Chaumian ecash on Bitcoin/Lightning', wrong: ['A new blockchain', 'An altcoin', 'A mining algorithm'] },
+    ],
+    'swag-merch': [
+        { q: 'BTCAccepted.org helps you find:', a: 'Businesses that accept Bitcoin payments', wrong: ['Mining pools', 'Lightning nodes', 'Altcoin exchanges'] },
+        { q: 'Sats.host offers:', a: 'Bitcoin-powered static website hosting', wrong: ['Mining services', 'Cold storage', 'KYC verification'] },
+    ],
+    'apps-tools': [
+        { q: 'PPQ.ai lets you use AI models and pay with:', a: 'Bitcoin per prompt — no subscription needed', wrong: ['Monthly credit card subscription', 'Ethereum gas fees', 'Free but with ads'] },
+        { q: 'Angor is a platform for:', a: 'Non-custodial Bitcoin crowdfunding', wrong: ['Bitcoin mining', 'Coin mixing', 'Hardware wallets'] },
+    ],
+    'games': [
+        { q: 'Timechain Arcade offers:', a: 'Free Bitcoin-themed video games', wrong: ['Mining services', 'Trading tools', 'Hardware wallets'] },
+        { q: 'CanYouBeatBitcoin.com is:', a: 'An investing simulator comparing your picks to Bitcoin', wrong: ['A mining difficulty calculator', 'A Bitcoin wallet', 'A trading bot'] },
+    ],
 };
 
 // State
