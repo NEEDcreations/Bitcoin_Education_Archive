@@ -704,10 +704,22 @@
                     html += '<div class="msg">';
                     if (m.text) {
                         let t = m.text;
-                        // Embed YouTube videos
-                        t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:&[^\s]*)?\s*/g, '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/$1" frameborder="0" allowfullscreen loading="lazy"></iframe></div>\n');
-                        t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?\s*/g, '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/$1" frameborder="0" allowfullscreen loading="lazy"></iframe></div>\n');
+                        // Embed YouTube videos — extract them first, replace with placeholders
+                        let ytEmbeds = [];
+                        t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
+                            ytEmbeds.push(id);
+                            return '%%YT' + (ytEmbeds.length - 1) + '%%';
+                        });
+                        t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g, function(match, id) {
+                            ytEmbeds.push(id);
+                            return '%%YT' + (ytEmbeds.length - 1) + '%%';
+                        });
+                        // Now linkify remaining URLs
                         t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                        // Restore YouTube embeds
+                        t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
+                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
+                        });
                         t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
                         html += '<div class="msg-text">' + t + '</div>';
                     }
@@ -886,7 +898,7 @@
             let html = '';
             nextBatch.forEach(m => {
                 html += '<div class="msg">';
-                if (m.text) { let t = m.text; t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:&[^\s]*)?\s*/g, '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/$1" frameborder="0" allowfullscreen loading="lazy"></iframe></div>\n'); t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?\s*/g, '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/$1" frameborder="0" allowfullscreen loading="lazy"></iframe></div>\n'); t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>'); t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.text) { let t = m.text; let yt=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; });
                 html += '</div>';
             });
