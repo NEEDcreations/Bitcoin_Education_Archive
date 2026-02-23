@@ -162,6 +162,12 @@ let questCount = 0;
 const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
 
 function initQuests() {
+    // Load previously visited channels from localStorage
+    const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    visited.forEach(ch => {
+        if (!visitedForQuest.includes(ch)) visitedForQuest.push(ch);
+    });
+
     if (typeof auth !== 'undefined' && auth.currentUser) {
         loadCompletedQuests(auth.currentUser.uid);
     } else {
