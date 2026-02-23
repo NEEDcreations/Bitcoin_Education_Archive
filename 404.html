@@ -1057,7 +1057,12 @@
     async function goRandom() {
         window._keepFloatingBtn = true;
         const keys = Object.keys(CHANNELS);
-        const randomId = keys[Math.floor(Math.random() * keys.length)];
+        if (!window._randomChannelHistory) window._randomChannelHistory = [];
+        var avail = keys.filter(function(k) { return window._randomChannelHistory.indexOf(k) === -1; });
+        if (avail.length === 0) { window._randomChannelHistory.length = 0; avail = keys; }
+        const randomId = avail[Math.floor(Math.random() * avail.length)];
+        window._randomChannelHistory.push(randomId);
+        if (window._randomChannelHistory.length > Math.floor(keys.length * 0.3)) window._randomChannelHistory.shift();
         await go(randomId);
         window._keepFloatingBtn = false;
         setTimeout(function() { showFloatingBtn('__random__', '🎲', 'Next Random Channel'); }, 100);
@@ -1084,7 +1089,17 @@
         allMsgs.forEach((m, i) => { if (m.imgs && m.imgs.length > 0) imgMsgs.push(i); });
         if (imgMsgs.length === 0) return;
 
-        const randomIdx = imgMsgs[Math.floor(Math.random() * imgMsgs.length)];
+        // Anti-repeat: track recent picks per channel, avoid them
+        if (!window._randomHistory) window._randomHistory = {};
+        if (!window._randomHistory[channelId]) window._randomHistory[channelId] = [];
+        var history = window._randomHistory[channelId];
+        // Keep history to ~20% of pool so we cycle through most before repeating
+        var maxHistory = Math.min(Math.floor(imgMsgs.length * 0.2), 50);
+        var available = imgMsgs.filter(function(idx) { return history.indexOf(idx) === -1; });
+        if (available.length === 0) { history.length = 0; available = imgMsgs; } // Reset if exhausted
+        var randomIdx = available[Math.floor(Math.random() * available.length)];
+        history.push(randomIdx);
+        if (history.length > maxHistory) history.shift();
         await go(channelId);
 
         const PAGE_SIZE = 50;
