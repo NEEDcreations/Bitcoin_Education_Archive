@@ -1,14 +1,17 @@
 // =============================================
-// 🦡 Nacho - Bitcoin Education Archive Mascot
+// 🦌 Nacho - Bitcoin Education Archive Mascot
 // "Nacho keys, nacho cheese."
-// Inspired by Clippy (Microsoft Office '97)
+// A cartoon deer with large antlers — Inspired by Clippy (Microsoft Office '97)
 // =============================================
 
 (function() {
 
-// ---- Nacho's Expressions (Clippy-style poses) ----
+// ---- Nacho is a cartoon deer with antlers ----
+const NACHO_SVG = '<img src="nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;">';
+
+// Poses are now expressed through the speech bubble label
 const POSES = {
-    default: '🦡',
+    default: '🦌',
     wave: '👋',
     think: '🤔',
     celebrate: '🎉',
@@ -25,19 +28,19 @@ const POSES = {
 // ---- Clippy-style "It looks like..." messages ----
 const CLIPPY_HELPS = {
     // Channel-specific
-    'whitepaper': { pose: 'brain', text: "It looks like you're reading the whitepaper! Would you like me to... just kidding, I'm a badger. But this is where it all started! 📜" },
+    'whitepaper': { pose: 'brain', text: "It looks like you're reading the whitepaper! Would you like me to... just kidding, I'm a deer. But this is where it all started! 📜" },
     'self-custody': { pose: 'point', text: "It looks like you're learning about self-custody! Remember: Nacho keys, nacho cheese. 🧀🔑" },
     'investment-strategy': { pose: 'think', text: "It looks like you're planning your stack strategy! Pro tip: DCA and chill. 📈" },
-    'mining': { pose: 'fire', text: "It looks like you're interested in mining! Fun fact: Honey badgers dig too. We have a lot in common. ⛏️" },
-    'privacy-nonkyc': { pose: 'eyes', text: "It looks like you value your privacy! Good. A wise badger never reveals his burrow location. 🕵️" },
+    'mining': { pose: 'fire', text: "It looks like you're interested in mining! Fun fact: deers dig too. We have a lot in common. ⛏️" },
+    'privacy-nonkyc': { pose: 'eyes', text: "It looks like you value your privacy! Good. A wise deer never reveals his burrow location. 🕵️" },
     'layer-2-lightning': { pose: 'celebrate', text: "It looks like you're exploring Lightning! Zap zap! ⚡⚡" },
     'fun-facts': { pose: 'cool', text: "It looks like you're browsing fun facts! This channel is my personal favorite. Don't tell the others. 🤫" },
     'history': { pose: 'brain', text: "It looks like you're studying Bitcoin history! Those who don't learn history are doomed to buy shitcoins. 📚" },
     'charts': { pose: 'eyes', text: "It looks like you're checking the charts! Number go up technology, am I right? 📊" },
     'problems-of-money': { pose: 'think', text: "It looks like you're learning why fiat is broken! This is where many badgers get orange-pilled. 🟠" },
     'giga-chad': { pose: 'fire', text: "It looks like you're in the Giga Chad channel! Based. 💪" },
-    'memes-funny': { pose: 'celebrate', text: "It looks like you're looking at memes! A badger of culture, I see. 😏" },
-    'evidence-against-alts': { pose: 'cool', text: "It looks like you're reading about altcoins! Spoiler: there's only Bitcoin. 🦡" },
+    'memes-funny': { pose: 'celebrate', text: "It looks like you're looking at memes! A deer of culture, I see. 😏" },
+    'evidence-against-alts': { pose: 'cool', text: "It looks like you're reading about altcoins! Spoiler: there's only Bitcoin. 🦌" },
 };
 
 // ---- General Tips (Clippy "Did you know?") ----
@@ -56,7 +59,7 @@ const TIPS = [
 
 // ---- Motivational (Clippy encouragement) ----
 const MOTIVATION = [
-    { pose: 'celebrate', text: "You're doing great! Most people never even start learning about Bitcoin. 🦡💪" },
+    { pose: 'celebrate', text: "You're doing great! Most people never even start learning about Bitcoin. 🦌💪" },
     { pose: 'fire', text: "Keep going! You're stacking knowledge like a true plebeian! 📚🔥" },
     { pose: 'love', text: "Nacho is proud of your progress! You're further down the rabbit hole than most. 🐇" },
     { pose: 'cool', text: "Stay humble, stack sats, stack knowledge. You're doing all three. 😎" },
@@ -69,26 +72,26 @@ const MOTIVATION = [
 // ---- Fun / Personality (Clippy idle chatter) ----
 const FUN = [
     { pose: 'cheese', text: "Nacho keys, nacho cheese. It's not just a tagline, it's a lifestyle. 🧀🔑" },
-    { pose: 'cool', text: "Honey badgers are immune to snake venom. I'm immune to FUD. Coincidence? 🤔" },
-    { pose: 'think', text: "If Satoshi had a pet, it would definitely be a honey badger. I will not elaborate. 🦡" },
+    { pose: 'cool', text: "deers are immune to snake venom. I'm immune to FUD. Coincidence? 🤔" },
+    { pose: 'think', text: "If Satoshi had a pet, it would definitely be a deer. I will not elaborate. 🦌" },
     { pose: 'cheese', text: "My seed phrase? 24 different types of cheese. Very secure. 🔐🧀" },
     { pose: 'default', text: "I once tried to explain Bitcoin to a goldfish. It went about as well as explaining it to Peter Schiff. 🐟" },
     { pose: 'celebrate', text: "HODL your knowledge. Never sell what you've learned! 💎🙌" },
     { pose: 'cool', text: "I've been orange-pilled since birth. Perks of being an orange animal. 🟠" },
     { pose: 'think', text: "Roses are red, fiat is dead, stack sats instead! 🌹" },
-    { pose: 'default', text: "In a world of unlimited printing, be a limited supply. Like Bitcoin. And like me — there's only one Nacho. 🦡" },
+    { pose: 'default', text: "In a world of unlimited printing, be a limited supply. Like Bitcoin. And like me — there's only one Nacho. 🦌" },
     { pose: 'cheese', text: "Bitcoin fixes everything. Except my cheese addiction. Some things are unfixable. 🧀" },
-    { pose: 'eyes', text: "I've been watching you learn. Not in a creepy way. In a proud badger way. 👀" },
+    { pose: 'eyes', text: "I've been watching you learn. Not in a creepy way. In a proud deer way. 👀" },
     { pose: 'sleep', text: "*yawns* Don't mind me, just HODLing this corner of your screen... 💤" },
-    { pose: 'default', text: "Some people have angel investors. You have an angel badger. You're welcome. 😇🦡" },
-    { pose: 'think', text: "What's a honey badger's favorite block? The next one! ⛏️" },
+    { pose: 'default', text: "Some people have angel investors. You have an angel deer. You're welcome. 😇🦌" },
+    { pose: 'think', text: "What's a deer's favorite block? The next one! ⛏️" },
     { pose: 'cool', text: "I'm not saying I'm Satoshi, but have you ever seen us in the same room? 🤫" },
     { pose: 'fire', text: "Few understand this... but YOU will. That's why you're here. 🔥" },
 ];
 
 // ---- Welcome Messages ----
 const WELCOME = [
-    { pose: 'wave', text: "👋 Hi! I'm Nacho, your friendly Bitcoin honey badger! Click me anytime for tips. I won't bite... probably." },
+    { pose: 'wave', text: "👋 Hi! I'm Nacho, your friendly Bitcoin deer! Click me anytime for tips. I won't bite... probably." },
     { pose: 'wave', text: "👋 Welcome back! Nacho missed you! Ready to learn something new today?" },
     { pose: 'wave', text: "👋 Hey there! Nacho here. I'll be hanging out in this corner if you need me!" },
 ];
@@ -98,7 +101,7 @@ const CHANNEL_REACT = [
     { pose: 'eyes', text: "Great choice! I'll be over here if you need me. 👀" },
     { pose: 'cool', text: "Ooh, excellent pick! You've got good taste. 😎" },
     { pose: 'brain', text: "This one's a good read! Take your time. 🧠" },
-    { pose: 'fire', text: "One of my favorites! Dig in! 🦡🔥" },
+    { pose: 'fire', text: "One of my favorites! Dig in! 🦌🔥" },
     { pose: 'love', text: "Nice! This channel has great stuff in it. 🧡" },
 ];
 
@@ -149,36 +152,36 @@ function createNacho() {
         #nacho-container.hidden { opacity: 0; transform: translateY(30px); pointer-events: none; }
 
         #nacho-avatar {
-            width: 56px;
-            height: 56px;
-            background: linear-gradient(145deg, #f7931a, #ea580c);
-            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            background: none;
+            border-radius: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.7rem;
             cursor: pointer;
             pointer-events: auto;
-            box-shadow: 0 4px 20px rgba(247,147,26,0.35), inset 0 -2px 4px rgba(0,0,0,0.2);
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
             transition: transform 0.15s;
             user-select: none;
             position: relative;
             flex-shrink: 0;
             z-index: 2;
         }
-        #nacho-avatar:hover { transform: scale(1.12) rotate(-5deg); }
-        #nacho-avatar:active { transform: scale(0.92); }
+        #nacho-avatar:hover { transform: scale(1.1) rotate(-3deg); }
+        #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -18px;
+            bottom: -14px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.6rem;
-            color: var(--text-faint, #666);
+            font-size: 0.65rem;
+            color: #f7931a;
             font-weight: 800;
             letter-spacing: 1px;
             white-space: nowrap;
             text-transform: uppercase;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
         }
 
         /* Clippy-style speech bubble */
@@ -328,11 +331,12 @@ function createNacho() {
         /* Mobile */
         @media (max-width: 768px) {
             #nacho-container { bottom: 75px; left: 10px; }
-            #nacho-avatar { width: 46px; height: 46px; font-size: 1.4rem; }
+            #nacho-avatar { width: 64px; height: 64px; }
             #nacho-bubble { max-width: 230px; min-width: 150px; font-size: 0.8rem; padding: 12px 14px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: 70px; left: 6px; }
+            #nacho-avatar { width: 58px; height: 58px; }
             #nacho-bubble { max-width: 200px; }
         }
 
@@ -353,13 +357,13 @@ function createNacho() {
     container.id = 'nacho-container';
     if (!nachoVisible) container.classList.add('hidden');
     container.innerHTML =
-        '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Honey Badger — Click me!">' +
-            '<span id="nacho-face">' + POSES.default + '</span>' +
+        '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
+            NACHO_SVG +
             '<span class="nacho-name">Nacho</span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="hideBubble()">' +
             '<div class="nacho-header">' +
-                '<span class="nacho-label">🦡 Nacho says</span>' +
+                '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> Nacho says</span>' +
                 '<span class="nacho-x" onclick="event.stopPropagation();hideBubble()">✕</span>' +
             '</div>' +
             '<div id="nacho-text"></div>' +
@@ -368,7 +372,7 @@ function createNacho() {
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
-    toggle.innerHTML = '🦡';
+    toggle.innerHTML = '🦌';
     toggle.title = 'Bring back Nacho';
     toggle.onclick = function() { showNacho(); };
     if (!nachoVisible) toggle.style.display = 'flex';
@@ -392,10 +396,9 @@ function createNacho() {
 
 // ---- Pose Management (Clippy expressions) ----
 function setPose(pose) {
-    const face = document.getElementById('nacho-face');
-    if (!face) return;
     currentPose = pose || 'default';
-    face.textContent = POSES[currentPose] || POSES.default;
+    const emoji = document.getElementById('nacho-pose-emoji');
+    if (emoji) emoji.textContent = POSES[currentPose] || POSES.default;
 }
 
 function resetPose() {
@@ -506,7 +509,7 @@ window.showNacho = function() {
     document.getElementById('nacho-toggle').style.display = 'none';
     lastBubbleTime = 0;
     setPose('wave');
-    forceShowBubble("I'm back, baby! Miss me? 🦡");
+    forceShowBubble("I'm back, baby! Miss me? 🦌");
 };
 
 window.hideNacho = function() {
@@ -547,24 +550,24 @@ window.nachoOnQuest = function(passed) {
     lastBubbleTime = 0;
     if (passed) {
         setPose('celebrate');
-        forceShowBubble("You CRUSHED that quest! The honey badger is VERY impressed! 🦡🎉🔥");
+        forceShowBubble("You CRUSHED that quest! The deer is VERY impressed! 🦌🎉🔥");
     } else {
         setPose('love');
-        forceShowBubble("Hey, some questions are hard! Read up and try again — Nacho believes in you! 🦡💪");
+        forceShowBubble("Hey, some questions are hard! Read up and try again — Nacho believes in you! 🦌💪");
     }
 };
 
 // ---- Context-Aware: Search ----
 window.nachoOnSearch = function() {
     if (!nachoVisible || Math.random() > 0.3) return;
-    showBubble("Looking for something? I'd help search but I don't have thumbs. Good luck! 🔍🦡", 'think');
+    showBubble("Looking for something? I'd help search but I don't have thumbs. Good luck! 🔍🦌", 'think');
 };
 
 // ---- Context-Aware: Scroll to bottom of channel ----
 window.nachoOnFinishChannel = function() {
     if (!nachoVisible || Math.random() > 0.3) return;
     const msgs = [
-        { pose: 'celebrate', text: "You read the whole thing! Dedicated. I respect that. 🦡👏" },
+        { pose: 'celebrate', text: "You read the whole thing! Dedicated. I respect that. 🦌👏" },
         { pose: 'point', text: "All done? Hit the 🎲 to find your next channel!" },
         { pose: 'fire', text: "Knowledge: stacked. You're a machine! 💪" },
     ];
@@ -596,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         const av = document.getElementById('nacho-avatar');
         if (!av) return;
-        function startLP() { lp = setTimeout(function() { hideNacho(); if (typeof showToast === 'function') showToast('🦡 Nacho is hiding. Click the small 🦡 to bring him back!'); }, 1500); }
+        function startLP() { lp = setTimeout(function() { hideNacho(); if (typeof showToast === 'function') showToast('🦌 Nacho is hiding. Click the small 🦌 to bring him back!'); }, 1500); }
         function stopLP() { clearTimeout(lp); }
         av.addEventListener('mousedown', startLP);
         av.addEventListener('mouseup', stopLP);

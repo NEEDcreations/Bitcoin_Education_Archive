@@ -1304,11 +1304,11 @@ function showSettingsPage(tab) {
         // Nacho mascot toggle
         const nachoOn = localStorage.getItem('btc_nacho_hidden') !== 'true';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🦡 Nacho (Mascot)</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🦌 Nacho (Mascot)</div>' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span style="color:var(--text);font-size:0.85rem;">Show Nacho</span>' +
             '<button onclick="if(typeof ' + (nachoOn ? 'hideNacho' : 'showNacho') + '===\'function\'){' + (nachoOn ? 'hideNacho()' : 'showNacho()') + '}showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoOn ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin honey badger guide. Long-press him to hide.</div></div>';
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Long-press him to hide.</div></div>';
 
         // Push Notifications
         const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';

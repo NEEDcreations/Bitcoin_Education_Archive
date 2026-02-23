@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Antlers -->
+  <g fill="none" stroke="#8B4513" stroke-width="5" stroke-linecap="round">
+    <!-- Left antler -->
+    <path d="M70 65 L55 30 L45 40"/>
+    <path d="M55 30 L60 15"/>
+    <path d="M55 30 L40 20"/>
+    <!-- Right antler -->
+    <path d="M130 65 L145 30 L155 40"/>
+    <path d="M145 30 L140 15"/>
+    <path d="M145 30 L160 20"/>
+  </g>
+  <!-- Ears -->
+  <ellipse cx="62" cy="72" rx="18" ry="12" fill="#D2854D" transform="rotate(-30,62,72)"/>
+  <ellipse cx="62" cy="72" rx="12" ry="7" fill="#F0B88A" transform="rotate(-30,62,72)"/>
+  <ellipse cx="138" cy="72" rx="18" ry="12" fill="#D2854D" transform="rotate(30,138,72)"/>
+  <ellipse cx="138" cy="72" rx="12" ry="7" fill="#F0B88A" transform="rotate(30,138,72)"/>
+  <!-- Head -->
+  <ellipse cx="100" cy="110" rx="50" ry="48" fill="#D2854D"/>
+  <!-- Face/lighter area -->
+  <ellipse cx="100" cy="118" rx="35" ry="34" fill="#E8C9A0"/>
+  <!-- Eyes - big and friendly -->
+  <ellipse cx="82" cy="102" rx="12" ry="13" fill="white"/>
+  <ellipse cx="118" cy="102" rx="12" ry="13" fill="white"/>
+  <circle cx="84" cy="103" r="7" fill="#2D1B00"/>
+  <circle cx="120" cy="103" r="7" fill="#2D1B00"/>
+  <!-- Eye shine -->
+  <circle cx="87" cy="100" r="3" fill="white"/>
+  <circle cx="123" cy="100" r="3" fill="white"/>
+  <!-- Nose -->
+  <ellipse cx="100" cy="125" rx="10" ry="7" fill="#1a1a1a"/>
+  <ellipse cx="100" cy="124" rx="10" ry="6.5" fill="#333"/>
+  <!-- Nose shine -->
+  <ellipse cx="97" cy="122" rx="3" ry="2" fill="#555" opacity="0.6"/>
+  <!-- Smile -->
+  <path d="M90 133 Q100 142 110 133" fill="none" stroke="#5D3A1A" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Cheek blush -->
+  <circle cx="72" cy="118" r="8" fill="#F7931A" opacity="0.25"/>
+  <circle cx="128" cy="118" r="8" fill="#F7931A" opacity="0.25"/>
+  <!-- Body hint -->
+  <ellipse cx="100" cy="170" rx="38" ry="28" fill="#D2854D"/>
+  <!-- Orange scarf/bandana -->
+  <path d="M65 148 Q100 158 135 148 Q132 165 120 168 Q100 172 80 168 Q68 165 65 148Z" fill="#F7931A"/>
+  <path d="M100 168 L96 185 L104 185 Z" fill="#F7931A"/>
+  <!-- Bitcoin B on scarf -->
+  <text x="100" y="163" text-anchor="middle" font-size="16" font-weight="bold" fill="white" font-family="Arial">₿</text>
+</svg>
