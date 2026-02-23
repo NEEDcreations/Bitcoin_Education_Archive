@@ -137,10 +137,13 @@ async function signInWithFacebook() {
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
 async function signInWithProvider(provider) {
     try {
+        // Save anonymous user info BEFORE popup changes auth state
         const anonUser = auth.currentUser;
+        let anonUid = null;
         let anonData = null;
-        if (anonUser) {
-            const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+        if (anonUser && anonUser.isAnonymous) {
+            anonUid = anonUser.uid;
+            const anonDoc = await db.collection('users').doc(anonUid).get();
             if (anonDoc.exists) anonData = anonDoc.data();
         }
 
@@ -150,12 +153,10 @@ async function signInWithProvider(provider) {
         const existingDoc = await db.collection('users').doc(user.uid).get();
         if (!existingDoc.exists) {
             if (anonData) {
+                // Migrate anonymous data to the new authenticated account
                 anonData.email = user.email || '';
                 if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
                 await db.collection('users').doc(user.uid).set(anonData);
-                
-                // Delete the anonymous user document
-                await db.collection('users').doc(anonUser.uid).delete();
             } else {
                 await db.collection('users').doc(user.uid).set({
                     username: user.displayName || 'Bitcoiner',
@@ -169,10 +170,25 @@ async function signInWithProvider(provider) {
                 });
             }
         } else {
-            // User already exists — just update their email if needed
+            // Existing authenticated user — merge points if anon had more
+            if (anonData) {
+                const existData = existingDoc.data();
+                if ((anonData.points || 0) > (existData.points || 0)) {
+                    await existingDoc.ref.update({
+                        points: anonData.points,
+                        channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
+                        totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                    });
+                }
+            }
             if (!existingDoc.data().email && user.email) {
                 await existingDoc.ref.update({ email: user.email });
             }
+        }
+
+        // Delete the old anonymous user document to prevent duplicates on leaderboard
+        if (anonUid && anonUid !== user.uid) {
+            try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
         hideUsernamePrompt();
@@ -229,8 +245,21 @@ async function loadUser(uid) {
         awardVisitPoints();
         startReadTimer();
 
+        // Update auth button text if signed in with a provider
+        updateAuthButton();
+
     } else {
         // New user - they can click "Create Account / Sign In" on home page
+    }
+}
+
+function updateAuthButton() {
+    const btn = document.getElementById('authBtn');
+    if (!btn) return;
+    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        btn.textContent = '👤 My Account';
+    } else {
+        btn.textContent = 'Create Account / Sign In';
     }
 }
 
@@ -643,7 +672,37 @@ function showToast(msg) {
 
 // Username prompt
 function showUsernamePrompt() {
+    // If user is already signed in (non-anonymous), show account info instead
+    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        showAccountInfo();
+        return;
+    }
     document.getElementById('usernameModal').classList.add('open');
+}
+
+function showAccountInfo() {
+    const modal = document.getElementById('usernameModal');
+    const box = modal.querySelector('.username-box');
+    const user = auth.currentUser;
+    const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
+    box.innerHTML = '<h2>✅ You\'re Signed In</h2>' +
+        '<div style="margin:20px 0;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+            '<div style="font-size:2rem;margin-bottom:8px;">' + lvl.emoji + '</div>' +
+            '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' pts</div>' +
+            (user.email ? '<div style="color:var(--text-dim);font-size:0.8rem;margin-top:8px;">📧 ' + user.email + '</div>' : '') +
+            (user.displayName ? '<div style="color:var(--text-dim);font-size:0.8rem;margin-top:4px;">👤 ' + user.displayName + '</div>' : '') +
+        '</div>' +
+        '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>' +
+        '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;">Close</span>';
+    modal.classList.add('open');
+}
+
+function signOutUser() {
+    auth.signOut().then(() => {
+        hideUsernamePrompt();
+        location.reload();
+    });
 }
 
 function hideUsernamePrompt() {
@@ -671,6 +730,11 @@ function submitUsername() {
 
 // Show sign-in modal for returning users on new device
 function showSignInPrompt() {
+    // If already signed in with a provider, show account info
+    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        showAccountInfo();
+        return;
+    }
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');
     box.innerHTML = '<h2>👋 Welcome Back!</h2>' +
