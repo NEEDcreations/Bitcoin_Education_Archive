@@ -583,7 +583,7 @@ async function toggleLeaderboard() {
         });
 
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
-        html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="minimizeLeaderboard()" title="Minimize" style="margin-right:8px;">−</button><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
+        html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
         html += '<div class="lb-list">';
 
         const showInitial = Math.min(10, allUsers.length);
