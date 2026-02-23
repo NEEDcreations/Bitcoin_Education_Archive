@@ -57,6 +57,7 @@
         .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-dim); padding: 10px 14px; border-radius: 6px; cursor: pointer; transition: 0.15s; font-size: 0.9rem; font-family: inherit; }
         .ch-btn:hover { background: var(--card-bg); color: var(--text); }
         .ch-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+        .ch-btn.visited::after { content: " ✓"; color: #22c55e; font-size: 0.75rem; font-weight: 800; }
         .ch-btn::before { content: "# "; color: var(--text-faint); font-weight: 700; }
         
         /* Main */
@@ -626,6 +627,17 @@
             }
         };
 
+        // Mark channel as visited in sidebar
+        document.querySelectorAll('.ch-btn').forEach(b => {
+            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
+                b.classList.add('visited');
+            }
+        });
+
+        // Save visited channels locally
+        let visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        if (!visited.includes(id)) { visited.push(id); localStorage.setItem('btc_visited_channels', JSON.stringify(visited)); }
+
         // Ranking: award points for opening channel
         if (typeof onChannelOpen === 'function') onChannelOpen(id);
     }
@@ -780,6 +792,16 @@
     });
 
     window.onload = () => {
+        // Restore visited channel checkmarks
+        const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        visited.forEach(id => {
+            document.querySelectorAll('.ch-btn').forEach(b => {
+                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
+                    b.classList.add('visited');
+                }
+            });
+        });
+
         const h = location.hash.slice(1);
         if (h) go(h);
     };
