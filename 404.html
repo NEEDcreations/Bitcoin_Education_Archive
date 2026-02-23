@@ -47,6 +47,55 @@
         .msg-link { color: #38bdf8; text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
         
+        /* Ranking Bar */
+        #rankBar { display: none; flex-direction: column; padding: 12px 20px; border-top: 1px solid #1e293b; background: #020617; cursor: pointer; }
+        .rank-info { display: flex; align-items: center; gap: 10px; }
+        .rank-level { font-weight: 800; font-size: 0.9rem; color: #f97316; }
+        .rank-user { color: #94a3b8; font-size: 0.85rem; }
+        .rank-pts { margin-left: auto; color: #f97316; font-weight: 700; font-size: 0.85rem; }
+        .rank-progress { height: 4px; background: #1e293b; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        .rank-progress-fill { height: 100%; background: linear-gradient(90deg, #f97316, #eab308); border-radius: 4px; transition: width 0.5s; }
+        .rank-next { font-size: 0.7rem; color: #475569; margin-top: 4px; }
+
+        /* Toasts */
+        .rank-toast { position: fixed; bottom: 30px; right: 30px; background: #f97316; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; z-index: 300; opacity: 0; transform: translateY(20px); transition: 0.3s; pointer-events: none; box-shadow: 0 8px 25px rgba(249,115,22,0.3); }
+        .rank-toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Leaderboard */
+        #leaderboard { display: none; position: fixed; right: 20px; bottom: 80px; width: 340px; max-height: 70vh; background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; z-index: 150; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        #leaderboard.open { display: block; }
+        .lb-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #1e293b; }
+        .lb-header h3 { color: #fff; font-size: 1.1rem; }
+        .lb-close { background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; }
+        .lb-list { padding: 8px; }
+        .lb-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; }
+        .lb-row:hover { background: rgba(255,255,255,0.03); }
+        .lb-me { background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.2); }
+        .lb-rank { font-size: 0.9rem; min-width: 30px; color: #64748b; }
+        .lb-name { color: #e2e8f0; font-size: 0.9rem; flex: 1; }
+        .lb-score { color: #f97316; font-weight: 700; font-size: 0.85rem; }
+        .lb-levels { padding: 12px 20px; border-top: 1px solid #1e293b; }
+        .lb-levels h4 { color: #475569; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: #64748b; font-size: 0.8rem; }
+
+        /* Username Modal */
+        #usernameModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 250; justify-content: center; align-items: center; }
+        #usernameModal.open { display: flex; }
+        .username-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; }
+        .username-box h2 { color: #fff; margin-bottom: 8px; font-size: 1.5rem; }
+        .username-box p { color: #64748b; margin-bottom: 24px; font-size: 0.95rem; }
+        .username-box input { width: 100%; padding: 14px 18px; background: #020617; border: 1px solid #1e293b; border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit; outline: none; margin-bottom: 16px; text-align: center; }
+        .username-box input:focus { border-color: #f97316; }
+        .username-box button { background: #f97316; color: #fff; border: none; padding: 14px 30px; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; }
+        .username-box button:hover { background: #ea580c; }
+        .username-box .skip { color: #475569; font-size: 0.85rem; margin-top: 12px; cursor: pointer; display: block; }
+        .username-box .skip:hover { color: #94a3b8; }
+
+        @media (max-width: 900px) {
+            #leaderboard { right: 10px; left: 10px; bottom: 70px; width: auto; }
+            .rank-toast { right: 15px; bottom: 15px; font-size: 0.8rem; }
+        }
+
         /* Home Page */
         .home-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 60px 30px; background: radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(121,45,228,0.06) 0%, transparent 60%); }
         .home-page.hidden { display: none; }
@@ -275,6 +324,7 @@
             <div class="cat-label">Referral Links</div>
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
         </div>
+        <div id="rankBar"></div>
     </aside>
     <main id="main">
         <!-- Home / Landing -->
@@ -304,7 +354,21 @@
         <div class="messages" id="msgs"></div>
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
+    <div id="leaderboard"></div>
+    <div id="usernameModal">
+        <div class="username-box">
+            <h2>⚡ Join the Leaderboard</h2>
+            <p>Pick a username to start earning points as you explore the archive!</p>
+            <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
+            <button onclick="submitUsername()">Start Learning →</button>
+            <span class="skip" onclick="hideUsernamePrompt()">Skip for now</span>
+        </div>
+    </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="ranking.js"></script>
     <script src="properties_data.js"></script>
     <script src="experienced_data.js"></script>
     <script src="resources_data.js"></script>
@@ -364,6 +428,9 @@
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
         }
+
+        // Ranking: award points for opening channel
+        if (typeof onChannelOpen === 'function') onChannelOpen(id);
     }
 
     function doSearch(q) {
