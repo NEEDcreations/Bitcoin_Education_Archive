@@ -324,7 +324,7 @@ async function submitScholarQuest() {
 
         // Award points
         if (typeof awardPoints === 'function') {
-            await awardPoints(500, '🎓 Bitcoin Scholar Certification');
+            await awardPoints(2100, '🎓 Bitcoin Scholar Certification');
         }
 
         // Confetti!
@@ -336,7 +336,8 @@ async function submitScholarQuest() {
             '<div style="color:#22c55e;font-size:0.8rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;">Congratulations!</div>' +
             '<h2 style="color:var(--heading);margin:8px 0 16px;">Bitcoin Scholar Certified</h2>' +
             '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);">' + score + ' / 25 Correct</div>' +
-            '<div style="color:var(--text-muted);margin:8px 0 20px;">+500 points earned!</div>' +
+            '<div style="color:var(--accent);font-size:1.2rem;font-weight:800;margin:8px 0 4px;">+2,100 points earned! 🎉</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">The magic number — 21 million in sats!</div>' +
             '<div style="margin-bottom:20px;">' +
             '<label style="color:var(--text-muted);font-size:0.85rem;display:block;margin-bottom:6px;">Enter your name for the certificate:</label>' +
             '<input type="text" id="certName" placeholder="Your full name" style="width:100%;max-width:300px;padding:12px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;text-align:center;outline:none;">' +
