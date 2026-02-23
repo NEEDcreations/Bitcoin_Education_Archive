@@ -1107,9 +1107,34 @@
                     el.style.boxShadow = '';
                     el.style.borderColor = '';
                 }, 2000);
+                // Show floating random meme button
+                showFloatingMemeBtn();
             }
         }, 300);
     }
+
+    function showFloatingMemeBtn() {
+        var btn = document.getElementById('floatingMemeBtn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'floatingMemeBtn';
+            btn.innerHTML = '😂 Next Meme';
+            btn.onclick = function() { goRandomMeme(); };
+            btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
+            document.body.appendChild(btn);
+        }
+        btn.style.display = 'flex';
+        // Hide when scrolling away or navigating home
+        function hideOnNav() {
+            btn.style.display = 'none';
+            window.removeEventListener('popstate', hideOnNav);
+        }
+        window.addEventListener('popstate', hideOnNav, { once: true });
+    }
+
+    // Hide floating meme button when going home
+    var origGoHome = typeof goHome === 'function' ? goHome : null;
+
     window.goRandomMeme = goRandomMeme;
 
     window.loadMoreGallery = function() {
@@ -1191,6 +1216,8 @@
     }
 
     function goHome(fromPopState) {
+        var fb = document.getElementById('floatingMemeBtn');
+        if (fb) fb.style.display = 'none';
         document.getElementById('home').classList.remove('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
@@ -1305,6 +1332,9 @@
     async function go(id, btn, fromPopState) {
         const meta = CHANNELS[id];
         if (!meta) return;
+        // Hide floating meme button when navigating to a different channel
+        var fb = document.getElementById('floatingMemeBtn');
+        if (fb && id !== 'memes-funny') fb.style.display = 'none';
 
         localStorage.setItem('btc_last_channel', id);
         playChannelSound();
