@@ -198,7 +198,7 @@ function playBadgeSound() {
     if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // Play a cheerful ascending chime
+        const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
         const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
         notes.forEach((freq, i) => {
             const osc = audioCtx.createOscillator();
@@ -207,7 +207,7 @@ function playBadgeSound() {
             gain.connect(audioCtx.destination);
             osc.frequency.value = freq;
             osc.type = 'sine';
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
+            gain.gain.setValueAtTime(0.15 * vol, audioCtx.currentTime + i * 0.12);
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.5);
             osc.start(audioCtx.currentTime + i * 0.12);
             osc.stop(audioCtx.currentTime + i * 0.12 + 0.5);

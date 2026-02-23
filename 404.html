@@ -341,8 +341,9 @@
                 <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></svg>
                 <h2 style="margin:0;line-height:1.2;">BITCOIN<br>EDUCATION ARCHIVE</h2>
             </div>
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;align-items:center;gap:6px;">
                 <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" style="font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:8px;cursor:pointer;">🔊</button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)" style="width:50px;height:4px;accent-color:#f7931a;cursor:pointer;" title="Volume">
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
             </div>
         </div>
@@ -633,11 +634,8 @@
             document.body.setAttribute('data-theme', 'light');
             setTimeout(() => { const b = document.getElementById('themeBtn'); if(b) b.textContent = '☀️'; }, 0);
         }
-        // Set audio button state
-        setTimeout(() => {
-            const ab = document.getElementById('audioBtn');
-            if (ab) ab.textContent = localStorage.getItem('btc_audio') === 'false' ? '🔇' : '🔊';
-        }, 0);
+        // Set audio state
+        setTimeout(() => { updateAudioUI(); }, 0);
     })();
 
     function toggleMenu() {
@@ -864,29 +862,32 @@
 
     // Audio system
     let audioEnabled = localStorage.getItem('btc_audio') !== 'false';
+    let audioVolume = parseFloat(localStorage.getItem('btc_volume') || '0.5');
+
+    function getVolume() { return audioEnabled ? audioVolume : 0; }
+
     function playChannelSound() {
-        if (!audioEnabled) return;
+        if (!audioEnabled || audioVolume <= 0) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            // Soft click/pop sound
+            const vol = audioVolume;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.frequency.value = 880;
             osc.type = 'sine';
-            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.setValueAtTime(0.08 * vol, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.15);
-            // Second tone for pleasant chime
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.connect(gain2);
             gain2.connect(ctx.destination);
             osc2.frequency.value = 1318.5;
             osc2.type = 'sine';
-            gain2.gain.setValueAtTime(0.05, ctx.currentTime + 0.05);
+            gain2.gain.setValueAtTime(0.05 * vol, ctx.currentTime + 0.05);
             gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
             osc2.start(ctx.currentTime + 0.05);
             osc2.stop(ctx.currentTime + 0.25);
@@ -895,9 +896,26 @@
     function toggleAudio() {
         audioEnabled = !audioEnabled;
         localStorage.setItem('btc_audio', audioEnabled);
-        const btn = document.getElementById('audioBtn');
-        if (btn) btn.textContent = audioEnabled ? '🔊' : '🔇';
+        updateAudioUI();
         if (typeof showToast === 'function') showToast(audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
+    }
+    function setVolume(val) {
+        audioVolume = parseFloat(val);
+        localStorage.setItem('btc_volume', audioVolume);
+        if (audioVolume <= 0) {
+            audioEnabled = false;
+            localStorage.setItem('btc_audio', 'false');
+        } else if (!audioEnabled) {
+            audioEnabled = true;
+            localStorage.setItem('btc_audio', 'true');
+        }
+        updateAudioUI();
+    }
+    function updateAudioUI() {
+        const btn = document.getElementById('audioBtn');
+        if (btn) btn.textContent = audioEnabled && audioVolume > 0 ? (audioVolume > 0.5 ? '🔊' : '🔉') : '🔇';
+        const slider = document.getElementById('volumeSlider');
+        if (slider) slider.value = audioEnabled ? audioVolume : 0;
     }
 
     async function go(id, btn) {
