@@ -58,20 +58,29 @@ function initRanking() {
             return;
         }
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                loadUser(user.uid);
-                // Start session timeout for non-anonymous users
-                if (!user.isAnonymous) {
-                    resetSessionTimer();
-                    ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-                        document.addEventListener(evt, resetSessionTimer, { passive: true });
-                    });
+        // Ensure auth state persists across page refreshes
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(function() {
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    // Don't reload if we already have this user
+                    if (currentUser && currentUser.uid === user.uid) {
+                        updateAuthButton();
+                        return;
+                    }
+                    loadUser(user.uid);
+                    // Start session timeout for non-anonymous users
+                    if (!user.isAnonymous) {
+                        resetSessionTimer();
+                        ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+                            document.addEventListener(evt, resetSessionTimer, { passive: true });
+                        });
+                    }
+                } else {
+                    // No user — sign in anonymously
+                    currentUser = null;
+                    auth.signInAnonymously().then(() => {});
                 }
-            } else {
-                // No user — sign in anonymously
-                auth.signInAnonymously().then(() => {});
-            }
+            });
         });
     } catch(e) {
         console.log('Ranking init error:', e);
@@ -305,7 +314,25 @@ async function loadUser(uid) {
         updateAuthButton();
 
     } else {
-        // New user - they can click "Create Account / Sign In" on home page
+        // User exists in auth but not in Firestore — recreate their doc
+        const user = auth.currentUser;
+        if (user && !user.isAnonymous) {
+            const newData = {
+                username: user.displayName || 'Bitcoiner',
+                email: user.email || '',
+                points: 0,
+                channelsVisited: 0,
+                totalVisits: 1,
+                streak: 1,
+                lastVisit: new Date().toISOString().split('T')[0],
+                created: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            await db.collection('users').doc(uid).set(newData);
+            currentUser = { uid, ...newData };
+            rankingReady = true;
+            updateRankUI();
+            updateAuthButton();
+        }
     }
 }
 
