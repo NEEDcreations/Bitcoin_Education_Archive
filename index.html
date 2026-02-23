@@ -1282,9 +1282,17 @@
         }
     }
 
+    let lastSuggestionTime = 0;
     async function submitSuggestion() {
-        const name = document.getElementById('suggestName').value.trim();
-        const text = document.getElementById('suggestText').value.trim();
+        // Rate limit suggestions to 1 per 30 seconds
+        const now = Date.now();
+        if (now - lastSuggestionTime < 30000) {
+            document.getElementById('suggestStatus').innerHTML = '<span style="color:#ef4444;">Please wait before submitting another suggestion.</span>';
+            return;
+        }
+        lastSuggestionTime = now;
+        const name = typeof sanitizeInput === 'function' ? sanitizeInput(document.getElementById('suggestName').value.trim()) : document.getElementById('suggestName').value.trim();
+        const text = typeof sanitizeInput === 'function' ? sanitizeInput(document.getElementById('suggestText').value.trim()) : document.getElementById('suggestText').value.trim();
         const status = document.getElementById('suggestStatus');
         const btn = document.querySelector('.suggest-submit');
 

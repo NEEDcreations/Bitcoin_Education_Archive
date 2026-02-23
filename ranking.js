@@ -33,6 +33,10 @@ const POINTS = {
 };
 
 let db, auth, currentUser = null;
+let signInAttempts = 0;
+let signInLockout = 0;
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+let sessionTimer = null;
 let sessionChannels = new Set();
 let readTimer = null;
 let readSeconds = 0;
@@ -57,6 +61,13 @@ function initRanking() {
         auth.onAuthStateChanged(user => {
             if (user) {
                 loadUser(user.uid);
+                // Start session timeout for non-anonymous users
+                if (!user.isAnonymous) {
+                    resetSessionTimer();
+                    ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+                        document.addEventListener(evt, resetSessionTimer, { passive: true });
+                    });
+                }
             } else {
                 // No user — sign in anonymously
                 auth.signInAnonymously().then(() => {});
@@ -149,8 +160,38 @@ async function signInWithFacebook() {
 
 // Apple Sign-In removed
 
+// Rate limiting check
+function checkRateLimit() {
+    const now = Date.now();
+    if (now < signInLockout) {
+        const secs = Math.ceil((signInLockout - now) / 1000);
+        showToast('⏳ Too many attempts. Wait ' + secs + 's');
+        return false;
+    }
+    signInAttempts++;
+    if (signInAttempts > 5) {
+        signInLockout = now + 60000; // 1 minute lockout
+        signInAttempts = 0;
+        showToast('⏳ Too many attempts. Please wait 60 seconds.');
+        return false;
+    }
+    return true;
+}
+
+// Session timeout — sign out after 30 min inactivity
+function resetSessionTimer() {
+    if (sessionTimer) clearTimeout(sessionTimer);
+    sessionTimer = setTimeout(function() {
+        if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            showToast('Session timed out. Please sign in again.');
+            auth.signOut().then(() => location.reload());
+        }
+    }, SESSION_TIMEOUT);
+}
+
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
 async function signInWithProvider(provider) {
+    if (!checkRateLimit()) return;
     try {
         // Save anonymous user info BEFORE popup changes auth state
         const anonUser = auth.currentUser;
@@ -278,8 +319,15 @@ function updateAuthButton() {
     }
 }
 
+// Sanitize user input — strip HTML tags and dangerous chars
+function sanitizeInput(str) {
+    return str.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '').trim();
+}
+
 async function createUser(username, email) {
     const uid = auth.currentUser.uid;
+    username = sanitizeInput(username);
+    if (email) email = sanitizeInput(email);
     const userData = {
         username: username,
         points: 0,
@@ -728,21 +776,264 @@ function showUsernamePrompt() {
 }
 
 function showAccountInfo() {
+    showSettingsPage('account');
+}
+
+let settingsTab = 'account';
+
+function showSettingsPage(tab) {
+    settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');
     const user = auth.currentUser;
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
-    box.innerHTML = '<h2>✅ You\'re Signed In</h2>' +
-        '<div style="margin:20px 0;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
-            '<div style="font-size:2rem;margin-bottom:8px;">' + lvl.emoji + '</div>' +
-            '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
+
+    // Tab bar
+    let html = '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);">';
+    ['account', 'security', 'data'].forEach(t => {
+        const labels = { account: '👤 Account', security: '🔒 Security', data: '📊 Data' };
+        const active = settingsTab === t;
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;padding:10px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;">' + labels[t] + '</button>';
+    });
+    html += '</div>';
+
+    if (settingsTab === 'account') {
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>' +
+            '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' pts</div>' +
-            (user.email ? '<div style="color:var(--text-dim);font-size:0.8rem;margin-top:8px;">📧 ' + user.email + '</div>' : '') +
-            (user.displayName ? '<div style="color:var(--text-dim);font-size:0.8rem;margin-top:4px;">👤 ' + user.displayName + '</div>' : '') +
-        '</div>' +
-        '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>' +
-        '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;">Close</span>';
+            '</div>';
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Account Details</div>';
+        if (user.email) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
+        if (user.displayName) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + user.displayName + '</span></div>';
+
+        // Sign-in provider
+        let provider = 'Anonymous';
+        if (user.providerData && user.providerData.length > 0) {
+            const pid = user.providerData[0].providerId;
+            if (pid === 'google.com') provider = 'Google';
+            else if (pid === 'twitter.com') provider = 'Twitter/X';
+            else if (pid === 'github.com') provider = 'GitHub';
+            else if (pid === 'facebook.com') provider = 'Facebook';
+            else if (pid === 'password') provider = 'Email';
+        }
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
+
+        // Account created
+        if (currentUser && currentUser.created) {
+            const created = currentUser.created.toDate ? currentUser.created.toDate().toLocaleDateString() : new Date(currentUser.created).toLocaleDateString();
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
+        }
+        html += '</div>';
+
+        // Change username
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Username</div>' +
+            '<div style="display:flex;gap:8px;"><input type="text" id="newUsername" placeholder="' + (currentUser ? currentUser.username || '' : '') + '" maxlength="20" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;">' +
+            '<button onclick="changeUsername()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Save</button></div>' +
+            '<div id="usernameStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+
+        html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'security') {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Two-Factor Authentication</div>';
+
+        // Check if phone MFA is enrolled
+        const enrolled = user.multiFactor && user.multiFactor.enrolledFactors && user.multiFactor.enrolledFactors.length > 0;
+        if (enrolled) {
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Your account is protected with phone verification</div></div></div>' +
+                '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable 2FA</button>';
+        } else {
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔓</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is not enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Add phone verification for extra security</div></div></div>' +
+                '<div id="mfaSetup">' +
+                '<input type="tel" id="mfaPhone" placeholder="+1 (555) 123-4567" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
+                '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Send Verification Code</button>' +
+                '<div id="mfaVerify" style="display:none;margin-top:8px;"><input type="text" id="mfaCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
+                '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable 2FA</button></div>' +
+                '<div id="mfaStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+        }
+        html += '</div>';
+
+        // Session info
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Session</div>' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Last sign-in</span><span style="color:var(--text);font-size:0.85rem;">' + (user.metadata && user.metadata.lastSignInTime ? new Date(user.metadata.lastSignInTime).toLocaleString() : 'Unknown') + '</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Session timeout</span><span style="color:var(--text);font-size:0.85rem;">30 minutes inactive</span></div>' +
+            '</div>';
+
+        // Password change (only for email/password users)
+        if (user.providerData && user.providerData.some(p => p.providerId === 'password')) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Password</div>' +
+                '<button onclick="sendPasswordReset()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Send Password Reset Email</button>' +
+                '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+        }
+
+    } else if (settingsTab === 'data') {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Your Stats</div>';
+        if (currentUser) {
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Total Points</span><span style="color:var(--accent);font-weight:700;font-size:0.85rem;">' + (currentUser.points || 0).toLocaleString() + '</span></div>';
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Channels Visited</span><span style="color:var(--text);font-size:0.85rem;">' + (currentUser.channelsVisited || 0) + '</span></div>';
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Total Visits</span><span style="color:var(--text);font-size:0.85rem;">' + (currentUser.totalVisits || 0) + '</span></div>';
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Current Streak</span><span style="color:var(--text);font-size:0.85rem;">🔥 ' + (currentUser.streak || 0) + ' days</span></div>';
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Level</span><span style="color:var(--text);font-size:0.85rem;">' + lvl.emoji + ' ' + lvl.name + '</span></div>';
+        }
+        html += '</div>';
+
+        // Export data
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Data</div>' +
+            '<button onclick="exportUserData()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">📥 Export My Data</button>' +
+            '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
+            '</div>';
+    }
+
+    html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
+    box.innerHTML = html;
     modal.classList.add('open');
+}
+
+// Change username
+async function changeUsername() {
+    const input = document.getElementById('newUsername');
+    const status = document.getElementById('usernameStatus');
+    const name = input.value.trim();
+    if (name.length < 2 || name.length > 20) {
+        status.innerHTML = '<span style="color:#ef4444;">Username must be 2-20 characters</span>';
+        return;
+    }
+    // Sanitize — strip HTML
+    const clean = name.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '');
+    try {
+        await db.collection('users').doc(auth.currentUser.uid).update({ username: clean });
+        currentUser.username = clean;
+        updateRankUI();
+        status.innerHTML = '<span style="color:#22c55e;">✅ Username updated!</span>';
+    } catch(e) {
+        status.innerHTML = '<span style="color:#ef4444;">Error updating username</span>';
+    }
+}
+
+// Password reset
+async function sendPasswordReset() {
+    const status = document.getElementById('pwResetStatus');
+    try {
+        await auth.sendPasswordResetEmail(auth.currentUser.email);
+        status.innerHTML = '<span style="color:#22c55e;">✅ Reset email sent!</span>';
+    } catch(e) {
+        status.innerHTML = '<span style="color:#ef4444;">Error: ' + e.message + '</span>';
+    }
+}
+
+// 2FA enrollment
+let mfaVerificationId = null;
+let mfaResolver = null;
+
+async function startMFAEnroll() {
+    const phone = document.getElementById('mfaPhone').value.trim();
+    const status = document.getElementById('mfaStatus');
+    if (!phone || phone.length < 10) {
+        status.innerHTML = '<span style="color:#ef4444;">Please enter a valid phone number with country code</span>';
+        return;
+    }
+    status.innerHTML = '<span style="color:var(--text-muted);">Sending code...</span>';
+    try {
+        const user = auth.currentUser;
+        const session = await user.multiFactor.getSession();
+        const phoneOpts = { phoneNumber: phone, session: session };
+        const phoneProvider = new firebase.auth.PhoneAuthProvider();
+
+        // Create invisible recaptcha
+        if (!window.recaptchaVerifier) {
+            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('mfaSetup', { size: 'invisible' });
+        }
+        mfaVerificationId = await phoneProvider.verifyPhoneNumber(phoneOpts, window.recaptchaVerifier);
+        document.getElementById('mfaVerify').style.display = 'block';
+        status.innerHTML = '<span style="color:#22c55e;">Code sent! Check your phone.</span>';
+    } catch(e) {
+        console.log('MFA enroll error:', e);
+        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Error sending code. Make sure you use +country code format.') + '</span>';
+    }
+}
+
+async function verifyMFACode() {
+    const code = document.getElementById('mfaCode').value.trim();
+    const status = document.getElementById('mfaStatus');
+    if (!code || code.length !== 6) {
+        status.innerHTML = '<span style="color:#ef4444;">Please enter the 6-digit code</span>';
+        return;
+    }
+    try {
+        const cred = firebase.auth.PhoneAuthProvider.credential(mfaVerificationId, code);
+        const assertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
+        await auth.currentUser.multiFactor.enroll(assertion, 'Phone');
+        showToast('✅ 2FA enabled!');
+        showSettingsPage('security');
+    } catch(e) {
+        status.innerHTML = '<span style="color:#ef4444;">Invalid code. Please try again.</span>';
+    }
+}
+
+async function disable2FA() {
+    if (!confirm('Are you sure you want to disable two-factor authentication?')) return;
+    try {
+        const factors = auth.currentUser.multiFactor.enrolledFactors;
+        if (factors.length > 0) {
+            await auth.currentUser.multiFactor.unenroll(factors[0]);
+            showToast('2FA disabled');
+            showSettingsPage('security');
+        }
+    } catch(e) {
+        showToast('Error disabling 2FA');
+    }
+}
+
+// Export user data
+function exportUserData() {
+    if (!currentUser) return;
+    const data = JSON.stringify(currentUser, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bitcoin-education-archive-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('📥 Data exported!');
+}
+
+// Delete account
+function confirmDeleteAccount() {
+    const modal = document.getElementById('usernameModal');
+    const box = modal.querySelector('.username-box');
+    box.innerHTML = '<h2 style="color:#ef4444;">⚠️ Delete Account</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:16px;">This will permanently delete your account, points, badges, and all progress. This cannot be undone.</p>' +
+        '<p style="color:var(--text);margin-bottom:20px;">Type <strong>DELETE</strong> to confirm:</p>' +
+        '<input type="text" id="deleteConfirm" placeholder="Type DELETE" style="width:100%;padding:12px;background:var(--input-bg);border:1px solid #ef4444;border-radius:8px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;margin-bottom:12px;">' +
+        '<button onclick="executeDeleteAccount()" style="width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Permanently Delete My Account</button>' +
+        '<span class="skip" onclick="showSettingsPage(\'data\')" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Cancel</span>';
+}
+
+async function executeDeleteAccount() {
+    const confirm = document.getElementById('deleteConfirm').value.trim();
+    if (confirm !== 'DELETE') {
+        showToast('Please type DELETE to confirm');
+        return;
+    }
+    try {
+        const uid = auth.currentUser.uid;
+        await db.collection('users').doc(uid).delete();
+        await auth.currentUser.delete();
+        hideUsernamePrompt();
+        localStorage.clear();
+        location.reload();
+    } catch(e) {
+        showToast('Error deleting account. You may need to sign in again first.');
+    }
 }
 
 function signOutUser() {
