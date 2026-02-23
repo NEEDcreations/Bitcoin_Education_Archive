@@ -1063,12 +1063,40 @@
         currentChannelId = id;
         galleryMode = false;
 
-        // Update description with full text from data
+        // Update description with full text from data, with working links and embeds
         const descEl = document.getElementById('channelDesc');
         if (descEl && d.msgs && d.msgs[0] && d.msgs[0].text) {
-            let fullDesc = d.msgs[0].text.replace(/<[^>]+>/g, '');
-            if (fullDesc.length > 400) fullDesc = fullDesc.substring(0, 400).replace(/\s+\S*$/, '') + '...';
-            descEl.textContent = fullDesc;
+            let t = d.msgs[0].text;
+            // YouTube embeds
+            let ytEmbeds = [];
+            t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
+                ytEmbeds.push(id); return '%%YT' + (ytEmbeds.length - 1) + '%%';
+            });
+            t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g, function(match, id) {
+                ytEmbeds.push(id); return '%%YT' + (ytEmbeds.length - 1) + '%%';
+            });
+            // Twitter/X embeds
+            let twEmbeds = [];
+            t = t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g, function(match) {
+                var url = match.startsWith('http') ? match : 'https://' + match;
+                twEmbeds.push(url); return '%%TW' + (twEmbeds.length - 1) + '%%';
+            });
+            // Linkify remaining URLs
+            t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+            // Restore YouTube
+            t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
+                return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
+            });
+            // Restore Twitter
+            t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
+                var twUrl = twEmbeds[parseInt(idx)], twId = 'tw_' + Math.random().toString(36).substr(2, 8);
+                var isMob = typeof isMobile === 'function' && isMobile();
+                var hm = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
+                var dh = hm ? '@' + hm[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
+                return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl + '\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">' + dh + '</div><div class="tw-preview-hint">' + (isMob ? '▶ Tap to display tweet' : '▶ Click to display tweet') + '</div></div><div class="tw-preview-arrow">→</div></div>';
+            });
+            t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
+            descEl.innerHTML = t;
         }
 
         renderContent(id);
