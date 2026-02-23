@@ -39,6 +39,7 @@ let readSeconds = 0;
 let lastReadAward = 0;
 let rankingReady = false;
 let allTimeChannels = new Set(); // tracks channels already awarded across all sessions
+let lastLevelName = '';
 
 // Initialize Firebase
 function initRanking() {
@@ -426,6 +427,12 @@ function updateRankUI() {
     const bar = document.getElementById('rankBar');
     if (!bar) return;
 
+    // Detect level-up
+    if (lastLevelName && lastLevelName !== lv.name) {
+        showLevelUpCelebration(lv);
+    }
+    lastLevelName = lv.name;
+
     let progressHtml = '';
     if (lv.next) {
         const pct = Math.min(100, ((currentUser.points - lv.min) / (lv.next.min - lv.min)) * 100);
@@ -443,6 +450,80 @@ function updateRankUI() {
             '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
+
+    // Update user display on page
+    updateUserDisplay(lv);
+}
+
+function updateUserDisplay(lv) {
+    let el = document.getElementById('userDisplay');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'userDisplay';
+        el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:130;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;';
+        el.onclick = function() { toggleLeaderboard(); };
+        document.body.appendChild(el);
+    }
+    el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
+        '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
+        '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + (currentUser.points || 0).toLocaleString() + ' pts</span>';
+}
+
+function showLevelUpCelebration(lv) {
+    // Play triumphant sound
+    if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+            // Triumphant fanfare: C5, E5, G5, C6, E6, G6
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.5, 1568.0];
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = freq;
+                osc.type = i < 3 ? 'sine' : 'triangle';
+                gain.gain.setValueAtTime(0.12 * vol, ctx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.6);
+                osc.start(ctx.currentTime + i * 0.1);
+                osc.stop(ctx.currentTime + i * 0.1 + 0.6);
+            });
+        } catch(e) {}
+    }
+
+    // Confetti
+    if (typeof launchConfetti === 'function') launchConfetti();
+
+    // Level-up modal
+    const overlay = document.createElement('div');
+    overlay.id = 'levelUpModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400;display:flex;justify-content:center;align-items:center;animation:fadeIn 0.3s ease-out;';
+
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:360px;width:90%;text-align:center;animation:fadeSlideIn 0.4s ease-out;">' +
+        '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
+        '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
+        '<div style="color:var(--heading);font-size:1.6rem;font-weight:900;margin-bottom:8px;">' + lv.name + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ points!</div>' +
+        '<div style="color:var(--text-faint);font-size:0.85rem;margin-bottom:24px;">' + getLevelFlavor(lv.name) + '</div>' +
+        '<button onclick="document.getElementById(\'levelUpModal\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep Going! 🚀</button>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+function getLevelFlavor(name) {
+    const flavors = {
+        'Curious': 'You\'re starting to see what all the fuss is about.',
+        'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
+        'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
+        'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
+        'Maxi': 'There is no second best. You know it.',
+        'Cypherpunk': 'Privacy. Sovereignty. Code is law. You get it.',
+        'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
+    };
+    return flavors[name] || 'You\'re leveling up!';
 }
 
 // Leaderboard
