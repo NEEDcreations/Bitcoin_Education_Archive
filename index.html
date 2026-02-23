@@ -99,7 +99,7 @@
         .msg-link { color: var(--link); text-decoration: none; word-break: break-all; }
         .msg-link:hover { text-decoration: underline; }
         /* Back to top */
-        .back-to-top { position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.3rem; cursor: pointer; z-index: 50; opacity: 0; transform: translateY(10px); transition: 0.3s; pointer-events: none; box-shadow: 0 4px 15px var(--accent-glow); }
+        .back-to-top { position: fixed; bottom: 30px; right: 190px; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.3rem; cursor: pointer; z-index: 50; opacity: 0; transform: translateY(10px); transition: 0.3s; pointer-events: none; box-shadow: 0 4px 15px var(--accent-glow); }
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--accent-glow); }
 
@@ -186,8 +186,8 @@
 
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 70px; width: auto; }
-            #lbFloatBtn { bottom: 16px !important; right: 16px !important; padding: 10px 14px !important; font-size: 0.85rem !important; }
-            .rank-toast { right: 15px; bottom: 15px; font-size: 0.8rem; }
+            #lbFloatBtn { bottom: 70px !important; right: 16px !important; padding: 10px 14px !important; font-size: 0.85rem !important; z-index: 140; }
+            .rank-toast { right: 15px; bottom: 80px; font-size: 0.8rem; }
         }
 
         /* Badge Toast */
@@ -297,16 +297,17 @@
             .mobile-bar h2 { color: var(--accent); font-size: 1rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
-            .mobile-close { position: absolute; top: 16px; right: 20px; background: none; border: none; color: var(--text-dim); font-size: 1.8rem; cursor: pointer; z-index: 101; line-height: 1; }
+            .mobile-close { position: absolute; top: 16px; right: 16px; background: var(--bg-side); border: 1px solid var(--border); color: var(--text-dim); font-size: 1.2rem; cursor: pointer; z-index: 101; line-height: 1; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+            .theme-toggle { position: absolute; top: 16px; right: 60px; }
             .hero { padding: 24px 16px 16px; }
             .hero h1 { font-size: 1.4rem; }
-            .messages { padding: 0 16px 60px; }
+            .messages { padding: 0 16px 100px; }
             .msg-text { font-size: 0.95rem; }
             .msg-img { max-width: 100%; height: auto; }
             .msg-link { font-size: 0.85rem; }
             .share-bar { gap: 6px; }
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
-            .back-to-top { bottom: 20px; right: 20px; width: 38px; height: 38px; font-size: 1.1rem; }
+            .back-to-top { bottom: 70px; left: 16px; right: auto; width: 38px; height: 38px; font-size: 1.1rem; }
             .home-title { font-size: 2rem; }
             .home-stats { gap: 16px; flex-wrap: wrap; }
             .home-stat-num { font-size: 1.3rem; }
