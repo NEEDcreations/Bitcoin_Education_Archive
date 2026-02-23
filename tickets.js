@@ -236,7 +236,8 @@ function renderTicketsSection() {
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🎟️ Orange Tickets</div>' +
         '<div style="color:#f7931a;font-weight:800;font-size:1.3rem;">' + tickets + '</div></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
-        'Earn tickets by logging in daily (+1) and referring friends (+5 per verified referral). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!' +
+        'Earn tickets by logging in daily (+1) and referring friends (+5 per verified referral). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!<br><br>' +
+        '🏆 <strong style="color:#eab308;">The more tickets you have, the higher your chance of winning our 25,000 sats giveaways!</strong>' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
         '<div style="flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;">' +

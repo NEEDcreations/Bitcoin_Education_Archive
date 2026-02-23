@@ -1178,7 +1178,8 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🤝 Referrals:</strong> Share your unique link. When someone signs up through your link, logs in, and earns 2,100+ points (Maxi rank), you earn 5 Orange Tickets.<br>' +
                 '<strong style="color:var(--text);">⏳ Verification:</strong> Referrals are verified automatically when your friend hits the points threshold.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus Points:</strong> Each ticket earned = 5 bonus points towards your rank.<br>' +
-                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock badges at 25 🐟, 50 🦈, and 100 🐋 tickets!' +
+                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock badges at 25 🐟, 50 🦈, and 100 🐋 tickets!<br>' +
+                '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning our 25,000 sats giveaways!' +
                 '</div></div>';
         }
 
