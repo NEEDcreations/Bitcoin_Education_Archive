@@ -44,6 +44,8 @@
         .search-box { padding: 12px; border-bottom: 1px solid var(--border); }
         .search-input { width: 100%; padding: 10px 14px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; font-family: inherit; outline: none; }
         .search-input:focus { border-color: var(--accent); }
+        .random-btn { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; font-size: 1.2rem; width: 44px; cursor: pointer; transition: 0.2s; }
+        .random-btn:hover { border-color: var(--accent); transform: rotate(15deg); }
         .search-input::placeholder { color: var(--text-faint); }
         .search-results { padding: 12px; display: none; overflow-y: auto; flex: 1; background: var(--bg-side); }
         .search-results.active { display: block; }
@@ -130,6 +132,34 @@
             .rank-toast { right: 15px; bottom: 15px; font-size: 0.8rem; }
         }
 
+        /* Quest Modal */
+        #questModal { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 260; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; }
+        #questModal.open { display: flex; }
+        #questInner { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 550px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .quest-header { text-align: center; margin-bottom: 30px; }
+        .quest-badge { display: inline-block; background: var(--accent); color: #fff; padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; letter-spacing: 1px; margin-bottom: 12px; }
+        .quest-header h2 { color: var(--heading); font-size: 1.5rem; margin-bottom: 8px; }
+        .quest-header p { color: var(--text-muted); font-size: 0.9rem; }
+        .quest-q { margin-bottom: 24px; }
+        .quest-q-num { color: var(--accent); font-weight: 800; font-size: 0.75rem; margin-bottom: 6px; }
+        .quest-q-text { color: var(--heading); font-size: 1.05rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; }
+        .quest-options { display: flex; flex-direction: column; gap: 8px; }
+        .quest-opt { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 0.95rem; cursor: pointer; text-align: left; font-family: inherit; transition: 0.15s; }
+        .quest-opt:hover { border-color: var(--accent); }
+        .quest-opt.selected { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+        .quest-opt.correct { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .quest-opt.wrong { background: rgba(239,68,68,0.15); border-color: #ef4444; color: #ef4444; }
+        .quest-opt:disabled { cursor: default; opacity: 0.8; }
+        .quest-submit { width: 100%; padding: 16px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 20px; transition: 0.2s; }
+        .quest-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+        .quest-submit:not(:disabled):hover { filter: brightness(1.1); }
+        .quest-skip { width: 100%; padding: 12px; background: none; border: none; color: var(--text-faint); font-size: 0.9rem; cursor: pointer; font-family: inherit; margin-top: 8px; }
+        .quest-skip:hover { color: var(--text-dim); }
+        .quest-result { text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+        .quest-result-msg { font-size: 1.3rem; font-weight: 800; color: var(--heading); margin-bottom: 20px; }
+        .quest-retry { width: 100%; padding: 14px; background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 12px; color: var(--accent); font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; margin-bottom: 10px; }
+        .quest-done { width: 100%; padding: 14px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+
         /* Home Page */
         .home-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 60px 30px; background: radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.08) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(121,45,228,0.06) 0%, transparent 60%); }
         .home-page.hidden { display: none; }
@@ -199,7 +229,10 @@
             <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
         </div>
         <div class="search-box">
-            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)">
+            <div style="display:flex;gap:8px;">
+                <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)" style="flex:1;">
+                <button class="random-btn" onclick="goRandom()" title="Random channel">🎲</button>
+            </div>
         </div>
         <div class="search-results" id="searchResults"></div>
         <div class="channels" id="channelList">
@@ -390,6 +423,7 @@
         <div class="messages" id="msgs"></div>
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
+    <div id="questModal"><div id="questInner"></div></div>
     <div id="leaderboard"></div>
     <div id="usernameModal">
         <div class="username-box">
@@ -408,6 +442,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer></script>
     <script src="ranking.js" defer></script>
+    <script src="quests.js" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -433,6 +468,13 @@
 
     function toggleMenu() {
         document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function goRandom() {
+        const keys = Object.keys(CHANNELS);
+        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+        go(randomKey);
+        if (isMobile()) document.getElementById('sidebar').classList.remove('open');
     }
 
     function goHome() {
