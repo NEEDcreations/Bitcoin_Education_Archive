@@ -98,6 +98,15 @@
         .share-btn:hover { border-color: var(--accent); color: var(--accent); }
         .share-btn.copied { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+        /* Image gallery mode */
+        .gallery-toggle { display: none; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-dim); font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: 0.2s; margin-top: 12px; }
+        .gallery-toggle:hover { border-color: var(--accent); color: var(--accent); }
+        .gallery-toggle.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding: 20px 0; }
+        @media (max-width: 900px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; } }
+        .gallery-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); transition: 0.2s; }
+        .gallery-grid img:hover { border-color: var(--accent); transform: scale(1.03); box-shadow: 0 4px 15px var(--accent-glow); }
+
         .load-more-btn { display: block; width: 100%; padding: 16px; margin: 30px 0; background: var(--accent-bg); border: 1px solid var(--accent-glow); border-radius: 12px; color: var(--accent); font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
         .load-more-btn:hover { background: var(--accent-glow); }
         .msg-img { content-visibility: auto; }
@@ -573,6 +582,102 @@
         }).join('');
     }
 
+    let galleryMode = false;
+    let currentChannelData = null;
+    let currentChannelId = null;
+
+    function toggleGallery(id) {
+        galleryMode = !galleryMode;
+        const btn = document.getElementById('galleryBtn');
+        if (btn) {
+            btn.classList.toggle('active', galleryMode);
+            btn.textContent = galleryMode ? '📄 List View' : '🖼️ Gallery View';
+        }
+        renderContent(id);
+    }
+
+    function renderContent(id) {
+        const d = currentChannelData;
+        if (!d) return;
+        const msgsEl = document.getElementById('msgs');
+
+        if (galleryMode) {
+            // Collect all images
+            let allImgs = [];
+            d.msgs.forEach(m => {
+                if (m.imgs) m.imgs.forEach(img => allImgs.push(img));
+            });
+
+            let html = '<div class="gallery-grid">';
+            const PAGE = 100;
+            const showing = allImgs.slice(0, PAGE);
+            showing.forEach(img => {
+                html += '<img src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+            });
+            html += '</div>';
+            if (allImgs.length > PAGE) {
+                window._galleryImgs = allImgs;
+                window._galleryOffset = PAGE;
+                html += '<button class="load-more-btn" id="loadMoreGallery" onclick="loadMoreGallery()">Load more (' + (allImgs.length - PAGE) + ' remaining)</button>';
+            }
+            msgsEl.innerHTML = html;
+        } else {
+            // Normal list view - re-render
+            const PAGE_SIZE = 50;
+            const allMsgs = d.msgs;
+
+            function renderBatch(startIdx) {
+                const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
+                let html = '';
+                batch.forEach(m => {
+                    html += '<div class="msg">';
+                    if (m.text) {
+                        let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                        html += '<div class="msg-text">' + t + '</div>';
+                    }
+                    if (m.imgs) m.imgs.forEach(img => {
+                        html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+                    });
+                    html += '</div>';
+                });
+                return html;
+            }
+
+            let msgsHtml = renderBatch(0);
+            if (allMsgs.length > PAGE_SIZE) {
+                msgsHtml += '<button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreMsgs()">Load more (' + (allMsgs.length - PAGE_SIZE) + ' remaining)</button>';
+            }
+            msgsEl.innerHTML = msgsHtml;
+            window._currentMsgs = allMsgs;
+            window._currentOffset = PAGE_SIZE;
+        }
+
+        msgsEl.classList.add('fade-in');
+    }
+
+    window.loadMoreGallery = function() {
+        const imgs = window._galleryImgs;
+        const offset = window._galleryOffset;
+        const grid = document.querySelector('.gallery-grid');
+        const btn = document.getElementById('loadMoreGallery');
+        const next = imgs.slice(offset, offset + 100);
+
+        next.forEach(img => {
+            const el = document.createElement('img');
+            el.src = img;
+            el.loading = 'lazy';
+            el.onclick = function() { openImg(this.src); };
+            grid.appendChild(el);
+        });
+
+        window._galleryOffset = offset + 100;
+        if (window._galleryOffset >= imgs.length) {
+            btn.remove();
+        } else {
+            btn.textContent = 'Load more (' + (imgs.length - window._galleryOffset) + ' remaining)';
+        }
+    };
+
     function copyLink(url, btn) {
         navigator.clipboard.writeText(url).then(() => {
             btn.classList.add('copied');
@@ -610,6 +715,10 @@
         if (btn) btn.classList.add('active');
 
         // Show loading state
+        // Check if this is an image-heavy channel
+        const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
+        const isGallery = GALLERY_CHANNELS.includes(id);
+
         const shareUrl = 'https://bitcoineducation.quest/#' + id;
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
@@ -621,7 +730,8 @@
                 '<a class="share-btn" href="https://njump.me/?q=' + encodeURIComponent(shareText + ' ' + shareUrl) + '" target="_blank">🟣 Nostr</a>' +
                 '<button class="share-btn" onclick="copyLink(\'' + shareUrl + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\'' + id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
-            '</div>';
+            '</div>' +
+            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\'' + id + '\')">🖼️ Gallery View</button>' : '');
         document.getElementById('hero').classList.remove('fade-in');
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:var(--text-faint);text-align:center;">Loading...</div>';
         document.getElementById('main').scrollTop = 0;
@@ -647,70 +757,35 @@
             }
         }
 
-        // Render messages in batches for performance
-        const PAGE_SIZE = 50;
-        let currentPage = 0;
-        const allMsgs = d.msgs;
-
-        function renderBatch(startIdx) {
-            const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
-            let html = '';
-            batch.forEach(m => {
-                html += '<div class="msg">';
-                if (m.text) {
-                    let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
-                    html += '<div class="msg-text">' + t + '</div>';
-                }
-                if (m.imgs) m.imgs.forEach(img => {
-                    html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
-                });
-                html += '</div>';
-            });
-            return html;
-        }
-
-        let msgsHtml = renderBatch(0);
-        if (allMsgs.length > PAGE_SIZE) {
-            msgsHtml += '<button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreMsgs()">Load more (' + (allMsgs.length - PAGE_SIZE) + ' remaining)</button>';
-        }
-        document.getElementById('msgs').innerHTML = msgsHtml;
+        // Store channel data and render
+        currentChannelData = d;
+        currentChannelId = id;
+        galleryMode = false;
+        renderContent(id);
 
         // Trigger fade-in animation
         document.getElementById('hero').classList.add('fade-in');
         document.getElementById('msgs').classList.add('fade-in');
 
-        // Store for load-more
-        window._currentMsgs = allMsgs;
-        window._currentOffset = PAGE_SIZE;
+        // Setup load-more for list view
+        window._currentMsgs = d.msgs;
+        window._currentOffset = 50;
         window.loadMoreMsgs = function() {
             const offset = window._currentOffset;
             const msgs = window._currentMsgs;
-            const container = document.getElementById('msgs');
             const btn = document.getElementById('loadMoreBtn');
-            const remaining = msgs.length - offset;
-            const nextBatch = msgs.slice(offset, offset + PAGE_SIZE);
-            
+            const nextBatch = msgs.slice(offset, offset + 50);
             let html = '';
             nextBatch.forEach(m => {
                 html += '<div class="msg">';
-                if (m.text) {
-                    let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
-                    html += '<div class="msg-text">' + t + '</div>';
-                }
-                if (m.imgs) m.imgs.forEach(img => {
-                    html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
-                });
+                if (m.text) { let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.imgs) m.imgs.forEach(img => { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; });
                 html += '</div>';
             });
-            
             btn.insertAdjacentHTML('beforebegin', html);
-            window._currentOffset = offset + PAGE_SIZE;
-            
-            if (window._currentOffset >= msgs.length) {
-                btn.remove();
-            } else {
-                btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)';
-            }
+            window._currentOffset = offset + 50;
+            if (window._currentOffset >= msgs.length) { btn.remove(); }
+            else { btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)'; }
         };
 
         // Mark channel as visited in sidebar
