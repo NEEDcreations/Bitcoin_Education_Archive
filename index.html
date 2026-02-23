@@ -91,6 +91,7 @@
         .msg { padding: 20px 0; border-bottom: 1px solid var(--msg-border); }
         .msg-text { color: var(--text); font-size: 1.05rem; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; max-width: 100%; }
         .msg-text strong, .msg-text b { color: var(--heading); }
+        .orange-glow { color: #f7931a; font-weight: 700; font-size: 1.1em; text-shadow: 0 0 20px rgba(247,147,26,0.4); padding: 16px 20px; margin-top: 8px; background: rgba(247,147,26,0.08); border: 1px solid rgba(247,147,26,0.25); border-radius: 12px; display: block; }
         .msg-img { max-width: 100%; border-radius: 12px; margin-top: 14px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
         .msg-img:hover { border-color: var(--accent); box-shadow: 0 8px 30px var(--accent-glow); }
         .msg-link { color: var(--link); text-decoration: none; word-break: break-all; }
@@ -701,6 +702,7 @@
                     html += '<div class="msg">';
                     if (m.text) {
                         let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                        t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
                         html += '<div class="msg-text">' + t + '</div>';
                     }
                     if (m.imgs) m.imgs.forEach(img => {
@@ -878,7 +880,7 @@
             let html = '';
             nextBatch.forEach(m => {
                 html += '<div class="msg">';
-                if (m.text) { let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.text) { let t = m.text.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>'); t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; });
                 html += '</div>';
             });
