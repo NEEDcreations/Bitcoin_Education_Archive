@@ -735,7 +735,8 @@
         } else {
             // Normal list view - re-render
             const PAGE_SIZE = 50;
-            const allMsgs = d.msgs;
+            // Skip the first message since it's already shown in the hero description
+            const allMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
 
             function renderBatch(startIdx) {
                 const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
@@ -1076,8 +1077,8 @@
         document.getElementById('hero').classList.add('fade-in');
         document.getElementById('msgs').classList.add('fade-in');
 
-        // Setup load-more for list view
-        window._currentMsgs = d.msgs;
+        // Setup load-more for list view (skip first msg, shown in hero)
+        window._currentMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
         window._currentOffset = 50;
         window.loadMoreMsgs = function() {
             const offset = window._currentOffset;
