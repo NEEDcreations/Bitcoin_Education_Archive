@@ -72,6 +72,10 @@
         .sr-item .sr-cat { font-size: 0.65rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
         .sr-item .sr-match { color: var(--accent); font-size: 0.8rem; margin-top: 4px; line-height: 1.4; }
         .cat-label { font-size: 0.65rem; text-transform: uppercase; color: var(--text-faint); letter-spacing: 2px; margin: 20px 0 8px 12px; font-weight: 800; }
+        .cat-toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding-right: 12px; transition: color 0.2s; user-select: none; }
+        .cat-toggle:hover { color: var(--accent); }
+        .cat-arrow { font-size: 0.55rem; transition: transform 0.2s; }
+        .cat-group { overflow: hidden; transition: max-height 0.3s ease; }
         .ch-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-dim); padding: 11px 14px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 0.9rem; font-family: inherit; position: relative; }
         .ch-btn:hover { background: var(--card-bg); color: var(--text); transform: translateX(2px); }
         .ch-btn.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; border-left: 3px solid var(--accent); }
@@ -430,7 +434,8 @@
                 <div class="cat-label">⭐ Your Saved Channels</div>
                 <div id="favsList"></div>
             </div>
-            <div class="cat-label">Properties Layer 1</div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="true">Properties Layer 1 <span class="cat-arrow">▼</span></div>
+            <div class="cat-group">
             <button class="ch-btn active" onclick="go('whitepaper',this)">📄 whitepaper</button>
             <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
             <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable</button>
@@ -443,7 +448,9 @@
             <button class="ch-btn" onclick="go('programmable',this)">🤖 programable-interoperable</button>
             <button class="ch-btn" onclick="go('use-cases',this)">✔ use-cases</button>
 
-            <div class="cat-label">Experienced Topics</div>
+            </div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Experienced Topics <span class="cat-arrow">▶</span></div>
+            <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('maximalism',this)">💯 maximalism</button>
             <button class="ch-btn" onclick="go('problems-of-money',this)">📉 problems-of-money</button>
             <button class="ch-btn" onclick="go('self-custody',this)">🔑 self-custody-security</button>
@@ -472,7 +479,9 @@
             <button class="ch-btn" onclick="go('evidence-against-alts',this)">⚠ evidence-against-alts</button>
             <button class="ch-btn" onclick="go('consensus',this)">🌐 consensus</button>
 
-            <div class="cat-label">Resources</div>
+            </div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Resources <span class="cat-arrow">▶</span></div>
+            <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('one-stop-shop',this)">🛑 one-stop-shop</button>
             <button class="ch-btn" onclick="go('faq-glossary',this)">❓ faq-glossary</button>
             <button class="ch-btn" onclick="go('nostr',this)">💜 nostr</button>
@@ -507,7 +516,9 @@
             <button class="ch-btn" onclick="go('web5',this)">5⃣ web5</button>
             <button class="ch-btn" onclick="go('memes-funny',this)">😂 memes-funny</button>
 
-            <div class="cat-label">Additional Info</div>
+            </div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Additional Info <span class="cat-arrow">▶</span></div>
+            <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('100_sats',this)">💯 100 Sats</button>
             <button class="ch-btn" onclick="go('analogies',this)">🔋 Analogies</button>
             <button class="ch-btn" onclick="go('austrian_school_of_economics',this)">🇦🇹 Austrian School</button>
@@ -583,8 +594,11 @@
             <button class="ch-btn" onclick="go('utxos',this)">🕳 UTXOs</button>
             <button class="ch-btn" onclick="go('vbyte',this)">🏋 vByte</button>
 
-            <div class="cat-label">Referral Links</div>
+            </div>
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="true">Referral Links <span class="cat-arrow">▼</span></div>
+            <div class="cat-group">
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
+            </div>
         </div>
         <button class="quest-start-btn" onclick="startQuestManual()">⚡ Start a Quest</button>
         <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:2px solid #f7931a;color:var(--text);margin-top:4px;transition:0.2s;" onmouseover="this.style.background='linear-gradient(135deg,#f7931a,#ea580c)';this.style.color='#fff';this.style.boxShadow='0 0 20px rgba(247,147,26,0.4)';" onmouseout="this.style.background='var(--card-bg)';this.style.color='var(--text)';this.style.boxShadow='none';">🎓 Scholar Certification Quest</button>
@@ -778,6 +792,36 @@
 
     function toggleMenu() {
         document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function toggleCat(label) {
+        var group = label.nextElementSibling;
+        var arrow = label.querySelector('.cat-arrow');
+        var expanded = label.getAttribute('data-expanded') === 'true';
+        if (expanded) {
+            group.style.display = 'none';
+            label.setAttribute('data-expanded', 'false');
+            if (arrow) arrow.textContent = '▶';
+        } else {
+            group.style.display = '';
+            label.setAttribute('data-expanded', 'true');
+            if (arrow) arrow.textContent = '▼';
+        }
+    }
+
+    // Auto-expand the section when navigating to a channel
+    function expandCatForChannel(btn) {
+        if (!btn) return;
+        var group = btn.closest('.cat-group');
+        if (group && group.style.display === 'none') {
+            var label = group.previousElementSibling;
+            if (label && label.classList.contains('cat-toggle')) {
+                group.style.display = '';
+                label.setAttribute('data-expanded', 'true');
+                var arrow = label.querySelector('.cat-arrow');
+                if (arrow) arrow.textContent = '▼';
+            }
+        }
     }
 
     function getFavs() { return JSON.parse(localStorage.getItem('btc_favs') || '[]'); }
@@ -1266,7 +1310,16 @@
         playChannelSound();
         document.getElementById('home').classList.add('hidden');
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
+        if (btn) { btn.classList.add('active'); expandCatForChannel(btn); }
+        else {
+            // Find the button by channel id and expand its section
+            document.querySelectorAll('.ch-btn').forEach(b => {
+                if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + id + "'") !== -1) {
+                    b.classList.add('active');
+                    expandCatForChannel(b);
+                }
+            });
+        }
 
         // Show loading state
         // Check if this is an image-heavy channel
