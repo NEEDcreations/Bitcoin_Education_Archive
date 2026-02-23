@@ -59,6 +59,58 @@ function initRanking() {
             // Still set up auth listener for future state changes
         }
 
+        // Check if returning from provider redirect (in-app browser flow)
+        auth.getRedirectResult().then(async function(result) {
+            if (!result || !result.user) return;
+            const user = result.user;
+            const existingDoc = await db.collection('users').doc(user.uid).get();
+
+            // Recover anonymous data from before redirect
+            const anonUid = localStorage.getItem('btc_anon_uid');
+            let anonData = null;
+            try { anonData = JSON.parse(localStorage.getItem('btc_anon_data')); } catch(e) {}
+            localStorage.removeItem('btc_anon_uid');
+            localStorage.removeItem('btc_anon_data');
+
+            if (!existingDoc.exists) {
+                if (anonData) {
+                    anonData.email = user.email || '';
+                    if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
+                    await db.collection('users').doc(user.uid).set(anonData);
+                } else {
+                    await db.collection('users').doc(user.uid).set({
+                        username: user.displayName || 'Bitcoiner',
+                        email: user.email || '',
+                        points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
+                        lastVisit: new Date().toISOString().split('T')[0],
+                        created: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                if (typeof attachReferral === 'function') attachReferral(user.uid);
+            } else if (anonData) {
+                const existData = existingDoc.data();
+                if ((anonData.points || 0) > (existData.points || 0)) {
+                    await existingDoc.ref.update({
+                        points: anonData.points,
+                        channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
+                        totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                    });
+                }
+            }
+
+            // Clean up old anonymous doc
+            if (anonUid && anonUid !== user.uid) {
+                try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
+            }
+
+            loadUser(user.uid);
+            showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+        }).catch(function(e) {
+            if (e.code !== 'auth/popup-closed-by-user') {
+                console.log('Redirect result error:', e);
+            }
+        });
+
         // Wait for auth to fully resolve before doing anything
         // This prevents the race condition where anonymous user loads before Google auth restores
         let firstAuthEvent = true;
@@ -285,29 +337,21 @@ function isInAppBrowser() {
 
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
+
+    // In-app browsers (Twitter, Instagram, etc): use redirect instead of popup
     if (isInAppBrowser()) {
-        // Show helpful message instead of letting it fail
-        var modal = document.getElementById('usernameModal');
-        var box = modal ? modal.querySelector('.username-box') : null;
-        if (box) {
-            box.innerHTML = '<div style="text-align:center;padding:20px;">' +
-                '<div style="font-size:3rem;margin-bottom:16px;">🌐</div>' +
-                '<h2 style="color:var(--heading);margin-bottom:12px;">Open in Your Browser</h2>' +
-                '<p style="color:var(--text-muted);font-size:0.9rem;line-height:1.6;margin-bottom:16px;">Google sign-in doesn\'t work inside app browsers (Twitter, Facebook, etc). Please open this page in <strong>Safari</strong>, <strong>Chrome</strong>, or your default browser.</p>' +
-                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;text-align:left;">' +
-                '<div style="color:var(--text);font-size:0.85rem;line-height:1.7;">' +
-                '📱 <strong>On iPhone:</strong> Tap the ⋯ or share icon → "Open in Safari"<br>' +
-                '🤖 <strong>On Android:</strong> Tap ⋮ menu → "Open in Chrome"' +
-                '</div></div>' +
-                '<button onclick="navigator.clipboard.writeText(window.location.href).then(function(){showToast(\'🔗 Link copied! Paste it in your browser.\')}).catch(function(){})" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">📋 Copy Link to Clipboard</button>' +
-                '<button onclick="hideUsernamePrompt()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;">Close</button>' +
-                '</div>';
-            modal.classList.add('open');
-        } else {
-            showToast('⚠️ Please open this site in Safari or Chrome to sign in with Google.');
+        // Save anonymous data before redirect so we can merge when they come back
+        if (auth.currentUser && auth.currentUser.isAnonymous) {
+            const anonDoc = await db.collection('users').doc(auth.currentUser.uid).get();
+            if (anonDoc.exists) {
+                localStorage.setItem('btc_anon_uid', auth.currentUser.uid);
+                localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+            }
         }
+        auth.signInWithRedirect(provider);
         return;
     }
+
     try {
         // Save anonymous user info BEFORE popup changes auth state
         const anonUser = auth.currentUser;
