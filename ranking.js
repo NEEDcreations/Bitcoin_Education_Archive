@@ -417,6 +417,15 @@ function containsProfanity(str) {
 }
 
 async function createUser(username, email) {
+    // Wait for auth to be ready if not yet
+    if (!auth.currentUser) {
+        try {
+            await auth.signInAnonymously();
+        } catch(e) {
+            showToast('Error creating account. Please try again.');
+            return;
+        }
+    }
     const uid = auth.currentUser.uid;
     username = sanitizeInput(username);
     if (containsProfanity(username)) {
