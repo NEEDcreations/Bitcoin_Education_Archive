@@ -190,6 +190,12 @@
         .home-stat { display: flex; flex-direction: column; align-items: center; }
         .home-stat-num { font-size: 2rem; font-weight: 900; color: var(--accent); }
         .home-stat-label { font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+        .daily-channel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; margin-bottom: 30px; cursor: pointer; transition: 0.2s; text-align: left; }
+        .daily-channel:hover { border-color: var(--accent); box-shadow: 0 4px 20px var(--accent-glow); }
+        .daily-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); font-weight: 800; margin-bottom: 8px; }
+        .daily-title { color: var(--heading); font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
+        .daily-desc { color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
+
         .home-cta { background: #f97316; color: #fff; border: none; padding: 16px 40px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.2s; }
         .home-cta:hover { background: #ea580c; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(249,115,22,0.3); }
         .home-footer { margin-top: 30px; color: #334155; font-size: 0.85rem; }
@@ -430,6 +436,7 @@
                     <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
                     <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
                 </div>
+                <div class="daily-channel" id="dailyChannel"></div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
                 <p class="home-footer">Open source · Free forever · Built on GitHub Pages</p>
             </div>
@@ -746,6 +753,23 @@
         }
         // Wait a moment for Firebase to init
         setTimeout(updateVisitDisplay, 2000);
+    })();
+
+    // Daily featured channel
+    (function() {
+        const keys = Object.keys(CHANNELS);
+        // Use day of year as seed for deterministic daily rotation
+        const now = new Date();
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const dailyKey = keys[dayOfYear % keys.length];
+        const ch = CHANNELS[dailyKey];
+        if (ch) {
+            const el = document.getElementById('dailyChannel');
+            el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
+                '<div class="daily-title">' + ch.title + '</div>' +
+                '<div class="daily-desc">' + ch.desc + '</div>';
+            el.onclick = () => go(dailyKey);
+        }
     })();
 
     // Reading progress bar
