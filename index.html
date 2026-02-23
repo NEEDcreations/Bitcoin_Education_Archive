@@ -526,13 +526,15 @@
                 </div>
                 <button class="home-cta" onclick="go('whitepaper')">Start Exploring →</button>
                 <div class="daily-channel" id="dailyChannel"></div>
-                <div class="suggest-box">
+                <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;">
                     <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic</h3>
-                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Want to see something added to the archive? Let us know!</p>
-                    <input type="text" id="suggestName" placeholder="Your name (optional)" class="suggest-input">
-                    <textarea id="suggestText" placeholder="What topic or content should we add?" class="suggest-input" rows="3"></textarea>
-                    <button class="suggest-submit" onclick="submitSuggestion()">Submit Suggestion</button>
-                    <div id="suggestStatus"></div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0;">Want to see something added to the archive? Let us know!</p>
+                    <div id="suggestFields" style="display:none;margin-top:12px;">
+                        <input type="text" id="suggestName" placeholder="Your name (optional)" class="suggest-input" onclick="event.stopPropagation()">
+                        <textarea id="suggestText" placeholder="What topic or content should we add?" class="suggest-input" rows="3" onclick="event.stopPropagation()"></textarea>
+                        <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()">Submit Suggestion</button>
+                        <div id="suggestStatus"></div>
+                    </div>
                 </div>
                 <p class="home-footer">Open source · Free forever · Built on GitHub Pages</p>
             </div>
@@ -965,6 +967,15 @@
     })();
 
     // Suggest a topic
+    function expandSuggest() {
+        const fields = document.getElementById('suggestFields');
+        const box = document.getElementById('suggestBox');
+        if (fields.style.display === 'none') {
+            fields.style.display = 'block';
+            box.style.cursor = 'default';
+        }
+    }
+
     async function submitSuggestion() {
         const name = document.getElementById('suggestName').value.trim();
         const text = document.getElementById('suggestText').value.trim();
