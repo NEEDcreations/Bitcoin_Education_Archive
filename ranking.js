@@ -690,6 +690,7 @@ async function awardPoints(pts, reason) {
     showToast('+' + pts + ' pts — ' + reason);
     updateRankUI();
     refreshLeaderboardIfOpen();
+    if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
 }
 
 // Auto-refresh leaderboard if it's currently open
@@ -707,6 +708,7 @@ function refreshLeaderboardIfOpen() {
 
 // Called from go() when user opens a channel
 async function onChannelOpen(channelId) {
+    if (typeof nachoOnChannel === 'function') nachoOnChannel(channelId);
     if (!currentUser || !rankingReady) return;
 
     // Only award points for channels NEVER visited before (persisted)
@@ -1298,6 +1300,15 @@ function showSettingsPage(tab) {
             '<span style="color:var(--text-muted);font-size:0.8rem;">Volume</span>' +
             '<input type="range" min="0" max="1" step="0.05" value="' + vol + '" oninput="setVolume(this.value)" style="flex:1;accent-color:#f7931a;cursor:pointer;">' +
             '</div></div>';
+
+        // Nacho mascot toggle
+        const nachoOn = localStorage.getItem('btc_nacho_hidden') !== 'true';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🦡 Nacho (Mascot)</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Show Nacho</span>' +
+            '<button onclick="if(typeof ' + (nachoOn ? 'hideNacho' : 'showNacho') + '===\'function\'){' + (nachoOn ? 'hideNacho()' : 'showNacho()') + '}showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoOn ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin honey badger guide. Long-press him to hide.</div></div>';
 
         // Push Notifications
         const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
