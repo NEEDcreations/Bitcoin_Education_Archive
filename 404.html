@@ -651,7 +651,10 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:10px;">
                     <button class="home-cta" onclick="go('whitepaper')" style="margin-bottom:0;">Start Exploring →</button>
                     <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Account / Sign In</button>
-                    <button onclick="goRandomMeme()" style="padding:10px 24px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">😂 Random Meme</button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                        <button onclick="goRandomMeme()" style="padding:10px 24px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">😂 Random Meme</button>
+                        <button onclick="goRandomArt()" style="padding:10px 24px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">🎨 Random Art</button>
+                    </div>
                 </div>
                 <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">
                     <div style="font-size:1.2rem;margin-bottom:6px;">🃏</div>
@@ -993,6 +996,7 @@
         navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:10px;">';
         navHtml += '<button onclick="goRandomMeme()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">😂 Random Meme</button>';
+        navHtml += '<button onclick="goRandomArt()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">🎨 Random Art</button>';
         navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
         navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
@@ -1056,18 +1060,17 @@
         go(randomId);
     }
 
-    async function goRandomMeme() {
-        // Load the memes channel data
-        const meta = CHANNELS['memes-funny'];
+    async function goRandomFromChannel(channelId, emoji, label) {
+        const meta = CHANNELS[channelId];
         if (!meta) return;
         let d;
-        if (channelCache['memes-funny']) {
-            d = channelCache['memes-funny'];
+        if (channelCache[channelId]) {
+            d = channelCache[channelId];
         } else {
             try {
                 const resp = await fetch(meta.file);
                 d = await resp.json();
-                channelCache['memes-funny'] = d;
+                channelCache[channelId] = d;
             } catch(e) { return; }
         }
 
@@ -1077,29 +1080,21 @@
         allMsgs.forEach((m, i) => { if (m.imgs && m.imgs.length > 0) imgMsgs.push(i); });
         if (imgMsgs.length === 0) return;
 
-        // Pick a random image message index
         const randomIdx = imgMsgs[Math.floor(Math.random() * imgMsgs.length)];
+        await go(channelId);
 
-        // Navigate to memes channel
-        await go('memes-funny');
-
-        // If the random msg is beyond the initial 50 loaded, we need to load more
         const PAGE_SIZE = 50;
         if (randomIdx >= PAGE_SIZE) {
-            // Load all messages up to the random one
-            const msgsEl = document.getElementById('msgs');
             const loadBtn = document.getElementById('loadMoreBtn');
             while (window._currentOffset <= randomIdx && loadBtn && document.contains(loadBtn)) {
                 window.loadMoreMsgs();
             }
         }
 
-        // Scroll to it after a short delay for rendering
         setTimeout(function() {
             const el = document.getElementById('msg-' + randomIdx);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Flash highlight
                 el.style.transition = 'box-shadow 0.3s, border-color 0.3s';
                 el.style.boxShadow = '0 0 20px rgba(247,147,26,0.4)';
                 el.style.borderColor = '#f7931a';
@@ -1107,24 +1102,25 @@
                     el.style.boxShadow = '';
                     el.style.borderColor = '';
                 }, 2000);
-                // Show floating random meme button
-                showFloatingMemeBtn();
+                showFloatingBtn(channelId, emoji, label);
             }
         }, 300);
     }
 
-    function showFloatingMemeBtn() {
-        var btn = document.getElementById('floatingMemeBtn');
+    function goRandomMeme() { return goRandomFromChannel('memes-funny', '😂', 'Next Meme'); }
+    function goRandomArt() { return goRandomFromChannel('art-inspiration', '🎨', 'Next Art'); }
+
+    function showFloatingBtn(channelId, emoji, label) {
+        var btn = document.getElementById('floatingRandomBtn');
         if (!btn) {
             btn = document.createElement('button');
-            btn.id = 'floatingMemeBtn';
-            btn.innerHTML = '😂 Next Meme';
-            btn.onclick = function() { goRandomMeme(); };
+            btn.id = 'floatingRandomBtn';
             btn.style.cssText = 'position:fixed;bottom:80px;right:20px;z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
             document.body.appendChild(btn);
         }
+        btn.innerHTML = emoji + ' ' + label;
+        btn.onclick = function() { goRandomFromChannel(channelId, emoji, label); };
         btn.style.display = 'flex';
-        // Hide when scrolling away or navigating home
         function hideOnNav() {
             btn.style.display = 'none';
             window.removeEventListener('popstate', hideOnNav);
@@ -1132,10 +1128,8 @@
         window.addEventListener('popstate', hideOnNav, { once: true });
     }
 
-    // Hide floating meme button when going home
-    var origGoHome = typeof goHome === 'function' ? goHome : null;
-
     window.goRandomMeme = goRandomMeme;
+    window.goRandomArt = goRandomArt;
 
     window.loadMoreGallery = function() {
         const imgs = window._galleryImgs;
@@ -1216,7 +1210,7 @@
     }
 
     function goHome(fromPopState) {
-        var fb = document.getElementById('floatingMemeBtn');
+        var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         document.getElementById('home').classList.remove('hidden');
         document.getElementById('hero').innerHTML = '';
@@ -1332,9 +1326,9 @@
     async function go(id, btn, fromPopState) {
         const meta = CHANNELS[id];
         if (!meta) return;
-        // Hide floating meme button when navigating to a different channel
-        var fb = document.getElementById('floatingMemeBtn');
-        if (fb && id !== 'memes-funny') fb.style.display = 'none';
+        // Hide floating random button when navigating to a different channel
+        var fb = document.getElementById('floatingRandomBtn');
+        if (fb && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
 
         localStorage.setItem('btc_last_channel', id);
         playChannelSound();
