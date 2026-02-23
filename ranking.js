@@ -332,9 +332,38 @@ function sanitizeInput(str) {
     return str.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '').trim();
 }
 
+// Profanity filter
+const PROFANITY_LIST = [
+    'fuck','shit','ass','bitch','dick','cock','pussy','cunt','damn','hell',
+    'bastard','slut','whore','fag','nigger','nigga','retard','penis','vagina',
+    'porn','sex','anal','cum','jizz','dildo','tits','boob','nude','naked',
+    'hentai','milf','orgasm','erect','molest','rape','pedo','nazi','hitler',
+    'kkk','jihad','terrorist','kill','murder','suicide','die','stfu','gtfo',
+    'wank','twat','bollocks','arse','shag','piss','crap','douche','skank',
+    'thot','incel','simp','onlyfans','xnxx','pornhub','xvideos'
+];
+
+function containsProfanity(str) {
+    const lower = str.toLowerCase().replace(/[^a-z]/g, ' ');
+    const words = lower.split(/\s+/);
+    for (const word of words) {
+        if (PROFANITY_LIST.includes(word)) return true;
+    }
+    // Also check for profanity embedded in the string (no spaces)
+    const compressed = lower.replace(/\s/g, '');
+    for (const bad of PROFANITY_LIST) {
+        if (bad.length >= 4 && compressed.includes(bad)) return true;
+    }
+    return false;
+}
+
 async function createUser(username, email) {
     const uid = auth.currentUser.uid;
     username = sanitizeInput(username);
+    if (containsProfanity(username)) {
+        showToast('⚠️ That username is not allowed. Please choose another.');
+        return;
+    }
     if (email) email = sanitizeInput(email);
     const userData = {
         username: username,
@@ -1150,6 +1179,10 @@ async function changeUsername() {
     }
     // Sanitize — strip HTML
     const clean = name.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '');
+    if (containsProfanity(clean)) {
+        status.innerHTML = '<span style="color:#ef4444;">⚠️ That username is not allowed. Please choose another.</span>';
+        return;
+    }
     try {
         await db.collection('users').doc(auth.currentUser.uid).update({ username: clean });
         currentUser.username = clean;
@@ -1296,6 +1329,11 @@ function submitUsername() {
     const email = emailInput ? emailInput.value.trim() : '';
     if (name.length < 2 || name.length > 20) {
         input.style.borderColor = '#ef4444';
+        return;
+    }
+    if (containsProfanity(name)) {
+        input.style.borderColor = '#ef4444';
+        showToast('⚠️ That username is not allowed. Please choose another.');
         return;
     }
     createUser(name, email);
