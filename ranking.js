@@ -72,8 +72,8 @@ async function loadUser(uid) {
         awardVisitPoints();
         startReadTimer();
     } else {
-        // New user - show username prompt
-        showUsernamePrompt();
+        // New user - show username prompt after 60 seconds
+        setTimeout(showUsernamePrompt, 60000);
     }
 }
 
