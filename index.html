@@ -376,10 +376,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="ranking.js"></script>
-    <script src="properties_data.js"></script>
-    <script src="experienced_data.js"></script>
-    <script src="resources_data.js"></script>
-    <script src="helpdesk_data.js"></script>
+    <script src="channel_index.js"></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -402,18 +399,47 @@
         if (isMobile()) document.getElementById('sidebar').classList.remove('open');
     }
 
-    function go(id, btn) {
-        const d = D[id] || (typeof E !== 'undefined' && E[id]) || (typeof R !== 'undefined' && R[id]) || (typeof H !== 'undefined' && H[id]);
-        if (!d) return;
+    // Cache loaded channel data
+    const channelCache = {};
+
+    async function go(id, btn) {
+        const meta = CHANNELS[id];
+        if (!meta) return;
+
         document.getElementById('home').classList.add('hidden');
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
+        // Show loading state
         document.getElementById('hero').innerHTML =
-            '<div class="cat">' + d.cat + '</div>' +
-            '<h1>' + d.title + '</h1>' +
-            '<p class="desc">' + d.desc + '</p>';
+            '<div class="cat">' + meta.cat + '</div>' +
+            '<h1>' + meta.title + '</h1>' +
+            '<p class="desc">' + meta.desc + '</p>';
+        document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#475569;text-align:center;">Loading...</div>';
+        document.getElementById('main').scrollTop = 0;
+        history.replaceState(null, null, '#' + id);
 
+        // On mobile, close the menu immediately
+        if (isMobile()) {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        // Fetch channel data (lazy load with cache)
+        let d;
+        if (channelCache[id]) {
+            d = channelCache[id];
+        } else {
+            try {
+                const resp = await fetch(meta.file);
+                d = await resp.json();
+                channelCache[id] = d;
+            } catch(e) {
+                document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#ef4444;">Error loading channel data</div>';
+                return;
+            }
+        }
+
+        // Render messages
         let html = '';
         d.msgs.forEach(m => {
             html += '<div class="msg">';
@@ -428,18 +454,32 @@
         });
 
         document.getElementById('msgs').innerHTML = html;
-        document.getElementById('main').scrollTop = 0;
-        history.replaceState(null, null, '#' + id);
-
-        // On mobile, close the menu after selecting
-        if (isMobile()) {
-            document.getElementById('sidebar').classList.remove('open');
-        }
 
         // Ranking: award points for opening channel
         if (typeof onChannelOpen === 'function') onChannelOpen(id);
     }
 
+    // Search index cache for deep search
+    let searchIndexLoaded = false;
+    let searchFullData = {};
+
+    async function loadSearchIndex() {
+        if (searchIndexLoaded) return;
+        // Load all data files in background for deep search
+        const promises = Object.entries(CHANNELS).map(async ([key, meta]) => {
+            if (channelCache[key]) { searchFullData[key] = channelCache[key]; return; }
+            try {
+                const resp = await fetch(meta.file);
+                const d = await resp.json();
+                channelCache[key] = d;
+                searchFullData[key] = d;
+            } catch(e) {}
+        });
+        await Promise.all(promises);
+        searchIndexLoaded = true;
+    }
+
+    let searchTimeout = null;
     function doSearch(q) {
         const sr = document.getElementById('searchResults');
         const cl = document.getElementById('channelList');
@@ -450,25 +490,44 @@
             return;
         }
         q = q.toLowerCase();
-        const all = Object.assign({}, D||{}, E||{}, R||{}, H||{});
-        let results = [];
-        for (const [key, ch] of Object.entries(all)) {
-            if (ch.title.toLowerCase().includes(q)) {
-                results.push({key, title: ch.title, cat: ch.cat, match: 'Channel name match'});
-                continue;
-            }
-            for (const m of (ch.msgs || [])) {
-                if (m.text && m.text.toLowerCase().includes(q)) {
-                    let idx = m.text.toLowerCase().indexOf(q);
-                    let start = Math.max(0, idx - 30);
-                    let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + q.length + 30).replace(/<[^>]+>/g, '') + '...';
-                    results.push({key, title: ch.title, cat: ch.cat, match: snippet});
-                    break;
-                }
-            }
-        }
         cl.style.display = 'none';
         sr.classList.add('active');
+
+        // Instant: search channel titles from index
+        let results = [];
+        for (const [key, meta] of Object.entries(CHANNELS)) {
+            if (meta.title.toLowerCase().includes(q) || meta.desc.toLowerCase().includes(q)) {
+                results.push({key, title: meta.title, cat: meta.cat, match: 'Channel match'});
+            }
+        }
+
+        renderSearchResults(results, sr);
+
+        // Deep search: load full data and search message content (debounced)
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            await loadSearchIndex();
+            let deepResults = [];
+            for (const [key, d] of Object.entries(searchFullData)) {
+                const meta = CHANNELS[key];
+                if (!meta) continue;
+                // Skip if already found by title
+                if (results.some(r => r.key === key)) continue;
+                for (const m of (d.msgs || [])) {
+                    if (m.text && m.text.toLowerCase().includes(q)) {
+                        let idx = m.text.toLowerCase().indexOf(q);
+                        let start = Math.max(0, idx - 30);
+                        let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + q.length + 30).replace(/<[^>]+>/g, '') + '...';
+                        deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet});
+                        break;
+                    }
+                }
+            }
+            renderSearchResults([...results, ...deepResults], sr);
+        }, 500);
+    }
+
+    function renderSearchResults(results, sr) {
         if (results.length === 0) {
             sr.innerHTML = '<div style="padding:16px;color:#475569;text-align:center;">No results found</div>';
             return;
