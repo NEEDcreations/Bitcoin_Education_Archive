@@ -77,7 +77,7 @@ async function loadUser(uid) {
     }
 }
 
-async function createUser(username) {
+async function createUser(username, email) {
     const uid = auth.currentUser.uid;
     const userData = {
         username: username,
@@ -88,6 +88,7 @@ async function createUser(username) {
         lastVisit: new Date().toISOString().split('T')[0],
         created: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (email) userData.email = email;
     await db.collection('users').doc(uid).set(userData);
     currentUser = { uid, ...userData };
     rankingReady = true;
@@ -284,12 +285,14 @@ function hideUsernamePrompt() {
 
 function submitUsername() {
     const input = document.getElementById('usernameInput');
+    const emailInput = document.getElementById('emailInput');
     const name = input.value.trim();
+    const email = emailInput ? emailInput.value.trim() : '';
     if (name.length < 2 || name.length > 20) {
         input.style.borderColor = '#ef4444';
         return;
     }
-    createUser(name);
+    createUser(name, email);
 }
 
 // Init on load
