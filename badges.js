@@ -72,16 +72,146 @@ function checkBadges() {
     }
 }
 
+// Major badges that deserve a share prompt
+const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_3', 'quest_5'];
+
 function showBadgeToast(badge) {
-    const t = document.createElement('div');
-    t.className = 'badge-toast';
-    t.innerHTML = '<div class="badge-toast-emoji">' + badge.emoji + '</div>' +
-        '<div class="badge-toast-info"><div class="badge-toast-title">Badge Earned!</div>' +
-        '<div class="badge-toast-name">' + badge.name + '</div>' +
-        '<div class="badge-toast-desc">' + badge.desc + '</div></div>';
-    document.body.appendChild(t);
-    requestAnimationFrame(() => t.classList.add('show'));
-    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 500); }, 4000);
+    // Play celebration sound
+    playBadgeSound();
+
+    // Launch confetti
+    launchConfetti();
+
+    // Show celebration modal
+    const isMajor = MAJOR_BADGES.includes(badge.id);
+    const overlay = document.createElement('div');
+    overlay.id = 'badgeCelebration';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400;display:flex;justify-content:center;align-items:center;animation:fadeIn 0.3s ease-out;';
+
+    const username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
+    const shareText = 'I just earned the ' + badge.emoji + ' ' + badge.name + ' badge on Bitcoin Education Archive! ' + badge.desc;
+    const shareUrl = 'https://bitcoineducation.quest';
+    const twitterUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl);
+
+    let shareHtml = '';
+    if (isMajor) {
+        shareHtml = '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Share your achievement!</p>' +
+            '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
+            '<a href="' + twitterUrl + '" target="_blank" style="padding:8px 16px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;">𝕏 Share on Twitter</a>' +
+            '<button onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\',\'' + shareUrl + '\')" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
+            '<button onclick="copyBadgeLink(\'' + badge.emoji + '\',\'' + badge.name.replace(/'/g, "\\'") + '\')" style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
+            '</div></div>';
+    }
+
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:380px;width:90%;text-align:center;animation:fadeSlideIn 0.4s ease-out;">' +
+        '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + badge.emoji + '</div>' +
+        '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">🎉 Badge Earned!</div>' +
+        '<div style="color:var(--heading);font-size:1.4rem;font-weight:900;margin-bottom:8px;">' + badge.name + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">' + badge.desc + '</div>' +
+        '<div style="color:var(--accent);font-size:0.9rem;font-weight:700;">+20 points</div>' +
+        shareHtml +
+        '<button onclick="document.getElementById(\'badgeCelebration\').remove()" style="margin-top:20px;padding:10px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! ✨</button>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+function copyBadgeLink(emoji, name) {
+    const text = 'I earned the ' + emoji + ' ' + name + ' badge on Bitcoin Education Archive!\nhttps://bitcoineducation.quest';
+    navigator.clipboard.writeText(text).then(() => {
+        if (typeof showToast === 'function') showToast('📋 Copied to clipboard!');
+    });
+}
+
+// Confetti explosion
+function launchConfetti() {
+    const canvas = document.createElement('canvas');
+    canvas.id = 'confettiCanvas';
+    canvas.style.cssText = 'position:fixed;inset:0;z-index:500;pointer-events:none;';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    const particles = [];
+    const colors = ['#f7931a', '#ea580c', '#fbbf24', '#f59e0b', '#ff6b00', '#ff9500', '#ffb800', '#fff'];
+
+    for (let i = 0; i < 120; i++) {
+        particles.push({
+            x: canvas.width / 2 + (Math.random() - 0.5) * 100,
+            y: canvas.height / 2,
+            vx: (Math.random() - 0.5) * 16,
+            vy: (Math.random() - 1) * 16 - 4,
+            size: Math.random() * 8 + 3,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * 360,
+            rotSpeed: (Math.random() - 0.5) * 12,
+            gravity: 0.12 + Math.random() * 0.08,
+            opacity: 1,
+            shape: Math.random() > 0.5 ? 'rect' : 'circle'
+        });
+    }
+
+    let frame = 0;
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        particles.forEach(p => {
+            p.x += p.vx;
+            p.vy += p.gravity;
+            p.y += p.vy;
+            p.rotation += p.rotSpeed;
+            p.vx *= 0.99;
+            if (frame > 40) p.opacity -= 0.015;
+
+            if (p.opacity > 0 && p.y < canvas.height + 50) {
+                alive = true;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.opacity);
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                if (p.shape === 'rect') {
+                    ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        });
+        frame++;
+        if (alive && frame < 180) {
+            requestAnimationFrame(animate);
+        } else {
+            canvas.remove();
+        }
+    }
+    requestAnimationFrame(animate);
+}
+
+// Celebration sound
+function playBadgeSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Play a cheerful ascending chime
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.5);
+            osc.start(audioCtx.currentTime + i * 0.12);
+            osc.stop(audioCtx.currentTime + i * 0.12 + 0.5);
+        });
+    } catch(e) {}
 }
 
 function getBadgeHTML() {
