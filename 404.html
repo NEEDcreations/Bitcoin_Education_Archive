@@ -868,7 +868,7 @@
         document.getElementById('hero').innerHTML =
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
-            '<p class="desc">' + meta.desc + '</p>' +
+            '<p class="desc" id="channelDesc">' + meta.desc + '</p>' +
             '<div class="share-bar">' +
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
                 '<button class="share-btn" onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\', \'' + shareUrl + '\')">🟣 Nostr</button>' +
@@ -905,6 +905,15 @@
         currentChannelData = d;
         currentChannelId = id;
         galleryMode = false;
+
+        // Update description with full text from data
+        const descEl = document.getElementById('channelDesc');
+        if (descEl && d.msgs && d.msgs[0] && d.msgs[0].text) {
+            let fullDesc = d.msgs[0].text.replace(/<[^>]+>/g, '');
+            if (fullDesc.length > 400) fullDesc = fullDesc.substring(0, 400).replace(/\s+\S*$/, '') + '...';
+            descEl.textContent = fullDesc;
+        }
+
         renderContent(id);
 
         // Trigger fade-in animation
