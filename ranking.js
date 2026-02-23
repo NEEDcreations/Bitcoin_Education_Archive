@@ -458,30 +458,34 @@ function showLeaderboardAuto() {
 
 function minimizeLeaderboard() {
     const lb = document.getElementById('leaderboard');
-    lb.classList.add('minimized');
-    lb.onclick = function() {
-        lb.classList.remove('minimized');
-        lb.onclick = null;
-    };
+    const fab = document.getElementById('lbFloatBtn');
+    lb.classList.remove('open');
+    lb.classList.remove('minimized');
+    if (fab) fab.style.display = 'flex';
 }
 
 function hideLeaderboard() {
     const lb = document.getElementById('leaderboard');
+    const fab = document.getElementById('lbFloatBtn');
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    if (fab) fab.style.display = 'flex';
 }
 
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
+    const fab = document.getElementById('lbFloatBtn');
     if (lb.classList.contains('open') && !lb.classList.contains('minimized')) {
         lb.classList.remove('open');
         lb.classList.remove('minimized');
+        if (fab) fab.style.display = 'flex';
         return;
     }
 
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
     lb.classList.add('open');
+    if (fab) fab.style.display = 'none';
 
     try {
         const snap = await db.collection('users').orderBy('points', 'desc').limit(20).get();
