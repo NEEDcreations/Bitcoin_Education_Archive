@@ -883,9 +883,10 @@ function showSettingsPage(tab) {
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;">';
     ['account', 'prefs', 'security', 'data'].forEach(t => {
-        const labels = { account: '👤 Account', prefs: '🎨 Prefs', security: '🔒 Security', data: '📊 Data' };
+        const icons = { account: '👤', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Account', prefs: 'Prefs', security: 'Security', data: 'Data' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;padding:10px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;">' + labels[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;padding:8px 4px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
