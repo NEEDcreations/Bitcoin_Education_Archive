@@ -211,6 +211,44 @@ exports.streakReminder = functions.pubsub
     });
 
 // =============================================
+// Weekly Quest Reminder (every Monday 3 PM UTC)
+// =============================================
+exports.weeklyQuestReminder = functions.pubsub
+    .schedule('0 15 * * 1')   // 3:00 PM UTC every Monday
+    .timeZone('UTC')
+    .onRun(async (context) => {
+        const tokensSnap = await db.collection('push_tokens').get();
+        if (tokensSnap.empty) return null;
+
+        const messages = [];
+        for (const tokenDoc of tokensSnap.docs) {
+            const token = tokenDoc.data().token;
+            if (!token) continue;
+            messages.push({
+                token: token,
+                notification: {
+                    title: '⚡ Start your Quest!',
+                    body: 'Learn more about Bitcoin! New questions and channels are waiting for you.'
+                },
+                data: { url: 'https://bitcoineducation.quest' },
+                webpush: { fcmOptions: { link: 'https://bitcoineducation.quest' } }
+            });
+        }
+
+        if (messages.length === 0) return null;
+
+        let sent = 0, failed = 0;
+        for (let i = 0; i < messages.length; i += 500) {
+            const batch = messages.slice(i, i + 500);
+            const results = await admin.messaging().sendEach(batch);
+            results.responses.forEach(r => { if (r.success) sent++; else failed++; });
+        }
+
+        console.log('Weekly quest reminders sent: ' + sent + ', failed: ' + failed);
+        return null;
+    });
+
+// =============================================
 // Clean up stale/invalid push tokens (weekly)
 // =============================================
 exports.cleanPushTokens = functions.pubsub
