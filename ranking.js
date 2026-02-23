@@ -169,6 +169,9 @@ async function onChannelOpen(channelId) {
     // Reset read timer for new channel
     readSeconds = 0;
     lastReadAward = 0;
+
+    // Notify quest system
+    if (typeof onChannelVisitForQuest === 'function') onChannelVisitForQuest(channelId);
 }
 
 function startReadTimer() {
