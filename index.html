@@ -145,11 +145,18 @@
         .rank-toast.show { opacity: 1; transform: translateY(0); }
 
         /* Leaderboard */
-        #leaderboard { display: none; position: fixed; right: 20px; bottom: 80px; width: 340px; max-height: 70vh; background: var(--bg-side); border: 1px solid var(--border); border-radius: 16px; z-index: 150; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-        #leaderboard.open { display: block; }
+        #leaderboard { display: none; position: fixed; right: 20px; bottom: 20px; width: 340px; max-height: 70vh; background: var(--bg-side); border: 1px solid var(--border); border-radius: 16px; z-index: 150; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition: 0.3s; }
+        #leaderboard.open { display: block; animation: fadeSlideIn 0.3s ease-out; }
+        #leaderboard.minimized { max-height: 48px; overflow: hidden; border-radius: 24px; width: auto; cursor: pointer; }
+        .lb-min-bar { display: none; padding: 12px 18px; font-size: 0.85rem; font-weight: 700; color: var(--accent); text-align: center; }
+        #leaderboard.minimized .lb-min-bar { display: block; }
+        #leaderboard.minimized .lb-header, #leaderboard.minimized .lb-list, #leaderboard.minimized .lb-levels { display: none; }
+        @media (max-width: 900px) { #leaderboard { right: 10px; left: 10px; bottom: 10px; width: auto; } }
         .lb-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
         .lb-header h3 { color: var(--heading); font-size: 1.1rem; }
-        .lb-close { background: none; border: none; color: var(--text-dim); font-size: 1.4rem; cursor: pointer; }
+        .lb-header div { display: flex; align-items: center; }
+        .lb-close { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 1.1rem; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .lb-close:hover { border-color: var(--accent); color: var(--accent); }
         .lb-list { padding: 8px; }
         .lb-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; }
         .lb-row:hover { background: var(--card-bg); }

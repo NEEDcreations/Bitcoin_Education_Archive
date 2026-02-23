@@ -160,6 +160,9 @@ async function onChannelOpen(channelId) {
         showToast('+' + POINTS.openChannel + ' pts — Explored #' + channelId);
         updateRankUI();
 
+        // Show leaderboard on first channel open
+        if (typeof showLeaderboardAuto === 'function') showLeaderboardAuto();
+
         // Bonus for exploring 10+ unique channels total
         if (allTimeChannels.size === 10) {
             await awardPoints(POINTS.explore10, 'Explorer bonus! 10 channels 🎉');
@@ -225,19 +228,47 @@ function updateRankUI() {
 }
 
 // Leaderboard
+let lbAutoShown = false;
+
+function showLeaderboardAuto() {
+    if (lbAutoShown) return;
+    lbAutoShown = true;
+    const lb = document.getElementById('leaderboard');
+    if (lb.classList.contains('open')) return;
+    toggleLeaderboard();
+}
+
+function minimizeLeaderboard() {
+    const lb = document.getElementById('leaderboard');
+    lb.classList.add('minimized');
+    lb.onclick = function() {
+        lb.classList.remove('minimized');
+        lb.onclick = null;
+    };
+}
+
+function hideLeaderboard() {
+    const lb = document.getElementById('leaderboard');
+    lb.classList.remove('open');
+    lb.classList.remove('minimized');
+}
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
-    if (lb.classList.contains('open')) {
+    if (lb.classList.contains('open') && !lb.classList.contains('minimized')) {
         lb.classList.remove('open');
+        lb.classList.remove('minimized');
         return;
     }
 
+    lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
     lb.classList.add('open');
 
     try {
         const snap = await db.collection('users').orderBy('points', 'desc').limit(20).get();
-        let html = '<div class="lb-header"><h3>🏆 Leaderboard</h3><button class="lb-close" onclick="document.getElementById(\'leaderboard\').classList.remove(\'open\')">✕</button></div>';
+        let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
+        html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="minimizeLeaderboard()" title="Minimize" style="margin-right:8px;">−</button><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
         html += '<div class="lb-list">';
         let rank = 0;
         snap.forEach(doc => {
