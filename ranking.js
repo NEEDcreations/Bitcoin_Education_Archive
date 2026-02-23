@@ -1009,8 +1009,6 @@ function showSettingsPage(tab) {
         html += statRow('Hidden Badges Found', hiddenBadges + ' / 5', '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
 
-        // Remove last border
-        html = html.replace(/border-bottom:1px solid var\(--border\);">' + 'Not yet' + '</', 'border-bottom:none;">' + 'Not yet' + '</');
         html += '</div>';
 
         // Privacy note
