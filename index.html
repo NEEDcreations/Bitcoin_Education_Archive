@@ -637,6 +637,7 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:10px;">
                     <button class="home-cta" onclick="go('whitepaper')" style="margin-bottom:0;">Start Exploring →</button>
                     <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Account / Sign In</button>
+                    <button onclick="goRandomMeme()" style="padding:10px 24px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">😂 Random Meme</button>
                 </div>
                 <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">
                     <div style="font-size:1.2rem;margin-bottom:6px;">🃏</div>
@@ -858,8 +859,8 @@
             function renderBatch(startIdx) {
                 const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
                 let html = '';
-                batch.forEach(m => {
-                    html += '<div class="msg">';
+                batch.forEach((m, bi) => {
+                    html += '<div class="msg" id="msg-' + (startIdx + bi) + '">';
                     if (m.text) {
                         let t = m.text;
                         // Embed YouTube videos — extract them first, replace with placeholders
@@ -1007,6 +1008,62 @@
         const randomId = keys[Math.floor(Math.random() * keys.length)];
         go(randomId);
     }
+
+    async function goRandomMeme() {
+        // Load the memes channel data
+        const meta = CHANNELS['memes-funny'];
+        if (!meta) return;
+        let d;
+        if (channelCache['memes-funny']) {
+            d = channelCache['memes-funny'];
+        } else {
+            try {
+                const resp = await fetch(meta.file);
+                d = await resp.json();
+                channelCache['memes-funny'] = d;
+            } catch(e) { return; }
+        }
+
+        // Find all messages that have images (skip first which is hero desc)
+        const allMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
+        const imgMsgs = [];
+        allMsgs.forEach((m, i) => { if (m.imgs && m.imgs.length > 0) imgMsgs.push(i); });
+        if (imgMsgs.length === 0) return;
+
+        // Pick a random image message index
+        const randomIdx = imgMsgs[Math.floor(Math.random() * imgMsgs.length)];
+
+        // Navigate to memes channel
+        await go('memes-funny');
+
+        // If the random msg is beyond the initial 50 loaded, we need to load more
+        const PAGE_SIZE = 50;
+        if (randomIdx >= PAGE_SIZE) {
+            // Load all messages up to the random one
+            const msgsEl = document.getElementById('msgs');
+            const loadBtn = document.getElementById('loadMoreBtn');
+            while (window._currentOffset <= randomIdx && loadBtn && document.contains(loadBtn)) {
+                window.loadMoreMsgs();
+            }
+        }
+
+        // Scroll to it after a short delay for rendering
+        setTimeout(function() {
+            const el = document.getElementById('msg-' + randomIdx);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Flash highlight
+                el.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                el.style.boxShadow = '0 0 20px rgba(247,147,26,0.4)';
+                el.style.borderColor = '#f7931a';
+                setTimeout(function() {
+                    el.style.boxShadow = '';
+                    el.style.borderColor = '';
+                }, 2000);
+            }
+        }, 300);
+    }
+    window.goRandomMeme = goRandomMeme;
 
     window.loadMoreGallery = function() {
         const imgs = window._galleryImgs;
@@ -1309,8 +1366,8 @@
             const btn = document.getElementById('loadMoreBtn');
             const nextBatch = msgs.slice(offset, offset + 50);
             let html = '';
-            nextBatch.forEach(m => {
-                html += '<div class="msg">';
+            nextBatch.forEach((m, bi) => {
+                html += '<div class="msg" id="msg-' + (offset + bi) + '">';
                 if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
                 if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; } });
                 html += '</div>';
