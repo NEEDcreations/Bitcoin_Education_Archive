@@ -153,6 +153,9 @@ async function signInWithProvider(provider) {
                 anonData.email = user.email || '';
                 if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
                 await db.collection('users').doc(user.uid).set(anonData);
+                
+                // Delete the anonymous user document
+                await db.collection('users').doc(anonUser.uid).delete();
             } else {
                 await db.collection('users').doc(user.uid).set({
                     username: user.displayName || 'Bitcoiner',
@@ -164,6 +167,11 @@ async function signInWithProvider(provider) {
                     lastVisit: new Date().toISOString().split('T')[0],
                     created: firebase.firestore.FieldValue.serverTimestamp()
                 });
+            }
+        } else {
+            // User already exists — just update their email if needed
+            if (!existingDoc.data().email && user.email) {
+                await existingDoc.ref.update({ email: user.email });
             }
         }
 
