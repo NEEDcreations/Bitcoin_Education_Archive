@@ -1,4 +1,5 @@
 const functions = require('firebase-functions');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 const { authenticator } = require('otplib');
 const QRCode = require('qrcode');
@@ -127,10 +128,7 @@ exports.totpStatus = functions.https.onCall(async (data, context) => {
 // Streak Reminder Push Notifications
 // Runs daily at 8pm UTC (adjustable)
 // =============================================
-exports.streakReminder = functions.pubsub
-    .schedule('0 20 * * *')   // 8:00 PM UTC daily
-    .timeZone('UTC')
-    .onRun(async (context) => {
+exports.streakReminder = onSchedule({ schedule: '0 20 * * *', timeZone: 'UTC' }, async (event) => {
         const today = new Date().toISOString().split('T')[0];
 
         // Find users with push tokens who visited yesterday but NOT today
@@ -213,10 +211,7 @@ exports.streakReminder = functions.pubsub
 // =============================================
 // Weekly Quest Reminder (every Monday 3 PM UTC)
 // =============================================
-exports.weeklyQuestReminder = functions.pubsub
-    .schedule('0 15 * * 1')   // 3:00 PM UTC every Monday
-    .timeZone('UTC')
-    .onRun(async (context) => {
+exports.weeklyQuestReminder = onSchedule({ schedule: '0 15 * * 1', timeZone: 'UTC' }, async (event) => {
         const tokensSnap = await db.collection('push_tokens').get();
         if (tokensSnap.empty) return null;
 
@@ -251,10 +246,7 @@ exports.weeklyQuestReminder = functions.pubsub
 // =============================================
 // Clean up stale/invalid push tokens (weekly)
 // =============================================
-exports.cleanPushTokens = functions.pubsub
-    .schedule('0 3 * * 0')   // 3 AM UTC every Sunday
-    .timeZone('UTC')
-    .onRun(async (context) => {
+exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' }, async (event) => {
         const tokensSnap = await db.collection('push_tokens').get();
         let cleaned = 0;
 
