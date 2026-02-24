@@ -483,7 +483,7 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
-            '<span class="nacho-name" onclick="event.stopPropagation();nachoClick();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-name" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="hideBubble()">' +
             '<div class="nacho-header">' +
