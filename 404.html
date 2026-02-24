@@ -1353,9 +1353,14 @@
         var micHtml = hasSpeech ?
             '<button id="nachoModeMic" onclick="nachoModeVoice()" style="position:absolute;right:60px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.6;transition:0.2s;touch-action:manipulation;" title="Voice input">🎙️</button>' : '';
 
+        // Init chat history from localStorage
+        window._nachoChatHistory = JSON.parse(localStorage.getItem('btc_nacho_chat') || '[]');
+        window._nachoSentHistory = JSON.parse(localStorage.getItem('btc_nacho_sent') || '[]');
+        window._nachoSentIdx = -1;
+
         var screen = document.createElement('div');
         screen.id = 'nachoModeScreen';
-        screen.style.cssText = 'display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:30px 20px;text-align:center;animation:fadeSlideIn 0.4s ease-out;';
+        screen.style.cssText = 'display:flex;flex-direction:column;height:100vh;animation:fadeSlideIn 0.4s ease-out;';
         screen.innerHTML =
             '<style>' +
                 '@keyframes nachoModeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }' +
@@ -1364,32 +1369,50 @@
                 '#nachoModeAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; transition: transform 0.3s; }' +
                 '#nachoModeAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
                 '#nachoModeAvatar:hover { transform: scale(1.05); }' +
-                '#nachoModeChat { max-height: 40vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }' +
+                '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px; scroll-behavior:smooth; }' +
+                '#nachoModeChat::-webkit-scrollbar { width:4px; }' +
+                '#nachoModeChat::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }' +
+                '.nm-msg { margin-bottom:10px; max-width:500px; margin-left:auto; margin-right:auto; }' +
+                '.nm-user { text-align:right; }' +
+                '.nm-user span { background:var(--accent-bg,#2a1a00);border:1px solid var(--accent);padding:10px 14px;border-radius:16px 16px 4px 16px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;line-height:1.4; }' +
+                '.nm-nacho { text-align:left; }' +
+                '.nm-nacho span { background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;line-height:1.5; }' +
+                '.nm-time { font-size:0.65rem;color:var(--text-faint);margin-top:2px; }' +
+                '.nm-nacho .nm-time { text-align:left; }' +
+                '.nm-user .nm-time { text-align:right; }' +
             '</style>' +
-            '<div style="position:fixed;top:16px;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:0 16px;">' +
-                '<button onclick="exitNachoMode()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
-                '<div style="display:flex;align-items:center;gap:12px;">' +
-                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:40px;height:40px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);" onclick="exitNachoMode()" title="Go to Home">' +
-                    '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="36" height="36" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+            /* Header bar */
+            '<div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
+                '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
+                '<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="nachoModeAvatarTap()">' +
+                    '<img src="nacho-deer.svg" alt="Nacho" style="width:32px;height:32px;">' +
+                    '<div style="text-align:left;">' +
+                        '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;">Nacho 🦌</div>' +
+                        '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.65rem;"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Save chat">💾</button>' +
+                    '<button onclick="nachoChatClear()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Clear chat">🗑️</button>' +
+                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:32px;height:32px;border-radius:50%;cursor:pointer;" onclick="exitNachoMode()" title="Go to Home">' +
+                    '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="28" height="28" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
                 '</div>' +
             '</div>' +
-            '<div id="nachoModeAvatar" style="width:200px;height:200px;margin:20px 0 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-deer.svg" alt="Nacho" style="width:200px;height:200px;pointer-events:none;"></div>' +
-            '<div style="color:var(--accent);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
-            '<div style="color:var(--heading);font-size:1.4rem;font-weight:800;margin-bottom:8px;">' + greeting + '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;max-width:400px;">Ask me anything about Bitcoin. I\'ll answer with AI, link you to the best resources, and we\'ll build our friendship along the way!</div>' +
-            '<div id="nachoModeChat" style="width:100%;max-width:500px;margin-bottom:16px;"></div>' +
-            '<div style="width:100%;max-width:500px;">' +
-                '<div style="position:relative;">' +
-                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:14px ' + (hasSpeech ? '100px' : '60px') + ' 14px 16px;background:var(--input-bg,#111);border:2px solid var(--border,#333);border-radius:12px;color:var(--text,#eee);font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')nachoModeSend()">' +
+            /* Chat area */
+            '<div id="nachoModeChat" style="flex:1;"></div>' +
+            /* Input bar */
+            '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
+                '<div style="max-width:500px;margin:0 auto;position:relative;">' +
+                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:12px ' + (hasSpeech ? '96px' : '56px') + ' 12px 16px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:24px;color:var(--text,#eee);font-size:0.95rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="nachoModeKeydown(event)">' +
                     micHtml +
-                    '<button onclick="nachoModeSend()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Ask</button>' +
+                    '<button onclick="nachoModeSend()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--accent);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;justify-content:center;">▶</button>' +
                 '</div>' +
-            '</div>' +
-            '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.8rem;margin-top:12px;"></div>';
+            '</div>';
 
         main.appendChild(screen);
 
-        // Show friendship level
+        // Render saved chat history
+        nachoChatRender();
         updateNachoModeFriendship();
 
         // Focus input
@@ -1399,13 +1422,178 @@
         }, 300);
     };
 
+    // Keyboard handler: Enter=send, ArrowUp/Down=history
+    window.nachoModeKeydown = function(e) {
+        if (e.key === 'Enter') { nachoModeSend(); return; }
+        var inp = document.getElementById('nachoModeInput');
+        if (!inp) return;
+        var hist = window._nachoSentHistory || [];
+        if (e.key === 'ArrowUp') {
+            if (hist.length === 0) return;
+            if (window._nachoSentIdx === -1) window._nachoSentDraft = inp.value;
+            window._nachoSentIdx = Math.min(window._nachoSentIdx + 1, hist.length - 1);
+            inp.value = hist[hist.length - 1 - window._nachoSentIdx];
+            e.preventDefault();
+            setTimeout(function() { inp.setSelectionRange(inp.value.length, inp.value.length); }, 0);
+        } else if (e.key === 'ArrowDown') {
+            if (window._nachoSentIdx <= 0) { window._nachoSentIdx = -1; inp.value = window._nachoSentDraft || ''; return; }
+            window._nachoSentIdx--;
+            inp.value = hist[hist.length - 1 - window._nachoSentIdx];
+            e.preventDefault();
+        }
+    };
+
+    // Format time for chat bubbles
+    function nmTime(ts) {
+        if (!ts) return '';
+        var d = new Date(ts);
+        var h = d.getHours(); var m = d.getMinutes();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12; if (h === 0) h = 12;
+        return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    }
+
+    // Render full chat from history
+    function nachoChatRender() {
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        var hist = window._nachoChatHistory || [];
+        if (hist.length === 0) {
+            // Show welcome
+            chat.innerHTML =
+                '<div style="text-align:center;padding:40px 20px;">' +
+                    '<div id="nachoModeAvatar" style="width:160px;height:160px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;"></div>' +
+                    '<div style="color:var(--accent);font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
+                    '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:8px;">' +
+                        ((typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? 'Hey ' + escapeHtml(currentUser.username) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
+                    '</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.85rem;max-width:360px;margin:0 auto;">Ask me anything about Bitcoin. I\'ll answer with AI, link you to the best resources, and we\'ll build our friendship along the way!</div>' +
+                '</div>';
+            return;
+        }
+        var html = '';
+        var lastDate = '';
+        for (var i = 0; i < hist.length; i++) {
+            var m = hist[i];
+            // Date separator
+            var msgDate = new Date(m.ts).toLocaleDateString();
+            if (msgDate !== lastDate) {
+                html += '<div style="text-align:center;margin:16px 0 8px;"><span style="background:var(--card-bg);border:1px solid var(--border);padding:4px 12px;border-radius:12px;font-size:0.7rem;color:var(--text-faint);">' + msgDate + '</span></div>';
+                lastDate = msgDate;
+            }
+            if (m.role === 'user') {
+                html += '<div class="nm-msg nm-user"><span>' + escapeHtml(m.text) + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
+            } else {
+                html += '<div class="nm-msg nm-nacho"><span>🦌 ' + m.html + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
+            }
+        }
+        chat.innerHTML = html;
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Save chat to localStorage (keep last 100 messages)
+    function nachoChatSave() {
+        var hist = window._nachoChatHistory || [];
+        if (hist.length > 100) hist = hist.slice(hist.length - 100);
+        window._nachoChatHistory = hist;
+        try { localStorage.setItem('btc_nacho_chat', JSON.stringify(hist)); } catch(e) {}
+    }
+
+    // Add message to chat
+    function nachoChatAdd(role, text, html) {
+        var msg = { role: role, text: text || '', html: html || escapeHtml(text || ''), ts: Date.now() };
+        window._nachoChatHistory.push(msg);
+        nachoChatSave();
+        return msg;
+    }
+
+    // Show a message bubble and scroll
+    function nachoChatAppend(role, text, html) {
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        // Clear welcome screen if first message
+        if (window._nachoChatHistory.length <= 1 && chat.querySelector('#nachoModeAvatar')) {
+            chat.innerHTML = '';
+        }
+        var ts = nmTime(Date.now());
+        var div = document.createElement('div');
+        div.className = 'nm-msg ' + (role === 'user' ? 'nm-user' : 'nm-nacho');
+        if (role === 'user') {
+            div.innerHTML = '<span>' + escapeHtml(text) + '</span><div class="nm-time">' + ts + '</div>';
+        } else {
+            div.innerHTML = '<span>🦌 ' + html + '</span><div class="nm-time">' + ts + '</div>';
+        }
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Show thinking indicator
+    function nachoChatThinking() {
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        if (chat.querySelector('#nachoModeAvatar')) chat.innerHTML = '';
+        var div = document.createElement('div');
+        div.id = 'nmThinking';
+        div.className = 'nm-msg nm-nacho';
+        div.innerHTML = '<span style="color:var(--text-muted);">🦌 Thinking<span class="nacho-dots"></span></span>';
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        var dotsEl = div.querySelector('.nacho-dots');
+        var dc = 0;
+        window._nmDotsTimer = setInterval(function() { dc=(dc+1)%4; if(dotsEl) dotsEl.textContent='.'.repeat(dc); }, 400);
+    }
+
+    function nachoChatClearThinking() {
+        if (window._nmDotsTimer) { clearInterval(window._nmDotsTimer); window._nmDotsTimer = null; }
+        var t = document.getElementById('nmThinking');
+        if (t) t.remove();
+    }
+
+    // Export chat
+    window.nachoChatExport = function() {
+        var hist = window._nachoChatHistory || [];
+        if (hist.length === 0) { if (typeof showToast === 'function') showToast('No chat to save!'); return; }
+        var lines = ['=== Nacho Mode Chat Export ===', 'Exported: ' + new Date().toLocaleString(), ''];
+        for (var i = 0; i < hist.length; i++) {
+            var m = hist[i];
+            var time = new Date(m.ts).toLocaleString();
+            var who = m.role === 'user' ? 'You' : 'Nacho 🦌';
+            // Strip HTML tags for export
+            var text = m.role === 'user' ? m.text : (m.html || m.text || '').replace(/<[^>]+>/g, '');
+            lines.push('[' + time + '] ' + who + ': ' + text);
+        }
+        lines.push('', '--- bitcoineducation.quest ---');
+        var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'nacho-chat-' + new Date().toISOString().slice(0,10) + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if (typeof showToast === 'function') showToast('💾 Chat saved!');
+    };
+
+    // Clear chat
+    window.nachoChatClear = function() {
+        if (!confirm('Clear all chat history with Nacho?')) return;
+        window._nachoChatHistory = [];
+        localStorage.removeItem('btc_nacho_chat');
+        nachoChatRender();
+        if (typeof showToast === 'function') showToast('🗑️ Chat cleared');
+    };
+
     window.nachoModeSend = function() {
         var inp = document.getElementById('nachoModeInput');
-        var chat = document.getElementById('nachoModeChat');
-        if (!inp || !chat) return;
+        if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
         inp.value = '';
+        window._nachoSentIdx = -1;
+        window._nachoSentDraft = '';
+
+        // Save to sent history (for ArrowUp recall, max 50)
+        window._nachoSentHistory.push(q);
+        if (window._nachoSentHistory.length > 50) window._nachoSentHistory.shift();
+        try { localStorage.setItem('btc_nacho_sent', JSON.stringify(window._nachoSentHistory)); } catch(e) {}
 
         // Start talking animation
         nachoModeStartTalking();
@@ -1414,31 +1602,30 @@
         if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
         window._nachoModeEarnings.interactions++;
 
-        // Show user message
-        chat.innerHTML =
-            '<div style="margin-bottom:12px;text-align:right;">' +
-                '<span style="background:var(--accent-bg);border:1px solid var(--accent);padding:10px 14px;border-radius:12px 12px 0 12px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;">' + escapeHtml(q) + '</span>' +
-            '</div>' +
-            '<div style="margin-bottom:12px;text-align:left;">' +
-                '<span style="background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;border-radius:12px 12px 12px 0;display:inline-block;max-width:80%;color:var(--text-muted);font-size:0.9rem;">🦌 Thinking<span class="nacho-dots"></span></span>' +
-            '</div>';
+        // Show user message + save
+        nachoChatAdd('user', q);
+        nachoChatAppend('user', q);
 
-        // Animate dots
-        var dotsEl = chat.querySelector('.nacho-dots');
-        var dc = 0;
-        var dt = setInterval(function() { dc=(dc+1)%4; if(dotsEl) dotsEl.textContent='.'.repeat(dc); }, 400);
+        // Show thinking
+        nachoChatThinking();
 
-        // Use the full Nacho answer pipeline but simplified
+        // Answer pipeline helper
+        function reply(html) {
+            nachoChatClearThinking();
+            nachoModeStopTalking();
+            nachoChatAdd('nacho', '', html);
+            nachoChatAppend('nacho', '', html);
+            updateNachoModeFriendship();
+        }
+
         // Check safety first
         if (typeof isInappropriate === 'function' && isInappropriate(q)) {
-            clearInterval(dt);
-            showNachoModeReply(chat, "Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌");
+            reply("Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌");
             return;
         }
 
         if (typeof isCrisis === 'function' && isCrisis(q)) {
-            clearInterval(dt);
-            showNachoModeReply(chat, "Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛");
+            reply("Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛");
             return;
         }
 
@@ -1446,9 +1633,8 @@
         if (typeof checkOffTopic === 'function') {
             var ot = checkOffTopic(q);
             if (ot) {
-                clearInterval(dt);
                 var otMsg = typeof personalize === 'function' ? personalize(ot) : ot;
-                showNachoModeReply(chat, otMsg);
+                reply(otMsg);
                 return;
             }
         }
@@ -1459,10 +1645,9 @@
             if (typeof nachoLiveAnswer === 'function') match = nachoLiveAnswer(q);
             if (!match) match = findAnswer(q);
             if (match) {
-                clearInterval(dt);
                 var ans = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
                 var channelLink = match.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match.channelName || match.channel) + ' →</a>' : '';
-                showNachoModeReply(chat, ans + channelLink);
+                reply(ans + channelLink);
                 return;
             }
         }
@@ -1470,18 +1655,16 @@
         // Try AI
         if (typeof nachoAIAnswer === 'function') {
             nachoAIAnswer(q, function(aiAnswer) {
-                clearInterval(dt);
                 if (aiAnswer) {
-                    showNachoModeReply(chat, aiAnswer);
+                    reply(aiAnswer);
                 } else {
-                    showNachoModeReply(chat, "Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌");
+                    reply("Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌");
                 }
             });
             return;
         }
 
         // Inline greeting check as last resort (covers case where nacho-qa.js hasn't loaded yet)
-        clearInterval(dt);
         var ql = q.toLowerCase().trim();
         if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
             var greetings = [
@@ -1490,10 +1673,10 @@
                 "Well hello! 🦌 Nice to see you. Ask me anything about Bitcoin — I've got 146 channels of knowledge in these antlers!",
                 "Hey! 👋 I'm good, thanks for asking! Ready to talk Bitcoin whenever you are. What's on your mind?"
             ];
-            showNachoModeReply(chat, greetings[Math.floor(Math.random() * greetings.length)]);
+            reply(greetings[Math.floor(Math.random() * greetings.length)]);
             return;
         }
-        showNachoModeReply(chat, "I'm still warming up my antlers! Try asking me about Bitcoin basics, mining, Lightning, or wallets. 🦌");
+        reply("I'm still warming up my antlers! Try asking me about Bitcoin basics, mining, Lightning, or wallets. 🦌");
     };
 
     // Nacho Mode avatar tap — random fun reaction
@@ -1578,17 +1761,6 @@
             mic.style.opacity = '0.6';
         }
     };
-
-    function showNachoModeReply(chat, html) {
-        nachoModeStopTalking();
-        chat.innerHTML =
-            chat.innerHTML.split('Thinking<span')[0].replace(/<div style="margin-bottom:12px;text-align:left;">[\s\S]*$/, '') +
-            '<div style="margin-bottom:12px;text-align:left;">' +
-                '<span style="background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;border-radius:12px 12px 12px 0;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;line-height:1.5;">🦌 ' + html + '</span>' +
-            '</div>';
-        updateNachoModeFriendship();
-        chat.scrollTop = chat.scrollHeight;
-    }
 
     function updateNachoModeFriendship() {
         var el = document.getElementById('nachoModeFriendship');
