@@ -340,6 +340,116 @@ function isInappropriate(text) {
     return false;
 }
 
+// ---- Deep content search across all cached channels ----
+function deepContentSearch(query) {
+    if (typeof channelCache === 'undefined' && typeof window.channelCache === 'undefined') return null;
+    var cache = window.channelCache || channelCache;
+    var q = query.toLowerCase();
+    var words = q.split(/\s+/).filter(function(w) { return w.length > 2; });
+    if (words.length === 0) return null;
+
+    var best = null, bestScore = 0;
+
+    for (var chId in cache) {
+        var ch = cache[chId];
+        var msgs = ch.msgs || ch;
+        if (!Array.isArray(msgs)) continue;
+
+        for (var i = 0; i < msgs.length; i++) {
+            var text = (msgs[i].text || '').toLowerCase();
+            if (text.length < 20) continue;
+
+            var score = 0;
+            for (var w = 0; w < words.length; w++) {
+                if (text.indexOf(words[w]) !== -1) score += words[w].length;
+            }
+            // Bonus for matching more words
+            if (score > 0) score += words.filter(function(wd) { return text.indexOf(wd) !== -1; }).length * 5;
+
+            if (score > bestScore) {
+                bestScore = score;
+                // Extract a relevant snippet (first 200 chars around the match)
+                var rawText = msgs[i].text || '';
+                var cleanText = rawText.replace(/<[^>]+>/g, '').replace(/https?:\/\/[^\s]+/g, '').trim();
+                var firstWord = words.find(function(wd) { return cleanText.toLowerCase().indexOf(wd) !== -1; });
+                var snippet = cleanText;
+                if (firstWord && cleanText.length > 250) {
+                    var idx = cleanText.toLowerCase().indexOf(firstWord);
+                    var start = Math.max(0, idx - 60);
+                    snippet = (start > 0 ? '...' : '') + cleanText.substring(start, start + 250) + (start + 250 < cleanText.length ? '...' : '');
+                } else if (cleanText.length > 250) {
+                    snippet = cleanText.substring(0, 250) + '...';
+                }
+                var chName = (typeof CHANNELS !== 'undefined' && CHANNELS[chId]) ? CHANNELS[chId].title : chId;
+                best = { snippet: snippet, channel: chId, channelName: chName, link: msgs[i].link || null };
+            }
+        }
+    }
+
+    return bestScore >= 15 ? best : null;
+}
+
+// ---- Web search via proxy (for questions Nacho can't answer locally) ----
+var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || '';
+
+function nachoWebSearch(query, callback) {
+    if (!NACHO_SEARCH_PROXY) { callback(null); return; }
+    var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin ' + query);
+    fetch(url, { signal: AbortSignal.timeout(6000) })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.results && data.results.length > 0) {
+                callback(data.results.slice(0, 3));
+            } else {
+                callback(null);
+            }
+        })
+        .catch(function() { callback(null); });
+}
+
+// ---- Thinking animation ----
+function showNachoThinking(textEl) {
+    if (typeof setPose === 'function') setPose('think');
+    textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;"><span class="nacho-thinking">🤔 Hmm, let me think</span><span class="nacho-dots"></span></div>';
+    // Animate dots
+    var dotsEl = textEl.querySelector('.nacho-dots');
+    var dotCount = 0;
+    window._nachoDotTimer = setInterval(function() {
+        dotCount = (dotCount + 1) % 4;
+        if (dotsEl) dotsEl.textContent = '.'.repeat(dotCount);
+    }, 400);
+}
+
+function stopNachoThinking() {
+    clearInterval(window._nachoDotTimer);
+}
+
+// ---- Render an answer with follow-ups and ask-again ----
+function renderNachoAnswer(textEl, answerHtml, match) {
+    var html = answerHtml;
+
+    if (match && match.channel && match.channelName) {
+        html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
+    }
+
+    // Follow-up suggestions
+    if (match && match.answer) {
+        var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
+        if (followUps.length > 0) {
+            html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also want to ask:</div>';
+            for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
+                html += '<button onclick="document.getElementById(\'nachoInput\')?(document.getElementById(\'nachoInput\').value=\'' + followUps[fi].replace(/'/g, "\\'") + '\',nachoAnswer()):showNachoInput()" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
+            }
+            html += '</div>';
+        }
+    }
+
+    html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+    textEl.innerHTML = html;
+    if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+}
+
 window.nachoAnswer = function() {
     var inp = document.getElementById('nachoInput');
     if (!inp) return;
@@ -365,58 +475,112 @@ window.nachoAnswer = function() {
     var qCount = parseInt(localStorage.getItem('btc_nacho_questions') || '0') + 1;
     localStorage.setItem('btc_nacho_questions', qCount.toString());
     if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-
-    // Try live data answer first (price, fees, block height, halving)
-    var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
-    var match = liveMatch || findAnswer(q);
-
-    // Track analytics
-    if (typeof trackNachoQuestion === 'function') trackNachoQuestion(q, !!match);
-
-    // Track session context
-    if (match && match.channel && typeof nachoAddContext === 'function') nachoAddContext(match.channel);
-
-    // Track interaction
     if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
 
-    // Keep bubble interactive (no auto-hide) for answers
+    // Keep bubble interactive
     bubble.setAttribute('data-interactive', 'true');
     clearTimeout(window._nachoBubbleTimeout);
 
-    if (match) {
-        if (typeof setPose === 'function') setPose('brain');
-        var answer = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
-        var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>';
-        if (match.channel && match.channelName) {
-            html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
+    // ---- Step 1: Show thinking animation ----
+    showNachoThinking(textEl);
+
+    // Brief delay to feel natural
+    var thinkDelay = 600 + Math.random() * 800; // 600-1400ms
+
+    setTimeout(function() {
+        stopNachoThinking();
+
+        // ---- Step 2: Try local knowledge base ----
+        var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
+        var match = liveMatch || findAnswer(q);
+
+        if (typeof trackNachoQuestion === 'function') trackNachoQuestion(q, !!match);
+        if (match && match.channel && typeof nachoAddContext === 'function') nachoAddContext(match.channel);
+
+        if (match) {
+            if (typeof setPose === 'function') setPose('brain');
+            var answer = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
+            renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>', match);
+            return;
         }
 
-        // Follow-up suggestions
-        var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
-        if (followUps.length > 0) {
-            html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also want to ask:</div>';
-            for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
-                html += '<button onclick="document.getElementById(\'nachoInput\')?(document.getElementById(\'nachoInput\').value=\'' + followUps[fi].replace(/'/g, "\\'") + '\',nachoAnswer()):showNachoInput()" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
+        // ---- Step 3: Try deep content search across loaded channels ----
+        var deepResult = deepContentSearch(q);
+        if (deepResult) {
+            if (typeof setPose === 'function') setPose('brain');
+            var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">📚 Found in site content:</div>' +
+                deepResult.snippet + '</div>';
+            renderNachoAnswer(textEl, html, { channel: deepResult.channel, channelName: deepResult.channelName });
+            return;
+        }
+
+        // ---- Step 4: Try web search (if proxy is configured) ----
+        if (NACHO_SEARCH_PROXY) {
+            // Show extended thinking
+            textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Hmm, I don\'t have that in my notes. Searching the web<span class="nacho-dots"></span></div>';
+            var dotsEl2 = textEl.querySelector('.nacho-dots');
+            var dc2 = 0;
+            var dt2 = setInterval(function() { dc2 = (dc2+1)%4; if(dotsEl2) dotsEl2.textContent = '.'.repeat(dc2); }, 400);
+
+            nachoWebSearch(q, function(results) {
+                clearInterval(dt2);
+                if (results && results.length > 0) {
+                    if (typeof setPose === 'function') setPose('cool');
+                    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                        '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found online:</div>';
+                    for (var ri = 0; ri < results.length; ri++) {
+                        html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (results[ri].title || '') + '</div>' +
+                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (results[ri].snippet || '') + '</div>' +
+                            (results[ri].url ? '<a href="' + results[ri].url + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                            '</div>';
+                    }
+                    html += '</div>';
+                    html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                    textEl.innerHTML = html;
+                    if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+                } else {
+                    showNachoFallback(textEl, q);
+                }
+            });
+            return;
+        }
+
+        // ---- Step 5: Fallback ----
+        showNachoFallback(textEl, q);
+
+    }, thinkDelay);
+};
+
+function showNachoFallback(textEl, q) {
+    if (typeof setPose === 'function') setPose('think');
+    var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+    fb = typeof personalize === 'function' ? personalize(fb) : fb;
+
+    // Suggest a relevant channel based on keywords
+    var suggestedChannel = null;
+    if (typeof CHANNELS !== 'undefined') {
+        var qLower = q.toLowerCase();
+        for (var chId in CHANNELS) {
+            var ch = CHANNELS[chId];
+            var title = (ch.title || '').toLowerCase();
+            var desc = (ch.desc || '').toLowerCase();
+            if (title.indexOf(qLower) !== -1 || qLower.split(/\s+/).some(function(w) { return w.length > 3 && (title.indexOf(w) !== -1 || desc.indexOf(w) !== -1); })) {
+                suggestedChannel = { id: chId, name: ch.title };
+                break;
             }
-            html += '</div>';
         }
-
-        html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
-        textEl.innerHTML = html;
-
-        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
-    } else {
-        if (typeof setPose === 'function') setPose('think');
-        var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
-        fb = typeof personalize === 'function' ? personalize(fb) : fb;
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + fb + '</div>' +
-            '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: One Stop Shop →</button>' +
-            '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
     }
 
-    // Keep bubble open until user closes it
-    clearTimeout(window._nachoBubbleTimeout);
-};
+    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + fb + '</div>';
+    if (suggestedChannel) {
+        html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: ' + suggestedChannel.name + ' →</button>';
+    } else {
+        html += '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: One Stop Shop →</button>';
+    }
+    html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+    textEl.innerHTML = html;
+}
 
 })();
