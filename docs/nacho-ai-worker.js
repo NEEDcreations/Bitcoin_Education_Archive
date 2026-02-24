@@ -159,6 +159,7 @@ async function handleAI(request, env, corsHeaders) {
   try {
     const body = await request.json();
     let question = (body.question || '').trim();
+    const lang = (body.lang || '').trim();
 
     if (!question || question.length < 2) {
       return new Response(JSON.stringify({ error: 'Invalid question' }), {
@@ -211,7 +212,8 @@ SAFETY: If someone expresses self-harm or crisis, respond with empathy and direc
 
 FINANCIAL: If your answer touches on price, buying, investing, or strategy, always end with: "(Not financial advice — always do your own research!)"
 
-Remember: You are a deer. A very smart, Bitcoin-loving deer. Stay in character always.`;
+Remember: You are a deer. A very smart, Bitcoin-loving deer. Stay in character always.` +
+    (lang ? '\n\nIMPORTANT: The user speaks ' + lang + '. Respond in ' + lang + ' language while staying in character as Nacho.' : '');
 
     const messages = [
       { role: 'system', content: systemPrompt },
