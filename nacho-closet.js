@@ -31,9 +31,9 @@ const NACHO_ITEMS = [
 // ---- Get friendship level ----
 function getFriendLevel() {
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
-    if (interactions >= 100) return 5;
-    if (interactions >= 50) return 4;
-    if (interactions >= 25) return 3;
+    if (interactions >= 750) return 5;
+    if (interactions >= 350) return 4;
+    if (interactions >= 100) return 3;
     if (interactions >= 10) return 2;
     if (interactions >= 1) return 1;
     return 0;
@@ -105,7 +105,7 @@ window.renderNachoClosetUI = function(container) {
     var friendship = typeof getNachoFriendship === 'function' ? getNachoFriendship() : { level: 0, name: 'Strangers', emoji: '❓' };
 
     // Next level info
-    var nextThresholds = [1, 10, 25, 50, 100];
+    var nextThresholds = [1, 10, 100, 350, 750];
     var nextLevel = '';
     for (var i = 0; i < nextThresholds.length; i++) {
         if (interactions < nextThresholds[i]) {
@@ -122,7 +122,7 @@ window.renderNachoClosetUI = function(container) {
         '<span style="color:var(--text-muted);font-size:0.8rem;">' + interactions + ' interactions</span></div>' + nextLevel;
 
     // Progress bar
-    var maxInteractions = 100;
+    var maxInteractions = 750;
     var pct = Math.min(100, Math.round((interactions / maxInteractions) * 100));
     html += '<div style="height:4px;background:var(--border);border-radius:4px;margin:10px 0 16px;overflow:hidden;">' +
         '<div style="height:100%;background:linear-gradient(90deg,#f97316,#eab308);width:' + pct + '%;border-radius:4px;transition:width 0.5s;"></div></div>';

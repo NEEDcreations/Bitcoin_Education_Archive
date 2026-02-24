@@ -217,9 +217,9 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
 // ---- Nacho Friendship Level ----
 window.getNachoFriendship = function() {
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
-    if (interactions >= 100) return { level: 5, name: 'Best Buds', emoji: '💛' };
-    if (interactions >= 50) return { level: 4, name: 'Close Friends', emoji: '🧡' };
-    if (interactions >= 25) return { level: 3, name: 'Good Friends', emoji: '😊' };
+    if (interactions >= 750) return { level: 5, name: 'Best Buds', emoji: '💛' };
+    if (interactions >= 350) return { level: 4, name: 'Close Friends', emoji: '🧡' };
+    if (interactions >= 100) return { level: 3, name: 'Good Friends', emoji: '😊' };
     if (interactions >= 10) return { level: 2, name: 'Getting Acquainted', emoji: '👋' };
     if (interactions >= 1) return { level: 1, name: 'Just Met', emoji: '🦌' };
     return { level: 0, name: 'Strangers', emoji: '❓' };
