@@ -3,6 +3,7 @@
 // =============================================
 
 const BADGE_DEFS = [
+    { id: 'first_channel', name: 'First Steps', emoji: '👶', desc: 'Opened your first channel', check: v => v.length >= 1 },
     { id: 'explorer_10', name: 'Explorer', emoji: '🧭', desc: 'Visited 10 channels', check: v => v.length >= 10 },
     { id: 'explorer_25', name: 'Trailblazer', emoji: '🗺️', desc: 'Visited 25 channels', check: v => v.length >= 25 },
     { id: 'explorer_50', name: 'Pathfinder', emoji: '🏔️', desc: 'Visited 50 channels', check: v => v.length >= 50 },
@@ -20,6 +21,7 @@ const BADGE_DEFS = [
         const res = ['one-stop-shop','faq-glossary','nostr','misconceptions-fud','books','videos','podcasts','articles-threads','informational-sites','curriculum','research-theses','games','music','movies-tv','hardware','poems-stories','apps-tools','projects-diy','art-inspiration','graphics','charts','swag-merch','jobs-earn','social-media','fun-facts','news-adoption','history','international','satoshi-nakamoto','giga-chad','health','web5','memes-funny'];
         return res.filter(r => v.includes(r)).length >= 10;
     }},
+    { id: 'quest_1', name: 'Quester', emoji: '⚔️', desc: 'Completed your first Quest', check: (v, t, q) => q >= 1 },
     { id: 'quest_3', name: 'Quest Master', emoji: '🛡️', desc: 'Completed 3 Quests', check: (v, t, q) => q >= 3 },
     { id: 'quest_5', name: 'Quest Legend', emoji: '👑', desc: 'Completed 5 Quests', check: (v, t, q) => q >= 5 },
     { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 channels to favorites', check: () => {

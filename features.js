@@ -79,6 +79,10 @@ function renderExplorationMap() {
 
 // ---- HIDDEN BADGES ----
 const HIDDEN_BADGES = [
+    { id: 'nacho_friend', name: 'Nacho\'s Friend', emoji: '🦌', pts: 25, desc: 'Interact with Nacho', check: function() { return localStorage.getItem('btc_nacho_clicked') === 'true'; } },
+    { id: 'night_owl', name: 'Night Owl', emoji: '🦉', pts: 50, desc: 'Visit the archive after midnight', check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
+    { id: 'genesis', name: 'Genesis Reader', emoji: '📜', pts: 75, desc: 'Read the whitepaper channel', check: function() { return typeof currentChannelId !== 'undefined' && currentChannelId === 'whitepaper'; } },
+    { id: 'nacho_curious', name: 'Curious Deer', emoji: '❓', pts: 50, desc: 'Ask Nacho your first question', check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 1; } },
     { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', pts: 100, desc: 'Visit 15+ channels in one session', check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 15; } },
     { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', check: function() { return JSON.parse(localStorage.getItem('btc_favs') || '[]').length >= 10; } },
     { id: 'ticket_bronze', name: 'Ticket Fish', emoji: '🐟', pts: 200, desc: 'Earn 25 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 25; } },
