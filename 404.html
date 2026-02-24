@@ -1339,6 +1339,18 @@
         // B = back to previous channel
         if (key === 'b') { var lc = localStorage.getItem('btc_last_channel'); if (lc) go(lc); return; }
 
+        // === Hidden Easter Eggs (shhh!) ===
+        // 2 = "There is no second best."
+        if (key === '2') { speakEasterEgg("There is no second best."); return; }
+        // 1 = "One more block."
+        if (key === '1') { speakEasterEgg("One more block."); return; }
+        // 0 = "Don't trust. Verify."
+        if (key === '0') { speakEasterEgg("Don't trust. Verify."); return; }
+        // 9 = "Number go up!"
+        if (key === '9') { speakEasterEgg("Number go up!"); if (typeof nachoFly === 'function') nachoFly(); return; }
+        // P = "Stay humble, stack sats."
+        if (key === 'p') { speakEasterEgg("Stay humble. Stack sats."); return; }
+
         // === Escape = close modals ===
         if (key === 'escape') {
             if (document.getElementById('lb').classList.contains('open')) document.getElementById('lb').classList.remove('open');
@@ -1347,6 +1359,31 @@
             if (isMobile() && document.getElementById('sidebar').classList.contains('open')) document.getElementById('sidebar').classList.remove('open');
         }
     });
+
+    // Easter egg speech
+    var lastEasterEgg = 0;
+    function speakEasterEgg(text) {
+        var now = Date.now();
+        if (now - lastEasterEgg < 3000) return; // cooldown
+        lastEasterEgg = now;
+        // Show toast
+        if (typeof showToast === 'function') showToast('🟠 ' + text);
+        // Speak it
+        try {
+            var utter = new SpeechSynthesisUtterance(text);
+            utter.rate = 0.9;
+            utter.pitch = 0.85;
+            utter.volume = 0.8;
+            // Try to pick a deep/dramatic voice
+            var voices = speechSynthesis.getVoices();
+            var preferred = voices.find(function(v) { return v.name.indexOf('Daniel') !== -1 || v.name.indexOf('Google UK English Male') !== -1 || v.name.indexOf('Male') !== -1; });
+            if (preferred) utter.voice = preferred;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utter);
+        } catch(e) {}
+    }
+    // Preload voices
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
 
     // Keyboard shortcuts help modal
     function showKeyboardHelp() {
