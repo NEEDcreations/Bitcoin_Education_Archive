@@ -566,6 +566,9 @@ function createNacho() {
                 left: 12px;
                 right: 12px;
                 max-width: calc(100vw - 24px);
+                max-height: calc(100vh - 260px);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
                 min-width: unset;
                 width: auto;
                 font-size: 0.9rem;
@@ -584,6 +587,9 @@ function createNacho() {
                 left: 10px;
                 right: 10px;
                 max-width: calc(100vw - 20px);
+                max-height: calc(100vh - 240px);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
                 font-size: 0.85rem;
                 padding: 14px 16px;
             }
