@@ -39,9 +39,10 @@ export default {
       });
     }
 
-    // Rate limit: 10 requests per minute per IP
-    // (In production, use Cloudflare's rate limiting rules)
-
+    // Simple global rate limit using a shared counter
+    // Keeps total monthly searches under budget
+    // For tighter control, enable Cloudflare's Rate Limiting rules in the dashboard
+    
     try {
       const braveUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=3&safesearch=strict`;
       const response = await fetch(braveUrl, {

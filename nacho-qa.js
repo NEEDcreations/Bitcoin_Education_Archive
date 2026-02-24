@@ -392,8 +392,32 @@ function deepContentSearch(query) {
 // ---- Web search via proxy (for questions Nacho can't answer locally) ----
 var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || '';
 
+// ---- Web search rate limiting ----
+var NACHO_WEB_SEARCH_DAILY_LIMIT = 3; // per user per day
+
+function getWebSearchCount() {
+    var data = JSON.parse(localStorage.getItem('btc_nacho_web_searches') || '{}');
+    var today = new Date().toISOString().split('T')[0];
+    if (data.date !== today) return 0;
+    return data.count || 0;
+}
+
+function incrementWebSearchCount() {
+    var today = new Date().toISOString().split('T')[0];
+    var data = JSON.parse(localStorage.getItem('btc_nacho_web_searches') || '{}');
+    if (data.date !== today) data = { date: today, count: 0 };
+    data.count++;
+    localStorage.setItem('btc_nacho_web_searches', JSON.stringify(data));
+}
+
+function canWebSearch() {
+    return getWebSearchCount() < NACHO_WEB_SEARCH_DAILY_LIMIT;
+}
+
 function nachoWebSearch(query, callback) {
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
+    if (!canWebSearch()) { callback(null); return; }
+    incrementWebSearchCount();
     var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin ' + query);
     fetch(url, { signal: AbortSignal.timeout(6000) })
         .then(function(r) { return r.json(); })
