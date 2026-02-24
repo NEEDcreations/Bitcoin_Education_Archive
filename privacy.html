@@ -11,6 +11,7 @@
         h1 { color: #f7931a; font-size: 1.8rem; margin-bottom: 8px; }
         .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 40px; }
         h2 { color: #f7931a; font-size: 1.15rem; margin-top: 32px; margin-bottom: 12px; }
+        h3 { color: #e0e0e0; font-size: 1rem; margin-top: 20px; margin-bottom: 8px; }
         p, li { color: #ccc; font-size: 0.95rem; margin-bottom: 12px; }
         ul { padding-left: 24px; margin-bottom: 16px; }
         li { margin-bottom: 6px; }
@@ -20,6 +21,10 @@
         .divider { border: none; border-top: 1px solid #222; margin: 32px 0; }
         .highlight { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 16px; margin: 20px 0; }
         .highlight strong { color: #22c55e; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #222; font-size: 0.9rem; }
+        th { color: #f7931a; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { color: #ccc; }
     </style>
 </head>
 <body>
@@ -34,60 +39,124 @@
     </div>
 
     <h2>1. What We Collect</h2>
-    <p>When you create an account, we store:</p>
-    <ul>
-        <li><strong>Username</strong> — chosen by you, displayed on the leaderboard</li>
-        <li><strong>Email</strong> — only if you provide one or sign in via a provider (Google, Twitter, etc.)</li>
-        <li><strong>Points & progress</strong> — channels visited, quest scores, streak data</li>
-        <li><strong>Orange Tickets</strong> — ticket count and referral information</li>
-        <li><strong>Preferences</strong> — theme, language, notification settings</li>
-    </ul>
-    <p>We do <strong>not</strong> collect your real name, location, IP address, browsing history outside the Site, or any financial information.</p>
+
+    <h3>Account Data (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Username</td><td>Display on leaderboard and in-site identity</td></tr>
+        <tr><td>Email (if provided)</td><td>Account verification via magic link sign-in</td></tr>
+        <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, or Facebook authentication</td></tr>
+        <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
+        <tr><td>Streak & visit count</td><td>Daily streak tracking and visit bonus</td></tr>
+        <tr><td>Channels visited</td><td>Progress tracking and exploration map</td></tr>
+        <tr><td>Orange Tickets</td><td>Giveaway eligibility and referral rewards</td></tr>
+        <tr><td>Referral code</td><td>Referral program tracking</td></tr>
+        <tr><td>Giveaway entry (Lightning address)</td><td>Prize distribution if you win</td></tr>
+        <tr><td>Hidden badges earned</td><td>Badge/achievement tracking</td></tr>
+        <tr><td>Scholar certification status</td><td>Certification tracking</td></tr>
+        <tr><td>Favorites</td><td>Saved channel list sync across devices</td></tr>
+    </table>
+
+    <h3>Local Data (stored in your browser only — never sent to us)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Theme preference</td><td>Dark/light mode</td></tr>
+        <tr><td>Language preference</td><td>Translation setting</td></tr>
+        <tr><td>Audio/sound settings</td><td>Sound effect preferences (site + Nacho)</td></tr>
+        <tr><td>Nacho interaction count</td><td>Friendship level calculation</td></tr>
+        <tr><td>Nacho questions asked</td><td>Question badge tracking</td></tr>
+        <tr><td>Nacho equipped accessory</td><td>Closet/outfit selection</td></tr>
+        <tr><td>Nacho question analytics</td><td>Last 100 questions (local only, helps improve answers)</td></tr>
+        <tr><td>Nacho trivia progress</td><td>Which trivia questions you've answered</td></tr>
+        <tr><td>Referral code (pre-signup)</td><td>Stores referral link code before account creation</td></tr>
+        <tr><td>Pending signup data</td><td>Temporarily stores username/email during email verification</td></tr>
+        <tr><td>Visited channels</td><td>Checkmarks and exploration map (also synced to Firebase if signed in)</td></tr>
+    </table>
+
+    <p>We do <strong>not</strong> collect your real name, physical location, IP address, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway).</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
         <li>Display your rank and username on the leaderboard</li>
-        <li>Track your progress, streaks, and ticket earnings</li>
-        <li>Process referrals and giveaway eligibility</li>
-        <li>Send sign-in magic links (if you use email sign-in)</li>
-        <li>Send optional notifications (only if you opt in)</li>
+        <li>Track your progress, points, streaks, badges, and ticket earnings</li>
+        <li>Process referrals and verify referral qualifications (2,100+ points)</li>
+        <li>Determine giveaway eligibility based on Orange Ticket count</li>
+        <li>Send sign-in magic links to verify your email</li>
+        <li>Send optional push notifications (only if you opt in)</li>
+        <li>Power Nacho's personalized greetings (using your username only)</li>
+        <li>Sync your favorites, read progress, and badges across devices</li>
     </ul>
 
     <h2>3. Data Storage</h2>
-    <p>Your data is stored in Google Firebase (Firestore), hosted in the United States. Firebase is operated by Google and subject to Google's security practices. Some preferences are stored locally in your browser (localStorage).</p>
+    <p>Server-side data is stored in <strong>Google Firebase</strong> (Firestore), hosted in the United States. Firebase is operated by Google and subject to Google's enterprise security practices and certifications.</p>
+    <p>Client-side data is stored in your browser's <strong>localStorage</strong> and in the PWA's <strong>service worker cache</strong>. This data stays on your device and is never transmitted to us.</p>
 
     <h2>4. Third-Party Services</h2>
     <p>We use the following third-party services:</p>
-    <ul>
-        <li><strong>Firebase Authentication</strong> — for account sign-in (Google, Twitter/X, GitHub, Facebook, email)</li>
-        <li><strong>Firebase Firestore</strong> — for data storage</li>
-        <li><strong>GitHub Pages</strong> — for website hosting</li>
-    </ul>
-    <p>We do not use Google Analytics, Facebook Pixel, ad networks, or any tracking/analytics services.</p>
+    <table>
+        <tr><th>Service</th><th>Purpose</th><th>Data Shared</th></tr>
+        <tr><td>Firebase Authentication</td><td>Account sign-in</td><td>Email, provider token</td></tr>
+        <tr><td>Firebase Firestore</td><td>Data storage</td><td>Account data (see above)</td></tr>
+        <tr><td>Firebase Cloud Messaging</td><td>Push notifications (opt-in)</td><td>Device token</td></tr>
+        <tr><td>Google OAuth</td><td>Google sign-in</td><td>Google account email/name</td></tr>
+        <tr><td>Twitter/X OAuth</td><td>Twitter sign-in</td><td>Twitter account info</td></tr>
+        <tr><td>GitHub OAuth</td><td>GitHub sign-in</td><td>GitHub account email</td></tr>
+        <tr><td>Facebook OAuth</td><td>Facebook sign-in</td><td>Facebook account info</td></tr>
+        <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
+        <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
+    </table>
+    <p>We do <strong>not</strong> use Google Analytics, Facebook Pixel, ad networks, or any tracking/analytics services.</p>
 
     <h2>5. Data Sharing</h2>
-    <p>We do <strong>not</strong> share your data with anyone. Period. Your data is only used to power features on this Site.</p>
+    <p>We do <strong>not</strong> share, sell, rent, or monetize your data with anyone. Period. The only data visible to other users is your <strong>username</strong> and <strong>points</strong> on the public leaderboard.</p>
 
-    <h2>6. Cookies</h2>
-    <p>We do not use tracking cookies. Firebase Authentication may set necessary session cookies for sign-in functionality. Your browser's localStorage is used to store preferences (theme, favorites, visited channels).</p>
+    <h2>6. Cookies & Local Storage</h2>
+    <p>We do not use tracking cookies. Firebase Authentication may set necessary session cookies for sign-in functionality. Your browser's localStorage is used extensively to store preferences, Nacho interaction data, and cached progress. The PWA service worker caches site assets for offline access.</p>
 
-    <h2>7. Your Rights</h2>
+    <h2>7. Nacho (AI Mascot) Privacy</h2>
+    <ul>
+        <li>Questions you ask Nacho are processed <strong>entirely in your browser</strong> using keyword matching — they are never sent to a server or AI service</li>
+        <li>Question history is stored <strong>only in your browser's localStorage</strong> (last 100 questions) for analytics and improvement purposes</li>
+        <li>Nacho uses your username to personalize greetings — no other personal data is accessed</li>
+        <li>Nacho's friendship level, trivia progress, and closet items are all stored locally</li>
+        <li>Live data (price, fees) is fetched from the public mempool.space API — no user data is sent in these requests</li>
+    </ul>
+
+    <h2>8. Your Rights</h2>
     <p>You can:</p>
     <ul>
         <li><strong>Export your data</strong> — use the "Export My Data" button in Settings → Data</li>
-        <li><strong>Delete your account</strong> — use the "Delete My Account" button in Settings → Data</li>
+        <li><strong>Delete your account</strong> — use the "Delete My Account" button in Settings → Data (permanently removes all server-side data)</li>
+        <li><strong>Clear local data</strong> — clear your browser's localStorage/cache to remove all client-side data</li>
         <li><strong>Change your username</strong> — in Settings → Account</li>
         <li><strong>Sign out</strong> — at any time from Settings → Account</li>
+        <li><strong>Disable Nacho</strong> — in Settings → Prefs (stops all Nacho interactions and data collection)</li>
+        <li><strong>Disable sounds</strong> — in Settings → Prefs</li>
+        <li><strong>Disable push notifications</strong> — in Settings → Prefs or your browser settings</li>
     </ul>
-    <p>When you delete your account, all your data is permanently removed from our database.</p>
+    <p>When you delete your account, all your data is permanently removed from our Firebase database. Local browser data must be cleared separately.</p>
 
-    <h2>8. Children</h2>
-    <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. If you are a parent and believe your child has provided personal information, please contact us and we will delete it.</p>
+    <h2>9. Children</h2>
+    <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. If you are a parent and believe your child has provided personal information, please contact us and we will delete it promptly.</p>
 
-    <h2>9. Changes</h2>
-    <p>We may update this Privacy Policy from time to time. Changes will be reflected in the "Last updated" date above.</p>
+    <h2>10. Data Security</h2>
+    <p>We use industry-standard security measures including:</p>
+    <ul>
+        <li>HTTPS encryption for all data in transit</li>
+        <li>Firebase security rules restricting data access</li>
+        <li>OAuth 2.0 for third-party authentication</li>
+        <li>Email verification required for email-based sign-ins</li>
+        <li>Rate limiting on sign-in attempts</li>
+        <li>Profanity filtering on user inputs</li>
+    </ul>
 
-    <h2>10. Contact</h2>
+    <h2>11. Data Retention</h2>
+    <p>Account data is retained as long as your account exists. If you delete your account, all associated data is permanently deleted from Firebase. Anonymous visit data (visitor ID and count) may be retained for aggregate statistics but contains no personally identifiable information.</p>
+
+    <h2>12. Changes</h2>
+    <p>We may update this Privacy Policy from time to time. Changes will be reflected in the "Last updated" date above. Continued use of the Site after changes constitutes acceptance.</p>
+
+    <h2>13. Contact</h2>
     <p>Questions about privacy? Email <a href="mailto:needcreations@gmail.com">needcreations@gmail.com</a>.</p>
 
     <hr class="divider">
