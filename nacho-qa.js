@@ -238,9 +238,29 @@ const FALLBACKS = [
 ];
 
 // ---- Match user input to knowledge base ----
+// ---- Detect if a question is about current events/news ----
+var CURRENT_EVENT_SIGNALS = [
+    'happened', 'happening', 'news', 'recent', 'recently', 'today', 'yesterday',
+    'this week', 'this month', 'this year', 'last week', 'last month',
+    'conference', 'summit', 'event', 'announced', 'announcement', 'update',
+    'latest', 'new law', 'regulation', 'passed', 'approved', 'banned',
+    'price today', 'right now', 'currently', 'just', '2024', '2025', '2026'
+];
+
+function isCurrentEventQuestion(input) {
+    var lower = input.toLowerCase();
+    for (var i = 0; i < CURRENT_EVENT_SIGNALS.length; i++) {
+        if (lower.indexOf(CURRENT_EVENT_SIGNALS[i]) !== -1) return true;
+    }
+    return false;
+}
+
 function findAnswer(input) {
     input = input.toLowerCase().trim();
     if (input.length < 2) return null;
+
+    // If the question is about current events, skip local KB — let web search handle it
+    if (isCurrentEventQuestion(input)) return null;
 
     let bestMatch = null;
     let bestScore = 0;
@@ -271,7 +291,9 @@ function findAnswer(input) {
         }
     }
 
-    return bestScore >= 20 ? bestMatch : null;
+    // Require a higher confidence threshold to avoid false matches
+    // Single common word matches (score 30) are too weak
+    return bestScore >= 40 ? bestMatch : null;
 }
 
 // ---- Show Ask Nacho input ----
@@ -537,7 +559,9 @@ window.nachoAnswer = function() {
         }
 
         // ---- Step 3: Try deep content search across loaded channels ----
-        var deepResult = deepContentSearch(q);
+        // Skip for current event questions — static site content won't have latest news
+        var isCurrentEvent = isCurrentEventQuestion(q);
+        var deepResult = isCurrentEvent ? null : deepContentSearch(q);
         if (deepResult) {
             if (typeof setPose === 'function') setPose('brain');
             var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
