@@ -104,6 +104,28 @@ function checkHiddenBadges() {
 
     let earned = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
 
+    // MIGRATION: First run — silently earn any badges whose conditions are already met
+    if (!window._hiddenBadgesMigrated) {
+        window._hiddenBadgesMigrated = true;
+        var migrated = false;
+        HIDDEN_BADGES.forEach(function(badge) {
+            if (earned.includes(badge.id)) return;
+            try {
+                if (badge.check()) {
+                    earned.push(badge.id);
+                    migrated = true;
+                }
+            } catch(e) {}
+        });
+        if (migrated) {
+            localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
+            if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+                try { db.collection('users').doc(auth.currentUser.uid).update({ hiddenBadges: earned }); } catch(e) {}
+            }
+        }
+        return; // Skip showing popups on the migration run
+    }
+
     // Also merge in session-tracked badges to prevent re-triggers within a session
     if (!window._badgesShownThisSession) window._badgesShownThisSession = [];
 

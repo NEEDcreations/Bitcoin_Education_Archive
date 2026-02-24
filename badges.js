@@ -66,6 +66,38 @@ window.markVisibleBadgesReady = function() {
     // Merge any badges from Firebase that aren't in localStorage
     var saved = JSON.parse(localStorage.getItem('btc_badges') || '[]');
     saved.forEach(function(b) { earnedBadges.add(b); });
+
+    // MIGRATION: Silently earn any badges whose conditions are ALREADY met
+    // This prevents re-triggering popups for things done in previous sessions
+    var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    var totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
+    var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size : 0;
+    var migrated = false;
+
+    for (var i = 0; i < BADGE_DEFS.length; i++) {
+        var badge = BADGE_DEFS[i];
+        if (earnedBadges.has(badge.id)) continue;
+        try {
+            if (badge.check(visited, totalChannels, questsDone)) {
+                // Silently add — NO popup, NO sound, NO points
+                earnedBadges.add(badge.id);
+                migrated = true;
+            }
+        } catch(e) {}
+    }
+
+    if (migrated) {
+        localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
+        // Save to Firebase so this migration only happens once
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+            try {
+                db.collection('users').doc(auth.currentUser.uid).update({
+                    visibleBadges: [...earnedBadges]
+                });
+            } catch(e) {}
+        }
+    }
+
     window._visibleBadgesReady = true;
 };
 
