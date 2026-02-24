@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =============================================
+    // USERS COLLECTION
+    // Each user doc ID = their Firebase Auth UID
+    // =============================================
+    match /users/{userId} {
+      // Anyone can read user profiles (leaderboard)
+      allow read: if true;
+
+      // Users can only write to their OWN document
+      allow create: if request.auth != null
+                    && request.auth.uid == userId;
+
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    // Prevent setting absurd point values directly
+                    && (!('points' in request.resource.data) 
+                        || request.resource.data.points <= resource.data.points + 2200
+                        || request.resource.data.points is int);
+
+      // Only allow delete of own document (account cleanup)
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
+
+    // =============================================
+    // VISITS COLLECTION (unique visitor tracking)
+    // Doc ID = device fingerprint
+    // =============================================
+    match /visits/{visitorId} {
+      // No reads needed from client (counter is in stats/visits)
+      allow read: if false;
+
+      // Anyone can create/update their visit doc (anonymous visitors)
+      // But only allow setting lastVisit to today's date
+      allow create: if request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
+                    && request.resource.data.lastVisit is string
+                    && request.resource.data.lastVisit.size() == 10;
+
+      allow update: if request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
+                    && request.resource.data.lastVisit is string
+                    && request.resource.data.lastVisit.size() == 10
+                    // Can only update if lastVisit is changing (1 per day)
+                    && request.resource.data.lastVisit != resource.data.lastVisit;
+    }
+
+    // =============================================
+    // STATS COLLECTION (global counters)
+    // Currently: stats/visits { total: number }
+    // =============================================
+    match /stats/{statId} {
+      // Anyone can read stats (displayed on homepage)
+      allow read: if true;
+
+      // Allow incrementing the visit counter
+      // Only allow total to increase by exactly 1
+      allow update: if statId == 'visits'
+                    && request.resource.data.total == resource.data.total + 1;
+
+      // Allow first creation
+      allow create: if statId == 'visits'
+                    && request.resource.data.total == 1;
+    }
+
+    // =============================================
+    // SUGGESTIONS COLLECTION (user feedback)
+    // =============================================
+    match /suggestions/{suggestionId} {
+      // No reads from client
+      allow read: if false;
+
+      // Anyone authenticated can submit (rate limited client-side)
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAll(['text', 'timestamp'])
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() <= 1000;
+    }
+
+    // =============================================
+    // REFERRALS COLLECTION
+    // =============================================
+    match /referrals/{referralId} {
+      // Users can read referral docs
+      allow read: if request.auth != null;
+
+      // Users can create their own referral doc
+      allow create: if request.auth != null
+                    && request.auth.uid == referralId;
+
+      // Users can update their own referral doc
+      allow update: if request.auth != null
+                    && request.auth.uid == referralId;
+    }
+
+    // =============================================
+    // GIVEAWAY ENTRIES
+    // =============================================
+    match /giveaway_entries/{entryId} {
+      allow read: if false;
+
+      // Can only create own entry
+      allow create: if request.auth != null
+                    && (request.auth.uid == entryId 
+                        || request.resource.data.uid == request.auth.uid);
+
+      // Can update own entry
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // =============================================
+    // PUSH TOKENS
+    // =============================================
+    match /push_tokens/{tokenId} {
+      allow read: if false;
+
+      allow create, update: if request.auth != null
+                            && request.auth.uid == tokenId;
+    }
+
+    // =============================================
+    // DEFAULT: deny everything else
+    // =============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
