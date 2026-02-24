@@ -688,11 +688,11 @@
                     <button id="expandFlashBtn" onclick="var m=document.getElementById('moreFlashcards');if(m.style.display==='none'){m.style.display='block';this.textContent='▲ Show Less'}else{m.style.display='none';this.textContent='▼ Show More Topics'}" style="margin-top:10px;padding:6px 16px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">▼ Show More Topics</button>
                 </div>
                 <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;">
-                    <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic</h3>
+                    <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic or Leave Feedback</h3>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0;">Want to see something added to the archive? Let us know!</p>
                     <div id="suggestFields" style="display:none;margin-top:12px;">
                         <input type="text" id="suggestName" placeholder="Your name (optional)" class="suggest-input" onclick="event.stopPropagation()">
-                        <textarea id="suggestText" placeholder="What topic or content should we add?" class="suggest-input" rows="3" onclick="event.stopPropagation()"></textarea>
+                        <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()"></textarea>
                         <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()">Submit Suggestion</button>
                         <div id="suggestStatus"></div>
                     </div>
