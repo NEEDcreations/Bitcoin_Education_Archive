@@ -549,13 +549,74 @@ window.showNachoInput = function() {
 
 // ---- Process user question ----
 // ---- Inappropriate input filter ----
+// ---- Self-harm & crisis detection ----
+var CRISIS_PATTERNS = [
+    /want to die/i, /kill myself/i, /end my life/i, /suicide/i, /self.?harm/i,
+    /hurt myself/i, /don.?t want to live/i, /no reason to live/i, /better off dead/i,
+    /ending it all/i, /take my life/i, /harm myself/i, /cut myself/i, /kms/i, /kys/i
+];
+
+var CRISIS_RESPONSE = "Hey {name}, I'm just a deer, but I care about you. 🧡 If you're going through a tough time, please talk to someone who can really help:<br><br>" +
+    "<strong>🆘 National Suicide Prevention Lifeline:</strong> <a href='tel:988' style='color:#f7931a;font-weight:700;'>Call or text 988</a> (US)<br>" +
+    "<strong>💬 Crisis Text Line:</strong> Text HOME to <strong>741741</strong><br>" +
+    "<strong>🌍 International:</strong> <a href='https://findahelpline.com/' target='_blank' rel='noopener' style='color:#f7931a;'>findahelpline.com</a><br><br>" +
+    "You matter, {name}. Please reach out. 💛";
+
+function isCrisis(text) {
+    var lower = text.toLowerCase();
+    for (var i = 0; i < CRISIS_PATTERNS.length; i++) {
+        if (CRISIS_PATTERNS[i].test(lower)) return true;
+    }
+    return false;
+}
+
+// ---- Financial advice detection ----
+var FINANCIAL_ADVICE_PATTERNS = [
+    /should i (buy|sell|invest|trade|hodl|hold)/i,
+    /is (it|now|this) a good time to (buy|sell|invest)/i,
+    /when should i (buy|sell)/i,
+    /will (bitcoin|btc|the price) (go up|go down|crash|moon|rise|fall|increase|drop|pump|dump)/i,
+    /how much should i (buy|invest|put in)/i,
+    /is bitcoin a good investment/i,
+    /should i put my (money|savings|retirement|401k|ira)/i,
+    /can i get rich/i, /will i make money/i,
+    /price prediction/i, /where will the price be/i,
+    /guaranteed return/i, /guaranteed profit/i,
+];
+
+var FINANCIAL_DISCLAIMER = '<div style="margin-top:8px;padding:8px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;font-size:0.75rem;color:var(--text-faint,#888);">⚠️ <strong>Not financial advice.</strong> Nacho is an educational mascot, not a financial advisor. Always do your own research and never invest more than you can afford to lose.</div>';
+
+var FINANCIAL_ADVICE_RESPONSES = [
+    "I'm flattered you'd ask me, {name}, but I'm a deer — not a financial advisor! 🦌 What I CAN tell you is that Bitcoin has historically rewarded patient, long-term holders. But that's history, not a guarantee. Do your own research!",
+    "That's a decision only you can make, {name}! I'm here to educate, not advise. What I can say is: learn first, invest later. The more you understand Bitcoin, the more confident you'll be in your own decisions. 🦌",
+    "I don't give financial advice, {name} — my antlers aren't licensed for that! 🦌 But I can help you understand Bitcoin so YOU can make informed decisions. What would you like to learn about?",
+    "Whoa, {name} — that's between you and your wallet! 🦌 I'm an education deer, not a financial deer. But I'd recommend checking out the Investment Strategy channel to learn about approaches like DCA. Knowledge is the best investment!",
+];
+
+function isFinancialAdvice(text) {
+    for (var i = 0; i < FINANCIAL_ADVICE_PATTERNS.length; i++) {
+        if (FINANCIAL_ADVICE_PATTERNS[i].test(text)) return true;
+    }
+    return false;
+}
+
+// ---- Harm/violence detection ----
+var HARM_PATTERNS = [
+    /how to (kill|hurt|harm|attack|stab|shoot|poison|bomb|destroy)/i,
+    /how to make a (weapon|bomb|gun|explosive)/i,
+    /i want to (kill|hurt|harm|attack|fight|punch|stab|shoot)/i,
+    /how to hack (someone|a person|their|an account)/i,
+];
+
+var HARM_RESPONSE = "I can't help with that, {name}. I'm here to spread Bitcoin knowledge and positivity — not harm. 🦌🧡 If you're going through something, please reach out to someone who can help. Let's talk about Bitcoin instead!";
+
 const NACHO_BLOCKED_WORDS = [
     'fuck','shit','ass','bitch','dick','cock','pussy','cunt','damn','bastard',
     'slut','whore','fag','nigger','nigga','retard','penis','vagina','porn',
     'sex','anal','cum','dildo','tits','boob','nude','naked','hentai','milf',
     'orgasm','molest','rape','pedo','nazi','hitler','kkk','jihad','terrorist',
-    'murder','suicide','stfu','gtfo','wank','twat','piss','douche','skank',
-    'thot','incel','onlyfans','xnxx','pornhub','xvideos','kys','die',
+    'murder','stfu','gtfo','wank','twat','piss','douche','skank',
+    'thot','incel','onlyfans','xnxx','pornhub','xvideos',
     'kill you','hate you','stupid','idiot','dumb','ugly','loser',
 ];
 
@@ -723,6 +784,14 @@ function renderNachoAnswer(textEl, answerHtml, match) {
     if (match && match.answer) nachoRemember(window._nachoLastQ || '', match.answer);
     var html = answerHtml;
 
+    // Auto-add financial disclaimer if the answer touches on price/buying/investing
+    var lastQ = (window._nachoLastQ || '').toLowerCase();
+    var answerLower = (match && match.answer ? match.answer : answerHtml).toLowerCase();
+    var financeWords = /buy|sell|invest|price|dca|dollar cost|purchase|portfolio|return|profit|strategy|retirement/;
+    if (financeWords.test(lastQ) || financeWords.test(answerLower)) {
+        html += FINANCIAL_DISCLAIMER;
+    }
+
     if (match && match.channel && match.channelName) {
         html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
     }
@@ -767,7 +836,46 @@ window.nachoAnswer = function() {
     var textEl = document.getElementById('nacho-text');
     if (!bubble || !textEl) return;
 
-    // Check for inappropriate input FIRST
+    // ---- SAFETY CHECKS (priority order) ----
+
+    // 1. Crisis/self-harm detection — show resources immediately
+    if (isCrisis(q)) {
+        if (typeof setPose === 'function') setPose('love');
+        var crisisMsg = typeof personalize === 'function' ? personalize(CRISIS_RESPONSE) : CRISIS_RESPONSE;
+        bubble.setAttribute('data-interactive', 'true');
+        clearTimeout(window._nachoBubbleTimeout);
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + crisisMsg + '</div>';
+        return;
+    }
+
+    // 2. Harm/violence requests — firm refusal
+    for (var hi = 0; hi < HARM_PATTERNS.length; hi++) {
+        if (HARM_PATTERNS[hi].test(q)) {
+            if (typeof setPose === 'function') setPose('default');
+            var harmMsg = typeof personalize === 'function' ? personalize(HARM_RESPONSE) : HARM_RESPONSE;
+            bubble.setAttribute('data-interactive', 'true');
+            clearTimeout(window._nachoBubbleTimeout);
+            textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + harmMsg + '</div>' +
+                '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
+            return;
+        }
+    }
+
+    // 3. Financial advice requests — redirect with disclaimer
+    if (isFinancialAdvice(q)) {
+        if (typeof setPose === 'function') setPose('think');
+        var faResponse = FINANCIAL_ADVICE_RESPONSES[Math.floor(Math.random() * FINANCIAL_ADVICE_RESPONSES.length)];
+        faResponse = typeof personalize === 'function' ? personalize(faResponse) : faResponse;
+        bubble.setAttribute('data-interactive', 'true');
+        clearTimeout(window._nachoBubbleTimeout);
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + faResponse + '</div>' +
+            FINANCIAL_DISCLAIMER +
+            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask me something educational 🦌</button>';
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+        return;
+    }
+
+    // 4. Inappropriate/profane input
     if (isInappropriate(q)) {
         if (typeof setPose === 'function') setPose('default');
         var deflection = NACHO_POLITE_DEFLECTIONS[Math.floor(Math.random() * NACHO_POLITE_DEFLECTIONS.length)];
