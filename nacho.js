@@ -386,47 +386,54 @@ function createNacho() {
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
         /* 1. Tap tap — like Clippy tapping on the screen */
-        /* Nacho victory flight — Lightning bolt ⚡ pattern! */
+        /* Nacho victory flight — Lightning bolt ⚡ across the full screen! */
         @keyframes nachoFly {
-            /* Sharp zigzag like a lightning bolt going up-right then back */
-            0%   { transform: translate(0, 0) rotate(0deg); }
-            /* Bolt strike 1: up-right */
-            8%   { transform: translate(80px, -120px) rotate(15deg); }
-            /* Bolt strike 2: sharp right-down */
-            16%  { transform: translate(200px, -60px) rotate(-12deg); }
-            /* Bolt strike 3: up-right again */
-            24%  { transform: translate(320px, -180px) rotate(18deg); }
-            /* Bolt strike 4: sharp right-down */
-            32%  { transform: translate(450px, -90px) rotate(-15deg); }
-            /* Peak: top of the bolt */
-            40%  { transform: translate(500px, -220px) rotate(10deg) scale(1.15); }
-            /* Return bolt: zigzag back */
-            50%  { transform: translate(400px, -100px) rotate(-12deg); }
-            60%  { transform: translate(280px, -200px) rotate(15deg); }
-            70%  { transform: translate(160px, -80px) rotate(-10deg); }
-            80%  { transform: translate(60px, -150px) rotate(8deg); }
-            90%  { transform: translate(15px, -40px) rotate(-5deg); }
-            100% { transform: translate(0, 0) rotate(0deg); }
+            /*  ⚡ Lightning bolt: zigzag from left to far right, then teleport home
+                Uses vw so he crosses the FULL viewport  */
+            0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            /* Strike 1: up-right */
+            10%  { transform: translate(20vw, -25vh) rotate(18deg); opacity: 1; }
+            /* Strike 2: down-right */
+            20%  { transform: translate(35vw, -8vh) rotate(-15deg); opacity: 1; }
+            /* Strike 3: up-right */
+            30%  { transform: translate(50vw, -35vh) rotate(20deg); opacity: 1; }
+            /* Strike 4: down-right */
+            40%  { transform: translate(65vw, -12vh) rotate(-18deg); opacity: 1; }
+            /* Strike 5: up to peak — far right corner */
+            50%  { transform: translate(80vw, -40vh) rotate(15deg) scale(1.2); opacity: 1; }
+            /* Strike 6: final zag down to far edge */
+            60%  { transform: translate(88vw, -15vh) rotate(-10deg) scale(1.1); opacity: 1; }
+            /* Pause at the end — flash! */
+            70%  { transform: translate(88vw, -15vh) rotate(0deg) scale(1.3); opacity: 1; }
+            /* Teleport: fade out */
+            80%  { transform: translate(88vw, -15vh) scale(0.5); opacity: 0; }
+            /* Reappear at home */
+            90%  { transform: translate(0, 20px) scale(0.5); opacity: 0; }
+            /* Land with a bounce */
+            95%  { transform: translate(0, -10px) scale(1.05); opacity: 1; }
+            100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
         @keyframes nachoFlyMobile {
-            0%   { transform: translate(0, 0) rotate(0deg); }
-            10%  { transform: translate(40px, -100px) rotate(15deg); }
-            20%  { transform: translate(100px, -40px) rotate(-12deg); }
-            30%  { transform: translate(150px, -160px) rotate(18deg); }
-            40%  { transform: translate(180px, -80px) rotate(-10deg) scale(1.1); }
-            55%  { transform: translate(130px, -180px) rotate(12deg); }
-            70%  { transform: translate(60px, -60px) rotate(-8deg); }
-            85%  { transform: translate(15px, -100px) rotate(5deg); }
-            100% { transform: translate(0, 0) rotate(0deg); }
+            0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            12%  { transform: translate(25vw, -20vh) rotate(18deg); opacity: 1; }
+            24%  { transform: translate(45vw, -5vh) rotate(-15deg); opacity: 1; }
+            36%  { transform: translate(60vw, -28vh) rotate(20deg); opacity: 1; }
+            48%  { transform: translate(75vw, -8vh) rotate(-12deg) scale(1.15); opacity: 1; }
+            60%  { transform: translate(85vw, -30vh) rotate(10deg) scale(1.2); opacity: 1; }
+            70%  { transform: translate(85vw, -30vh) rotate(0deg) scale(1.3); opacity: 1; }
+            80%  { transform: translate(85vw, -30vh) scale(0.5); opacity: 0; }
+            90%  { transform: translate(0, 20px) scale(0.5); opacity: 0; }
+            95%  { transform: translate(0, -8px) scale(1.05); opacity: 1; }
+            100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
         #nacho-avatar.flying {
-            animation: nachoFly 1.8s linear forwards;
+            animation: nachoFly 2.8s linear forwards;
             z-index: 999;
             filter: drop-shadow(0 0 20px rgba(247,147,26,0.8)) drop-shadow(0 0 40px rgba(234,88,12,0.4));
         }
         @media (max-width: 900px) {
             #nacho-avatar.flying {
-                animation: nachoFlyMobile 1.5s linear forwards;
+                animation: nachoFlyMobile 2.4s linear forwards;
             }
         }
         /* Lightning trail particles */
@@ -848,8 +855,9 @@ window.nachoFly = function() {
     var soundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
 
     // Zaps at each bolt direction change (timed to 1.8s animation)
-    var zapTimes = [0, 140, 290, 430, 580, 720, 900, 1080, 1260, 1440];
-    var zapPitches = [1800, 1400, 2000, 1200, 2200, 1600, 1900, 1300, 1700, 2400];
+    // Zap at each bolt direction change (timed to 2.8s desktop animation)
+    var zapTimes = [0, 280, 560, 840, 1120, 1400, 1680, 1960];
+    var zapPitches = [1800, 1400, 2200, 1200, 2400, 1600, 2000, 2800];
     zapTimes.forEach(function(t, i) {
         setTimeout(function() {
             if (soundOn && avatar.classList.contains('flying')) playZap(zapPitches[i]);
