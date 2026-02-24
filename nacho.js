@@ -611,8 +611,8 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
-            '<span class="nacho-name" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span class="nacho-closet-btn" onclick="event.stopPropagation();if(typeof showSettingsPage===\'function\')showSettingsPage(\'data\');" title="Nacho\'s Closet — dress me up!">👔</span>' +
+            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-closet-btn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();try{if(typeof showSettingsPage===\'function\')showSettingsPage(\'data\');}catch(e){console.log(\'closet error\',e);}" title="Nacho\'s Closet — dress me up!">👔</span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble(true)">' +
             '<div class="nacho-header">' +
@@ -754,6 +754,9 @@ function _showBubble(text, pose) {
         if (!b || !b.classList.contains('show')) return;
         if (b.contains(e.target)) return;
         if (c && c.contains(e.target)) return;
+        // Don't dismiss if clicking settings modal or its backdrop
+        var modal = document.getElementById('usernameModal');
+        if (modal && modal.contains(e.target)) return;
         hideBubble(true);
     };
     window._nachoEscHandler = function(e) {
