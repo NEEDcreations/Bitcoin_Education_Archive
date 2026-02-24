@@ -277,7 +277,7 @@ function createNacho() {
         #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -24px;
+            bottom: -30px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.7rem;
@@ -289,6 +289,14 @@ function createNacho() {
             text-shadow: 0 1px 4px rgba(0,0,0,0.5);
             line-height: 1.3;
             text-align: center;
+            pointer-events: auto;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        #nacho-avatar .nacho-name:hover {
+            background: rgba(247,147,26,0.15);
         }
 
         /* Clippy-style speech bubble */
@@ -445,13 +453,13 @@ function createNacho() {
             #nacho-container { bottom: 110px; left: 12px; }
             #nacho-avatar { width: 80px; height: 80px; }
             #nacho-bubble { max-width: 240px; min-width: 160px; font-size: 0.85rem; padding: 14px 16px; }
-            #nacho-avatar .nacho-name { font-size: 0.75rem; bottom: -26px; }
+            #nacho-avatar .nacho-name { font-size: 0.75rem; bottom: -32px; padding: 6px 16px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: 100px; left: 8px; }
             #nacho-avatar { width: 72px; height: 72px; }
             #nacho-bubble { max-width: 210px; }
-            #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -24px; }
+            #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -30px; padding: 6px 14px; }
         }
 
         /* Bring-back toggle */
@@ -475,7 +483,7 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
-            '<span class="nacho-name">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-name" onclick="event.stopPropagation();nachoClick();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="hideBubble()">' +
             '<div class="nacho-header">' +
