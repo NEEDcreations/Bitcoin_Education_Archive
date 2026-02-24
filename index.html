@@ -1367,7 +1367,13 @@
                 '#nachoModeAvatar:hover { transform: scale(1.05); }' +
                 '#nachoModeChat { max-height: 40vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }' +
             '</style>' +
-            '<button onclick="exitNachoMode()" style="position:fixed;top:16px;left:16px;background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-family:inherit;z-index:10;touch-action:manipulation;">← Back to Archive</button>' +
+            '<div style="position:fixed;top:16px;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:0 16px;">' +
+                '<button onclick="exitNachoMode()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:40px;height:40px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);" onclick="exitNachoMode()" title="Go to Home">' +
+                    '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="36" height="36" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+                '</div>' +
+            '</div>' +
             '<div id="nachoModeAvatar" style="width:200px;height:200px;margin:20px 0 16px;cursor:pointer;" onclick="nachoModeAvatarTap()">' + nachoSvg + '</div>' +
             '<div style="color:var(--accent);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
             '<div style="color:var(--heading);font-size:1.4rem;font-weight:800;margin-bottom:8px;">' + greeting + '</div>' +
