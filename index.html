@@ -1618,28 +1618,17 @@
             updateNachoModeFriendship();
         }
 
-        // Check safety first
+        // STEP 1: Safety (must stay hardcoded — fast, reliable, no API cost)
         if (typeof isInappropriate === 'function' && isInappropriate(q)) {
             reply("Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌");
             return;
         }
-
         if (typeof isCrisis === 'function' && isCrisis(q)) {
             reply("Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛");
             return;
         }
 
-        // Check off-topic
-        if (typeof checkOffTopic === 'function') {
-            var ot = checkOffTopic(q);
-            if (ot) {
-                var otMsg = typeof personalize === 'function' ? personalize(ot) : ot;
-                reply(otMsg);
-                return;
-            }
-        }
-
-        // Check local KB
+        // STEP 2: Local KB for Bitcoin questions (free, instant)
         if (typeof findAnswer === 'function') {
             var match = null;
             if (typeof nachoLiveAnswer === 'function') match = nachoLiveAnswer(q);
@@ -1652,19 +1641,28 @@
             }
         }
 
-        // Try AI
+        // STEP 3: AI handles EVERYTHING else — greetings, conversation, complex Bitcoin Qs, follow-ups
         if (typeof nachoAIAnswer === 'function') {
             nachoAIAnswer(q, function(aiAnswer) {
                 if (aiAnswer) {
                     reply(aiAnswer);
                 } else {
+                    // AI failed/rate-limited — fall back to off-topic patterns
+                    if (typeof checkOffTopic === 'function') {
+                        var ot = checkOffTopic(q);
+                        if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot); return; }
+                    }
                     reply("Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌");
                 }
             });
             return;
         }
 
-        // Inline greeting check as last resort (covers case where nacho-qa.js hasn't loaded yet)
+        // STEP 4: No AI available — fall back to off-topic patterns + inline greetings
+        if (typeof checkOffTopic === 'function') {
+            var ot = checkOffTopic(q);
+            if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot); return; }
+        }
         var ql = q.toLowerCase().trim();
         if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
             var greetings = [
