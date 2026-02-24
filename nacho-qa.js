@@ -894,10 +894,11 @@ function nachoAIAnswer(question, callback) {
     var timeoutId = null;
     try { controller = new AbortController(); } catch(e) {}
     var userLang = localStorage.getItem('btc_lang') || '';
+    var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || '');
     var fetchOpts = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question, lang: userLang })
+        body: JSON.stringify({ question: question, lang: userLang, userName: userName })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
 
