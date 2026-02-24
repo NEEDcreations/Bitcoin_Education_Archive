@@ -1815,6 +1815,16 @@
             if (el) el.style.display = '';
         });
 
+        // Show summary of what was earned
+        var e = window._nachoModeEarnings;
+        if (e.interactions > 0 && typeof showToast === 'function') {
+            var parts = ['🦌 ' + e.interactions + ' interactions'];
+            if (e.points > 0) parts.push('+' + e.points + ' pts');
+            var bc = Array.isArray(e.badges) ? e.badges.length : (e.badges || 0);
+            if (bc > 0) parts.push(bc + ' badge' + (bc > 1 ? 's' : ''));
+            showToast(parts.join(' · '));
+        }
+
         goHome();
     };
 
