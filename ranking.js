@@ -51,12 +51,13 @@ function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
 
-        // Firebase App Check — prevents unauthorized API usage from bots/scrapers
-        if (typeof firebase.appCheck === 'function') {
-            try {
-                firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
-            } catch(e) {}
-        }
+        // Firebase App Check — temporarily disabled to fix Cloud Functions auth
+        // TODO: Re-enable after configuring Cloud Functions to accept App Check tokens
+        // if (typeof firebase.appCheck === 'function') {
+        //     try {
+        //         firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
+        //     } catch(e) {}
+        // }
 
         db = firebase.firestore();
         auth = firebase.auth();
@@ -2017,12 +2018,12 @@ async function loadTotpStatus() {
     } catch(e) {
         console.log('TOTP status error:', e);
         var errMsg = (e && e.message) || '';
-        var isNotDeployed = errMsg.indexOf('is not a function') !== -1 || errMsg.indexOf('internal') !== -1 || errMsg.indexOf('not-found') !== -1;
+        var isAuthErr = errMsg.indexOf('unauthenticated') !== -1 || errMsg.indexOf('signed in') !== -1;
         section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
             '<span style="color:var(--text-faint);font-size:1.2rem;">📱</span>' +
             '<div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
-            (isNotDeployed ? '<div style="color:var(--text-faint);font-size:0.8rem;margin-bottom:8px;">⚠️ Authenticator setup is currently unavailable. Please try again later.</div>' : '') +
+            (isAuthErr ? '<div style="color:var(--text-faint);font-size:0.8rem;margin-bottom:8px;">⚠️ Try signing out and back in to enable 2FA.</div>' : '') +
             '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Set Up Authenticator App</button>' +
             '<div id="totpSetupArea" style="display:none;margin-top:12px;"></div>' +
             '<div id="totpStatus" style="margin-top:6px;font-size:0.8rem;"></div>';
