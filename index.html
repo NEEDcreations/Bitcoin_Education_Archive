@@ -633,8 +633,8 @@
         <div id="home" class="home-page">
             <div class="home-inner">
                 <div class="home-logos">
-                    <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);">
-                    <svg class="home-ln" viewBox="0 0 64 64" width="80" height="80"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>
+                    <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="go('home')" title="Home">
+                    <svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" onclick="showDonateModal()" style="cursor:pointer;" title="Support the Archive ⚡"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
                 <p class="home-subtitle">A curated library of Bitcoin education — complete with Quests to test your knowledge. Start your Quest today!</p>
@@ -1208,6 +1208,29 @@
         window.open('https://primal.net/home', '_blank');
     }
 
+    window.showDonateModal = function() {
+        var existing = document.getElementById('donateModal');
+        if (existing) existing.remove();
+        var modal = document.createElement('div');
+        modal.id = 'donateModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);';
+        modal.innerHTML =
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:16px;padding:28px 24px;max-width:360px;width:90%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);">' +
+                '<button onclick="document.getElementById(\'donateModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:30px;height:30px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>' +
+                '<div style="font-size:2rem;margin-bottom:8px;">⚡</div>' +
+                '<div style="color:var(--heading,#fff);font-weight:700;font-size:1.1rem;margin-bottom:4px;">Support the Archive</div>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>' +
+                '<img src="donation-qr.jpg" alt="Bitcoin Donation QR Code" style="width:180px;height:auto;margin-bottom:12px;border:2px solid var(--border,#333);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.2);">' +
+                '<div style="margin-bottom:12px;">' +
+                    '<div style="color:var(--accent,#f7931a);font-weight:600;font-size:0.85rem;word-break:break-all;margin-bottom:6px;">spontaneousleopard54@zeuspay.com</div>' +
+                    '<button onclick="navigator.clipboard.writeText(\'spontaneousleopard54@zeuspay.com\').then(function(){this.textContent=\'✅ Copied!\'}.bind(this));setTimeout(function(){this.textContent=\'📋 Copy Address\'}.bind(this),2000)" style="padding:6px 16px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid var(--accent,#f7931a);border-radius:8px;color:var(--accent,#f7931a);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">📋 Copy Address</button>' +
+                '</div>' +
+                '<p style="color:var(--text-faint,#666);font-size:0.75rem;margin:0;">⚠️ Donations are non-refundable</p>' +
+            '</div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    };
+
     function copyLink(url, btn) {
         navigator.clipboard.writeText(url).then(() => {
             btn.classList.add('copied');
@@ -1601,8 +1624,8 @@
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos">' +
-                '<img src="images/btc-grad-logo.jpg" alt="" class="channel-logo-img">' +
-                '<svg viewBox="0 0 64 64" width="50" height="50"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>' +
+                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="go(\'home\')" style="cursor:pointer;" title="Go to Home">' +
+                '<svg viewBox="0 0 64 64" width="50" height="50" onclick="showDonateModal()" style="cursor:pointer;" title="Support the Archive ⚡"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
