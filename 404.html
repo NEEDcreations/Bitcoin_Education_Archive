@@ -1815,14 +1815,6 @@
             if (el) el.style.display = '';
         });
 
-        // Show summary of what was earned
-        var e = window._nachoModeEarnings;
-        if (e.interactions > 0) {
-            if (typeof showToast === 'function') {
-                showToast('🦌 Nacho Mode: ' + e.interactions + ' interactions!');
-            }
-        }
-
         goHome();
     };
 
