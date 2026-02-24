@@ -1869,32 +1869,66 @@
             if (typeof firebase === 'undefined' || !firebase.firestore) return;
             const fdb = firebase.firestore();
             const today = new Date().toISOString().split('T')[0];
-            const visitorId = localStorage.getItem('btc_visitor_id') || ('v_' + Math.random().toString(36).substr(2, 12));
-            localStorage.setItem('btc_visitor_id', visitorId);
+
+            // Generate a fingerprint-based visitor ID (harder to spoof than random)
+            // Combines screen, timezone, language, platform — same device = same ID
+            var fp = [
+                screen.width, screen.height, screen.colorDepth,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.language, navigator.hardwareConcurrency || 0,
+                navigator.platform
+            ].join('|');
+            // Simple hash
+            var hash = 0;
+            for (var i = 0; i < fp.length; i++) {
+                hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+                hash |= 0;
+            }
+            var fingerprintId = 'fp_' + Math.abs(hash).toString(36);
+
+            // Also keep localStorage ID for cross-session persistence
+            var storedId = localStorage.getItem('btc_visitor_id');
+            if (!storedId) {
+                storedId = fingerprintId;
+                localStorage.setItem('btc_visitor_id', storedId);
+            }
+
+            // Use both: if fingerprint matches an existing visitor, use that
+            // This prevents incognito/clear-storage from creating new visitors on the same device
+            var visitorId = fingerprintId;
+
+            // Rate limit: don't count more than once per session
+            if (window._visitCounted) {
+                fdb.collection('stats').doc('visits').get().then(function(d) {
+                    if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
+                });
+                return;
+            }
+            window._visitCounted = true;
 
             // Check if this visitor already counted today
-            const visitRef = fdb.collection('visits').doc(visitorId);
-            visitRef.get().then(doc => {
+            var visitRef = fdb.collection('visits').doc(visitorId);
+            visitRef.get().then(function(doc) {
                 if (!doc.exists || doc.data().lastVisit !== today) {
                     // New unique visit — increment counter and mark visitor
-                    const counterRef = fdb.collection('stats').doc('visits');
-                    fdb.runTransaction(t => {
-                        return t.get(counterRef).then(counterDoc => {
-                            const newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
+                    var counterRef = fdb.collection('stats').doc('visits');
+                    fdb.runTransaction(function(t) {
+                        return t.get(counterRef).then(function(counterDoc) {
+                            var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
                             t.set(counterRef, { total: newCount });
-                            t.set(visitRef, { lastVisit: today });
+                            t.set(visitRef, { lastVisit: today, fp: fingerprintId });
                             return newCount;
                         });
-                    }).then(newCount => {
+                    }).then(function(newCount) {
                         vc.textContent = newCount.toLocaleString();
                     });
                 } else {
                     // Already counted today — just display current total
-                    fdb.collection('stats').doc('visits').get().then(d => {
+                    fdb.collection('stats').doc('visits').get().then(function(d) {
                         if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
                     });
                 }
-            }).catch(() => { vc.textContent = '—'; });
+            }).catch(function() { vc.textContent = '—'; });
         }
         // Wait a moment for Firebase to init
         setTimeout(updateVisitDisplay, 2000);
