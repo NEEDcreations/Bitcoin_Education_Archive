@@ -296,6 +296,95 @@ function findAnswer(input) {
     return bestScore >= 40 ? bestMatch : null;
 }
 
+// ---- Voice-to-text input for Nacho ----
+window._nachoRecognition = null;
+window._nachoListening = false;
+
+window.nachoVoiceInput = function() {
+    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    var inp = document.getElementById('nachoInput');
+    var micBtn = document.getElementById('nachoMicBtn');
+    if (!inp || !micBtn) return;
+
+    // If already listening, stop
+    if (window._nachoListening && window._nachoRecognition) {
+        window._nachoRecognition.stop();
+        return;
+    }
+
+    var rec = new SpeechRec();
+    window._nachoRecognition = rec;
+    rec.lang = 'en-US';
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.continuous = false;
+
+    // Visual feedback — mic turns red/active
+    micBtn.style.opacity = '1';
+    micBtn.innerHTML = '🔴';
+    micBtn.title = 'Listening... tap to stop';
+    inp.placeholder = 'Listening...';
+    inp.style.borderColor = '#f7931a';
+    window._nachoListening = true;
+
+    var finalTranscript = '';
+
+    rec.onresult = function(e) {
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+                finalTranscript += e.results[i][0].transcript;
+            } else {
+                interim += e.results[i][0].transcript;
+            }
+        }
+        // Show live transcription as user speaks
+        inp.value = finalTranscript || interim;
+    };
+
+    rec.onend = function() {
+        window._nachoListening = false;
+        micBtn.innerHTML = '🎙️';
+        micBtn.style.opacity = '0.6';
+        micBtn.title = 'Voice input';
+        inp.style.borderColor = 'var(--border,#333)';
+        inp.placeholder = 'Type or tap 🎙️ to speak';
+
+        // Auto-submit if we got text
+        if (inp.value.trim().length > 0) {
+            nachoAnswer();
+        }
+    };
+
+    rec.onerror = function(e) {
+        window._nachoListening = false;
+        micBtn.innerHTML = '🎙️';
+        micBtn.style.opacity = '0.6';
+        micBtn.title = 'Voice input';
+        inp.style.borderColor = 'var(--border,#333)';
+
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            inp.placeholder = 'Microphone access denied';
+            inp.value = '';
+        } else if (e.error === 'no-speech') {
+            inp.placeholder = 'No speech detected — try again';
+        } else {
+            inp.placeholder = 'Voice error — try typing instead';
+        }
+    };
+
+    try {
+        rec.start();
+    } catch(err) {
+        window._nachoListening = false;
+        micBtn.innerHTML = '🎙️';
+        micBtn.style.opacity = '0.6';
+        inp.placeholder = 'Voice unavailable — type your question';
+    }
+};
+
 // ---- Show Ask Nacho input ----
 window.showNachoInput = function() {
     const bubble = document.getElementById('nacho-bubble');
@@ -308,9 +397,16 @@ window.showNachoInput = function() {
 
     if (typeof setPose === 'function') setPose('think');
 
+    var hasSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    var micBtn = hasSpeech ?
+        '<button id="nachoMicBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoVoiceInput()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px;line-height:1;opacity:0.6;transition:0.2s;" title="Voice input">🎙️</button>' : '';
+
     textEl.innerHTML =
         '<div style="margin-bottom:8px;font-weight:600;color:var(--heading,#fff);">Ask me anything about Bitcoin or this website!</div>' +
-        '<input type="text" id="nachoInput" placeholder="e.g. What is mining?" maxlength="100" style="width:100%;padding:8px 10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')nachoAnswer()">' +
+        '<div style="position:relative;">' +
+            '<input type="text" id="nachoInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak' : 'e.g. What is mining?') + '" maxlength="200" style="width:100%;padding:8px ' + (hasSpeech ? '36px' : '10px') + ' 8px 10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')nachoAnswer()">' +
+            micBtn +
+        '</div>' +
         '<button onclick="nachoAnswer()" style="width:100%;margin-top:6px;padding:8px;background:#f7931a;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask Nacho 🦌</button>';
 
     // Mark as interactive — prevents auto-hide timer from closing it
