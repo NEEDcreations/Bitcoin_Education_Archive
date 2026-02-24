@@ -114,21 +114,21 @@ const TIPS = [
 
 // ---- Motivational ----
 const MOTIVATION = [
-    { pose: 'celebrate', text: "You're doing great! Most people never even start learning about Bitcoin. You're already ahead. 🦌💪" },
-    { pose: 'fire', text: "Keep going! You're stacking knowledge like a true pleb! 📚🔥" },
-    { pose: 'love', text: "Nacho is proud of your progress! You're further down the rabbit hole than most. 🐇" },
-    { pose: 'cool', text: "Stay humble, stack sats, stack knowledge. You're doing all three. 😎" },
-    { pose: 'celebrate', text: "Every channel you read makes the FUD weaker! Keep it up! 💪" },
-    { pose: 'brain', text: "Your brain is getting more orange-pilled by the minute! 🧠🟠" },
-    { pose: 'fire', text: "Tick tock, next block... and you're getting smarter with each one! ⏰" },
-    { pose: 'love', text: "The fact that you're here learning puts you ahead of 99% of people. For real. 🧡" },
-    { pose: 'celebrate', text: "Imagine telling your future self you were learning about Bitcoin in 2026. They'll thank you! 🙏" },
-    { pose: 'fire', text: "You're building generational knowledge right now. No big deal. 🏗️" },
-    { pose: 'cool', text: "Diamond hands start with a diamond mind. You're forging yours right now! 💎🧠" },
-    { pose: 'love', text: "The journey of a thousand sats begins with a single channel. You've read way more than that! 🦌" },
-    { pose: 'celebrate', text: "You're not just learning Bitcoin — you're opting out of the broken system. Respect. ✊" },
-    { pose: 'fire', text: "Number go up, knowledge go up. You're winning on both fronts! 📈🧠" },
-    { pose: 'brain', text: "Every nocioner who ever became a maxi started exactly where you are. Keep reading! 📖" },
+    { pose: 'celebrate', text: "You're doing great, {name}! Most people never even start learning about Bitcoin. You're already ahead. 🦌💪" },
+    { pose: 'fire', text: "Keep going, {name}! You're stacking knowledge like a true pleb! 📚🔥" },
+    { pose: 'love', text: "Nacho is proud of your progress, {name}! You're further down the rabbit hole than most. 🐇" },
+    { pose: 'cool', text: "Stay humble, stack sats, stack knowledge. You're doing all three, {name}. 😎" },
+    { pose: 'celebrate', text: "Every channel you read makes the FUD weaker, {name}! Keep it up! 💪" },
+    { pose: 'brain', text: "{name}, your brain is getting more orange-pilled by the minute! 🧠🟠" },
+    { pose: 'fire', text: "Tick tock, next block... and you're getting smarter with each one, {name}! ⏰" },
+    { pose: 'love', text: "The fact that you're here learning puts you ahead of 99% of people, {name}. For real. 🧡" },
+    { pose: 'celebrate', text: "Imagine telling your future self you were learning about Bitcoin in 2026, {name}. They'll thank you! 🙏" },
+    { pose: 'fire', text: "{name}, you're building generational knowledge right now. No big deal. 🏗️" },
+    { pose: 'cool', text: "Diamond hands start with a diamond mind. You're forging yours right now, {name}! 💎🧠" },
+    { pose: 'love', text: "The journey of a thousand sats begins with a single channel, {name}. You've read way more than that! 🦌" },
+    { pose: 'celebrate', text: "You're not just learning Bitcoin, {name} — you're opting out of the broken system. Respect. ✊" },
+    { pose: 'fire', text: "Number go up, knowledge go up. You're winning on both fronts, {name}! 📈🧠" },
+    { pose: 'brain', text: "Every nocioner who ever became a maxi started exactly where you are, {name}. Keep reading! 📖" },
 ];
 
 // ---- Fun / Jokes / Bitcoin Facts ----
@@ -143,9 +143,9 @@ const FUN = [
     { pose: 'default', text: "In a world of unlimited printing, be a limited supply. Like Bitcoin. And like me — there's only one Nacho. 🦌" },
     { pose: 'default', text: "Some people have angel investors. You have an angel deer. You're welcome. 😇🦌" },
     { pose: 'cool', text: "I'm not saying I'm Satoshi, but have you ever seen us in the same room? 🤫" },
-    { pose: 'eyes', text: "I've been watching you learn. Not in a creepy way. In a proud buck way. 👀" },
+    { pose: 'eyes', text: "I've been watching you learn, {name}. Not in a creepy way. In a proud buck way. 👀" },
     { pose: 'sleep', text: "*yawns* Don't mind me, just HODLing this corner of your screen... 💤" },
-    { pose: 'fire', text: "Few understand this... but YOU will. That's why you're here. 🔥" },
+    { pose: 'fire', text: "Few understand this... but YOU will, {name}. That's why you're here. 🔥" },
     // Bitcoin jokes
     { pose: 'think', text: "What's a deer's favorite block? The next one! ⛏️" },
     { pose: 'celebrate', text: "Why did Bitcoin break up with the dollar? It found someone with less baggage and a fixed supply! 💔😂" },
@@ -189,32 +189,32 @@ const FUN = [
     { pose: 'default', text: "The deer in New Hampshire are talking about Bitcoin. Okay, it's just me. But still. 🗻🦌" },
     { pose: 'cheese', text: "If I had a satoshi for every time someone asked me about crypto... I'd tell them it's Bitcoin, not crypto. 🧀" },
     { pose: 'cool', text: "My antlers pick up the Bitcoin network signal. That's not true, but it sounds cool. 📡🦌" },
-    { pose: 'fire', text: "They said Bitcoin was dead 477 times. And here we are. Still stacking. 🦌💪" },
+    { pose: 'fire', text: "They said Bitcoin was dead 477 times, {name}. And here we are. Still stacking. 🦌💪" },
     { pose: 'eyes', text: "The forest is full of distractions. I stick to the trail marked ₿. 🌲" },
-    { pose: 'celebrate', text: "When in doubt, zoom out. That goes for the chart AND the rabbit hole. 🔭" },
+    { pose: 'celebrate', text: "When in doubt, zoom out, {name}. That goes for the chart AND the rabbit hole. 🔭" },
 ];
 
 // ---- Welcome Messages ----
 const WELCOME = [
-    { pose: 'wave', text: "👋 Hey! I'm Nacho — a strong buck from New Hampshire! Click me anytime for Bitcoin tips and wisdom. 🦌💪" },
-    { pose: 'wave', text: "👋 Welcome back! Your friendly NH buck missed you! Ready to tackle some Bitcoin knowledge today? 💪" },
-    { pose: 'wave', text: "👋 Nacho here — the strongest buck in New Hampshire and your Bitcoin guide! Let's learn something! 🦌" },
+    { pose: 'wave', text: "👋 Hey{name}! I'm Nacho — a strong buck from New Hampshire! Click me anytime for Bitcoin tips and wisdom. 🦌💪" },
+    { pose: 'wave', text: "👋 Welcome back, {name}! Your friendly NH buck missed you! Ready to tackle some Bitcoin knowledge today? 💪" },
+    { pose: 'wave', text: "👋 {name}! Nacho here — the strongest buck in New Hampshire and your Bitcoin guide! Let's learn something! 🦌" },
 ];
 
 // ---- Channel Reactions ----
 const CHANNEL_REACT = [
-    { pose: 'eyes', text: "Great choice! I'll be over here if you need me. 👀" },
-    { pose: 'cool', text: "Ooh, excellent pick! You've got good taste. 😎" },
-    { pose: 'brain', text: "This one's a good read! Take your time. 🧠" },
-    { pose: 'fire', text: "One of my favorites! Dig in! 🦌🔥" },
-    { pose: 'love', text: "Nice! This channel has great stuff in it. 🧡" },
+    { pose: 'eyes', text: "Great choice, {name}! I'll be over here if you need me. 👀" },
+    { pose: 'cool', text: "Ooh, excellent pick, {name}! You've got good taste. 😎" },
+    { pose: 'brain', text: "This one's a good read, {name}! Take your time. 🧠" },
+    { pose: 'fire', text: "One of my favorites! Dig in, {name}! 🦌🔥" },
+    { pose: 'love', text: "Nice, {name}! This channel has great stuff in it. 🧡" },
 ];
 
 // ---- Milestone Reactions ----
 const MILESTONES = [
-    { pose: 'celebrate', text: "Nice! Points are stacking up! 🎉" },
-    { pose: 'fire', text: "You're on fire! Nacho approves! 🔥" },
-    { pose: 'celebrate', text: "Cha-ching! The knowledge is paying off! 💰" },
+    { pose: 'celebrate', text: "Nice, {name}! Points are stacking up! 🎉" },
+    { pose: 'fire', text: "{name}, you're on fire! Nacho approves! 🔥" },
+    { pose: 'celebrate', text: "Cha-ching, {name}! The knowledge is paying off! 💰" },
 ];
 
 // ---- Idle Animations (Clippy-style fidgeting) ----
@@ -577,7 +577,7 @@ function _showBubble(text, pose) {
         ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(a => avatar.classList.remove(a));
     }
 
-    textEl.textContent = text;
+    textEl.textContent = personalize(text);
     bubble.classList.add('show');
 
     clearTimeout(bubbleTimeout);
@@ -641,7 +641,7 @@ window.showNacho = function() {
     document.getElementById('nacho-toggle').style.display = 'none';
     lastBubbleTime = 0;
     setPose('wave');
-    forceShowBubble("I'm back, baby! Miss me? 🦌");
+    forceShowBubble(personalize("I'm back, {name}! Miss me? 🦌"));
 };
 
 window.hideNacho = function() {
@@ -682,10 +682,10 @@ window.nachoOnQuest = function(passed) {
     lastBubbleTime = 0;
     if (passed) {
         setPose('celebrate');
-        forceShowBubble("You CRUSHED that quest! The deer is VERY impressed! 🦌🎉🔥");
+        forceShowBubble(personalize("{name}, you CRUSHED that quest! This buck is VERY impressed! 🦌🎉🔥"));
     } else {
         setPose('love');
-        forceShowBubble("Hey, some questions are hard! Read up and try again — Nacho believes in you! 🦌💪");
+        forceShowBubble(personalize("Hey {name}, some questions are hard! Read up and try again — Nacho believes in you! 🦌💪"));
     }
 };
 
@@ -721,6 +721,18 @@ function periodicMessage() {
 }
 
 // ---- Utility ----
+function nachoUserName() {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) return currentUser.username;
+    return '';
+}
+
+// Inject username into message text — replaces {name} placeholder
+function personalize(text) {
+    var name = nachoUserName();
+    if (!name) return text.replace(/,?\s*\{name\}/g, '').replace(/\{name\},?\s*/g, '');
+    return text.replace(/\{name\}/g, name);
+}
+
 function pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }

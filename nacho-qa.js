@@ -12,7 +12,7 @@ const NACHO_KB = [
       channel: 'sats__or__bits', channelName: 'Sats or Bits' },
 
     { keys: ['what is bitcoin','explain bitcoin','bitcoin basics','new to bitcoin','beginner','getting started','what\'s bitcoin'],
-      answer: "Bitcoin is digital money that no one controls — no banks, no governments. It's scarce (only 21 million), decentralized, and can be sent to anyone on Earth instantly.",
+      answer: "Great question, {name}! Bitcoin is digital money that no one controls — no banks, no governments. It's scarce (only 21 million), decentralized, and can be sent to anyone on Earth instantly.",
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
 
     { keys: ['how does bitcoin work','how bitcoin works','how it works'],
@@ -41,7 +41,7 @@ const NACHO_KB = [
       channel: 'investment-strategy', channelName: 'Investment Strategy' },
 
     { keys: ['price prediction','how high','what price','price target','how much will','100k','million'],
-      answer: "I'm a deer, not a financial advisor! 🦌 But historically, Bitcoin has outperformed every other asset over any 4+ year period. Check the charts channel for data!",
+      answer: "I'm a deer, not a financial advisor, {name}! 🦌 But historically, Bitcoin has outperformed every other asset over any 4+ year period. Check the charts channel for data!",
       channel: 'charts', channelName: 'Charts' },
 
     // === TECHNICAL ===
@@ -176,7 +176,7 @@ const NACHO_KB = [
 
     // === SITE SPECIFIC ===
     { keys: ['how to use','how does this site','help','navigate','where do i start','tutorial','guide me'],
-      answer: "Start with the 'One Stop Shop' channel for beginners! Use the sidebar to browse channels by category. Earn points by reading, take quests to test knowledge, and collect badges!",
+      answer: "Great question, {name}! Start with the 'One Stop Shop' channel for beginners! Use the sidebar to browse channels by category. Earn points by reading, take quests to test knowledge, and collect badges!",
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
 
     { keys: ['quest','quests','test','quiz','certification','exam','scholar'],
@@ -209,32 +209,32 @@ const NACHO_KB = [
       channel: 'jobs-earn', channelName: 'Jobs & Earn' },
 
     { keys: ['who are you','what are you','about you','nacho','tell me about yourself','what is your name','what\'s your name','your name','whats your name','who is this','who is nacho','who are u','what are u','introduce yourself'],
-      answer: "I'm Nacho! A strong buck from New Hampshire. 🦌💪 I roam this site helping Bitcoiners learn. My motto: Nacho keys, nacho cheese! Click me anytime for tips, jokes, or Bitcoin wisdom!",
+      answer: "I'm Nacho, {name}! A strong buck from New Hampshire. 🦌💪 I roam this site helping Bitcoiners learn. My motto: Nacho keys, nacho cheese! Click me anytime for tips, jokes, or Bitcoin wisdom!",
       channel: null, channelName: null },
 
     { keys: ['how old are you','how old is nacho','your age','age','when were you born','birthday','when is your birthday'],
-      answer: "I'm 5 years old — a full-grown adult buck! 🦌 That's about 35 in human years. In my prime, baby! These antlers don't grow themselves. 💪",
+      answer: "I'm 5 years old, {name} — a full-grown adult buck! 🦌 That's about 35 in human years. In my prime, baby! These antlers don't grow themselves. 💪",
       channel: null, channelName: null },
 
     { keys: ['how much bitcoin','how many bitcoin','how much btc','how many sats do you','your bitcoin','your btc','your stack','how much do you own','how much you got','your portfolio','how rich'],
-      answer: "Well there, my deer, that's not really any of your business now is it? 🦌 That's like me asking you how much money you have in the bank! I like to tell people that I own more BTC than I did yesterday though! 📈",
+      answer: "Well there, {name}, my deer, that's not really any of your business now is it? 🦌 That's like me asking you how much money you have in the bank! I like to tell people that I own more BTC than I did yesterday though! 📈",
       channel: null, channelName: null },
 
     { keys: ['what do you eat','favorite food','what do deer eat','your diet','do you eat cheese','food','hungry','snack','lunch','dinner','breakfast'],
-      answer: "Well, I'm a deer so my natural diet is plants, grass, fruits, and nuts. 🌿 But between you and me... I like to sneak a little cheese in there when nobody's looking. 🧀 Nacho keys, nacho cheese — you think that tagline came from nowhere? 😏🦌",
+      answer: "Well {name}, I'm a deer so my natural diet is plants, grass, fruits, and nuts. 🌿 But between you and me... I like to sneak a little cheese in there when nobody's looking. 🧀 Nacho keys, nacho cheese — you think that tagline came from nowhere? 😏🦌",
       channel: null, channelName: null },
 
     { keys: ['thank','thanks','ty','appreciate','love you','you\'re great','good job','awesome'],
-      answer: "Aww shucks! 🧡 You're the great one — you're here learning! That makes you smarter than most. Keep going and I'll keep cheering you on! 🦌💪",
+      answer: "Aww shucks, {name}! 🧡 You're the great one — you're here learning! That makes you smarter than most. Keep going and I'll keep cheering you on! 🦌💪",
       channel: null, channelName: null },
 ];
 
 // Fallback if no match
 const FALLBACKS = [
-    "Hmm, I'm not sure about that one! Try browsing the sidebar channels or use 🔍 search. I'm still learning too! 🦌",
-    "Good question! I don't have a perfect answer, but check the search — this archive probably covers it somewhere! 🔍",
-    "That's beyond my antler-span! 🦌 Try the One Stop Shop channel for a broad overview, or search for specific topics!",
-    "Even the strongest buck in NH doesn't know everything! Try searching the archive — there are 146+ channels of knowledge! 🗻",
+    "Hmm, I'm not sure about that one, {name}! Try browsing the sidebar channels or use 🔍 search. I'm still learning too! 🦌",
+    "Good question, {name}! I don't have a perfect answer, but check the search — this archive probably covers it somewhere! 🔍",
+    "That's beyond my antler-span, {name}! 🦌 Try the One Stop Shop channel for a broad overview, or search for specific topics!",
+    "Even the strongest buck in NH doesn't know everything, {name}! Try searching the archive — there are 146+ channels of knowledge! 🗻",
 ];
 
 // ---- Match user input to knowledge base ----
@@ -314,10 +314,10 @@ const NACHO_BLOCKED_WORDS = [
 ];
 
 const NACHO_POLITE_DEFLECTIONS = [
-    "Whoa there! 🦌 I'm just a friendly deer who talks about Bitcoin. Let's keep things positive! Ask me something about Bitcoin instead!",
-    "Hey now, let's keep it family-friendly! 🦌 I'm here to help you learn about Bitcoin. What would you like to know?",
+    "Whoa there, {name}! 🦌 I'm just a friendly deer who talks about Bitcoin, {name}. Let's keep things positive! Ask me something about Bitcoin instead!",
+    "Hey now {name}, let's keep it family-friendly! 🦌 I'm here to help you learn about Bitcoin. What would you like to know?",
     "That's not really my area of expertise! I'm a Bitcoin deer, not a... whatever that was. 🦌 Try asking me about wallets, mining, or Lightning!",
-    "My antlers are tingling — and not in a good way! 😅 Let's stick to Bitcoin topics. What can I help you learn?",
+    "My antlers are tingling, {name} — and not in a good way! 😅 Let's stick to Bitcoin topics. What can I help you learn?",
     "I'm going to pretend I didn't hear that! 🦌 How about we talk about something cool, like how the Lightning Network works?",
     "Even the strongest buck in NH knows when to change the subject! 🦌 Ask me about Bitcoin — I promise it's more interesting!",
 ];
@@ -352,6 +352,7 @@ window.nachoAnswer = function() {
     if (isInappropriate(q)) {
         if (typeof setPose === 'function') setPose('default');
         var deflection = NACHO_POLITE_DEFLECTIONS[Math.floor(Math.random() * NACHO_POLITE_DEFLECTIONS.length)];
+        deflection = typeof personalize === 'function' ? personalize(deflection) : deflection;
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + deflection + '</div>' +
             '<button onclick="showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
         clearTimeout(window._nachoBubbleTimeout);
@@ -362,7 +363,8 @@ window.nachoAnswer = function() {
 
     if (match) {
         if (typeof setPose === 'function') setPose('brain');
-        var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + match.answer + '</div>';
+        var answer = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
+        var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>';
         if (match.channel && match.channelName) {
             html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
         }
@@ -371,6 +373,7 @@ window.nachoAnswer = function() {
     } else {
         if (typeof setPose === 'function') setPose('think');
         var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+        fb = typeof personalize === 'function' ? personalize(fb) : fb;
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + fb + '</div>' +
             '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: One Stop Shop →</button>' +
             '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
