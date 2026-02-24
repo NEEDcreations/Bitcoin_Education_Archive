@@ -485,7 +485,7 @@ function createNacho() {
             NACHO_SVG +
             '<span class="nacho-name" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
         '</div>' +
-        '<div id="nacho-bubble" onclick="hideBubble()">' +
+        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble()">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> Nacho says</span>' +
                 '<span class="nacho-x" onclick="event.stopPropagation();hideBubble()">✕</span>' +
