@@ -1480,7 +1480,19 @@
             return;
         }
 
+        // Inline greeting check as last resort (covers case where nacho-qa.js hasn't loaded yet)
         clearInterval(dt);
+        var ql = q.toLowerCase().trim();
+        if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
+            var greetings = [
+                "Hey there! 🦌 Doing great — just hanging out waiting for someone to ask me about Bitcoin! What's on your mind?",
+                "Hey hey! 🧡 Welcome! I'm Nacho, your Bitcoin buddy. What would you like to learn about today?",
+                "Well hello! 🦌 Nice to see you. Ask me anything about Bitcoin — I've got 146 channels of knowledge in these antlers!",
+                "Hey! 👋 I'm good, thanks for asking! Ready to talk Bitcoin whenever you are. What's on your mind?"
+            ];
+            showNachoModeReply(chat, greetings[Math.floor(Math.random() * greetings.length)]);
+            return;
+        }
         showNachoModeReply(chat, "I'm still warming up my antlers! Try asking me about Bitcoin basics, mining, Lightning, or wallets. 🦌");
     };
 

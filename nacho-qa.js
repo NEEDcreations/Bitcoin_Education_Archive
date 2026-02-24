@@ -438,11 +438,13 @@ var OFF_TOPIC_PATTERNS = [
         "Why did the altcoiner cross the road? To chase the next pump. The Bitcoiner? Already on the other side, holding. 😂",
         "I told my friend to invest in Bitcoin. He said 'but what if it drops?' I said 'then you buy more!' He didn't think that was a joke. Neither did I. 🦌"
     ]},
-    { pattern: /how are you|how do you feel|are you okay|how's it going|what's up|sup|hey|hi$|hello|yo$/,
+    { pattern: /^(hey|hi|hello|yo|sup|howdy|hola|greetings|gm|good morning|good evening|good afternoon)$|^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)|how are you|how do you feel|are you okay|how's it going|what's up|what is up|wassup|whats up/,
       answers: [
-        "Hey {name}! Doing great — just hanging out, waiting for someone to ask me about Bitcoin! 🦌",
+        "Hey {name}! 🦌 Doing great — just hanging out, waiting for someone to ask me about Bitcoin! What's on your mind?",
         "Living the dream, {name}! Well, a deer's dream — grass, sunshine, and sound money. What's on your mind?",
-        "I'm good! Just grazed on some blockchain data. 🌿 What can I help you learn about today?"
+        "Hey hey! 🧡 I'm good, {name}! Just grazed on some blockchain data. What can I help you learn today?",
+        "Well hello there, {name}! 👋 I'm always happy to chat. Got a Bitcoin question, or just saying hi? Either way, welcome!",
+        "Hey! 🦌 Great to see you. I was just brushing up on Lightning Network stuff. What brings you to the archive today?"
     ]},
     { pattern: /can you help|help me|i need help|assist me/,
       answers: [
