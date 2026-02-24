@@ -52,13 +52,11 @@ function initRanking() {
         firebase.initializeApp(FIREBASE_CONFIG);
 
         // Firebase App Check — prevents unauthorized API usage from bots/scrapers
-        // To enable: set your reCAPTCHA v3 site key from Firebase Console > App Check
-        // Then uncomment and replace 'YOUR_RECAPTCHA_V3_SITE_KEY' below
-        // if (typeof firebase.appCheck === 'function') {
-        //     try {
-        //         firebase.appCheck().activate('YOUR_RECAPTCHA_V3_SITE_KEY', true);
-        //     } catch(e) {}
-        // }
+        if (typeof firebase.appCheck === 'function') {
+            try {
+                firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
+            } catch(e) {}
+        }
 
         db = firebase.firestore();
         auth = firebase.auth();
