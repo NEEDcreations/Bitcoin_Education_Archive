@@ -179,8 +179,8 @@
         .rank-next { font-size: 0.7rem; color: var(--text-faint); margin-top: 4px; }
 
         /* Toasts */
-        .rank-toast { position: fixed; bottom: 30px; right: 30px; background: #f97316; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; z-index: 300; opacity: 0; transform: translateY(20px); transition: 0.3s; pointer-events: none; box-shadow: 0 8px 25px rgba(249,115,22,0.3); }
-        .rank-toast.show { opacity: 1; transform: translateY(0); }
+        .rank-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #f97316; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700; z-index: 300; opacity: 0; transition: 0.3s; pointer-events: none; box-shadow: 0 8px 25px rgba(249,115,22,0.3); }
+        .rank-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
         /* Leaderboard */
         #leaderboard { display: none; position: fixed; right: 20px; bottom: 20px; width: 340px; max-height: 70vh; background: var(--bg-side); border: 1px solid var(--border); border-radius: 16px; z-index: 150; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition: 0.3s; }
@@ -225,7 +225,7 @@
             #lbFloatBtn { bottom: 16px !important; right: 16px !important; padding: 10px 14px !important; font-size: 0.85rem !important; z-index: 140; }
             #floatingRandomBtn { bottom: 16px !important; right: auto !important; left: 16px !important; transform: none !important; }
             #userDisplay { top: auto !important; bottom: 56px !important; right: auto !important; left: 16px !important; font-size: 0.75rem !important; padding: 6px 10px !important; max-width: 55% !important; }
-            .rank-toast { right: 15px; bottom: 80px; font-size: 0.8rem; }
+            .rank-toast { top: 60px; left: 50%; right: auto; bottom: auto; font-size: 0.8rem; }
         }
 
         /* Badge Toast */
