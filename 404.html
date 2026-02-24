@@ -635,7 +635,7 @@
         <div id="home" class="home-page">
             <div class="home-inner">
                 <div class="home-logos">
-                    <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="go('home')" title="Home">
+                    <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home">
                     <svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" onclick="showDonateModal()" style="cursor:pointer;" title="Support the Archive ⚡"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
@@ -1649,7 +1649,7 @@
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos">' +
-                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="go(\'home\')" style="cursor:pointer;" title="Go to Home">' +
+                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Go to Home">' +
                 '<svg viewBox="0 0 64 64" width="50" height="50" onclick="showDonateModal()" style="cursor:pointer;" title="Support the Archive ⚡"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
