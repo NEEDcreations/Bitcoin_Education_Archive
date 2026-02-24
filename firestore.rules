@@ -31,8 +31,8 @@ service cloud.firestore {
     // Doc ID = device fingerprint
     // =============================================
     match /visits/{visitorId} {
-      // No reads needed from client (counter is in stats/visits)
-      allow read: if false;
+      // Allow reading own visit doc to check if already counted today
+      allow read: if true;
 
       // Anyone can create/update their visit doc (anonymous visitors)
       // But only allow setting lastVisit to today's date
