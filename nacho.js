@@ -316,60 +316,47 @@ function createNacho() {
             background: rgba(247,147,26,0.15);
         }
 
-        /* Nacho speech bubble — now with a solid background for readability */
+        /* Nacho speech bubble — high contrast, always readable */
         #nacho-bubble {
-            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 100%);
+            background: #111827;
             border: 2px solid #f7931a;
-            border-radius: 20px;
-            padding: 20px 24px 20px 22px;
-            max-width: 320px;
-            min-width: 220px;
+            border-radius: 16px;
+            padding: 16px 20px 16px 18px;
+            max-width: 300px;
+            min-width: 200px;
             color: #f8f8f8;
-            font-size: 0.95rem;
-            line-height: 1.6;
+            font-size: 0.9rem;
+            line-height: 1.55;
             pointer-events: auto;
-            box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 0 2px rgba(247,147,26,0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 12px rgba(247,147,26,0.25);
             opacity: 0;
-            transform: translateY(10px) scale(0.95);
-            transition: opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: translateY(8px) scale(0.9);
+            transition: opacity 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
             cursor: pointer;
             position: relative;
-            margin-left: -8px;
-            margin-bottom: 18px;
+            margin-left: -6px;
+            margin-bottom: 16px;
             z-index: 1000;
-            /* Allow scrolling behind the bubble */
-            overflow: visible;
-        }
-        /* Make the bubble dismissible by clicking outside */
-        body.nacho-bubble-open {
-            overflow: auto;
-        }
-        /* Prevent body scroll when bubble is open */
-        #nacho-bubble.show ~ .main-content {
-            overflow-y: scroll;
         }
         #nacho-bubble::before {
             content: '';
             position: absolute;
-            bottom: 8px;
-            left: -8px;
+            bottom: 10px;
+            left: -10px;
+            width: 0; height: 0;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            border-right: 10px solid #f7931a;
+        }
+        #nacho-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: 12px;
+            left: -7px;
             width: 0; height: 0;
             border-top: 8px solid transparent;
             border-bottom: 8px solid transparent;
-            border-right: 8px solid var(--border, #333);
-        }
-                #nacho-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: 11px;
-            left: -8px;
-            width: 0; height: 0;
-            border-top: 9px solid transparent;
-            border-bottom: 9px solid transparent;
-            border-right: 9px solid linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 100%);
-        }
-            border-bottom: 7px solid transparent;
-            border-right: 7px solid var(--card-bg, #1a1a2e);
+            border-right: 8px solid #111827;
         }
         #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
 
@@ -549,13 +536,33 @@ function createNacho() {
         @media (max-width: 900px) {
             #nacho-container { bottom: 110px; left: 12px; }
             #nacho-avatar { width: 80px; height: 80px; }
-            #nacho-bubble { max-width: 240px; min-width: 160px; font-size: 0.85rem; padding: 14px 16px; }
+            #nacho-bubble {
+                position: fixed;
+                bottom: 200px;
+                left: 12px;
+                right: 12px;
+                max-width: calc(100vw - 24px);
+                min-width: unset;
+                width: auto;
+                font-size: 0.9rem;
+                padding: 16px 18px;
+                margin-left: 0;
+                border-radius: 14px;
+            }
+            #nacho-bubble::before, #nacho-bubble::after { display: none; }
             #nacho-avatar .nacho-name { font-size: 0.75rem; bottom: -32px; padding: 6px 16px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: 100px; left: 8px; }
             #nacho-avatar { width: 72px; height: 72px; }
-            #nacho-bubble { max-width: 210px; }
+            #nacho-bubble {
+                bottom: 185px;
+                left: 10px;
+                right: 10px;
+                max-width: calc(100vw - 20px);
+                font-size: 0.85rem;
+                padding: 14px 16px;
+            }
             #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -30px; padding: 6px 14px; }
         }
 
@@ -598,6 +605,19 @@ function createNacho() {
     toggle.onclick = function() { showNacho(); };
     if (!nachoVisible) toggle.style.display = 'flex';
     document.body.appendChild(toggle);
+
+    // Welcome after delay — use time-of-day greeting or regular welcome
+    setTimeout(function() {
+        if (!nachoVisible) return;
+        var msg;
+        if (typeof nachoTimeGreeting === 'function' && Math.random() < 0.6) {
+            msg = nachoTimeGreeting();
+        } else {
+            msg = pickRandom(WELCOME);
+        }
+        setPose(msg.pose);
+        forceShowBubble(msg.text);
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
 
         // Show streak message shortly after welcome
         setTimeout(function() {
@@ -696,6 +716,30 @@ function _showBubble(text, pose) {
     // Only auto-hide for passive messages, not interactive content
     bubble.setAttribute('data-interactive', 'false');
     bubbleTimeout = setTimeout(hideBubble, BUBBLE_DURATION);
+
+    // Click-outside & Escape dismissal
+    if (window._nachoDismissHandler) {
+        document.removeEventListener('mousedown', window._nachoDismissHandler);
+        document.removeEventListener('touchstart', window._nachoDismissHandler);
+        document.removeEventListener('keydown', window._nachoEscHandler);
+    }
+    window._nachoDismissHandler = function(e) {
+        var b = document.getElementById('nacho-bubble');
+        var c = document.getElementById('nacho-container');
+        if (!b || !b.classList.contains('show')) return;
+        if (b.contains(e.target)) return;
+        if (c && c.contains(e.target)) return;
+        hideBubble(true);
+    };
+    window._nachoEscHandler = function(e) {
+        if (e.key === 'Escape') hideBubble(true);
+    };
+    // Small delay so the current click doesn't immediately dismiss
+    setTimeout(function() {
+        document.addEventListener('mousedown', window._nachoDismissHandler);
+        document.addEventListener('touchstart', window._nachoDismissHandler, { passive: true });
+        document.addEventListener('keydown', window._nachoEscHandler);
+    }, 100);
 }
 
 window.hideBubble = function(force) {
