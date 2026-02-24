@@ -43,7 +43,7 @@ const NACHO_KB = [
 
     // === BUYING & INVESTING ===
     { keys: ['how to buy','where to buy','buy bitcoin','purchase bitcoin','get bitcoin','acquire','best place to buy','good place to buy','where can i buy','where do i buy','where should i buy'],
-      answer: "Great question, {name}! There are some great places to buy Bitcoin referenced in our Referral Links channel — like Strike and River! Both are trusted, Bitcoin-focused platforms. Start small, you can buy a fraction of a Bitcoin, and DCA (buying a little regularly) is the most popular strategy. Check it out! 🦌",
+      answer: "Great question, {name}! There are some great places to buy Bitcoin referenced in our Referral Links channel — like Strike, River, and Cash App! All are trusted platforms to get started. Start small, you can buy a fraction of a Bitcoin, and DCA (buying a little regularly) is the most popular strategy. Check it out! 🦌",
       channel: 'referral-links', channelName: 'Referral Links' },
 
     { keys: ['too late','am i too late','too expensive','missed out','already too high','can\'t afford'],
