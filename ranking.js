@@ -603,7 +603,7 @@ function updateAuthButton() {
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
         btn.onmouseout = function() { this.style.background='none'; this.style.color='#22c55e'; };
     } else {
-        btn.textContent = 'Create Account / Sign In';
+        btn.textContent = 'Create Free Account / Sign In';
         btn.style.borderColor = 'var(--accent)';
         btn.style.color = 'var(--accent)';
         btn.onmouseover = function() { this.style.background='var(--accent)'; this.style.color='#fff'; };
