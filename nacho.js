@@ -292,6 +292,30 @@ function createNacho() {
         }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
         #nacho-avatar:active { transform: scale(0.93); }
+        #nacho-avatar .nacho-closet-btn {
+            position: absolute;
+            bottom: -28px;
+            right: -8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            pointer-events: auto;
+            background: var(--card-bg, #1a1a2e);
+            border: 1px solid var(--border, #333);
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            opacity: 0.7;
+            z-index: 5;
+        }
+        #nacho-avatar .nacho-closet-btn:hover {
+            opacity: 1;
+            transform: scale(1.15);
+            border-color: #f7931a;
+        }
         #nacho-avatar .nacho-name {
             position: absolute;
             bottom: -30px;
@@ -588,6 +612,7 @@ function createNacho() {
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
             '<span class="nacho-name" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span class="nacho-closet-btn" onclick="event.stopPropagation();if(typeof showSettingsPage===\'function\')showSettingsPage(\'data\');" title="Nacho\'s Closet">👔</span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble(true)">' +
             '<div class="nacho-header">' +
