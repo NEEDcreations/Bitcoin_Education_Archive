@@ -351,7 +351,7 @@ function createNacho() {
             color: #f8f8f8;
             font-size: 0.9rem;
             line-height: 1.55;
-            pointer-events: auto;
+            pointer-events: none;
             box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 12px rgba(247,147,26,0.25);
             opacity: 0;
             transform: translateY(8px) scale(0.9);
@@ -382,7 +382,7 @@ function createNacho() {
             border-bottom: 8px solid transparent;
             border-right: 8px solid #111827;
         }
-        #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+        #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 
         .nacho-header {
             display: flex;
