@@ -1966,6 +1966,12 @@ async function disable2FA() {
 async function loadTotpStatus() {
     const section = document.getElementById('totpSection');
     if (!section) return;
+
+    // Skip for anonymous users
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.85rem;">Sign in with Google, Email, or another provider to enable 2FA.</div>';
+        return;
+    }
     
     try {
         const totpStatus = firebase.functions().httpsCallable('totpStatus');
@@ -2031,7 +2037,13 @@ async function startTotpSetup() {
             '<button onclick="verifyTotpSetup()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable</button>';
         status.innerHTML = '';
     } catch(e) {
-        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Error generating QR code') + '</span>';
+        var msg = e.message || 'Error generating QR code';
+        if (msg.indexOf('unauthenticated') !== -1 || msg.indexOf('signed in') !== -1) {
+            msg = 'Authentication error. Try signing out and back in, then try again.';
+        } else if (msg.indexOf('internal') !== -1 || msg.indexOf('not-found') !== -1) {
+            msg = 'Authenticator setup is currently unavailable. Please try again later.';
+        }
+        status.innerHTML = '<span style="color:#ef4444;">' + msg + '</span>';
     }
 }
 
