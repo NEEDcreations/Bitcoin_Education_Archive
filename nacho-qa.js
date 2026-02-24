@@ -2,6 +2,20 @@
 // 🦌 Nacho Q&A - Ask Nacho about Bitcoin!
 // =============================================
 
+// HTML sanitizer — prevents XSS from external data (web search, usernames, etc)
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function sanitizeUrl(url) {
+    if (!url) return '';
+    var u = String(url).trim();
+    // Only allow http/https URLs
+    if (!/^https?:\/\//i.test(u)) return '';
+    return escapeHtml(u);
+}
+
 (function() {
 
 // Knowledge base: keywords → answer + channel recommendation
@@ -940,9 +954,9 @@ window.nachoAnswer = function() {
                         '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
                     for (var ri = 0; ri < results.length; ri++) {
                         html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
-                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (results[ri].title || '') + '</div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (results[ri].snippet || '') + '</div>' +
-                            (results[ri].url ? '<a href="' + results[ri].url + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (escapeHtml(results[ri].title)) + '</div>' +
+                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (escapeHtml(results[ri].snippet)) + '</div>' +
+                            (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
                             '</div>';
                     }
                     html += '</div>';
@@ -976,7 +990,7 @@ window.nachoAnswer = function() {
             if (typeof setPose === 'function') setPose('brain');
             var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
                 '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">📚 Found in site content:</div>' +
-                deepResult.snippet + '</div>';
+                escapeHtml(deepResult.snippet) + '</div>';
             renderNachoAnswer(textEl, html, { channel: deepResult.channel, channelName: deepResult.channelName });
             return;
         }
@@ -997,9 +1011,9 @@ window.nachoAnswer = function() {
                         '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found online:</div>';
                     for (var ri = 0; ri < results.length; ri++) {
                         html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
-                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (results[ri].title || '') + '</div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (results[ri].snippet || '') + '</div>' +
-                            (results[ri].url ? '<a href="' + results[ri].url + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (escapeHtml(results[ri].title)) + '</div>' +
+                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (escapeHtml(results[ri].snippet)) + '</div>' +
+                            (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
                             '</div>';
                     }
                     html += '</div>';

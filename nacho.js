@@ -1074,7 +1074,10 @@ function periodicMessage() {
 
 // ---- Utility ----
 window.nachoUserName = function() {
-    if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) return currentUser.username;
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+        // Sanitize to prevent XSS if username data is somehow corrupted
+        return String(currentUser.username).replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
     return '';
 }
 
