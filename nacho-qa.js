@@ -124,8 +124,8 @@ const NACHO_KB = [
       answer: "Can you eat your Bitcoin? No, {name}, and trust me — I've tried. Tastes like math. 🦌🍽️ But here's the thing: you can't eat a gold bar or a dollar bill either! What you CAN do is use Bitcoin to buy the best steak dinner of your life — with Lightning, it'll be paid for before the waiter brings the check! ⚡🥩 Proof of steak > proof of stake!",
       channel: 'use-cases', channelName: 'Use Cases' },
 
-    { keys: ['energy','environment','electricity','bad for environment','waste energy','carbon','climate'],
-      answer: "Bitcoin mining actually incentivizes renewable energy and uses mostly stranded/wasted energy. Its carbon intensity is lower than many industries. Check the facts!",
+    { keys: ['energy','environment','electricity','bad for environment','waste energy','carbon','climate','carbon footprint','global warming'],
+      answer: "Bitcoin uses about 0.1% of global energy and over 50% comes from renewables! ♻️ Miners seek the cheapest energy — which is usually stranded hydroelectric, solar, or wasted methane gas. Bitcoin actually INCENTIVIZES clean energy development. The banking system uses far more energy when you count all its offices, ATMs, armored trucks, and data centers!",
       channel: 'energy', channelName: 'Environment & Energy' },
 
     { keys: ['volatile','volatility','risky','risk','crash','bear market','goes down','drops'],
@@ -187,6 +187,38 @@ const NACHO_KB = [
     { keys: ['quantum','quantum computer','quantum computing','quantum threat'],
       answer: "Quantum computers strong enough to threaten Bitcoin don't exist yet and won't for decades. When they get close, Bitcoin can upgrade its cryptography. The devs are already prepared!",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['tulip','tulipmania','bubble','is bitcoin a bubble','speculative bubble','dot com','south sea'],
+      answer: "Tulips didn't have a 15-year track record of adoption by nations, corporations, and billions in infrastructure! 🌷 Bitcoin has survived every 'bubble' call since $1, and each time came back stronger. Bubbles don't keep reaching new all-time highs for 15 years, {name}. That's called adoption.",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['boil the ocean','boils the ocean','too much energy','waste of energy','energy waste','uses more energy','electricity waste'],
+      answer: "Bitcoin uses about 0.1% of global energy — less than clothes dryers or Christmas lights! 🎄 And here's the kicker: over 50% of Bitcoin mining uses renewable energy. Miners actively seek stranded energy that would otherwise be wasted. Bitcoin doesn't boil the ocean — it helps monetize clean energy! ⚡",
+      channel: 'energy', channelName: 'Environment & Energy' },
+
+    { keys: ['too slow','only 7 transactions','transactions per second','visa is faster','can\'t scale','cant scale','scaling problem'],
+      answer: "Bitcoin's base layer does ~7 transactions per second — by design! It prioritizes security and decentralization. But the Lightning Network on top can handle MILLIONS of transactions per second, nearly free and instant. Visa does ~1,700 TPS. Lightning can do 25,000,000+. Bitcoin already won that race! ⚡🏎️",
+      channel: 'scalability', channelName: 'Scalability' },
+
+    { keys: ['too late','missed the boat','too expensive','can\'t afford','cant afford','already too high','priced out'],
+      answer: "You're not late, {name}! Only about 2-4% of the world owns Bitcoin. You can buy as little as $1 worth — you don't need a whole coin! Every Bitcoiner once thought they were 'too late.' The best time to plant a tree was 20 years ago. The second best time is now. 🌱",
+      channel: 'investment-strategy', channelName: 'Investment Strategy' },
+
+    { keys: ['bitcoin is dead','bitcoin died','obituary','been declared dead','will bitcoin die','dying'],
+      answer: "Bitcoin has been declared dead over 470 times by the media! 💀 And yet it keeps coming back stronger. It's gone from $0 to tens of thousands of dollars while people kept writing obituaries. Check out bitcoinisdead.org for the full list — it's actually pretty funny! 🦌",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['only rich people','only for the rich','rich get richer','wealth inequality','unequal','unfair distribution'],
+      answer: "Actually, {name}, Bitcoin is the MOST fair money ever created! No premine, no insider access — anyone could mine from day one. You can buy a fraction of a penny's worth. It gives EVERYONE access to sound money — no bank account needed, no credit check, no government permission. It's the great equalizer! 🌍",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['waste of time','pointless','no use','useless','what\'s the point','whats the point','why bother'],
+      answer: "Tell that to the people in Venezuela, Nigeria, and Lebanon who use Bitcoin to escape hyperinflation and government seizure! 🌍 Or the millions who don't have bank accounts but DO have phones. Bitcoin gives financial freedom to anyone with an internet connection. That's not pointless — that's revolutionary.",
+      channel: 'use-cases', channelName: 'Use Cases' },
+
+    { keys: ['government will shut it down','government will kill','government will stop','will be outlawed','make it illegal'],
+      answer: "Governments have been trying for over 15 years, {name}! China banned it multiple times — Bitcoin just moved to other countries and kept growing. El Salvador made it legal tender. The US approved Bitcoin ETFs. You can't shut down a decentralized network running on thousands of computers across 100+ countries. It's like trying to ban math. 🧮🦌",
+      channel: 'regulation', channelName: 'Regulation' },
 
     { keys: ['dead','bitcoin is dead','dying','failed','over'],
       answer: "Bitcoin has been declared dead 477+ times since 2010. It's still here, stronger than ever, at all-time highs. The reports of its death have been greatly exaggerated! 😂",
