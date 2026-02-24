@@ -1694,11 +1694,7 @@
         if (key === 'i') { if (typeof showSettingsPage === 'function') showSettingsPage('account'); return; }
         // D = donate — go home and scroll to donation section
         if (key === 'd') {
-            goHome();
-            setTimeout(function() {
-                var ds = document.getElementById('donateSection');
-                if (ds) ds.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 300);
+            showDonateModal();
             return;
         }
         // B = back to previous channel
