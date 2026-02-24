@@ -817,7 +817,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
             html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
                 '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also want to ask:</div>';
             for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
-                html += '<button onclick="document.getElementById(\'nachoInput\')?(document.getElementById(\'nachoInput\').value=\'' + followUps[fi].replace(/'/g, "\\'") + '\',nachoAnswer()):showNachoInput()" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
+                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + followUps[fi].replace(/'/g, "\\'") + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
             }
             html += '</div>';
         }
