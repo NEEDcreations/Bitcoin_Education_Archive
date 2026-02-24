@@ -120,24 +120,22 @@ let badgeQueue = [];
 let badgeShowing = false;
 
 function showBadgeUnlock(badge) {
-    // If Nacho's bubble is open with input, queue it for later
+    // If Nacho's bubble is open at all (Q&A input, answer, trivia, etc), queue for later
     var bubble = document.getElementById('nacho-bubble');
-    var nachoInput = document.getElementById('nachoInput');
-    if (bubble && bubble.classList.contains('show') && nachoInput) {
+    if (bubble && bubble.classList.contains('show')) {
         badgeQueue.push(badge);
         return;
     }
     _showBadgeUnlock(badge);
 }
 
-// Check queue periodically
+// Check queue periodically — only show when Nacho bubble is closed
 setInterval(function() {
     if (badgeShowing || badgeQueue.length === 0) return;
     var bubble = document.getElementById('nacho-bubble');
-    var nachoInput = document.getElementById('nachoInput');
-    if (bubble && bubble.classList.contains('show') && nachoInput) return; // Still in Q&A
+    if (bubble && bubble.classList.contains('show')) return; // Bubble still open
     _showBadgeUnlock(badgeQueue.shift());
-}, 2000);
+}, 3000);
 
 function _showBadgeUnlock(badge) {
     badgeShowing = true;

@@ -165,6 +165,10 @@ window.showNachoTrivia = function() {
 
     if (typeof setPose === 'function') setPose('think');
 
+    // Mark as interactive — prevents auto-hide
+    bubble.setAttribute('data-interactive', 'true');
+    clearTimeout(window._nachoBubbleTimeout);
+
     var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + t.pts + ' pts)</div>' +
         '<div style="color:var(--text,#eee);margin-bottom:10px;line-height:1.5;">' + t.q + '</div>';
 
@@ -207,7 +211,7 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
         if (typeof setPose === 'function') setPose('love');
     }
 
-    textEl.innerHTML += '<button onclick="hideBubble()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Continue</button>';
+    textEl.innerHTML += '<button onclick="hideBubble(true)" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Continue</button>';
 };
 
 // ---- Nacho Friendship Level ----

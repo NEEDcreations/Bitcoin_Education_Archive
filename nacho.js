@@ -485,10 +485,10 @@ function createNacho() {
             NACHO_SVG +
             '<span class="nacho-name" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
         '</div>' +
-        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble()">' +
+        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble(true)">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> Nacho says</span>' +
-                '<span class="nacho-x" onclick="event.stopPropagation();hideBubble()">✕</span>' +
+                '<span class="nacho-x" onclick="event.stopPropagation();hideBubble(true)">✕</span>' +
             '</div>' +
             '<div id="nacho-text"></div>' +
         '</div>';
@@ -610,10 +610,16 @@ function _showBubble(text, pose) {
     bubble.classList.add('show');
 
     clearTimeout(bubbleTimeout);
+    // Only auto-hide for passive messages, not interactive content
+    bubble.setAttribute('data-interactive', 'false');
     bubbleTimeout = setTimeout(hideBubble, BUBBLE_DURATION);
 }
 
-window.hideBubble = function() {
+window.hideBubble = function(force) {
+    var bubble = document.getElementById('nacho-bubble');
+    // Don't auto-hide interactive content (Q&A, trivia) — only manual close or force
+    if (!force && bubble && bubble.getAttribute('data-interactive') === 'true') return;
+
     // Mark interaction for badge
     localStorage.setItem('btc_nacho_clicked', 'true');
     if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
@@ -835,7 +841,7 @@ document.addEventListener('click', function(e) {
     if (!bubble || !bubble.classList.contains('show')) return;
     var container = document.getElementById('nacho-container');
     if (container && container.contains(e.target)) return; // Click inside Nacho area
-    hideBubble();
+    hideBubble(true);
 });
 
 // ---- Init ----

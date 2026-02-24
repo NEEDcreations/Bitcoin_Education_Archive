@@ -291,6 +291,8 @@ window.showNachoInput = function() {
         '<input type="text" id="nachoInput" placeholder="e.g. What is mining?" maxlength="100" style="width:100%;padding:8px 10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')nachoAnswer()">' +
         '<button onclick="nachoAnswer()" style="width:100%;margin-top:6px;padding:8px;background:#f7931a;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask Nacho 🦌</button>';
 
+    // Mark as interactive — prevents auto-hide timer from closing it
+    bubble.setAttribute('data-interactive', 'true');
     bubble.classList.add('show');
     clearTimeout(window._nachoBubbleTimeout);
 
@@ -376,6 +378,10 @@ window.nachoAnswer = function() {
 
     // Track interaction
     if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+
+    // Keep bubble interactive (no auto-hide) for answers
+    bubble.setAttribute('data-interactive', 'true');
+    clearTimeout(window._nachoBubbleTimeout);
 
     if (match) {
         if (typeof setPose === 'function') setPose('brain');
