@@ -1878,7 +1878,7 @@
         // M = random meme
         if (key === 'm') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
         // A = random art
-        if (key === 'a') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
+        if (key === 'a') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
 
         // === Quick Actions ===
         // L = toggle leaderboard
@@ -1888,7 +1888,7 @@
         // F = favorite/save current channel
         if (key === 'f') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
         // N = talk to Nacho (open Q&A input)
-        if (key === 'n') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
+        if (key === 'n') { if (typeof enterNachoMode === 'function') enterNachoMode(); return; }
         // T = toggle theme (dark/light)
         if (key === 't') { var tb = document.getElementById('themeToggle'); if (tb) tb.click(); return; }
         // G = gallery view (on supported channels)
