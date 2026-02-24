@@ -13,9 +13,9 @@ const NACHO_ITEMS = [
 
     // Level 2 — Getting Acquainted (10+ interactions)
     // Helmet sits ON the head, between the antlers (~22% from top, covering forehead)
-    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A miner\'s helmet with a headlamp. Ready to find the next block!', level: 2, overlay: { top: '28%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.8em' }, hidden: false },
-    // Chain wraps horizontally around neck — uses custom HTML render
-    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '65%', left: '50%', transform: 'translateX(-50%)', fontSize: '0.65em', custom: '⚡⚡⚡⚡⚡' }, hidden: false },
+    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A miner\'s helmet with a headlamp. Ready to find the next block!', level: 2, overlay: { top: '20%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2em' }, hidden: false },
+    // Chain with single pendant hanging at chest — like a real necklace
+    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '70%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.3em' }, hidden: false },
 
     // Level 3 — Good Friends (25+ interactions)
     // Hoodie on the body (~78% from top, covering chest area)
