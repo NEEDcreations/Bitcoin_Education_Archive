@@ -283,6 +283,9 @@
         .channel-logos { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 16px; }
         .channel-logos .channel-logo-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 24px rgba(247,147,26,0.35); }
         .channel-logos svg { width: 50px; height: 50px; }
+        .donate-circle { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+        .donate-circle::after { content: 'Donate'; position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; font-weight: 700; color: #f7931a; opacity: 0; transition: opacity 0.2s; white-space: nowrap; pointer-events: none; }
+        .donate-circle:hover::after { opacity: 1; }
         .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1px; line-height: 1.15; margin-bottom: 20px; }
@@ -636,7 +639,7 @@
             <div class="home-inner">
                 <div class="home-logos">
                     <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home">
-                    <svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" onclick="showDonateModal()" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>
+                    <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
                 <p class="home-subtitle">A curated library of Bitcoin education — complete with Quests to test your knowledge. Start your Quest today!</p>
@@ -1650,7 +1653,7 @@
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos">' +
                 '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Go to Home">' +
-                '<svg viewBox="0 0 64 64" width="50" height="50" onclick="showDonateModal()" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>' +
+                '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
