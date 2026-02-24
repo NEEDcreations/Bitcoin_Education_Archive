@@ -123,6 +123,10 @@ async function checkReferralQualifications() {
     if (!currentUser || !db || !auth || !auth.currentUser) return;
     if (auth.currentUser.isAnonymous) return;
 
+    // Only check once per session (heavy query)
+    if (window._referralChecked) return;
+    window._referralChecked = true;
+
     const refCode = getReferralCode();
     if (!refCode) return;
 

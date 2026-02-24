@@ -1635,8 +1635,10 @@ function showSettingsPage(tab) {
         }
 
     } else if (settingsTab === 'data') {
-        // Refresh data from Firebase if available
-        if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined') {
+        // Refresh data from Firebase — cache for 2 minutes
+        var now = Date.now();
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' &&
+            (!window._statsCache || now - window._statsCacheTime > 120000)) {
             db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
                 if (doc.exists && currentUser) {
                     const fresh = doc.data();
@@ -1644,6 +1646,8 @@ function showSettingsPage(tab) {
                     currentUser.streak = fresh.streak || 0;
                     currentUser.totalVisits = fresh.totalVisits || 0;
                     currentUser.channelsVisited = fresh.channelsVisited || 0;
+                    window._statsCache = true;
+                    window._statsCacheTime = Date.now();
                     // Re-render if data changed
                     const ptsEl = document.getElementById('statPts');
                     if (ptsEl && ptsEl.textContent !== (fresh.points || 0).toLocaleString()) {
