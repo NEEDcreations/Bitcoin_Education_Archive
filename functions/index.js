@@ -1,7 +1,7 @@
 const functions = require('firebase-functions');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
-const { authenticator } = require('otplib');
+const otplib = require('otplib');
 const QRCode = require('qrcode');
 
 admin.initializeApp();
@@ -15,7 +15,7 @@ exports.totpSetup = functions.https.onCall(async (data, context) => {
     const email = context.auth.token.email || 'user';
     
     // Generate secret
-    const secret = authenticator.generateSecret();
+    const secret = otplib.generateSecret();
     
     // Store temporarily (not verified yet)
     await db.collection('totp_pending').doc(uid).set({
@@ -24,7 +24,7 @@ exports.totpSetup = functions.https.onCall(async (data, context) => {
     });
     
     // Generate QR code
-    const otpauth = authenticator.keyuri(email, 'Bitcoin Education Archive', secret);
+    const otpauth = otplib.generateURI({ secret: secret, label: email, issuer: 'Bitcoin Education Archive' });
     const qrDataUrl = await QRCode.toDataURL(otpauth);
     
     return { qr: qrDataUrl, secret: secret };
@@ -44,8 +44,8 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
     const secret = pending.data().secret;
     
     // Verify the code
-    const isValid = authenticator.verify({ token: data.code, secret: secret });
-    if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
+    const isValidResult = await otplib.verify({ token: data.code, secret: secret });
+    if (!isValidResult || !isValidResult.valid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Try again.');
     
     // Store verified secret
     await db.collection('totp_secrets').doc(uid).set({
@@ -76,9 +76,9 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
     }
     
     const secret = doc.data().secret;
-    const isValid = authenticator.verify({ token: data.code, secret: secret });
+    const isValidResult = await otplib.verify({ token: data.code, secret: secret });
     
-    if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code');
+    if (!isValidResult || !isValidResult.valid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code');
     
     // Mark session as verified
     await db.collection('totp_sessions').doc(uid).set({
@@ -100,8 +100,8 @@ exports.totpDisable = functions.https.onCall(async (data, context) => {
     if (!doc.exists) throw new functions.https.HttpsError('not-found', 'TOTP not enabled');
     
     // Verify code before disabling
-    const isValid = authenticator.verify({ token: data.code, secret: doc.data().secret });
-    if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
+    const isValidResult = await otplib.verify({ token: data.code, secret: doc.data().secret });
+    if (!isValidResult || !isValidResult.valid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code. Must verify to disable.');
     
     await db.collection('totp_secrets').doc(uid).delete();
     await db.collection('totp_sessions').doc(uid).delete();
