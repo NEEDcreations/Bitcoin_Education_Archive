@@ -692,15 +692,14 @@ function _showBubble(text, pose) {
 }
 
 window.hideBubble = function(force) {
-    var bubble = document.getElementById('nacho-bubble');
+        var bubble = document.getElementById('nacho-bubble');
     // Don't auto-hide interactive content (Q&A, trivia) — only manual close or force
     if (!force && bubble && bubble.getAttribute('data-interactive') === 'true') return;
 
     // Mark interaction for badge
     localStorage.setItem('btc_nacho_clicked', 'true');
     if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
-    const bubble = document.getElementById('nacho-bubble');
-    const avatar = document.getElementById('nacho-avatar');
+    var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
     clearTimeout(bubbleTimeout);
     // Resume idle after a beat
