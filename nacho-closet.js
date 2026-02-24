@@ -6,7 +6,6 @@
 (function() {
 
 // ---- Collectible Items ----
-// Each item has: id, name, emoji, desc, friendshipLevel required, cssOverlay position
 const NACHO_ITEMS = [
     // Level 1 — Just Met (1+ interactions)
     { id: 'orange_scarf', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { bottom: '22%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em' }, hidden: false },
@@ -27,6 +26,80 @@ const NACHO_ITEMS = [
     { id: 'golden_antlers', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '-12%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: true, revealName: 'Golden Antlers', revealEmoji: '👑', revealDesc: 'Antlers plated in pure gold. Only the closest friends get to see these shine!' },
     { id: 'satoshi_cloak', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { bottom: '10%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.5em' }, hidden: true, revealName: 'Satoshi\'s Cloak', revealEmoji: '🧙', revealDesc: 'A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it.' },
 ];
+
+// ---- Inject CSS for overlay animations ----
+var closetStyle = document.createElement('style');
+closetStyle.textContent = `
+    @keyframes nachoEquipPop {
+        0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+        50% { transform: scale(1.5) rotate(10deg); opacity: 1; }
+        70% { transform: scale(0.9) rotate(-5deg); }
+        100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes nachoEquipGlow {
+        0% { filter: drop-shadow(0 0 0px transparent); }
+        30% { filter: drop-shadow(0 0 12px rgba(247,147,26,0.8)); }
+        100% { filter: drop-shadow(0 0 4px rgba(247,147,26,0.3)); }
+    }
+    @keyframes nachoUnequip {
+        0% { transform: scale(1); opacity: 1; }
+        40% { transform: scale(1.3) rotate(15deg); opacity: 0.8; }
+        100% { transform: scale(0) rotate(-30deg); opacity: 0; }
+    }
+    @keyframes nachoItemFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+    @keyframes nachoLaserPulse {
+        0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 4px #ff0000); }
+        50% { opacity: 1; filter: drop-shadow(0 0 10px #ff0000) drop-shadow(0 0 20px #ff3300); }
+    }
+    @keyframes nachoSparkle {
+        0%, 100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.3)); }
+        50% { filter: drop-shadow(0 0 10px rgba(255,215,0,0.8)) drop-shadow(0 0 20px rgba(255,215,0,0.4)); }
+    }
+    @keyframes nachoCloakWave {
+        0%, 100% { transform: translateX(-50%) rotate(-2deg); }
+        50% { transform: translateX(-50%) rotate(2deg); }
+    }
+    .nacho-overlay-item {
+        position: absolute;
+        pointer-events: none;
+        z-index: 3;
+    }
+    .nacho-overlay-item.equipping {
+        animation: nachoEquipPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                   nachoEquipGlow 0.8s ease-out forwards;
+    }
+    .nacho-overlay-item.unequipping {
+        animation: nachoUnequip 0.35s ease-in forwards;
+    }
+    .nacho-overlay-item.idle-float {
+        animation: nachoItemFloat 3s ease-in-out infinite;
+    }
+    .nacho-overlay-item.idle-laser {
+        animation: nachoLaserPulse 1.5s ease-in-out infinite;
+    }
+    .nacho-overlay-item.idle-sparkle {
+        animation: nachoSparkle 2s ease-in-out infinite;
+    }
+    .nacho-overlay-item.idle-wave {
+        animation: nachoCloakWave 4s ease-in-out infinite;
+    }
+`;
+document.head.appendChild(closetStyle);
+
+// ---- Get idle animation class for each item ----
+function getIdleAnimation(itemId) {
+    switch(itemId) {
+        case 'laser_eyes': return 'idle-laser';
+        case 'golden_antlers': return 'idle-sparkle';
+        case 'satoshi_cloak': return 'idle-wave';
+        case 'lightning_chain': return 'idle-float';
+        case 'diamond_hooves': return 'idle-sparkle';
+        default: return 'idle-float';
+    }
+}
 
 // ---- Get friendship level ----
 function getFriendLevel() {
@@ -51,31 +124,75 @@ function getEquippedItem() {
     if (!id) return null;
     var item = NACHO_ITEMS.find(function(i) { return i.id === id; });
     if (!item) return null;
-    // Make sure it's still unlocked
     if (item.level > getFriendLevel()) return null;
     return item;
 }
 
-// ---- Equip an item ----
+// ---- Equip an item (with animation) ----
 window.equipNachoItem = function(itemId) {
     var current = localStorage.getItem('btc_nacho_equipped');
+    var avatar = document.getElementById('nacho-avatar');
+
     if (current === itemId) {
-        // Unequip
+        // Unequip with animation
+        var existing = document.getElementById('nacho-overlay');
+        if (existing) {
+            existing.classList.remove('equipping', 'idle-float', 'idle-laser', 'idle-sparkle', 'idle-wave');
+            existing.classList.add('unequipping');
+            existing.addEventListener('animationend', function() {
+                existing.remove();
+            });
+        }
         localStorage.removeItem('btc_nacho_equipped');
+        // Nacho reacts
+        if (typeof forceShowBubble === 'function') {
+            forceShowBubble('Back to natural! I look great either way. 🦌');
+        }
     } else {
+        // Remove old overlay with animation if exists
+        var old = document.getElementById('nacho-overlay');
+        if (old) {
+            old.classList.remove('equipping', 'idle-float', 'idle-laser', 'idle-sparkle', 'idle-wave');
+            old.classList.add('unequipping');
+            old.addEventListener('animationend', function() { old.remove(); });
+        }
+
         localStorage.setItem('btc_nacho_equipped', itemId);
+
+        // Short delay so unequip animation plays first
+        setTimeout(function() {
+            renderNachoOverlay(true);
+        }, old ? 300 : 0);
+
+        // Nacho reacts to specific items
+        var item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
+        if (item && typeof forceShowBubble === 'function') {
+            var displayName = item.hidden ? item.revealName : item.name;
+            var reactions = {
+                'orange_scarf': "Looking cozy! This scarf really brings out my orange. 🧣🦌",
+                'mining_helmet': "Safety first! Time to mine some blocks! ⛑️⛏️",
+                'lightning_chain': "Bling bling! Fast as Lightning! ⚡🦌",
+                'hodl_hoodie': "HODL gang! This hoodie makes me feel unstoppable! 🧥💎",
+                'laser_eyes': "LASER EYES ACTIVATED! Number go up! 🔴🔴🚀",
+                'steak': "Mmm, Proof of Steak! Way better than Proof of Stake! 🥩😋",
+                'diamond_hooves': "Diamond hooves, diamond hands! Never selling! 💎🦌",
+                'golden_antlers': "These golden antlers are MAGNIFICENT! Only for my best friends! 👑✨",
+                'satoshi_cloak': "Who am I? Nobody knows... I am Satoshi Nachoamoto! 🧙🦌"
+            };
+            forceShowBubble(reactions[itemId] || "Looking fresh with my " + displayName + "! 🦌");
+        }
     }
-    renderNachoOverlay();
-    // Re-render closet if open
+
+    if (typeof nachoPlaySound === 'function') nachoPlaySound('coin');
+
+    // Re-render closet UI if open
     if (document.getElementById('nachoClosetGrid')) {
         renderNachoClosetUI(document.getElementById('nachoClosetGrid').parentElement);
     }
-    if (typeof nachoPlaySound === 'function') nachoPlaySound('coin');
 };
 
 // ---- Render equipped item overlay on Nacho avatar ----
-window.renderNachoOverlay = function() {
-    // Remove existing overlay
+window.renderNachoOverlay = function(animate) {
     var existing = document.getElementById('nacho-overlay');
     if (existing) existing.remove();
 
@@ -86,16 +203,54 @@ window.renderNachoOverlay = function() {
     if (!avatar) return;
 
     var emoji = item.hidden ? item.revealEmoji : item.emoji;
+    var idleClass = getIdleAnimation(item.id);
 
     var overlay = document.createElement('span');
     overlay.id = 'nacho-overlay';
+    overlay.className = 'nacho-overlay-item' + (animate ? ' equipping' : ' ' + idleClass);
     overlay.textContent = emoji;
-    overlay.style.cssText = 'position:absolute;pointer-events:none;z-index:3;';
+
+    // Apply positioning from item config
     for (var prop in item.overlay) {
-        overlay.style[prop] = item.overlay[prop];
+        if (prop !== 'filter') {
+            overlay.style[prop] = item.overlay[prop];
+        }
     }
+
+    // After equip animation, switch to idle
+    if (animate) {
+        overlay.addEventListener('animationend', function handler() {
+            overlay.classList.remove('equipping');
+            overlay.classList.add(idleClass);
+            overlay.removeEventListener('animationend', handler);
+        }, { once: true });
+
+        // Spawn sparkle particles around Nacho during equip
+        spawnEquipParticles(avatar);
+    }
+
     avatar.appendChild(overlay);
 };
+
+// ---- Sparkle particles on equip ----
+function spawnEquipParticles(avatar) {
+    var rect = avatar.getBoundingClientRect();
+    var sparkles = ['✨', '⭐', '💫', '🌟'];
+    for (var i = 0; i < 6; i++) {
+        (function(idx) {
+            setTimeout(function() {
+                var p = document.createElement('div');
+                p.className = 'nacho-trail';
+                p.textContent = sparkles[idx % sparkles.length];
+                p.style.left = (rect.left + Math.random() * rect.width) + 'px';
+                p.style.top = (rect.top + Math.random() * rect.height) + 'px';
+                p.style.fontSize = (0.8 + Math.random() * 0.8) + 'rem';
+                document.body.appendChild(p);
+                setTimeout(function() { if (p.parentNode) p.remove(); }, 800);
+            }, idx * 80);
+        })(i);
+    }
+}
 
 // ---- Render Nacho's Closet UI (for settings) ----
 window.renderNachoClosetUI = function(container) {
@@ -104,7 +259,6 @@ window.renderNachoClosetUI = function(container) {
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
     var friendship = typeof getNachoFriendship === 'function' ? getNachoFriendship() : { level: 0, name: 'Strangers', emoji: '❓' };
 
-    // Next level info
     var nextThresholds = [1, 10, 100, 350, 750];
     var nextLevel = '';
     for (var i = 0; i < nextThresholds.length; i++) {
@@ -116,18 +270,15 @@ window.renderNachoClosetUI = function(container) {
 
     var html = '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🦌 Nacho\'s Closet</div>';
 
-    // Friendship status
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
         '<span style="color:var(--text);font-size:0.85rem;">Friendship: <strong style="color:var(--accent);">' + friendship.emoji + ' ' + friendship.name + '</strong></span>' +
         '<span style="color:var(--text-muted);font-size:0.8rem;">' + interactions + ' interactions</span></div>' + nextLevel;
 
-    // Progress bar
     var maxInteractions = 750;
     var pct = Math.min(100, Math.round((interactions / maxInteractions) * 100));
     html += '<div style="height:4px;background:var(--border);border-radius:4px;margin:10px 0 16px;overflow:hidden;">' +
         '<div style="height:100%;background:linear-gradient(90deg,#f97316,#eab308);width:' + pct + '%;border-radius:4px;transition:width 0.5s;"></div></div>';
 
-    // Items grid
     html += '<div id="nachoClosetGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
 
     for (var j = 0; j < NACHO_ITEMS.length; j++) {
@@ -138,17 +289,16 @@ window.renderNachoClosetUI = function(container) {
 
         var displayName = isHidden ? '???' : (item.hidden && unlocked ? item.revealName : item.name);
         var displayEmoji = isHidden ? '❓' : (item.hidden && unlocked ? item.revealEmoji : item.emoji);
-        var displayDesc = isHidden ? 'Reach Best Buds to reveal!' : (item.hidden && unlocked ? item.revealDesc : item.desc);
 
         html += '<div onclick="' + (unlocked ? 'equipNachoItem(\'' + item.id + '\')' : '') + '" style="' +
             'background:' + (isEquipped ? 'var(--accent-bg,rgba(247,147,26,0.15))' : 'var(--card-bg,#1a1a2e)') + ';' +
             'border:2px solid ' + (isEquipped ? '#f7931a' : unlocked ? 'var(--border,#333)' : 'rgba(100,100,100,0.2)') + ';' +
             'border-radius:12px;padding:12px 8px;text-align:center;cursor:' + (unlocked ? 'pointer' : 'default') + ';' +
-            'opacity:' + (unlocked ? '1' : '0.4') + ';transition:0.2s;position:relative;' +
-            '"' + (unlocked ? ' onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'' + (isEquipped ? '#f7931a' : 'var(--border,#333)') + '\'"' : '') + '>' +
-            '<div style="font-size:1.8rem;margin-bottom:4px;">' + displayEmoji + '</div>' +
+            'opacity:' + (unlocked ? '1' : '0.4') + ';transition:all 0.2s;position:relative;' +
+            '"' + (unlocked ? ' onmouseover="this.style.transform=\'scale(1.05)\';this.style.borderColor=\'#f7931a\'" onmouseout="this.style.transform=\'scale(1)\';this.style.borderColor=\'' + (isEquipped ? '#f7931a' : 'var(--border,#333)') + '\'"' : '') + '>' +
+            '<div style="font-size:1.8rem;margin-bottom:4px;' + (isEquipped ? 'animation:nachoItemFloat 2s ease-in-out infinite;' : '') + '">' + displayEmoji + '</div>' +
             '<div style="font-size:0.7rem;color:' + (unlocked ? 'var(--text)' : 'var(--text-faint)') + ';font-weight:600;line-height:1.3;">' + displayName + '</div>' +
-            (isEquipped ? '<div style="font-size:0.6rem;color:#f7931a;font-weight:700;margin-top:2px;">EQUIPPED</div>' : '') +
+            (isEquipped ? '<div style="font-size:0.6rem;color:#f7931a;font-weight:700;margin-top:2px;">✓ EQUIPPED</div>' : '') +
             (!unlocked && !isHidden ? '<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">Lvl ' + item.level + '</div>' : '') +
             (isHidden ? '<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">🔒</div>' : '') +
             '</div>';
@@ -156,7 +306,6 @@ window.renderNachoClosetUI = function(container) {
 
     html += '</div>';
 
-    // Selected item description
     html += '<div style="margin-top:12px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;min-height:40px;">' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;" id="nachoItemDesc">' +
         (equipped ? (function() {
@@ -164,14 +313,13 @@ window.renderNachoClosetUI = function(container) {
             if (!eq) return 'Tap an item to equip it on Nacho!';
             var dn = eq.hidden ? eq.revealDesc : eq.desc;
             return '<strong style="color:var(--accent);">' + (eq.hidden ? eq.revealName : eq.name) + ':</strong> ' + dn;
-        })() : 'Tap an unlocked item to equip it on Nacho! Tap again to unequip.') +
+        })() : 'Tap an unlocked item to equip it on Nacho!<br>Tap again to unequip.') +
         '</div></div>';
 
     container.innerHTML = html;
 };
 
-// ---- Nacho talks about the closet system ----
-// These get mixed into his regular rotation
+// ---- Nacho talks about the closet ----
 window.NACHO_CLOSET_TIPS = [
     { pose: 'cool', text: "Did you know I have a whole closet of outfits, {name}? Check Settings → Prefs → Nacho's Closet to dress me up! 👔🦌" },
     { pose: 'celebrate', text: "The more we interact, the more items you unlock for me to wear! Check my closet in Settings! 🧣⚡" },
@@ -180,7 +328,7 @@ window.NACHO_CLOSET_TIPS = [
     { pose: 'cheese', text: "Fashion tip from a deer: orange goes with everything. Especially Bitcoin orange. Check my closet in Settings! 🟠" },
 ];
 
-// ---- Check for newly unlocked items and notify ----
+// ---- Check for newly unlocked items ----
 window.checkNachoNewItems = function() {
     var level = getFriendLevel();
     var notified = JSON.parse(localStorage.getItem('btc_nacho_items_notified') || '[]');
