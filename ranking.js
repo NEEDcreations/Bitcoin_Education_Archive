@@ -1038,7 +1038,7 @@ function updateUserDisplay(lv) {
         el = document.createElement('div');
         el.id = 'userDisplay';
         el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:130;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;';
-        el.onclick = function() { toggleLeaderboard(); };
+        el.onclick = function() { showSettingsPage('account'); };
         document.body.appendChild(el);
     }
     el.style.display = 'flex';
