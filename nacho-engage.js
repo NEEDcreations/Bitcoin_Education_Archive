@@ -242,6 +242,7 @@ window.getNachoFriendship = function() {
 window.trackNachoInteraction = function() {
     var count = parseInt(localStorage.getItem('btc_nacho_interactions') || '0') + 1;
     localStorage.setItem('btc_nacho_interactions', count.toString());
+    window._nachoLastInteraction = Date.now();
 };
 
 // ---- Follow-up Suggestions ----

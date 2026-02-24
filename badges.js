@@ -49,6 +49,16 @@ function initBadges() {
 
     // Check badges every 15 seconds — but only after Firebase restore
     badgeCheckInterval = setInterval(checkBadges, 15000);
+
+    // Flush queued visible badge popups when Nacho is idle
+    setInterval(function() {
+        if (!window._visibleBadgeQueue || window._visibleBadgeQueue.length === 0) return;
+        if (window._nachoBusy) return;
+        var bubble = document.getElementById('nacho-bubble');
+        if (bubble && bubble.classList.contains('show')) return;
+        if (document.getElementById('badgeCelebration')) return; // another badge showing
+        showBadgeToast(window._visibleBadgeQueue.shift());
+    }, 5000);
 }
 
 // Called from ranking.js after Firebase restores user data
@@ -78,9 +88,17 @@ function checkBadges() {
             if (badge.check(visited, totalChannels, questsDone)) {
                 earnedBadges.add(badge.id);
                 localStorage.setItem('btc_badges', JSON.stringify([...earnedBadges]));
-                showBadgeToast(badge);
 
-                // Award points
+                // Queue badge popup if Nacho is busy or bubble is open
+                var bubble = document.getElementById('nacho-bubble');
+                if (window._nachoBusy || (bubble && bubble.classList.contains('show'))) {
+                    if (!window._visibleBadgeQueue) window._visibleBadgeQueue = [];
+                    window._visibleBadgeQueue.push(badge);
+                } else {
+                    showBadgeToast(badge);
+                }
+
+                // Award points (toasts are already queued by _nachoBusy)
                 if (typeof awardPoints === 'function') {
                     awardPoints(20, 'Badge: ' + badge.name + ' ' + badge.emoji);
                 }

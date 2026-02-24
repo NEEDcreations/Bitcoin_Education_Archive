@@ -149,11 +149,13 @@ function showBadgeUnlock(badge) {
 // Check queue periodically — only show when Nacho is idle and bubble is closed
 setInterval(function() {
     if (badgeShowing || badgeQueue.length === 0) return;
-    if (window._nachoBusy) return; // Nacho is busy — wait
+    if (window._nachoBusy) return;
     var bubble = document.getElementById('nacho-bubble');
-    if (bubble && bubble.classList.contains('show')) return; // Bubble still open
+    if (bubble && bubble.classList.contains('show')) return;
+    // Extra guard: don't show if user interacted with Nacho in the last 5 seconds
+    if (window._nachoLastInteraction && Date.now() - window._nachoLastInteraction < 5000) return;
     _showBadgeUnlock(badgeQueue.shift());
-}, 3000);
+}, 5000);
 
 function _showBadgeUnlock(badge) {
     badgeShowing = true;
