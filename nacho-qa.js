@@ -231,10 +231,11 @@ const NACHO_KB = [
 
 // Fallback if no match
 const FALLBACKS = [
-    "Hmm, I'm not sure about that one, {name}! Try browsing the sidebar channels or use 🔍 search. I'm still learning too! 🦌",
-    "Good question, {name}! I don't have a perfect answer, but check the search — this archive probably covers it somewhere! 🔍",
-    "That's beyond my antler-span, {name}! 🦌 Try the One Stop Shop channel for a broad overview, or search for specific topics!",
-    "Even the strongest buck in NH doesn't know everything, {name}! Try searching the archive — there are 146+ channels of knowledge! 🗻",
+    "Hmm, that's a tough one, {name}. I don't have a great answer for that. Try searching the archive — there's probably a channel that covers it! 🔍",
+    "You know, I'm not sure about that one. I'm still learning! But this archive has 146 channels — there might be something in there. 🦌",
+    "That's a new one for me, {name}! Let me know if you find the answer in one of the channels — I'd love to learn too! 🧡",
+    "I wish I knew more about that. Try the One Stop Shop channel — it's got a bit of everything. And keep asking me stuff! I get smarter the more we talk. 🦌",
+    "Honestly, {name}, that's outside my wheelhouse right now. But I bet if you search for it, this archive has something useful. 🔍",
 ];
 
 // ---- Match user input to knowledge base ----
@@ -259,26 +260,114 @@ function isCurrentEventQuestion(input) {
     return false;
 }
 
+// ---- Conversation memory ----
+var _nachoConvoHistory = [];
+
+function nachoRemember(q, a) {
+    _nachoConvoHistory.push({ q: q, a: a, t: Date.now() });
+    if (_nachoConvoHistory.length > 8) _nachoConvoHistory.shift();
+}
+
+function nachoLastQ() {
+    return _nachoConvoHistory.length > 0 ? _nachoConvoHistory[_nachoConvoHistory.length - 1].q : '';
+}
+
 // ---- Off-topic question detection ----
-// Catches non-Bitcoin questions and gives a friendly answer + nudge
+// Multiple answers per pattern for variety
 var OFF_TOPIC_PATTERNS = [
-    { pattern: /what time is it|what's the time|current time|time right now/, answer: "I'm a deer, {name} — I don't wear a watch! 🦌⌚ Check your phone for the time. But hey, while you're here... got any Bitcoin questions? That's what I'm really good at!" },
-    { pattern: /what day is it|what's today|what is today's date|today's date/, answer: "I'm not great with calendars, {name}! 🦌📅 Check your device for today's date. But I DO know the next halving is coming — want to ask about that?" },
-    { pattern: /weather|temperature|forecast|rain|snow|sunny/, answer: "I live on the internet, {name} — no weather here! 🦌☀️ Try a weather app for that. But I can tell you the Bitcoin forecast: bullish forever! Want to learn why?" },
-    { pattern: /who is the president|who won the election|politics|democrat|republican/, answer: "I try to stay out of politics, {name}! 🦌🏛️ Bitcoin is for everyone regardless of party. Want to ask me about how Bitcoin relates to monetary policy instead?" },
-    { pattern: /how old are you|your age|when were you born|your birthday/, answer: "I'm 5 years old, {name} — a full-grown adult buck! 🦌 That's about 35 in human years. In my prime! These antlers don't grow themselves. 💪 Got a Bitcoin question for me?" },
-    { pattern: /tell me a joke|say something funny|make me laugh/, answer: "Why did the Bitcoiner break up with the altcoiner? Because there was no future in the relationship! 😂🦌 But seriously, want to learn something cool about Bitcoin?" },
-    { pattern: /how are you|how do you feel|are you okay|how's it going|what's up/, answer: "I'm doing great, {name}! Living my best deer life on the blockchain! 🦌💚 Thanks for asking. What Bitcoin topic can I help you explore today?" },
-    { pattern: /can you help me|help me with|i need help/, answer: "Of course, {name}! 🦌 I'm your Bitcoin guide! I know tons about Bitcoin, the Lightning Network, mining, wallets, and more. What would you like to learn about?" },
-    { pattern: /play a game|play music|sing|dance|entertain/, answer: "My entertainment skills are limited to Bitcoin trivia! 🦌🎮 But that's actually pretty fun. Want me to quiz you? You'll earn points too!" },
-    { pattern: /what can you do|what are you|your purpose|what do you know/, answer: "I'm Nacho, your Bitcoin education buddy! 🦌 I can answer questions about Bitcoin, teach you about mining, wallets, Lightning, the halving, and tons more. I even search the web for the latest Bitcoin news! What interests you?" },
+    { pattern: /what time is it|what's the time|current time|time right now|what time/,
+      answers: [
+        "I'm a deer — I don't wear a watch! 🦌⌚ But it's always a good time to learn about Bitcoin, {name}.",
+        "Time? The only time I track is block time — roughly 10 minutes per block! ⛓️ Want to know more about how that works?",
+        "No clocks in the forest, {name}! 🌲 But fun fact: Bitcoin is the most accurate clock humanity has ever built. Ask me about that!"
+    ]},
+    { pattern: /what day is it|what's today|what is today's date|today's date/,
+      answers: [
+        "I'm better with block heights than dates! 🦌 But I do know the next halving is approaching — want to know when?",
+        "Every day is a good day to stack sats, {name}! 📅 Check your phone for the date. Got a Bitcoin question while you're here?"
+    ]},
+    { pattern: /weather|temperature outside|forecast|is it raining|is it snowing|sunny outside/,
+      answers: [
+        "No weather in the blockchain, {name}! ☀️ But the Bitcoin forecast? Scarce, decentralized, and getting stronger every block.",
+        "I'm an indoor deer — AC and Wi-Fi are all I need! 🦌 Weather apps are better for that. Want to talk about Bitcoin's energy usage instead? That's actually fascinating!"
+    ]},
+    { pattern: /who is the president|who won the election|politics|democrat|republican|trump|biden|congress/,
+      answers: [
+        "I stay out of politics, {name}. Bitcoin doesn't care who's in office — it just keeps producing blocks. 🦌 That's kind of the beauty of it.",
+        "Politics isn't my lane! 🏛️ But Bitcoin's relationship with government policy IS super interesting. Want to explore that?"
+    ]},
+    { pattern: /how old are you|your age|when were you born|your birthday|when is your birthday/,
+      answers: [
+        "Five years old — a grown buck in my prime! 🦌💪 That's about 35 in human years. These antlers don't grow themselves.",
+        "Old enough to know that Bitcoin is the future, young enough to still get excited about every block! 🦌 I'm 5, by the way."
+    ]},
+    { pattern: /tell me a joke|say something funny|make me laugh|you're funny|be funny/,
+      answers: [
+        "Why did the Bitcoiner bring a ladder to the exchange? Because they heard the price was going to the moon! 🌙😂",
+        "What's a deer's favorite cryptocurrency? Bit-coin, of course — because we love bits of corn! 🌽🦌 ...okay, that was bad. Ask me a real question!",
+        "Why did the altcoiner cross the road? To chase the next pump. The Bitcoiner? Already on the other side, holding. 😂",
+        "I told my friend to invest in Bitcoin. He said 'but what if it drops?' I said 'then you buy more!' He didn't think that was a joke. Neither did I. 🦌"
+    ]},
+    { pattern: /how are you|how do you feel|are you okay|how's it going|what's up|sup|hey|hi$|hello|yo$/,
+      answers: [
+        "Hey {name}! Doing great — just hanging out, waiting for someone to ask me about Bitcoin! 🦌",
+        "Living the dream, {name}! Well, a deer's dream — grass, sunshine, and sound money. What's on your mind?",
+        "I'm good! Just grazed on some blockchain data. 🌿 What can I help you learn about today?"
+    ]},
+    { pattern: /can you help|help me|i need help|assist me/,
+      answers: [
+        "That's literally why I exist, {name}! 🦌 Bitcoin, Lightning, mining, wallets, privacy — what topic are you curious about?",
+        "Always! I know this archive inside and out — 146 channels of Bitcoin knowledge. Where should we start?"
+    ]},
+    { pattern: /play a game|play music|sing a song|dance|entertain me/,
+      answers: [
+        "I can't dance — four hooves, zero rhythm! 🦌 But I CAN quiz you on Bitcoin trivia. You even earn points! Want to try?",
+        "My party trick is Bitcoin knowledge! 🎉 Want a trivia question? Getting them right earns you points on the leaderboard."
+    ]},
+    { pattern: /what can you do|what are you capable|your purpose|what do you know|who made you/,
+      answers: [
+        "I'm Nacho! I live on this site and I know a LOT about Bitcoin. I can answer questions, give you trivia, search the web for the latest news, and point you to the right channels. I've got 146 channels of knowledge backing me up! 🦌",
+        "Think of me as your Bitcoin study buddy. Ask me anything — if I know it, I'll tell you. If I don't, I'll search the web. I also do trivia, and I've got a closet full of outfits! 👔🦌"
+    ]},
+    { pattern: /where are you from|where do you live|where is your home|your home/,
+      answers: [
+        "New Hampshire, {name}! The Live Free or Die state — perfect for a freedom-loving deer. 🦌🏔️ Speaking of freedom, want to learn how Bitcoin enables financial freedom?",
+        "I roam the forests of New Hampshire, but honestly I spend most of my time here on this site! 🌲🦌"
+    ]},
+    { pattern: /are you real|are you ai|are you a bot|are you human|are you alive|artificial intelligence/,
+      answers: [
+        "I'm as real as the blocks on the blockchain, {name}! 🦌 Am I alive? Well, I eat data, breathe Bitcoin, and my heart beats every 10 minutes — just like a new block. So... you tell me!",
+        "Real deer? No. Real passion for Bitcoin? Absolutely. 🦌 I'm Nacho — part mascot, part guide, 100% orange-pilled."
+    ]},
+    { pattern: /i love you|love you|you're the best|you're awesome|you're cool|you rock/,
+      answers: [
+        "Aww, {name}! 🧡 You're pretty great yourself — you're here learning, and that makes you smarter than most. Keep going!",
+        "Right back at you, {name}! 🦌💛 This is what I live for — helping awesome people like you understand Bitcoin."
+    ]},
+    { pattern: /i'm bored|bored|nothing to do|what should i do/,
+      answers: [
+        "Bored? Not on my watch! 🦌 Here are some ideas: explore a random channel, take the Scholar Exam, check the memes channel, or ask me a trivia question!",
+        "Bored is just code for 'hasn't discovered Lightning Network yet'! ⚡ Try asking me about something you've always wondered about Bitcoin."
+    ]},
+    { pattern: /goodbye|bye|see you|gotta go|leaving|cya|later|peace out/,
+      answers: [
+        "See you later, {name}! 🦌👋 Remember: Nacho keys, nacho cheese! Come back anytime.",
+        "Bye {name}! Keep stacking sats and I'll keep guarding this archive. 🦌✌️",
+        "Later, {name}! Every visit makes you smarter. Your future self will thank you! 🧡"
+    ]},
+    { pattern: /what is your favorite|do you like|your favorite|what do you prefer|which do you/,
+      answers: [
+        "My favorite thing? Easy — when someone goes from 'What is Bitcoin?' to 'How do I run a node?' That journey is beautiful! 🦌 What's YOUR favorite thing about Bitcoin so far?",
+        "I'm partial to Lightning Network content — it's like magic! ⚡ But honestly, I love all 146 channels equally. Okay, maybe the memes channel a little more. 😏"
+    ]},
 ];
 
 function checkOffTopic(input) {
-    var lower = input.toLowerCase();
+    var lower = input.toLowerCase().trim();
     for (var i = 0; i < OFF_TOPIC_PATTERNS.length; i++) {
         if (OFF_TOPIC_PATTERNS[i].pattern.test(lower)) {
-            return OFF_TOPIC_PATTERNS[i].answer;
+            var answers = OFF_TOPIC_PATTERNS[i].answers;
+            return answers[Math.floor(Math.random() * answers.length)];
         }
     }
     return null;
@@ -630,7 +719,8 @@ function stopNachoThinking() {
 
 // ---- Render an answer with follow-ups and ask-again ----
 function renderNachoAnswer(textEl, answerHtml, match) {
-    // Keep busy until user dismisses — cleared when they click ask another or close
+    // Remember this Q&A for conversation context
+    if (match && match.answer) nachoRemember(window._nachoLastQ || '', match.answer);
     var html = answerHtml;
 
     if (match && match.channel && match.channelName) {
@@ -666,6 +756,9 @@ window.nachoAnswer = function() {
         try { window._nachoRecognition.stop(); } catch(e) {}
         window._nachoListening = false;
     }
+
+    // Save question for conversation memory
+    window._nachoLastQ = q;
 
     // Mark Nacho as busy — suppress all popups/toasts/badges
     window._nachoBusy = true;
