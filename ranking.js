@@ -1291,6 +1291,11 @@ async function toggleLeaderboard() {
             const rank = i + 1;
             const lv = getLevel(d.points || 0);
             const isMe = auth.currentUser && d.id === auth.currentUser.uid;
+            // Sync local points with Firestore if leaderboard has newer data
+            if (isMe && currentUser && (d.points || 0) > (currentUser.points || 0)) {
+                currentUser.points = d.points;
+                updateRankUI();
+            }
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
             html += '<div' + hidden + '>' +
