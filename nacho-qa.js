@@ -112,6 +112,10 @@ const NACHO_KB = [
       answer: "Bitcoin is open-source code that anyone can audit. No CEO, no company, no promises of returns. It's the opposite of a scam — it's the most transparent financial system ever built.",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
+    { keys: ['not physical','can\'t hold','cant hold','not real','not tangible','can\'t touch','cant touch','why would i want','no intrinsic value','intrinsic value','backed by nothing','what backs bitcoin'],
+      answer: "You can't hold an email either, but it replaced letters! 📬 Bitcoin is digital, but it's backed by something powerful: math, energy, and the most secure computer network ever built. It's scarcer than gold (only 21 million), can't be faked, can't be seized, and can be sent anywhere instantly. The dollar isn't backed by anything physical either — just government promises. Bitcoin is backed by proof-of-work. Which would you trust more?",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
     { keys: ['energy','environment','electricity','bad for environment','waste energy','carbon','climate'],
       answer: "Bitcoin mining actually incentivizes renewable energy and uses mostly stranded/wasted energy. Its carbon intensity is lower than many industries. Check the facts!",
       channel: 'energy', channelName: 'Environment & Energy' },
@@ -607,7 +611,7 @@ window.showNachoInput = function() {
             '<input type="text" id="nachoInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak' : 'e.g. What is mining?') + '" maxlength="200" style="width:100%;padding:8px ' + (hasSpeech ? '36px' : '10px') + ' 8px 10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')nachoAnswer()">' +
             micBtn +
         '</div>' +
-        '<button onclick="nachoAnswer()" style="width:100%;margin-top:6px;padding:8px;background:#f7931a;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask Nacho 🦌</button>';
+        '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoAnswer()" style="width:100%;margin-top:6px;padding:8px;background:#f7931a;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask Nacho 🦌</button>';
 
     // Mark as interactive — prevents auto-hide timer from closing it
     bubble.setAttribute('data-interactive', 'true');
