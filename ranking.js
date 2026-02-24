@@ -1573,7 +1573,8 @@ function showSettingsPage(tab) {
         } else {
             html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔓</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is not enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Add phone verification for extra security</div></div></div>' +
                 '<div id="mfaSetup">' +
-                '<input type="tel" id="mfaPhone" placeholder="+1 555 123 4567" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
+                '<input type="tel" id="mfaPhone" placeholder="Your phone number" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">US numbers auto-format. International: include country code (e.g. +44...)</div>' +
                 '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Send Verification Code</button>' +
                 '<div id="mfaVerify" style="display:none;margin-top:8px;"><input type="text" id="mfaCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
                 '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable 2FA</button></div>' +
@@ -1818,10 +1819,24 @@ let mfaVerificationId = null;
 let mfaResolver = null;
 
 async function startMFAEnroll() {
-    const phone = document.getElementById('mfaPhone').value.trim();
+    var phone = document.getElementById('mfaPhone').value.trim().replace(/[\s\-\(\)\.]/g, '');
     const status = document.getElementById('mfaStatus');
-    if (!phone || phone.length < 10) {
-        status.innerHTML = '<span style="color:#ef4444;">Please enter a valid phone number with country code (e.g. +1555123456)</span>';
+
+    // Auto-add +1 for US numbers if user forgot the country code
+    if (phone && !phone.startsWith('+')) {
+        if (phone.length === 10) {
+            phone = '+1' + phone;
+        } else if (phone.length === 11 && phone.startsWith('1')) {
+            phone = '+' + phone;
+        } else {
+            phone = '+' + phone;
+        }
+        // Update the input so user sees the corrected format
+        document.getElementById('mfaPhone').value = phone;
+    }
+
+    if (!phone || phone.length < 10 || !phone.startsWith('+')) {
+        status.innerHTML = '<span style="color:#ef4444;">Please enter a valid phone number with country code (e.g. +15551234567)</span>';
         return;
     }
     const user = auth.currentUser;
