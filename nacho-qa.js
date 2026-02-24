@@ -833,6 +833,52 @@ function deepContentSearch(query) {
 // ---- Web search via proxy (for questions Nacho can't answer locally) ----
 var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
 
+// ---- Nacho AI (LLM via Cloudflare Workers AI) ----
+var NACHO_AI_DAILY_LIMIT = 10; // per user per day
+
+function getAICount() {
+    var data = JSON.parse(localStorage.getItem('btc_nacho_ai_uses') || '{}');
+    var today = new Date().toISOString().split('T')[0];
+    if (data.date !== today) return 0;
+    return data.count || 0;
+}
+
+function incrementAICount() {
+    var today = new Date().toISOString().split('T')[0];
+    var data = JSON.parse(localStorage.getItem('btc_nacho_ai_uses') || '{}');
+    if (data.date !== today) data = { date: today, count: 0 };
+    data.count++;
+    localStorage.setItem('btc_nacho_ai_uses', JSON.stringify(data));
+}
+
+function nachoAIAnswer(question, callback) {
+    if (!NACHO_SEARCH_PROXY) { callback(null); return; }
+    if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
+    incrementAICount();
+
+    var controller = null;
+    var timeoutId = null;
+    try { controller = new AbortController(); } catch(e) {}
+    var fetchOpts = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question })
+    };
+    if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
+
+    fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (data && data.answer && !data.error) {
+                callback(data.answer);
+            } else {
+                callback(null);
+            }
+        })
+        .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
+}
+
 // ---- Web search rate limiting ----
 var NACHO_WEB_SEARCH_DAILY_LIMIT = 5; // per user per day
 
@@ -1099,40 +1145,34 @@ window.nachoAnswer = function() {
             return;
         }
 
-        // ---- Step 5: Try web search (if proxy is configured) ----
-        if (NACHO_SEARCH_PROXY) {
-            // Show extended thinking
-            textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Hmm, I don\'t have that in my notes. Searching the web<span class="nacho-dots"></span></div>';
-            var dotsEl2 = textEl.querySelector('.nacho-dots');
-            var dc2 = 0;
-            var dt2 = setInterval(function() { dc2 = (dc2+1)%4; if(dotsEl2) dotsEl2.textContent = '.'.repeat(dc2); }, 400);
+        // ---- Step 5: Try Nacho AI (LLM) ----
+        if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+            textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🧠 Let me think about that<span class="nacho-dots"></span></div>';
+            var dotsAI = textEl.querySelector('.nacho-dots');
+            var dcAI = 0;
+            var dtAI = setInterval(function() { dcAI = (dcAI+1)%4; if(dotsAI) dotsAI.textContent = '.'.repeat(dcAI); }, 400);
 
-            nachoWebSearch(q, function(results) {
-                clearInterval(dt2);
-                if (results && results.length > 0) {
-                    if (typeof setPose === 'function') setPose('cool');
+            nachoAIAnswer(q, function(aiAnswer) {
+                clearInterval(dtAI);
+                if (aiAnswer) {
+                    if (typeof setPose === 'function') setPose('brain');
                     var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
-                        '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found online:</div>';
-                    for (var ri = 0; ri < results.length; ri++) {
-                        html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
-                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (escapeHtml(results[ri].title)) + '</div>' +
-                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (escapeHtml(results[ri].snippet)) + '</div>' +
-                            (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
-                            '</div>';
-                    }
-                    html += '</div>';
-                    html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                        '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">🧠 Nacho AI:</div>' +
+                        escapeHtml(aiAnswer) + '</div>';
+                    html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
                     textEl.innerHTML = html;
                     if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
-                } else {
-                    showNachoFallback(textEl, q);
+                    nachoRemember(q, aiAnswer);
+                    return;
                 }
+                // AI failed — fall through to web search
+                tryWebSearch(textEl, q);
             });
             return;
         }
 
-        // ---- Step 5: Fallback ----
-        showNachoFallback(textEl, q);
+        // ---- Step 6: Try web search (if proxy is configured) ----
+        tryWebSearch(textEl, q);
 
         } catch(e) {
             stopNachoThinking();
@@ -1140,6 +1180,39 @@ window.nachoAnswer = function() {
         }
     }, thinkDelay);
 };
+
+function tryWebSearch(textEl, q) {
+    if (NACHO_SEARCH_PROXY) {
+        textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Searching the web<span class="nacho-dots"></span></div>';
+        var dotsEl2 = textEl.querySelector('.nacho-dots');
+        var dc2 = 0;
+        var dt2 = setInterval(function() { dc2 = (dc2+1)%4; if(dotsEl2) dotsEl2.textContent = '.'.repeat(dc2); }, 400);
+
+        nachoWebSearch(q, function(results) {
+            clearInterval(dt2);
+            if (results && results.length > 0) {
+                if (typeof setPose === 'function') setPose('cool');
+                var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found online:</div>';
+                for (var ri = 0; ri < results.length; ri++) {
+                    html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                        '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (escapeHtml(results[ri].title)) + '</div>' +
+                        '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (escapeHtml(results[ri].snippet)) + '</div>' +
+                        (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                        '</div>';
+                }
+                html += '</div>';
+                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                textEl.innerHTML = html;
+                if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+            } else {
+                showNachoFallback(textEl, q);
+            }
+        });
+        return;
+    }
+    showNachoFallback(textEl, q);
+}
 
 function showNachoFallback(textEl, q) {
     if (typeof setPose === 'function') setPose('think');
