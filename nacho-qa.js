@@ -116,6 +116,14 @@ const NACHO_KB = [
       answer: "You can't hold an email either, but it replaced letters! 📬 Bitcoin is digital, but it's backed by something powerful: math, energy, and the most secure computer network ever built. It's scarcer than gold (only 21 million), can't be faked, can't be seized, and can be sent anywhere instantly. The dollar isn't backed by anything physical either — just government promises. Bitcoin is backed by proof-of-work. Which would you trust more?",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
+    { keys: ['live in my bitcoin','live in bitcoin','can i live in','bitcoin house','bitcoin home','live in a bitcoin'],
+      answer: "Can you live in your Bitcoin? Not yet, {name}! 🏠🦌 But you CAN use it to buy a house — and unlike your house, your Bitcoin won't need a new roof every 20 years, won't charge you property taxes, and won't lose value to inflation. Plus, try sending your house to someone in Japan in 10 minutes. I'll wait! 😏",
+      channel: 'use-cases', channelName: 'Use Cases' },
+
+    { keys: ['eat my bitcoin','eat bitcoin','can i eat','bitcoin food','eat a bitcoin','hungry bitcoin'],
+      answer: "Can you eat your Bitcoin? No, {name}, and trust me — I've tried. Tastes like math. 🦌🍽️ But here's the thing: you can't eat a gold bar or a dollar bill either! What you CAN do is use Bitcoin to buy the best steak dinner of your life — with Lightning, it'll be paid for before the waiter brings the check! ⚡🥩 Proof of steak > proof of stake!",
+      channel: 'use-cases', channelName: 'Use Cases' },
+
     { keys: ['energy','environment','electricity','bad for environment','waste energy','carbon','climate'],
       answer: "Bitcoin mining actually incentivizes renewable energy and uses mostly stranded/wasted energy. Its carbon intensity is lower than many industries. Check the facts!",
       channel: 'energy', channelName: 'Environment & Energy' },
