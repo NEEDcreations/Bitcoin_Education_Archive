@@ -573,6 +573,17 @@ async function loadUser(uid) {
             if (currentUser.scholarPassed) {
                 localStorage.setItem('btc_scholar_passed', 'true');
             }
+            // Restore Nacho interaction counts — use max of Firebase vs localStorage
+            if (currentUser.nachoInteractions) {
+                var localInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+                var fbInteractions = currentUser.nachoInteractions || 0;
+                localStorage.setItem('btc_nacho_interactions', Math.max(localInteractions, fbInteractions).toString());
+            }
+            if (currentUser.nachoQuestions) {
+                var localQuestions = parseInt(localStorage.getItem('btc_nacho_questions') || '0');
+                var fbQuestions = currentUser.nachoQuestions || 0;
+                localStorage.setItem('btc_nacho_questions', Math.max(localQuestions, fbQuestions).toString());
+            }
         }
 
         // Badges are now safe to check — Firebase data has been restored

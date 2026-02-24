@@ -243,6 +243,17 @@ window.trackNachoInteraction = function() {
     var count = parseInt(localStorage.getItem('btc_nacho_interactions') || '0') + 1;
     localStorage.setItem('btc_nacho_interactions', count.toString());
     window._nachoLastInteraction = Date.now();
+
+    // Sync to Firebase every 5 interactions
+    if (count % 5 === 0 && typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+        var questions = parseInt(localStorage.getItem('btc_nacho_questions') || '0');
+        try {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                nachoInteractions: count,
+                nachoQuestions: questions
+            });
+        } catch(e) {}
+    }
 };
 
 // ---- Follow-up Suggestions ----
