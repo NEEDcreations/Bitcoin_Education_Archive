@@ -393,7 +393,7 @@ function deepContentSearch(query) {
 var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || '';
 
 // ---- Web search rate limiting ----
-var NACHO_WEB_SEARCH_DAILY_LIMIT = 3; // per user per day
+var NACHO_WEB_SEARCH_DAILY_LIMIT = 5; // per user per day
 
 function getWebSearchCount() {
     var data = JSON.parse(localStorage.getItem('btc_nacho_web_searches') || '{}');
