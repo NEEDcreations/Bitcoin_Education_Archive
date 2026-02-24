@@ -120,6 +120,46 @@ const NACHO_KB = [
       answer: "Yes, Bitcoin is volatile short-term. But zoom out — every 4-year period in Bitcoin's history has been profitable. Volatility is the price of admission for the best-performing asset ever.",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
+    { keys: ['double spend','double spending','double-spend','spend twice','spend same bitcoin twice'],
+      answer: "The double-spend problem is the challenge of preventing someone from spending the same digital money twice. Before Bitcoin, this required a trusted middleman (like a bank). Satoshi solved it using proof-of-work and the blockchain — miners verify that each coin is only spent once, and nodes independently enforce the rules. It's Bitcoin's most fundamental innovation! 🧠",
+      channel: 'secure', channelName: 'Secure' },
+
+    { keys: ['byzantine generals','byzantine fault','consensus problem','generals problem'],
+      answer: "The Byzantine Generals Problem asks: how can a group coordinate when some members might be lying? Bitcoin solved this with proof-of-work — miners must spend real energy to propose blocks, making dishonesty extremely costly. This was considered unsolvable in a trustless digital environment before Satoshi! ⚔️",
+      channel: 'byzantine_generals__problem', channelName: 'Byzantine Generals Problem' },
+
+    { keys: ['mempool','unconfirmed','pending transaction','transaction stuck','waiting for confirmation'],
+      answer: "The mempool is the waiting room for unconfirmed Bitcoin transactions. When you send Bitcoin, it goes to the mempool first. Miners pick transactions (usually highest fee first) and include them in the next block. If the mempool is busy, transactions with low fees wait longer. ⏳",
+      channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' },
+
+    { keys: ['genesis block','first block','block zero','block 0'],
+      answer: "The Genesis Block is the very first Bitcoin block, mined by Satoshi on January 3, 2009. It contains a hidden message: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks' — a headline that perfectly captures why Bitcoin was created. 📰",
+      channel: 'history', channelName: 'History' },
+
+    { keys: ['taproot','schnorr','bitcoin upgrade','latest upgrade'],
+      answer: "Taproot was Bitcoin's most recent major upgrade, activated in November 2021. It uses Schnorr signatures to improve privacy (multi-sig transactions look like regular ones), efficiency (smaller transactions), and smart contract capabilities. 🧰",
+      channel: 'taproot', channelName: 'Taproot' },
+
+    { keys: ['nostr','decentralized social','social media protocol'],
+      answer: "Nostr is a decentralized social media protocol popular in the Bitcoin community. No one controls the content, your identity is uncensorable, and it integrates with Lightning for payments. Think of it as Twitter without a CEO! 💜",
+      channel: 'nostr', channelName: 'Nostr' },
+
+    { keys: ['difficulty adjustment','difficulty','mining difficulty','how does difficulty work'],
+      answer: "Bitcoin's difficulty adjustment is one of its most elegant features. Every 2,016 blocks (~2 weeks), the network automatically adjusts how hard it is to mine a block. If miners join, difficulty goes up. If they leave, it goes down. This ensures blocks are found roughly every 10 minutes, no matter what. ⚙️",
+      channel: 'difficulty-adjustment', channelName: 'Difficulty Adjustment' },
+
+    { keys: ['hash rate','hashrate','hash power','mining power','tera hash','exa hash'],
+      answer: "Hash rate measures the total computing power securing the Bitcoin network. The higher the hash rate, the more secure the network. In 2025, Bitcoin reached 1 Zettahash per second — that's 1,000,000,000,000,000,000,000 hashes per second! The most powerful computing network ever built. 💪",
+      channel: 'mining', channelName: 'Mining' },
+
+    { keys: ['soft fork','hard fork','fork','chain split','segwit fork','bitcoin cash fork'],
+      answer: "A soft fork is a backward-compatible upgrade (like SegWit) — old nodes still work. A hard fork creates a permanent chain split if not everyone upgrades (like Bitcoin Cash in 2017). Bitcoin prefers soft forks because they don't force anyone to upgrade. 🍴",
+      channel: 'soft_vs_hard_forks', channelName: 'Soft vs Hard Forks' },
+
+    { keys: ['ordinals','inscriptions','nfts on bitcoin','brc-20'],
+      answer: "Ordinals allow data to be inscribed on individual satoshis, enabling NFT-like content on Bitcoin. It sparked debate: some see it as innovation using Bitcoin's block space, others see it as spam. Either way, it proved Bitcoin's base layer is more versatile than many thought! 📜",
+      channel: 'ordinals', channelName: 'Ordinals' },
+
     { keys: ['criminal','illegal','drug','dark web','used by criminals','money laundering'],
       answer: "Less than 1% of Bitcoin transactions are illicit — far less than cash! Bitcoin is actually easier to trace than cash since every transaction is on a public ledger forever.",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
