@@ -240,19 +240,48 @@ const FALLBACKS = [
 // ---- Match user input to knowledge base ----
 // ---- Detect if a question is about current events/news ----
 var CURRENT_EVENT_SIGNALS = [
-    'happened', 'happening', 'news', 'recent', 'recently', 'today', 'yesterday',
+    'happened', 'happening', 'news', 'recent', 'recently',
     'this week', 'this month', 'this year', 'last week', 'last month',
     'conference', 'summit', 'event', 'announced', 'announcement', 'update',
     'latest', 'new law', 'regulation', 'passed', 'approved', 'banned',
-    'price today', 'right now', 'currently', 'just', '2024', '2025', '2026'
+    'price today', '2024', '2025', '2026'
 ];
 
 function isCurrentEventQuestion(input) {
     var lower = input.toLowerCase();
+    // Must also mention something Bitcoin-related to trigger web search
+    var btcSignals = ['bitcoin','btc','sats','satoshi','mining','halving','lightning','crypto','blockchain','el salvador','etf','nakamoto','node','wallet','exchange'];
+    var hasBtcContext = btcSignals.some(function(s) { return lower.indexOf(s) !== -1; });
+    if (!hasBtcContext) return false;
     for (var i = 0; i < CURRENT_EVENT_SIGNALS.length; i++) {
         if (lower.indexOf(CURRENT_EVENT_SIGNALS[i]) !== -1) return true;
     }
     return false;
+}
+
+// ---- Off-topic question detection ----
+// Catches non-Bitcoin questions and gives a friendly answer + nudge
+var OFF_TOPIC_PATTERNS = [
+    { pattern: /what time is it|what's the time|current time|time right now/, answer: "I'm a deer, {name} — I don't wear a watch! 🦌⌚ Check your phone for the time. But hey, while you're here... got any Bitcoin questions? That's what I'm really good at!" },
+    { pattern: /what day is it|what's today|what is today's date|today's date/, answer: "I'm not great with calendars, {name}! 🦌📅 Check your device for today's date. But I DO know the next halving is coming — want to ask about that?" },
+    { pattern: /weather|temperature|forecast|rain|snow|sunny/, answer: "I live on the internet, {name} — no weather here! 🦌☀️ Try a weather app for that. But I can tell you the Bitcoin forecast: bullish forever! Want to learn why?" },
+    { pattern: /who is the president|who won the election|politics|democrat|republican/, answer: "I try to stay out of politics, {name}! 🦌🏛️ Bitcoin is for everyone regardless of party. Want to ask me about how Bitcoin relates to monetary policy instead?" },
+    { pattern: /how old are you|your age|when were you born|your birthday/, answer: "I'm 5 years old, {name} — a full-grown adult buck! 🦌 That's about 35 in human years. In my prime! These antlers don't grow themselves. 💪 Got a Bitcoin question for me?" },
+    { pattern: /tell me a joke|say something funny|make me laugh/, answer: "Why did the Bitcoiner break up with the altcoiner? Because there was no future in the relationship! 😂🦌 But seriously, want to learn something cool about Bitcoin?" },
+    { pattern: /how are you|how do you feel|are you okay|how's it going|what's up/, answer: "I'm doing great, {name}! Living my best deer life on the blockchain! 🦌💚 Thanks for asking. What Bitcoin topic can I help you explore today?" },
+    { pattern: /can you help me|help me with|i need help/, answer: "Of course, {name}! 🦌 I'm your Bitcoin guide! I know tons about Bitcoin, the Lightning Network, mining, wallets, and more. What would you like to learn about?" },
+    { pattern: /play a game|play music|sing|dance|entertain/, answer: "My entertainment skills are limited to Bitcoin trivia! 🦌🎮 But that's actually pretty fun. Want me to quiz you? You'll earn points too!" },
+    { pattern: /what can you do|what are you|your purpose|what do you know/, answer: "I'm Nacho, your Bitcoin education buddy! 🦌 I can answer questions about Bitcoin, teach you about mining, wallets, Lightning, the halving, and tons more. I even search the web for the latest Bitcoin news! What interests you?" },
+];
+
+function checkOffTopic(input) {
+    var lower = input.toLowerCase();
+    for (var i = 0; i < OFF_TOPIC_PATTERNS.length; i++) {
+        if (OFF_TOPIC_PATTERNS[i].pattern.test(lower)) {
+            return OFF_TOPIC_PATTERNS[i].answer;
+        }
+    }
+    return null;
 }
 
 function findAnswer(input) {
@@ -653,6 +682,20 @@ window.nachoAnswer = function() {
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + deflection + '</div>' +
             '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
         clearTimeout(window._nachoBubbleTimeout);
+        return;
+    }
+
+    // Check for off-topic questions (time, weather, etc) — answer + nudge
+    var offTopic = checkOffTopic(q);
+    if (offTopic) {
+        if (typeof setPose === 'function') setPose('cheese');
+        var otAnswer = typeof personalize === 'function' ? personalize(offTopic) : offTopic;
+        bubble.setAttribute('data-interactive', 'true');
+        clearTimeout(window._nachoBubbleTimeout);
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + otAnswer + '</div>' +
+            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question 🦌</button>';
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+        if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
         return;
     }
 
