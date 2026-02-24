@@ -806,11 +806,11 @@
     <script src="features.js" defer></script>
     <script src="badges.js" defer></script>
     <script src="tickets.js" defer></script>
-    <script src="nacho.js" defer></script>
-    <script src="nacho-live.js" defer></script>
-    <script src="nacho-engage.js" defer></script>
-    <script src="nacho-qa.js?v=4" defer></script>
-    <script src="nacho-closet.js" defer></script>
+    <script src="nacho.js?v=6" defer></script>
+    <script src="nacho-live.js?v=6" defer></script>
+    <script src="nacho-engage.js?v=6" defer></script>
+    <script src="nacho-qa.js?v=6" defer></script>
+    <script src="nacho-closet.js?v=6" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -1422,6 +1422,26 @@
         }, 300);
     };
 
+    // Fallback reply when no scripts/AI available
+    function nachoModeFallbackReply(q, reply) {
+        if (typeof checkOffTopic === 'function') {
+            var ot = checkOffTopic(q);
+            if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot); return; }
+        }
+        var ql = q.toLowerCase().trim();
+        if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
+            var greetings = [
+                "Hey there! 🦌 Doing great — just hanging out waiting for someone to ask me about Bitcoin! What's on your mind?",
+                "Hey hey! 🧡 Welcome! I'm Nacho, your Bitcoin buddy. What would you like to learn about today?",
+                "Well hello! 🦌 Nice to see you. Ask me anything about Bitcoin — I've got 146 channels of knowledge in these antlers!",
+                "Hey! 👋 I'm good, thanks for asking! Ready to talk Bitcoin whenever you are. What's on your mind?"
+            ];
+            reply(greetings[Math.floor(Math.random() * greetings.length)]);
+            return;
+        }
+        reply("Give me just a moment — I'm loading up my Bitcoin knowledge! Try again in a few seconds. 🦌");
+    }
+
     // Keyboard handler: Enter=send, ArrowUp/Down=history
     window.nachoModeKeydown = function(e) {
         if (e.key === 'Enter') { nachoModeSend(); return; }
@@ -1628,6 +1648,9 @@
             return;
         }
 
+        // Check if scripts are loaded
+        var scriptsReady = typeof findAnswer === 'function' && typeof nachoAIAnswer === 'function';
+
         // STEP 2: Local KB for Bitcoin questions (free, instant)
         if (typeof findAnswer === 'function') {
             var match = null;
@@ -1658,23 +1681,34 @@
             return;
         }
 
-        // STEP 4: No AI available — fall back to off-topic patterns + inline greetings
-        if (typeof checkOffTopic === 'function') {
-            var ot = checkOffTopic(q);
-            if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot); return; }
-        }
-        var ql = q.toLowerCase().trim();
-        if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
-            var greetings = [
-                "Hey there! 🦌 Doing great — just hanging out waiting for someone to ask me about Bitcoin! What's on your mind?",
-                "Hey hey! 🧡 Welcome! I'm Nacho, your Bitcoin buddy. What would you like to learn about today?",
-                "Well hello! 🦌 Nice to see you. Ask me anything about Bitcoin — I've got 146 channels of knowledge in these antlers!",
-                "Hey! 👋 I'm good, thanks for asking! Ready to talk Bitcoin whenever you are. What's on your mind?"
-            ];
-            reply(greetings[Math.floor(Math.random() * greetings.length)]);
+        // STEP 4: No AI available — wait for scripts or fall back
+        if (!scriptsReady) {
+            // Scripts haven't loaded yet — wait and retry once
+            setTimeout(function() {
+                if (typeof findAnswer === 'function') {
+                    var match2 = null;
+                    if (typeof nachoLiveAnswer === 'function') match2 = nachoLiveAnswer(q);
+                    if (!match2) match2 = findAnswer(q);
+                    if (match2) {
+                        var ans2 = typeof personalize === 'function' ? personalize(match2.answer) : match2.answer;
+                        var cl2 = match2.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match2.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match2.channelName || match2.channel) + ' →</a>' : '';
+                        reply(ans2 + cl2);
+                        return;
+                    }
+                }
+                if (typeof nachoAIAnswer === 'function') {
+                    nachoAIAnswer(q, function(aiAnswer) {
+                        if (aiAnswer) { reply(aiAnswer); }
+                        else { nachoModeFallbackReply(q, reply); }
+                    });
+                    return;
+                }
+                nachoModeFallbackReply(q, reply);
+            }, 2000);
             return;
         }
-        reply("I'm still warming up my antlers! Try asking me about Bitcoin basics, mining, Lightning, or wallets. 🦌");
+
+        nachoModeFallbackReply(q, reply);
     };
 
     // Nacho Mode avatar tap — random fun reaction
