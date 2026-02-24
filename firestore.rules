@@ -122,6 +122,19 @@ service cloud.firestore {
     }
 
     // =============================================
+    // TOTP SECRETS (managed by Cloud Functions only)
+    // =============================================
+    match /totp_pending/{userId} {
+      // Only Cloud Functions (admin SDK) can read/write — never client
+      allow read, write: if false;
+    }
+
+    match /totp_secrets/{userId} {
+      // Only Cloud Functions (admin SDK) can read/write — never client
+      allow read, write: if false;
+    }
+
+    // =============================================
     // DEFAULT: deny everything else
     // =============================================
     match /{document=**} {

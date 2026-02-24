@@ -1040,7 +1040,7 @@ function updateUserDisplay(lv) {
     const mobileInfo = document.getElementById('mobileUserInfo');
     if (mobileInfo) {
         const streak = (currentUser.streak || 0) > 0 ? ' 🔥' + currentUser.streak : '';
-        mobileInfo.innerHTML = lv.emoji + ' ' + (currentUser.username || 'Anon') + streak;
+        mobileInfo.textContent = lv.emoji + ' ' + (currentUser.username || 'Anon') + streak;
         mobileInfo.style.display = 'inline';
     }
 
