@@ -387,6 +387,106 @@ const QUESTION_BANK = {
         { q: 'Timechain Arcade offers:', a: 'Free Bitcoin-themed video games', wrong: ['Mining services', 'Trading tools', 'Hardware wallets'] },
         { q: 'CanYouBeatBitcoin.com is:', a: 'An investing simulator comparing your picks to Bitcoin', wrong: ['A mining difficulty calculator', 'A Bitcoin wallet', 'A trading bot'] },
     ],
+
+    // ---- NEW QUESTIONS (batch 2) ----
+
+    'difficulty-adjustment': [
+        { q: 'How often does Bitcoin\'s difficulty adjustment occur?', a: 'Every 2,016 blocks (approximately 2 weeks)', wrong: ['Every 1,000 blocks', 'Every month', 'Every day'] },
+        { q: 'What does the difficulty adjustment ensure?', a: 'Blocks are found roughly every 10 minutes regardless of hash power changes', wrong: ['Transaction fees stay constant', 'Mining rewards increase', 'Block size adjusts automatically'] },
+    ],
+
+    'nostr': [
+        { q: 'Nostr is:', a: 'A decentralized social media protocol where no one controls content', wrong: ['A Bitcoin mining pool', 'A Lightning wallet', 'A blockchain explorer'] },
+        { q: 'What makes Nostr unique from typical social media?', a: 'Your identity is uncensorable and no single entity controls the platform', wrong: ['It pays users in Bitcoin automatically', 'It only works on mobile', 'It requires KYC verification'] },
+    ],
+
+    'network_effects': [
+        { q: 'Bitcoin\'s network effect means:', a: 'Each new user increases the value and utility for all existing users', wrong: ['The internet gets faster', 'Mining gets easier', 'Fees decrease to zero'] },
+        { q: 'Why is Bitcoin\'s network effect considered a strong moat?', a: 'It creates a self-reinforcing cycle of liquidity, security, and adoption that competitors cannot easily replicate', wrong: ['Because Bitcoin has patents', 'Because the government protects it', 'Because the code is encrypted'] },
+    ],
+
+    'governance': [
+        { q: 'Bitcoin governance is best described as:', a: 'Rough consensus among users, developers, miners, and node operators', wrong: ['A CEO makes all decisions', 'Miners vote on everything', 'A foundation sets the rules'] },
+        { q: 'The Blocksize Wars demonstrated that:', a: 'Users and node operators ultimately control Bitcoin\'s rules, not miners alone', wrong: ['Miners have absolute power', 'Developers can force any change', 'Bitcoin cannot be upgraded'] },
+    ],
+
+    'human_rights__social_justice_and_freedo': [
+        { q: 'Bitcoin supports human rights by:', a: 'Providing censorship-resistant money that cannot be confiscated by authoritarian regimes', wrong: ['Replacing all governments', 'Eliminating all poverty instantly', 'Being controlled by the UN'] },
+        { q: 'Alex Gladstein advocates for Bitcoin because:', a: 'It empowers people living under authoritarian regimes with financial freedom', wrong: ['It makes trading stocks easier', 'It replaces the need for banks in wealthy countries', 'It was designed as a protest tool'] },
+    ],
+
+    'market_cap': [
+        { q: 'Bitcoin\'s market cap is calculated by:', a: 'Current price multiplied by total coins in circulation', wrong: ['Total transaction volume per day', 'Number of wallets times average balance', 'Mining revenue times block height'] },
+        { q: 'Why can Bitcoin\'s market cap potentially exceed gold\'s?', a: 'Bitcoin is more portable, divisible, verifiable, and scarce than gold', wrong: ['Because governments will mandate it', 'Because gold will be banned', 'Because Bitcoin mining produces gold'] },
+    ],
+
+    'the_future': [
+        { q: 'Hyperbitcoinization refers to:', a: 'Mass voluntary adoption of Bitcoin as the dominant form of money', wrong: ['A Bitcoin price crash', 'A government mandate to use Bitcoin', 'A technical upgrade to the protocol'] },
+        { q: 'Bitcoin is described as \'generational wealth\' because:', a: 'Its fixed supply and growing adoption may increase its value over decades', wrong: ['Only older people can buy it', 'It expires after one generation', 'Banks guarantee its value for 100 years'] },
+    ],
+
+    'orange-pilling': [
+        { q: '\'Orange-pilling\' someone means:', a: 'Convincing them to understand and adopt Bitcoin', wrong: ['Selling them altcoins', 'Giving them free Bitcoin', 'Signing them up for an exchange'] },
+        { q: 'The most effective way to orange-pill someone is often:', a: 'Starting with the problem Bitcoin solves (broken money) rather than technical details', wrong: ['Showing them price charts', 'Explaining SHA-256 hashing', 'Telling them to buy immediately'] },
+    ],
+
+    'maximalism': [
+        { q: 'Bitcoin maximalism is the belief that:', a: 'Bitcoin is the only cryptocurrency that truly matters as sound money', wrong: ['You should invest everything in Bitcoin', 'Bitcoin should replace all technology', 'Only developers should use Bitcoin'] },
+        { q: 'Maximalists argue altcoins are unnecessary because:', a: 'Bitcoin\'s base layer plus additional protocol layers can serve all use cases', wrong: ['Because altcoins are illegal', 'Because Satoshi said so', 'Because there can only be one blockchain'] },
+    ],
+
+    'developers': [
+        { q: 'Bitcoin Core is primarily written in:', a: 'C++', wrong: ['Python', 'JavaScript', 'Rust'] },
+        { q: 'Contributing to Bitcoin open source requires:', a: 'Anyone can propose changes — no permission needed', wrong: ['A computer science degree', 'Approval from the Bitcoin Foundation', 'Purchasing a developer license'] },
+    ],
+
+    'ham_radio': [
+        { q: 'Bitcoin transactions can be sent via ham radio, which means:', a: 'Bitcoin can work without an internet connection', wrong: ['Bitcoin requires satellite dishes', 'Only miners can use radio', 'Radio transactions are free'] },
+    ],
+
+    'lightning_node': [
+        { q: 'Running a Lightning node allows you to:', a: 'Route payments and earn fees while supporting the network', wrong: ['Mine Bitcoin faster', 'Create new Bitcoin', 'Access the dark web'] },
+    ],
+
+    'stablecoins': [
+        { q: 'Stablecoins in the Bitcoin ecosystem are typically:', a: 'Tokens pegged to fiat currency values, sometimes built on Bitcoin layers', wrong: ['A type of mining reward', 'Bitcoins that never change price', 'Government-issued digital dollars'] },
+    ],
+
+    'consensus': [
+        { q: 'Bitcoin consensus means:', a: 'All nodes agree on the state of the blockchain without a central authority', wrong: ['Everyone votes on transactions', 'Miners decide which transactions are valid alone', 'The government approves each block'] },
+    ],
+
+    'open_source': [
+        { q: 'Bitcoin being open source means:', a: 'Anyone can read, audit, and propose changes to the code', wrong: ['The code is secret but free to use', 'Only approved developers can view it', 'It costs nothing to mine'] },
+    ],
+
+    'coin_mixing_coinjoin_coin_control_utxo': [
+        { q: 'CoinJoin improves privacy by:', a: 'Combining multiple users\' transactions so individual spending is hard to trace', wrong: ['Encrypting the blockchain', 'Deleting transaction history', 'Creating fake transactions'] },
+    ],
+
+    'environment___energy': [
+        { q: 'Bitcoin mining\'s relationship with renewable energy is:', a: 'Miners actively seek cheap renewable and stranded energy, incentivizing green energy development', wrong: ['Mining only uses coal', 'Renewable energy cannot power mining', 'Mining has no relationship with energy markets'] },
+    ],
+
+    'austrian_school_of_economics': [
+        { q: 'The Austrian School of Economics relates to Bitcoin because:', a: 'It advocates for sound money with limited supply, which Bitcoin embodies', wrong: ['It was founded by Satoshi Nakamoto', 'It requires government-controlled currency', 'It predicts Bitcoin will fail'] },
+    ],
+
+    'lindy_effect': [
+        { q: 'The Lindy Effect applied to Bitcoin means:', a: 'The longer Bitcoin survives, the longer it is expected to continue surviving', wrong: ['Bitcoin gets slower over time', 'Older technology always fails', 'Bitcoin will expire after 21 years'] },
+    ],
+
+    'softwar': [
+        { q: 'Jason Lowery\'s Softwar thesis argues that:', a: 'Proof-of-work is a form of digital power projection analogous to military power in the physical world', wrong: ['Bitcoin is a weapon system', 'Software replaces all hardware', 'Bitcoin was created by the military'] },
+    ],
+
+    'sidechains': [
+        { q: 'A Bitcoin sidechain is:', a: 'A separate blockchain that is pegged to Bitcoin, enabling additional features while settling back to the main chain', wrong: ['A backup copy of the Bitcoin blockchain', 'A faster version of Bitcoin Core', 'An altcoin that replaced Bitcoin'] },
+    ],
+
+    'submarine_swap': [
+        { q: 'A submarine swap allows you to:', a: 'Exchange on-chain Bitcoin for Lightning Bitcoin (or vice versa) trustlessly', wrong: ['Mine Bitcoin underwater', 'Send Bitcoin without internet', 'Convert Bitcoin to Ethereum'] },
+    ],
 };
 
 // State
