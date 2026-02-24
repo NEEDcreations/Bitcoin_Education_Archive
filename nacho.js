@@ -821,6 +821,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
+// ---- Click outside bubble to close (only when Q&A input is showing) ----
+document.addEventListener('click', function(e) {
+    var bubble = document.getElementById('nacho-bubble');
+    if (!bubble || !bubble.classList.contains('show')) return;
+    var container = document.getElementById('nacho-container');
+    if (container && container.contains(e.target)) return; // Click inside Nacho area
+    hideBubble();
+});
+
 // ---- Init ----
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createNacho);
