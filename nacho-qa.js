@@ -364,7 +364,18 @@ window.nachoAnswer = function() {
     localStorage.setItem('btc_nacho_questions', qCount.toString());
     if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
 
-    var match = findAnswer(q);
+    // Try live data answer first (price, fees, block height, halving)
+    var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
+    var match = liveMatch || findAnswer(q);
+
+    // Track analytics
+    if (typeof trackNachoQuestion === 'function') trackNachoQuestion(q, !!match);
+
+    // Track session context
+    if (match && match.channel && typeof nachoAddContext === 'function') nachoAddContext(match.channel);
+
+    // Track interaction
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
 
     if (match) {
         if (typeof setPose === 'function') setPose('brain');
@@ -373,8 +384,22 @@ window.nachoAnswer = function() {
         if (match.channel && match.channelName) {
             html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
         }
+
+        // Follow-up suggestions
+        var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
+        if (followUps.length > 0) {
+            html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#333);">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">You might also want to ask:</div>';
+            for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
+                html += '<button onclick="document.getElementById(\'nachoInput\')?(document.getElementById(\'nachoInput\').value=\'' + followUps[fi].replace(/'/g, "\\'") + '\',nachoAnswer()):showNachoInput()" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + followUps[fi] + '</button>';
+            }
+            html += '</div>';
+        }
+
         html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
         textEl.innerHTML = html;
+
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
     } else {
         if (typeof setPose === 'function') setPose('think');
         var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];

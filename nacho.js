@@ -502,13 +502,27 @@ function createNacho() {
     if (!nachoVisible) toggle.style.display = 'flex';
     document.body.appendChild(toggle);
 
-    // Welcome after delay
+    // Welcome after delay — use time-of-day greeting or regular welcome
     setTimeout(function() {
-        if (nachoVisible) {
-            const msg = pickRandom(WELCOME);
-            setPose(msg.pose);
-            forceShowBubble(msg.text);
+        if (!nachoVisible) return;
+        var msg;
+        // 60% chance time-of-day greeting, 40% regular welcome
+        if (typeof nachoTimeGreeting === 'function' && Math.random() < 0.6) {
+            msg = nachoTimeGreeting();
+        } else {
+            msg = pickRandom(WELCOME);
         }
+        setPose(msg.pose);
+        forceShowBubble(msg.text);
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+
+        // Show streak message shortly after welcome
+        setTimeout(function() {
+            if (typeof nachoStreakMessage === 'function') {
+                var streak = nachoStreakMessage();
+                if (streak) showBubble(streak.text, streak.pose);
+            }
+        }, 12000);
     }, 2000);
 
     // Start idle animation cycling
@@ -516,6 +530,13 @@ function createNacho() {
 
     // Periodic messages
     setInterval(periodicMessage, 55000);
+
+    // Occasional trivia pop-ups (every 3 minutes, 20% chance)
+    setInterval(function() {
+        if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
+        if (Math.random() > 0.2) return;
+        if (typeof showNachoTrivia === 'function') showNachoTrivia();
+    }, 180000);
 }
 
 // ---- Pose Management (Clippy expressions) ----
@@ -617,6 +638,8 @@ window.nachoClick = function() {
     // Mark interaction for badge
     localStorage.setItem('btc_nacho_clicked', 'true');
     if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+    if (typeof nachoPlaySound === 'function') nachoPlaySound('click');
 
     const bubble = document.getElementById('nacho-bubble');
     if (bubble && bubble.classList.contains('show')) {
@@ -663,7 +686,22 @@ window.hideNacho = function() {
 window.nachoOnChannel = function(channelId) {
     if (!nachoVisible) return;
 
-    // Check for specific channel message first
+    // Track interaction
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+
+    // First-time channel intro (highest priority)
+    if (typeof nachoChannelIntro === 'function') {
+        var intro = nachoChannelIntro(channelId);
+        if (intro) { forceShowBubble(intro.text, intro.pose); return; }
+    }
+
+    // Category completion check
+    if (typeof nachoCategoryCheck === 'function') {
+        var catMsg = nachoCategoryCheck(channelId);
+        if (catMsg) { forceShowBubble(catMsg.text, catMsg.pose); if (typeof nachoPlaySound === 'function') nachoPlaySound('coin'); return; }
+    }
+
+    // Check for specific channel message
     if (CLIPPY_HELPS[channelId] && Math.random() < 0.6) {
         const help = CLIPPY_HELPS[channelId];
         showBubble(help.text, help.pose);
@@ -719,6 +757,18 @@ window.nachoOnFinishChannel = function() {
 function periodicMessage() {
     if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
     if (Math.random() > 0.3) return;
+
+    // Check for milestone celebration first
+    if (typeof nachoCheckMilestone === 'function') {
+        var milestone = nachoCheckMilestone();
+        if (milestone) { forceShowBubble(milestone.text, milestone.pose); return; }
+    }
+
+    // 20% chance of live data message
+    if (typeof nachoLiveMessage === 'function' && Math.random() < 0.2) {
+        var live = nachoLiveMessage();
+        if (live) { showBubble(live.text, live.pose); return; }
+    }
 
     const pools = [TIPS, MOTIVATION, FUN];
     const pool = pickRandom(pools);

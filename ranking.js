@@ -1380,7 +1380,22 @@ function showSettingsPage(tab) {
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span style="color:var(--text);font-size:0.85rem;">Show Nacho</span>' +
             '<button onclick="if(typeof ' + (nachoOn ? 'hideNacho' : 'showNacho') + '===\'function\'){' + (nachoOn ? 'hideNacho()' : 'showNacho()') + '}showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoOn ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Long-press him to hide.</div></div>';
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Long-press him to hide.</div>';
+
+        // Nacho sound toggle
+        const nachoSoundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Nacho Sounds</span>' +
+            '<button onclick="if(typeof toggleNachoSound===\'function\')toggleNachoSound();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoSoundOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoSoundOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoSoundOn ? 'ON' : 'OFF') + '</button></div>';
+
+        // Nacho friendship level
+        if (typeof getNachoFriendship === 'function') {
+            var friendship = getNachoFriendship();
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+                '<span style="color:var(--text);font-size:0.85rem;">Friendship Level</span>' +
+                '<span style="color:var(--accent);font-weight:700;font-size:0.85rem;">' + friendship.emoji + ' ' + friendship.name + '</span></div>';
+        }
+        html += '</div>';
 
         // Push Notifications
         const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
