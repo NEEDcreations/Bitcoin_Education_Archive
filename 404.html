@@ -712,7 +712,7 @@
                     <a href="mailto:info.603btc@gmail.com?subject=Sponsorship%20Inquiry%20-%20Bitcoin%20Education%20Archive" style="display:inline-block;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:0.9rem;font-weight:700;text-decoration:none;font-family:inherit;">Inquire Now →</a>
                     <div style="color:#fff;font-size:0.8rem;margin-top:8px;">info.603btc@gmail.com</div>
                 </div>
-                <div style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
+                <div id="donateSection" style="margin-top:20px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
                     <div style="font-size:1.5rem;margin-bottom:6px;">❤️</div>
                     <div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:4px;">Support the Archive</div>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>
@@ -1327,6 +1327,15 @@
         if (key === '?' || (e.shiftKey && key === '/')) { showKeyboardHelp(); return; }
         // I = open settings
         if (key === 'i') { if (typeof showSettingsPage === 'function') showSettingsPage('account'); return; }
+        // D = donate — go home and scroll to donation section
+        if (key === 'd') {
+            goHome();
+            setTimeout(function() {
+                var ds = document.getElementById('donateSection');
+                if (ds) ds.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+            return;
+        }
         // B = back to previous channel
         if (key === 'b') { var lc = localStorage.getItem('btc_last_channel'); if (lc) go(lc); return; }
 
@@ -1360,7 +1369,8 @@
                 kbRow('M','Random meme') + kbRow('A','Random art') + kbRow('B','Back to last channel') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
                 kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('F','Favorite channel') +
-                kbRow('N','Ask Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') + kbRow('I','Settings') +
+                kbRow('N','Ask Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') +
+                kbRow('I','Settings') + kbRow('D','Donate') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
                 kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
             '</div></div>';

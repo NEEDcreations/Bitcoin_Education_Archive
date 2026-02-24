@@ -1485,7 +1485,7 @@ function showSettingsPage(tab) {
             shortcutRow('M','Random meme') + shortcutRow('A','Random art') + shortcutRow('B','Last channel') +
             shortcutRow('L','Leaderboard') + shortcutRow('Q','Start quest') + shortcutRow('F','Favorite') +
             shortcutRow('N','Ask Nacho') + shortcutRow('T','Toggle theme') + shortcutRow('G','Gallery view') +
-            shortcutRow('I','Settings') + shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
+            shortcutRow('I','Settings') + shortcutRow('D','Donate') + shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
             shortcutRow('?','This help') + shortcutRow('Esc','Close modals') +
             '</div></div></div>';
 
