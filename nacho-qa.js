@@ -419,16 +419,23 @@ function nachoWebSearch(query, callback) {
     if (!canWebSearch()) { callback(null); return; }
     incrementWebSearchCount();
     var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin ' + query);
-    fetch(url, { signal: AbortSignal.timeout(6000) })
+    // Use AbortController with manual timeout for broader browser support
+    var controller = null;
+    var timeoutId = null;
+    try { controller = new AbortController(); } catch(e) {}
+    var fetchOpts = controller ? { signal: controller.signal } : {};
+    if (controller) { timeoutId = setTimeout(function() { controller.abort(); }, 6000); }
+    fetch(url, fetchOpts)
         .then(function(r) { return r.json(); })
         .then(function(data) {
+            if (timeoutId) clearTimeout(timeoutId);
             if (data && data.results && data.results.length > 0) {
                 callback(data.results.slice(0, 3));
             } else {
                 callback(null);
             }
         })
-        .catch(function() { callback(null); });
+        .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
 }
 
 // ---- Thinking animation ----
@@ -512,6 +519,7 @@ window.nachoAnswer = function() {
     var thinkDelay = 600 + Math.random() * 800; // 600-1400ms
 
     setTimeout(function() {
+        try {
         stopNachoThinking();
 
         // ---- Step 2: Try local knowledge base ----
@@ -574,6 +582,10 @@ window.nachoAnswer = function() {
         // ---- Step 5: Fallback ----
         showNachoFallback(textEl, q);
 
+        } catch(e) {
+            stopNachoThinking();
+            showNachoFallback(textEl, q);
+        }
     }, thinkDelay);
 };
 
