@@ -220,6 +220,10 @@ const NACHO_KB = [
       answer: "Well there, my deer, that's not really any of your business now is it? 🦌 That's like me asking you how much money you have in the bank! I like to tell people that I own more BTC than I did yesterday though! 📈",
       channel: null, channelName: null },
 
+    { keys: ['what do you eat','favorite food','what do deer eat','your diet','do you eat cheese','food','hungry','snack','lunch','dinner','breakfast'],
+      answer: "Well, I'm a deer so my natural diet is plants, grass, fruits, and nuts. 🌿 But between you and me... I like to sneak a little cheese in there when nobody's looking. 🧀 Nacho keys, nacho cheese — you think that tagline came from nowhere? 😏🦌",
+      channel: null, channelName: null },
+
     { keys: ['thank','thanks','ty','appreciate','love you','you\'re great','good job','awesome'],
       answer: "Aww shucks! 🧡 You're the great one — you're here learning! That makes you smarter than most. Keep going and I'll keep cheering you on! 🦌💪",
       channel: null, channelName: null },
