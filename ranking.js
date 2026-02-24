@@ -1853,6 +1853,11 @@ async function startMFAEnroll() {
     var phone = document.getElementById('mfaPhone').value.trim().replace(/[\s\-\(\)\.]/g, '');
     const status = document.getElementById('mfaStatus');
 
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        status.innerHTML = '<span style="color:#ef4444;">You need to sign in with Google, Twitter, GitHub, or Email to set up 2FA.</span>';
+        return;
+    }
+
     // Auto-add +1 for US numbers if user forgot the country code
     if (phone && !phone.startsWith('+')) {
         if (phone.length === 10) {
@@ -1993,6 +1998,12 @@ async function startTotpSetup() {
     const area = document.getElementById('totpSetupArea');
     const status = document.getElementById('totpStatus');
     if (!area) return;
+
+    // Must be a real (non-anonymous) signed-in user
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        status.innerHTML = '<span style="color:#ef4444;">You need to sign in with Google, Twitter, GitHub, or Email to set up 2FA. Anonymous accounts can\'t use 2FA.</span>';
+        return;
+    }
     
     status.innerHTML = '<span style="color:var(--text-muted);">Generating QR code...</span>';
     area.style.display = 'block';
