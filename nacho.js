@@ -420,13 +420,13 @@ function createNacho() {
             100% { transform: translate(0, 0) rotate(0deg); }
         }
         #nacho-avatar.flying {
-            animation: nachoFly 3s linear forwards;
+            animation: nachoFly 1.8s linear forwards;
             z-index: 999;
             filter: drop-shadow(0 0 20px rgba(247,147,26,0.8)) drop-shadow(0 0 40px rgba(234,88,12,0.4));
         }
         @media (max-width: 900px) {
             #nacho-avatar.flying {
-                animation: nachoFlyMobile 2.5s linear forwards;
+                animation: nachoFlyMobile 1.5s linear forwards;
             }
         }
         /* Lightning trail particles */
@@ -814,7 +814,35 @@ window.nachoFly = function() {
     ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(function(a) { avatar.classList.remove(a); });
 
     avatar.classList.add('flying');
-    if (typeof nachoPlaySound === 'function') nachoPlaySound('coin');
+
+    // Zap sound at each direction change
+    function playZap(pitch) {
+        try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = pitch;
+            osc.type = 'sawtooth';
+            gain.gain.setValueAtTime(0.06, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.12);
+        } catch(e) {}
+    }
+
+    // Sound check
+    var soundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
+
+    // Zaps at each bolt direction change (timed to 1.8s animation)
+    var zapTimes = [0, 140, 290, 430, 580, 720, 900, 1080, 1260, 1440];
+    var zapPitches = [1800, 1400, 2000, 1200, 2200, 1600, 1900, 1300, 1700, 2400];
+    zapTimes.forEach(function(t, i) {
+        setTimeout(function() {
+            if (soundOn && avatar.classList.contains('flying')) playZap(zapPitches[i]);
+        }, t);
+    });
 
     // Spawn lightning trail particles as Nacho flies
     var trailSymbols = ['⚡', '✨', '🔥', '⚡', '💫', '⚡'];
@@ -827,8 +855,8 @@ window.nachoFly = function() {
         particle.style.left = (rect.left + rect.width / 2 + (Math.random() * 20 - 10)) + 'px';
         particle.style.top = (rect.top + rect.height / 2 + (Math.random() * 20 - 10)) + 'px';
         document.body.appendChild(particle);
-        setTimeout(function() { if (particle.parentNode) particle.remove(); }, 800);
-    }, 80);
+        setTimeout(function() { if (particle.parentNode) particle.remove(); }, 600);
+    }, 60);
 
     // Remove flying class when animation ends, resume idle
     avatar.addEventListener('animationend', function handler() {
@@ -836,6 +864,19 @@ window.nachoFly = function() {
         avatar.classList.add('anim-bounce');
         avatar.removeEventListener('animationend', handler);
         clearInterval(trailInterval);
+        // Landing sound — satisfying thud
+        if (soundOn) {
+            try {
+                var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.value = 300; osc.type = 'sine';
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2);
+            } catch(e) {}
+        }
     });
 };
 
