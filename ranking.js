@@ -2177,8 +2177,10 @@ function clearUserData() {
         'btc_visited_channels', 'btc_favs', 'btc_hidden_badges',
         'btc_asked_questions', 'btc_scholar_passed', 'btc_scholar_attempt_date',
         'btc_badges', 'btc_last_channel', 'btc_signin_email',
-        'btc_nacho_questions', 'btc_nacho_clicked', 'btc_nacho_interactions',
         'btc_nacho_equipped', 'btc_nacho_items_notified'
+        // NOTE: btc_nacho_interactions, btc_nacho_questions, btc_nacho_clicked
+        // are NOT cleared — they persist across sign-out/sign-in and get
+        // synced to Firebase. Clearing them resets closet friendship level.
     ];
     userKeys.forEach(function(key) { localStorage.removeItem(key); });
     currentUser = null;
