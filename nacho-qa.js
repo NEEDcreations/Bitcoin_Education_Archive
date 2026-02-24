@@ -451,18 +451,36 @@ const NACHO_POLITE_DEFLECTIONS = [
 ];
 
 function isInappropriate(text) {
+    // Normalize: lowercase, strip non-alpha except spaces
     var lower = text.toLowerCase().replace(/[^a-z\s]/g, '');
+
+    // Check for multi-word phrases first (e.g. "kill you", "hate you")
+    for (var p = 0; p < NACHO_BLOCKED_WORDS.length; p++) {
+        if (NACHO_BLOCKED_WORDS[p].indexOf(' ') !== -1 && lower.indexOf(NACHO_BLOCKED_WORDS[p]) !== -1) return true;
+    }
+
+    // Check individual words
     var words = lower.split(/\s+/);
     for (var i = 0; i < words.length; i++) {
         for (var j = 0; j < NACHO_BLOCKED_WORDS.length; j++) {
-            if (words[i] === NACHO_BLOCKED_WORDS[j]) return true;
+            if (NACHO_BLOCKED_WORDS[j].indexOf(' ') === -1 && words[i] === NACHO_BLOCKED_WORDS[j]) return true;
         }
     }
-    // Check for multi-word matches and embedded profanity
+
+    // Check for embedded profanity (no spaces) — catches "fuuuck", "sh1t" after normalization
     var compressed = lower.replace(/\s/g, '');
     for (var k = 0; k < NACHO_BLOCKED_WORDS.length; k++) {
-        if (NACHO_BLOCKED_WORDS[k].length >= 4 && compressed.includes(NACHO_BLOCKED_WORDS[k])) return true;
+        if (NACHO_BLOCKED_WORDS[k].length >= 4 && NACHO_BLOCKED_WORDS[k].indexOf(' ') === -1 && compressed.indexOf(NACHO_BLOCKED_WORDS[k]) !== -1) return true;
     }
+
+    // Catch spelled-out letters from voice: "f u c k" → "fuck" after removing spaces
+    var lettersOnly = lower.replace(/\s+/g, '');
+    if (lettersOnly !== compressed) { // only if stripping changed something
+        for (var m = 0; m < NACHO_BLOCKED_WORDS.length; m++) {
+            if (NACHO_BLOCKED_WORDS[m].length >= 3 && NACHO_BLOCKED_WORDS[m].indexOf(' ') === -1 && lettersOnly.indexOf(NACHO_BLOCKED_WORDS[m]) !== -1) return true;
+        }
+    }
+
     return false;
 }
 
