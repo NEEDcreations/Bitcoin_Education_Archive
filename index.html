@@ -280,6 +280,9 @@
         .home-page.hidden { display: none; }
         .home-inner { max-width: 650px; }
         .home-logos { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 40px; }
+        .channel-logos { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 16px; }
+        .channel-logos .channel-logo-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 24px rgba(247,147,26,0.35); }
+        .channel-logos svg { width: 50px; height: 50px; }
         .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1px; line-height: 1.15; margin-bottom: 20px; }
@@ -370,6 +373,8 @@
             .home-credits { padding: 14px; }
             .home-credits p { font-size: 0.85rem; }
             .home-logos svg { width: 56px; height: 56px; }
+            .channel-logos .channel-logo-img { width: 64px; height: 64px; }
+            .channel-logos svg { width: 40px; height: 40px; }
             .daily-channel { padding: 14px; }
             .home-cta { padding: 16px 30px; font-size: 1.05rem; width: 100%; }
             .quest-start-btn { margin: 6px 10px; }
@@ -1391,6 +1396,10 @@
         const shareUrl = 'https://bitcoineducation.quest/#' + id;
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
+            '<div class="channel-logos">' +
+                '<img src="images/btc-grad-logo.jpg" alt="" class="channel-logo-img">' +
+                '<svg viewBox="0 0 64 64" width="50" height="50"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg>' +
+            '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<p class="desc" id="channelDesc">' + meta.desc + '</p>' +
