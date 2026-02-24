@@ -544,7 +544,43 @@ window.nachoAnswer = function() {
         try {
         stopNachoThinking();
 
-        // ---- Step 2: Try local knowledge base ----
+        // ---- Detect current event questions early ----
+        var isCurrentEvent = isCurrentEventQuestion(q);
+
+        // ---- Step 2: For current events, skip local KB and go straight to web ----
+        if (isCurrentEvent && NACHO_SEARCH_PROXY) {
+            if (typeof trackNachoQuestion === 'function') trackNachoQuestion(q, false);
+            // Jump to web search immediately
+            textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Let me check the latest on that<span class="nacho-dots"></span></div>';
+            var dotsEl3 = textEl.querySelector('.nacho-dots');
+            var dc3 = 0;
+            var dt3 = setInterval(function() { dc3 = (dc3+1)%4; if(dotsEl3) dotsEl3.textContent = '.'.repeat(dc3); }, 400);
+
+            nachoWebSearch(q, function(results) {
+                clearInterval(dt3);
+                if (results && results.length > 0) {
+                    if (typeof setPose === 'function') setPose('cool');
+                    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                        '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
+                    for (var ri = 0; ri < results.length; ri++) {
+                        html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (results[ri].title || '') + '</div>' +
+                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (results[ri].snippet || '') + '</div>' +
+                            (results[ri].url ? '<a href="' + results[ri].url + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                            '</div>';
+                    }
+                    html += '</div>';
+                    html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                    textEl.innerHTML = html;
+                    if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+                } else {
+                    showNachoFallback(textEl, q);
+                }
+            });
+            return;
+        }
+
+        // ---- Step 3: Try local knowledge base (non-event questions) ----
         var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
         var match = liveMatch || findAnswer(q);
 
@@ -558,10 +594,8 @@ window.nachoAnswer = function() {
             return;
         }
 
-        // ---- Step 3: Try deep content search across loaded channels ----
-        // Skip for current event questions — static site content won't have latest news
-        var isCurrentEvent = isCurrentEventQuestion(q);
-        var deepResult = isCurrentEvent ? null : deepContentSearch(q);
+        // ---- Step 4: Try deep content search across loaded channels ----
+        var deepResult = deepContentSearch(q);
         if (deepResult) {
             if (typeof setPose === 'function') setPose('brain');
             var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
@@ -571,7 +605,7 @@ window.nachoAnswer = function() {
             return;
         }
 
-        // ---- Step 4: Try web search (if proxy is configured) ----
+        // ---- Step 5: Try web search (if proxy is configured) ----
         if (NACHO_SEARCH_PROXY) {
             // Show extended thinking
             textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Hmm, I don\'t have that in my notes. Searching the web<span class="nacho-dots"></span></div>';
