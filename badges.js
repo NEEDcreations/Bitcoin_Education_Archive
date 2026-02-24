@@ -39,18 +39,35 @@ const BADGE_DEFS = [
 
 let earnedBadges = new Set();
 let badgeCheckInterval = null;
+// Don't check badges until Firebase has restored the earned list
+window._visibleBadgesReady = false;
 
 function initBadges() {
-    // Load earned badges
+    // Load earned badges from localStorage
     const saved = JSON.parse(localStorage.getItem('btc_badges') || '[]');
     saved.forEach(b => earnedBadges.add(b));
 
-    // Check badges every 15 seconds
+    // Check badges every 15 seconds — but only after Firebase restore
     badgeCheckInterval = setInterval(checkBadges, 15000);
-    setTimeout(checkBadges, 5000);
 }
 
+// Called from ranking.js after Firebase restores user data
+window.markVisibleBadgesReady = function() {
+    // Merge any badges from Firebase that aren't in localStorage
+    var saved = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+    saved.forEach(function(b) { earnedBadges.add(b); });
+    window._visibleBadgesReady = true;
+};
+
+// Safety: allow badges after 20 seconds even if Firebase is slow
+setTimeout(function() { if (!window._visibleBadgesReady) window._visibleBadgesReady = true; }, 20000);
+
 function checkBadges() {
+    // Wait until Firebase has restored earned badges
+    if (!window._visibleBadgesReady) return;
+    // Don't pop badges while Nacho is busy
+    if (window._nachoBusy) return;
+
     const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
     const totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
     const questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size : 0;
@@ -66,6 +83,14 @@ function checkBadges() {
                 // Award points
                 if (typeof awardPoints === 'function') {
                     awardPoints(20, 'Badge: ' + badge.name + ' ' + badge.emoji);
+                }
+                // Save to Firebase so badges persist across devices/browsers
+                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+                    try {
+                        db.collection('users').doc(auth.currentUser.uid).update({
+                            visibleBadges: firebase.firestore.FieldValue.arrayUnion(badge.id)
+                        });
+                    } catch(e) {}
                 }
             }
         } catch(e) {}

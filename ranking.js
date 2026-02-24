@@ -563,6 +563,12 @@ async function loadUser(uid) {
             if (currentUser.hiddenBadges) {
                 localStorage.setItem('btc_hidden_badges', JSON.stringify(currentUser.hiddenBadges));
             }
+            if (currentUser.visibleBadges) {
+                // Merge Firebase badges into localStorage
+                var existing = JSON.parse(localStorage.getItem('btc_badges') || '[]');
+                var merged = [...new Set([...existing, ...currentUser.visibleBadges])];
+                localStorage.setItem('btc_badges', JSON.stringify(merged));
+            }
             if (currentUser.scholarPassed) {
                 localStorage.setItem('btc_scholar_passed', 'true');
             }
@@ -570,6 +576,7 @@ async function loadUser(uid) {
 
         // Badges are now safe to check — Firebase data has been restored
         window._badgesReady = true;
+        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
 
         // Refresh exploration map and home page elements
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
@@ -599,6 +606,7 @@ async function loadUser(uid) {
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
+        if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady();
             updateRankUI();
             updateAuthButton();
         }
@@ -720,6 +728,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     currentUser = { uid, ...userData };
     rankingReady = true;
     window._badgesReady = true;
+        if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady();
     updateRankUI();
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
