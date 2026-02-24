@@ -804,9 +804,14 @@ window.hideBubble = function(force) {
     // Don't auto-hide interactive content (Q&A, trivia) — only manual close or force
     if (!force && bubble && bubble.getAttribute('data-interactive') === 'true') return;
 
-    // Mark interaction for badge
+    // Clear busy state — allow queued popups to show
+    window._nachoBusy = false;
+
+    // Mark interaction for badge — delay badge check so it doesn't pop immediately
     localStorage.setItem('btc_nacho_clicked', 'true');
-    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    setTimeout(function() {
+        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    }, 2000);
     var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
     clearTimeout(bubbleTimeout);

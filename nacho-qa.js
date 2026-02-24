@@ -296,6 +296,9 @@ function findAnswer(input) {
     return bestScore >= 40 ? bestMatch : null;
 }
 
+// ---- Nacho busy state — suppresses all popups during Q&A ----
+window._nachoBusy = false;
+
 // ---- Voice-to-text input for Nacho ----
 window._nachoRecognition = null;
 window._nachoListening = false;
@@ -376,9 +379,11 @@ window.nachoVoiceInput = function() {
     };
 
     try {
+        window._nachoBusy = true; // Suppress popups while listening
         rec.start();
     } catch(err) {
         window._nachoListening = false;
+        window._nachoBusy = false;
         micBtn.innerHTML = '🎙️';
         micBtn.style.opacity = '0.6';
         inp.placeholder = 'Voice unavailable — type your question';
@@ -387,13 +392,16 @@ window.nachoVoiceInput = function() {
 
 // ---- Show Ask Nacho input ----
 window.showNachoInput = function() {
+    // User is starting a new question — clear busy state to flush queued popups
+    window._nachoBusy = false;
+
     const bubble = document.getElementById('nacho-bubble');
     const textEl = document.getElementById('nacho-text');
     if (!bubble || !textEl) return;
 
     // Mark interaction for badge
     localStorage.setItem('btc_nacho_clicked', 'true');
-    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    // Don't check badges here — let the periodic check handle it when Nacho is idle
 
     if (typeof setPose === 'function') setPose('think');
 
@@ -575,6 +583,7 @@ function stopNachoThinking() {
 
 // ---- Render an answer with follow-ups and ask-again ----
 function renderNachoAnswer(textEl, answerHtml, match) {
+    // Keep busy until user dismisses — cleared when they click ask another or close
     var html = answerHtml;
 
     if (match && match.channel && match.channelName) {
@@ -605,6 +614,15 @@ window.nachoAnswer = function() {
     var q = inp.value.trim();
     if (!q) return;
 
+    // Stop any active voice recognition
+    if (window._nachoRecognition && window._nachoListening) {
+        try { window._nachoRecognition.stop(); } catch(e) {}
+        window._nachoListening = false;
+    }
+
+    // Mark Nacho as busy — suppress all popups/toasts/badges
+    window._nachoBusy = true;
+
     var bubble = document.getElementById('nacho-bubble');
     var textEl = document.getElementById('nacho-text');
     if (!bubble || !textEl) return;
@@ -623,7 +641,7 @@ window.nachoAnswer = function() {
     // Track question count for badges
     var qCount = parseInt(localStorage.getItem('btc_nacho_questions') || '0') + 1;
     localStorage.setItem('btc_nacho_questions', qCount.toString());
-    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    // Badge check deferred — will run when Nacho is idle (periodic check)
     if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
 
     // Keep bubble interactive

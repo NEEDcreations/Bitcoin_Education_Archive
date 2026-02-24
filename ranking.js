@@ -1255,7 +1255,16 @@ async function toggleLeaderboard() {
 }
 
 // Toast notifications
+var _toastQueue = [];
 function showToast(msg) {
+    // If Nacho is busy (Q&A, voice, reading answer), queue the toast
+    if (window._nachoBusy) {
+        _toastQueue.push(msg);
+        return;
+    }
+    _showToastNow(msg);
+}
+function _showToastNow(msg) {
     const t = document.createElement('div');
     t.className = 'rank-toast';
     t.innerHTML = msg;
@@ -1263,6 +1272,12 @@ function showToast(msg) {
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
 }
+// Flush queued toasts when Nacho is no longer busy
+setInterval(function() {
+    if (!window._nachoBusy && _toastQueue.length > 0) {
+        _showToastNow(_toastQueue.shift());
+    }
+}, 2000);
 
 // Username prompt
 function showUsernamePrompt() {

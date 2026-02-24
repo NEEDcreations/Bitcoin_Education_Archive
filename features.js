@@ -120,18 +120,19 @@ let badgeQueue = [];
 let badgeShowing = false;
 
 function showBadgeUnlock(badge) {
-    // If Nacho's bubble is open at all (Q&A input, answer, trivia, etc), queue for later
+    // If Nacho is busy (Q&A, voice input, reading answer), queue for later
     var bubble = document.getElementById('nacho-bubble');
-    if (bubble && bubble.classList.contains('show')) {
+    if (window._nachoBusy || (bubble && bubble.classList.contains('show'))) {
         badgeQueue.push(badge);
         return;
     }
     _showBadgeUnlock(badge);
 }
 
-// Check queue periodically — only show when Nacho bubble is closed
+// Check queue periodically — only show when Nacho is idle and bubble is closed
 setInterval(function() {
     if (badgeShowing || badgeQueue.length === 0) return;
+    if (window._nachoBusy) return; // Nacho is busy — wait
     var bubble = document.getElementById('nacho-bubble');
     if (bubble && bubble.classList.contains('show')) return; // Bubble still open
     _showBadgeUnlock(badgeQueue.shift());
