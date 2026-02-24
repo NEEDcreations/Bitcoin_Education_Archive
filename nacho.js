@@ -316,26 +316,37 @@ function createNacho() {
             background: rgba(247,147,26,0.15);
         }
 
-        /* Clippy-style speech bubble */
+        /* Nacho speech bubble — now with a solid background for readability */
         #nacho-bubble {
-            background: var(--card-bg, #1a1a2e);
-            border: 1px solid var(--border, #333);
-            border-radius: 16px;
-            padding: 16px 20px 16px 18px;
-            max-width: 300px;
-            min-width: 200px;
-            color: var(--text, #e0e0e0);
-            font-size: 0.9rem;
-            line-height: 1.55;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 100%);
+            border: 2px solid #f7931a;
+            border-radius: 20px;
+            padding: 20px 24px 20px 22px;
+            max-width: 320px;
+            min-width: 220px;
+            color: #f8f8f8;
+            font-size: 0.95rem;
+            line-height: 1.6;
             pointer-events: auto;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 0 2px rgba(247,147,26,0.3);
             opacity: 0;
-            transform: translateY(8px) scale(0.9);
-            transition: opacity 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: translateY(10px) scale(0.95);
+            transition: opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             cursor: pointer;
             position: relative;
-            margin-left: -6px;
-            margin-bottom: 16px;
+            margin-left: -8px;
+            margin-bottom: 18px;
+            z-index: 1000;
+            /* Allow scrolling behind the bubble */
+            overflow: visible;
+        }
+        /* Make the bubble dismissible by clicking outside */
+        body.nacho-bubble-open {
+            overflow: auto;
+        }
+        /* Prevent body scroll when bubble is open */
+        #nacho-bubble.show ~ .main-content {
+            overflow-y: scroll;
         }
         #nacho-bubble::before {
             content: '';
@@ -347,13 +358,16 @@ function createNacho() {
             border-bottom: 8px solid transparent;
             border-right: 8px solid var(--border, #333);
         }
-        #nacho-bubble::after {
+                #nacho-bubble::after {
             content: '';
             position: absolute;
-            bottom: 9px;
-            left: -6px;
+            bottom: 11px;
+            left: -8px;
             width: 0; height: 0;
-            border-top: 7px solid transparent;
+            border-top: 9px solid transparent;
+            border-bottom: 9px solid transparent;
+            border-right: 9px solid linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 100%);
+        }
             border-bottom: 7px solid transparent;
             border-right: 7px solid var(--card-bg, #1a1a2e);
         }
@@ -584,20 +598,6 @@ function createNacho() {
     toggle.onclick = function() { showNacho(); };
     if (!nachoVisible) toggle.style.display = 'flex';
     document.body.appendChild(toggle);
-
-    // Welcome after delay — use time-of-day greeting or regular welcome
-    setTimeout(function() {
-        if (!nachoVisible) return;
-        var msg;
-        // 60% chance time-of-day greeting, 40% regular welcome
-        if (typeof nachoTimeGreeting === 'function' && Math.random() < 0.6) {
-            msg = nachoTimeGreeting();
-        } else {
-            msg = pickRandom(WELCOME);
-        }
-        setPose(msg.pose);
-        forceShowBubble(msg.text);
-        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
 
         // Show streak message shortly after welcome
         setTimeout(function() {
