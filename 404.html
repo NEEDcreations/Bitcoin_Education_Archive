@@ -1925,7 +1925,8 @@
         // 9 = "Number go up!"
         if (key === '9') { speakEasterEgg("Number go up!"); if (typeof nachoFly === 'function') nachoFly(); return; }
         // P = "Stay humble, stack sats."
-        if (key === 'p') { speakEasterEgg("Stay humble. Stack sats."); return; }
+        if (key === 'p') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
+        if (key === 'w') { speakEasterEgg("Stay humble. Stack sats."); return; }
 
         // === Escape = close modals ===
         if (key === 'escape') {
