@@ -600,8 +600,11 @@ async function loadUser(uid) {
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
-    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        btn.textContent = '⚙️ My Account & Settings';
+    var isSignedIn = auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    var hasUsername = currentUser && currentUser.username;
+
+    if (isSignedIn || hasUsername) {
+        btn.textContent = '⚙️ ' + (hasUsername ? hasUsername : 'My Account') + ' — Settings';
         btn.style.borderColor = '#22c55e';
         btn.style.color = '#22c55e';
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
@@ -1286,8 +1289,12 @@ setInterval(function() {
 
 // Username prompt
 function showUsernamePrompt() {
-    // If user is already signed in (non-anonymous), show account info instead
+    // If user has an account (real or anonymous with username), show settings
     if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        showAccountInfo();
+        return;
+    }
+    if (currentUser && currentUser.username) {
         showAccountInfo();
         return;
     }
