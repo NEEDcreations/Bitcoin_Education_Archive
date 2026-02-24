@@ -13,9 +13,9 @@ const NACHO_ITEMS = [
 
     // Level 2 — Getting Acquainted (10+ interactions)
     // Helmet sits ON the head, between the antlers (~22% from top, covering forehead)
-    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A miner\'s helmet with a headlamp. Ready to find the next block!', level: 2, overlay: { top: '20%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false },
-    // Chain hangs around the neck area (~62% from top)
-    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '62%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.3em' }, hidden: false },
+    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A miner\'s helmet with a headlamp. Ready to find the next block!', level: 2, overlay: { top: '28%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.8em' }, hidden: false },
+    // Chain wraps horizontally around neck — uses custom HTML render
+    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '65%', left: '50%', transform: 'translateX(-50%)', fontSize: '0.65em', custom: '⚡⚡⚡⚡⚡' }, hidden: false },
 
     // Level 3 — Good Friends (25+ interactions)
     // Hoodie on the body (~78% from top, covering chest area)
@@ -217,11 +217,16 @@ window.renderNachoOverlay = function(animate) {
     var overlay = document.createElement('span');
     overlay.id = 'nacho-overlay';
     overlay.className = 'nacho-overlay-item' + (animate ? ' equipping' : ' ' + idleClass);
-    overlay.textContent = emoji;
+    // Use custom text if defined (e.g. chain of emojis), otherwise single emoji
+    overlay.textContent = item.overlay.custom || emoji;
+    if (item.overlay.custom) {
+        overlay.style.letterSpacing = '-0.1em';
+        overlay.style.whiteSpace = 'nowrap';
+    }
 
     // Apply positioning from item config
     for (var prop in item.overlay) {
-        if (prop !== 'filter') {
+        if (prop !== 'filter' && prop !== 'custom') {
             overlay.style[prop] = item.overlay[prop];
         }
     }
