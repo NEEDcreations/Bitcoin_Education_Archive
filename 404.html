@@ -1717,7 +1717,7 @@
         document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, pct)) + '%';
         document.getElementById('backToTop').classList.toggle('visible', el.scrollTop > 400);
         var nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
-        document.getElementById('scrollToBottom').classList.toggle('visible', el.scrollTop < 400 && !nearBottom);
+        document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);
     });
 
     window.onload = () => {
