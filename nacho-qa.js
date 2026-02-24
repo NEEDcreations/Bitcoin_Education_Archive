@@ -390,7 +390,7 @@ function deepContentSearch(query) {
 }
 
 // ---- Web search via proxy (for questions Nacho can't answer locally) ----
-var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || '';
+var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
 
 // ---- Web search rate limiting ----
 var NACHO_WEB_SEARCH_DAILY_LIMIT = 5; // per user per day
