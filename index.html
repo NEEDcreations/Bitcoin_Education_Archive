@@ -1422,7 +1422,8 @@
         if (!('ontouchstart' in window)) return; // Desktop, skip
 
         // Shake to hear a random Bitcoin quote (easter egg)
-        var shakeThreshold = 20;
+        // High threshold so walking/normal movement doesn't trigger it
+        var shakeThreshold = 35;
         var lastShake = 0;
         var lastAccel = { x: 0, y: 0, z: 0 };
         window.addEventListener('devicemotion', function(e) {
@@ -1434,7 +1435,7 @@
             lastAccel = { x: a.x, y: a.y, z: a.z };
             if (dx + dy + dz > shakeThreshold) {
                 var now = Date.now();
-                if (now - lastShake < 4000) return;
+                if (now - lastShake < 8000) return;
                 lastShake = now;
                 var quotes = [
                     "There is no second best.",
@@ -1467,24 +1468,26 @@
             var dy = e.changedTouches[0].clientY - touchStartY;
             var dt = Date.now() - touchStartTime;
             // Must be a quick, horizontal swipe (not a scroll)
-            if (dt > 400 || Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 80) return;
+            // Strict: fast, very horizontal, long swipe — won't trigger during normal scrolling
+            if (dt > 300 || Math.abs(dx) < 150 || Math.abs(dy) > Math.abs(dx) * 0.3) return;
 
-            if (dx > 80) {
-                // Swipe right → go home
+            if (dx > 150) {
                 goHome();
-            } else if (dx < -80) {
-                // Swipe left → random channel
+            } else if (dx < -150) {
                 goRandom();
             }
         }, { passive: true });
 
-        // Two-finger tap → toggle leaderboard
-        document.addEventListener('touchstart', function(e) {
+        // Two-finger tap → toggle leaderboard (only on main content, not inputs/modals)
+        var twoFingerLast = 0;
+        document.getElementById('main').addEventListener('touchstart', function(e) {
             if (e.touches.length === 2) {
-                e.preventDefault();
+                var now = Date.now();
+                if (now - twoFingerLast < 2000) return;
+                twoFingerLast = now;
                 if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             }
-        }, { passive: false });
+        }, { passive: true });
 
         // Long-press on logo → donate section
         var logos = document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img');
