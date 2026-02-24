@@ -447,6 +447,17 @@ function onChannelVisitForQuest(channelId) {
 }
 
 function generateAndShowQuest(manual) {
+    // Limit quests to 3 per day to prevent point farming
+    var today = new Date().toISOString().split('T')[0];
+    var questLog = JSON.parse(localStorage.getItem('btc_quest_daily') || '{}');
+    if (questLog.date !== today) {
+        questLog = { date: today, count: 0 };
+    }
+    if (questLog.count >= 3) {
+        if (manual && typeof showToast === 'function') showToast('⏰ You\'ve completed 3 quests today! Come back tomorrow for more.');
+        return;
+    }
+
     // Track previously asked questions to avoid repeats
     const askedQuestions = JSON.parse(localStorage.getItem('btc_asked_questions') || '[]');
 
@@ -671,6 +682,12 @@ async function submitQuest() {
 
     if (pts > 0 && typeof awardPoints === 'function') {
         await awardPoints(pts, 'Quest: ' + currentQuest.title);
+        // Track daily quest count
+        var todayQ = new Date().toISOString().split('T')[0];
+        var qLog = JSON.parse(localStorage.getItem('btc_quest_daily') || '{}');
+        if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
+        qLog.count++;
+        localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
     }
     if (completedQuests.has(currentQuest.id) && typeof db !== 'undefined' && auth.currentUser) {
         await db.collection('users').doc(auth.currentUser.uid).update({
