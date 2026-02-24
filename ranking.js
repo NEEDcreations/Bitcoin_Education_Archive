@@ -926,6 +926,42 @@ function getLevel(points) {
     return { ...level, next };
 }
 
+function updateGuestPointsBanner() {
+    var banner = document.getElementById('guestPointsBanner');
+    if (!currentUser || !auth || !auth.currentUser) {
+        if (banner) banner.style.display = 'none';
+        return;
+    }
+    var isAnon = auth.currentUser.isAnonymous;
+    if (!isAnon) {
+        if (banner) banner.style.display = 'none';
+        return;
+    }
+    var pts = currentUser.points || 0;
+    if (pts < 1) {
+        if (banner) banner.style.display = 'none';
+        return;
+    }
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'guestPointsBanner';
+        banner.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:320px;';
+        banner.onclick = function() { showSignInPrompt(); };
+        document.body.appendChild(banner);
+    }
+    var lv = getLevel(pts);
+    banner.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:2px;">' +
+            '<div style="display:flex;align-items:center;gap:6px;">' +
+                '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
+                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
+            '</div>' +
+            '<div style="color:#ccc;font-size:0.75rem;">Don\'t lose your progress!</div>' +
+        '</div>' +
+        '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
+    banner.style.display = 'flex';
+}
+
 function updateRankUI() {
     if (!currentUser) return;
     // Hide giveaway banner for existing users
@@ -963,11 +999,21 @@ function updateRankUI() {
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
 
+    // Show guest points banner for anonymous users
+    updateGuestPointsBanner();
+
     // Update user display on page
     updateUserDisplay(lv);
 }
 
 function updateUserDisplay(lv) {
+    // If guest banner is showing, hide userDisplay
+    var guestBanner = document.getElementById('guestPointsBanner');
+    if (guestBanner && guestBanner.style.display !== 'none') {
+        var existing = document.getElementById('userDisplay');
+        if (existing) existing.style.display = 'none';
+        return;
+    }
     let el = document.getElementById('userDisplay');
     if (!el) {
         el = document.createElement('div');
@@ -976,6 +1022,7 @@ function updateUserDisplay(lv) {
         el.onclick = function() { toggleLeaderboard(); };
         document.body.appendChild(el);
     }
+    el.style.display = 'flex';
     const streakBit = (currentUser.streak || 0) > 0 ? '<span style="color:#f97316;font-weight:700;font-size:0.7rem;">🔥' + currentUser.streak + '</span>' : '';
     el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
         '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
