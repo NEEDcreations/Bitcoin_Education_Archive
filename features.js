@@ -115,7 +115,32 @@ function checkHiddenBadges() {
     });
 }
 
+// Queue badge popups so they don't interrupt Nacho Q&A
+let badgeQueue = [];
+let badgeShowing = false;
+
 function showBadgeUnlock(badge) {
+    // If Nacho's bubble is open with input, queue it for later
+    var bubble = document.getElementById('nacho-bubble');
+    var nachoInput = document.getElementById('nachoInput');
+    if (bubble && bubble.classList.contains('show') && nachoInput) {
+        badgeQueue.push(badge);
+        return;
+    }
+    _showBadgeUnlock(badge);
+}
+
+// Check queue periodically
+setInterval(function() {
+    if (badgeShowing || badgeQueue.length === 0) return;
+    var bubble = document.getElementById('nacho-bubble');
+    var nachoInput = document.getElementById('nachoInput');
+    if (bubble && bubble.classList.contains('show') && nachoInput) return; // Still in Q&A
+    _showBadgeUnlock(badgeQueue.shift());
+}, 2000);
+
+function _showBadgeUnlock(badge) {
+    badgeShowing = true;
     if (typeof launchConfetti === 'function') launchConfetti();
     if (typeof playBadgeSound === 'function') playBadgeSound();
     const overlay = document.createElement('div');
@@ -126,9 +151,9 @@ function showBadgeUnlock(badge) {
         '<div style="color:var(--heading);font-size:1.3rem;font-weight:800;margin-bottom:6px;">' + badge.name + '</div>' +
         '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:12px;">' + badge.desc + '</div>' +
         (badge.pts ? '<div style="color:#f7931a;font-size:1.1rem;font-weight:800;margin-bottom:20px;">+' + badge.pts + ' points! ⭐</div>' : '<div style="margin-bottom:20px;"></div>') +
-        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! 🎉</button></div>';
+        '<button onclick="badgeShowing=false;this.closest(\'div[style*=fixed]\').remove()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Awesome! 🎉</button></div>';
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) { badgeShowing = false; overlay.remove(); } });
 }
 
 // Run badge checks periodically
