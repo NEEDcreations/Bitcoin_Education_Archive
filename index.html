@@ -1280,28 +1280,95 @@
         }
     }
 
-    // Keyboard shortcuts (desktop)
+    // Keyboard shortcuts (desktop) — MMORPG style!
     document.addEventListener('keydown', function(e) {
         // Don't fire in inputs
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        // S = focus search
-        if (e.key === 's' || e.key === '/') {
-            e.preventDefault();
-            var si = document.getElementById('searchInput');
-            if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); }
-        }
-        // R = random channel
-        if (e.key === 'r' && !e.ctrlKey && !e.metaKey) { goRandom(); }
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        var key = e.key.toLowerCase();
+        var ctrl = e.ctrlKey || e.metaKey;
+        if (ctrl) return; // Don't hijack browser shortcuts
+
+        // === Navigation ===
         // H = go home
-        if (e.key === 'h' && !e.ctrlKey && !e.metaKey) { goHome(); }
-        // Escape = close modals
-        if (e.key === 'Escape') {
+        if (key === 'h') { goHome(); return; }
+        // S or / = focus search
+        if (key === 's' || key === '/') { e.preventDefault(); var si = document.getElementById('searchInput'); if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); } return; }
+        // R = random channel
+        if (key === 'r') { goRandom(); return; }
+        // M = random meme
+        if (key === 'm') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
+        // A = random art
+        if (key === 'a') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
+
+        // === Quick Actions ===
+        // L = toggle leaderboard
+        if (key === 'l') { if (typeof toggleLeaderboard === 'function') toggleLeaderboard(); return; }
+        // Q = start quest on current channel
+        if (key === 'q') { var qb = document.getElementById('questBtn'); if (qb) qb.click(); return; }
+        // F = favorite/save current channel
+        if (key === 'f') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
+        // N = talk to Nacho (open Q&A input)
+        if (key === 'n') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
+        // T = toggle theme (dark/light)
+        if (key === 't') { var tb = document.getElementById('themeToggle'); if (tb) tb.click(); return; }
+        // G = gallery view (on supported channels)
+        if (key === 'g') { var gb = document.getElementById('galleryBtn'); if (gb) gb.click(); return; }
+
+        // === Scroll ===
+        // J = scroll down
+        if (key === 'j') { document.getElementById('main').scrollBy({ top: 300, behavior: 'smooth' }); return; }
+        // K = scroll up
+        if (key === 'k') { document.getElementById('main').scrollBy({ top: -300, behavior: 'smooth' }); return; }
+        // Space = page down (unless in modal)
+        if (key === ' ') { e.preventDefault(); document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }); return; }
+
+        // === Info ===
+        // ? = show keyboard shortcuts help
+        if (key === '?' || (e.shiftKey && key === '/')) { showKeyboardHelp(); return; }
+        // I = open settings
+        if (key === 'i') { if (typeof showSettingsPage === 'function') showSettingsPage('account'); return; }
+        // B = back to previous channel
+        if (key === 'b') { var lc = localStorage.getItem('btc_last_channel'); if (lc) go(lc); return; }
+
+        // === Escape = close modals ===
+        if (key === 'escape') {
             if (document.getElementById('lb').classList.contains('open')) document.getElementById('lb').classList.remove('open');
             if (document.getElementById('usernameModal').classList.contains('open')) hideUsernamePrompt();
             if (document.getElementById('questModal').classList.contains('open')) document.getElementById('questModal').classList.remove('open');
             if (isMobile() && document.getElementById('sidebar').classList.contains('open')) document.getElementById('sidebar').classList.remove('open');
         }
     });
+
+    // Keyboard shortcuts help modal
+    function showKeyboardHelp() {
+        var existing = document.getElementById('kbHelpModal');
+        if (existing) { existing.remove(); return; }
+        var modal = document.createElement('div');
+        modal.id = 'kbHelpModal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML =
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:16px;padding:28px 32px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+                '<h2 style="color:var(--accent);font-size:1.2rem;margin:0;">⌨️ Keyboard Shortcuts</h2>' +
+                '<span onclick="document.getElementById(\'kbHelpModal\').remove()" style="cursor:pointer;font-size:1.3rem;color:var(--text-faint);">✕</span>' +
+            '</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">Press <kbd style="background:var(--card-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-family:monospace;">?</kbd> to toggle this menu</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
+                kbRow('H','Go home') + kbRow('S / /','Search') + kbRow('R','Random channel') +
+                kbRow('M','Random meme') + kbRow('A','Random art') + kbRow('B','Back to last channel') +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
+                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('F','Favorite channel') +
+                kbRow('N','Ask Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') + kbRow('I','Settings') +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
+                kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
+            '</div></div>';
+        document.body.appendChild(modal);
+    }
+    function kbRow(key, desc) {
+        return '<div><kbd style="background:var(--card-bg);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-family:monospace;font-size:0.8rem;color:var(--heading);min-width:24px;display:inline-block;text-align:center;">' + key + '</kbd></div><div style="color:var(--text-muted);">' + desc + '</div>';
+    }
 
     // Cache loaded channel data
     const channelCache = {};

@@ -1280,6 +1280,10 @@ function showAccountInfo() {
 
 let settingsTab = 'account';
 
+function shortcutRow(key, desc) {
+    return '<div><kbd style="background:var(--bg-side);border:1px solid var(--border);padding:2px 7px;border-radius:4px;font-family:monospace;font-size:0.75rem;color:var(--heading);min-width:20px;display:inline-block;text-align:center;">' + key + '</kbd></div><div style="color:var(--text-muted);font-size:0.8rem;">' + desc + '</div>';
+}
+
 function showSettingsPage(tab) {
     settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
@@ -1471,6 +1475,19 @@ function showSettingsPage(tab) {
             '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
             '</div>';
+
+        // Keyboard Shortcuts
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⌨️ Keyboard Shortcuts</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">' +
+            shortcutRow('H','Home') + shortcutRow('S / /','Search') + shortcutRow('R','Random channel') +
+            shortcutRow('M','Random meme') + shortcutRow('A','Random art') + shortcutRow('B','Last channel') +
+            shortcutRow('L','Leaderboard') + shortcutRow('Q','Start quest') + shortcutRow('F','Favorite') +
+            shortcutRow('N','Ask Nacho') + shortcutRow('T','Toggle theme') + shortcutRow('G','Gallery view') +
+            shortcutRow('I','Settings') + shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
+            shortcutRow('?','This help') + shortcutRow('Esc','Close modals') +
+            '</div></div></div>';
 
         // Theme
         const isDark = document.body.getAttribute('data-theme') !== 'light';
