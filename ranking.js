@@ -50,6 +50,16 @@ let lastLevelName = '';
 function initRanking() {
     try {
         firebase.initializeApp(FIREBASE_CONFIG);
+
+        // Firebase App Check — prevents unauthorized API usage from bots/scrapers
+        // To enable: set your reCAPTCHA v3 site key from Firebase Console > App Check
+        // Then uncomment and replace 'YOUR_RECAPTCHA_V3_SITE_KEY' below
+        // if (typeof firebase.appCheck === 'function') {
+        //     try {
+        //         firebase.appCheck().activate('YOUR_RECAPTCHA_V3_SITE_KEY', true);
+        //     } catch(e) {}
+        // }
+
         db = firebase.firestore();
         auth = firebase.auth();
 
@@ -777,6 +787,9 @@ async function awardPoints(pts, reason) {
 function refreshLeaderboardIfOpen() {
     var lb = document.getElementById('leaderboard');
     if (lb && lb.classList.contains('open') && !lb.classList.contains('minimized')) {
+        // Clear cache so next open fetches fresh data
+        window._lbCache = null;
+        window._lbCacheTime = null;
         // Debounce: wait a moment for Firestore to propagate
         clearTimeout(window._lbRefreshTimer);
         window._lbRefreshTimer = setTimeout(function() {
@@ -1214,12 +1227,21 @@ async function toggleLeaderboard() {
     }
 
     try {
-        const snap = await db.collection('users').orderBy('points', 'desc').limit(100).get();
+        // Cache leaderboard data for 5 minutes to reduce Firestore reads
+        var now = Date.now();
+        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 300000);
         let allUsers = [];
-        snap.forEach(doc => {
-            const d = doc.data();
-            if (d.points > 0) allUsers.push({ id: doc.id, ...d });
-        });
+        if (useCache) {
+            allUsers = window._lbCache;
+        } else {
+            const snap = await db.collection('users').orderBy('points', 'desc').limit(100).get();
+            snap.forEach(doc => {
+                const d = doc.data();
+                if (d.points > 0) allUsers.push({ id: doc.id, ...d });
+            });
+            window._lbCache = allUsers;
+            window._lbCacheTime = now;
+        }
 
         let html = '<div class="lb-min-bar">🏆 Leaderboard — tap to expand</div>';
         html += '<div class="lb-header"><h3>🏆 Leaderboard</h3><div><button class="lb-close" onclick="hideLeaderboard()" title="Close">✕</button></div></div>';
