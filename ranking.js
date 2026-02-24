@@ -997,6 +997,11 @@ function updateRankUI() {
     var gBanner = document.getElementById('giveawayBanner');
     if (gBanner && currentUser.username) gBanner.style.display = 'none';
     const lv = getLevel(currentUser.points || 0);
+
+    // Always update the top-right user display, even if rankBar doesn't exist
+    updateGuestPointsBanner();
+    updateUserDisplay(lv);
+
     const bar = document.getElementById('rankBar');
     if (!bar) return;
 
@@ -1028,11 +1033,6 @@ function updateRankUI() {
         '</div>' + progressHtml + signInLink;
     bar.style.display = 'flex';
 
-    // Show guest points banner for anonymous users
-    updateGuestPointsBanner();
-
-    // Update user display on page
-    updateUserDisplay(lv);
 }
 
 function updateUserDisplay(lv) {
