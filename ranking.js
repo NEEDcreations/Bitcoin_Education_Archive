@@ -560,6 +560,9 @@ async function loadUser(uid) {
             }
         }
 
+        // Badges are now safe to check — Firebase data has been restored
+        window._badgesReady = true;
+
         // Refresh exploration map and home page elements
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof showContinueReading === 'function') showContinueReading();
@@ -587,6 +590,7 @@ async function loadUser(uid) {
             await db.collection('users').doc(uid).set(newData);
             currentUser = { uid, ...newData };
             rankingReady = true;
+            window._badgesReady = true;
             updateRankUI();
             updateAuthButton();
         }
@@ -704,6 +708,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     await db.collection('users').doc(uid).set(userData);
     currentUser = { uid, ...userData };
     rankingReady = true;
+    window._badgesReady = true;
     updateRankUI();
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();

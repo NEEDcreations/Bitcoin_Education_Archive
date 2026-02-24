@@ -94,23 +94,40 @@ const HIDDEN_BADGES = [
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; } },
 ];
 
+// Don't check badges until Firebase has restored the earned list
+// This prevents re-awarding badges on fresh sessions before Firebase syncs
+window._badgesReady = false;
+
 function checkHiddenBadges() {
+    // Wait until Firebase has had a chance to restore badges
+    if (!window._badgesReady) return;
+
     let earned = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+
+    // Also merge in session-tracked badges to prevent re-triggers within a session
+    if (!window._badgesShownThisSession) window._badgesShownThisSession = [];
+
     HIDDEN_BADGES.forEach(badge => {
-        if (!earned.includes(badge.id) && badge.check()) {
-            earned.push(badge.id);
-            localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
-            showBadgeUnlock(badge);
-            // Award points for badge
-            if (badge.pts && typeof awardPoints === 'function') {
-                awardPoints(badge.pts, badge.emoji + ' ' + badge.name + ' badge!');
-            }
-            // Save to Firebase
-            if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
-                db.collection('users').doc(auth.currentUser.uid).update({
-                    hiddenBadges: firebase.firestore.FieldValue.arrayUnion(badge.id)
-                }).catch(() => {});
-            }
+        // Skip if already earned (localStorage or Firebase-restored) or already shown this session
+        if (earned.includes(badge.id)) return;
+        if (window._badgesShownThisSession.includes(badge.id)) return;
+        if (!badge.check()) return;
+
+        // Mark as earned everywhere
+        earned.push(badge.id);
+        window._badgesShownThisSession.push(badge.id);
+        localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
+        showBadgeUnlock(badge);
+
+        // Award points for badge
+        if (badge.pts && typeof awardPoints === 'function') {
+            awardPoints(badge.pts, badge.emoji + ' ' + badge.name + ' badge!');
+        }
+        // Save to Firebase
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                hiddenBadges: firebase.firestore.FieldValue.arrayUnion(badge.id)
+            }).catch(() => {});
         }
     });
 }
@@ -157,6 +174,10 @@ function _showBadgeUnlock(badge) {
 
 // Run badge checks periodically
 setInterval(checkHiddenBadges, 10000);
+
+// Safety: if Firebase hasn't restored badges after 15s, allow checks anyway
+// (covers offline users, anonymous users, slow connections)
+setTimeout(function() { if (!window._badgesReady) window._badgesReady = true; }, 15000);
 
 // ---- READ NEXT SUGGESTIONS ----
 function getRelatedChannels(channelId) {
