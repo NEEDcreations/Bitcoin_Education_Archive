@@ -416,7 +416,7 @@ async function submitScholarQuest() {
     reviewBanner.innerHTML = '<div style="font-size:2rem;margin-bottom:8px;">' + (passed ? '🎓' : '📝') + '</div>' +
         '<div style="font-size:1.4rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + score + ' / 25 Correct</div>' +
         '<div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:12px;">Review your answers — <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
-        '<button onclick="showScholarFinalResults()" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Show What You've Earned! →</button>';
+        '<button onclick="showScholarFinalResults()" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Show What You\'ve Earned! →</button>';
     inner.insertBefore(reviewBanner, inner.firstChild);
     inner.scrollTop = 0;
     return;

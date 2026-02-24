@@ -1,5 +1,5 @@
 // Bitcoin Education Archive - Service Worker
-const CACHE_NAME = 'btc-archive-v1';
+const CACHE_NAME = 'btc-archive-v2';
 const OFFLINE_URL = '/';
 
 // Assets to pre-cache on install

@@ -886,7 +886,7 @@ function trackScroll() {
 // Listen for real user activity
 document.addEventListener('mousemove', trackActivity);
 document.addEventListener('keydown', trackActivity);
-document.addEventListener('touchstart', trackActivity);
+document.addEventListener('touchstart', trackActivity, { passive: true });
 document.addEventListener('click', trackActivity);
 setInterval(trackScroll, 2000);
 
