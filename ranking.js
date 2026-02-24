@@ -956,7 +956,7 @@ function updateGuestPointsBanner() {
                 '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
                 '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
             '</div>' +
-            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & enter the leaderboard!</div>' +
+            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & get on the leaderboard!</div>' +
         '</div>' +
         '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
     banner.style.display = 'flex';
