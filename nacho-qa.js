@@ -359,6 +359,11 @@ window.nachoAnswer = function() {
         return;
     }
 
+    // Track question count for badges
+    var qCount = parseInt(localStorage.getItem('btc_nacho_questions') || '0') + 1;
+    localStorage.setItem('btc_nacho_questions', qCount.toString());
+    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+
     var match = findAnswer(q);
 
     if (match) {

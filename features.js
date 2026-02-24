@@ -87,6 +87,10 @@ const HIDDEN_BADGES = [
     { id: 'ticket_bronze', name: 'Ticket Fish', emoji: '🐟', pts: 200, desc: 'Earn 25 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 25; } },
     { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', pts: 300, desc: 'Pass the Scholar Certification', check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
     { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', pts: 500, desc: 'Earn 50 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; } },
+    { id: 'nacho_curious', name: 'Curious Deer', emoji: '❓', pts: 50, desc: 'Ask Nacho your first question', check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 1; } },
+    { id: 'nacho_5q', name: 'Question Fawn', emoji: '🫎', pts: 100, desc: 'Ask Nacho 5 questions', check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 5; } },
+    { id: 'nacho_10q', name: 'Inquisitive Buck', emoji: '🔍', pts: 200, desc: 'Ask Nacho 10 questions', check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 10; } },
+    { id: 'nacho_20q', name: '20 Questions', emoji: '🏅', pts: 500, desc: 'Ask Nacho 20 questions', check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 20; } },
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; } },
 ];
 
