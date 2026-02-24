@@ -1594,8 +1594,8 @@
         var screen = document.getElementById('nachoModeScreen');
         if (screen) screen.remove();
 
-        // Restore everything
-        document.querySelectorAll('.mobile-bar, #rankBar, #lbFloatBtn, #nacho-container, #nacho-toggle, #userDisplay').forEach(function(el) {
+        // Restore everything that was hidden on enter
+        document.querySelectorAll('.mobile-bar, aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
             if (el) el.style.display = '';
         });
 
