@@ -1560,6 +1560,11 @@ function showSettingsPage(tab) {
         html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
         html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '🎟️');
+        if (typeof getNachoFriendship === 'function') {
+            var f = getNachoFriendship();
+            var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+            html += statRow('Nacho Friendship', f.emoji + ' ' + f.name + ' (' + interactions + ' interactions)', '🦌');
+        }
 
         html += '</div>';
 
