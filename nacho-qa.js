@@ -378,6 +378,26 @@ var OFF_TOPIC_PATTERNS = [
 
 function checkOffTopic(input) {
     var lower = input.toLowerCase().trim();
+
+    // Check if user is asking about themselves — use their actual name
+    if (/what is my name|what's my name|whats my name|who am i|do you know my name|say my name|know me|remember me|my name is/.test(lower)) {
+        var userName = typeof nachoUserName === 'function' ? nachoUserName() : '';
+        if (userName) {
+            var nameResponses = [
+                "Of course I know you, " + userName + "! 🦌 You're one of my favorite Bitcoiners. What can I help you learn today?",
+                "You're " + userName + "! How could I forget? 🧡 Now, got any Bitcoin questions for me?",
+                "Your name is " + userName + ", and you're awesome for being here! 🦌💪 What would you like to know about Bitcoin?",
+            ];
+            return nameResponses[Math.floor(Math.random() * nameResponses.length)];
+        } else {
+            var anonResponses = [
+                "I don't know your name yet! You haven't told me. 🦌 You can set a username in Settings. But more importantly — got a Bitcoin question?",
+                "Hmm, I don't have your name on file! Create an account and I'll remember you. 🧡 In the meantime, what Bitcoin topic interests you?",
+            ];
+            return anonResponses[Math.floor(Math.random() * anonResponses.length)];
+        }
+    }
+
     for (var i = 0; i < OFF_TOPIC_PATTERNS.length; i++) {
         if (OFF_TOPIC_PATTERNS[i].pattern.test(lower)) {
             var answers = OFF_TOPIC_PATTERNS[i].answers;
