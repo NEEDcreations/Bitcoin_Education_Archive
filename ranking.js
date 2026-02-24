@@ -1072,7 +1072,8 @@ function showLeaderboardAuto() {
     toggleLeaderboard();
 }
 
-function expandLeaderboard() {
+function expandLeaderboard(e) {
+    if (e) e.stopPropagation();
     document.querySelectorAll('.lb-extra').forEach(el => el.style.display = 'flex');
     const btn = document.getElementById('lbShowMore');
     if (btn) btn.remove();
@@ -1184,7 +1185,7 @@ async function toggleLeaderboard() {
         });
 
         if (allUsers.length > 10) {
-            html += '<button id="lbShowMore" onclick="expandLeaderboard()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show all ' + allUsers.length + ' users ▼</button>';
+            html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show all ' + allUsers.length + ' users ▼</button>';
         }
         html += '</div>';
 
