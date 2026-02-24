@@ -1035,13 +1035,10 @@ function updateRankUI() {
 }
 
 function updateUserDisplay(lv) {
-    // If guest banner is showing, hide userDisplay
+    // Hide old guest banner — we now use unified display
     var guestBanner = document.getElementById('guestPointsBanner');
-    if (guestBanner && guestBanner.style.display !== 'none') {
-        var existing = document.getElementById('userDisplay');
-        if (existing) existing.style.display = 'none';
-        return;
-    }
+    if (guestBanner) guestBanner.style.display = 'none';
+
     let el = document.getElementById('userDisplay');
     if (!el) {
         el = document.createElement('div');
@@ -1051,10 +1048,24 @@ function updateUserDisplay(lv) {
         document.body.appendChild(el);
     }
     el.style.display = 'flex';
-    const streakBit = (currentUser.streak || 0) > 0 ? '<span style="color:#f97316;font-weight:700;font-size:0.7rem;">🔥' + currentUser.streak + '</span>' : '';
-    el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
-        '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
-        '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' + streakBit;
+
+    var isAnon = auth && auth.currentUser && auth.currentUser.isAnonymous && !currentUser.username;
+    var displayName = currentUser.username || (isAnon ? 'Anonymous' : 'Anon');
+    var pts = (currentUser.points || 0);
+    var streakBit = (currentUser.streak || 0) > 0 ? '<span style="color:#f97316;font-weight:700;font-size:0.7rem;">🔥' + currentUser.streak + '</span>' : '';
+
+    if (isAnon || (!auth.currentUser || auth.currentUser.isAnonymous) && !currentUser.username) {
+        // Anonymous user — show points + create account button
+        el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
+            '<span style="color:var(--text);font-weight:600;">Anonymous</span>' +
+            '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' +
+            '<span onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:3px 8px;border-radius:6px;font-weight:700;font-size:0.7rem;white-space:nowrap;margin-left:2px;">Sign Up</span>';
+    } else {
+        // Signed in user (with username or real account)
+        el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
+            '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
+            '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' + streakBit;
+    }
 
     // Update mobile top bar user info
     const mobileInfo = document.getElementById('mobileUserInfo');
