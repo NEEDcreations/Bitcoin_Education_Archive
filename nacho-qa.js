@@ -225,8 +225,40 @@ const NACHO_KB = [
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
     // === ALTCOINS ===
-    { keys: ['ethereum','eth','altcoin','altcoin','other crypto','which crypto','best crypto','alt coins','solana','cardano','xrp','dogecoin','doge'],
-      answer: "There's Bitcoin and then there's everything else. Altcoins are mostly venture capital funded projects that don't share Bitcoin's properties — no fair launch, no true decentralization. Bitcoin only.",
+    { keys: ['ethereum','eth','vitalik','smart contract platform'],
+      answer: "Ethereum? Oh {name}, don't get me started! 🦌🙄 A premined token with an ever-changing monetary policy, controlled by a guy who was 19 when he launched it. They've changed the rules more times than I've shed my antlers. Rollback the DAO hack? Sure! Switch to PoS? Why not! Bitcoin has ONE monetary policy and it's NEVER changed. That's the difference between sound money and a science experiment. Check the Evidence Against Alts channel for the full story!",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['xrp','ripple','xrp token','ripple coin'],
+      answer: "XRP? You mean the banker's coin that was created out of thin air, with billions of tokens held by the company? 🦌💀 Let me get this straight — Bitcoin was invented to ESCAPE the banking system, and XRP wants to help banks go faster? That's like inventing fire and then using it to make better ice. Hard pass, {name}. Stack sats, not corporate IOUs!",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['kaspa','kas','kaspa coin','dag coin'],
+      answer: "Kaspa, {name}? Another 'faster Bitcoin' that nobody asked for? 🦌 Every cycle there's a new coin that claims to be better. They come, they pump, they dump, and Bitcoin keeps producing blocks. You know what's faster than Kaspa? Lightning Network. And it's built on the most secure network in human history. Not some new experiment. Stick with the king! 👑",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['solana','sol','solana coin'],
+      answer: "Solana? The chain that goes down more often than a broken elevator? 🦌😂 It's had like 10+ outages! Meanwhile Bitcoin has had 99.99% uptime since 2013. Oh, and Solana was VC-funded with insiders holding massive bags. Bitcoin had no premine, no VC money, no CEO. One is a tech startup. The other is a monetary revolution. Choose wisely, {name}!",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['dogecoin','doge','shiba','meme coin','memecoin','pepe coin','bonk'],
+      answer: "Meme coins, {name}? Really? 🦌😅 Look, I love memes — there's a whole memes channel on this site! But putting your money in a joke coin with infinite supply that was literally created as a parody? That's not investing, that's gambling. Bitcoin is the meme that became money. Everything else is money trying to become a meme. Big difference!",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['altcoin','alt coin','other crypto','which crypto','best crypto','alt coins','shitcoin','crypto','other coins','next bitcoin','bitcoin killer','any other coin'],
+      answer: "Listen {name}, I'm going to be real with you — there is no 'next Bitcoin.' 🦌 Every alt was either premined, VC-funded, has a CEO, or all three. Bitcoin had the most immaculate conception in financial history: no premine, anonymous creator who LEFT, and 15+ years of battle-tested security. Alts are securities cosplaying as innovation. There's Bitcoin, and then there's everything else. And 'everything else' has a 99% mortality rate. Stick with the orange coin! 🟠",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['cardano','ada','charles hoskinson'],
+      answer: "Cardano? Still waiting for that smart contract ecosystem they've been promising since 2017, {name}! 🦌 Charles Hoskinson got kicked out of Ethereum and somehow made something even slower. Meanwhile Bitcoin is processing trillions of dollars in value with no downtime. But hey, at least Cardano has... peer-reviewed papers? You can't pay for groceries with academic papers, {name}!",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['bnb','binance coin','binance'],
+      answer: "BNB — a token created by an exchange, for an exchange, controlled by an exchange whose founder is literally in legal trouble? 🦌 That's about as decentralized as my local bank. The whole point of Bitcoin is to NOT trust any single entity with your money. BNB is the opposite of that. Hard pass!",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['polkadot','dot','avalanche','avax','polygon','matic','tron','trx'],
+      answer: "Ah yes, another 'Ethereum killer' that's going to revolutionize everything! 🦌 {name}, I've seen hundreds of these come and go. They all promise to be faster, cheaper, better — but none of them can replicate Bitcoin's decentralization, security, or 15-year track record. You don't need 50 different blockchains. You need ONE that actually works and can't be stopped. That's Bitcoin. Period. 🟠",
       channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
 
     { keys: ['nft','nfts','ordinals','inscriptions','jpeg'],
