@@ -1094,6 +1094,22 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
+// Close leaderboard when clicking outside
+document.addEventListener('click', function(e) {
+    var lb = document.getElementById('leaderboard');
+    if (!lb || !lb.classList.contains('open') || lb.classList.contains('minimized')) return;
+    if (lb.contains(e.target)) return;
+    // Don't close if clicking the rank bar or leaderboard button
+    var rankBar = document.getElementById('rankBar');
+    if (rankBar && rankBar.contains(e.target)) return;
+    var fab = document.getElementById('lbFloatBtn');
+    if (fab && fab.contains(e.target)) return;
+    // Close it
+    lb.classList.remove('open');
+    lb.classList.remove('minimized');
+    if (fab) fab.style.display = 'flex';
+});
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     const fab = document.getElementById('lbFloatBtn');
