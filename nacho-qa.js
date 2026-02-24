@@ -216,6 +216,10 @@ const NACHO_KB = [
       answer: "I'm 5 years old — a full-grown adult buck! 🦌 That's about 35 in human years. In my prime, baby! These antlers don't grow themselves. 💪",
       channel: null, channelName: null },
 
+    { keys: ['how much bitcoin','how many bitcoin','how much btc','how many sats do you','your bitcoin','your btc','your stack','how much do you own','how much you got','your portfolio','how rich'],
+      answer: "Well there, my deer, that's not really any of your business now is it? 🦌 That's like me asking you how much money you have in the bank! I like to tell people that I own more BTC than I did yesterday though! 📈",
+      channel: null, channelName: null },
+
     { keys: ['thank','thanks','ty','appreciate','love you','you\'re great','good job','awesome'],
       answer: "Aww shucks! 🧡 You're the great one — you're here learning! That makes you smarter than most. Keep going and I'll keep cheering you on! 🦌💪",
       channel: null, channelName: null },
