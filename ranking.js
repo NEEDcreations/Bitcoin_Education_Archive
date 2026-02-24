@@ -1082,8 +1082,9 @@ function updateUserDisplay(lv) {
         // Signed in user (with username or real account) — clean display
         el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:130;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;';
         el.onclick = function() { showSettingsPage('account'); };
+        var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
         el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
-            '<span style="color:var(--text);font-weight:600;">' + (currentUser.username || 'Anon') + '</span>' +
+            '<span style="color:var(--text);font-weight:600;">' + escapeHtml(displayName) + '</span>' +
             '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' + streakBit;
     }
     el.style.display = 'flex';
