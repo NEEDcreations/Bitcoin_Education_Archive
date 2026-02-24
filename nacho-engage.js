@@ -199,6 +199,17 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
         }
     }
 
+    // Keep bubble open — prevent click-outside and auto-hide from dismissing
+    var bubble = document.getElementById('nacho-bubble');
+    if (bubble) bubble.setAttribute('data-interactive', 'true');
+    clearTimeout(window._nachoBubbleTimeout);
+
+    // Temporarily remove click-outside handlers so user can read the result
+    if (window._nachoDismissHandler) {
+        document.removeEventListener('mousedown', window._nachoDismissHandler);
+        document.removeEventListener('touchstart', window._nachoDismissHandler);
+    }
+
     var textEl = document.getElementById('nacho-text');
     var name = typeof nachoUserName === 'function' ? nachoUserName() : '';
     var n = name ? ', ' + name : '';
@@ -211,7 +222,8 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
         if (typeof setPose === 'function') setPose('love');
     }
 
-    textEl.innerHTML += '<button onclick="hideBubble(true)" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Continue</button>';
+    textEl.innerHTML += '<button onclick="showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">Ask Nacho a question 🦌</button>';
+    textEl.innerHTML += '<button onclick="hideBubble(true)" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Dismiss</button>';
 };
 
 // ---- Nacho Friendship Level ----
