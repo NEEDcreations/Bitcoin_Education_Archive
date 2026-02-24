@@ -730,6 +730,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     window._badgesReady = true;
         if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady();
     updateRankUI();
+    updateAuthButton();
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
@@ -1071,7 +1072,7 @@ function updateUserDisplay(lv) {
     const mobileInfo = document.getElementById('mobileUserInfo');
     if (mobileInfo) {
         const streak = (currentUser.streak || 0) > 0 ? ' 🔥' + currentUser.streak : '';
-        mobileInfo.textContent = lv.emoji + ' ' + (currentUser.username || 'Anon') + streak;
+        mobileInfo.textContent = lv.emoji + ' ' + (currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + streak;
         mobileInfo.style.display = 'inline';
     }
 
