@@ -1487,7 +1487,17 @@ function showSettingsPage(tab) {
             shortcutRow('N','Ask Nacho') + shortcutRow('T','Toggle theme') + shortcutRow('G','Gallery view') +
             shortcutRow('I','Settings') + shortcutRow('D','Donate') + shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
             shortcutRow('?','This help') + shortcutRow('Esc','Close modals') +
-            '</div></div></div>';
+            '</div>' +
+            '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">' +
+            '<div style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-bottom:8px;">📱 Mobile Gestures</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">' +
+            shortcutRow('Swipe →','Go home') +
+            shortcutRow('Swipe ←','Random channel') +
+            shortcutRow('2-finger tap','Leaderboard') +
+            shortcutRow('Long-press logo','Donate') +
+            shortcutRow('3× tap Nacho','Nacho flies!') +
+            '</div></div>' +
+            '</div></div>';
 
         // Theme
         const isDark = document.body.getAttribute('data-theme') !== 'light';

@@ -1417,6 +1417,93 @@
         return '<div><kbd style="background:var(--card-bg);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-family:monospace;font-size:0.8rem;color:var(--heading);min-width:24px;display:inline-block;text-align:center;">' + key + '</kbd></div><div style="color:var(--text-muted);">' + desc + '</div>';
     }
 
+    // ---- Mobile Gestures ----
+    (function() {
+        if (!('ontouchstart' in window)) return; // Desktop, skip
+
+        // Shake to hear a random Bitcoin quote (easter egg)
+        var shakeThreshold = 20;
+        var lastShake = 0;
+        var lastAccel = { x: 0, y: 0, z: 0 };
+        window.addEventListener('devicemotion', function(e) {
+            var a = e.accelerationIncludingGravity;
+            if (!a) return;
+            var dx = Math.abs(a.x - lastAccel.x);
+            var dy = Math.abs(a.y - lastAccel.y);
+            var dz = Math.abs(a.z - lastAccel.z);
+            lastAccel = { x: a.x, y: a.y, z: a.z };
+            if (dx + dy + dz > shakeThreshold) {
+                var now = Date.now();
+                if (now - lastShake < 4000) return;
+                lastShake = now;
+                var quotes = [
+                    "There is no second best.",
+                    "One more block.",
+                    "Don't trust. Verify.",
+                    "Number go up!",
+                    "Stay humble. Stack sats.",
+                    "Not your keys, not your coins.",
+                    "Bitcoin fixes this.",
+                    "Tick tock, next block."
+                ];
+                speakEasterEgg(quotes[Math.floor(Math.random() * quotes.length)]);
+                if (Math.random() < 0.3 && typeof nachoFly === 'function') nachoFly();
+            }
+        });
+
+        // Swipe left/right on content area for random channel navigation
+        var touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+        var mainEl = document.getElementById('main');
+        mainEl.addEventListener('touchstart', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        mainEl.addEventListener('touchend', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            var dy = e.changedTouches[0].clientY - touchStartY;
+            var dt = Date.now() - touchStartTime;
+            // Must be a quick, horizontal swipe (not a scroll)
+            if (dt > 400 || Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 80) return;
+
+            if (dx > 80) {
+                // Swipe right → go home
+                goHome();
+            } else if (dx < -80) {
+                // Swipe left → random channel
+                goRandom();
+            }
+        }, { passive: true });
+
+        // Two-finger tap → toggle leaderboard
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
+            }
+        }, { passive: false });
+
+        // Long-press on logo → donate section
+        var logos = document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img');
+        logos.forEach(function(logo) {
+            var lp;
+            logo.addEventListener('touchstart', function(e) {
+                lp = setTimeout(function() {
+                    goHome();
+                    setTimeout(function() {
+                        var ds = document.getElementById('donateSection');
+                        if (ds) ds.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }, 800);
+            }, { passive: true });
+            logo.addEventListener('touchend', function() { clearTimeout(lp); });
+            logo.addEventListener('touchmove', function() { clearTimeout(lp); });
+        });
+    })();
+
     // Cache loaded channel data
     const channelCache = {};
 
