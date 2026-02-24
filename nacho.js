@@ -196,7 +196,7 @@ const FUN = [
 
 // ---- Welcome Messages ----
 const WELCOME = [
-    { pose: 'wave', text: "👋 Hey{name}! I'm Nacho — a strong buck from New Hampshire! Click me anytime for Bitcoin tips and wisdom. 🦌💪" },
+    { pose: 'wave', text: "👋 Hey, {name}! I'm Nacho — a strong buck from New Hampshire! Click me anytime for Bitcoin tips and wisdom. 🦌💪" },
     { pose: 'wave', text: "👋 Welcome back, {name}! Your friendly NH buck missed you! Ready to tackle some Bitcoin knowledge today? 💪" },
     { pose: 'wave', text: "👋 {name}! Nacho here — the strongest buck in New Hampshire and your Bitcoin guide! Let's learn something! 🦌" },
 ];
@@ -729,7 +729,17 @@ function nachoUserName() {
 // Inject username into message text — replaces {name} placeholder
 function personalize(text) {
     var name = nachoUserName();
-    if (!name) return text.replace(/,?\s*\{name\}/g, '').replace(/\{name\},?\s*/g, '');
+    if (!name) {
+        // Remove {name} and surrounding commas/spaces cleanly
+        text = text.replace(/,?\s*\{name\}\s*,?\s*/g, function(match) {
+            // If both commas existed (e.g. ", {name},"), collapse to single comma+space
+            if (match.indexOf(',') === 0 && match.lastIndexOf(',') > 0) return ', ';
+            return match.charAt(0) === ',' ? ' ' : '';
+        });
+        // Clean up any double spaces or leading commas
+        text = text.replace(/  +/g, ' ').replace(/^ ,/, '').replace(/, ,/g, ',').trim();
+        return text;
+    }
     return text.replace(/\{name\}/g, name);
 }
 
