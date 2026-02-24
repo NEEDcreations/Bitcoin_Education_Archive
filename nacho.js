@@ -192,6 +192,23 @@ const FUN = [
     { pose: 'fire', text: "They said Bitcoin was dead 477 times, {name}. And here we are. Still stacking. 🦌💪" },
     { pose: 'eyes', text: "The forest is full of distractions. I stick to the trail marked ₿. 🌲" },
     { pose: 'celebrate', text: "When in doubt, zoom out, {name}. That goes for the chart AND the rabbit hole. 🔭" },
+
+    // ---- Deer/Bitcoin Puns ----
+    { pose: 'cool', text: "Oh deer, another all-time high? I'm not surprised. 🦌📈" },
+    { pose: 'cheese', text: "What do you call a deer who loves Bitcoin? A buck-hodler! 🦌💎" },
+    { pose: 'celebrate', text: "I'm fawned of Bitcoin. Get it? ...I'll see myself out. 🦌😂" },
+    { pose: 'think', text: "People say Bitcoin is hard to understand. I say it's deer-ly obvious! 🦌💡" },
+    { pose: 'cool', text: "I don't always check the charts, but when I doe, I HODL. 🦌😎" },
+    { pose: 'fire', text: "Just earned some sats! Another buck in the wallet! 💰🦌" },
+    { pose: 'cheese', text: "Why do deer make great Bitcoiners? Because we never sell — we just stag-ger through the dips! 🦌📉📈" },
+    { pose: 'celebrate', text: "This site really helps you get to the hart of Bitcoin! ...Sorry, deer puns are my specialty. 🦌❤️" },
+    { pose: 'think', text: "Fiat currency is on its last legs. Lucky for me, I have four of them! 🦌🏃" },
+    { pose: 'cool', text: "Did you hear about the deer who understood Bitcoin? He was considered a doe-cipherpunk! 🦌🛡️" },
+    { pose: 'fire', text: "Some say the Bitcoin market is wild. Well, I AM a wild animal, so I fit right in! 🦌🔥" },
+    { pose: 'cheese', text: "I tried mining Bitcoin with my hooves. It was un-fawn-tunately not very efficient. ⛏️🦌" },
+    { pose: 'celebrate', text: "What's a deer's favorite cryptocurrency? Bit-coin, because we love our bits of grass too! 🌿🦌" },
+    { pose: 'think', text: "My financial advice? Be a deer and HODL. That's not real advice though, I'm literally a deer. 🦌📜" },
+    { pose: 'cool', text: "They call me a stag-ger-ing intellect when it comes to Bitcoin. Okay, I call myself that. 🦌🧠" },
 ];
 
 // ---- Welcome Messages ----
