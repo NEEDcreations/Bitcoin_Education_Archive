@@ -1288,7 +1288,8 @@ function showSettingsPage(tab) {
     settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');
-    const user = auth.currentUser;
+    if (!modal || !box) return;
+    const user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
 
     // X close button
@@ -1585,7 +1586,7 @@ function showSettingsPage(tab) {
 
     } else if (settingsTab === 'data') {
         // Refresh data from Firebase if available
-        if (auth.currentUser && typeof db !== 'undefined') {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined') {
             db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
                 if (doc.exists && currentUser) {
                     const fresh = doc.data();
