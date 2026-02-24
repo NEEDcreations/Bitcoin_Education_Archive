@@ -1413,6 +1413,11 @@ function showSettingsPage(tab) {
         }
         html += '</div>';
 
+        // Nacho's Closet
+        if (typeof renderNachoClosetUI === 'function') {
+            html += '<div id="nachoClosetContainer" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;"></div>';
+        }
+
         // Push Notifications
         const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -1576,6 +1581,12 @@ function showSettingsPage(tab) {
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+
+    // Render Nacho's Closet if on prefs tab
+    if (settingsTab === 'prefs' && typeof renderNachoClosetUI === 'function') {
+        var closetContainer = document.getElementById('nachoClosetContainer');
+        if (closetContainer) renderNachoClosetUI(closetContainer);
+    }
 }
 
 // Language translation via Google Translate

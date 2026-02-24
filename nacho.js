@@ -770,8 +770,16 @@ function periodicMessage() {
         if (live) { showBubble(live.text, live.pose); return; }
     }
 
-    const pools = [TIPS, MOTIVATION, FUN];
-    const pool = pickRandom(pools);
+    // Check for newly unlocked closet items
+    if (typeof checkNachoNewItems === 'function') {
+        var newItem = checkNachoNewItems();
+        if (newItem) { forceShowBubble(newItem.text, newItem.pose); if (typeof nachoPlaySound === 'function') nachoPlaySound('coin'); return; }
+    }
+
+    // Mix in closet tips occasionally
+    var allPools = [TIPS, MOTIVATION, FUN];
+    if (typeof NACHO_CLOSET_TIPS !== 'undefined' && Math.random() < 0.15) allPools.push(NACHO_CLOSET_TIPS);
+    const pool = pickRandom(allPools);
     const unshown = pool.filter(m => !shownMessages.has(m.text));
     if (unshown.length === 0) return;
     const msg = pickRandom(unshown);
