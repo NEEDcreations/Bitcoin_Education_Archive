@@ -212,6 +212,10 @@ const NACHO_KB = [
       answer: "I'm Nacho! A strong buck from New Hampshire. 🦌💪 I roam this site helping Bitcoiners learn. My motto: Nacho keys, nacho cheese! Click me anytime for tips, jokes, or Bitcoin wisdom!",
       channel: null, channelName: null },
 
+    { keys: ['how old are you','how old is nacho','your age','age','when were you born','birthday','when is your birthday'],
+      answer: "I'm 5 years old — a full-grown adult buck! 🦌 That's about 35 in human years. In my prime, baby! These antlers don't grow themselves. 💪",
+      channel: null, channelName: null },
+
     { keys: ['thank','thanks','ty','appreciate','love you','you\'re great','good job','awesome'],
       answer: "Aww shucks! 🧡 You're the great one — you're here learning! That makes you smarter than most. Keep going and I'll keep cheering you on! 🦌💪",
       channel: null, channelName: null },
