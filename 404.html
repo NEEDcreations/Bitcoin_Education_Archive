@@ -687,6 +687,7 @@
                 <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:10px;">
                     <button class="home-cta" onclick="go('whitepaper')" style="margin-bottom:0;">Start Exploring →</button>
+                    <button onclick="enterNachoMode()" style="display:block;margin:16px auto 0;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🦌 Nacho Mode</button>
                     <button id="authBtn" onclick="showUsernamePrompt()" style="display:inline-block;padding:12px 30px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Free Account / Sign In</button>
 <!-- random buttons moved to channel footer only -->
                 </div>
@@ -1323,6 +1324,185 @@
             window.location.href = 'mailto:info.603btc.com@gmail.com?subject=Support%20-%20Bitcoin%20Education%20Archive';
         }
     }
+
+    // ---- NACHO MODE ----
+    window._nachoMode = false;
+    window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
+
+    window.enterNachoMode = function() {
+        window._nachoMode = true;
+        window._nachoBusy = true; // suppress ALL popups
+        window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
+
+        // Hide everything
+        document.getElementById('home').classList.add('hidden');
+        document.getElementById('hero').innerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
+        document.querySelectorAll('.mobile-bar, aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+            if (el) el.style.display = 'none';
+        });
+
+        // Build Nacho Mode screen
+        var main = document.getElementById('main');
+        main.scrollTop = 0;
+
+        var nachoSvg = typeof NACHO_SVG !== 'undefined' ? NACHO_SVG : '🦌';
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+        var greeting = userName ? "Hey " + userName + "! Let's talk Bitcoin." : "Hey! Let's talk Bitcoin.";
+
+        var screen = document.createElement('div');
+        screen.id = 'nachoModeScreen';
+        screen.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px 20px;text-align:center;animation:fadeSlideIn 0.4s ease-out;';
+        screen.innerHTML =
+            '<button onclick="exitNachoMode()" style="position:fixed;top:16px;left:16px;background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:8px;font-size:0.85rem;cursor:pointer;font-family:inherit;z-index:10;touch-action:manipulation;">← Back to Archive</button>' +
+            '<div style="width:160px;height:160px;margin-bottom:20px;">' + nachoSvg + '</div>' +
+            '<div style="color:var(--accent);font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
+            '<div style="color:var(--heading);font-size:1.4rem;font-weight:800;margin-bottom:8px;">' + greeting + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px;max-width:400px;">Ask me anything about Bitcoin. I\'ll answer with AI, link you to the best resources, and we\'ll build our friendship along the way!</div>' +
+            '<div id="nachoModeChat" style="width:100%;max-width:500px;margin-bottom:20px;"></div>' +
+            '<div style="width:100%;max-width:500px;">' +
+                '<div style="position:relative;">' +
+                    '<input type="text" id="nachoModeInput" placeholder="Ask Nacho anything about Bitcoin..." maxlength="500" style="width:100%;padding:14px 50px 14px 16px;background:var(--input-bg,#111);border:2px solid var(--border,#333);border-radius:12px;color:var(--text,#eee);font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')nachoModeSend()">' +
+                    '<button onclick="nachoModeSend()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Ask</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.8rem;margin-top:16px;"></div>';
+
+        main.appendChild(screen);
+
+        // Show friendship level
+        updateNachoModeFriendship();
+
+        // Focus input
+        setTimeout(function() {
+            var inp = document.getElementById('nachoModeInput');
+            if (inp) inp.focus();
+        }, 300);
+    };
+
+    window.nachoModeSend = function() {
+        var inp = document.getElementById('nachoModeInput');
+        var chat = document.getElementById('nachoModeChat');
+        if (!inp || !chat) return;
+        var q = inp.value.trim();
+        if (!q) return;
+        inp.value = '';
+
+        // Track interaction
+        if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+        window._nachoModeEarnings.interactions++;
+
+        // Show user message
+        chat.innerHTML =
+            '<div style="margin-bottom:12px;text-align:right;">' +
+                '<span style="background:var(--accent-bg);border:1px solid var(--accent);padding:10px 14px;border-radius:12px 12px 0 12px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;">' + escapeHtml(q) + '</span>' +
+            '</div>' +
+            '<div style="margin-bottom:12px;text-align:left;">' +
+                '<span style="background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;border-radius:12px 12px 12px 0;display:inline-block;max-width:80%;color:var(--text-muted);font-size:0.9rem;">🦌 Thinking<span class="nacho-dots"></span></span>' +
+            '</div>';
+
+        // Animate dots
+        var dotsEl = chat.querySelector('.nacho-dots');
+        var dc = 0;
+        var dt = setInterval(function() { dc=(dc+1)%4; if(dotsEl) dotsEl.textContent='.'.repeat(dc); }, 400);
+
+        // Use the full Nacho answer pipeline but simplified
+        // Check safety first
+        if (typeof isInappropriate === 'function' && isInappropriate(q)) {
+            clearInterval(dt);
+            showNachoModeReply(chat, "Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌");
+            return;
+        }
+
+        if (typeof isCrisis === 'function' && isCrisis(q)) {
+            clearInterval(dt);
+            showNachoModeReply(chat, "Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛");
+            return;
+        }
+
+        // Check off-topic
+        if (typeof checkOffTopic === 'function') {
+            var ot = checkOffTopic(q);
+            if (ot) {
+                clearInterval(dt);
+                var otMsg = typeof personalize === 'function' ? personalize(ot) : ot;
+                showNachoModeReply(chat, otMsg);
+                return;
+            }
+        }
+
+        // Check local KB
+        if (typeof findAnswer === 'function') {
+            var match = null;
+            if (typeof nachoLiveAnswer === 'function') match = nachoLiveAnswer(q);
+            if (!match) match = findAnswer(q);
+            if (match) {
+                clearInterval(dt);
+                var ans = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
+                var channelLink = match.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match.channelName || match.channel) + ' →</a>' : '';
+                showNachoModeReply(chat, ans + channelLink);
+                return;
+            }
+        }
+
+        // Try AI
+        if (typeof nachoAIAnswer === 'function') {
+            nachoAIAnswer(q, function(aiAnswer) {
+                clearInterval(dt);
+                if (aiAnswer) {
+                    showNachoModeReply(chat, aiAnswer);
+                } else {
+                    showNachoModeReply(chat, "Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌");
+                }
+            });
+            return;
+        }
+
+        clearInterval(dt);
+        showNachoModeReply(chat, "I'm still warming up my antlers! Try asking me about Bitcoin basics, mining, Lightning, or wallets. 🦌");
+    };
+
+    function showNachoModeReply(chat, html) {
+        chat.innerHTML =
+            chat.innerHTML.split('Thinking<span')[0].replace(/<div style="margin-bottom:12px;text-align:left;">[\s\S]*$/, '') +
+            '<div style="margin-bottom:12px;text-align:left;">' +
+                '<span style="background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;border-radius:12px 12px 12px 0;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;line-height:1.5;">🦌 ' + html + '</span>' +
+            '</div>';
+        updateNachoModeFriendship();
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function updateNachoModeFriendship() {
+        var el = document.getElementById('nachoModeFriendship');
+        if (!el) return;
+        var f = typeof getNachoFriendship === 'function' ? getNachoFriendship() : { emoji: '🦌', name: 'Unknown', level: 0 };
+        var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+        el.textContent = f.emoji + ' Friendship: ' + f.name + ' · ' + interactions + ' interactions';
+    }
+
+    window.exitNachoMode = function() {
+        window._nachoMode = false;
+        window._nachoBusy = false;
+
+        // Remove Nacho Mode screen
+        var screen = document.getElementById('nachoModeScreen');
+        if (screen) screen.remove();
+
+        // Restore everything
+        document.querySelectorAll('.mobile-bar, #rankBar, #lbFloatBtn, #nacho-container, #nacho-toggle, #userDisplay').forEach(function(el) {
+            if (el) el.style.display = '';
+        });
+
+        // Show summary of what was earned
+        var e = window._nachoModeEarnings;
+        if (e.interactions > 0) {
+            if (typeof showToast === 'function') {
+                showToast('🦌 Nacho Mode: ' + e.interactions + ' interactions!');
+            }
+        }
+
+        goHome();
+    };
 
     function goHome(fromPopState) {
         var fb = document.getElementById('floatingRandomBtn');
