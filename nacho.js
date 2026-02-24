@@ -779,13 +779,13 @@ function periodicMessage() {
 }
 
 // ---- Utility ----
-function nachoUserName() {
+window.nachoUserName = function() {
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) return currentUser.username;
     return '';
 }
 
 // Inject username into message text — replaces {name} placeholder
-function personalize(text) {
+window.personalize = function(text) {
     var name = nachoUserName();
     if (!name) {
         // Remove {name} and surrounding commas/spaces cleanly
