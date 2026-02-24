@@ -618,7 +618,7 @@ function createNacho() {
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span class="nacho-closet-btn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();try{if(typeof showSettingsPage===\'function\')showSettingsPage(\'data\');}catch(e){console.log(\'closet error\',e);}" title="Nacho\'s Closet — dress me up!">👔</span>' +
+            '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔</span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble(true)">' +
             '<div class="nacho-header">' +
@@ -628,6 +628,29 @@ function createNacho() {
             '<div id="nacho-text"></div>' +
         '</div>';
     document.body.appendChild(container);
+
+    // Closet button — use addEventListener to fully control event propagation
+    // Inline handlers fail on mobile because touchend propagates to avatar → nachoClick()
+    var closetBtn = document.getElementById('nachoClosetBtn');
+    if (closetBtn) {
+        var closetTouched = false;
+        closetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); }, false);
+        closetBtn.addEventListener('touchstart', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); closetTouched = true; }, { passive: false });
+        closetBtn.addEventListener('touchend', function(e) {
+            e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
+            if (closetTouched) {
+                closetTouched = false;
+                try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
+            }
+        }, { passive: false });
+        closetBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); e.stopImmediatePropagation();
+            if (!closetTouched) { // Only fire on non-touch (mouse) clicks
+                try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
+            }
+            closetTouched = false;
+        }, false);
+    }
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
