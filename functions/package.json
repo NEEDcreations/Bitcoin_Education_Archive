@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "firebase-admin": "^13.6.1",
-    "firebase-functions": "^7.0.5",
+    "firebase-functions": "^4.9.0",
     "otplib": "^13.3.0",
     "qrcode": "^1.5.4"
   },
