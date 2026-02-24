@@ -386,6 +386,44 @@ function createNacho() {
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
         /* 1. Tap tap — like Clippy tapping on the screen */
+        /* Nacho victory flight! */
+        @keyframes nachoFly {
+            0% { transform: translateY(0) rotate(0deg); }
+            8% { transform: translateY(-60px) translateX(30px) rotate(-10deg); }
+            16% { transform: translateY(-120px) translateX(80px) rotate(5deg); }
+            24% { transform: translateY(-80px) translateX(160px) rotate(-8deg); }
+            32% { transform: translateY(-150px) translateX(260px) rotate(10deg); }
+            40% { transform: translateY(-60px) translateX(380px) rotate(-5deg); }
+            48% { transform: translateY(-130px) translateX(500px) rotate(8deg); }
+            56% { transform: translateY(-40px) translateX(400px) rotate(-10deg); }
+            64% { transform: translateY(-110px) translateX(280px) rotate(5deg); }
+            72% { transform: translateY(-50px) translateX(150px) rotate(-8deg); }
+            80% { transform: translateY(-90px) translateX(60px) rotate(10deg); }
+            88% { transform: translateY(-30px) translateX(20px) rotate(-5deg); }
+            96% { transform: translateY(-10px) translateX(5px) rotate(2deg); }
+            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+        }
+        @keyframes nachoFlyMobile {
+            0% { transform: translateY(0) rotate(0deg); }
+            10% { transform: translateY(-80px) translateX(20px) rotate(-10deg); }
+            25% { transform: translateY(-150px) translateX(60px) rotate(8deg); }
+            40% { transform: translateY(-80px) translateX(120px) rotate(-8deg); }
+            55% { transform: translateY(-160px) translateX(60px) rotate(10deg); }
+            70% { transform: translateY(-100px) translateX(20px) rotate(-5deg); }
+            85% { transform: translateY(-30px) translateX(5px) rotate(3deg); }
+            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+        }
+        #nacho-avatar.flying {
+            animation: nachoFly 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            z-index: 999;
+            filter: drop-shadow(0 8px 24px rgba(247,147,26,0.6));
+        }
+        @media (max-width: 900px) {
+            #nacho-avatar.flying {
+                animation: nachoFlyMobile 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            }
+        }
+
         @keyframes nachoTap {
             0%, 100% { transform: translateY(0); }
             10% { transform: translateY(-6px); }
@@ -721,7 +759,7 @@ window.nachoOnChannel = function(channelId) {
     // Category completion check
     if (typeof nachoCategoryCheck === 'function') {
         var catMsg = nachoCategoryCheck(channelId);
-        if (catMsg) { forceShowBubble(catMsg.text, catMsg.pose); if (typeof nachoPlaySound === 'function') nachoPlaySound('coin'); return; }
+        if (catMsg) { forceShowBubble(catMsg.text, catMsg.pose); if (typeof nachoPlaySound === 'function') nachoPlaySound('coin'); setTimeout(nachoFly, 500); return; }
     }
 
     // Check for specific channel message
@@ -746,12 +784,32 @@ window.nachoOnPoints = function(pts) {
 };
 
 // ---- Context-Aware: Quest Complete ----
+// ---- Nacho Victory Flight ----
+window.nachoFly = function() {
+    var avatar = document.getElementById('nacho-avatar');
+    if (!avatar || avatar.classList.contains('flying')) return;
+
+    // Remove idle animations
+    ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(function(a) { avatar.classList.remove(a); });
+
+    avatar.classList.add('flying');
+    if (typeof nachoPlaySound === 'function') nachoPlaySound('coin');
+
+    // Remove flying class when animation ends, resume idle
+    avatar.addEventListener('animationend', function handler() {
+        avatar.classList.remove('flying');
+        avatar.classList.add('anim-bounce');
+        avatar.removeEventListener('animationend', handler);
+    });
+};
+
 window.nachoOnQuest = function(passed) {
     if (!nachoVisible) return;
     lastBubbleTime = 0;
     if (passed) {
         setPose('celebrate');
         forceShowBubble(personalize("{name}, you CRUSHED that quest! This buck is VERY impressed! 🦌🎉🔥"));
+        setTimeout(nachoFly, 500);
     } else {
         setPose('love');
         forceShowBubble(personalize("Hey {name}, some questions are hard! Read up and try again — Nacho believes in you! 🦌💪"));
@@ -784,7 +842,7 @@ function periodicMessage() {
     // Check for milestone celebration first
     if (typeof nachoCheckMilestone === 'function') {
         var milestone = nachoCheckMilestone();
-        if (milestone) { forceShowBubble(milestone.text, milestone.pose); return; }
+        if (milestone) { forceShowBubble(milestone.text, milestone.pose); setTimeout(nachoFly, 500); return; }
     }
 
     // 20% chance of live data message
