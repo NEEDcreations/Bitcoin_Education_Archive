@@ -386,42 +386,63 @@ function createNacho() {
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
         /* 1. Tap tap — like Clippy tapping on the screen */
-        /* Nacho victory flight! */
+        /* Nacho victory flight — Lightning bolt ⚡ pattern! */
         @keyframes nachoFly {
-            0% { transform: translateY(0) rotate(0deg); }
-            8% { transform: translateY(-60px) translateX(30px) rotate(-10deg); }
-            16% { transform: translateY(-120px) translateX(80px) rotate(5deg); }
-            24% { transform: translateY(-80px) translateX(160px) rotate(-8deg); }
-            32% { transform: translateY(-150px) translateX(260px) rotate(10deg); }
-            40% { transform: translateY(-60px) translateX(380px) rotate(-5deg); }
-            48% { transform: translateY(-130px) translateX(500px) rotate(8deg); }
-            56% { transform: translateY(-40px) translateX(400px) rotate(-10deg); }
-            64% { transform: translateY(-110px) translateX(280px) rotate(5deg); }
-            72% { transform: translateY(-50px) translateX(150px) rotate(-8deg); }
-            80% { transform: translateY(-90px) translateX(60px) rotate(10deg); }
-            88% { transform: translateY(-30px) translateX(20px) rotate(-5deg); }
-            96% { transform: translateY(-10px) translateX(5px) rotate(2deg); }
-            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+            /* Sharp zigzag like a lightning bolt going up-right then back */
+            0%   { transform: translate(0, 0) rotate(0deg); }
+            /* Bolt strike 1: up-right */
+            8%   { transform: translate(80px, -120px) rotate(15deg); }
+            /* Bolt strike 2: sharp right-down */
+            16%  { transform: translate(200px, -60px) rotate(-12deg); }
+            /* Bolt strike 3: up-right again */
+            24%  { transform: translate(320px, -180px) rotate(18deg); }
+            /* Bolt strike 4: sharp right-down */
+            32%  { transform: translate(450px, -90px) rotate(-15deg); }
+            /* Peak: top of the bolt */
+            40%  { transform: translate(500px, -220px) rotate(10deg) scale(1.15); }
+            /* Return bolt: zigzag back */
+            50%  { transform: translate(400px, -100px) rotate(-12deg); }
+            60%  { transform: translate(280px, -200px) rotate(15deg); }
+            70%  { transform: translate(160px, -80px) rotate(-10deg); }
+            80%  { transform: translate(60px, -150px) rotate(8deg); }
+            90%  { transform: translate(15px, -40px) rotate(-5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
         }
         @keyframes nachoFlyMobile {
-            0% { transform: translateY(0) rotate(0deg); }
-            10% { transform: translateY(-80px) translateX(20px) rotate(-10deg); }
-            25% { transform: translateY(-150px) translateX(60px) rotate(8deg); }
-            40% { transform: translateY(-80px) translateX(120px) rotate(-8deg); }
-            55% { transform: translateY(-160px) translateX(60px) rotate(10deg); }
-            70% { transform: translateY(-100px) translateX(20px) rotate(-5deg); }
-            85% { transform: translateY(-30px) translateX(5px) rotate(3deg); }
-            100% { transform: translateY(0) translateX(0) rotate(0deg); }
+            0%   { transform: translate(0, 0) rotate(0deg); }
+            10%  { transform: translate(40px, -100px) rotate(15deg); }
+            20%  { transform: translate(100px, -40px) rotate(-12deg); }
+            30%  { transform: translate(150px, -160px) rotate(18deg); }
+            40%  { transform: translate(180px, -80px) rotate(-10deg) scale(1.1); }
+            55%  { transform: translate(130px, -180px) rotate(12deg); }
+            70%  { transform: translate(60px, -60px) rotate(-8deg); }
+            85%  { transform: translate(15px, -100px) rotate(5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
         }
         #nacho-avatar.flying {
-            animation: nachoFly 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            animation: nachoFly 3s linear forwards;
             z-index: 999;
-            filter: drop-shadow(0 8px 24px rgba(247,147,26,0.6));
+            filter: drop-shadow(0 0 20px rgba(247,147,26,0.8)) drop-shadow(0 0 40px rgba(234,88,12,0.4));
         }
         @media (max-width: 900px) {
             #nacho-avatar.flying {
-                animation: nachoFlyMobile 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+                animation: nachoFlyMobile 2.5s linear forwards;
             }
+        }
+        /* Lightning trail particles */
+        .nacho-trail {
+            position: fixed;
+            pointer-events: none;
+            z-index: 998;
+            font-size: 1.2rem;
+            opacity: 1;
+            transition: none;
+            animation: nachoTrailFade 0.8s ease-out forwards;
+        }
+        @keyframes nachoTrailFade {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.3); }
+            100% { opacity: 0; transform: scale(0.3); }
         }
 
         @keyframes nachoTap {
@@ -795,11 +816,26 @@ window.nachoFly = function() {
     avatar.classList.add('flying');
     if (typeof nachoPlaySound === 'function') nachoPlaySound('coin');
 
+    // Spawn lightning trail particles as Nacho flies
+    var trailSymbols = ['⚡', '✨', '🔥', '⚡', '💫', '⚡'];
+    var trailInterval = setInterval(function() {
+        if (!avatar.classList.contains('flying')) { clearInterval(trailInterval); return; }
+        var rect = avatar.getBoundingClientRect();
+        var particle = document.createElement('div');
+        particle.className = 'nacho-trail';
+        particle.textContent = trailSymbols[Math.floor(Math.random() * trailSymbols.length)];
+        particle.style.left = (rect.left + rect.width / 2 + (Math.random() * 20 - 10)) + 'px';
+        particle.style.top = (rect.top + rect.height / 2 + (Math.random() * 20 - 10)) + 'px';
+        document.body.appendChild(particle);
+        setTimeout(function() { if (particle.parentNode) particle.remove(); }, 800);
+    }, 80);
+
     // Remove flying class when animation ends, resume idle
     avatar.addEventListener('animationend', function handler() {
         avatar.classList.remove('flying');
         avatar.classList.add('anim-bounce');
         avatar.removeEventListener('animationend', handler);
+        clearInterval(trailInterval);
     });
 };
 
