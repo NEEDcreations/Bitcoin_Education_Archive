@@ -712,8 +712,21 @@ window.hideBubble = function(force) {
 
 // ---- Click for random message ----
 let nachoClickCount = 0;
+let nachoTapTimes = [];
 window.nachoClick = function() {
     const now = Date.now();
+
+    // Triple-tap detection (3 taps within 600ms)
+    nachoTapTimes.push(now);
+    if (nachoTapTimes.length > 3) nachoTapTimes.shift();
+    if (nachoTapTimes.length === 3 && (nachoTapTimes[2] - nachoTapTimes[0]) < 600) {
+        nachoTapTimes = [];
+        lastClickTime = now;
+        if (typeof nachoFly === 'function') nachoFly();
+        forceShowBubble(personalize("Wheeeee! ⚡🦌⚡"));
+        return;
+    }
+
     if (now - lastClickTime < CLICK_COOLDOWN) return;
     lastClickTime = now;
 
