@@ -353,7 +353,7 @@
         /* Mobile breakpoint */
         @media (max-width: 900px) {
             aside { display: none; position: fixed; inset: 0; z-index: 100; width: 100%; max-width: 100%; }
-            aside.open { display: flex; }
+            aside.open { display: flex; padding-bottom: 140px; }
             body { flex-direction: column; }
             main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
             .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
@@ -836,8 +836,19 @@
         setTimeout(() => { updateAudioUI(); }, 0);
     })();
 
+    function setFloatingElementsVisible(visible) {
+        var ids = ['nacho-container','nacho-toggle','lbFloatBtn','floatingRandomBtn','userDisplay','backToTop','scrollToBottom'];
+        ids.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = visible ? '' : 'none';
+        });
+    }
+
     function toggleMenu() {
-        document.getElementById('sidebar').classList.toggle('open');
+        var sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('open');
+        // Hide floating elements when sidebar is open on mobile (they block scrolling)
+        setFloatingElementsVisible(!sidebar.classList.contains('open'));
     }
 
     function toggleCat(label) {
@@ -1322,7 +1333,7 @@
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
-        if (isMobile()) document.getElementById('sidebar').classList.remove('open');
+        if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
         // Show continue reading
         showContinueReading();
         // Refresh exploration map to reflect newly visited channels
@@ -1421,7 +1432,7 @@
             if (document.getElementById('lb').classList.contains('open')) document.getElementById('lb').classList.remove('open');
             if (document.getElementById('usernameModal').classList.contains('open')) hideUsernamePrompt();
             if (document.getElementById('questModal').classList.contains('open')) document.getElementById('questModal').classList.remove('open');
-            if (isMobile() && document.getElementById('sidebar').classList.contains('open')) document.getElementById('sidebar').classList.remove('open');
+            if (isMobile() && document.getElementById('sidebar').classList.contains('open')) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
         }
     });
 
@@ -1689,6 +1700,7 @@
         // On mobile, close the menu immediately
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
+            setFloatingElementsVisible(true);
         }
 
         // Fetch channel data (lazy load with cache)
