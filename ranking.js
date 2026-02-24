@@ -988,7 +988,7 @@ function updateRankUI() {
     const signInLink = isAnon && currentUser.username ? '<div style="font-size:0.7rem;margin-top:4px;"><a href="#" onclick="event.stopPropagation();showSignInPrompt();return false;" style="color:var(--link);text-decoration:none;">🔗 Sign in to sync across devices</a></div>' : '';
 
     const streakHtml = (currentUser.streak || 0) > 0 ? '<span class="rank-streak" style="color:#f97316;font-size:0.7rem;font-weight:700;">🔥 ' + currentUser.streak + ' day streak</span>' : '';
-    const ticketHtml = (currentUser.orangeTickets || 0) > 0 ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;margin-left:6px;">🎟️' + currentUser.orangeTickets + '</span>' : '';
+    const ticketHtml = (currentUser.orangeTickets || 0) > 0 ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;margin-left:6px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>' + currentUser.orangeTickets + '</span>' : '';
 
     bar.innerHTML =
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
@@ -1258,7 +1258,7 @@ async function toggleLeaderboard() {
 function showToast(msg) {
     const t = document.createElement('div');
     t.className = 'rank-toast';
-    t.textContent = msg;
+    t.innerHTML = msg;
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
@@ -1293,7 +1293,7 @@ function showSettingsPage(tab) {
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;">';
     ['account', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const icons = { account: '👤', tickets: '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>', prefs: '🎨', security: '🔒', data: '📊' };
         const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;padding:8px 4px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
@@ -1347,7 +1347,7 @@ function showSettingsPage(tab) {
         const isAnon = !user || user.isAnonymous;
         if (isAnon) {
             html += '<div style="text-align:center;padding:40px 20px;">' +
-                '<div style="font-size:3rem;margin-bottom:12px;">🎟️</div>' +
+                '<div style="font-size:3rem;margin-bottom:12px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;margin-bottom:8px;">Orange Tickets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;">Sign in with Google, Twitter, or GitHub to start earning Orange Tickets and get your referral link!</div>' +
                 '</div>';
@@ -1607,7 +1607,7 @@ function showSettingsPage(tab) {
         html += statRow('Saved Favorites', localFavs, '⭐');
         html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
-        html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '🎟️');
+        html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>');
         if (typeof getNachoFriendship === 'function') {
             var f = getNachoFriendship();
             var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');

@@ -1,7 +1,7 @@
 // =============================================
 // Bitcoin Education Archive - Orange Tickets System
 // =============================================
-// Earn 🎟️ Orange Tickets:
+// Earn <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets:
 //   +1 per daily login
 //   +5 per verified referral (referred user must log in & earn 2100+ pts)
 // =============================================
@@ -63,7 +63,7 @@ async function awardDailyTicket() {
     currentUser.lastTicketDate = today;
     currentUser.points = (currentUser.points || 0) + bonusPoints;
 
-    showToast('🎟️ +' + ticketsToAdd + ' Orange Ticket — Daily login! (+' + bonusPoints + ' pts)');
+    showToast('<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> +' + ticketsToAdd + ' Orange Ticket — Daily login! (+' + bonusPoints + ' pts)');
     updateRankUI();
 
     // Check ticket badges after earning
@@ -173,7 +173,7 @@ async function checkReferralQualifications() {
             });
             currentUser.orangeTickets = newTotal;
             currentUser.points = (currentUser.points || 0) + bonusPoints;
-            showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 5 ? 's' : '') + ' verified! (+' + bonusPoints + ' pts)');
+            showToast('<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 5 ? 's' : '') + ' verified! (+' + bonusPoints + ' pts)');
             updateRankUI();
 
             // Check ticket badges after earning
@@ -233,7 +233,7 @@ function renderTicketsSection() {
 
     let html = '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🎟️ Orange Tickets</div>' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets</div>' +
         '<div style="color:#f7931a;font-weight:800;font-size:1.3rem;">' + tickets + '</div></div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">' +
         'Earn tickets by logging in daily (+1) and referring friends (+5 per verified referral). Each ticket earned also awards <strong style="color:#f7931a;">5 bonus points</strong>!<br><br>' +
