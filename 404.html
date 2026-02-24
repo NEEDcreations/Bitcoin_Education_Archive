@@ -2216,6 +2216,11 @@
     });
 
     window.onload = () => {
+        // Auto-launch Nacho Mode if user has it set as default
+        if (localStorage.getItem('btc_nacho_mode_default') === 'true' && !window.location.hash) {
+            setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
+        }
+
         // Restore visited channel checkmarks
         const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
         visited.forEach(id => {
