@@ -218,7 +218,9 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
         textEl.innerHTML += '<div style="color:#22c55e;font-weight:700;margin-top:8px;">✅ Correct' + n + '! +' + pts + ' points! 🎉</div>';
         if (typeof setPose === 'function') setPose('celebrate');
     } else {
-        textEl.innerHTML += '<div style="color:#ef4444;font-weight:700;margin-top:8px;">❌ Not quite' + n + '! The answer was ' + String.fromCharCode(65 + correct) + '. Keep learning! 📚</div>';
+        var consolation = Math.max(2, Math.floor(pts / 3));
+        if (typeof awardPoints === 'function') awardPoints(consolation, '🧠 Nice try!');
+        textEl.innerHTML += '<div style="color:#ef4444;font-weight:700;margin-top:8px;">❌ Not quite' + n + '! The answer was ' + String.fromCharCode(65 + correct) + '. +' + consolation + ' pts for trying! 📚</div>';
         if (typeof setPose === 'function') setPose('love');
     }
 
