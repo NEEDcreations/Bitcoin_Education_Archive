@@ -245,7 +245,7 @@ function createNacho() {
     style.textContent = `
         #nacho-container {
             position: fixed;
-            bottom: 24px;
+            bottom: 80px;
             left: 330px;
             z-index: 250;
             display: flex;
@@ -456,7 +456,7 @@ function createNacho() {
 
         /* Bring-back toggle */
         #nacho-toggle {
-            position: fixed; bottom: 24px; left: 330px; z-index: 250;
+            position: fixed; bottom: 80px; left: 330px; z-index: 250;
             width: 36px; height: 36px;
             background: var(--card-bg, #1a1a2e); border: 1px solid var(--border, #333);
             border-radius: 50%; display: none; align-items: center; justify-content: center;
