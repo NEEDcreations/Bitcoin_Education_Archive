@@ -208,7 +208,7 @@ const NACHO_KB = [
       answer: "Want to work in Bitcoin? There are tons of Bitcoin-only companies hiring! Check the Jobs channel for opportunities and ways to earn sats!",
       channel: 'jobs-earn', channelName: 'Jobs & Earn' },
 
-    { keys: ['who are you','what are you','about you','nacho','tell me about yourself'],
+    { keys: ['who are you','what are you','about you','nacho','tell me about yourself','what is your name','what\'s your name','your name','whats your name','who is this','who is nacho','who are u','what are u','introduce yourself'],
       answer: "I'm Nacho! A strong buck from New Hampshire. 🦌💪 I roam this site helping Bitcoiners learn. My motto: Nacho keys, nacho cheese! Click me anytime for tips, jokes, or Bitcoin wisdom!",
       channel: null, channelName: null },
 
