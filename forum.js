@@ -246,7 +246,11 @@ window.forumViewPost = async function(postId) {
                     '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Reply</button>' +
                 '</div></div>';
         } else {
-            html += '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;"><a href="#" onclick="event.preventDefault();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt();" style="color:var(--accent);">Sign in</a> to join the discussion</div>';
+            html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;">' +
+                '<div style="font-size:1.5rem;margin-bottom:6px;">🔒</div>' +
+                '<div style="margin-bottom:10px;">Want to join the conversation?</div>' +
+                '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Free Account / Sign In</button>' +
+            '</div>';
         }
 
         // Replies
@@ -308,8 +312,17 @@ async function forumLoadReplies(postId) {
 // ---- New Post Form ----
 window.forumNewPost = function() {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('Sign in to create a post');
-        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        var main = document.getElementById('main');
+        if (main) {
+            main.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">' +
+                '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;">← Back to Forum</button>' +
+                '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+                    '<div style="font-size:3rem;margin-bottom:12px;">🔒</div>' +
+                    '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 8px;">Registration Required</h2>' +
+                    '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;max-width:360px;margin-left:auto;margin-right:auto;">Create a free account to post in the forum, join discussions, and earn points! It only takes a few seconds.</div>' +
+                    '<button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Free Account / Sign In</button>' +
+                '</div></div>';
+        }
         return;
     }
 
@@ -465,7 +478,8 @@ window.forumSubmitReply = async function(postId) {
 // ---- Vote Post ----
 window.forumVotePost = async function(postId) {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('Sign in to upvote');
+        if (typeof showToast === 'function') showToast('🔒 Sign in to upvote!');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
         return;
     }
 
@@ -501,7 +515,8 @@ window.forumVotePost = async function(postId) {
 // ---- Vote Reply ----
 window.forumVoteReply = async function(replyId) {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('Sign in to upvote');
+        if (typeof showToast === 'function') showToast('🔒 Sign in to upvote!');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
         return;
     }
 
