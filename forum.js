@@ -25,8 +25,69 @@ var FORUM_CATEGORIES = [
     { id: 'economics', name: 'Economics & Theory', emoji: '📈' },
     { id: 'news', name: 'News & Events', emoji: '📰' },
     { id: 'dev', name: 'Development & Tech', emoji: '⚙️' },
+    { id: 'selfpromo', name: 'Self-Promotion', emoji: '📣' },
     { id: 'offtopic', name: 'Off-Topic', emoji: '🎭' },
 ];
+
+// ---- Forum Rules ----
+var FORUM_RULES = [
+    { emoji: '🤝', title: 'Be Respectful', desc: 'Treat everyone with respect. No hate speech, harassment, bullying, threats, discrimination, racism, sexism, or sexual content. Attack ideas, not people.' },
+    { emoji: '🎯', title: 'Stay On Topic', desc: 'Keep posts relevant to Bitcoin and the category you\'re posting in. Self-promotion belongs in the Self-Promotion category only.' },
+    { emoji: '🚫', title: 'No Spam or Scams', desc: 'No repetitive posts, spam, phishing links, pump-and-dump schemes, fake giveaways, or scam promotions. One post per topic.' },
+    { emoji: '🔒', title: 'Protect Privacy', desc: 'Never share personal information about yourself or others — no real names, addresses, phone numbers, or private keys. Stay pseudonymous.' },
+    { emoji: '⚠️', title: 'No Financial Advice', desc: 'Don\'t tell others to buy, sell, or invest. Share knowledge and resources, not financial directives. Always add "not financial advice" disclaimers.' },
+    { emoji: '🪙', title: 'Bitcoin Only', desc: 'This is a Bitcoin education forum. Altcoin shilling, ICO promotion, and "next Bitcoin" posts will be removed.' },
+    { emoji: '📝', title: 'Quality Content', desc: 'Put effort into your posts. No low-effort single-word posts, all-caps titles, or clickbait. Ask clear questions and provide context.' },
+    { emoji: '🤖', title: 'No Bot Activity', desc: 'Automated posting, bot accounts, and AI-generated spam are not allowed. Be a real human participating in real conversations.' },
+    { emoji: '⚖️', title: 'No Illegal Content', desc: 'Nothing illegal, including but not limited to: piracy, hacking services, drug markets, weapons, or any content that violates applicable laws.' },
+    { emoji: '👮', title: 'Moderators Have Final Say', desc: 'Posts that violate these rules will be removed without notice. Repeat offenders may be banned. If you see a rule violation, report it.' },
+];
+
+function showForumRules(force) {
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+            '<div style="text-align:center;margin-bottom:16px;">' +
+                '<div style="font-size:2rem;margin-bottom:6px;">📜</div>' +
+                '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">Community Forum Rules</h2>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">Please read before posting</div>' +
+            '</div>';
+
+    for (var i = 0; i < FORUM_RULES.length; i++) {
+        var r = FORUM_RULES[i];
+        html += '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;">' +
+            '<span style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">' + r.emoji + '</span>' +
+            '<div>' +
+                '<div style="color:var(--heading);font-size:0.85rem;font-weight:700;margin-bottom:2px;">' + r.title + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;">' + r.desc + '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    html += '<button onclick="acceptForumRules()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;touch-action:manipulation;">I Understand — Let\'s Discuss Bitcoin! 🦌</button>';
+    html += '</div></div>';
+
+    var div = document.createElement('div');
+    div.id = 'forumRulesOverlay';
+    div.innerHTML = html;
+    document.body.appendChild(div);
+}
+
+window.acceptForumRules = function() {
+    localStorage.setItem('btc_forum_rules_accepted', 'true');
+    var overlay = document.getElementById('forumRulesOverlay');
+    if (overlay) overlay.remove();
+};
+
+window.showForumRulesBtn = function() {
+    showForumRules(true);
+};
+
+// Check if user has seen rules on first forum visit
+function checkForumRules() {
+    if (localStorage.getItem('btc_forum_rules_accepted') !== 'true') {
+        showForumRules(false);
+    }
+}
 
 // Profanity filter (shared approach with Nacho)
 var FORUM_BLOCKED = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo'];
@@ -89,7 +150,10 @@ window.renderForum = function() {
             '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0;">🗣️ Community Forum</h2>' +
             '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">Discuss Bitcoin with fellow learners</div>' +
         '</div>' +
-        '<button onclick="forumNewPost()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;flex-shrink:0;">+ New Post</button>' +
+        '<div style="display:flex;gap:8px;flex-shrink:0;">' +
+            '<button onclick="showForumRulesBtn()" style="padding:10px 14px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:10px;font-size:0.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;">📜 Rules</button>' +
+            '<button onclick="forumNewPost()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;">+ New Post</button>' +
+        '</div>' +
     '</div>';
 
     // Sort + Filter bar
@@ -114,6 +178,9 @@ window.renderForum = function() {
     html += '</div>';
     fc.innerHTML = html;
     document.getElementById('main').scrollTop = 0;
+
+    // Show rules on first visit
+    checkForumRules();
 
     // Load posts
     forumLoadPosts();
@@ -371,10 +438,15 @@ window.forumNewPost = function() {
     html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Link <span style="color:var(--text-faint);">(optional)</span></label>' +
         '<input type="url" id="forumNewLink" maxlength="200" placeholder="https://..." style="' + _inputStyle + '">';
 
+    // Honeypot field — hidden from humans, bots fill it
+    html += '<div style="position:absolute;left:-9999px;"><input type="text" id="forumHoneypot" tabindex="-1" autocomplete="off"></div>';
+
     html += '<button onclick="forumSubmitPost()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.3);">Post to Forum</button>';
     html += '<div id="forumPostStatus" style="margin-top:8px;font-size:0.85rem;text-align:center;"></div>';
 
     html += '</div></div>';
+    // Record form open time for anti-bot timing check
+    window._forumFormOpenTime = Date.now();
     fc.innerHTML = html;
     document.getElementById('main').scrollTop = 0;
 };
@@ -384,6 +456,19 @@ window.forumSubmitPost = async function() {
     var status = document.getElementById('forumPostStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">You must be signed in</span>';
+        return;
+    }
+
+    // Anti-bot: honeypot check
+    var honeypot = document.getElementById('forumHoneypot');
+    if (honeypot && honeypot.value) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Something went wrong. Please try again.</span>';
+        return;
+    }
+
+    // Anti-bot: timing check — must spend at least 5 seconds on form
+    if (window._forumFormOpenTime && (Date.now() - window._forumFormOpenTime) < 5000) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Please take a moment to write your post.</span>';
         return;
     }
 
