@@ -83,6 +83,10 @@ const NACHO_KB = [
       answer: "Great question! The most important thing to learn about is SELF-CUSTODY — holding your own Bitcoin keys instead of trusting someone else with them. 'Not your keys, not your coins!' 🔑 There are different types: software wallets (apps on your phone), hardware wallets (dedicated devices), and even multisig setups. I won't recommend specific brands — instead, check out our Self Custody channel to learn how to evaluate and choose what's right for you. Nacho keys, nacho cheese! 🧀🦌",
       channel: 'self-custody', channelName: 'Self Custody' },
 
+    { keys: ['metamask','trust wallet','phantom wallet','exodus','coinbase wallet','crypto.com wallet'],
+      answer: "Whoa there, {name}! 🦌 Those are NOT Bitcoin wallets — they're designed for altcoins and tokens. For Bitcoin, you want a Bitcoin-ONLY wallet that focuses on security and self-custody. Multicoin wallets add unnecessary complexity and attack surface. Learn about proper Bitcoin self-custody in our Self Custody channel — your future self will thank you! 🔑",
+      channel: 'self-custody', channelName: 'Self Custody' },
+
     { keys: ['seed phrase','recovery phrase','24 words','12 words','backup','mnemonic'],
       answer: "Your seed phrase is 12 or 24 words that can recover your entire wallet. NEVER share it with anyone. Write it down on metal, store it somewhere safe. This IS your Bitcoin!",
       channel: 'self-custody', channelName: 'Self Custody' },
@@ -536,6 +540,7 @@ function findAnswer(input) {
     // When these words appear, route to the specific topic entry
     var topicPatterns = [
         { pattern: /mining|miner|hash.?rate|asic/, key: 'mining' },
+        { pattern: /metamask|trust.wallet|phantom.wallet|exodus|coinbase.wallet|crypto\.com.wallet/, key: 'metamask' },
         { pattern: /wallet|cold storage|hardware wallet|seed phrase|self.custody|ledger|trezor|coldcard/, key: 'wallet' },
         { pattern: /lightning|lnurl|bolt11|channel capacity/, key: 'lightning' },
         { pattern: /halving|halvening|block reward/, key: 'halving' },

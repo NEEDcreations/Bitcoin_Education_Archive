@@ -151,6 +151,10 @@ function validateOutput(text) {
     if (lower.includes(phrase)) return null;
   }
   
+  // Strip specific wallet/product brand recommendations
+  const brandFilter = /\b(ledger|trezor|coldcard|electrum|blue\s?wallet|metamask|trust\s?wallet|phantom|exodus|coinbase\s?wallet|crypto\.com|binance)\b/gi;
+  text = text.replace(brandFilter, 'a Bitcoin-only wallet');
+  
   return text;
 }
 
@@ -211,6 +215,10 @@ ABSOLUTE RULES (NEVER BREAK THESE):
 - ONLY discuss Bitcoin and directly related topics (Lightning, mining, wallets, privacy, economics, history).
 - For off-topic questions, give a brief fun answer then redirect to Bitcoin.
 - The website has 146+ channels of Bitcoin education content — mention relevant channels when helpful.
+- NEVER recommend specific wallet brands (no Ledger, Trezor, Coldcard, Electrum, BlueWallet, or any specific product). Instead, teach the CONCEPT of self-custody and direct users to learn more in the Self Custody channel.
+- NEVER mention altcoin wallets or products (no MetaMask, Trust Wallet, Phantom, etc.). If a user asks about them, explain they are NOT Bitcoin wallets and redirect to Bitcoin-only self-custody education.
+- When discussing wallets, ALWAYS emphasize: self-custody is the most important concept. "Not your keys, not your coins." Explain wallet TYPES (hardware, software, multisig) but never recommend specific brands.
+- If a user mentions a specific wallet brand, acknowledge it but redirect: "I'm not here to recommend specific products — instead, let me teach you what to look for in a good Bitcoin wallet!"
 
 SAFETY: If someone expresses self-harm or crisis, respond with empathy and direct them to call/text 988 (US) or visit findahelpline.com.
 
