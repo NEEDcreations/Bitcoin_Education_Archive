@@ -651,7 +651,7 @@
         <div id="home" class="home-page">
             <div class="home-inner">
                 <div class="home-logos">
-                    <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home">
+                    <img src="images/btc-grad-logo.jpg" alt="Bitcoin Education Archive" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
@@ -2446,7 +2446,8 @@
 
         // Shake to hear a random Bitcoin quote (easter egg)
         // High threshold so walking/normal movement doesn't trigger it
-        var shakeThreshold = 35;
+        var shakeThreshold = 50; // High threshold — requires obvious deliberate shake
+        var shakeCount = 0; // Require multiple hits to confirm real shake
         var lastShake = 0;
         var lastAccel = { x: 0, y: 0, z: 0 };
         window.addEventListener('devicemotion', function(e) {
@@ -2457,8 +2458,15 @@
             var dz = Math.abs(a.z - lastAccel.z);
             lastAccel = { x: a.x, y: a.y, z: a.z };
             if (dx + dy + dz > shakeThreshold) {
+                shakeCount++;
+                // Reset count if movements are too far apart
+                clearTimeout(window._shakeResetTimer);
+                window._shakeResetTimer = setTimeout(function() { shakeCount = 0; }, 1000);
+                // Require 3 strong movements within 1 second for a real shake
+                if (shakeCount < 3) return;
+                shakeCount = 0;
                 var now = Date.now();
-                if (now - lastShake < 8000) return;
+                if (now - lastShake < 10000) return; // 10s cooldown
                 lastShake = now;
                 var quotes = [
                     "There is no second best.",
@@ -2501,20 +2509,30 @@
             }
         }, { passive: true });
 
-        // Two-finger tap → toggle leaderboard (only on main content, not inputs/modals)
+        // Two-finger tap → toggle leaderboard
+        // Must be a quick tap (touchend within 300ms), not during scroll
         var twoFingerLast = 0;
+        var twoFingerStart = 0;
         document.getElementById('main').addEventListener('touchstart', function(e) {
-            if (e.touches.length === 2) {
+            if (e.touches.length === 2) twoFingerStart = Date.now();
+        }, { passive: true });
+        document.getElementById('main').addEventListener('touchend', function(e) {
+            if (twoFingerStart && e.touches.length === 0 && e.changedTouches.length >= 1) {
+                var dt = Date.now() - twoFingerStart;
+                twoFingerStart = 0;
+                if (dt > 400) return; // Not a tap, was a hold/scroll
                 var now = Date.now();
-                if (now - twoFingerLast < 2000) return;
+                if (now - twoFingerLast < 3000) return; // 3s cooldown
                 twoFingerLast = now;
                 if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             }
         }, { passive: true });
 
         // Long-press on logo → Nacho Mode
-        var logos = document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img');
-        logos.forEach(function(logo) {
+        // Uses MutationObserver to also catch dynamically added channel logos
+        function attachLogoGesture(logo) {
+            if (logo._nachoLongPress) return; // Already attached
+            logo._nachoLongPress = true;
             var lp;
             logo.addEventListener('touchstart', function(e) {
                 lp = setTimeout(function() {
@@ -2523,14 +2541,27 @@
             }, { passive: true });
             logo.addEventListener('touchend', function() { clearTimeout(lp); });
             logo.addEventListener('touchmove', function() { clearTimeout(lp); });
-        });
+        }
+        document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img').forEach(attachLogoGesture);
+        // Watch for dynamically added channel logos
+        new MutationObserver(function() {
+            document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+        }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
         // Three-finger tap → Community Forum
+        // Must be a quick tap, not during scroll
         var threeFingerLast = 0;
+        var threeFingerStart = 0;
         document.getElementById('main').addEventListener('touchstart', function(e) {
-            if (e.touches.length === 3) {
+            if (e.touches.length === 3) threeFingerStart = Date.now();
+        }, { passive: true });
+        document.getElementById('main').addEventListener('touchend', function(e) {
+            if (threeFingerStart && e.touches.length === 0) {
+                var dt = Date.now() - threeFingerStart;
+                threeFingerStart = 0;
+                if (dt > 400) return; // Not a tap
                 var now = Date.now();
-                if (now - threeFingerLast < 2000) return;
+                if (now - threeFingerLast < 3000) return; // 3s cooldown
                 threeFingerLast = now;
                 go('forum');
             }
@@ -2652,7 +2683,7 @@
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos">' +
-                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Go to Home">' +
+                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
