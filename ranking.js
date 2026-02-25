@@ -1454,7 +1454,9 @@ function showSettingsPage(tab) {
             '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">𝕏 Twitter/X</label>' +
             '<input type="text" id="profileTwitter" value="' + escapeHtml(twitter) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">' +
             '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🟣 Nostr</label>' +
-            '<input type="text" id="profileNostr" value="' + escapeHtml(nostr) + '" placeholder="npub... or NIP-05" maxlength="80" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px;">' +
+            '<input type="text" id="profileNostr" value="' + escapeHtml(nostr) + '" placeholder="npub... or NIP-05" maxlength="80" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">⚡ Lightning Address</label>' +
+            '<input type="text" id="profileLightning" value="' + escapeHtml(currentUser ? currentUser.lightning || '' : '') + '" placeholder="you@walletofsatoshi.com" maxlength="80" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px;">' +
             '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
             '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
             '</div>';
@@ -1938,6 +1940,7 @@ async function saveProfile() {
     var website = (document.getElementById('profileWebsite').value || '').trim().substring(0, 100);
     var twitter = (document.getElementById('profileTwitter').value || '').trim().substring(0, 30);
     var nostr = (document.getElementById('profileNostr').value || '').trim().substring(0, 80);
+    var lightning = (document.getElementById('profileLightning').value || '').trim().substring(0, 80);
 
     // Validate bio
     if (bio && !isBioClean(bio)) {
@@ -1959,12 +1962,13 @@ async function saveProfile() {
 
     try {
         await db.collection('users').doc(auth.currentUser.uid).update({
-            bio: bio, website: website, twitter: twitter, nostr: nostr
+            bio: bio, website: website, twitter: twitter, nostr: nostr, lightning: lightning
         });
         currentUser.bio = bio;
         currentUser.website = website;
         currentUser.twitter = twitter;
         currentUser.nostr = nostr;
+        currentUser.lightning = lightning;
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving profile</span>';
@@ -2006,6 +2010,7 @@ async function showUserProfile(userId) {
         if (d.website) links.push('<a href="' + escapeHtml(d.website) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">🌐 Website</a>');
         if (d.twitter) links.push('<a href="https://x.com/' + escapeHtml(d.twitter) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">𝕏 @' + escapeHtml(d.twitter) + '</a>');
         if (d.nostr) links.push('<span style="color:var(--accent);font-size:0.8rem;">🟣 ' + escapeHtml(d.nostr.substring(0, 20)) + (d.nostr.length > 20 ? '...' : '') + '</span>');
+        if (d.lightning) links.push('<span style="color:var(--accent);font-size:0.8rem;">⚡ ' + escapeHtml(d.lightning) + '</span>');
 
         if (links.length > 0) {
             html += '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:14px;">' + links.join('') + '</div>';
