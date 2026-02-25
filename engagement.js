@@ -110,33 +110,82 @@ window.getXPMultiplier = function() {
 };
 
 // ---- #10: Spin the Wheel ----
-// Orange Ticket prizes with weighted rarity
+// Mixed prizes: Orange Tickets + Points + Fun rewards
 var SPIN_PRIZES = [
-    { label: '🎟️ 1 Ticket', emoji: '🎟️', tickets: 1 },
-    { label: '🎟️ 2 Tickets', emoji: '🎟️', tickets: 2 },
-    { label: '🎟️ 3 Tickets', emoji: '🎟️', tickets: 3 },
-    { label: '🎟️ 5 Tickets!', emoji: '✨', tickets: 5 },
-    { label: '🎟️ 10 Tickets!', emoji: '🌟', tickets: 10 },
-    { label: '🎟️ 50 Tickets!!', emoji: '💫', tickets: 50 },
-    { label: '🎟️ 100 Tickets!!!', emoji: '🎆', tickets: 100 },
-    { label: '🎟️ 1,000 TICKETS!', emoji: '🔥', tickets: 1000 },
-    { label: '🎟️ 10,000 JACKPOT!', emoji: '🏆', tickets: 10000 },
+    // Orange Tickets (most common)
+    { label: '🎟️ 1 Ticket', emoji: '🎟️', type: 'ticket', value: 1 },
+    { label: '🎟️ 2 Tickets', emoji: '🎟️', type: 'ticket', value: 2 },
+    { label: '🎟️ 3 Tickets', emoji: '🎟️', type: 'ticket', value: 3 },
+    { label: '🎟️ 5 Tickets!', emoji: '✨', type: 'ticket', value: 5 },
+    { label: '🎟️ 10 Tickets!', emoji: '🌟', type: 'ticket', value: 10 },
+    // Points
+    { label: '+10 pts', emoji: '⭐', type: 'points', value: 10 },
+    { label: '+25 pts', emoji: '💫', type: 'points', value: 25 },
+    { label: '+50 pts!', emoji: '🎆', type: 'points', value: 50 },
+    // Fun rewards
+    { label: 'Bitcoin Fact!', emoji: '🧠', type: 'fact' },
+    { label: 'Nacho Quote!', emoji: '🦌', type: 'quote' },
+    { label: 'New Sticker!', emoji: '🦌✨', type: 'sticker' },
+    // Rare tickets
+    { label: '🎟️ 50 Tickets!!', emoji: '🔥', type: 'ticket', value: 50 },
+    { label: '🎟️ 100 Tickets!!!', emoji: '💎', type: 'ticket', value: 100 },
+    { label: '🎟️ 1,000 TICKETS!', emoji: '🏆', type: 'ticket', value: 1000 },
+    { label: '🎟️ 10,000 JACKPOT!', emoji: '👑', type: 'ticket', value: 10000 },
 ];
-// Weights (higher = more common). Total ~100000 for precise odds
-// 1 ticket: ~40%, 2: ~25%, 3: ~15%, 5: ~10%, 10: ~5%, 50: 1%, 100: 0.1%, 1000: 0.001%, 10000: 0.00001%
-var SPIN_WEIGHTS = [40000, 25000, 15000, 10000, 5000, 1000, 100, 1, 0.01];
+// Weights — total ~100000
+var SPIN_WEIGHTS = [
+    20000,  // 1 ticket — 20%
+    15000,  // 2 tickets — 15%
+    10000,  // 3 tickets — 10%
+    5000,   // 5 tickets — 5%
+    3000,   // 10 tickets — 3%
+    12000,  // +10 pts — 12%
+    6000,   // +25 pts — 6%
+    2000,   // +50 pts — 2%
+    8000,   // Bitcoin fact — 8%
+    7000,   // Nacho quote — 7%
+    5000,   // Sticker — 5%
+    1000,   // 50 tickets — 1%
+    100,    // 100 tickets — 0.1%
+    1,      // 1000 tickets — 0.001%
+    0.01,   // 10000 jackpot — 0.00001%
+];
 
-function awardTickets(count) {
-    // Award orange tickets via Firestore
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            orangeTickets: firebase.firestore.FieldValue.increment(count)
-        }).catch(function() {});
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + count;
+function awardSpinPrize(prize) {
+    if (prize.type === 'ticket') {
+        // Award orange tickets via Firestore
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                orangeTickets: firebase.firestore.FieldValue.increment(prize.value)
+            }).catch(function() {});
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.orangeTickets = (currentUser.orangeTickets || 0) + prize.value;
+            }
+        }
+        if (typeof showToast === 'function') showToast('🎟️ +' + prize.value.toLocaleString() + ' Orange Ticket' + (prize.value !== 1 ? 's' : '') + '!');
+    } else if (prize.type === 'points') {
+        if (typeof awardPoints === 'function') awardPoints(prize.value, '🎡 Spin reward!');
+    } else if (prize.type === 'fact') {
+        var fact = typeof getDailyFact === 'function' ? getDailyFact() : 'Bitcoin is freedom money!';
+        if (typeof showToast === 'function') showToast('🧠 ' + fact);
+    } else if (prize.type === 'quote') {
+        var quotes = ['Stay humble. Stack sats.', 'Not your keys, not your coins!', 'Tick tock, next block.', 'There is no second best.', 'Number go up!', 'Bitcoin fixes this.', 'Don\'t trust. Verify.'];
+        var q = quotes[Math.floor(Math.random() * quotes.length)];
+        if (typeof speakEasterEgg === 'function') speakEasterEgg(q);
+        else if (typeof showToast === 'function') showToast('🦌 ' + q);
+    } else if (prize.type === 'sticker') {
+        var allStickers = ['wave','brain','fire','moon','cheese','crown','sleep','love','cool','diamond','lightning','stack'];
+        var owned = JSON.parse(localStorage.getItem('btc_nacho_stickers') || '[]');
+        var unowned = allStickers.filter(function(s) { return owned.indexOf(s) === -1; });
+        if (unowned.length > 0) {
+            var pick = unowned[Math.floor(Math.random() * unowned.length)];
+            if (typeof earnSticker === 'function') earnSticker(pick);
+        } else {
+            // All stickers owned — give 5 tickets instead
+            if (typeof showToast === 'function') showToast('🦌 All stickers collected! +5 bonus tickets!');
+            awardSpinPrize({ type: 'ticket', value: 5 });
         }
     }
-    if (typeof showToast === 'function') showToast('🎟️ +' + count.toLocaleString() + ' Orange Ticket' + (count !== 1 ? 's' : '') + '!');
 }
 
 window.canSpin = function() {
@@ -193,11 +242,12 @@ window.doSpin = function() {
             display.style.transform = 'scale(1.3)';
             setTimeout(function() {
                 var prize = SPIN_PRIZES[prizeIdx];
-                var celebStyle = prize.tickets >= 50 ? 'font-size:1.5rem;' : 'font-size:1.2rem;';
+                var isBig = (prize.type === 'ticket' && prize.value >= 50) || (prize.type === 'points' && prize.value >= 50);
+                var celebStyle = isBig ? 'font-size:1.5rem;' : 'font-size:1.2rem;';
                 display.innerHTML = '<div style="font-size:4rem;">' + prize.emoji + '</div><div style="' + celebStyle + 'font-weight:700;color:var(--accent);margin-top:8px;">' + prize.label + '</div>';
                 display.style.transform = 'scale(1)';
-                awardTickets(prize.tickets);
-                if (prize.tickets >= 50 && typeof playEngagementSound === 'function') playEngagementSound('win');
+                awardSpinPrize(prize);
+                if (isBig && typeof playEngagementSound === 'function') playEngagementSound('win');
                 localStorage.setItem('btc_last_spin', new Date().toISOString().split('T')[0]);
                 btn.textContent = '🎉 Claimed!';
                 btn.style.background = '#22c55e';
