@@ -1688,49 +1688,6 @@
     };
 
     // =============================================
-    // 🔖 Bookmark Answers
-    // =============================================
-    window.nachoBookmark = function(msgId, html) {
-        var bookmarks = JSON.parse(localStorage.getItem('btc_nacho_bookmarks') || '[]');
-        // Toggle — remove if already bookmarked
-        var idx = -1;
-        for (var i = 0; i < bookmarks.length; i++) {
-            if (bookmarks[i].id === msgId) { idx = i; break; }
-        }
-        if (idx !== -1) {
-            bookmarks.splice(idx, 1);
-            if (typeof showToast === 'function') showToast('🔖 Bookmark removed');
-        } else {
-            bookmarks.push({ id: msgId, html: html.substring(0, 500), ts: Date.now() });
-            if (bookmarks.length > 50) bookmarks.shift();
-            if (typeof showToast === 'function') showToast('🔖 Saved! Tap 🔖 in the toolbar to view.');
-        }
-        localStorage.setItem('btc_nacho_bookmarks', JSON.stringify(bookmarks));
-        // Update button
-        var btn = document.getElementById('nmBk_' + msgId);
-        if (btn) btn.style.opacity = idx !== -1 ? '0.4' : '1';
-    };
-
-    window.nachoShowBookmarks = function() {
-        var bookmarks = JSON.parse(localStorage.getItem('btc_nacho_bookmarks') || '[]');
-        var chat = document.getElementById('nachoModeChat');
-        if (!chat) return;
-        if (bookmarks.length === 0) {
-            nachoChatAppend('nacho', '', 'You haven\'t bookmarked any answers yet! Tap 🔖 on any answer to save it.');
-            return;
-        }
-        var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:8px;">🔖 Your Saved Answers (' + bookmarks.length + ')</div>';
-        for (var i = bookmarks.length - 1; i >= 0; i--) {
-            var b = bookmarks[i];
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;font-size:0.85rem;line-height:1.5;color:var(--text);">' +
-                b.html.replace(/<[^>]+>/g, '').substring(0, 200) +
-                (b.html.length > 200 ? '...' : '') +
-                '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">' + new Date(b.ts).toLocaleDateString() + '</div></div>';
-        }
-        nachoChatAppend('nacho', '', html);
-    };
-
-    // =============================================
     // 🎉 Conversation Milestones
     // =============================================
     function checkNachoMilestone() {
@@ -1904,7 +1861,6 @@
                     '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;max-width:400px;margin-left:auto;margin-right:auto;">' +
                         '<button onclick="nachoLearningPath()" style="padding:8px 16px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:20px;color:var(--accent);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗺️ Start Bitcoin Journey</button>' +
                         '<button onclick="nachoQuizMe()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Quiz Me</button>' +
-                        '<button onclick="nachoShowBookmarks()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🔖 Saved</button>' +
                     '</div>' +
                 '</div>';
             return;
@@ -2067,7 +2023,6 @@
                     actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
                 }
                 actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\']||\'\')" style="' + _abtnStyle + '">📤 Share</button>';
-                actionRow += '<button id="nmBk_' + _replyMsgId + '" onclick="event.stopPropagation();nachoBookmark(\'' + _replyMsgId + '\',window._nachoAnswerData[\'' + _replyMsgId + '\']||\'\')" style="' + _abtnStyle + '">🔖 Save</button>';
                 actionRow += '</div>';
                 extras += actionRow;
 
