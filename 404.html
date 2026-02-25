@@ -232,7 +232,7 @@
             #leaderboard { right: 10px; left: 10px; bottom: 70px; width: auto; }
             #lbFloatBtn { bottom: 70px !important; right: 16px !important; padding: 10px 14px !important; font-size: 0.85rem !important; z-index: 140; }
             #floatingRandomBtn { bottom: 70px !important; right: auto !important; left: 16px !important; transform: none !important; }
-            #userDisplay { top: auto !important; bottom: 56px !important; right: auto !important; left: 16px !important; font-size: 0.75rem !important; padding: 6px 10px !important; max-width: 55% !important; }
+            #userDisplay { top: auto !important; bottom: 72px !important; right: auto !important; left: 16px !important; font-size: 0.75rem !important; padding: 6px 10px !important; max-width: 55% !important; }
             .rank-toast { top: 60px; left: 50%; right: auto; bottom: auto; font-size: 0.8rem; }
         }
 
@@ -678,10 +678,10 @@
                 </div>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;"></div>
-                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center;">
-                    <button onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="flex:1;min-width:120px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;"><span style="font-size:1.3rem;">🎡</span><br>Daily Spin</button>
-                    <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="flex:1;min-width:120px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;"><span style="font-size:1.3rem;">📈</span><br>Price Prediction</button>
-                    <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="flex:1;min-width:120px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;"><span style="font-size:1.3rem;">📖</span><br>Nacho's Story</button>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+                    <button onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
+                    <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price</button>
+                    <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho Story</button>
                 </div>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div class="daily-channel" id="dailyChannel"></div>

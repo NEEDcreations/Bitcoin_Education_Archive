@@ -203,7 +203,7 @@ window.showSpinWheel = function() {
         '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:320px;width:100%;text-align:center;">' +
         '<div style="font-size:1.5rem;font-weight:800;color:var(--accent);margin-bottom:4px;">🎡 Daily Spin</div>' +
         '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Tap to spin and win a reward!</div>' +
-        '<div id="spinWheelDisplay" style="font-size:4rem;margin:20px 0;height:80px;line-height:80px;transition:0.1s;">🎡</div>' +
+        '<div id="spinWheelDisplay" style="font-size:4rem;margin:20px 0;min-height:80px;line-height:80px;transition:0.1s;overflow:hidden;">🎡</div>' +
         '<button id="spinBtn" onclick="doSpin()" style="padding:14px 32px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">SPIN!</button>' +
         '</div></div>';
     var div = document.createElement('div');
@@ -289,8 +289,8 @@ window.showPricePrediction = function() {
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Will BTC be higher or lower in 24 hours?</div>' +
             '<div style="font-size:2rem;font-weight:900;color:var(--heading);margin-bottom:16px;">₿ $' + parseInt(price).toLocaleString() + '</div>' +
             '<div style="display:flex;gap:12px;justify-content:center;">' +
-                '<button onclick="makePrediction(\'higher\',' + price + ')" style="flex:1;padding:14px;background:#22c55e;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">📈 Higher</button>' +
-                '<button onclick="makePrediction(\'lower\',' + price + ')" style="flex:1;padding:14px;background:#ef4444;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">📉 Lower</button>' +
+                '<button onclick="makePrediction(\'higher\',' + price + ')" style="flex:1;padding:14px;background:#22c55e;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">📈 Higher</button>' +
+                '<button onclick="makePrediction(\'lower\',' + price + ')" style="flex:1;padding:14px;background:#ef4444;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">📉 Lower</button>' +
             '</div></div></div>';
         var div = document.createElement('div');
         div.innerHTML = html;
