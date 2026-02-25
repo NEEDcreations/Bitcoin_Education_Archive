@@ -57,6 +57,12 @@ function timeAgo(ts) {
     return new Date(d).toLocaleDateString();
 }
 
+// Navigate back to forum list
+window.forumBack = function() {
+    history.pushState({ channel: 'forum' }, '', '#forum');
+    renderForum();
+};
+
 // State
 var forumSort = 'recent';
 var forumCategory = 'all';
@@ -307,6 +313,7 @@ window.forumNewPost = function() {
         return;
     }
 
+    history.pushState({ channel: 'forum-new' }, '', '#forum');
     var main = document.getElementById('main');
     var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
     html += '<button onclick="go(\'forum\')" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
@@ -402,7 +409,7 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_date', today);
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
-        go('forum');
+        forumBack();
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';
     }
@@ -537,7 +544,7 @@ window.forumDeletePost = async function(postId) {
         await batch.commit();
 
         if (typeof showToast === 'function') showToast('🗑️ Post deleted');
-        go('forum');
+        forumBack();
     } catch(e) {
         if (typeof showToast === 'function') showToast('Error deleting post');
     }
