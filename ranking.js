@@ -668,6 +668,11 @@ async function loadUser(uid) {
         window._badgesReady = true;
         if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
 
+        // Set current level BEFORE enabling level-up detection
+        // This prevents false level-ups from 0→current on first load
+        var initLv = getLevel(currentUser.points || 0);
+        lastLevelName = initLv.name;
+        lastLevelMin = initLv.min;
         // Now safe to detect level-ups (initial data loaded)
         setTimeout(function() { levelUpReady = true; }, 3000);
 
@@ -870,6 +875,7 @@ async function awardVisitPoints() {
     if (streakBonus) showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
     // Silent for non-streak daily visits — ticket toast covers it
     updateRankUI();
+    if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();
 }
 
@@ -882,6 +888,7 @@ async function awardPoints(pts, reason) {
     // Only toast for significant point awards (25+), not routine ones
     if (pts >= 25) showToast('+' + pts + ' pts — ' + reason);
     updateRankUI();
+    if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();
     if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
 }
@@ -918,8 +925,14 @@ async function onChannelOpen(channelId) {
         });
         currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
         currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
+        if (currentUser.readChannels) {
+            if (currentUser.readChannels.indexOf(channelId) === -1) currentUser.readChannels.push(channelId);
+        } else {
+            currentUser.readChannels = [channelId];
+        }
         // Silent — routine action, don't interrupt
         updateRankUI();
+        if (typeof renderProgressRings === 'function') renderProgressRings();
         refreshLeaderboardIfOpen();
 
         // Show leaderboard on first channel open

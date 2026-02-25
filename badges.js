@@ -69,7 +69,11 @@ window.markVisibleBadgesReady = function() {
 
     // MIGRATION: Silently earn any badges whose conditions are ALREADY met
     // This prevents re-triggering popups for things done in previous sessions
+    // Use Firestore data if available (localStorage may not be synced yet)
     var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels && currentUser.readChannels.length > visited.length) {
+        visited = currentUser.readChannels;
+    }
     var totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
     var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size : 0;
     var migrated = false;
