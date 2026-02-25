@@ -110,6 +110,40 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: The Quote of the Day on the homepage changes daily — click it to jump to the related channel! 💬" },
     { pose: 'point', text: "💡 Tip: New to Bitcoin? Start with the 'one-stop-shop' channel — it has everything to get you started! 🎯" },
     { pose: 'brain', text: "💡 Tip: Channels are organized into Properties, Experienced Topics, Resources, and Additional Info. Start with Properties!" },
+    // Nacho Mode
+    { pose: 'fire', text: "💡 Tip: Press N to enter Nacho Mode — a full chat experience where I answer your Bitcoin questions with AI! 🦌🧠" },
+    { pose: 'point', text: "💡 Tip: In Nacho Mode, press ↑ to recall your previous questions — just like in a chat app!" },
+    { pose: 'brain', text: "💡 Tip: Nacho Mode shows the live Bitcoin price in the header! Check it anytime! ₿" },
+    { pose: 'point', text: "💡 Tip: Tap the 🧒 button in Nacho Mode to toggle ELI5 mode — I'll explain everything in super simple language!" },
+    { pose: 'celebrate', text: "💡 Tip: In Nacho Mode, tap '🗺️ Start Bitcoin Journey' for a guided 10-step learning path from beginner to pro!" },
+    { pose: 'point', text: "💡 Tip: Tap '🎮 Quiz Me' in Nacho Mode to test your knowledge and earn points! 🏆" },
+    { pose: 'point', text: "💡 Tip: Nacho Mode has topic chips — tap them if you don't know what to ask! ⚡ Lightning, ⛏️ Mining, and more!" },
+    { pose: 'brain', text: "💡 Tip: Every answer in Nacho Mode has 👍👎 buttons — your feedback helps me get smarter!" },
+    { pose: 'point', text: "💡 Tip: You can share any Nacho answer with the 📤 Share button — spread the Bitcoin knowledge! 🌍" },
+    { pose: 'fire', text: "💡 Tip: Use your voice! Tap 🎙️ in Nacho Mode to ask me questions by speaking! 🗣️" },
+    { pose: 'point', text: "💡 Tip: Nacho Mode saves your full chat history — come back anytime to pick up where you left off!" },
+    { pose: 'celebrate', text: "💡 Tip: Ask me 10, 25, 50, or 100 questions in Nacho Mode to unlock special milestones! 🎉" },
+    // Forum
+    { pose: 'fire', text: "💡 Tip: We have a Community Forum! Press F or click '🗣️ Community Forum' in the sidebar to discuss Bitcoin! 💬" },
+    { pose: 'point', text: "💡 Tip: In the Forum, upvote great posts with ⚡ and earn +10 points for posting, +5 for replying!" },
+    { pose: 'brain', text: "💡 Tip: Forum posts can include links! Share interesting Bitcoin articles or resources with the community! 🔗" },
+    // Profiles
+    { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
+    { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
+    // Scholar
+    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards 2,100 points — that's 21 million in sats! The magic number! 🎓" },
+    // Nacho Closet
+    { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
+    { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
+    // Keyboard shortcuts
+    { pose: 'point', text: "💡 Tip: Press ? to see ALL keyboard shortcuts! N=Nacho, F=Forum, D=Donate, L=Leaderboard, and more! ⌨️" },
+    { pose: 'point', text: "💡 Tip: Press A to quickly ask me a question from any page — no need to enter Nacho Mode! 🦌" },
+    // Nostr
+    { pose: 'cool', text: "💡 Tip: You can sign in with Nostr! If you have Alby or nos2x, click the 🟣 Nostr button on the sign-in page! ⚡" },
+    // Donate
+    { pose: 'love', text: "💡 Tip: Press D to open the donation page — support the archive with Lightning! Every sat counts! ⚡🧡" },
+    // Language
+    { pose: 'point', text: "💡 Tip: The site supports 15+ languages! Change it in Settings → Prefs. I can even answer in your language! 🌍" },
 ];
 
 // ---- Motivational ----
