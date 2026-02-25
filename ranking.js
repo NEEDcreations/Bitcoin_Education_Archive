@@ -1699,7 +1699,8 @@ function showSettingsPage(tab) {
             shortcutRow('Swipe →','Go home') +
             shortcutRow('Swipe ←','Random channel') +
             shortcutRow('2-finger tap','Leaderboard') +
-            shortcutRow('Long-press logo','Donate') +
+            shortcutRow('3-finger tap','Community Forum') +
+            shortcutRow('Long-press logo','Nacho Mode') +
             '</div></div>' +
             '</div></div>';
 
