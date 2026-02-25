@@ -1369,9 +1369,12 @@
                 '#nachoModeAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; transition: transform 0.3s; }' +
                 '#nachoModeAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
                 '#nachoModeAvatar:hover { transform: scale(1.05); }' +
-                '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px; scroll-behavior:smooth; }' +
+                '#nachoModeSideAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; }' +
+                '#nachoModeSideAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
+                '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 90px; scroll-behavior:smooth; }' +
                 '#nachoModeChat::-webkit-scrollbar { width:4px; }' +
                 '#nachoModeChat::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }' +
+                '@media(max-width:768px){#nachoModeSideAvatar{width:50px!important;height:50px!important;bottom:8px!important;left:8px!important;}#nachoModeSideAvatar img{width:50px!important;height:50px!important;}#nachoModeChat{padding-bottom:60px!important;}}' +
                 '.nm-msg { margin-bottom:10px; max-width:500px; margin-left:auto; margin-right:auto; }' +
                 '.nm-user { text-align:right; }' +
                 '.nm-user span { background:var(--accent-bg,#2a1a00);border:1px solid var(--accent);padding:10px 14px;border-radius:16px 16px 4px 16px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;line-height:1.4; }' +
@@ -1400,8 +1403,11 @@
                     '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="28" height="28" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
                 '</div>' +
             '</div>' +
-            /* Chat area */
-            '<div id="nachoModeChat" style="flex:1;"></div>' +
+            /* Chat area with persistent Nacho */
+            '<div style="flex:1;display:flex;position:relative;overflow:hidden;">' +
+                '<div id="nachoModeSideAvatar" style="position:absolute;bottom:12px;left:12px;width:80px;height:80px;cursor:pointer;opacity:0.7;transition:opacity 0.3s;z-index:5;pointer-events:auto;" onclick="nachoModeAvatarTap()" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><img src="nacho-deer.svg" alt="Nacho" style="width:80px;height:80px;pointer-events:none;"></div>' +
+                '<div id="nachoModeChat" style="flex:1;"></div>' +
+            '</div>' +
             /* Input bar */
             '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
                 '<div style="max-width:500px;margin:0 auto;position:relative;">' +
@@ -2138,11 +2144,15 @@
     // Nacho Mode talking animation
     function nachoModeStartTalking() {
         var avatar = document.getElementById('nachoModeAvatar');
+        var side = document.getElementById('nachoModeSideAvatar');
         if (avatar) avatar.classList.add('talking');
+        if (side) side.classList.add('talking');
     }
     function nachoModeStopTalking() {
         var avatar = document.getElementById('nachoModeAvatar');
+        var side = document.getElementById('nachoModeSideAvatar');
         if (avatar) avatar.classList.remove('talking');
+        if (side) side.classList.remove('talking');
     }
 
     // Nacho Mode voice input
