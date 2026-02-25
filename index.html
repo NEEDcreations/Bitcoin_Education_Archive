@@ -815,7 +815,7 @@
     <script src="nacho.js?v=7" defer></script>
     <script src="nacho-live.js?v=7" defer></script>
     <script src="nacho-engage.js?v=7" defer></script>
-    <script src="nacho-qa.js?v=7" defer></script>
+    <script src="nacho-qa.js?v=8" defer></script>
     <script src="nacho-closet.js?v=7" defer></script>
     <script src="forum.js?v=4" defer></script>
     <script src="mobile-ux.js?v=4" defer></script>
@@ -2055,103 +2055,38 @@
             }
         }
 
-        // STEP 1: Safety (must stay hardcoded — fast, reliable, no API cost)
-        if (typeof isInappropriate === 'function' && isInappropriate(q)) {
-            reply("Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌", 'safety');
-            return;
-        }
-        if (typeof isCrisis === 'function' && isCrisis(q)) {
-            reply("Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛", 'safety');
-            return;
-        }
-
-        // STEP 1b: Financial advice — add disclaimer to response (don't block, just tag)
-        var _isFinAdvice = typeof isFinancialAdvice === 'function' && isFinancialAdvice(q);
-        var _disclaimer = _isFinAdvice ? '<br><br><div style="font-size:0.7rem;color:var(--text-faint);font-style:italic;">⚠️ Nacho is not a financial advisor. Always do your own research.</div>' : '';
-
-        // Check if scripts are loaded
-        var scriptsReady = typeof findAnswer === 'function' && typeof nachoAIAnswer === 'function';
-
-        // Find KB match (used as context for AI, or standalone fallback)
-        var _kbMatch = null;
-        if (typeof findAnswer === 'function') {
-            if (typeof nachoLiveAnswer === 'function') _kbMatch = nachoLiveAnswer(q);
-            if (!_kbMatch) _kbMatch = findAnswer(q);
-        }
-
-        // STEP 2: AI is the PRIMARY BRAIN — handles everything with KB as context
-        if (typeof nachoAIAnswer === 'function') {
-            nachoAIAnswer(q, function(aiAnswer) {
-                if (aiAnswer) {
-                    // AI answered — add channel link if KB had a relevant match
-                    var channelLink = '';
-                    if (_kbMatch && _kbMatch.channel) {
-                        channelLink = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + _kbMatch.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (_kbMatch.channelName || _kbMatch.channel) + ' →</a>';
-                    }
-                    reply(aiAnswer + channelLink + _disclaimer, 'ai');
-                } else {
-                    // AI failed — use KB answer as fallback
-                    if (_kbMatch) {
-                        var ans = typeof personalize === 'function' ? personalize(_kbMatch.answer) : _kbMatch.answer;
-                        var cl = _kbMatch.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + _kbMatch.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (_kbMatch.channelName || _kbMatch.channel) + ' →</a>' : '';
-                        reply(ans + cl + _disclaimer, 'kb');
-                        return;
-                    }
-                    // No KB either — try off-topic patterns
-                    if (typeof checkOffTopic === 'function') {
-                        var ot = checkOffTopic(q);
-                        if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot, 'offtopic'); return; }
-                    }
-                    if (typeof nachoTrackMiss === 'function') nachoTrackMiss(q);
-                    reply("Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌", 'fallback');
+        // Use unified pipeline (same logic as regular Nacho bubble)
+        if (typeof nachoUnifiedAnswer === 'function') {
+            nachoUnifiedAnswer(q, function(result) {
+                var channelLink = '';
+                if (result.channel) {
+                    channelLink = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                 }
+                reply(result.answer + channelLink, result.type);
             });
             return;
         }
 
-        // STEP 3: No AI available — use KB directly as fallback
-        if (_kbMatch) {
-            var ans2 = typeof personalize === 'function' ? personalize(_kbMatch.answer) : _kbMatch.answer;
-            var cl2 = _kbMatch.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + _kbMatch.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (_kbMatch.channelName || _kbMatch.channel) + ' →</a>' : '';
-            reply(ans2 + cl2 + _disclaimer, 'kb');
-            return;
+        // Fallback if unified pipeline not loaded yet
+        if (!document.querySelector('script[data-nacho-retry]')) {
+            var s = document.createElement('script');
+            s.src = 'nacho-qa.js?v=' + Date.now();
+            s.setAttribute('data-nacho-retry', '1');
+            document.head.appendChild(s);
         }
-
-        // STEP 4: No AI available — wait for scripts or fall back
-        if (!scriptsReady) {
-            // Force-load scripts if they haven't loaded
-            if (!document.querySelector('script[data-nacho-retry]')) {
-                var s = document.createElement('script');
-                s.src = 'nacho-qa.js?v=' + Date.now();
-                s.setAttribute('data-nacho-retry', '1');
-                document.head.appendChild(s);
-            }
-            // Wait for scripts and retry
-            setTimeout(function() {
-                if (typeof findAnswer === 'function') {
-                    var match2 = null;
-                    if (typeof nachoLiveAnswer === 'function') match2 = nachoLiveAnswer(q);
-                    if (!match2) match2 = findAnswer(q);
-                    if (match2) {
-                        var ans2 = typeof personalize === 'function' ? personalize(match2.answer) : match2.answer;
-                        var cl2 = match2.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match2.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match2.channelName || match2.channel) + ' →</a>' : '';
-                        reply(ans2 + cl2, 'kb');
-                        return;
+        setTimeout(function() {
+            if (typeof nachoUnifiedAnswer === 'function') {
+                nachoUnifiedAnswer(q, function(result) {
+                    var channelLink = '';
+                    if (result.channel) {
+                        channelLink = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                     }
-                }
-                if (typeof nachoAIAnswer === 'function') {
-                    nachoAIAnswer(q, function(aiAnswer) {
-                        if (aiAnswer) { reply(aiAnswer, 'ai'); }
-                        else { nachoModeFallbackReply(q, reply); }
-                    });
-                    return;
-                }
+                    reply(result.answer + channelLink, result.type);
+                });
+            } else {
                 nachoModeFallbackReply(q, reply);
-            }, 2000);
-            return;
-        }
-
-        nachoModeFallbackReply(q, reply);
+            }
+        }, 2000);
     };
 
     // Nacho Mode avatar tap — random fun reaction

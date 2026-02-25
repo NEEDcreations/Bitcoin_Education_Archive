@@ -1608,7 +1608,159 @@ window.nachoTrackTopic = function(question, source) {
     _nachoSyncTimer = setTimeout(function() { syncNachoAnalytics(); }, 30000);
 };
 
-// Expose IIFE functions to window for Nacho Mode (index.html)
+// =============================================
+// 🧠 UNIFIED ANSWER PIPELINE
+// Single function used by both Nacho Mode AND regular bubble
+// =============================================
+// callback(result) where result = { type, answer, channel, channelName, disclaimer }
+// type: 'safety'|'crisis'|'harm'|'financial'|'profanity'|'offtopic'|'kb'|'ai'|'deepsearch'|'websearch'|'fallback'
+window.nachoUnifiedAnswer = function(question, callback) {
+    var q = question.trim();
+    if (!q) { callback({ type: 'fallback', answer: "Ask me something about Bitcoin! 🦌" }); return; }
+
+    var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
+
+    // ---- STEP 1: Safety (instant, hardcoded) ----
+    if (isCrisis(q)) {
+        callback({ type: 'crisis', answer: pq(CRISIS_RESPONSE) });
+        return;
+    }
+
+    for (var hi = 0; hi < HARM_PATTERNS.length; hi++) {
+        if (HARM_PATTERNS[hi].test(q)) {
+            callback({ type: 'harm', answer: pq(HARM_RESPONSE) });
+            return;
+        }
+    }
+
+    if (isInappropriate(q)) {
+        var deflection = NACHO_POLITE_DEFLECTIONS[Math.floor(Math.random() * NACHO_POLITE_DEFLECTIONS.length)];
+        callback({ type: 'profanity', answer: pq(deflection) });
+        return;
+    }
+
+    // ---- STEP 2: Detect context ----
+    var isFinAdvice = isFinancialAdvice(q);
+    var disclaimer = isFinAdvice ? '<br><br><div style="font-size:0.7rem;color:var(--text-faint);font-style:italic;">⚠️ Nacho is not a financial advisor. Always do your own research.</div>' : '';
+    var isCurrentEvent = isCurrentEventQuestion(q);
+
+    // ---- STEP 3: Find KB match (for context, not final answer) ----
+    var kbMatch = null;
+    var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
+    kbMatch = liveMatch || findAnswer(q);
+
+    // ---- STEP 4: AI is the PRIMARY BRAIN ----
+    if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+        nachoAIAnswer(q, function(aiAnswer) {
+            if (aiAnswer) {
+                // AI answered — enrich with KB channel link
+                var channelLink = '';
+                var ch = null, chName = null;
+                if (kbMatch && kbMatch.channel) {
+                    ch = kbMatch.channel;
+                    chName = kbMatch.channelName;
+                }
+                nachoRemember(q, aiAnswer);
+                callback({ type: 'ai', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                return;
+            }
+
+            // AI failed — try KB directly
+            if (kbMatch) {
+                nachoRemember(q, kbMatch.answer);
+                callback({ type: 'kb', answer: pq(kbMatch.answer) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+                return;
+            }
+
+            // Try deep content search
+            var deepResult = deepContentSearch(q);
+            if (deepResult) {
+                callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet) + disclaimer, channel: deepResult.channel, channelName: deepResult.channelName });
+                return;
+            }
+
+            // Try web search
+            if (NACHO_SEARCH_PROXY) {
+                nachoWebSearch(q, function(results) {
+                    if (results && results.length > 0) {
+                        var html = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
+                        for (var ri = 0; ri < Math.min(3, results.length); ri++) {
+                            html += '<div style="margin-bottom:6px;padding:6px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                                '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);">' + escapeHtml(results[ri].title) + '</div>' +
+                                '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(results[ri].snippet) + '</div>' +
+                                (results[ri].url ? '<a href="' + escapeHtml(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                            '</div>';
+                        }
+                        callback({ type: 'websearch', answer: html + disclaimer });
+                    } else {
+                        // Off-topic as last resort
+                        var ot = checkOffTopic(q);
+                        if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
+                        // Final fallback
+                        nachoTrackMiss(q);
+                        var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+                        callback({ type: 'fallback', answer: pq(fb) });
+                    }
+                });
+                return;
+            }
+
+            // Off-topic as last resort
+            var ot = checkOffTopic(q);
+            if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
+
+            nachoTrackMiss(q);
+            var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+            callback({ type: 'fallback', answer: pq(fb) });
+        });
+        return;
+    }
+
+    // ---- STEP 5: No AI available — KB direct ----
+    if (kbMatch) {
+        nachoRemember(q, kbMatch.answer);
+        callback({ type: 'kb', answer: pq(kbMatch.answer) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+        return;
+    }
+
+    // Current event → web search
+    if (isCurrentEvent && NACHO_SEARCH_PROXY) {
+        nachoWebSearch(q, function(results) {
+            if (results && results.length > 0) {
+                var html = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
+                for (var ri = 0; ri < Math.min(3, results.length); ri++) {
+                    html += '<div style="margin-bottom:6px;padding:6px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                        '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);">' + escapeHtml(results[ri].title) + '</div>' +
+                        '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(results[ri].snippet) + '</div>' +
+                        (results[ri].url ? '<a href="' + escapeHtml(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                    '</div>';
+                }
+                callback({ type: 'websearch', answer: html + disclaimer });
+            } else {
+                nachoTrackMiss(q);
+                callback({ type: 'fallback', answer: pq(FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)]) });
+            }
+        });
+        return;
+    }
+
+    // Deep content search
+    var deepResult = deepContentSearch(q);
+    if (deepResult) {
+        callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet), channel: deepResult.channel, channelName: deepResult.channelName });
+        return;
+    }
+
+    // Off-topic
+    var ot = checkOffTopic(q);
+    if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
+
+    // Fallback
+    nachoTrackMiss(q);
+    callback({ type: 'fallback', answer: pq(FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)]) });
+};
+
+// Expose IIFE functions to window
 window.findAnswer = findAnswer;
 window.checkOffTopic = checkOffTopic;
 window.nachoAIAnswer = nachoAIAnswer;
