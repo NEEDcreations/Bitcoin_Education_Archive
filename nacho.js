@@ -978,6 +978,7 @@ window.nachoFly = function() {
 
     // Zap sound at each direction change
     function playZap(pitch) {
+        if (typeof canPlaySound === 'function' && !canPlaySound()) return;
         try {
             var ctx = new (window.AudioContext || window.webkitAudioContext)();
             var osc = ctx.createOscillator();
@@ -1027,7 +1028,7 @@ window.nachoFly = function() {
         avatar.removeEventListener('animationend', handler);
         clearInterval(trailInterval);
         // Landing sound — satisfying thud
-        if (soundOn) {
+        if (soundOn && (typeof canPlaySound !== 'function' || canPlaySound())) {
             try {
                 var ctx = new (window.AudioContext || window.webkitAudioContext)();
                 var osc = ctx.createOscillator();

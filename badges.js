@@ -280,6 +280,7 @@ function launchConfetti() {
 
 // Celebration sound
 function playBadgeSound() {
+    if (typeof canPlaySound === 'function' && !canPlaySound()) return;
     if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();

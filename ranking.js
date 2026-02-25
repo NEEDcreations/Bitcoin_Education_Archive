@@ -1197,7 +1197,7 @@ function updateUserDisplay(lv) {
 
 function showLevelUpCelebration(lv) {
     // Play triumphant sound
-    if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
+    if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
@@ -1319,7 +1319,7 @@ async function toggleLeaderboard() {
     if (fab) fab.style.display = 'none';
 
     // Leaderboard open sound — dramatic reveal
-    if (typeof audioEnabled === 'undefined' || audioEnabled) {
+    if ((typeof canPlaySound !== 'function' || canPlaySound()) && (typeof audioEnabled === 'undefined' || audioEnabled)) {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;

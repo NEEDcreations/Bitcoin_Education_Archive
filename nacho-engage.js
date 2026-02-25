@@ -297,6 +297,7 @@ window.trackNachoQuestion = function(question, matched) {
 let nachoSoundEnabled = localStorage.getItem('btc_nacho_sound') !== 'false';
 
 window.nachoPlaySound = function(type) {
+    if (typeof canPlaySound === 'function' && !canPlaySound()) return;
     if (!nachoSoundEnabled) return;
     try {
         var ctx = new (window.AudioContext || window.webkitAudioContext)();

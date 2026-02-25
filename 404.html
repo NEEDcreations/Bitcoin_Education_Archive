@@ -825,7 +825,7 @@
     <script src="nacho-qa.js?v=8" defer></script>
     <script src="nacho-closet.js?v=7" defer></script>
     <script src="forum.js?v=4" defer></script>
-    <script src="engagement.js?v=3" defer></script>
+    <script src="engagement.js?v=4" defer></script>
     <script src="mobile-ux.js?v=10" defer></script>
     <script>
     function openImg(src) {
@@ -2713,6 +2713,7 @@
     function getVolume() { return audioEnabled ? audioVolume : 0; }
 
     function playChannelSound() {
+        if (document.hidden) return;
         if (!audioEnabled || audioVolume <= 0) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();

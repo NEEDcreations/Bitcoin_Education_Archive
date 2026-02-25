@@ -550,8 +550,15 @@ window.advanceNachoStory = function() {
 };
 
 // ---- #16: Sound Effects ----
+// Global sound gate — never play audio when page isn't visible
+window.canPlaySound = function() {
+    if (document.hidden || document.visibilityState === 'hidden') return false;
+    if (localStorage.getItem('btc_audio') === 'false') return false;
+    return true;
+};
+
 window.playEngagementSound = function(type) {
-    if (localStorage.getItem('btc_audio') === 'false') return;
+    if (!canPlaySound()) return;
     try {
         var ctx = new (window.AudioContext || window.webkitAudioContext)();
         var vol = parseFloat(localStorage.getItem('btc_volume') || '0.5');

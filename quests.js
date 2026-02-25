@@ -634,6 +634,7 @@ function getQuestTitle(num) {
 }
 
 function playWarriorDrum() {
+    if (typeof canPlaySound === 'function' && !canPlaySound()) return;
     if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -823,6 +824,7 @@ async function submitQuest() {
 }
 
 function playHooraySound() {
+    if (typeof canPlaySound === 'function' && !canPlaySound()) return;
     if (typeof audioEnabled !== 'undefined' && !audioEnabled) return;
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
