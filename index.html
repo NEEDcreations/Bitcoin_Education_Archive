@@ -678,6 +678,11 @@
                 </div>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
                 <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;"></div>
+                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center;">
+                    <button onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="flex:1;min-width:120px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;"><span style="font-size:1.3rem;">🎡</span><br>Daily Spin</button>
+                    <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="flex:1;min-width:120px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;"><span style="font-size:1.3rem;">📈</span><br>Price Prediction</button>
+                    <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="flex:1;min-width:120px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;"><span style="font-size:1.3rem;">📖</span><br>Nacho's Story</button>
+                </div>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
                 <div class="daily-channel" id="dailyChannel"></div>
                 <div id="quoteOfDay" style="margin-top:16px;"></div>
@@ -806,7 +811,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="ranking.js?v=17" defer></script>
+    <script src="ranking.js?v=18" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
     <script src="features.js" defer></script>
@@ -818,6 +823,7 @@
     <script src="nacho-qa.js?v=8" defer></script>
     <script src="nacho-closet.js?v=7" defer></script>
     <script src="forum.js?v=4" defer></script>
+    <script src="engagement.js?v=1" defer></script>
     <script src="mobile-ux.js?v=4" defer></script>
     <script>
     function openImg(src) {
@@ -2473,12 +2479,21 @@
         // 1 = "One more block."
         if (key === '1') { speakEasterEgg("One more block."); return; }
         // 0 = "Don't trust. Verify."
-        if (key === '0') { speakEasterEgg("Don't trust. Verify."); return; }
+        if (key === '0') { speakEasterEgg("Don't trust. Verify."); if (typeof earnSticker === 'function') earnSticker('cool'); return; }
         // 9 = "Number go up!"
         if (key === '9') { speakEasterEgg("Number go up!"); if (typeof nachoFly === 'function') nachoFly(); return; }
         // P = "Stay humble, stack sats."
         if (key === 'p') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
         if (key === 'w') { speakEasterEgg("Stay humble. Stack sats."); return; }
+        // Secret: type "btc" to unlock Bitcoin Eyes
+        window._eggBuffer = (window._eggBuffer || '') + key;
+        if (window._eggBuffer.length > 10) window._eggBuffer = window._eggBuffer.slice(-10);
+        if (window._eggBuffer.indexOf('btc') !== -1) {
+            window._eggBuffer = '';
+            localStorage.setItem('btc_bitcoin_eyes_unlocked', 'true');
+            if (typeof showToast === 'function') showToast('₿₿ Secret unlocked: Bitcoin Eyes! Check Nacho\'s Closet!');
+            if (typeof haptic === 'function') haptic('success');
+        }
 
         // === Escape = close modals ===
         if (key === 'escape') {

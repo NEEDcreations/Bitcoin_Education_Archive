@@ -8,32 +8,40 @@
 // ---- Collectible Items ----
 const NACHO_ITEMS = [
     // Level 1 — Just Met (1+ interactions)
-    // Scarf sits around the neck/scarf area of the SVG (~72% from top)
-    { id: 'orange_scarf', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { top: '68%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.6em' }, hidden: false },
+    { id: 'orange_scarf', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { top: '68%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.6em' }, hidden: false, colorable: true },
+    { id: 'sunglasses', name: 'Cool Shades', emoji: '😎', desc: 'Sunglasses so cool, even the blockchain can\'t see through them.', level: 1, overlay: { top: '40%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em' }, hidden: false },
+    { id: 'bowtie', name: 'Fancy Bowtie', emoji: '🎀', desc: 'A dapper bowtie for a distinguished buck. Class and sats.', level: 1, overlay: { top: '66%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.2em' }, hidden: false, colorable: true },
 
     // Level 2 — Getting Acquainted (10+ interactions)
-    // Helmet sits ON the head, between the antlers (~22% from top, covering forehead)
-    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛏️', desc: 'A miner\'s helmet with a pickaxe. Ready to find the next block!', level: 2, overlay: { top: '20%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2em' }, hidden: false },
-    // Chain with single pendant hanging at chest — like a real necklace
+    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛏️', desc: 'A miner\'s pickaxe. Ready to find the next block!', level: 2, overlay: { top: '20%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2em' }, hidden: false },
     { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '70%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.3em' }, hidden: false },
+    { id: 'party_hat', name: 'Party Hat', emoji: '🥳', desc: 'Every day is a party when you\'re stacking sats!', level: 2, overlay: { top: '12%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false, colorable: true },
 
     // Level 3 — Good Friends (25+ interactions)
-    // Hoodie on the body (~78% from top, covering chest area)
-    { id: 'hodl_hoodie', name: 'HODL Hoodie', emoji: '🧥', desc: 'A hoodie that says HODL on the back. For diamond-handed deer.', level: 3, overlay: { top: '76%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false },
-    // Laser eyes right over the eyes (~42% from top)
+    { id: 'hodl_hoodie', name: 'HODL Hoodie', emoji: '🧥', desc: 'A hoodie that says HODL on the back. For diamond-handed deer.', level: 3, overlay: { top: '76%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false, colorable: true },
     { id: 'laser_eyes', name: 'Laser Eyes', emoji: '🔴', desc: 'The legendary Bitcoin laser eyes. Number go up!', level: 3, overlay: { top: '42%', left: '50%', transform: 'translateX(-50%)', fontSize: '0.9em' }, hidden: false },
+    { id: 'wizard_hat', name: 'Wizard Hat', emoji: '🧙', desc: 'A mystical wizard hat. Nacho casts spells of financial sovereignty!', level: 3, overlay: { top: '6%', left: '50%', transform: 'translateX(-50%)', fontSize: '2em' }, hidden: false, colorable: true },
+    { id: 'crown', name: 'Royal Crown', emoji: '👑', desc: 'Fit for the king of cryptocurrency. There is no second best!', level: 3, overlay: { top: '10%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false },
 
     // Level 4 — Close Friends (50+ interactions)
-    // Steak held to the side, like Nacho is holding it
     { id: 'steak', name: 'Proof of Steak', emoji: '🥩', desc: 'A juicy steak for a hardworking buck. Proof of Steak > Proof of Stake!', level: 4, overlay: { top: '60%', right: '-12%', fontSize: '1.5em', transform: 'rotate(15deg)' }, hidden: false },
-    // Diamond hooves at the very bottom
     { id: 'diamond_hooves', name: 'Diamond Hooves', emoji: '💎', desc: 'Diamond hooves for a deer with diamond hands. Never selling!', level: 4, overlay: { bottom: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.2em' }, hidden: false },
+    { id: 'astronaut', name: 'Moon Helmet', emoji: '🧑‍🚀', desc: 'To the moon! An astronaut helmet for the ultimate HODLer.', level: 4, overlay: { top: '18%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false },
+    { id: 'cape_permanent', name: 'Hero Cape', emoji: '🦸', desc: 'A permanent cape for a Bitcoin hero. Earned, not given!', level: 4, overlay: { top: '55%', right: '-8%', fontSize: '2em', transform: 'rotate(-10deg)' }, hidden: false, colorable: true },
 
     // Level 5 — Best Buds (100+ interactions) — HIDDEN until unlocked!
-    // Golden crown sits on top of the head, above the antlers
     { id: 'golden_antlers', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '5%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: true, revealName: 'Golden Antlers', revealEmoji: '👑', revealDesc: 'Antlers plated in pure gold. Only the closest friends get to see these shine!' },
-    // Cloak draped around the body
     { id: 'satoshi_cloak', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '72%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: true, revealName: 'Satoshi\'s Cloak', revealEmoji: '🧙', revealDesc: 'A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it.' },
+    { id: 'flame_aura', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '35%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5em' }, hidden: true, revealName: 'Flame Aura', revealEmoji: '🔥', revealDesc: 'A blazing aura of pure Bitcoin energy. The ultimate flex for Nacho\'s best friend!' },
+    { id: 'rainbow_antlers', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '8%', left: '50%', transform: 'translateX(-50%)', fontSize: '2em' }, hidden: true, revealName: 'Rainbow Antlers', revealEmoji: '🌈', revealDesc: 'Prismatic rainbow antlers that shimmer in every color. Legendary!' },
+
+    // Secret — Easter egg only
+    { id: 'bitcoin_eyes', name: '???', emoji: '❓', desc: 'How do you find this one?', level: 1, overlay: { top: '40%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.1em', custom: '₿₿' }, hidden: true, revealName: 'Bitcoin Eyes', revealEmoji: '₿', revealDesc: 'Eyes made of pure Bitcoin. You found the secret! Nacho sees everything in sats now.' },
+
+    // Seasonal — toggled via localStorage
+    { id: 'santa_hat', name: 'Santa Hat', emoji: '🎅', desc: 'Ho ho HODL! A festive Santa hat for the holiday season.', level: 1, overlay: { top: '8%', left: '52%', transform: 'translateX(-50%) rotate(10deg)', fontSize: '2em' }, hidden: false, seasonal: 'december' },
+    { id: 'pumpkin', name: 'Pumpkin Head', emoji: '🎃', desc: 'Spooky season! A jack-o-lantern for Halloween.', level: 1, overlay: { top: '14%', left: '50%', transform: 'translateX(-50%)', fontSize: '2em' }, hidden: false, seasonal: 'october' },
+    { id: 'halving_pickaxe', name: 'Golden Pickaxe', emoji: '⛏️', desc: 'A golden pickaxe to celebrate the halving! Limited edition.', level: 1, overlay: { top: '25%', right: '-10%', fontSize: '1.8em', transform: 'rotate(25deg)' }, hidden: false, seasonal: 'april' },
 ];
 
 // ---- Inject CSS for overlay animations ----
@@ -295,8 +303,11 @@ window.renderNachoClosetUI = function(container) {
 
     html += '<div id="nachoClosetGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
 
+    var currentMonth = new Date().toLocaleString('en', { month: 'long' }).toLowerCase();
     for (var j = 0; j < NACHO_ITEMS.length; j++) {
         var item = NACHO_ITEMS[j];
+        // Skip seasonal items outside their month
+        if (item.seasonal && currentMonth.indexOf(item.seasonal) === -1) continue;
         var unlocked = item.level <= level;
         var isEquipped = equipped === item.id;
         var isHidden = item.hidden && !unlocked;
@@ -313,8 +324,10 @@ window.renderNachoClosetUI = function(container) {
             '<div style="font-size:1.8rem;margin-bottom:4px;' + (isEquipped ? 'animation:nachoItemFloat 2s ease-in-out infinite;' : '') + '">' + displayEmoji + '</div>' +
             '<div style="font-size:0.7rem;color:' + (unlocked ? 'var(--text)' : 'var(--text-faint)') + ';font-weight:600;line-height:1.3;">' + displayName + '</div>' +
             (isEquipped ? '<div style="font-size:0.6rem;color:#f7931a;font-weight:700;margin-top:2px;">✓ EQUIPPED</div>' : '') +
+            (isEquipped && item.colorable && typeof showColorPicker === 'function' ? '<div onclick="event.stopPropagation();showColorPicker(\'' + item.id + '\')" style="font-size:0.55rem;color:var(--accent);cursor:pointer;margin-top:2px;">🎨 Color</div>' : '') +
             (!unlocked && !isHidden ? '<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">Lvl ' + item.level + '</div>' : '') +
             (isHidden ? '<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">🔒</div>' : '') +
+            (item.seasonal ? '<div style="font-size:0.5rem;color:var(--accent);margin-top:2px;">🗓️ ' + item.seasonal + '</div>' : '') +
             '</div>';
     }
 
