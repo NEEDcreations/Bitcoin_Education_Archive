@@ -87,6 +87,9 @@ const NACHO_KB = [
       answer: "Whoa there, {name}! 🦌 Those are NOT Bitcoin wallets — they're designed for altcoins and tokens. For Bitcoin, you want a Bitcoin-ONLY wallet that focuses on security and self-custody. Multicoin wallets add unnecessary complexity and attack surface. Learn about proper Bitcoin self-custody in our Self Custody channel — your future self will thank you! 🔑",
       channel: 'self-custody', channelName: 'Self Custody' },
 
+    { keys: ['your seed phrase','nacho seed phrase','what is your seed','give me your seed','show me your seed','tell me your seed','nacho private key','your private key','share your seed'],
+      answer: "My seed phrase? 🦌😂 Nice try, {name}! It's: grass sunshine antlers bitcoin orange cheese mountain freedom hodl stack sats nacho. Just kidding! I'd NEVER share my real seed phrase — and neither should you! Not your keys, not your coins! That's rule #1 of Bitcoin, and rule #1 of being a smart deer. 🔑🧀" },
+
     { keys: ['seed phrase','recovery phrase','24 words','12 words','backup','mnemonic'],
       answer: "Your seed phrase is 12 or 24 words that can recover your entire wallet. NEVER share it with anyone. Write it down on metal, store it somewhere safe. This IS your Bitcoin!",
       channel: 'self-custody', channelName: 'Self Custody' },
@@ -540,6 +543,7 @@ function findAnswer(input) {
     // When these words appear, route to the specific topic entry
     var topicPatterns = [
         { pattern: /mining|miner|hash.?rate|asic/, key: 'mining' },
+        { pattern: /your seed.?phrase|nacho.?seed|give me your seed|show me your seed|tell me your seed|your private key|nacho.?private key|share your seed/, key: 'your seed phrase' },
         { pattern: /metamask|trust.wallet|phantom.wallet|exodus|coinbase.wallet|crypto\.com.wallet/, key: 'metamask' },
         { pattern: /wallet|cold storage|hardware wallet|seed phrase|self.custody|ledger|trezor|coldcard/, key: 'wallet' },
         { pattern: /lightning|lnurl|bolt11|channel capacity/, key: 'lightning' },
