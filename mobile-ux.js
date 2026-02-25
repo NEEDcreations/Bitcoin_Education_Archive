@@ -64,9 +64,9 @@ function initBottomNav() {
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:center;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span>🏠</span><span>Home</span></button>' +
-            '<button onclick="document.getElementById(\'searchInput\').focus();if(typeof toggleMenu===\'function\')toggleMenu()" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
-            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>Forum</span></button>' +
+            '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
             '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span>🦌</span><span>Nacho</span></button>' +
+            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>Forum</span></button>' +
             '<button onclick="toggleMenu()" class="bnav-btn" id="bnavMenu"><span>☰</span><span>Menu</span></button>' +
         '</div>';
 
