@@ -2608,9 +2608,39 @@ async function togglePushNotifications() {
     if (status) status.textContent = 'Requesting permission...';
 
     try {
+        // Check if already denied (browser won't re-prompt)
+        if (Notification.permission === 'denied') {
+            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            var isAndroid = /Android/.test(navigator.userAgent);
+            var instructions = '';
+            if (isIOS) {
+                instructions = '<strong>How to fix on iPhone/iPad:</strong><br>' +
+                    '1. Open <strong>Settings</strong> app<br>' +
+                    '2. Scroll down to <strong>Safari</strong> (or your browser)<br>' +
+                    '3. Tap <strong>Notifications</strong><br>' +
+                    '4. Find <strong>bitcoineducation.quest</strong> and toggle ON';
+            } else if (isAndroid) {
+                instructions = '<strong>How to fix on Android:</strong><br>' +
+                    '1. Tap the <strong>🔒 lock icon</strong> in the address bar<br>' +
+                    '2. Tap <strong>Site settings</strong> or <strong>Permissions</strong><br>' +
+                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
+                    '4. Come back and tap ON again';
+            } else {
+                instructions = '<strong>How to fix:</strong><br>' +
+                    '1. Click the <strong>🔒 lock icon</strong> in the address bar<br>' +
+                    '2. Click <strong>Site settings</strong><br>' +
+                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
+                    '4. Refresh the page and try again';
+            }
+            if (status) status.innerHTML = '<div style="color:#ef4444;margin-bottom:8px;">⚠️ Notifications were previously blocked by your browser.</div>' +
+                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:0.8rem;color:var(--text);line-height:1.6;">' + instructions + '</div>';
+            if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
+            return;
+        }
+
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-            if (status) status.innerHTML = '❌ Permission denied. Enable notifications in your browser settings.';
+            if (status) status.innerHTML = '❌ Permission not granted. Try again or check your browser settings.';
             if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
             return;
         }
