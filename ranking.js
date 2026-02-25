@@ -2582,19 +2582,11 @@ async function togglePushNotifications() {
     const isEnabled = localStorage.getItem('btc_push_enabled') === 'true';
 
     if (isEnabled) {
-        // Disable
+        // App-level disable — don't touch browser permission
         localStorage.setItem('btc_push_enabled', 'false');
-        // Remove token from Firestore
-        if (auth && auth.currentUser) {
-            try {
-                await db.collection('users').doc(auth.currentUser.uid).update({
-                    pushToken: firebase.firestore.FieldValue.delete()
-                });
-            } catch(e) {}
-        }
         if (btn) { btn.textContent = 'OFF'; btn.style.background = 'var(--bg-side)'; btn.style.color = 'var(--text-muted)'; }
-        if (status) status.textContent = 'Notifications disabled.';
-        showToast('🔕 Push notifications disabled');
+        if (status) status.innerHTML = '<span style="color:var(--text-muted);">Notifications paused. Tap ON to resume anytime.</span>';
+        showToast('🔕 Notifications paused');
         return;
     }
 
@@ -2605,101 +2597,54 @@ async function togglePushNotifications() {
     }
 
     if (btn) { btn.textContent = '...'; btn.disabled = true; }
-    if (status) status.textContent = 'Requesting permission...';
 
     try {
-        // Check if already denied (browser won't re-prompt)
+        // If browser already granted — just flip our flag, instant ON
+        if (Notification.permission === 'granted') {
+            localStorage.setItem('btc_push_enabled', 'true');
+            if (btn) { btn.textContent = 'ON'; btn.style.background = '#22c55e'; btn.style.color = '#fff'; btn.disabled = false; }
+            if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Notifications enabled!</span>';
+            showToast('🔔 Notifications enabled!');
+            return;
+        }
+
+        // First time — need to ask browser permission
+        if (Notification.permission === 'default') {
+            if (status) status.textContent = 'Requesting permission...';
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                localStorage.setItem('btc_push_enabled', 'true');
+                if (btn) { btn.textContent = 'ON'; btn.style.background = '#22c55e'; btn.style.color = '#fff'; btn.disabled = false; }
+                if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Notifications enabled!</span>';
+                showToast('🔔 Notifications enabled!');
+                return;
+            }
+        }
+
+        // Browser denied — show helpful instructions
         if (Notification.permission === 'denied') {
             var ua = navigator.userAgent;
+            var browser = /Brave/.test(ua) ? 'Brave' : /Edg/.test(ua) ? 'Edge' : /OPR/.test(ua) ? 'Opera' : /Firefox/.test(ua) ? 'Firefox' : /Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'your browser';
             var isIOS = /iPad|iPhone|iPod/.test(ua);
             var isAndroid = /Android/.test(ua);
-            var isChrome = /Chrome/.test(ua) && !/Edg|OPR|Brave/.test(ua);
-            var isFirefox = /Firefox/.test(ua);
-            var isBrave = /Brave/.test(ua);
-            var isEdge = /Edg/.test(ua);
-            var isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
-            var isOpera = /OPR/.test(ua);
-            var instructions = '';
-
-            if (isIOS && isSafari) {
-                instructions = '<strong>How to fix on Safari (iPhone/iPad):</strong><br>' +
-                    '1. Open the <strong>Settings</strong> app<br>' +
-                    '2. Scroll to <strong>Safari</strong><br>' +
-                    '3. Tap <strong>Notifications</strong><br>' +
-                    '4. Find <strong>bitcoineducation.quest</strong> and toggle ON';
-            } else if (isIOS) {
-                instructions = '<strong>How to fix on iPhone/iPad:</strong><br>' +
-                    '1. Open the <strong>Settings</strong> app<br>' +
-                    '2. Find your browser (<strong>' + (isChrome ? 'Chrome' : isFirefox ? 'Firefox' : isBrave ? 'Brave' : 'your browser') + '</strong>)<br>' +
-                    '3. Tap <strong>Notifications</strong><br>' +
-                    '4. Find <strong>bitcoineducation.quest</strong> and toggle ON';
-            } else if (isAndroid && isChrome) {
-                instructions = '<strong>How to fix on Chrome (Android):</strong><br>' +
-                    '1. Tap the <strong>🔒 lock icon</strong> next to the URL<br>' +
-                    '2. Tap <strong>Permissions</strong><br>' +
-                    '3. Tap <strong>Notifications</strong> → set to <strong>Allow</strong><br>' +
-                    '4. Come back here and tap ON again';
-            } else if (isAndroid && isBrave) {
-                instructions = '<strong>How to fix on Brave (Android):</strong><br>' +
-                    '1. Tap the <strong>🦁 Brave icon</strong> in the URL bar<br>' +
-                    '2. Tap <strong>Site settings</strong><br>' +
-                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Come back here and tap ON again';
+            var steps = '';
+            if (isIOS) {
+                steps = 'Open your phone\'s <strong>Settings</strong> → find <strong>' + browser + '</strong> → <strong>Notifications</strong> → allow for bitcoineducation.quest';
             } else if (isAndroid) {
-                instructions = '<strong>How to fix on Android:</strong><br>' +
-                    '1. Tap the <strong>🔒 lock icon</strong> in the address bar<br>' +
-                    '2. Tap <strong>Site settings</strong> or <strong>Permissions</strong><br>' +
-                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Come back here and tap ON again';
-            } else if (isChrome) {
-                instructions = '<strong>How to fix on Chrome:</strong><br>' +
-                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
-                    '2. Click <strong>Site settings</strong><br>' +
-                    '3. Find <strong>Notifications</strong> → change to <strong>Allow</strong><br>' +
-                    '4. Refresh this page and try again';
-            } else if (isFirefox) {
-                instructions = '<strong>How to fix on Firefox:</strong><br>' +
-                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
-                    '2. Click <strong>Connection secure</strong> → <strong>More information</strong><br>' +
-                    '3. Go to <strong>Permissions</strong> tab<br>' +
-                    '4. Find <strong>Send Notifications</strong> → uncheck "Use Default" → set to <strong>Allow</strong>';
-            } else if (isBrave) {
-                instructions = '<strong>How to fix on Brave:</strong><br>' +
-                    '1. Click the <strong>🦁 Brave icon</strong> in the URL bar<br>' +
-                    '2. Click <strong>Site settings</strong><br>' +
-                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Refresh and try again';
-            } else if (isEdge) {
-                instructions = '<strong>How to fix on Edge:</strong><br>' +
-                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
-                    '2. Click <strong>Permissions for this site</strong><br>' +
-                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Refresh and try again';
-            } else if (isOpera) {
-                instructions = '<strong>How to fix on Opera:</strong><br>' +
-                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
-                    '2. Click <strong>Site settings</strong><br>' +
-                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Refresh and try again';
+                steps = 'Tap the <strong>🔒 lock icon</strong> next to the URL → <strong>Permissions</strong> → set <strong>Notifications</strong> to <strong>Allow</strong>';
             } else {
-                instructions = '<strong>How to fix:</strong><br>' +
-                    '1. Click the <strong>🔒 lock icon</strong> in the address bar<br>' +
-                    '2. Click <strong>Site settings</strong> or <strong>Permissions</strong><br>' +
-                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Refresh the page and try again';
+                steps = 'Click the <strong>🔒 lock icon</strong> next to the URL → <strong>Site settings</strong> → set <strong>Notifications</strong> to <strong>Allow</strong> → refresh';
             }
-            if (status) status.innerHTML = '<div style="color:#ef4444;margin-bottom:8px;">⚠️ Notifications were previously blocked by your browser.</div>' +
-                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:0.8rem;color:var(--text);line-height:1.6;">' + instructions + '</div>';
+            if (status) status.innerHTML = '<div style="color:#ef4444;margin-bottom:6px;">⚠️ Your browser blocked notifications.</div>' +
+                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.8rem;color:var(--text);line-height:1.5;">' +
+                '<strong>' + browser + ':</strong> ' + steps + '</div>';
             if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
             return;
         }
 
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            if (status) status.innerHTML = '❌ Permission not granted. Try again or check your browser settings.';
-            if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
-            return;
-        }
+        // Fallback
+        if (status) status.innerHTML = '❌ Could not enable notifications.';
+        if (btn) { btn.textContent = 'OFF'; btn.disabled = false; }
 
         // Register service worker
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
