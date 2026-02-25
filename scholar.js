@@ -207,45 +207,73 @@ function startScholarQuest() {
         return;
     }
 
-    // Check cooldown (failed today already)
+    // Check cooldown (already attempted today)
     const today = new Date().toISOString().split('T')[0];
-    if (scholarAttemptDate === today && scholarQuestions.length === 0) {
-        if (typeof showToast === 'function') showToast('⏰ You can retry the Scholar Certification tomorrow. Keep studying!');
-        return;
-    }
-
-    // Resume active exam if one exists
-    if (scholarQuestions.length > 0 && scholarTimeLeft > 0) {
-        renderScholarQuest();
-        startScholarTimer();
-        return;
-    }
-
-    // Also check sessionStorage for persisted exam
-    var saved = sessionStorage.getItem('btc_scholar_active');
-    if (saved) {
-        try {
-            var state = JSON.parse(saved);
-            var elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
-            var remaining = 600 - elapsed;
-            if (remaining > 0) {
-                scholarQuestions = state.questions;
-                scholarAnswers = state.answers;
-                scholarTimeLeft = remaining;
-                renderScholarQuest();
-                startScholarTimer();
-                return;
-            } else {
-                // Time expired while away
-                scholarQuestions = state.questions;
-                scholarAnswers = state.answers;
-                scholarTimeLeft = 0;
-                submitScholarQuest();
-                return;
+    if (scholarAttemptDate === today) {
+        // Check if there's an active (in-progress, not yet submitted) exam
+        var saved = sessionStorage.getItem('btc_scholar_active');
+        if (saved) {
+            try {
+                var state = JSON.parse(saved);
+                var elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+                var remaining = 600 - elapsed;
+                if (remaining > 0) {
+                    scholarQuestions = state.questions;
+                    scholarAnswers = state.answers;
+                    scholarTimeLeft = remaining;
+                    renderScholarQuest();
+                    startScholarTimer();
+                    return;
+                } else {
+                    // Time expired while away
+                    scholarQuestions = state.questions;
+                    scholarAnswers = state.answers;
+                    scholarTimeLeft = 0;
+                    submitScholarQuest();
+                    return;
+                }
+            } catch(e) {
+                sessionStorage.removeItem('btc_scholar_active');
             }
-        } catch(e) {
-            sessionStorage.removeItem('btc_scholar_active');
         }
+
+        // No active exam — they already submitted today. Show countdown.
+        var now = new Date();
+        var tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        var msLeft = tomorrow - now;
+        var hrsLeft = Math.floor(msLeft / 3600000);
+        var minsLeft = Math.floor((msLeft % 3600000) / 60000);
+
+        var modal = document.getElementById('questModal');
+        var inner = document.getElementById('questInner');
+        if (modal && inner) {
+            inner.innerHTML = '<div style="text-align:center;padding:30px;">' +
+                '<div style="font-size:4rem;margin-bottom:16px;">⏰</div>' +
+                '<h2 style="color:var(--heading);margin:8px 0 16px;">Come Back Tomorrow!</h2>' +
+                '<div style="color:var(--text-muted);margin-bottom:16px;">You\'ve already taken the Scholar Exam today.<br>You\'ll get a fresh set of 25 questions next time!</div>' +
+                '<div id="scholarCountdown" style="font-size:2rem;font-weight:900;color:var(--accent);margin-bottom:20px;">' + hrsLeft + 'h ' + minsLeft + 'm</div>' +
+                '<div style="color:var(--text-faint);font-size:0.8rem;margin-bottom:20px;">until your next attempt</div>' +
+                '<button onclick="closeQuest()" style="padding:14px 30px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep Studying →</button>' +
+                '</div>';
+            modal.classList.add('open');
+
+            // Live countdown
+            var countdownTimer = setInterval(function() {
+                var n = new Date();
+                var tmrw = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+                var ml = tmrw - n;
+                var h = Math.floor(ml / 3600000);
+                var m = Math.floor((ml % 3600000) / 60000);
+                var s = Math.floor((ml % 60000) / 1000);
+                var el = document.getElementById('scholarCountdown');
+                if (el) {
+                    el.textContent = h + 'h ' + m + 'm ' + s + 's';
+                } else {
+                    clearInterval(countdownTimer);
+                }
+            }, 1000);
+        }
+        return;
     }
 
     // Fisher-Yates shuffle for unbiased randomization
@@ -380,6 +408,11 @@ async function submitScholarQuest() {
     scholarAttemptDate = today;
     localStorage.setItem('btc_scholar_attempt_date', today);
 
+    // Store questions/answers for review, then clear active state
+    // so the exam can't be re-opened after submission
+    window._scholarSubmittedQuestions = [...scholarQuestions];
+    window._scholarSubmittedAnswers = [...scholarAnswers];
+
     let score = 0;
     scholarAnswers.forEach((a, i) => {
         if (a === scholarQuestions[i].answer) score++;
@@ -423,6 +456,11 @@ async function submitScholarQuest() {
 }
 
 async function showScholarFinalResults() {
+    // Clear in-memory exam data so it can't be re-opened
+    scholarQuestions = [];
+    scholarAnswers = [];
+    scholarTimeLeft = 0;
+
     const score = window._scholarScore;
     const passed = window._scholarPassed;
     const today = new Date().toISOString().split('T')[0];
