@@ -67,7 +67,7 @@ function initBottomNav() {
             '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
             '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span>🦌</span><span>Nacho</span></button>' +
             '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>Forum</span></button>' +
-            '<button onclick="toggleMenu();setTimeout(updateMenuBtn,100)" class="bnav-btn" id="bnavMenu"><span>' + (sidebar.classList.contains('open') ? '✕' : '☰') + '</span><span>' + (sidebar.classList.contains('open') ? 'Hide' : 'Menu</span></button>' +
+            '<button onclick="toggleMenu();setTimeout(updateMenuBtn,100)" class="bnav-btn" id="bnavMenu"><span>' + (sidebar.classList.contains('open') ? '✕' : '☰') + '</span><span>' + (sidebar.classList.contains('open') ? 'Hide' : 'Menu') + '</span></button>' +
         '</div>';
 
     // Add styles
