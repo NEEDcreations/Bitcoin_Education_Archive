@@ -2602,6 +2602,7 @@
             var fc = document.getElementById('forumContainer');
             if (fc) { fc.style.display = 'block'; }
             if (!fromPopState) history.pushState({ channel: 'forum' }, '', '#forum');
+            if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
             if (typeof renderForum === 'function') renderForum();
             return;
         }
