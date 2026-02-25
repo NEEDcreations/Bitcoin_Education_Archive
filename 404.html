@@ -1392,7 +1392,8 @@
                     '<div id="nachoModePrice" style="color:var(--accent);font-size:0.8rem;font-weight:700;"></div>' +
                     '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:12px;">' +
                         '<button id="nachoEli5Btn" onclick="toggleNachoEli5()" style="background:none;border:none;font-size:1.6rem;cursor:pointer;padding:6px;opacity:0.5;touch-action:manipulation;transition:0.2s;" title="Explain Like I\'m 5">🧒</button>' +
-                        '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1.6rem;cursor:pointer;padding:6px;touch-action:manipulation;transition:0.2s;" title="Save chat">💾</button>' +
+                        '<button onclick="nachoShowBookmarks()" style="background:none;border:none;color:var(--text-muted);font-size:1.6rem;cursor:pointer;padding:6px;touch-action:manipulation;transition:0.2s;" title="Saved answers">🔖</button>' +
+                        '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1.6rem;cursor:pointer;padding:6px;touch-action:manipulation;transition:0.2s;" title="Download chat">💾</button>' +
                         '<button onclick="nachoChatClear()" style="background:none;border:none;color:var(--text-muted);font-size:1.6rem;cursor:pointer;padding:6px;touch-action:manipulation;transition:0.2s;" title="Clear chat">🗑️</button>' +
                         '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:36px;height:36px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);" onclick="exitNachoMode()" title="Go to Home">' +
                         '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="32" height="32" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
@@ -1702,7 +1703,7 @@
         } else {
             bookmarks.push({ id: msgId, html: html.substring(0, 500), ts: Date.now() });
             if (bookmarks.length > 50) bookmarks.shift();
-            if (typeof showToast === 'function') showToast('🔖 Answer bookmarked!');
+            if (typeof showToast === 'function') showToast('🔖 Saved! Tap 🔖 in the toolbar to view.');
         }
         localStorage.setItem('btc_nacho_bookmarks', JSON.stringify(bookmarks));
         // Update button
