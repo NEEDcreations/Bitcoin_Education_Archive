@@ -2266,7 +2266,7 @@
         goHome();
     };
 
-    function goHome(fromPopState) {
+    window.goHome = function goHome(fromPopState) {
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         document.getElementById('home').classList.remove('hidden');
@@ -2583,7 +2583,7 @@
         if (slider) slider.value = audioEnabled ? audioVolume : 0;
     }
 
-    async function go(id, btn, fromPopState) {
+    window.go = async function go(id, btn, fromPopState) {
         // Forum route
         if (id === 'forum') {
             if (window._nachoMode) exitNachoMode();
