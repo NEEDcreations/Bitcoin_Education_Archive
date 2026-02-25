@@ -376,3 +376,63 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 
     return { token: customToken, uid: nostrUid };
 });
+
+// =============================================
+// Forum Post Notification — email admin on new post
+// =============================================
+exports.onForumPost = functions.firestore
+    .document('forum_posts/{postId}')
+    .onCreate(async (snap, context) => {
+        const post = snap.data();
+        const postId = context.params.postId;
+
+        // Send notification email via Firebase's built-in mail
+        // Using a simple HTTPS fetch to a mail service
+        // For now, store in a notifications collection for polling
+        // OR use nodemailer if SMTP is configured
+
+        try {
+            // Store notification for admin
+            await db.collection('admin_notifications').add({
+                type: 'forum_post',
+                postId: postId,
+                title: post.title || '',
+                author: post.authorName || 'Unknown',
+                category: post.category || 'general',
+                body: (post.body || '').substring(0, 200),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                read: false
+            });
+
+            // Send email via nodemailer
+            const nodemailer = require('nodemailer');
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: functions.config().mail ? functions.config().mail.user : '',
+                    pass: functions.config().mail ? functions.config().mail.pass : ''
+                }
+            });
+
+            if (functions.config().mail && functions.config().mail.user) {
+                await transporter.sendMail({
+                    from: '"Bitcoin Education Archive" <' + functions.config().mail.user + '>',
+                    to: 'needcreations@gmail.com',
+                    subject: '🗣️ New Forum Post: ' + (post.title || 'Untitled'),
+                    html: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">' +
+                        '<h2 style="color:#f7931a;">🗣️ New Forum Post</h2>' +
+                        '<div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                            '<h3 style="color:#fff;margin:0 0 8px;">' + (post.title || 'Untitled') + '</h3>' +
+                            '<div style="color:#aaa;font-size:0.9rem;">By: ' + (post.authorName || 'Unknown') + ' · Category: ' + (post.category || 'general') + '</div>' +
+                            (post.body ? '<p style="color:#ccc;margin-top:12px;">' + (post.body || '').substring(0, 300) + (post.body.length > 300 ? '...' : '') + '</p>' : '') +
+                        '</div>' +
+                        '<a href="https://bitcoineducation.quest/#forum" style="display:inline-block;padding:10px 24px;background:#f7931a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">View Forum →</a>' +
+                    '</div>'
+                });
+            }
+        } catch(e) {
+            console.error('Forum notification error:', e);
+        }
+
+        return null;
+    });
