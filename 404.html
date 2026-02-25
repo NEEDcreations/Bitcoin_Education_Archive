@@ -1474,21 +1474,140 @@
         return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
     }
 
+    // Daily Bitcoin facts — rotates daily
+    var NACHO_DAILY_FACTS = [
+        "There will only ever be 21 million Bitcoin. No government, company, or person can change this. 🔒",
+        "The Bitcoin network has been running non-stop since January 3, 2009 — over 99.98% uptime. No bank can say that! 🏦",
+        "The first Bitcoin transaction was 10,000 BTC for two pizzas. Today that's worth hundreds of millions! 🍕",
+        "Bitcoin processes over $10 billion in transactions daily — more than most countries' payment systems. 💸",
+        "Bitcoin mining now uses more renewable energy than almost any other industry — over 50%! ⚡",
+        "Satoshi Nakamoto's true identity remains unknown. They hold about 1 million BTC and have never spent any. 🕵️",
+        "A 'satoshi' (sat) is the smallest unit of Bitcoin: 0.00000001 BTC. You don't need to buy a whole coin! 🪙",
+        "The Bitcoin Lightning Network can process millions of transactions per second — faster than Visa! ⚡",
+        "El Salvador became the first country to adopt Bitcoin as legal tender in September 2021. 🇸🇻",
+        "Bitcoin's code is completely open source — anyone can read, verify, and contribute to it. 📖",
+        "Every 4 years, Bitcoin's new supply gets cut in half. This is called the 'halving.' The next one is in 2028! 📉",
+        "There are more Bitcoin wallets than bank accounts in most countries. Over 100 million and growing! 📈",
+        "Bitcoin can be sent anywhere in the world in minutes, 24/7, with no middleman. Try that on a Sunday with a bank! 🌍",
+        "The Genesis Block contains a hidden message: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.' 📰",
+        "About 20% of all Bitcoin is estimated to be permanently lost — mostly from early users who lost their keys. 🔑",
+        "Bitcoin's difficulty adjustment is like a thermostat — it automatically adapts every 2 weeks to keep blocks at ~10 minutes. ⚙️",
+        "Running a Bitcoin node means YOU verify every transaction yourself. No trust required. Don't trust, verify! ✅",
+        "The Lightning Network lets you send payments as small as 1 sat (~$0.0003). Try doing that with a credit card! 💳",
+        "Bitcoin has survived 400+ declared 'deaths' by media. It keeps coming back stronger every time. 💪",
+        "Over 50 publicly traded companies now hold Bitcoin on their balance sheets, led by MicroStrategy. 🏢",
+        "Bitcoin transactions are pseudonymous, not anonymous. Every transaction is recorded on the public blockchain forever. 🔍",
+        "The Bitcoin network is protected by more computing power than all the world's supercomputers combined. 🖥️",
+        "You can run a full Bitcoin node on a Raspberry Pi — a $50 computer can verify the entire monetary system. 🥧",
+        "Bitcoin's inflation rate is currently lower than gold's. After the 2028 halving, it'll be even lower. 🥇",
+        "Multisig wallets require multiple keys to spend Bitcoin — like a safety deposit box that needs 2 of 3 keys. 🗝️",
+        "Bitcoin doesn't care about borders, politics, or holidays. It works the same everywhere, always. 🌐",
+        "The last Bitcoin won't be mined until approximately the year 2140. We're still very early! ⏰",
+        "Jack Dorsey, Elon Musk, and many tech leaders have publicly supported Bitcoin's vision. 🚀",
+        "A Bitcoin block is mined roughly every 10 minutes. That's about 144 blocks per day, every day, forever. ⛏️",
+        "Nostr is a decentralized social protocol that many Bitcoiners are building on — social media you can't be censored from. 📡",
+    ];
+
+    function getDailyFact() {
+        var dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+        return NACHO_DAILY_FACTS[dayOfYear % NACHO_DAILY_FACTS.length];
+    }
+
+    // Topic chips HTML
+    function nachoTopicChips() {
+        var chips = [
+            { emoji: '📘', label: 'What is Bitcoin?', q: 'What is Bitcoin and why does it matter?' },
+            { emoji: '⚡', label: 'Lightning', q: 'What is the Lightning Network?' },
+            { emoji: '⛏️', label: 'Mining', q: 'How does Bitcoin mining work?' },
+            { emoji: '💼', label: 'Wallets', q: 'What Bitcoin wallet should I use?' },
+            { emoji: '🔒', label: 'Security', q: 'How do I keep my Bitcoin safe?' },
+            { emoji: '📈', label: 'Why Bitcoin?', q: 'Why is Bitcoin better than regular money?' },
+            { emoji: '🛒', label: 'How to Buy', q: 'How do I buy my first Bitcoin?' },
+            { emoji: '🍕', label: 'Fun Facts', q: 'Tell me a fun Bitcoin fact' },
+        ];
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px;margin:0 auto;">';
+        for (var i = 0; i < chips.length; i++) {
+            html += '<button onclick="nachoModeChip(\'' + chips[i].q.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    // Chip click handler
+    window.nachoModeChip = function(question) {
+        var inp = document.getElementById('nachoModeInput');
+        if (inp) { inp.value = question; nachoModeSend(); }
+    };
+
+    // Follow-up suggestions based on topic
+    var NACHO_MODE_FOLLOWUPS = {
+        lightning: ['How do I open a Lightning channel?', 'What wallet supports Lightning?', 'Is Lightning safe?'],
+        mining: ['Is Bitcoin mining profitable?', 'What is proof of work?', 'How does the difficulty adjustment work?'],
+        wallet: ['What is a seed phrase?', 'Hardware vs software wallet?', 'How do I back up my wallet?'],
+        halving: ['When is the next halving?', 'How does halving affect price?', 'What happens when all Bitcoin is mined?'],
+        buy: ['What is dollar cost averaging?', 'Is it too late to buy Bitcoin?', 'Where can I buy Bitcoin?'],
+        security: ['What is a multisig wallet?', 'How do I protect my seed phrase?', 'What are common Bitcoin scams?'],
+        bitcoin: ['How is Bitcoin different from regular money?', 'Who created Bitcoin?', 'How many Bitcoin are there?'],
+        price: ['Why does Bitcoin\'s price go up and down?', 'What is a bear market?', 'Should I check the price every day?'],
+        node: ['Why should I run a node?', 'Can I run a node at home?', 'What does a Bitcoin node do?'],
+        privacy: ['How private is Bitcoin?', 'What is CoinJoin?', 'Should I use KYC exchanges?'],
+        layer: ['What is the Lightning Network?', 'What are sidechains?', 'What is Liquid Network?'],
+        altcoin: ['Why do Bitcoiners dislike altcoins?', 'Is Ethereum a competitor?', 'What makes Bitcoin different from other crypto?'],
+    };
+
+    function getFollowUps(question, answer) {
+        var text = (question + ' ' + (answer || '')).toLowerCase();
+        var suggestions = [];
+        for (var topic in NACHO_MODE_FOLLOWUPS) {
+            if (text.indexOf(topic) !== -1) {
+                suggestions = suggestions.concat(NACHO_MODE_FOLLOWUPS[topic]);
+            }
+        }
+        // Dedupe and limit to 3
+        var seen = {};
+        var unique = [];
+        var qLower = question.toLowerCase();
+        for (var i = 0; i < suggestions.length; i++) {
+            var s = suggestions[i];
+            if (!seen[s] && s.toLowerCase() !== qLower) { seen[s] = true; unique.push(s); }
+            if (unique.length >= 3) break;
+        }
+        return unique;
+    }
+
+    function followUpChipsHtml(followUps) {
+        if (!followUps || followUps.length === 0) return '';
+        var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
+        for (var i = 0; i < followUps.length; i++) {
+            html += '<button onclick="nachoModeChip(\'' + followUps[i].replace(/'/g, "\\'") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+
     // Render full chat from history
     function nachoChatRender() {
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
         var hist = window._nachoChatHistory || [];
         if (hist.length === 0) {
-            // Show welcome
+            // Show welcome with daily fact + topic chips
+            var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
             chat.innerHTML =
-                '<div style="text-align:center;padding:40px 20px;">' +
+                '<div style="text-align:center;padding:30px 20px;">' +
                     '<div id="nachoModeAvatar" style="width:160px;height:160px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;"></div>' +
                     '<div style="color:var(--accent);font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
-                    '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:8px;">' +
-                        ((typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? 'Hey ' + escapeHtml(currentUser.username) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
+                    '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:12px;">' +
+                        (userName ? 'Hey ' + escapeHtml(userName) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
                     '</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.85rem;max-width:360px;margin:0 auto;">Ask me anything about Bitcoin. I\'ll answer with AI, link you to the best resources, and we\'ll build our friendship along the way!</div>' +
+                    /* Daily fact */
+                    '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:0 auto 20px;max-width:380px;text-align:left;">' +
+                        '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">💡 DID YOU KNOW?</div>' +
+                        '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + getDailyFact() + '</div>' +
+                    '</div>' +
+                    /* Topic chips */
+                    '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Tap a topic or ask me anything:</div>' +
+                    nachoTopicChips() +
                 '</div>';
             return;
         }
@@ -1635,13 +1754,18 @@
         function reply(html, source) {
             nachoChatClearThinking();
             nachoModeStopTalking();
+            var extras = '';
             // Add thumbs up/down for non-safety responses
-            var ratingHtml = '';
             if (source && source !== 'safety' && typeof nachoRatingHtml === 'function') {
-                ratingHtml = nachoRatingHtml(_replyMsgId);
+                extras += nachoRatingHtml(_replyMsgId);
             }
-            nachoChatAdd('nacho', '', html + ratingHtml);
-            nachoChatAppend('nacho', '', html + ratingHtml);
+            // Add follow-up suggestion chips
+            if (source && source !== 'safety') {
+                var fups = getFollowUps(q, html);
+                extras += followUpChipsHtml(fups);
+            }
+            nachoChatAdd('nacho', '', html + extras);
+            nachoChatAppend('nacho', '', html + extras);
             updateNachoModeFriendship();
             // Track topic + source
             if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
