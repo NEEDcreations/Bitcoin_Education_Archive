@@ -58,7 +58,9 @@ function initBottomNav() {
 
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
-    nav.style.cssText = 'display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg-side,#0a0a0a);border-top:1px solid var(--border);padding:6px 0 env(safe-area-inset-bottom,6px);';
+    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg-side,#0a0a0a);border-top:1px solid var(--border);padding:6px 0 env(safe-area-inset-bottom,6px);display:none;';
+    // Show immediately on mobile
+    if (window.innerWidth <= 900) nav.style.display = 'block';
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:center;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span>🏠</span><span>Home</span></button>' +
@@ -347,6 +349,7 @@ function showWelcomeBack() {
 
 // ---- Initialize Everything ----
 function initMobileUX() {
+    console.log('[MobileUX] Initializing...');
     initPullToRefresh();
     initBottomNav();
     initReadingProgress();
