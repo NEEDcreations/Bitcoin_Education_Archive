@@ -90,7 +90,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
     { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in! More tickets = higher giveaway chances! 🎟️" },
-    { pose: 'point', text: "💡 Tip: Share your referral link (Settings → Tickets) and earn 5 tickets for each verified friend!" },
+    { pose: 'point', text: "💡 Tip: Share your referral link (Settings → Tickets) and earn 50 tickets for each verified friend!" },
     { pose: 'celebrate', text: "💡 Tip: Each Orange Ticket also gives you 5 bonus points! Tickets + points = double reward! 🎟️⭐" },
     // Quests & Scholar
     { pose: 'brain', text: "💡 Tip: Hit 'Start a Quest' in the sidebar to test your Bitcoin knowledge and earn points! ⚡" },
