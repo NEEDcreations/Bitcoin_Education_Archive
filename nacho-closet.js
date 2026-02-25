@@ -9,31 +9,31 @@
 const NACHO_ITEMS = [
     // Level 1 — Just Met (1+ interactions)
     // Scarf sits around the neck/scarf area of the SVG (~72% from top)
-    { id: 'orange_scarf', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { top: '68%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.6em' }, hidden: false },
+    { id: 'orange_scarf', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { top: '68%', left: '50%', transform: 'translateX(-50%)', fontSize: '3.2em' }, hidden: false },
 
     // Level 2 — Getting Acquainted (10+ interactions)
     // Helmet sits ON the head, between the antlers (~22% from top, covering forehead)
-    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A miner\'s helmet with a headlamp. Ready to find the next block!', level: 2, overlay: { top: '20%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2em' }, hidden: false },
+    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A miner\'s helmet with a headlamp. Ready to find the next block!', level: 2, overlay: { top: '20%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '4em' }, hidden: false },
     // Chain with single pendant hanging at chest — like a real necklace
-    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '70%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.3em' }, hidden: false },
+    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '70%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.8em' }, hidden: false },
 
     // Level 3 — Good Friends (25+ interactions)
     // Hoodie on the body (~78% from top, covering chest area)
-    { id: 'hodl_hoodie', name: 'HODL Hoodie', emoji: '🧥', desc: 'A hoodie that says HODL on the back. For diamond-handed deer.', level: 3, overlay: { top: '76%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false },
+    { id: 'hodl_hoodie', name: 'HODL Hoodie', emoji: '🧥', desc: 'A hoodie that says HODL on the back. For diamond-handed deer.', level: 3, overlay: { top: '76%', left: '50%', transform: 'translateX(-50%)', fontSize: '3.6em' }, hidden: false },
     // Laser eyes right over the eyes (~42% from top)
-    { id: 'laser_eyes', name: 'Laser Eyes', emoji: '🔴', desc: 'The legendary Bitcoin laser eyes. Number go up!', level: 3, overlay: { top: '42%', left: '50%', transform: 'translateX(-50%)', fontSize: '0.9em' }, hidden: false },
+    { id: 'laser_eyes', name: 'Laser Eyes', emoji: '🔴', desc: 'The legendary Bitcoin laser eyes. Number go up!', level: 3, overlay: { top: '42%', left: '50%', transform: 'translateX(-50%)', fontSize: '2em' }, hidden: false },
 
     // Level 4 — Close Friends (50+ interactions)
     // Steak held to the side, like Nacho is holding it
-    { id: 'steak', name: 'Proof of Steak', emoji: '🥩', desc: 'A juicy steak for a hardworking buck. Proof of Steak > Proof of Stake!', level: 4, overlay: { top: '60%', right: '-12%', fontSize: '1.5em', transform: 'rotate(15deg)' }, hidden: false },
+    { id: 'steak', name: 'Proof of Steak', emoji: '🥩', desc: 'A juicy steak for a hardworking buck. Proof of Steak > Proof of Stake!', level: 4, overlay: { top: '55%', right: '-15%', fontSize: '3.2em', transform: 'rotate(15deg)' }, hidden: false },
     // Diamond hooves at the very bottom
-    { id: 'diamond_hooves', name: 'Diamond Hooves', emoji: '💎', desc: 'Diamond hooves for a deer with diamond hands. Never selling!', level: 4, overlay: { bottom: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.2em' }, hidden: false },
+    { id: 'diamond_hooves', name: 'Diamond Hooves', emoji: '💎', desc: 'Diamond hooves for a deer with diamond hands. Never selling!', level: 4, overlay: { bottom: '0%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: false },
 
     // Level 5 — Best Buds (100+ interactions) — HIDDEN until unlocked!
     // Golden crown sits on top of the head, above the antlers
-    { id: 'golden_antlers', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '5%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: true, revealName: 'Golden Antlers', revealEmoji: '👑', revealDesc: 'Antlers plated in pure gold. Only the closest friends get to see these shine!' },
+    { id: 'golden_antlers', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '3.6em' }, hidden: true, revealName: 'Golden Antlers', revealEmoji: '👑', revealDesc: 'Antlers plated in pure gold. Only the closest friends get to see these shine!' },
     // Cloak draped around the body
-    { id: 'satoshi_cloak', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '72%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: true, revealName: 'Satoshi\'s Cloak', revealEmoji: '🧙', revealDesc: 'A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it.' },
+    { id: 'satoshi_cloak', name: '???', emoji: '❓', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '70%', left: '50%', transform: 'translateX(-50%)', fontSize: '3.6em' }, hidden: true, revealName: 'Satoshi\'s Cloak', revealEmoji: '🧙', revealDesc: 'A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it.' },
 ];
 
 // ---- Inject CSS for overlay animations ----
