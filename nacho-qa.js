@@ -1528,4 +1528,15 @@ window.nachoTrackTopic = function(question, source) {
     _nachoSyncTimer = setTimeout(function() { syncNachoAnalytics(); }, 30000);
 };
 
+// Expose IIFE functions to window for Nacho Mode (index.html)
+window.findAnswer = findAnswer;
+window.checkOffTopic = checkOffTopic;
+window.nachoAIAnswer = nachoAIAnswer;
+window.isInappropriate = isInappropriate;
+window.isCrisis = isCrisis;
+window.isFinancialAdvice = isFinancialAdvice;
+window.deepContentSearch = deepContentSearch;
+window.nachoWebSearch = nachoWebSearch;
+window.escapeHtml = escapeHtml;
+
 })();
