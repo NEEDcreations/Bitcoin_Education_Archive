@@ -219,6 +219,8 @@ window.showSpinWheel = function() {
         if (typeof showToast === 'function') showToast('🎡 Already spun today! Come back tomorrow.');
         return;
     }
+    // Track if user is logged in at time of opening
+    window._spinUserLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
     var html = '<div id="spinOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">' +
         '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:24px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(247,147,26,0.3);">' +
         '<div style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:4px;">Daily Reward</div>' +
@@ -307,8 +309,32 @@ window.doSpin = function() {
                     overlay.innerHTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){this.remove();if(typeof updateSpinBanner===\'function\')updateSpinBanner()}">' + resultHtml + '</div>';
                 }
 
-                // Award prize
-                awardSpinPrize(prize);
+                // Check if user is logged in to claim
+                var isLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
+                if (isLoggedIn) {
+                    awardSpinPrize(prize);
+                } else {
+                    // Store pending prize — awarded after sign-in
+                    localStorage.setItem('btc_pending_spin_prize', JSON.stringify({ type: prize.type, value: prize.value, label: prize.label }));
+                    // Replace dismiss button with sign-in prompt
+                    var overlay2 = document.getElementById('spinOverlay');
+                    if (overlay2) {
+                        var inner = overlay2.querySelector('[style*="border-radius:24px"]');
+                        if (inner) {
+                            inner.innerHTML = '<div style="font-size:4rem;margin-bottom:8px;">' + prize.emoji + '</div>' +
+                                '<div style="font-size:' + (isBig ? '1.6rem' : '1.3rem') + ';font-weight:900;color:var(--accent);margin-bottom:8px;">' + prize.label + '</div>' +
+                                '<div style="background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;padding:14px;margin-bottom:16px;">' +
+                                    '<div style="font-size:0.9rem;color:var(--heading);font-weight:700;margin-bottom:4px;">🔒 Sign in to claim your prize!</div>' +
+                                    '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.4;">Create a free account or sign in now to receive your ' + prize.label + '. Your reward is saved and will be awarded instantly!</div>' +
+                                '</div>' +
+                                '<button onclick="document.getElementById(\'spinOverlay\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:14px 32px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;width:100%;">Sign In to Claim →</button>' +
+                                '<button onclick="document.getElementById(\'spinOverlay\').remove();if(typeof updateSpinBanner===\'function\')updateSpinBanner()" style="margin-top:8px;padding:10px;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Skip (prize will be lost)</button>';
+                        }
+                    }
+                    if (typeof playEngagementSound === 'function') playEngagementSound('win');
+                    return;
+                }
+
                 if (typeof playEngagementSound === 'function') playEngagementSound('win');
                 if (typeof haptic === 'function') haptic(isBig ? 'heavy' : 'success');
 
@@ -565,6 +591,23 @@ window.playEngagementSound = function(type) {
         }
     } catch(e) {}
 };
+
+// ---- Claim pending spin prize after sign-in ----
+function checkPendingSpinPrize() {
+    var pending = localStorage.getItem('btc_pending_spin_prize');
+    if (!pending) return;
+    var isLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
+    if (!isLoggedIn) return;
+    try {
+        var prize = JSON.parse(pending);
+        localStorage.removeItem('btc_pending_spin_prize');
+        awardSpinPrize(prize);
+        if (typeof showToast === 'function') showToast('🎡 Spin prize claimed: ' + prize.label + '!');
+        if (typeof haptic === 'function') haptic('success');
+    } catch(e) { localStorage.removeItem('btc_pending_spin_prize'); }
+}
+// Check every 3 seconds (catches sign-in)
+setInterval(checkPendingSpinPrize, 3000);
 
 // ---- Auto-check prediction results on load ----
 setTimeout(function() {
