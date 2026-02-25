@@ -1341,6 +1341,30 @@
         window._nachoBusy = true; // suppress ALL popups
         window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
 
+        // Hook into awardPoints to track earnings during Nacho Mode
+        if (!window._nachoPointsHooked) {
+            window._nachoPointsHooked = true;
+            var _origAward = window.awardPoints;
+            if (_origAward) {
+                window.awardPoints = function(pts, reason) {
+                    if (window._nachoMode && window._nachoModeEarnings) {
+                        window._nachoModeEarnings.points += pts;
+                    }
+                    return _origAward.apply(this, arguments);
+                };
+            }
+            // Hook into badge toast to track badge earns
+            var _origToast = window.showToast;
+            if (_origToast) {
+                window.showToast = function(msg) {
+                    if (window._nachoMode && window._nachoModeEarnings && typeof msg === 'string' && (msg.indexOf('badge') !== -1 || msg.indexOf('Badge') !== -1 || msg.indexOf('🏅') !== -1)) {
+                        window._nachoModeEarnings.badges.push(msg);
+                    }
+                    return _origToast.apply(this, arguments);
+                };
+            }
+        }
+
         // Push history state so browser back button returns to Nacho Mode
         if (!fromPopState) history.pushState({ nachoMode: true }, '', '#nacho');
 
