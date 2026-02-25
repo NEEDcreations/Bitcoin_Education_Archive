@@ -1695,10 +1695,18 @@ function showSettingsPage(tab) {
         const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔔 Push Notifications</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Get notified about new content, streaks, and announcements</div>' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Off by default. We respect your attention.</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
             '<span style="color:var(--text);font-size:0.85rem;">Notifications</span>' +
             '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.75rem;color:var(--text-muted);line-height:1.5;">' +
+                '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
+                '🎡 <strong>Spin reminders</strong> — a couple times a week, never daily<br>' +
+                '🔥 <strong>Streak alerts</strong> — don\'t lose your streak!<br>' +
+                '📰 <strong>New content</strong> — when we add major new channels<br>' +
+                '🏆 <strong>Giveaway alerts</strong> — never miss a sats giveaway<br><br>' +
+                '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
+            '</div>' +
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
             '</div>';
 

@@ -436,3 +436,58 @@ exports.onForumPost = functions.firestore
 
         return null;
     });
+
+// =============================================
+// Push Notification: Spin Wheel Reminder
+// Runs every Monday, Wednesday, Friday at 10am ET
+// =============================================
+exports.spinReminder = onSchedule({
+    schedule: 'every monday,wednesday,friday 10:00',
+    timeZone: 'America/New_York',
+    retryCount: 0,
+}, async (event) => {
+    try {
+        // Get all users with push enabled
+        const usersSnap = await db.collection('users')
+            .where('pushEnabled', '==', true)
+            .limit(500)
+            .get();
+
+        if (usersSnap.empty) return null;
+
+        // Get their push tokens
+        const messages = [];
+        for (const userDoc of usersSnap.docs) {
+            const tokenDoc = await db.collection('push_tokens').doc(userDoc.id).get();
+            if (tokenDoc.exists && tokenDoc.data().token) {
+                messages.push({
+                    token: tokenDoc.data().token,
+                    notification: {
+                        title: '🎡 Your daily spin is ready!',
+                        body: 'Spin the wheel for free Orange Tickets! 🎟️',
+                    },
+                    webpush: {
+                        fcmOptions: {
+                            link: 'https://bitcoineducation.quest',
+                        },
+                    },
+                });
+            }
+        }
+
+        // Send in batches of 500
+        if (messages.length > 0) {
+            const messaging = admin.messaging();
+            for (let i = 0; i < messages.length; i += 500) {
+                const batch = messages.slice(i, i + 500);
+                await messaging.sendEach(batch);
+            }
+            console.log('Sent spin reminders to ' + messages.length + ' users');
+        }
+
+        return null;
+    } catch(e) {
+        console.error('Spin reminder error:', e);
+        return null;
+    }
+});
