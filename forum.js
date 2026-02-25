@@ -76,27 +76,27 @@ window.renderForum = function() {
     var main = document.getElementById('main');
     if (!main) return;
 
-    var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
+    var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
 
     // Header
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">' +
-        '<div>' +
-            '<h2 style="color:var(--heading);font-size:1.5rem;font-weight:800;margin:0;">🗣️ Community Forum</h2>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Discuss Bitcoin with fellow learners</div>' +
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;">' +
+        '<div style="min-width:0;">' +
+            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0;">🗣️ Community Forum</h2>' +
+            '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">Discuss Bitcoin with fellow learners</div>' +
         '</div>' +
-        '<button onclick="forumNewPost()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">+ New Post</button>' +
+        '<button onclick="forumNewPost()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;flex-shrink:0;">+ New Post</button>' +
     '</div>';
 
     // Sort + Filter bar
-    html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">';
+    html += '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">';
     // Sort buttons
     ['recent','top','discussed'].forEach(function(s) {
-        var labels = { recent: '🕐 Recent', top: '🔥 Top', discussed: '💬 Most Discussed' };
+        var labels = { recent: '🕐 Recent', top: '🔥 Top', discussed: '💬 Discussed' };
         var active = forumSort === s;
-        html += '<button onclick="forumSetSort(\'' + s + '\')" style="padding:6px 14px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';touch-action:manipulation;">' + labels[s] + '</button>';
+        html += '<button onclick="forumSetSort(\'' + s + '\')" style="padding:8px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';touch-action:manipulation;">' + labels[s] + '</button>';
     });
     // Category dropdown
-    html += '<select id="forumCatFilter" onchange="forumSetCategory(this.value)" style="padding:6px 10px;border-radius:8px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:0.75rem;font-family:inherit;cursor:pointer;">';
+    html += '<select id="forumCatFilter" onchange="forumSetCategory(this.value)" style="padding:8px 10px;border-radius:8px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:0.75rem;font-family:inherit;cursor:pointer;flex:1;min-width:120px;">';
     html += '<option value="all"' + (forumCategory === 'all' ? ' selected' : '') + '>All Categories</option>';
     FORUM_CATEGORIES.forEach(function(c) {
         html += '<option value="' + c.id + '"' + (forumCategory === c.id ? ' selected' : '') + '>' + c.emoji + ' ' + c.name + '</option>';
@@ -155,23 +155,23 @@ window.forumLoadPosts = async function() {
             var canDelete = isOwn || isForumAdmin();
             var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:0.2s;" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                '<div style="display:flex;gap:12px;">' +
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                '<div style="display:flex;gap:10px;">' +
                     // Upvote column
-                    '<div style="display:flex;flex-direction:column;align-items:center;min-width:40px;flex-shrink:0;">' +
-                        '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">⚡</button>' +
-                        '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
+                    '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
+                        '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">⚡</button>' +
+                        '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
                     '</div>' +
                     // Content
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="color:var(--heading);font-size:0.95rem;font-weight:700;margin-bottom:4px;line-height:1.3;">' + fEsc(p.title) + '</div>' +
-                        (p.body ? '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;margin-bottom:6px;overflow:hidden;max-height:2.8em;">' + fEsc(p.body).substring(0, 150) + (p.body.length > 150 ? '...' : '') + '</div>' : '') +
-                        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
+                    '<div style="flex:1;min-width:0;overflow:hidden;">' +
+                        '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
+                        (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
+                        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
                             '<span style="font-size:0.7rem;color:var(--text-faint);">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
-                            '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                            '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                             '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
-                            (catLabel ? '<span style="font-size:0.65rem;padding:2px 8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);">' + catLabel + '</span>' : '') +
-                            (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px 4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
+                            (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
+                            (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                         '</div>' +
                     '</div>' +
                 '</div>' +
@@ -203,14 +203,14 @@ window.forumViewPost = async function(postId) {
         var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
-        var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
+        var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
 
         // Back button
-        html += '<button onclick="go(\'forum\')" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
+        html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
 
         // Post
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">' +
-            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0 0 8px;line-height:1.3;">' + fEsc(p.title) + '</h2>' +
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
                 '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
@@ -221,7 +221,7 @@ window.forumViewPost = async function(postId) {
             var bodyHtml = fEsc(p.body).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
             // Auto-link URLs
             bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
-            html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;">' + bodyHtml + '</div>';
+            html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;">' + bodyHtml + '</div>';
         }
 
         if (p.link) {
@@ -230,7 +230,7 @@ window.forumViewPost = async function(postId) {
 
         // Vote + meta + admin delete
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
-        html += '<div style="display:flex;gap:16px;align-items:center;">' +
+        html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
             '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">⚡ ' + (p.upvotes || 0) + '</button>' +
             '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
             (canDeletePost ? '<button onclick="forumDeletePost(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
@@ -239,11 +239,11 @@ window.forumViewPost = async function(postId) {
 
         // Reply box
         if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">' +
-                '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                    '<span id="forumReplyStatus" style="font-size:0.8rem;"></span>' +
-                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Reply</button>' +
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;">' +
+                '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;min-height:70px;-webkit-appearance:none;"></textarea>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+                    '<span id="forumReplyStatus" style="font-size:0.8rem;flex:1;min-width:0;"></span>' +
+                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
                 '</div></div>';
         } else {
             html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;">' +
@@ -290,7 +290,7 @@ async function forumLoadReplies(postId) {
             bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
 
             var canDeleteReply = (auth && auth.currentUser && r.authorId === auth.currentUser.uid) || isForumAdmin();
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
@@ -328,16 +328,18 @@ window.forumNewPost = function() {
 
     history.pushState({ channel: 'forum-new' }, '', '#forum');
     var main = document.getElementById('main');
-    var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
-    html += '<button onclick="go(\'forum\')" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
+    var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+    html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
 
-    html += '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0 0 16px;">📝 Create New Post</h2>';
+    html += '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 14px;">📝 Create New Post</h2>';
 
-    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;">';
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">';
+
+    var _inputStyle = 'width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px;-webkit-appearance:none;';
 
     // Category
     html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Category</label>' +
-        '<select id="forumNewCat" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;cursor:pointer;">';
+        '<select id="forumNewCat" style="' + _inputStyle + 'cursor:pointer;">';
     FORUM_CATEGORIES.forEach(function(c) {
         html += '<option value="' + c.id + '">' + c.emoji + ' ' + c.name + '</option>';
     });
@@ -345,17 +347,17 @@ window.forumNewPost = function() {
 
     // Title
     html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Title *</label>' +
-        '<input type="text" id="forumNewTitle" maxlength="120" placeholder="What\'s on your mind?" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.95rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px;">';
+        '<input type="text" id="forumNewTitle" maxlength="120" placeholder="What\'s on your mind?" style="' + _inputStyle + '">';
 
     // Body
     html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Details <span style="color:var(--text-faint);">(optional, 2000 chars max)</span></label>' +
-        '<textarea id="forumNewBody" rows="6" maxlength="2000" placeholder="Share your thoughts, ask a question, start a discussion..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:12px;"></textarea>';
+        '<textarea id="forumNewBody" rows="5" maxlength="2000" placeholder="Share your thoughts, ask a question, start a discussion..." style="' + _inputStyle + 'resize:vertical;min-height:100px;"></textarea>';
 
     // Link
     html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Link <span style="color:var(--text-faint);">(optional)</span></label>' +
-        '<input type="url" id="forumNewLink" maxlength="200" placeholder="https://..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:16px;">';
+        '<input type="url" id="forumNewLink" maxlength="200" placeholder="https://..." style="' + _inputStyle + '">';
 
-    html += '<button onclick="forumSubmitPost()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Post to Forum</button>';
+    html += '<button onclick="forumSubmitPost()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.3);">Post to Forum</button>';
     html += '<div id="forumPostStatus" style="margin-top:8px;font-size:0.85rem;text-align:center;"></div>';
 
     html += '</div></div>';
