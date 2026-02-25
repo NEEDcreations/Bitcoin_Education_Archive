@@ -141,12 +141,14 @@ if (_origAwardPoints) {
         return _origAwardPoints.apply(this, arguments);
     };
 }
-var _origShowToast = window._showToastNow || window.showToast;
-// Haptic on toasts
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest && e.target.closest('button');
-    if (btn) haptic('light');
-});
+// Haptic on level-up celebrations
+var _origShowLevelUp = window.showLevelUpCelebration;
+if (_origShowLevelUp) {
+    window.showLevelUpCelebration = function() {
+        haptic('heavy');
+        return _origShowLevelUp.apply(this, arguments);
+    };
+}
 
 // ---- #7: Page Transitions ----
 (function() {
