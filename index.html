@@ -1683,7 +1683,14 @@
 
         // STEP 4: No AI available — wait for scripts or fall back
         if (!scriptsReady) {
-            // Scripts haven't loaded yet — wait and retry once
+            // Force-load scripts if they haven't loaded
+            if (!document.querySelector('script[data-nacho-retry]')) {
+                var s = document.createElement('script');
+                s.src = 'nacho-qa.js?v=' + Date.now();
+                s.setAttribute('data-nacho-retry', '1');
+                document.head.appendChild(s);
+            }
+            // Wait for scripts and retry
             setTimeout(function() {
                 if (typeof findAnswer === 'function') {
                     var match2 = null;
