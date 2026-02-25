@@ -2090,8 +2090,8 @@ async function showUserProfile(userId) {
         var links = [];
         if (d.website) links.push('<a href="' + escapeHtml(d.website) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">🌐 Website</a>');
         if (d.twitter) links.push('<a href="https://x.com/' + escapeHtml(d.twitter) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">𝕏 @' + escapeHtml(d.twitter) + '</a>');
-        if (d.nostr) links.push('<span style="color:var(--accent);font-size:0.8rem;">🟣 ' + escapeHtml(d.nostr.substring(0, 20)) + (d.nostr.length > 20 ? '...' : '') + '</span>');
-        if (d.lightning) links.push('<span style="color:var(--accent);font-size:0.8rem;">⚡ ' + escapeHtml(d.lightning) + '</span>');
+        if (d.nostr) links.push('<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + escapeHtml(d.nostr) + '\');this.textContent=\'🟣 Copied!\';setTimeout(function(){}.bind(this),1500);" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--accent);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🟣 ' + escapeHtml(d.nostr.substring(0, 20)) + (d.nostr.length > 20 ? '...' : '') + ' 📋</button>');
+        if (d.lightning) links.push('<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + escapeHtml(d.lightning) + '\');this.textContent=\'⚡ Copied!\';setTimeout(function(){}.bind(this),1500);" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--accent);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">⚡ ' + escapeHtml(d.lightning) + ' 📋</button>');
 
         if (links.length > 0) {
             html += '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:14px;">' + links.join('') + '</div>';
