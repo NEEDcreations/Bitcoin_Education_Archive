@@ -338,7 +338,18 @@ window.renderProgressRings = function() {
     if (!el) return;
 
     var totalChannels = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
-    var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+    // Use Firestore data first, fall back to localStorage
+    var visited = 0;
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        if (currentUser.readChannels && currentUser.readChannels.length) {
+            visited = currentUser.readChannels.length;
+        } else if (currentUser.channelsVisited) {
+            visited = currentUser.channelsVisited;
+        }
+    }
+    if (visited === 0) {
+        visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+    }
     var streak = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.streak || 0 : 0;
     var points = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');

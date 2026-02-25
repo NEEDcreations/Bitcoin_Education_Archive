@@ -633,6 +633,7 @@ async function loadUser(uid) {
         }
         rankingReady = true;
         updateRankUI();
+        if (typeof renderProgressRings === 'function') renderProgressRings();
         awardVisitPoints();
         startReadTimer();
 
