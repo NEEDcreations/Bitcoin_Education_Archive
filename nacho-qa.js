@@ -1424,4 +1424,107 @@ window.getNachoAnalytics = function() {
     };
 };
 
+// =============================================
+// 🔥 Firestore Analytics Sync (anonymous aggregates)
+// =============================================
+
+// Sync local analytics to Firestore periodically
+// Uses a single doc: stats/nacho-analytics
+// No user IDs — just incremented counters
+window.syncNachoAnalytics = function() {
+    if (typeof db === 'undefined' || !db) return;
+    if (typeof firebase === 'undefined') return;
+
+    try {
+        var lastSync = parseInt(localStorage.getItem('btc_nacho_sync_ts') || '0');
+        var now = Date.now();
+        // Only sync every 5 minutes max
+        if (now - lastSync < 300000) return;
+
+        var localTopics = JSON.parse(localStorage.getItem('btc_nacho_topics') || '{}');
+        var localRatings = JSON.parse(localStorage.getItem('btc_nacho_ratings') || '[]');
+        var localMisses = JSON.parse(localStorage.getItem('btc_nacho_misses') || '[]');
+
+        // Calculate what's new since last sync
+        var lastSyncedTotal = parseInt(localStorage.getItem('btc_nacho_synced_total') || '0');
+        var currentTotal = localTopics.total || 0;
+        var newQuestions = currentTotal - lastSyncedTotal;
+        if (newQuestions <= 0) return; // Nothing new to sync
+
+        var inc = firebase.firestore.FieldValue.increment;
+        var ref = db.collection('stats').doc('nacho-analytics');
+
+        // Build update object with increments
+        var update = {
+            totalQuestions: inc(newQuestions),
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Increment topic counts
+        var topics = localTopics.topics || {};
+        var lastSyncedTopics = JSON.parse(localStorage.getItem('btc_nacho_synced_topics') || '{}');
+        for (var topic in topics) {
+            var diff = (topics[topic] || 0) - (lastSyncedTopics[topic] || 0);
+            if (diff > 0) update['topics.' + topic] = inc(diff);
+        }
+
+        // Increment source counts
+        var sources = localTopics.sources || {};
+        var lastSyncedSources = JSON.parse(localStorage.getItem('btc_nacho_synced_sources') || '{}');
+        for (var src in sources) {
+            var srcDiff = (sources[src] || 0) - (lastSyncedSources[src] || 0);
+            if (srcDiff > 0) update['sources.' + src] = inc(srcDiff);
+        }
+
+        // Increment ratings
+        var lastSyncedRatingIdx = parseInt(localStorage.getItem('btc_nacho_synced_ratings') || '0');
+        var newUpvotes = 0, newDownvotes = 0;
+        for (var ri = lastSyncedRatingIdx; ri < localRatings.length; ri++) {
+            if (localRatings[ri].rating === 1) newUpvotes++;
+            else if (localRatings[ri].rating === -1) newDownvotes++;
+        }
+        if (newUpvotes > 0) update.upvotes = inc(newUpvotes);
+        if (newDownvotes > 0) update.downvotes = inc(newDownvotes);
+
+        // Add new misses (append to array, keep last 100 in Firestore)
+        var lastSyncedMissIdx = parseInt(localStorage.getItem('btc_nacho_synced_misses') || '0');
+        var newMisses = localMisses.slice(lastSyncedMissIdx);
+        if (newMisses.length > 0) {
+            // Store misses as individual fields to avoid array limits
+            update.missCount = inc(newMisses.length);
+            // Store latest misses (overwrite — just recent ones for review)
+            for (var mi = 0; mi < Math.min(newMisses.length, 10); mi++) {
+                update['recentMisses.' + (Date.now() + mi)] = {
+                    topic: newMisses[mi].topic || 'other',
+                    q: (newMisses[mi].q || '').substring(0, 80),
+                    ts: newMisses[mi].ts || Date.now()
+                };
+            }
+        }
+
+        // Use set with merge to create doc if it doesn't exist
+        ref.set(update, { merge: true }).then(function() {
+            // Save sync state
+            localStorage.setItem('btc_nacho_sync_ts', now.toString());
+            localStorage.setItem('btc_nacho_synced_total', currentTotal.toString());
+            localStorage.setItem('btc_nacho_synced_topics', JSON.stringify(topics));
+            localStorage.setItem('btc_nacho_synced_sources', JSON.stringify(sources));
+            localStorage.setItem('btc_nacho_synced_ratings', localRatings.length.toString());
+            localStorage.setItem('btc_nacho_synced_misses', localMisses.length.toString());
+        }).catch(function() {
+            // Silent fail — will retry next time
+        });
+    } catch(e) {}
+};
+
+// Auto-sync after answering questions (debounced)
+var _nachoSyncTimer = null;
+var _origTrackTopic = window.nachoTrackTopic;
+window.nachoTrackTopic = function(question, source) {
+    if (_origTrackTopic) _origTrackTopic(question, source);
+    // Debounced sync — 30s after last question
+    if (_nachoSyncTimer) clearTimeout(_nachoSyncTimer);
+    _nachoSyncTimer = setTimeout(function() { syncNachoAnalytics(); }, 30000);
+};
+
 })();

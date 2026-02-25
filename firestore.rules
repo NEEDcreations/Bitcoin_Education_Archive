@@ -63,6 +63,10 @@ service cloud.firestore {
       // Allow first creation
       allow create: if statId == 'visits'
                     && request.resource.data.total == 1;
+
+      // Nacho analytics — anonymous aggregate counters
+      // Only allow set/merge (increments), no deletes
+      allow create, update: if statId == 'nacho-analytics';
     }
 
     // =============================================
