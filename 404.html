@@ -1384,8 +1384,8 @@
             /* Header bar */
             '<div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
                 '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
-                '<div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="nachoModeAvatarTap()">' +
-                    '<img src="nacho-deer.svg" alt="Nacho" style="width:32px;height:32px;">' +
+                '<div id="nachoModeAvatar" style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="nachoModeAvatarTap()">' +
+                    '<img src="nacho-deer.svg" alt="Nacho" style="width:36px;height:36px;pointer-events:none;">' +
                     '<div style="text-align:left;">' +
                         '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;">Nacho 🦌</div>' +
                         '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.65rem;"></div>' +
