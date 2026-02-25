@@ -1679,6 +1679,14 @@ function showSettingsPage(tab) {
 
         html += '</div>';
 
+        // Haptic Feedback
+        var hapticOn = localStorage.getItem('btc_haptic') !== 'false';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📳 Haptic Feedback</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Vibration on actions</span><div style="color:var(--text-faint);font-size:0.7rem;">Vibrate on points, badges, and button taps</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_haptic\',localStorage.getItem(\'btc_haptic\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (hapticOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (hapticOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (hapticOn ? 'ON' : 'OFF') + '</button></div></div>';
+
         // Push Notifications
         const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
