@@ -234,7 +234,7 @@ Remember: You are a deer. A very smart, Bitcoin-loving deer. Stay in character a
 
     // Add KB context as a system hint if available
     if (kbContext) {
-      messages.push({ role: 'system', content: 'KNOWLEDGE BASE CONTEXT (use this as reference but rephrase naturally, add personality, and expand with your own knowledge): ' + kbContext });
+      messages.push({ role: 'system', content: 'KNOWLEDGE BASE CONTEXT (use this as reference but rephrase naturally, add personality, and expand with your own knowledge. Do NOT output channel names in brackets like [Channel: X] — the system adds channel links automatically): ' + kbContext });
     }
 
     messages.push({ role: 'user', content: question });

@@ -532,8 +532,28 @@ function findAnswer(input) {
     // If the question is about current events, skip local KB — let web search handle it
     if (isCurrentEventQuestion(input)) return null;
 
-    // PRIORITY CHECK: Altcoin mentions get roasted immediately
-    // These are specific enough that if mentioned, the user is asking about that altcoin
+    // PRIORITY CHECK: Topic-specific keywords that override generic scoring
+    // When these words appear, route to the specific topic entry
+    var topicPatterns = [
+        { pattern: /mining|miner|hash.?rate|asic/, key: 'mining' },
+        { pattern: /wallet|cold storage|hardware wallet|seed phrase|self.custody|ledger|trezor|coldcard/, key: 'wallet' },
+        { pattern: /lightning|lnurl|bolt11|channel capacity/, key: 'lightning' },
+        { pattern: /halving|halvening|block reward/, key: 'halving' },
+        { pattern: /node\b|full node|run a node|bitcoin node/, key: 'node' },
+        { pattern: /difficulty adjustment|mining difficulty/, key: 'difficulty adjustment' },
+        { pattern: /privacy|kyc|coinjoin|anonymous/, key: 'privacy' },
+    ];
+    for (var ti = 0; ti < topicPatterns.length; ti++) {
+        if (topicPatterns[ti].pattern.test(input)) {
+            for (var tei = 0; tei < NACHO_KB.length; tei++) {
+                if (NACHO_KB[tei].keys.indexOf(topicPatterns[ti].key) !== -1) {
+                    return NACHO_KB[tei];
+                }
+            }
+        }
+    }
+
+    // Altcoin mentions get roasted immediately
     var altcoinPatterns = [
         { pattern: /ethereum|eth\b|vitalik/, key: 'ethereum' },
         { pattern: /xrp|ripple/, key: 'xrp' },
@@ -932,7 +952,7 @@ function nachoAIAnswer(question, callback) {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             kbContext = kbMatch.answer.substring(0, 300);
-            if (kbMatch.channelName) kbContext += ' [Channel: ' + kbMatch.channelName + ']';
+            if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
     }
 
