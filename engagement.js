@@ -295,7 +295,12 @@ window.doSpin = function() {
                 var isBig = (prize.type === 'ticket' && prize.value >= 50) || (prize.type === 'points' && prize.value >= 50);
 
                 display.style.transform = 'scale(1)';
-                localStorage.setItem('btc_last_spin', new Date().toISOString().split('T')[0]);
+                var spinDate = new Date().toISOString().split('T')[0];
+                localStorage.setItem('btc_last_spin', spinDate);
+                // Sync to Firestore so spin tracks across devices
+                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    db.collection('users').doc(auth.currentUser.uid).update({ lastSpinDate: spinDate }).catch(function(){});
+                }
 
                 // Replace entire modal with result
                 var overlay = document.getElementById('spinOverlay');
@@ -387,12 +392,17 @@ window.showPricePrediction = function() {
 };
 
 window.makePrediction = function(direction, price) {
-    localStorage.setItem('btc_prediction', JSON.stringify({
+    var prediction = {
         direction: direction,
         price: price,
         timestamp: Date.now(),
         checkAfter: Date.now() + 86400000 // 24 hours
-    }));
+    };
+    localStorage.setItem('btc_prediction', JSON.stringify(prediction));
+    // Sync to Firestore so prediction tracks across devices
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ prediction: prediction }).catch(function(){});
+    }
     var overlay = document.getElementById('predictionOverlay');
     if (overlay) overlay.remove();
     if (typeof showToast === 'function') showToast('📈 Prediction locked! Check back in 24 hours.');
@@ -514,27 +524,59 @@ window.getNachoStoryProgress = function() {
     return parseInt(localStorage.getItem('btc_nacho_story') || '0');
 };
 
-window.showNachoStory = function() {
+window.showNachoStory = function(chapterIdx) {
     var progress = getNachoStoryProgress();
-    var chapter = NACHO_STORY[Math.min(progress, NACHO_STORY.length - 1)];
-    var isNew = progress < NACHO_STORY.length;
     var lastRead = localStorage.getItem('btc_nacho_story_date') || '';
     var today = new Date().toISOString().split('T')[0];
+    var alreadyReadToday = lastRead === today;
 
-    if (lastRead === today && isNew) {
-        if (typeof showToast === 'function') showToast('📖 Come back tomorrow for the next chapter!');
-        return;
+    // If called with a specific chapter, show that chapter (re-read mode)
+    var viewIdx = (typeof chapterIdx === 'number') ? chapterIdx : Math.min(progress, NACHO_STORY.length - 1);
+    var chapter = NACHO_STORY[viewIdx];
+    var isCurrentChapter = viewIdx === Math.min(progress, NACHO_STORY.length - 1);
+    var isNew = progress < NACHO_STORY.length && isCurrentChapter && !alreadyReadToday;
+    var isComplete = progress >= NACHO_STORY.length;
+
+    // Build chapter list for previous chapters
+    var chapterListHtml = '';
+    if (progress > 0) {
+        chapterListHtml = '<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Previous Chapters</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
+        for (var i = 0; i <= Math.min(progress, NACHO_STORY.length - 1); i++) {
+            var isCurrent = i === viewIdx;
+            chapterListHtml += '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + i + ')" style="padding:4px 10px;border-radius:8px;border:1px solid ' + (isCurrent ? 'var(--accent)' : 'var(--border)') + ';background:' + (isCurrent ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isCurrent ? '#fff' : 'var(--text-muted)') + ';font-size:0.7rem;cursor:pointer;font-family:inherit;font-weight:' + (isCurrent ? '700' : '500') + ';">' + (i + 1) + '</button>';
+        }
+        chapterListHtml += '</div></div>';
     }
 
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:400px;width:100%;text-align:center;">' +
+    // Button: advance if new chapter, or just close if re-reading
+    var buttonHtml = '';
+    if (isNew) {
+        buttonHtml = '<button onclick="advanceNachoStory();document.getElementById(\'nachoStoryOverlay\').remove()" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;width:100%;">Continue →</button>';
+    } else if (isCurrentChapter && alreadyReadToday && !isComplete) {
+        buttonHtml = '<button onclick="document.getElementById(\'nachoStoryOverlay\').remove()" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;">📖 Next chapter tomorrow!</button>';
+    } else if (isComplete) {
+        buttonHtml = '<button onclick="document.getElementById(\'nachoStoryOverlay\').remove()" style="padding:12px 24px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;width:100%;">🎉 Story Complete!</button>';
+    } else {
+        buttonHtml = '<button onclick="document.getElementById(\'nachoStoryOverlay\').remove()" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;">Close</button>';
+    }
+
+    var html = '<div id="nachoStoryOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:400px;width:100%;text-align:center;max-height:85vh;overflow-y:auto;">' +
         '<div style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">📖 Nacho\'s Story</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">' + chapter.title + '</div>' +
         '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:16px;text-align:left;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">' + chapter.text + '</div>' +
         '<div style="color:var(--accent);font-size:0.8rem;font-weight:600;margin-bottom:16px;text-align:left;">💡 Lesson: ' + chapter.lesson + '</div>' +
-        '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:12px;">Chapter ' + (Math.min(progress, NACHO_STORY.length - 1) + 1) + ' of ' + NACHO_STORY.length + '</div>' +
-        '<button onclick="advanceNachoStory();this.closest(\'[style*=position]\').remove()" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (isNew ? 'Continue →' : '🎉 Story Complete!') + '</button>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:12px;">Chapter ' + (viewIdx + 1) + ' of ' + NACHO_STORY.length + '</div>' +
+        buttonHtml +
+        chapterListHtml +
         '</div></div>';
+
+    // Remove existing overlay if any
+    var existing = document.getElementById('nachoStoryOverlay');
+    if (existing) existing.remove();
+
     var div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
@@ -543,8 +585,17 @@ window.showNachoStory = function() {
 window.advanceNachoStory = function() {
     var progress = getNachoStoryProgress();
     if (progress < NACHO_STORY.length) {
-        localStorage.setItem('btc_nacho_story', (progress + 1).toString());
-        localStorage.setItem('btc_nacho_story_date', new Date().toISOString().split('T')[0]);
+        var newProgress = progress + 1;
+        var today = new Date().toISOString().split('T')[0];
+        localStorage.setItem('btc_nacho_story', newProgress.toString());
+        localStorage.setItem('btc_nacho_story_date', today);
+        // Sync to Firestore
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                nachoStoryProgress: newProgress,
+                nachoStoryDate: today
+            }).catch(function(){});
+        }
         if (typeof awardPoints === 'function') awardPoints(10, '📖 Story chapter read!');
     }
 };

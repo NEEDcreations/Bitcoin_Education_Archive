@@ -239,6 +239,14 @@ window.renderNachoOverlay = function(animate) {
         }
     }
 
+    // Apply user-selected color (hue-rotate filter)
+    if (item.colorable) {
+        var savedHue = localStorage.getItem('btc_nacho_color_' + item.id);
+        if (savedHue && savedHue !== '0deg') {
+            overlay.style.filter = 'hue-rotate(' + savedHue + ')';
+        }
+    }
+
     // After equip animation, switch to idle
     if (animate) {
         overlay.addEventListener('animationend', function handler() {

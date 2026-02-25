@@ -642,6 +642,35 @@ async function loadUser(uid) {
             }
         }
 
+        // Restore engagement data from Firebase (cross-device sync)
+        if (isRealUser) {
+            if (currentUser.lastSpinDate) {
+                var localSpin = localStorage.getItem('btc_last_spin') || '';
+                if (currentUser.lastSpinDate > localSpin) {
+                    localStorage.setItem('btc_last_spin', currentUser.lastSpinDate);
+                }
+                if (typeof updateSpinBanner === 'function') updateSpinBanner();
+            }
+            if (currentUser.prediction) {
+                var localPred = localStorage.getItem('btc_prediction');
+                if (!localPred) {
+                    localStorage.setItem('btc_prediction', JSON.stringify(currentUser.prediction));
+                }
+            }
+            if (currentUser.nachoStoryProgress) {
+                var localStory = parseInt(localStorage.getItem('btc_nacho_story') || '0');
+                if (currentUser.nachoStoryProgress > localStory) {
+                    localStorage.setItem('btc_nacho_story', currentUser.nachoStoryProgress.toString());
+                }
+            }
+            if (currentUser.nachoStoryDate) {
+                var localStoryDate = localStorage.getItem('btc_nacho_story_date') || '';
+                if (currentUser.nachoStoryDate > localStoryDate) {
+                    localStorage.setItem('btc_nacho_story_date', currentUser.nachoStoryDate);
+                }
+            }
+        }
+
         // Badges are now safe to check — Firebase data has been restored
         window._badgesReady = true;
         if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
