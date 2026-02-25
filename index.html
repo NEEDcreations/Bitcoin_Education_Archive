@@ -2324,7 +2324,8 @@
         // Q = start quest on current channel
         if (key === 'q') { var qb = document.getElementById('questBtn'); if (qb) qb.click(); return; }
         // F = favorite/save current channel
-        if (key === 'f') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
+        if (key === 'f') { go('forum'); return; }
+        if (key === 'z') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
         // N = talk to Nacho (open Q&A input)
         if (key === 'n') { if (typeof enterNachoMode === 'function') enterNachoMode(); return; }
         // T = toggle theme (dark/light)

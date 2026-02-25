@@ -1607,7 +1607,7 @@ function showSettingsPage(tab) {
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">' +
             shortcutRow('H','Home') + shortcutRow('S / /','Search') + shortcutRow('R','Random channel') +
             shortcutRow('M','Random meme') + shortcutRow('P','Random art') + shortcutRow('B','Last channel') +
-            shortcutRow('L','Leaderboard') + shortcutRow('Q','Start quest') + shortcutRow('F','Favorite') +
+            shortcutRow('L','Leaderboard') + shortcutRow('Q','Start quest') + shortcutRow('F','Forum') + shortcutRow('Z','Favorite') +
             shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') + shortcutRow('T','Toggle theme') + shortcutRow('G','Gallery view') +
             shortcutRow('I','Settings') + shortcutRow('D','Donate') + shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
             shortcutRow('?','This help') + shortcutRow('Esc','Close modals') +
