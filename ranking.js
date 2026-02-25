@@ -1609,18 +1609,6 @@ function showSettingsPage(tab) {
             '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
             '</div></div>';
 
-        // Keyboard Shortcuts (desktop only)
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⌨️ Keyboard Shortcuts</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Works on desktop when not typing in a text field</div>' +
-            '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-size:0.85rem;">Search channels</span><span style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.8rem;color:var(--text-dim);font-family:monospace;font-weight:600;">S</span></div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-size:0.85rem;">Search (alt)</span><span style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.8rem;color:var(--text-dim);font-family:monospace;font-weight:600;">/</span></div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-size:0.85rem;">Random channel</span><span style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.8rem;color:var(--text-dim);font-family:monospace;font-weight:600;">R</span></div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-size:0.85rem;">Go home</span><span style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.8rem;color:var(--text-dim);font-family:monospace;font-weight:600;">H</span></div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--text);font-size:0.85rem;">Close modals</span><span style="background:var(--bg-side);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:0.8rem;color:var(--text-dim);font-family:monospace;font-weight:600;">Esc</span></div>' +
-            '</div></div>';
-
     } else if (settingsTab === 'security') {
         // Email verification status
         const emailVerified = user.emailVerified;
