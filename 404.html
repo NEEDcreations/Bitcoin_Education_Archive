@@ -1371,10 +1371,11 @@
                 '#nachoModeAvatar:hover { transform: scale(1.05); }' +
                 '#nachoModeSideAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; }' +
                 '#nachoModeSideAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
-                '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 90px; scroll-behavior:smooth; }' +
+                '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 16px; scroll-behavior:smooth; }' +
                 '#nachoModeChat::-webkit-scrollbar { width:4px; }' +
                 '#nachoModeChat::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }' +
-                '@media(max-width:768px){#nachoModeSideAvatar{width:50px!important;height:50px!important;bottom:8px!important;left:8px!important;}#nachoModeSideAvatar img{width:50px!important;height:50px!important;}#nachoModeChat{padding-bottom:60px!important;}}' +
+                '@media(max-width:768px){#nachoModeSideAvatar{width:100px!important;height:100px!important;bottom:8px!important;left:8px!important;}#nachoModeSideAvatar img{width:100px!important;height:100px!important;}#nachoModeChat{padding-left:8px!important;padding-bottom:110px!important;}}' +
+                '@media(min-width:769px){#nachoModeChat{padding-left:200px!important;}}' +
                 '.nm-msg { margin-bottom:10px; max-width:500px; margin-left:auto; margin-right:auto; }' +
                 '.nm-user { text-align:right; }' +
                 '.nm-user span { background:var(--accent-bg,#2a1a00);border:1px solid var(--accent);padding:10px 14px;border-radius:16px 16px 4px 16px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;line-height:1.4; }' +
@@ -1405,7 +1406,10 @@
             '</div>' +
             /* Chat area with persistent Nacho */
             '<div style="flex:1;display:flex;position:relative;overflow:hidden;">' +
-                '<div id="nachoModeSideAvatar" style="position:absolute;bottom:12px;left:12px;width:80px;height:80px;cursor:pointer;opacity:0.7;transition:opacity 0.3s;z-index:5;pointer-events:auto;" onclick="nachoModeAvatarTap()" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"><img src="nacho-deer.svg" alt="Nacho" style="width:80px;height:80px;pointer-events:none;"></div>' +
+                '<div id="nachoModeSideAvatar" style="position:absolute;bottom:16px;left:16px;width:180px;height:180px;cursor:pointer;transition:opacity 0.3s,transform 0.3s;z-index:5;pointer-events:auto;" onclick="nachoModeAvatarTap()" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'\'">' +
+                    '<img src="nacho-deer.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;">' +
+                    '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>' +
+                '</div>' +
                 '<div id="nachoModeChat" style="flex:1;"></div>' +
             '</div>' +
             /* Input bar */
@@ -1426,6 +1430,9 @@
         // Set ELI5 button state
         var eli5Btn = document.getElementById('nachoEli5Btn');
         if (eli5Btn) eli5Btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
+
+        // Render equipped outfit on Nacho Mode avatar
+        nachoModeRenderOutfit();
 
         // Fetch BTC price and start refresh timer
         setTimeout(fetchBtcPrice, 300);
@@ -1600,6 +1607,31 @@
         }
         html += '</div>';
         return html;
+    }
+
+    // =============================================
+    // 👕 Nacho Mode Outfit Overlay
+    // =============================================
+    function nachoModeRenderOutfit() {
+        var overlay = document.getElementById('nachoModeOverlay');
+        if (!overlay) return;
+        overlay.innerHTML = '';
+        if (typeof getEquippedItem !== 'function') return;
+        var item = getEquippedItem();
+        if (!item) return;
+        var emoji = item.hidden ? item.revealEmoji : item.emoji;
+        var el = document.createElement('span');
+        el.textContent = item.overlay && item.overlay.custom ? item.overlay.custom : emoji;
+        el.style.cssText = 'position:absolute;font-size:2.5rem;pointer-events:none;';
+        // Scale overlay position to the larger avatar
+        if (item.overlay) {
+            if (item.overlay.top) el.style.top = item.overlay.top;
+            if (item.overlay.left) el.style.left = item.overlay.left;
+            if (item.overlay.right) el.style.right = item.overlay.right;
+            if (item.overlay.bottom) el.style.bottom = item.overlay.bottom;
+            if (item.overlay.transform) el.style.transform = item.overlay.transform;
+        }
+        overlay.appendChild(el);
     }
 
     // =============================================
