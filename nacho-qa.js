@@ -532,6 +532,29 @@ function findAnswer(input) {
     // If the question is about current events, skip local KB — let web search handle it
     if (isCurrentEventQuestion(input)) return null;
 
+    // PRIORITY CHECK: Altcoin mentions get roasted immediately
+    // These are specific enough that if mentioned, the user is asking about that altcoin
+    var altcoinPatterns = [
+        { pattern: /ethereum|eth\b|vitalik/, key: 'ethereum' },
+        { pattern: /xrp|ripple/, key: 'xrp' },
+        { pattern: /kaspa\b|kas\b/, key: 'kaspa' },
+        { pattern: /solana|sol\b/, key: 'solana' },
+        { pattern: /dogecoin|doge\b|shiba|meme.?coin|pepe.?coin|bonk/, key: 'dogecoin' },
+        { pattern: /cardano|ada\b|hoskinson/, key: 'cardano' },
+        { pattern: /bnb|binance/, key: 'bnb' },
+        { pattern: /polkadot|dot\b|avalanche|avax|polygon|matic|tron\b/, key: 'polkadot' },
+        { pattern: /altcoin|alt.?coin|shitcoin|which crypto|best crypto|other crypto|next bitcoin|bitcoin killer/, key: 'altcoin' },
+    ];
+    for (var ai = 0; ai < altcoinPatterns.length; ai++) {
+        if (altcoinPatterns[ai].pattern.test(input)) {
+            for (var ei = 0; ei < NACHO_KB.length; ei++) {
+                if (NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
+                    return NACHO_KB[ei];
+                }
+            }
+        }
+    }
+
     let bestMatch = null;
     let bestScore = 0;
 

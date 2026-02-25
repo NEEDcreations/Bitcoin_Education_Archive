@@ -2091,6 +2091,9 @@
             return;
         }
 
+        // STEP 1b: Financial advice — add disclaimer to response (don't block, just tag)
+        var _isFinAdvice = typeof isFinancialAdvice === 'function' && isFinancialAdvice(q);
+
         // Check if scripts are loaded
         var scriptsReady = typeof findAnswer === 'function' && typeof nachoAIAnswer === 'function';
 
@@ -2102,7 +2105,8 @@
             if (match) {
                 var ans = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
                 var channelLink = match.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match.channelName || match.channel) + ' →</a>' : '';
-                reply(ans + channelLink, 'kb');
+                var disclaimer = _isFinAdvice ? '<br><br><div style="font-size:0.7rem;color:var(--text-faint);font-style:italic;">⚠️ Nacho is not a financial advisor. Always do your own research.</div>' : '';
+                reply(ans + channelLink + disclaimer, 'kb');
                 return;
             }
         }
