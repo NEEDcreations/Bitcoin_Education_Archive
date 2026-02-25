@@ -162,6 +162,8 @@ async function handleAI(request, env, corsHeaders) {
     const lang = (body.lang || '').trim();
     const userName = (body.userName || '').trim().slice(0, 30);
     const eli5 = !!body.eli5;
+    const history = Array.isArray(body.history) ? body.history.slice(-5) : [];
+    const kbContext = (body.kbContext || '').trim().slice(0, 400);
 
     if (!question || question.length < 2) {
       return new Response(JSON.stringify({ error: 'Invalid question' }), {
@@ -219,10 +221,23 @@ Remember: You are a deer. A very smart, Bitcoin-loving deer. Stay in character a
     (userName ? '\n\nThe user\'s name is ' + userName + '. Use their name naturally in conversation (not every message, but when it feels right — like a friend would).' : '') +
     (lang ? '\n\nIMPORTANT: The user speaks ' + lang + '. Respond in ' + lang + ' language while staying in character as Nacho.' : '');
 
+    // Build messages with conversation history for natural flow
     const messages = [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: question },
     ];
+
+    // Add conversation history for context
+    for (const h of history) {
+      if (h.q) messages.push({ role: 'user', content: h.q.slice(0, 150) });
+      if (h.a) messages.push({ role: 'assistant', content: h.a.slice(0, 200) });
+    }
+
+    // Add KB context as a system hint if available
+    if (kbContext) {
+      messages.push({ role: 'system', content: 'KNOWLEDGE BASE CONTEXT (use this as reference but rephrase naturally, add personality, and expand with your own knowledge): ' + kbContext });
+    }
+
+    messages.push({ role: 'user', content: question });
 
     const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
       messages,

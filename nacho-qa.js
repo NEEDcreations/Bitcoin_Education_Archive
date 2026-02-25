@@ -891,7 +891,7 @@ function deepContentSearch(query) {
 var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
 
 // ---- Nacho AI (LLM via Cloudflare Workers AI) ----
-var NACHO_AI_DAILY_LIMIT = 10; // per user per day
+var NACHO_AI_DAILY_LIMIT = 30; // per user per day (AI is primary brain now)
 
 function getAICount() {
     var data = JSON.parse(localStorage.getItem('btc_nacho_ai_uses') || '{}');
@@ -919,10 +919,34 @@ function nachoAIAnswer(question, callback) {
     var userLang = localStorage.getItem('btc_lang') || '';
     var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || '');
     var eli5 = window._nachoEli5 || false;
+
+    // Build conversation history for context (last 5 exchanges)
+    var history = [];
+    for (var hi = Math.max(0, _nachoConvoHistory.length - 5); hi < _nachoConvoHistory.length; hi++) {
+        history.push({ q: _nachoConvoHistory[hi].q, a: _nachoConvoHistory[hi].a.substring(0, 200) });
+    }
+
+    // Check if KB has a relevant answer to send as context
+    var kbContext = '';
+    if (typeof findAnswer === 'function') {
+        var kbMatch = findAnswer(question);
+        if (kbMatch) {
+            kbContext = kbMatch.answer.substring(0, 300);
+            if (kbMatch.channelName) kbContext += ' [Channel: ' + kbMatch.channelName + ']';
+        }
+    }
+
     var fetchOpts = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question, lang: userLang, userName: userName, eli5: eli5 })
+        body: JSON.stringify({
+            question: question,
+            lang: userLang,
+            userName: userName,
+            eli5: eli5,
+            history: history,
+            kbContext: kbContext
+        })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
 
