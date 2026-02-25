@@ -1299,7 +1299,7 @@ async function toggleLeaderboard() {
             }
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-            html += '<div' + hidden + '>' +
+            html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-name">' + lv.emoji + ' ' + (d.username || 'Anon') + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
@@ -1438,6 +1438,26 @@ function showSettingsPage(tab) {
             '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
             '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
+
+        // Profile section
+        var bio = currentUser ? currentUser.bio || '' : '';
+        var website = currentUser ? currentUser.website || '' : '';
+        var twitter = currentUser ? currentUser.twitter || '' : '';
+        var nostr = currentUser ? currentUser.nostr || '' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📝 Public Profile</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Visible when someone clicks your name on the leaderboard</div>' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Bio <span id="bioCharCount" style="color:var(--text-faint);">(' + (160 - bio.length) + ' chars left)</span></label>' +
+            '<textarea id="profileBio" maxlength="160" rows="3" placeholder="Tell the community about yourself..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:10px;" oninput="document.getElementById(\'bioCharCount\').textContent=\'(\' + (160-this.value.length) + \' chars left)\'">' + escapeHtml(bio) + '</textarea>' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🌐 Website</label>' +
+            '<input type="url" id="profileWebsite" value="' + escapeHtml(website) + '" placeholder="https://yoursite.com" maxlength="100" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">𝕏 Twitter/X</label>' +
+            '<input type="text" id="profileTwitter" value="' + escapeHtml(twitter) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🟣 Nostr</label>' +
+            '<input type="text" id="profileNostr" value="' + escapeHtml(nostr) + '" placeholder="npub... or NIP-05" maxlength="80" style="width:100%;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px;">' +
+            '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
+            '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
+            '</div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
@@ -1894,6 +1914,117 @@ function setFontSize(size) {
 })();
 
 // Change username
+// Bio moderation — check for inappropriate content
+var PROFILE_BLOCKED = ['fuck','shit','ass','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','sex','nude','hentai','kill','rape','pedo'];
+function isBioClean(text) {
+    var lower = text.toLowerCase().replace(/[^a-z\s]/g, '');
+    var words = lower.split(/\s+/);
+    for (var i = 0; i < words.length; i++) {
+        for (var j = 0; j < PROFILE_BLOCKED.length; j++) {
+            if (words[i] === PROFILE_BLOCKED[j]) return false;
+            if (PROFILE_BLOCKED[j].length >= 4 && words[i].indexOf(PROFILE_BLOCKED[j]) !== -1) return false;
+        }
+    }
+    return true;
+}
+
+async function saveProfile() {
+    var status = document.getElementById('profileStatus');
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in to save your profile</span>';
+        return;
+    }
+    var bio = (document.getElementById('profileBio').value || '').trim().substring(0, 160);
+    var website = (document.getElementById('profileWebsite').value || '').trim().substring(0, 100);
+    var twitter = (document.getElementById('profileTwitter').value || '').trim().substring(0, 30);
+    var nostr = (document.getElementById('profileNostr').value || '').trim().substring(0, 80);
+
+    // Validate bio
+    if (bio && !isBioClean(bio)) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Bio contains inappropriate language. Please keep it clean!</span>';
+        return;
+    }
+
+    // Validate website URL
+    if (website && !/^https?:\/\//i.test(website)) {
+        website = 'https://' + website;
+    }
+    if (website && !/^https?:\/\/[a-z0-9]/i.test(website)) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Invalid website URL</span>';
+        return;
+    }
+
+    // Clean twitter handle
+    if (twitter) twitter = twitter.replace(/^@/, '');
+
+    try {
+        await db.collection('users').doc(auth.currentUser.uid).update({
+            bio: bio, website: website, twitter: twitter, nostr: nostr
+        });
+        currentUser.bio = bio;
+        currentUser.website = website;
+        currentUser.twitter = twitter;
+        currentUser.nostr = nostr;
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
+    } catch(e) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving profile</span>';
+    }
+}
+
+// Show user profile popup (from leaderboard click)
+async function showUserProfile(userId) {
+    try {
+        var doc = await db.collection('users').doc(userId).get();
+        if (!doc.exists) return;
+        var d = doc.data();
+        var lv = getLevel(d.points || 0);
+
+        // Check if they have any profile data
+        var hasBio = d.bio || d.website || d.twitter || d.nostr;
+
+        var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.remove()">' +
+            '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;">' +
+                '<div style="text-align:center;margin-bottom:16px;">' +
+                    '<div style="font-size:2.5rem;margin-bottom:6px;">' + lv.emoji + '</div>' +
+                    '<div style="color:var(--heading);font-size:1.2rem;font-weight:700;">' + escapeHtml(d.username || 'Anon') + '</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.8rem;">' + lv.name + ' · ' + (d.points || 0).toLocaleString() + ' pts</div>' +
+                '</div>';
+
+        if (d.bio) {
+            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:12px;text-align:center;">' + escapeHtml(d.bio) + '</div>';
+        }
+
+        // Stats
+        html += '<div style="display:flex;gap:12px;justify-content:center;margin-bottom:14px;">';
+        if (d.channelsVisited) html += '<div style="text-align:center;"><div style="color:var(--accent);font-weight:700;font-size:1rem;">' + d.channelsVisited + '</div><div style="color:var(--text-faint);font-size:0.7rem;">Channels</div></div>';
+        if (d.streak) html += '<div style="text-align:center;"><div style="color:#f97316;font-weight:700;font-size:1rem;">🔥' + d.streak + '</div><div style="color:var(--text-faint);font-size:0.7rem;">Streak</div></div>';
+        if (d.scholarPassed) html += '<div style="text-align:center;"><div style="font-size:1rem;">🎓</div><div style="color:var(--text-faint);font-size:0.7rem;">Scholar</div></div>';
+        html += '</div>';
+
+        // Links
+        var links = [];
+        if (d.website) links.push('<a href="' + escapeHtml(d.website) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">🌐 Website</a>');
+        if (d.twitter) links.push('<a href="https://x.com/' + escapeHtml(d.twitter) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">𝕏 @' + escapeHtml(d.twitter) + '</a>');
+        if (d.nostr) links.push('<span style="color:var(--accent);font-size:0.8rem;">🟣 ' + escapeHtml(d.nostr.substring(0, 20)) + (d.nostr.length > 20 ? '...' : '') + '</span>');
+
+        if (links.length > 0) {
+            html += '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:14px;">' + links.join('') + '</div>';
+        }
+
+        // Member since
+        if (d.created) {
+            var created = d.created.toDate ? d.created.toDate().toLocaleDateString() : new Date(d.created).toLocaleDateString();
+            html += '<div style="text-align:center;color:var(--text-faint);font-size:0.7rem;">Member since ' + created + '</div>';
+        }
+
+        html += '</div></div>';
+
+        var div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div.firstChild);
+    } catch(e) {}
+}
+
 async function changeUsername() {
     const input = document.getElementById('newUsername');
     const status = document.getElementById('usernameStatus');
