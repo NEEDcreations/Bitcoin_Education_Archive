@@ -3221,7 +3221,31 @@
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function() {});
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            // Check for updates every 5 minutes
+            setInterval(function() { reg.update(); }, 300000);
+
+            reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                if (!newWorker) return;
+                newWorker.addEventListener('statechange', function() {
+                    if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                        // New version installed — show update banner
+                        var banner = document.createElement('div');
+                        banner.id = 'updateBanner';
+                        banner.style.cssText = 'position:fixed;bottom:70px;left:16px;right:16px;z-index:9999;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);animation:slideInUp 0.3s;font-family:inherit;';
+                        banner.innerHTML =
+                            '<div style="flex:1;">' +
+                                '<div style="font-weight:700;font-size:0.9rem;">🆕 Update Available!</div>' +
+                                '<div style="font-size:0.75rem;opacity:0.9;">New features and improvements are ready.</div>' +
+                            '</div>' +
+                            '<button onclick="location.reload()" style="padding:8px 16px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Refresh</button>' +
+                            '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>';
+                        document.body.appendChild(banner);
+                    }
+                });
+            });
+        }).catch(function() {});
     });
 }
 </script>
