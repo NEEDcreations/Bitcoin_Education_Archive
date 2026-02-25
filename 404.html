@@ -1391,7 +1391,9 @@
                         '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.65rem;"></div>' +
                     '</div>' +
                 '</div>' +
-                '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<div id="nachoModePrice" style="color:var(--accent);font-size:0.75rem;font-weight:700;min-width:60px;text-align:center;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<button id="nachoEli5Btn" onclick="toggleNachoEli5()" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;opacity:0.5;touch-action:manipulation;" title="Explain Like I\'m 5">🧒</button>' +
                     '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Save chat">💾</button>' +
                     '<button onclick="nachoChatClear()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Clear chat">🗑️</button>' +
                     '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:32px;height:32px;border-radius:50%;cursor:pointer;" onclick="exitNachoMode()" title="Go to Home">' +
@@ -1414,6 +1416,10 @@
         // Render saved chat history
         nachoChatRender();
         updateNachoModeFriendship();
+
+        // Set ELI5 button state
+        var eli5Btn = document.getElementById('nachoEli5Btn');
+        if (eli5Btn) eli5Btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
 
         // Focus input
         setTimeout(function() {
@@ -1585,6 +1591,248 @@
         return html;
     }
 
+    // =============================================
+    // 🧒 ELI5 Mode (Explain Like I'm 5)
+    // =============================================
+    window._nachoEli5 = localStorage.getItem('btc_nacho_eli5') === 'true';
+
+    window.toggleNachoEli5 = function() {
+        window._nachoEli5 = !window._nachoEli5;
+        localStorage.setItem('btc_nacho_eli5', window._nachoEli5 ? 'true' : 'false');
+        var btn = document.getElementById('nachoEli5Btn');
+        if (btn) {
+            btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
+            btn.title = window._nachoEli5 ? 'ELI5 Mode ON — Simple language' : 'Explain Like I\'m 5';
+        }
+        if (typeof showToast === 'function') showToast(window._nachoEli5 ? '🧒 ELI5 Mode ON — Nacho will use simple language' : '🧒 ELI5 Mode OFF');
+    };
+
+    // =============================================
+    // ₿ Live Bitcoin Price in Header
+    // =============================================
+    function fetchBtcPrice() {
+        var el = document.getElementById('nachoModePrice');
+        if (!el) return;
+        fetch('https://mempool.space/api/v1/prices').then(function(r) { return r.json(); }).then(function(data) {
+            if (data && data.USD) {
+                el.textContent = '₿ $' + parseInt(data.USD).toLocaleString();
+            }
+        }).catch(function() {});
+    }
+    // Fetch on enter, refresh every 60s
+    setTimeout(fetchBtcPrice, 500);
+    window._btcPriceTimer = setInterval(fetchBtcPrice, 60000);
+
+    // =============================================
+    // 📤 Share Answer
+    // =============================================
+    window.nachoShareAnswer = function(text) {
+        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
+        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        if (navigator.share) {
+            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+        } else {
+            // Fallback: copy to clipboard
+            var ta = document.createElement('textarea');
+            ta.value = shareText;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            if (typeof showToast === 'function') showToast('📋 Copied to clipboard!');
+        }
+    };
+
+    // =============================================
+    // 🔖 Bookmark Answers
+    // =============================================
+    window.nachoBookmark = function(msgId, html) {
+        var bookmarks = JSON.parse(localStorage.getItem('btc_nacho_bookmarks') || '[]');
+        // Toggle — remove if already bookmarked
+        var idx = -1;
+        for (var i = 0; i < bookmarks.length; i++) {
+            if (bookmarks[i].id === msgId) { idx = i; break; }
+        }
+        if (idx !== -1) {
+            bookmarks.splice(idx, 1);
+            if (typeof showToast === 'function') showToast('🔖 Bookmark removed');
+        } else {
+            bookmarks.push({ id: msgId, html: html.substring(0, 500), ts: Date.now() });
+            if (bookmarks.length > 50) bookmarks.shift();
+            if (typeof showToast === 'function') showToast('🔖 Answer bookmarked!');
+        }
+        localStorage.setItem('btc_nacho_bookmarks', JSON.stringify(bookmarks));
+        // Update button
+        var btn = document.getElementById('nmBk_' + msgId);
+        if (btn) btn.style.opacity = idx !== -1 ? '0.4' : '1';
+    };
+
+    window.nachoShowBookmarks = function() {
+        var bookmarks = JSON.parse(localStorage.getItem('btc_nacho_bookmarks') || '[]');
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        if (bookmarks.length === 0) {
+            nachoChatAppend('nacho', '', 'You haven\'t bookmarked any answers yet! Tap 🔖 on any answer to save it.');
+            return;
+        }
+        var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:8px;">🔖 Your Saved Answers (' + bookmarks.length + ')</div>';
+        for (var i = bookmarks.length - 1; i >= 0; i--) {
+            var b = bookmarks[i];
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;font-size:0.85rem;line-height:1.5;color:var(--text);">' +
+                b.html.replace(/<[^>]+>/g, '').substring(0, 200) +
+                (b.html.length > 200 ? '...' : '') +
+                '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">' + new Date(b.ts).toLocaleDateString() + '</div></div>';
+        }
+        nachoChatAppend('nacho', '', html);
+    };
+
+    // =============================================
+    // 🎉 Conversation Milestones
+    // =============================================
+    function checkNachoMilestone() {
+        var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+        var milestones = { 10: 'beginner', 25: 'explorer', 50: 'apprentice', 100: 'scholar', 200: 'expert', 500: 'legend' };
+        var shown = JSON.parse(localStorage.getItem('btc_nacho_milestones') || '[]');
+        for (var count in milestones) {
+            if (interactions >= parseInt(count) && shown.indexOf(count) === -1) {
+                shown.push(count);
+                localStorage.setItem('btc_nacho_milestones', JSON.stringify(shown));
+                var msgs = {
+                    10: "🎉 10 questions! You're officially a Bitcoin Beginner! Keep going — there's so much to learn! 🦌",
+                    25: "🎉 25 questions! You've leveled up to Bitcoin Explorer! You're asking the right questions! 💪",
+                    50: "🎉 50 questions! Bitcoin Apprentice unlocked! You know more than most people already! 🧠",
+                    100: "🏆 100 questions! You're a Bitcoin Scholar now! Satoshi would be proud! 🎓",
+                    200: "🔥 200 questions! Bitcoin Expert status! You could probably teach ME a thing or two! 🦌💡",
+                    500: "👑 500 QUESTIONS! You are a Bitcoin LEGEND! There's nothing Nacho can't discuss with you now! 🦌🏆🔥"
+                };
+                return msgs[count] || null;
+            }
+        }
+        return null;
+    }
+
+    // =============================================
+    // 🗺️ Guided Learning Path
+    // =============================================
+    var NACHO_LEARNING_PATH = [
+        { step: 1, emoji: '📘', title: 'What is Bitcoin?', q: 'What is Bitcoin and how does it work?' },
+        { step: 2, emoji: '💡', title: 'Why Bitcoin Matters', q: 'Why is Bitcoin important? Why should I care?' },
+        { step: 3, emoji: '📈', title: 'Bitcoin vs Money', q: 'How is Bitcoin different from regular money and gold?' },
+        { step: 4, emoji: '🛒', title: 'Buying Your First Bitcoin', q: 'How do I buy my first Bitcoin? Where do I start?' },
+        { step: 5, emoji: '💼', title: 'Wallets & Storage', q: 'What Bitcoin wallet should I use? What are the types?' },
+        { step: 6, emoji: '🔑', title: 'Seed Phrases & Security', q: 'What is a seed phrase and how do I keep my Bitcoin safe?' },
+        { step: 7, emoji: '⚡', title: 'Lightning Network', q: 'What is the Lightning Network and why does it matter?' },
+        { step: 8, emoji: '⛏️', title: 'Mining & Proof of Work', q: 'How does Bitcoin mining work? What is proof of work?' },
+        { step: 9, emoji: '🏃', title: 'Running a Node', q: 'What is a Bitcoin node and should I run one?' },
+        { step: 10, emoji: '🔒', title: 'Privacy & KYC', q: 'How private is Bitcoin? What is KYC and why does it matter?' },
+    ];
+
+    window.nachoLearningPath = function() {
+        var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+
+        var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">🗺️ Your Bitcoin Journey</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% complete — ' + progress + '/' + NACHO_LEARNING_PATH.length + ' topics</div>';
+
+        // Progress bar
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;height:8px;margin-bottom:12px;overflow:hidden;">' +
+            '<div style="background:var(--accent);height:100%;width:' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '%;border-radius:8px;transition:0.3s;"></div></div>';
+
+        for (var i = 0; i < NACHO_LEARNING_PATH.length; i++) {
+            var step = NACHO_LEARNING_PATH[i];
+            var done = i < progress;
+            var current = i === progress;
+            html += '<button onclick="nachoPathStep(' + i + ')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;margin-bottom:6px;background:' + (current ? 'var(--accent-bg)' : 'var(--card-bg)') + ';border:1px solid ' + (current ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' +
+                '<span style="font-size:1.2rem;flex-shrink:0;">' + (done ? '✅' : step.emoji) + '</span>' +
+                '<div>' +
+                    '<div style="color:' + (done ? 'var(--text-faint)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (current ? '700' : '500') + ';' + (done ? 'text-decoration:line-through;' : '') + '">Step ' + step.step + ': ' + step.title + '</div>' +
+                '</div>' +
+                (current ? '<span style="margin-left:auto;color:var(--accent);font-size:0.7rem;font-weight:700;">NEXT →</span>' : '') +
+            '</button>';
+        }
+
+        if (progress >= NACHO_LEARNING_PATH.length) {
+            html += '<div style="text-align:center;padding:12px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:10px;margin-top:8px;">' +
+                '<div style="font-size:1.5rem;margin-bottom:4px;">🎓🦌🎉</div>' +
+                '<div style="color:var(--accent);font-weight:700;">Journey Complete!</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">You\'ve covered all the Bitcoin basics. You\'re officially not a normie anymore!</div></div>';
+        }
+
+        nachoChatAppend('nacho', '', html);
+    };
+
+    window.nachoPathStep = function(stepIdx) {
+        var step = NACHO_LEARNING_PATH[stepIdx];
+        if (!step) return;
+        // Mark progress
+        var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
+        if (stepIdx >= progress) {
+            localStorage.setItem('btc_nacho_path_step', (stepIdx + 1).toString());
+        }
+        // Ask the question
+        nachoModeChip(step.q);
+    };
+
+    // =============================================
+    // 🎮 Quiz Me Button
+    // =============================================
+    window.nachoQuizMe = function(topic) {
+        // Pull from existing quest questions if available
+        if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+            var filtered = topic ? QUEST_QUESTIONS.filter(function(q) {
+                return q.category && q.category.toLowerCase().indexOf(topic.toLowerCase()) !== -1;
+            }) : QUEST_QUESTIONS;
+            if (filtered.length === 0) filtered = QUEST_QUESTIONS;
+            var q = filtered[Math.floor(Math.random() * filtered.length)];
+            var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:8px;">🎮 Quiz Time!</div>' +
+                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
+                '<div style="color:var(--text);font-size:0.9rem;margin-bottom:12px;">' + escapeHtml(q.question) + '</div>';
+            var opts = q.options || [];
+            for (var i = 0; i < opts.length; i++) {
+                var isCorrect = i === q.answer;
+                html += '<button onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+            }
+            html += '</div>';
+            html += '<button onclick="nachoQuizMe()" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Another question</button>';
+            nachoChatAppend('nacho', '', html);
+        } else {
+            nachoChatAppend('nacho', '', "Quiz questions are still loading! Try again in a moment. 🦌");
+        }
+    };
+
+    window.nachoQuizAnswer = function(btn, correct) {
+        // Disable all quiz buttons
+        var parent = btn.parentElement;
+        var buttons = parent.querySelectorAll('button');
+        buttons.forEach(function(b) {
+            b.disabled = true;
+            b.style.cursor = 'default';
+            b.style.opacity = '0.7';
+        });
+        if (correct) {
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#22c55e';
+            btn.style.opacity = '1';
+            if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+        } else {
+            btn.style.background = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.style.opacity = '1';
+            // Highlight correct answer
+            buttons.forEach(function(b) {
+                if (b !== btn && b.onclick && b.onclick.toString().indexOf('true') !== -1) {
+                    b.style.background = '#22c55e';
+                    b.style.color = '#fff';
+                    b.style.borderColor = '#22c55e';
+                    b.style.opacity = '1';
+                }
+            });
+        }
+    };
+
     // Render full chat from history
     function nachoChatRender() {
         var chat = document.getElementById('nachoModeChat');
@@ -1608,6 +1856,12 @@
                     /* Topic chips */
                     '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Tap a topic or ask me anything:</div>' +
                     nachoTopicChips() +
+                    /* Action buttons */
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;max-width:400px;margin-left:auto;margin-right:auto;">' +
+                        '<button onclick="nachoLearningPath()" style="padding:8px 16px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:20px;color:var(--accent);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗺️ Start Bitcoin Journey</button>' +
+                        '<button onclick="nachoQuizMe()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Quiz Me</button>' +
+                        '<button onclick="nachoShowBookmarks()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🔖 Saved</button>' +
+                    '</div>' +
                 '</div>';
             return;
         }
@@ -1755,12 +2009,20 @@
             nachoChatClearThinking();
             nachoModeStopTalking();
             var extras = '';
-            // Add thumbs up/down for non-safety responses
-            if (source && source !== 'safety' && typeof nachoRatingHtml === 'function') {
-                extras += nachoRatingHtml(_replyMsgId);
-            }
-            // Add follow-up suggestion chips
+            // Add action buttons for non-safety responses
             if (source && source !== 'safety') {
+                // Thumbs up/down + share + bookmark row
+                var actionRow = '<div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+                if (typeof nachoRatingHtml === 'function') {
+                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Good answer">👍</button>';
+                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bad answer">👎</button>';
+                }
+                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(\'' + html.replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,300) + '\')" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Share">📤</button>';
+                actionRow += '<button id="nmBk_' + _replyMsgId + '" onclick="event.stopPropagation();nachoBookmark(\'' + _replyMsgId + '\',\'' + html.replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,400) + '\')" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bookmark">🔖</button>';
+                actionRow += '</div>';
+                extras += actionRow;
+
+                // Follow-up chips
                 var fups = getFollowUps(q, html);
                 extras += followUpChipsHtml(fups);
             }
@@ -1769,6 +2031,14 @@
             updateNachoModeFriendship();
             // Track topic + source
             if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
+            // Check milestones
+            var milestone = checkNachoMilestone();
+            if (milestone) {
+                setTimeout(function() {
+                    nachoChatAdd('nacho', '', milestone);
+                    nachoChatAppend('nacho', '', milestone);
+                }, 1500);
+            }
         }
 
         // STEP 1: Safety (must stay hardcoded — fast, reliable, no API cost)
@@ -1946,6 +2216,7 @@
     window.exitNachoMode = function() {
         window._nachoMode = false;
         window._nachoBusy = false;
+        if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
 
         // Remove Nacho Mode screen
         var screen = document.getElementById('nachoModeScreen');

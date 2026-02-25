@@ -895,10 +895,11 @@ function nachoAIAnswer(question, callback) {
     try { controller = new AbortController(); } catch(e) {}
     var userLang = localStorage.getItem('btc_lang') || '';
     var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : (localStorage.getItem('btc_username') || '');
+    var eli5 = window._nachoEli5 || false;
     var fetchOpts = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question, lang: userLang, userName: userName })
+        body: JSON.stringify({ question: question, lang: userLang, userName: userName, eli5: eli5 })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
 
