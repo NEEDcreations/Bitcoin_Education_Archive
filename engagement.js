@@ -110,16 +110,34 @@ window.getXPMultiplier = function() {
 };
 
 // ---- #10: Spin the Wheel ----
+// Orange Ticket prizes with weighted rarity
 var SPIN_PRIZES = [
-    { label: '+5 pts', emoji: '⭐', action: function() { if (typeof awardPoints === 'function') awardPoints(5, '🎡 Spin reward!'); } },
-    { label: '+10 pts', emoji: '🌟', action: function() { if (typeof awardPoints === 'function') awardPoints(10, '🎡 Lucky spin!'); } },
-    { label: '+25 pts', emoji: '💫', action: function() { if (typeof awardPoints === 'function') awardPoints(25, '🎡 Big win!'); } },
-    { label: '+50 pts', emoji: '🎆', action: function() { if (typeof awardPoints === 'function') awardPoints(50, '🎡 JACKPOT!'); } },
-    { label: '🎟️ Ticket', emoji: '🎟️', action: function() { if (typeof showToast === 'function') showToast('🎟️ +1 Orange Ticket!'); } },
-    { label: 'Fun Fact', emoji: '🧠', action: function() { if (typeof showToast === 'function') showToast('🧠 ' + (typeof getDailyFact === 'function' ? getDailyFact() : 'Bitcoin is freedom!')); } },
-    { label: 'Nacho Quote', emoji: '🦌', action: function() { if (typeof speakEasterEgg === 'function') speakEasterEgg('Stay humble. Stack sats.'); } },
-    { label: '+15 pts', emoji: '✨', action: function() { if (typeof awardPoints === 'function') awardPoints(15, '🎡 Nice spin!'); } },
+    { label: '🎟️ 1 Ticket', emoji: '🎟️', tickets: 1 },
+    { label: '🎟️ 2 Tickets', emoji: '🎟️', tickets: 2 },
+    { label: '🎟️ 3 Tickets', emoji: '🎟️', tickets: 3 },
+    { label: '🎟️ 5 Tickets!', emoji: '✨', tickets: 5 },
+    { label: '🎟️ 10 Tickets!', emoji: '🌟', tickets: 10 },
+    { label: '🎟️ 50 Tickets!!', emoji: '💫', tickets: 50 },
+    { label: '🎟️ 100 Tickets!!!', emoji: '🎆', tickets: 100 },
+    { label: '🎟️ 1,000 TICKETS!', emoji: '🔥', tickets: 1000 },
+    { label: '🎟️ 10,000 JACKPOT!', emoji: '🏆', tickets: 10000 },
 ];
+// Weights (higher = more common). Total ~100000 for precise odds
+// 1 ticket: ~40%, 2: ~25%, 3: ~15%, 5: ~10%, 10: ~5%, 50: 1%, 100: 0.1%, 1000: 0.001%, 10000: 0.00001%
+var SPIN_WEIGHTS = [40000, 25000, 15000, 10000, 5000, 1000, 100, 1, 0.01];
+
+function awardTickets(count) {
+    // Award orange tickets via Firestore
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            orangeTickets: firebase.firestore.FieldValue.increment(count)
+        }).catch(function() {});
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + count;
+        }
+    }
+    if (typeof showToast === 'function') showToast('🎟️ +' + count.toLocaleString() + ' Orange Ticket' + (count !== 1 ? 's' : '') + '!');
+}
 
 window.canSpin = function() {
     var lastSpin = localStorage.getItem('btc_last_spin') || '';
@@ -154,14 +172,13 @@ window.doSpin = function() {
     // Animate through emojis
     var spins = 0;
     var total = 20 + Math.floor(Math.random() * 10);
-    var prizeIdx = Math.floor(Math.random() * SPIN_PRIZES.length);
-    // Weight toward smaller prizes
-    var weights = [25, 20, 10, 3, 8, 12, 12, 10]; // matches SPIN_PRIZES order
-    var weightTotal = weights.reduce(function(a, b) { return a + b; }, 0);
+    // Weighted random selection
+    var weightTotal = SPIN_WEIGHTS.reduce(function(a, b) { return a + b; }, 0);
     var r = Math.random() * weightTotal;
     var cumulative = 0;
-    for (var w = 0; w < weights.length; w++) {
-        cumulative += weights[w];
+    var prizeIdx = 0;
+    for (var w = 0; w < SPIN_WEIGHTS.length; w++) {
+        cumulative += SPIN_WEIGHTS[w];
         if (r <= cumulative) { prizeIdx = w; break; }
     }
 
@@ -175,9 +192,12 @@ window.doSpin = function() {
             display.textContent = SPIN_PRIZES[prizeIdx].emoji;
             display.style.transform = 'scale(1.3)';
             setTimeout(function() {
-                display.innerHTML = '<div style="font-size:4rem;">' + SPIN_PRIZES[prizeIdx].emoji + '</div><div style="font-size:1.2rem;font-weight:700;color:var(--accent);margin-top:8px;">' + SPIN_PRIZES[prizeIdx].label + '</div>';
+                var prize = SPIN_PRIZES[prizeIdx];
+                var celebStyle = prize.tickets >= 50 ? 'font-size:1.5rem;' : 'font-size:1.2rem;';
+                display.innerHTML = '<div style="font-size:4rem;">' + prize.emoji + '</div><div style="' + celebStyle + 'font-weight:700;color:var(--accent);margin-top:8px;">' + prize.label + '</div>';
                 display.style.transform = 'scale(1)';
-                SPIN_PRIZES[prizeIdx].action();
+                awardTickets(prize.tickets);
+                if (prize.tickets >= 50 && typeof playEngagementSound === 'function') playEngagementSound('win');
                 localStorage.setItem('btc_last_spin', new Date().toISOString().split('T')[0]);
                 btn.textContent = '🎉 Claimed!';
                 btn.style.background = '#22c55e';
