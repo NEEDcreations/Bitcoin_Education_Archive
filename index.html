@@ -356,8 +356,8 @@
             aside { display: none; position: fixed; inset: 0; z-index: 100; width: 100%; max-width: 100%; }
             aside.open { display: flex; padding-bottom: 140px; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 50; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: 54px; }
+            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
             .mobile-bar h2 { color: var(--accent); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
@@ -1379,9 +1379,12 @@
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('.mobile-bar, aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
+        // Hide mobile top bar in Nacho mode (fullscreen takeover)
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar) mbar.style.display = 'none';
 
         // Build Nacho Mode screen
         var main = document.getElementById('main');
@@ -2364,9 +2367,12 @@
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('.mobile-bar, aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
             if (el) el.style.display = '';
         });
+        // Restore mobile top bar
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
 
         // Show summary of what was earned
         var e = window._nachoModeEarnings;
@@ -2395,7 +2401,13 @@
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
-        if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
+        if (isMobile()) {
+            document.getElementById('sidebar').classList.remove('open');
+            setFloatingElementsVisible(true);
+            // Ensure mobile top bar is always visible
+            var mbar = document.querySelector('.mobile-bar');
+            if (mbar) mbar.style.display = 'flex';
+        }
         // Show continue reading
         showContinueReading();
         // Refresh exploration map to reflect newly visited channels
@@ -3202,7 +3214,9 @@
                 if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
                 var nmScreen = document.getElementById('nachoModeScreen');
                 if (nmScreen) nmScreen.remove();
-                document.querySelectorAll('.mobile-bar, aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) { if (el) el.style.display = ''; });
+                document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) { if (el) el.style.display = ''; });
+                var mbar2 = document.querySelector('.mobile-bar');
+                if (mbar2 && window.innerWidth <= 900) mbar2.style.display = 'flex';
             }
             if (hash) {
                 go(hash, null, true);
