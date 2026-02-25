@@ -491,3 +491,88 @@ exports.spinReminder = onSchedule({
         return null;
     }
 });
+
+// =============================================
+// Nacho Feedback Report — runs daily, reports every 100 interactions
+// =============================================
+exports.nachoFeedbackReport = onSchedule({
+    schedule: 'every day 09:00',
+    timeZone: 'America/New_York',
+    retryCount: 0,
+}, async (event) => {
+    try {
+        const counterDoc = await db.collection('analytics').doc('nacho_feedback').get();
+        if (!counterDoc.exists) return null;
+
+        const data = counterDoc.data();
+        const total = data.total || 0;
+        const lastReported = data.lastReportedAt || 0;
+        const lastReportedTotal = data.lastReportedTotal || 0;
+
+        // Only report every 100 new interactions
+        if (total - lastReportedTotal < 100) return null;
+
+        const thumbsUp = data.thumbsUp || 0;
+        const thumbsDown = data.thumbsDown || 0;
+        const satisfaction = total > 0 ? Math.round((thumbsUp / total) * 100) : 0;
+
+        // Get recent feedback details (last 100)
+        const recentSnap = await db.collection('nacho_feedback')
+            .orderBy('ts', 'desc')
+            .limit(100)
+            .get();
+
+        // Analyze sources and common questions
+        const sources = {};
+        const downvotedQuestions = [];
+        recentSnap.forEach(doc => {
+            const d = doc.data();
+            const src = d.source || 'unknown';
+            sources[src] = (sources[src] || 0) + 1;
+            if (d.rating === -1 && d.question) {
+                downvotedQuestions.push(d.question.substring(0, 80));
+            }
+        });
+
+        // Build report
+        const sourceList = Object.entries(sources)
+            .sort((a, b) => b[1] - a[1])
+            .map(([s, c]) => `  ${s}: ${c}`)
+            .join('\n');
+
+        const downvotedList = downvotedQuestions.length > 0
+            ? downvotedQuestions.slice(0, 10).map(q => `  • ${q}`).join('\n')
+            : '  None!';
+
+        const report = {
+            title: '📊 Nacho Feedback Report',
+            total,
+            thumbsUp,
+            thumbsDown,
+            satisfaction: satisfaction + '%',
+            newSinceLastReport: total - lastReportedTotal,
+            sources: sourceList,
+            downvotedQuestions: downvotedList,
+            generatedAt: new Date().toISOString(),
+        };
+
+        // Store report
+        await db.collection('analytics').doc('nacho_feedback').update({
+            lastReportedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastReportedTotal: total,
+            lastReport: report,
+        });
+
+        // Store in reports collection for history
+        await db.collection('nacho_feedback_reports').add({
+            ...report,
+            ts: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        console.log('Nacho feedback report generated:', JSON.stringify(report));
+        return null;
+    } catch(e) {
+        console.error('Feedback report error:', e);
+        return null;
+    }
+});

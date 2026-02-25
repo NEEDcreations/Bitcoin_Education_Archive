@@ -1459,6 +1459,28 @@ window.nachoRate = function(msgId, rating) {
         localStorage.setItem('btc_nacho_ratings', JSON.stringify(ratings));
     } catch(e) {}
 
+    // Sync rating to Firestore for analytics
+    try {
+        if (typeof db !== 'undefined' && db) {
+            var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'anon';
+            db.collection('nacho_feedback').add({
+                msgId: msgId,
+                rating: rating,
+                uid: uid,
+                question: window._nachoLastQ || '',
+                source: window._nachoLastSource || 'unknown',
+                ts: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(function() {});
+
+            // Increment global counters
+            var counterRef = db.collection('analytics').doc('nacho_feedback');
+            var update = {};
+            update[rating === 1 ? 'thumbsUp' : 'thumbsDown'] = firebase.firestore.FieldValue.increment(1);
+            update.total = firebase.firestore.FieldValue.increment(1);
+            counterRef.set(update, { merge: true }).catch(function() {});
+        }
+    } catch(e) {}
+
     // Update button styles
     var up = document.getElementById('nachoUp_' + msgId);
     var dn = document.getElementById('nachoDn_' + msgId);
@@ -1606,6 +1628,7 @@ window.syncNachoAnalytics = function() {
 var _nachoSyncTimer = null;
 var _origTrackTopic = window.nachoTrackTopic;
 window.nachoTrackTopic = function(question, source) {
+    window._nachoLastSource = source || 'unknown';
     if (_origTrackTopic) _origTrackTopic(question, source);
     // Debounced sync — 30s after last question
     if (_nachoSyncTimer) clearTimeout(_nachoSyncTimer);
