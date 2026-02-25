@@ -53,7 +53,11 @@ function renderQuoteOfTheDay() {
 function renderExplorationMap() {
     const el = document.getElementById('explorationMap');
     if (!el) return;
-    const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    // Use Firestore data if available, fall back to localStorage
+    let visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels && currentUser.readChannels.length > visited.length) {
+        visited = currentUser.readChannels;
+    }
     const allKeys = Object.keys(CHANNELS);
     const total = allKeys.length;
     const count = visited.length;

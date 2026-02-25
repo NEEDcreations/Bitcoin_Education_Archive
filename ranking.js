@@ -2636,6 +2636,10 @@ async function togglePushNotifications() {
     if (isEnabled) {
         // App-level disable — don't touch browser permission
         localStorage.setItem('btc_push_enabled', 'false');
+        // Also update Firestore so Cloud Functions stop sending
+        if (auth && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).update({ pushEnabled: false }).catch(function(){});
+        }
         if (btn) { btn.textContent = 'OFF'; btn.style.background = 'var(--bg-side)'; btn.style.color = 'var(--text-muted)'; }
         if (status) status.innerHTML = '<span style="color:var(--text-muted);">Notifications paused. Tap ON to resume anytime.</span>';
         showToast('🔕 Notifications paused');
@@ -2719,6 +2723,7 @@ async function togglePushNotifications() {
         if (auth && auth.currentUser) {
             await db.collection('users').doc(auth.currentUser.uid).update({
                 pushToken: token,
+                pushEnabled: true,
                 pushEnabledAt: new Date().toISOString()
             });
             // Also save to a push_tokens collection for easy admin access

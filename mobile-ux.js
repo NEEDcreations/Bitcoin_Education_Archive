@@ -305,23 +305,8 @@ if (_origNachoUnified) {
     };
 }
 
-// Track quiz completion for daily challenge
-var _origQuizAnswer = window.nachoQuizAnswer;
-if (_origQuizAnswer) {
-    window.nachoQuizAnswer = function() {
-        sessionStorage.setItem('btc_quiz_done', 'true');
-        return _origQuizAnswer.apply(this, arguments);
-    };
-}
-
-// Track favorite added for daily challenge
-var _origToggleFav = window.toggleFav;
-if (_origToggleFav) {
-    window.toggleFav = function() {
-        sessionStorage.setItem('btc_fav_added', 'true');
-        return _origToggleFav.apply(this, arguments);
-    };
-}
+// Quiz + Favorite tracking moved to index.html (inline definitions)
+// Wrappers here can't work because those functions are defined after this file loads
 
 // ---- #12: Progress Rings on Homepage ----
 window.renderProgressRings = function() {
