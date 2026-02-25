@@ -194,34 +194,57 @@ window.canSpin = function() {
     return lastSpin !== today;
 };
 
+// Show spin banner on homepage if user hasn't spun today
+window.updateSpinBanner = function() {
+    var banner = document.getElementById('dailySpinBanner');
+    if (!banner) return;
+    if (canSpin()) {
+        banner.style.display = 'block';
+        banner.innerHTML = '<div onclick="if(typeof showSpinWheel===\'function\')showSpinWheel()" style="background:linear-gradient(135deg,#f7931a,#ea580c);border-radius:14px;padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0.2);">' +
+            '<div style="font-size:2.5rem;animation:nachoModeBounce 2s ease-in-out infinite;">🎡</div>' +
+            '<div style="flex:1;">' +
+                '<div style="color:#fff;font-size:1rem;font-weight:800;">Daily Spin Ready!</div>' +
+                '<div style="color:rgba(255,255,255,0.8);font-size:0.8rem;">Tap to spin and win Orange Tickets! 🎟️</div>' +
+            '</div>' +
+            '<div style="color:#fff;font-size:1.5rem;">→</div>' +
+        '</div>';
+    } else {
+        banner.style.display = 'none';
+    }
+};
+setTimeout(function() { if (typeof updateSpinBanner === 'function') updateSpinBanner(); }, 1000);
+
 window.showSpinWheel = function() {
     if (!canSpin()) {
         if (typeof showToast === 'function') showToast('🎡 Already spun today! Come back tomorrow.');
         return;
     }
-    var html = '<div id="spinOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:320px;width:100%;text-align:center;">' +
-        '<div style="font-size:1.5rem;font-weight:800;color:var(--accent);margin-bottom:4px;">🎡 Daily Spin</div>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Tap to spin and win a reward!</div>' +
-        '<div id="spinWheelDisplay" style="font-size:4rem;margin:20px 0;min-height:80px;line-height:80px;transition:0.1s;overflow:hidden;">🎡</div>' +
-        '<button id="spinBtn" onclick="doSpin()" style="padding:14px 32px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">SPIN!</button>' +
+    var html = '<div id="spinOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">' +
+        '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:24px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(247,147,26,0.3);">' +
+        '<div style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:4px;">Daily Reward</div>' +
+        '<div style="font-size:1.6rem;font-weight:900;color:var(--heading);margin-bottom:16px;">🎡 Spin the Wheel</div>' +
+        '<div id="spinWheelContainer" style="position:relative;width:180px;height:180px;margin:0 auto 20px;border-radius:50%;border:4px solid var(--accent);background:radial-gradient(circle,var(--card-bg) 0%,var(--bg-side) 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(247,147,26,0.2),inset 0 0 20px rgba(0,0,0,0.3);">' +
+            '<div id="spinWheelDisplay" style="font-size:4.5rem;transition:transform 0.1s;">🎟️</div>' +
+            '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:1.5rem;">▼</div>' +
+        '</div>' +
+        '<button id="spinBtn" onclick="doSpin()" style="padding:16px 40px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.2rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;box-shadow:0 4px 15px rgba(247,147,26,0.4);transition:0.2s;letter-spacing:1px;" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'\'">SPIN!</button>' +
         '</div></div>';
     var div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
+    if (typeof playEngagementSound === 'function') playEngagementSound('click');
 };
 
 window.doSpin = function() {
     var btn = document.getElementById('spinBtn');
     var display = document.getElementById('spinWheelDisplay');
+    var container = document.getElementById('spinWheelContainer');
     if (!btn || !display) return;
     btn.disabled = true;
-    btn.textContent = 'Spinning...';
+    btn.style.opacity = '0.6';
+    btn.textContent = 'SPINNING...';
 
-    // Animate through emojis
-    var spins = 0;
-    var total = 20 + Math.floor(Math.random() * 10);
-    // Weighted random selection
+    // Determine prize upfront
     var weightTotal = SPIN_WEIGHTS.reduce(function(a, b) { return a + b; }, 0);
     var r = Math.random() * weightTotal;
     var cumulative = 0;
@@ -231,34 +254,73 @@ window.doSpin = function() {
         if (r <= cumulative) { prizeIdx = w; break; }
     }
 
-    var timer = setInterval(function() {
-        spins++;
-        var idx = spins % SPIN_PRIZES.length;
+    // Animate with realistic deceleration
+    var totalFrames = 30 + Math.floor(Math.random() * 15);
+    var frame = 0;
+    var rotation = 0;
+
+    function spinFrame() {
+        frame++;
+        // Deceleration curve: fast start, slow end
+        var progress = frame / totalFrames;
+        var speed = Math.max(0, 1 - Math.pow(progress, 2)); // Quadratic deceleration
+
+        // Show random emoji, slowing down
+        var idx = frame % SPIN_PRIZES.length;
         display.textContent = SPIN_PRIZES[idx].emoji;
-        display.style.transform = 'scale(' + (1 + Math.random() * 0.3) + ')';
-        if (spins >= total) {
-            clearInterval(timer);
+
+        // Rotate the container for visual spin effect
+        rotation += speed * 30;
+        if (container) container.style.transform = 'rotate(' + rotation + 'deg)';
+
+        // Scale pulse on each tick
+        display.style.transform = 'scale(' + (1 + speed * 0.2) + ')';
+
+        if (frame < totalFrames) {
+            // Variable timing: fast at start (50ms), slow at end (200ms)
+            var delay = 50 + (1 - speed) * 200;
+            setTimeout(spinFrame, delay);
+        } else {
+            // Final — show prize
+            if (container) container.style.transform = 'rotate(0deg)';
             display.textContent = SPIN_PRIZES[prizeIdx].emoji;
-            display.style.transform = 'scale(1.3)';
+            display.style.transform = 'scale(1.4)';
+            if (container) container.style.borderColor = '#22c55e';
+            if (container) container.style.boxShadow = '0 0 40px rgba(34,197,94,0.4),inset 0 0 20px rgba(0,0,0,0.3)';
+
             setTimeout(function() {
                 var prize = SPIN_PRIZES[prizeIdx];
                 var isBig = (prize.type === 'ticket' && prize.value >= 50) || (prize.type === 'points' && prize.value >= 50);
-                var celebStyle = isBig ? 'font-size:1.5rem;' : 'font-size:1.2rem;';
-                display.innerHTML = '<div style="font-size:4rem;">' + prize.emoji + '</div><div style="' + celebStyle + 'font-weight:700;color:var(--accent);margin-top:8px;">' + prize.label + '</div>';
+
                 display.style.transform = 'scale(1)';
-                awardSpinPrize(prize);
-                if (isBig && typeof playEngagementSound === 'function') playEngagementSound('win');
                 localStorage.setItem('btc_last_spin', new Date().toISOString().split('T')[0]);
-                btn.textContent = '🎉 Claimed!';
-                btn.style.background = '#22c55e';
-                if (typeof haptic === 'function') haptic('success');
-                setTimeout(function() {
-                    var overlay = document.getElementById('spinOverlay');
-                    if (overlay) overlay.remove();
-                }, 2500);
-            }, 500);
+
+                // Replace entire modal with result
+                var overlay = document.getElementById('spinOverlay');
+                if (overlay) {
+                    var resultHtml = '<div style="background:var(--bg-side);border:2px solid ' + (isBig ? '#22c55e' : 'var(--accent)') + ';border-radius:24px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px ' + (isBig ? 'rgba(34,197,94,0.3)' : 'rgba(247,147,26,0.3)') + ';animation:fadeSlideIn 0.3s;">' +
+                        '<div style="font-size:4rem;margin-bottom:8px;">' + prize.emoji + '</div>' +
+                        '<div style="font-size:' + (isBig ? '1.6rem' : '1.3rem') + ';font-weight:900;color:' + (isBig ? '#22c55e' : 'var(--accent)') + ';margin-bottom:4px;">' + prize.label + '</div>' +
+                        (isBig ? '<div style="font-size:0.9rem;color:var(--heading);font-weight:700;margin-bottom:12px;">🎉 AMAZING WIN! 🎉</div>' : '<div style="margin-bottom:12px;"></div>') +
+                        '<button onclick="document.getElementById(\'spinOverlay\').remove();if(typeof updateSpinBanner===\'function\')updateSpinBanner()" style="padding:14px 32px;background:' + (isBig ? '#22c55e' : 'var(--accent)') + ';color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Awesome! 🦌</button>' +
+                    '</div>';
+                    overlay.innerHTML = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){this.remove();if(typeof updateSpinBanner===\'function\')updateSpinBanner()}">' + resultHtml + '</div>';
+                }
+
+                // Award prize
+                awardSpinPrize(prize);
+                if (typeof playEngagementSound === 'function') playEngagementSound('win');
+                if (typeof haptic === 'function') haptic(isBig ? 'heavy' : 'success');
+
+                // Confetti for big wins
+                if (isBig && typeof launchConfetti === 'function') launchConfetti();
+            }, 600);
         }
-    }, 80 + spins * 8);
+    }
+
+    // Start spinning
+    if (typeof playEngagementSound === 'function') playEngagementSound('spin');
+    spinFrame();
 };
 
 // ---- #11: Bitcoin Price Prediction Game ----
