@@ -246,11 +246,15 @@ function renderDailyChallenge() {
     if (!el) return;
 
     if (completed) {
+        el.style.borderColor = '#22c55e';
+        el.style.background = 'rgba(34,197,94,0.05)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<span style="font-size:1.3rem;">✅</span>' +
-            '<div><div style="color:#22c55e;font-size:0.8rem;font-weight:700;">Daily Challenge Complete!</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;">Come back tomorrow for a new one</div></div></div>';
+            '<span style="font-size:1.5rem;">✅</span>' +
+            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +15 pts 🎉</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;">' + challenge.text + ' — Done! Come back tomorrow.</div></div></div>';
     } else {
+        el.style.borderColor = 'var(--border)';
+        el.style.background = 'var(--card-bg)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.3rem;">🎯</span>' +
             '<div><div style="color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Today\'s Challenge</div>' +
@@ -289,6 +293,33 @@ if (_origGoForChallenge) {
         }
         if (id === 'forum') sessionStorage.setItem('btc_forum_visited', 'true');
         return result;
+    };
+}
+
+// Track Nacho questions for daily challenge
+var _origNachoUnified = window.nachoUnifiedAnswer;
+if (_origNachoUnified) {
+    window.nachoUnifiedAnswer = function(q, cb) {
+        sessionStorage.setItem('btc_nacho_asked', '1');
+        return _origNachoUnified.apply(this, arguments);
+    };
+}
+
+// Track quiz completion for daily challenge
+var _origQuizAnswer = window.nachoQuizAnswer;
+if (_origQuizAnswer) {
+    window.nachoQuizAnswer = function() {
+        sessionStorage.setItem('btc_quiz_done', 'true');
+        return _origQuizAnswer.apply(this, arguments);
+    };
+}
+
+// Track favorite added for daily challenge
+var _origToggleFav = window.toggleFav;
+if (_origToggleFav) {
+    window.toggleFav = function() {
+        sessionStorage.setItem('btc_fav_added', 'true');
+        return _origToggleFav.apply(this, arguments);
     };
 }
 
