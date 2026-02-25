@@ -1328,10 +1328,13 @@
     window._nachoMode = false;
     window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
 
-    window.enterNachoMode = function() {
+    window.enterNachoMode = function(fromPopState) {
         window._nachoMode = true;
         window._nachoBusy = true; // suppress ALL popups
         window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
+
+        // Push history state so browser back button returns to Nacho Mode
+        if (!fromPopState) history.pushState({ nachoMode: true }, '', '#nacho');
 
         // Hide everything
         document.getElementById('home').classList.add('hidden');
@@ -2991,7 +2994,21 @@
 
         // Handle browser back/forward buttons
         window.addEventListener('popstate', function(e) {
-            const hash = location.hash.slice(1);
+            var state = e.state || {};
+            var hash = location.hash.slice(1);
+            if (hash === 'nacho' || state.nachoMode) {
+                if (!window._nachoMode) enterNachoMode(true);
+                return;
+            }
+            // If we were in Nacho Mode and navigated away, exit it
+            if (window._nachoMode) {
+                window._nachoMode = false;
+                window._nachoBusy = false;
+                if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
+                var nmScreen = document.getElementById('nachoModeScreen');
+                if (nmScreen) nmScreen.remove();
+                document.querySelectorAll('.mobile-bar, aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) { if (el) el.style.display = ''; });
+            }
             if (hash) {
                 go(hash, null, true);
             } else {
@@ -3000,7 +3017,8 @@
         });
 
         const h = location.hash.slice(1);
-        if (h) go(h);
+        if (h === 'nacho') { enterNachoMode(true); }
+        else if (h) go(h);
     };
     </script>
 <div id="recaptcha-container"></div>
