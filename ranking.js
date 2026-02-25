@@ -307,6 +307,81 @@ async function signInWithFacebook() {
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
 }
 
+async function signInWithNostr() {
+    if (!checkRateLimit()) return;
+
+    // Check for NIP-07 browser extension (Alby, nos2x, etc.)
+    if (!window.nostr) {
+        if (typeof showToast === 'function') showToast('No Nostr extension found! Install Alby or nos2x first.');
+        window.open('https://getalby.com', '_blank');
+        return;
+    }
+
+    try {
+        // Get public key from extension
+        var pubkey = await window.nostr.getPublicKey();
+        if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) {
+            if (typeof showToast === 'function') showToast('Could not get Nostr public key');
+            return;
+        }
+
+        // Create auth event for signing
+        var nostrEvent = {
+            kind: 22242,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['challenge', 'btc-edu-' + Date.now()]],
+            content: 'Sign in to Bitcoin Education Archive',
+            pubkey: pubkey,
+        };
+
+        // Sign with extension
+        var signed = await window.nostr.signEvent(nostrEvent);
+        if (!signed || !signed.sig) {
+            if (typeof showToast === 'function') showToast('Signing cancelled');
+            return;
+        }
+
+        if (typeof showToast === 'function') showToast('🟣 Verifying Nostr signature...');
+
+        // Send to Cloud Function
+        var nostrAuth = firebase.functions().httpsCallable('nostrAuth');
+        var result = await nostrAuth({
+            pubkey: pubkey,
+            sig: signed.sig,
+            event: signed,
+        });
+
+        if (result.data && result.data.token) {
+            // Sign in with custom token
+            await auth.signInWithCustomToken(result.data.token);
+
+            // Set up user doc if needed
+            var uid = result.data.uid;
+            var userDoc = await db.collection('users').doc(uid).get();
+            if (!userDoc.exists || !userDoc.data().username) {
+                var npubShort = 'npub...' + pubkey.substring(0, 8);
+                await db.collection('users').doc(uid).set({
+                    username: npubShort,
+                    nostr: pubkey,
+                    points: 0,
+                    channelsVisited: 0,
+                    totalVisits: 1,
+                    streak: 1,
+                    lastVisit: new Date().toISOString().split('T')[0],
+                    created: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+
+            loadUser(uid);
+            hideUsernamePrompt();
+            if (typeof showToast === 'function') showToast('🟣 Signed in with Nostr!');
+        }
+    } catch(e) {
+        console.error('Nostr auth error:', e);
+        if (typeof showToast === 'function') showToast('Nostr sign-in failed. Try again.');
+    }
+}
+
 // Apple Sign-In removed
 
 // Rate limiting check
@@ -2452,6 +2527,7 @@ function showSignInPrompt() {
         '<button onclick="signInWithTwitter()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">𝕏 Twitter/X</button>' +
         '<button onclick="signInWithGithub()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><img src=https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/github.svg width=18 height=18> GitHub</button>' +
         '<button onclick="signInWithFacebook()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;"><img src=https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/facebook.svg width=18 height=18> Facebook</button>' +
+        '<button onclick="signInWithNostr()" style="width:100%;padding:12px;background:linear-gradient(135deg,#8B5CF6,#7C3AED);border:none;border-radius:10px;color:#fff;font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;">🟣 Nostr (NIP-07)</button>' +
         '</div>' +
         '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;">Continue as guest</span>';
     modal.classList.add('open');

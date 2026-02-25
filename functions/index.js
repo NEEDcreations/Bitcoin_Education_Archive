@@ -282,3 +282,97 @@ exports.cleanPushTokens = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC' },
         console.log('Cleaned ' + cleaned + ' stale push tokens');
         return null;
     });
+
+// =============================================
+// Nostr Sign-In (NIP-07)
+// Verify Schnorr signature and issue Firebase custom token
+// =============================================
+exports.nostrAuth = functions.https.onCall(async (data, context) => {
+    const { pubkey, sig, event } = data;
+    
+    if (!pubkey || !sig || !event) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
+    }
+
+    // Validate pubkey format (64 hex chars)
+    if (!/^[a-f0-9]{64}$/.test(pubkey)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid pubkey format');
+    }
+
+    // Parse and validate the event
+    let nostrEvent;
+    try {
+        nostrEvent = typeof event === 'string' ? JSON.parse(event) : event;
+    } catch(e) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid event format');
+    }
+
+    // Verify it's a kind 27235 (NIP-98 HTTP Auth) or kind 22242 (auth) event
+    if (nostrEvent.kind !== 27235 && nostrEvent.kind !== 22242) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid event kind');
+    }
+
+    // Verify event is recent (within 5 minutes)
+    const eventTime = nostrEvent.created_at || 0;
+    const now = Math.floor(Date.now() / 1000);
+    if (Math.abs(now - eventTime) > 300) {
+        throw new functions.https.HttpsError('invalid-argument', 'Event too old or too far in future');
+    }
+
+    // Verify the Schnorr signature
+    try {
+        const secp = require('@noble/secp256k1');
+        const crypto = require('crypto');
+        
+        // Compute event ID (SHA256 of serialized event)
+        const serialized = JSON.stringify([
+            0,
+            nostrEvent.pubkey,
+            nostrEvent.created_at,
+            nostrEvent.kind,
+            nostrEvent.tags || [],
+            nostrEvent.content || ''
+        ]);
+        const eventId = crypto.createHash('sha256').update(serialized).digest('hex');
+        
+        // Verify signature
+        const sigBytes = Buffer.from(sig, 'hex');
+        const pubkeyBytes = Buffer.from(pubkey, 'hex');
+        const msgBytes = Buffer.from(eventId, 'hex');
+        
+        const valid = secp.schnorr.verifySync(sigBytes, msgBytes, pubkeyBytes);
+        if (!valid) {
+            throw new functions.https.HttpsError('permission-denied', 'Invalid signature');
+        }
+    } catch(e) {
+        if (e instanceof functions.https.HttpsError) throw e;
+        throw new functions.https.HttpsError('internal', 'Signature verification failed');
+    }
+
+    // Create or get Firebase user by Nostr pubkey
+    const nostrUid = 'nostr:' + pubkey;
+    
+    try {
+        // Try to get existing user
+        await admin.auth().getUser(nostrUid);
+    } catch(e) {
+        // Create new user
+        await admin.auth().createUser({
+            uid: nostrUid,
+            displayName: 'npub...' + pubkey.substring(0, 8),
+        });
+    }
+
+    // Create custom token
+    const customToken = await admin.auth().createCustomToken(nostrUid, {
+        nostrPubkey: pubkey,
+    });
+
+    // Store/update pubkey in Firestore
+    await db.collection('users').doc(nostrUid).set({
+        nostr: pubkey,
+        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { token: customToken, uid: nostrUid };
+});
