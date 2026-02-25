@@ -145,11 +145,15 @@ function validateOutput(text) {
     'kill yourself', 'commit suicide', 'how to make a bomb', 'how to hack',
     'buy this stock', 'guaranteed returns', 'get rich quick',
     'send me money', 'wire transfer', 'social security number',
-    'private key is', 'seed phrase is', 'here is a private key',
   ];
   for (const phrase of harmful) {
     if (lower.includes(phrase)) return null;
   }
+  
+  // Block actual private keys/seed phrases being generated (not educational mentions)
+  // Real keys are 64 hex chars, real seeds are 12+ specific words
+  if (/\b[a-f0-9]{64}\b/.test(lower)) return null; // Looks like a real private key
+  if (/\b(abandon|ability|able|about|above)\b.*\b(abandon|ability|able|about|above)\b/i.test(text) && text.split(/\s+/).length > 11) return null; // Looks like a real BIP39 seed
   
   // Strip specific wallet/product brand recommendations
   const brandFilter = /\b(ledger|trezor|coldcard|electrum|blue\s?wallet|metamask|trust\s?wallet|phantom|exodus|coinbase\s?wallet|crypto\.com|binance)\b/gi;
