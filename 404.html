@@ -2964,6 +2964,20 @@
     }
 
     let searchTimeout = null;
+    // Internal app pages searchable by keyword
+    const APP_PAGES = [
+        { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
+        { id: '_forum', title: '🗣️ Community Forum', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
+        { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
+        { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
+        { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: 'startQuestManual()' },
+        { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar Certification Quest', keywords: 'scholar certification exam test certificate diploma bitcoin', action: 'startScholarQuest()' },
+        { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
+        { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
+        { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
+        { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
+    ];
+
     function doSearch(q) {
         const sr = document.getElementById('searchResults');
         const cl = document.getElementById('channelList');
@@ -2977,7 +2991,15 @@
         cl.style.display = 'none';
         sr.classList.add('active');
 
-        // Instant: search channel titles from index
+        // Search internal app pages first
+        let appResults = [];
+        for (const page of APP_PAGES) {
+            if (page.title.toLowerCase().includes(q) || page.keywords.includes(q) || page.desc.toLowerCase().includes(q)) {
+                appResults.push({ key: page.id, title: page.title, cat: '⚡ App', match: page.desc, action: page.action });
+            }
+        }
+
+        // Search channel titles from index
         let results = [];
         for (const [key, meta] of Object.entries(CHANNELS)) {
             if (meta.title.toLowerCase().includes(q) || meta.desc.toLowerCase().includes(q)) {
@@ -2985,7 +3007,7 @@
             }
         }
 
-        renderSearchResults(results, sr);
+        renderSearchResults([...appResults, ...results], sr);
 
         // Deep search: load full data and search message content (debounced)
         clearTimeout(searchTimeout);
@@ -3007,7 +3029,7 @@
                     }
                 }
             }
-            renderSearchResults([...results, ...deepResults], sr);
+            renderSearchResults([...appResults, ...results, ...deepResults], sr);
         }, 500);
     }
 
@@ -3016,12 +3038,15 @@
             sr.innerHTML = '<div style="padding:16px;color:#475569;text-align:center;">No results found</div>';
             return;
         }
-        sr.innerHTML = results.slice(0, 30).map(r =>
-            '<div class="sr-item" onclick="selectResult(\'' + r.key + '\')">' +
-            '<div class="sr-cat">' + r.cat + '</div>' +
-            '<div>' + r.title + '</div>' +
-            '<div class="sr-match">' + r.match + '</div></div>'
-        ).join('');
+        sr.innerHTML = results.slice(0, 30).map(r => {
+            const isApp = r.key && r.key.startsWith('_');
+            const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "')";
+            const style = isApp ? 'border-left:3px solid var(--accent);' : '';
+            return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
+                '<div class="sr-cat">' + r.cat + '</div>' +
+                '<div>' + r.title + '</div>' +
+                '<div class="sr-match">' + r.match + '</div></div>';
+        }).join('');
     }
 
     function selectResult(key) {
