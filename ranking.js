@@ -45,6 +45,8 @@ let lastReadAward = 0;
 let rankingReady = false;
 let allTimeChannels = new Set(); // tracks channels already awarded across all sessions
 let lastLevelName = '';
+let lastLevelMin = 0;
+let levelUpReady = false; // Don't celebrate until initial load completes
 
 // Initialize Firebase
 function initRanking() {
@@ -665,6 +667,9 @@ async function loadUser(uid) {
         window._badgesReady = true;
         if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
 
+        // Now safe to detect level-ups (initial data loaded)
+        setTimeout(function() { levelUpReady = true; }, 3000);
+
         // Refresh exploration map and home page elements
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof showContinueReading === 'function') showContinueReading();
@@ -1092,11 +1097,12 @@ function updateRankUI() {
     const bar = document.getElementById('rankBar');
     if (!bar) return;
 
-    // Detect level-up
-    if (lastLevelName && lastLevelName !== lv.name) {
+    // Detect level-up — only celebrate going UP, never on initial load
+    if (levelUpReady && lastLevelName && lastLevelName !== lv.name && lv.min > lastLevelMin) {
         showLevelUpCelebration(lv);
     }
     lastLevelName = lv.name;
+    lastLevelMin = lv.min;
 
     let progressHtml = '';
     if (lv.next) {
