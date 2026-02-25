@@ -36,7 +36,7 @@ const POINTS = {
 let db, auth, currentUser = null;
 let signInAttempts = 0;
 let signInLockout = 0;
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const SESSION_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 days — don't sign users out aggressively
 let sessionTimer = null;
 let sessionChannels = new Set();
 let readTimer = null;
@@ -63,6 +63,8 @@ function initRanking() {
 
         db = firebase.firestore();
         auth = firebase.auth();
+        // Ensure auth persists across refreshes, tab closes, and app restarts
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});
 
         // Check if returning from email magic link
         if (firebase.auth.isSignInWithEmailLink(window.location.href)) {
@@ -406,13 +408,9 @@ function checkRateLimit() {
 
 // Session timeout — sign out after 30 min inactivity
 function resetSessionTimer() {
-    if (sessionTimer) clearTimeout(sessionTimer);
-    sessionTimer = setTimeout(function() {
-        if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            showToast('Session timed out. Please sign in again.');
-            auth.signOut().then(() => location.reload());
-        }
-    }, SESSION_TIMEOUT);
+    // No-op: users stay signed in indefinitely
+    // Firebase LOCAL persistence handles session across refreshes/restarts
+    // There's no security reason to auto-sign-out on an education site
 }
 
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
