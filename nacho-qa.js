@@ -1433,8 +1433,16 @@ window.nachoRate = function(msgId, rating) {
     // Update button styles
     var up = document.getElementById('nachoUp_' + msgId);
     var dn = document.getElementById('nachoDn_' + msgId);
-    if (up) up.style.opacity = rating === 1 ? '1' : '0.3';
-    if (dn) dn.style.opacity = rating === -1 ? '1' : '0.3';
+    if (up) {
+        up.style.background = rating === 1 ? '#22c55e' : 'none';
+        up.style.color = rating === 1 ? '#fff' : 'var(--text-muted)';
+        up.style.borderColor = rating === 1 ? '#22c55e' : 'var(--border)';
+    }
+    if (dn) {
+        dn.style.background = rating === -1 ? '#ef4444' : 'none';
+        dn.style.color = rating === -1 ? '#fff' : 'var(--text-muted)';
+        dn.style.borderColor = rating === -1 ? '#ef4444' : 'var(--border)';
+    }
 };
 
 // Generate thumbs up/down HTML for a message

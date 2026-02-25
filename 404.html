@@ -2055,13 +2055,14 @@
             // Add action buttons for non-safety responses
             if (source && source !== 'safety') {
                 // Thumbs up/down + share + bookmark row
-                var actionRow = '<div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+                var _abtnStyle = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;transition:0.2s;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;touch-action:manipulation;';
+                var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
                 if (typeof nachoRatingHtml === 'function') {
-                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Good answer">👍</button>';
-                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bad answer">👎</button>';
+                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👍 Helpful</button>';
+                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
                 }
-                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(\'' + html.replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,300) + '\')" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Share">📤</button>';
-                actionRow += '<button id="nmBk_' + _replyMsgId + '" onclick="event.stopPropagation();nachoBookmark(\'' + _replyMsgId + '\',\'' + html.replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,400) + '\')" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bookmark">🔖</button>';
+                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(\'' + html.replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,300) + '\')" style="' + _abtnStyle + '">📤 Share</button>';
+                actionRow += '<button id="nmBk_' + _replyMsgId + '" onclick="event.stopPropagation();nachoBookmark(\'' + _replyMsgId + '\',\'' + html.replace(/'/g,"\\'").replace(/\n/g,' ').substring(0,400) + '\')" style="' + _abtnStyle + '">🔖 Save</button>';
                 actionRow += '</div>';
                 extras += actionRow;
 
