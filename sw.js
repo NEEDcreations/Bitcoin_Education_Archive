@@ -1,5 +1,5 @@
-// Bitcoin Education Archive - Service Worker v4
-const CACHE_NAME = 'btc-archive-v4';
+// Bitcoin Education Archive - Service Worker v5
+const CACHE_NAME = 'btc-archive-v5';
 const IMG_CACHE = 'btc-images-v1';
 const MAX_IMG_CACHE = 200; // Max cached images
 const OFFLINE_URL = '/';
@@ -103,18 +103,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // JS/HTML/CSS: stale-while-revalidate (fast load + stays updated)
+  // JS/HTML/CSS: network-first (always get fresh code, cache as fallback)
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      const fetchPromise = fetch(event.request).then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-
-      return cached || fetchPromise;
-    })
+    fetch(event.request).then(response => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
