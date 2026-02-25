@@ -79,8 +79,8 @@ const NACHO_KB = [
       answer: "A node is a computer that stores and verifies the entire Bitcoin blockchain. Running one means you don't have to trust anyone — you verify everything yourself! Don't trust, verify!",
       channel: 'nodes', channelName: 'Nodes' },
 
-    { keys: ['wallet','bitcoin wallet','best wallet','which wallet','where to store','cold storage','hardware wallet'],
-      answer: "A Bitcoin wallet holds your private keys (not actually your coins). Hardware wallets like Coldcard or Trezor are the gold standard. Remember: Nacho keys, nacho cheese! 🧀🔑",
+    { keys: ['wallet','bitcoin wallet','best wallet','which wallet','where to store','cold storage','hardware wallet','ledger','trezor','coldcard'],
+      answer: "Great question! The most important thing to learn about is SELF-CUSTODY — holding your own Bitcoin keys instead of trusting someone else with them. 'Not your keys, not your coins!' 🔑 There are different types: software wallets (apps on your phone), hardware wallets (dedicated devices), and even multisig setups. I won't recommend specific brands — instead, check out our Self Custody channel to learn how to evaluate and choose what's right for you. Nacho keys, nacho cheese! 🧀🦌",
       channel: 'self-custody', channelName: 'Self Custody' },
 
     { keys: ['seed phrase','recovery phrase','24 words','12 words','backup','mnemonic'],
@@ -1349,7 +1349,7 @@ function showNachoFallback(textEl, q) {
 var NACHO_TOPICS = {
     lightning: /lightning|lnurl|bolt11|channel capacity|routing|lnd|cln|eclair|zap/,
     mining: /mining|miner|hash.?rate|proof.?of.?work|asic|pool|block reward|difficulty/,
-    wallets: /wallet|seed phrase|private key|public key|cold storage|hardware wallet|ledger|trezor/,
+    wallets: /wallet|seed phrase|private key|public key|cold storage|hardware wallet|self.custody/,
     basics: /what is bitcoin|how does bitcoin|beginner|newbie|new to bitcoin|basics|btc work/,
     security: /security|hack|scam|phishing|2fa|backup|recovery|passphrase/,
     privacy: /privacy|kyc|surveillance|coinjoin|mixer|tor|anonymous/,
