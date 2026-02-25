@@ -5,6 +5,16 @@
 
 (function() {
 
+// Admin UIDs — can delete any post/reply
+var FORUM_ADMINS = [];
+function isForumAdmin() {
+    if (!auth || !auth.currentUser) return false;
+    if (FORUM_ADMINS.indexOf(auth.currentUser.uid) !== -1) return true;
+    // Also check email
+    var email = auth.currentUser.email || '';
+    return email === 'needcreations@gmail.com';
+}
+
 var FORUM_CATEGORIES = [
     { id: 'general', name: 'General', emoji: '💬' },
     { id: 'beginner', name: 'Beginner Questions', emoji: '🌱' },
@@ -136,6 +146,7 @@ window.forumLoadPosts = async function() {
             var cat = FORUM_CATEGORIES.find(function(c) { return c.id === p.category; });
             var catLabel = cat ? cat.emoji + ' ' + cat.name : '';
             var isOwn = auth && auth.currentUser && p.authorId === auth.currentUser.uid;
+            var canDelete = isOwn || isForumAdmin();
             var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:0.2s;" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
@@ -154,6 +165,7 @@ window.forumLoadPosts = async function() {
                             '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                             '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
                             (catLabel ? '<span style="font-size:0.65rem;padding:2px 8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);">' + catLabel + '</span>' : '') +
+                            (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px 4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                         '</div>' +
                     '</div>' +
                 '</div>' +
@@ -210,10 +222,12 @@ window.forumViewPost = async function(postId) {
             html += '<a href="' + fEsc(p.link) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(p.link).substring(0, 60) + (p.link.length > 60 ? '...' : '') + '</a><br>';
         }
 
-        // Vote + meta
+        // Vote + meta + admin delete
+        var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:16px;align-items:center;">' +
             '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">⚡ ' + (p.upvotes || 0) + '</button>' +
             '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
+            (canDeletePost ? '<button onclick="forumDeletePost(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
         html += '</div>';
 
@@ -265,13 +279,17 @@ async function forumLoadReplies(postId) {
             var bodyHtml = fEsc(r.body).replace(/\n/g, '<br>');
             bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
 
+            var canDeleteReply = (auth && auth.currentUser && r.authorId === auth.currentUser.uid) || isForumAdmin();
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
-                '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">⚡ ' + (r.upvotes || 0) + '</button>' +
+                '<div style="display:flex;gap:8px;align-items:center;">' +
+                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">⚡ ' + (r.upvotes || 0) + '</button>' +
+                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">🗑️</button>' : '') +
+                '</div>' +
             '</div>';
         });
 
@@ -501,6 +519,49 @@ window.forumVoteReply = async function(replyId) {
 
         if (forumCurrentPost) forumLoadReplies(forumCurrentPost.id);
     } catch(e) {}
+};
+
+// ---- Delete Post (author or admin) ----
+window.forumDeletePost = async function(postId) {
+    if (!auth || !auth.currentUser) return;
+    var isAdmin = isForumAdmin();
+
+    if (!confirm(isAdmin ? 'Admin: Delete this post and all its replies?' : 'Delete your post? This cannot be undone.')) return;
+
+    try {
+        // Delete all replies first
+        var repliesSnap = await db.collection('forum_replies').where('postId', '==', postId).get();
+        var batch = db.batch();
+        repliesSnap.forEach(function(doc) { batch.delete(doc.ref); });
+        batch.delete(db.collection('forum_posts').doc(postId));
+        await batch.commit();
+
+        if (typeof showToast === 'function') showToast('🗑️ Post deleted');
+        go('forum');
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('Error deleting post');
+    }
+};
+
+// ---- Delete Reply (author or admin) ----
+window.forumDeleteReply = async function(replyId, postId) {
+    if (!auth || !auth.currentUser) return;
+    var isAdmin = isForumAdmin();
+
+    if (!confirm(isAdmin ? 'Admin: Delete this reply?' : 'Delete your reply? This cannot be undone.')) return;
+
+    try {
+        await db.collection('forum_replies').doc(replyId).delete();
+        // Decrement reply count
+        await db.collection('forum_posts').doc(postId).update({
+            replyCount: firebase.firestore.FieldValue.increment(-1)
+        });
+
+        if (typeof showToast === 'function') showToast('🗑️ Reply deleted');
+        if (forumCurrentPost) forumLoadReplies(postId);
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('Error deleting reply');
+    }
 };
 
 })();

@@ -157,9 +157,10 @@ service cloud.firestore {
       // Allow upvote updates (voters array + upvotes count)
       allow update: if request.auth != null;
 
-      // Only author can delete their post
+      // Author or admin can delete posts
       allow delete: if request.auth != null
-                    && resource.data.authorId == request.auth.uid;
+                    && (resource.data.authorId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
     }
 
     // =============================================
@@ -181,9 +182,10 @@ service cloud.firestore {
       // Allow upvote updates
       allow update: if request.auth != null;
 
-      // Only author can delete their reply
+      // Author or admin can delete replies
       allow delete: if request.auth != null
-                    && resource.data.authorId == request.auth.uid;
+                    && (resource.data.authorId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
     }
 
     // =============================================
