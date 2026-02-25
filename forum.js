@@ -73,8 +73,13 @@ var forumLastLoad = 0;
 
 // ---- Render Forum ----
 window.renderForum = function() {
-    var main = document.getElementById('main');
-    if (!main) return;
+    var home = document.getElementById('home');
+    var hero = document.getElementById('hero');
+    var msgs = document.getElementById('msgs');
+    if (!hero || !msgs) return;
+    if (home) home.classList.add('hidden');
+    hero.innerHTML = '';
+    msgs.innerHTML = '';
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
 
@@ -107,8 +112,8 @@ window.renderForum = function() {
     html += '<div id="forumPosts"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading posts...</div></div>';
 
     html += '</div>';
-    main.innerHTML = html;
-    main.scrollTop = 0;
+    msgs.innerHTML = html;
+    document.getElementById('main').scrollTop = 0;
 
     // Load posts
     forumLoadPosts();
@@ -190,10 +195,13 @@ window.forumSetCategory = function(c) { forumCategory = c; renderForum(); };
 
 // ---- View Post ----
 window.forumViewPost = async function(postId) {
-    var main = document.getElementById('main');
-    if (!main || typeof db === 'undefined') return;
-
-    main.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div></div>';
+    var home = document.getElementById('home');
+    var hero = document.getElementById('hero');
+    var msgs = document.getElementById('msgs');
+    if (!msgs || typeof db === 'undefined') return;
+    if (home) home.classList.add('hidden');
+    hero.innerHTML = '';
+    msgs.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div></div>';
 
     try {
         var doc = await db.collection('forum_posts').doc(postId).get();
@@ -257,13 +265,13 @@ window.forumViewPost = async function(postId) {
         html += '<div id="forumReplies"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading replies...</div></div>';
 
         html += '</div>';
-        main.innerHTML = html;
-        main.scrollTop = 0;
+        msgs.innerHTML = html;
+        document.getElementById('main').scrollTop = 0;
 
         // Load replies
         forumLoadReplies(postId);
     } catch(e) {
-        main.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:40px 16px;text-align:center;color:#ef4444;">Error loading post</div>';
+        msgs.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:40px 16px;text-align:center;color:#ef4444;">Error loading post</div>';
     }
 };
 
@@ -312,9 +320,11 @@ async function forumLoadReplies(postId) {
 // ---- New Post Form ----
 window.forumNewPost = function() {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        var main = document.getElementById('main');
-        if (main) {
-            main.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">' +
+        var _msgs = document.getElementById('msgs');
+        if (_msgs) {
+            var _home = document.getElementById('home'); if (_home) _home.classList.add('hidden');
+            document.getElementById('hero').innerHTML = '';
+            _msgs.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">' +
                 '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;">← Back to Forum</button>' +
                 '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
                     '<div style="font-size:3rem;margin-bottom:12px;">🔒</div>' +
@@ -327,7 +337,13 @@ window.forumNewPost = function() {
     }
 
     history.pushState({ channel: 'forum-new' }, '', '#forum');
-    var main = document.getElementById('main');
+    var home = document.getElementById('home');
+    var hero = document.getElementById('hero');
+    var msgs = document.getElementById('msgs');
+    if (!msgs) return;
+    if (home) home.classList.add('hidden');
+    hero.innerHTML = '';
+
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
     html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
 
@@ -361,8 +377,8 @@ window.forumNewPost = function() {
     html += '<div id="forumPostStatus" style="margin-top:8px;font-size:0.85rem;text-align:center;"></div>';
 
     html += '</div></div>';
-    main.innerHTML = html;
-    main.scrollTop = 0;
+    msgs.innerHTML = html;
+    document.getElementById('main').scrollTop = 0;
 };
 
 // ---- Submit Post ----
