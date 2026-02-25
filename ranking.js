@@ -2610,25 +2610,81 @@ async function togglePushNotifications() {
     try {
         // Check if already denied (browser won't re-prompt)
         if (Notification.permission === 'denied') {
-            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            var isAndroid = /Android/.test(navigator.userAgent);
+            var ua = navigator.userAgent;
+            var isIOS = /iPad|iPhone|iPod/.test(ua);
+            var isAndroid = /Android/.test(ua);
+            var isChrome = /Chrome/.test(ua) && !/Edg|OPR|Brave/.test(ua);
+            var isFirefox = /Firefox/.test(ua);
+            var isBrave = /Brave/.test(ua);
+            var isEdge = /Edg/.test(ua);
+            var isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+            var isOpera = /OPR/.test(ua);
             var instructions = '';
-            if (isIOS) {
-                instructions = '<strong>How to fix on iPhone/iPad:</strong><br>' +
-                    '1. Open <strong>Settings</strong> app<br>' +
-                    '2. Scroll down to <strong>Safari</strong> (or your browser)<br>' +
+
+            if (isIOS && isSafari) {
+                instructions = '<strong>How to fix on Safari (iPhone/iPad):</strong><br>' +
+                    '1. Open the <strong>Settings</strong> app<br>' +
+                    '2. Scroll to <strong>Safari</strong><br>' +
                     '3. Tap <strong>Notifications</strong><br>' +
                     '4. Find <strong>bitcoineducation.quest</strong> and toggle ON';
+            } else if (isIOS) {
+                instructions = '<strong>How to fix on iPhone/iPad:</strong><br>' +
+                    '1. Open the <strong>Settings</strong> app<br>' +
+                    '2. Find your browser (<strong>' + (isChrome ? 'Chrome' : isFirefox ? 'Firefox' : isBrave ? 'Brave' : 'your browser') + '</strong>)<br>' +
+                    '3. Tap <strong>Notifications</strong><br>' +
+                    '4. Find <strong>bitcoineducation.quest</strong> and toggle ON';
+            } else if (isAndroid && isChrome) {
+                instructions = '<strong>How to fix on Chrome (Android):</strong><br>' +
+                    '1. Tap the <strong>🔒 lock icon</strong> next to the URL<br>' +
+                    '2. Tap <strong>Permissions</strong><br>' +
+                    '3. Tap <strong>Notifications</strong> → set to <strong>Allow</strong><br>' +
+                    '4. Come back here and tap ON again';
+            } else if (isAndroid && isBrave) {
+                instructions = '<strong>How to fix on Brave (Android):</strong><br>' +
+                    '1. Tap the <strong>🦁 Brave icon</strong> in the URL bar<br>' +
+                    '2. Tap <strong>Site settings</strong><br>' +
+                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
+                    '4. Come back here and tap ON again';
             } else if (isAndroid) {
                 instructions = '<strong>How to fix on Android:</strong><br>' +
                     '1. Tap the <strong>🔒 lock icon</strong> in the address bar<br>' +
                     '2. Tap <strong>Site settings</strong> or <strong>Permissions</strong><br>' +
                     '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
-                    '4. Come back and tap ON again';
+                    '4. Come back here and tap ON again';
+            } else if (isChrome) {
+                instructions = '<strong>How to fix on Chrome:</strong><br>' +
+                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
+                    '2. Click <strong>Site settings</strong><br>' +
+                    '3. Find <strong>Notifications</strong> → change to <strong>Allow</strong><br>' +
+                    '4. Refresh this page and try again';
+            } else if (isFirefox) {
+                instructions = '<strong>How to fix on Firefox:</strong><br>' +
+                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
+                    '2. Click <strong>Connection secure</strong> → <strong>More information</strong><br>' +
+                    '3. Go to <strong>Permissions</strong> tab<br>' +
+                    '4. Find <strong>Send Notifications</strong> → uncheck "Use Default" → set to <strong>Allow</strong>';
+            } else if (isBrave) {
+                instructions = '<strong>How to fix on Brave:</strong><br>' +
+                    '1. Click the <strong>🦁 Brave icon</strong> in the URL bar<br>' +
+                    '2. Click <strong>Site settings</strong><br>' +
+                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
+                    '4. Refresh and try again';
+            } else if (isEdge) {
+                instructions = '<strong>How to fix on Edge:</strong><br>' +
+                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
+                    '2. Click <strong>Permissions for this site</strong><br>' +
+                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
+                    '4. Refresh and try again';
+            } else if (isOpera) {
+                instructions = '<strong>How to fix on Opera:</strong><br>' +
+                    '1. Click the <strong>🔒 lock icon</strong> left of the URL<br>' +
+                    '2. Click <strong>Site settings</strong><br>' +
+                    '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
+                    '4. Refresh and try again';
             } else {
                 instructions = '<strong>How to fix:</strong><br>' +
                     '1. Click the <strong>🔒 lock icon</strong> in the address bar<br>' +
-                    '2. Click <strong>Site settings</strong><br>' +
+                    '2. Click <strong>Site settings</strong> or <strong>Permissions</strong><br>' +
                     '3. Set <strong>Notifications</strong> to <strong>Allow</strong><br>' +
                     '4. Refresh the page and try again';
             }
