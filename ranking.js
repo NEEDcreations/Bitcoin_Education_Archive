@@ -1613,6 +1613,15 @@ function showSettingsPage(tab) {
             if (sel) sel.value = saved;
         }, 50);
 
+        // Theme
+        const isDark = document.body.getAttribute('data-theme') !== 'light';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌓 Theme</div>' +
+            '<div style="display:flex;gap:8px;">' +
+            '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
+            '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
+            '</div></div>';
+
         // Font Size
         const savedSize = localStorage.getItem('btc_font_size') || 'medium';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -1704,14 +1713,7 @@ function showSettingsPage(tab) {
             '</div></div>' +
             '</div></div>';
 
-        // Theme
-        const isDark = document.body.getAttribute('data-theme') !== 'light';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌓 Theme</div>' +
-            '<div style="display:flex;gap:8px;">' +
-            '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
-            '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
-            '</div></div>';
+        // (Theme moved above)
 
     } else if (settingsTab === 'security') {
         // Email verification status
