@@ -67,8 +67,8 @@ const NACHO_KB = [
       answer: "The blockchain (Bitcoiners say 'timechain') is a public ledger of every Bitcoin transaction ever made. It's stored on thousands of computers worldwide and can never be altered!",
       channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' },
 
-    { keys: ['halving','halvening','what is halving','block reward','next halving'],
-      answer: "Every 210,000 blocks (~4 years), the Bitcoin mining reward is cut in half. This makes Bitcoin increasingly scarce. The last halving was in April 2024, cutting the reward to 3.125 BTC per block!",
+    { keys: ['halving','halvening','what is halving','block reward','next halving','how many halvings','total halvings','number of halvings'],
+      answer: "Every 210,000 blocks (~4 years), the Bitcoin mining reward is cut in half. There will be a total of 32 halvings before the block reward hits zero around the year 2140. So far we've had 4 (2012, 2016, 2020, 2024), meaning 28 more to go! The last halving in April 2024 cut the reward to 3.125 BTC per block. The next one is expected around 2028, dropping it to 1.5625 BTC. Each halving makes Bitcoin increasingly scarce — by design! 🔒",
       channel: 'scarce', channelName: 'Scarce' },
 
     { keys: ['lightning','lightning network','layer 2','what is lightning','fast transactions','instant payments'],
