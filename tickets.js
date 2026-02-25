@@ -3,7 +3,7 @@
 // =============================================
 // Earn <svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> Orange Tickets:
 //   +1 per daily login
-//   +5 per verified referral (referred user must log in & earn 2100+ pts)
+//   +50 per verified referral (referred user must log in & earn 2100+ pts)
 // =============================================
 
 const TICKET_CONFIG = {
@@ -177,7 +177,7 @@ async function checkReferralQualifications() {
             });
             currentUser.orangeTickets = newTotal;
             currentUser.points = (currentUser.points || 0) + bonusPoints;
-            showToast('<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 5 ? 's' : '') + ' verified! (+' + bonusPoints + ' pts)');
+            showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             updateRankUI();
 
             // Check ticket badges after earning
@@ -312,10 +312,6 @@ async function loadReferralStatsUI() {
 }
 
 // ---- Initialize tickets system ----
-function initTickets() {
-    captureReferralCode();
-}
-
 // Called after user loads (from loadUser or createUser)
 async function onUserLoadedTickets() {
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;

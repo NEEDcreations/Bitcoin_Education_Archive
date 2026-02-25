@@ -36,8 +36,7 @@ const POINTS = {
 let db, auth, currentUser = null;
 let signInAttempts = 0;
 let signInLockout = 0;
-const SESSION_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 days — don't sign users out aggressively
-let sessionTimer = null;
+// Session timeout removed — users stay signed in via Firebase LOCAL persistence
 let sessionChannels = new Set();
 let readTimer = null;
 let readSeconds = 0;
@@ -136,21 +135,12 @@ function initRanking() {
                 if (user && !user.isAnonymous) {
                     // Real user restored immediately — load them
                     loadUser(user.uid);
-                    resetSessionTimer();
-                    ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-                        document.addEventListener(evt, resetSessionTimer, { passive: true });
-                    });
                 } else {
                     // Got anonymous or null on first event — wait for potential real user
                     setTimeout(function() {
                         const current = auth.currentUser;
                         if (current && !current.isAnonymous) {
-                            // Real user arrived during the wait
                             loadUser(current.uid);
-                            resetSessionTimer();
-                            ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-                                document.addEventListener(evt, resetSessionTimer, { passive: true });
-                            });
                         } else if (current && current.isAnonymous) {
                             loadUser(current.uid);
                         } else {
@@ -168,12 +158,6 @@ function initRanking() {
                     return;
                 }
                 loadUser(user.uid);
-                if (!user.isAnonymous) {
-                    resetSessionTimer();
-                    ['click', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
-                        document.addEventListener(evt, resetSessionTimer, { passive: true });
-                    });
-                }
             } else {
                 currentUser = null;
                 auth.signInAnonymously().then(() => {});
@@ -407,11 +391,7 @@ function checkRateLimit() {
 }
 
 // Session timeout — sign out after 30 min inactivity
-function resetSessionTimer() {
-    // No-op: users stay signed in indefinitely
-    // Firebase LOCAL persistence handles session across refreshes/restarts
-    // There's no security reason to auto-sign-out on an education site
-}
+// Session timer removed — users stay signed in indefinitely via Firebase LOCAL persistence
 
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
 function isInAppBrowser() {
@@ -975,19 +955,7 @@ async function syncFavsToFirebase() {
 }
 
 // Sync badges and scholar status to Firebase
-async function syncProgressToFirebase() {
-    if (!currentUser || !db || !auth.currentUser) return;
-    try {
-        const updates = {};
-        const hiddenBadges = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
-        if (hiddenBadges.length > 0) updates.hiddenBadges = hiddenBadges;
-        const scholarPassed = localStorage.getItem('btc_scholar_passed') === 'true';
-        if (scholarPassed) updates.scholarPassed = true;
-        if (Object.keys(updates).length > 0) {
-            await db.collection('users').doc(auth.currentUser.uid).update(updates);
-        }
-    } catch(e) {}
-}
+// syncProgressToFirebase removed — badges and scholar status are synced inline at award time
 
 // Restore visited UI checkmarks
 function restoreVisitedUI() {
@@ -1576,7 +1544,7 @@ function showSettingsPage(tab) {
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How It Works</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.7;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> Earn 1 Orange Ticket each day you visit the site.<br>' +
-                '<strong style="color:var(--text);">🤝 Referrals:</strong> Share your unique link. When someone signs up through your link, logs in, and earns 2,100+ points (Maxi rank), you earn 5 Orange Tickets.<br>' +
+                '<strong style="color:var(--text);">🤝 Referrals:</strong> Share your unique link. When someone signs up through your link, logs in, and earns 2,100+ points (Maxi rank), you earn <strong style="color:var(--accent);">50 Orange Tickets</strong>.<br>' +
                 '<strong style="color:var(--text);">⏳ Verification:</strong> Referrals are verified automatically when your friend hits the points threshold.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus Points:</strong> Each ticket earned = 5 bonus points towards your rank.<br>' +
                 '<strong style="color:var(--text);">🎡 Daily:</strong> Log in (+1 ticket) and spin the wheel for more!<br>' +
