@@ -1744,6 +1744,49 @@ function showSettingsPage(tab) {
 
         html += '</div>';
 
+        // Nacho Analytics
+        if (typeof getNachoAnalytics === 'function') {
+            var na = getNachoAnalytics();
+            if (na.total > 0) {
+                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📊 Nacho Q&A Analytics</div>';
+
+                // Satisfaction
+                if (na.satisfaction !== null) {
+                    var satColor = na.satisfaction >= 80 ? '#22c55e' : (na.satisfaction >= 50 ? '#f7931a' : '#ef4444');
+                    html += statRow('Answer Satisfaction', '<span style="color:' + satColor + ';">' + na.satisfaction + '%</span> (' + na.upvotes + '👍 / ' + na.downvotes + '👎)', '📊');
+                }
+
+                html += statRow('Total Questions', na.total, '💬');
+                html += statRow('Missed/Fallback', na.missCount, '❓');
+
+                // Answer sources
+                if (na.sources && Object.keys(na.sources).length > 0) {
+                    var srcLabels = { kb: 'Knowledge Base', ai: 'AI (Llama)', offtopic: 'Off-topic', fallback: 'Fallback', safety: 'Safety', unknown: 'Other' };
+                    var srcHtml = '';
+                    for (var src in na.sources) {
+                        srcHtml += '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-side);border:1px solid var(--border);border-radius:6px;font-size:0.75rem;color:var(--text-muted);">' + (srcLabels[src] || src) + ': ' + na.sources[src] + '</span>';
+                    }
+                    html += '<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">📡 Answer Sources</div>' + srcHtml + '</div>';
+                }
+
+                // Top topics
+                var topicEntries = Object.entries(na.topics).sort(function(a,b) { return b[1] - a[1]; }).slice(0, 8);
+                if (topicEntries.length > 0) {
+                    var topicEmojis = { lightning:'⚡', mining:'⛏️', wallets:'💼', basics:'📘', security:'🔒', privacy:'🕵️', economics:'📈', altcoins:'🪙', technical:'⚙️', history:'📜', price:'💰', layer2:'🔗', culture:'🎭', regulation:'⚖️', onboarding:'🚀', other:'❓' };
+                    var topHtml = '';
+                    for (var ti = 0; ti < topicEntries.length; ti++) {
+                        var tn = topicEntries[ti][0];
+                        var tc = topicEntries[ti][1];
+                        topHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;"><span style="color:var(--text-muted);font-size:0.8rem;">' + (topicEmojis[tn] || '❓') + ' ' + tn.charAt(0).toUpperCase() + tn.slice(1) + '</span><span style="color:var(--text);font-weight:600;font-size:0.8rem;">' + tc + '</span></div>';
+                    }
+                    html += '<div style="padding:8px 0;"><div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">🔥 Top Topics</div>' + topHtml + '</div>';
+                }
+
+                html += '</div>';
+            }
+        }
+
         // Nacho's Closet
         if (typeof renderNachoClosetUI === 'function') {
             html += '<div id="nachoClosetContainer" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;"></div>';

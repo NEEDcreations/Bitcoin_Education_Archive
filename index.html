@@ -1426,7 +1426,7 @@
     function nachoModeFallbackReply(q, reply) {
         if (typeof checkOffTopic === 'function') {
             var ot = checkOffTopic(q);
-            if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot); return; }
+            if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot, 'offtopic'); return; }
         }
         var ql = q.toLowerCase().trim();
         if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
@@ -1436,10 +1436,11 @@
                 "Well hello! 🦌 Nice to see you. Ask me anything about Bitcoin — I've got 146 channels of knowledge in these antlers!",
                 "Hey! 👋 I'm good, thanks for asking! Ready to talk Bitcoin whenever you are. What's on your mind?"
             ];
-            reply(greetings[Math.floor(Math.random() * greetings.length)]);
+            reply(greetings[Math.floor(Math.random() * greetings.length)], 'offtopic');
             return;
         }
-        reply("Give me just a moment — I'm loading up my Bitcoin knowledge! Try again in a few seconds. 🦌");
+        if (typeof nachoTrackMiss === 'function') nachoTrackMiss(q);
+        reply("Give me just a moment — I'm loading up my Bitcoin knowledge! Try again in a few seconds. 🦌", 'fallback');
     }
 
     // Keyboard handler: Enter=send, ArrowUp/Down=history
@@ -1630,21 +1631,29 @@
         nachoChatThinking();
 
         // Answer pipeline helper
-        function reply(html) {
+        var _replyMsgId = 'nm_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
+        function reply(html, source) {
             nachoChatClearThinking();
             nachoModeStopTalking();
-            nachoChatAdd('nacho', '', html);
-            nachoChatAppend('nacho', '', html);
+            // Add thumbs up/down for non-safety responses
+            var ratingHtml = '';
+            if (source && source !== 'safety' && typeof nachoRatingHtml === 'function') {
+                ratingHtml = nachoRatingHtml(_replyMsgId);
+            }
+            nachoChatAdd('nacho', '', html + ratingHtml);
+            nachoChatAppend('nacho', '', html + ratingHtml);
             updateNachoModeFriendship();
+            // Track topic + source
+            if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
         }
 
         // STEP 1: Safety (must stay hardcoded — fast, reliable, no API cost)
         if (typeof isInappropriate === 'function' && isInappropriate(q)) {
-            reply("Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌");
+            reply("Whoa there! Let's keep it family-friendly. Ask me something about Bitcoin instead! 🦌", 'safety');
             return;
         }
         if (typeof isCrisis === 'function' && isCrisis(q)) {
-            reply("Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛");
+            reply("Hey, I care about you. 🧡 If you're going through a tough time, please call or text 988 (US) or visit findahelpline.com. You matter. 💛", 'safety');
             return;
         }
 
@@ -1659,7 +1668,7 @@
             if (match) {
                 var ans = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
                 var channelLink = match.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match.channelName || match.channel) + ' →</a>' : '';
-                reply(ans + channelLink);
+                reply(ans + channelLink, 'kb');
                 return;
             }
         }
@@ -1668,14 +1677,15 @@
         if (typeof nachoAIAnswer === 'function') {
             nachoAIAnswer(q, function(aiAnswer) {
                 if (aiAnswer) {
-                    reply(aiAnswer);
+                    reply(aiAnswer, 'ai');
                 } else {
                     // AI failed/rate-limited — fall back to off-topic patterns
                     if (typeof checkOffTopic === 'function') {
                         var ot = checkOffTopic(q);
-                        if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot); return; }
+                        if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot, 'offtopic'); return; }
                     }
-                    reply("Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌");
+                    if (typeof nachoTrackMiss === 'function') nachoTrackMiss(q);
+                    reply("Hmm, that's a tough one! Try browsing the archive — there are 146+ channels of Bitcoin knowledge. 🦌", 'fallback');
                 }
             });
             return;
@@ -1699,13 +1709,13 @@
                     if (match2) {
                         var ans2 = typeof personalize === 'function' ? personalize(match2.answer) : match2.answer;
                         var cl2 = match2.channel ? '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + match2.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (match2.channelName || match2.channel) + ' →</a>' : '';
-                        reply(ans2 + cl2);
+                        reply(ans2 + cl2, 'kb');
                         return;
                     }
                 }
                 if (typeof nachoAIAnswer === 'function') {
                     nachoAIAnswer(q, function(aiAnswer) {
-                        if (aiAnswer) { reply(aiAnswer); }
+                        if (aiAnswer) { reply(aiAnswer, 'ai'); }
                         else { nachoModeFallbackReply(q, reply); }
                     });
                     return;

@@ -1280,4 +1280,135 @@ function showNachoFallback(textEl, q) {
     textEl.innerHTML = html;
 }
 
+// =============================================
+// 📊 Nacho Analytics — anonymous topic tracking
+// =============================================
+
+// Topic categories for classification
+var NACHO_TOPICS = {
+    lightning: /lightning|lnurl|bolt11|channel capacity|routing|lnd|cln|eclair|zap/,
+    mining: /mining|miner|hash.?rate|proof.?of.?work|asic|pool|block reward|difficulty/,
+    wallets: /wallet|seed phrase|private key|public key|cold storage|hardware wallet|ledger|trezor/,
+    basics: /what is bitcoin|how does bitcoin|beginner|newbie|new to bitcoin|basics|btc work/,
+    security: /security|hack|scam|phishing|2fa|backup|recovery|passphrase/,
+    privacy: /privacy|kyc|surveillance|coinjoin|mixer|tor|anonymous/,
+    economics: /halving|supply|inflation|deflation|monetary|store of value|hard money|21 million|scarcity/,
+    altcoins: /ethereum|eth\b|solana|cardano|xrp|ripple|dogecoin|altcoin|shitcoin|kaspa|bnb|polkadot|avalanche/,
+    technical: /taproot|segwit|mempool|utxo|script|opcode|merkle|block.?chain|node|consensus|fork/,
+    history: /genesis block|satoshi nakamoto|cypherpunk|silk road|mt gox|pizza day|history/,
+    price: /price|buy|sell|invest|portfolio|dca|dollar cost|market|bull|bear|crash|moon/,
+    layer2: /layer.?2|sidechain|liquid|fedimint|cashu|ecash|state.?chain/,
+    culture: /meme|nostr|pleb|hodl|fud|maxi|toxic|community|conference/,
+    regulation: /regulation|legal|tax|government|ban|sec|etf|law/,
+    onboarding: /how to buy|where to buy|exchange|strike|river|cash app|coinbase|bisq/
+};
+
+// Classify a question into a topic
+function classifyTopic(q) {
+    var lower = q.toLowerCase();
+    for (var topic in NACHO_TOPICS) {
+        if (NACHO_TOPICS[topic].test(lower)) return topic;
+    }
+    return 'other';
+}
+
+// Track topic count (anonymous — just category tallies)
+window.nachoTrackTopic = function(question, source) {
+    try {
+        var data = JSON.parse(localStorage.getItem('btc_nacho_topics') || '{}');
+        var topic = classifyTopic(question);
+        if (!data.topics) data.topics = {};
+        data.topics[topic] = (data.topics[topic] || 0) + 1;
+        data.total = (data.total || 0) + 1;
+        data.lastUpdated = Date.now();
+
+        // Track answer sources (kb, ai, offtopic, fallback)
+        if (source) {
+            if (!data.sources) data.sources = {};
+            data.sources[source] = (data.sources[source] || 0) + 1;
+        }
+
+        localStorage.setItem('btc_nacho_topics', JSON.stringify(data));
+    } catch(e) {}
+};
+
+// Track fallback/miss — question Nacho couldn't answer
+window.nachoTrackMiss = function(question) {
+    try {
+        var misses = JSON.parse(localStorage.getItem('btc_nacho_misses') || '[]');
+        var topic = classifyTopic(question);
+        // Store only topic + truncated question (no personal data)
+        misses.push({
+            topic: topic,
+            q: question.substring(0, 80),
+            ts: Date.now()
+        });
+        // Keep last 50 misses
+        if (misses.length > 50) misses = misses.slice(-50);
+        localStorage.setItem('btc_nacho_misses', JSON.stringify(misses));
+    } catch(e) {}
+};
+
+// =============================================
+// 👍👎 Nacho Answer Ratings
+// =============================================
+
+// Rate an answer (thumbs up/down)
+window.nachoRate = function(msgId, rating) {
+    try {
+        var ratings = JSON.parse(localStorage.getItem('btc_nacho_ratings') || '[]');
+        // Find and update existing or add new
+        var found = false;
+        for (var i = 0; i < ratings.length; i++) {
+            if (ratings[i].id === msgId) { ratings[i].rating = rating; found = true; break; }
+        }
+        if (!found) {
+            ratings.push({ id: msgId, rating: rating, ts: Date.now() });
+        }
+        if (ratings.length > 200) ratings = ratings.slice(-200);
+        localStorage.setItem('btc_nacho_ratings', JSON.stringify(ratings));
+    } catch(e) {}
+
+    // Update button styles
+    var up = document.getElementById('nachoUp_' + msgId);
+    var dn = document.getElementById('nachoDn_' + msgId);
+    if (up) up.style.opacity = rating === 1 ? '1' : '0.3';
+    if (dn) dn.style.opacity = rating === -1 ? '1' : '0.3';
+};
+
+// Generate thumbs up/down HTML for a message
+window.nachoRatingHtml = function(msgId) {
+    return '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;">' +
+        '<button id="nachoUp_' + msgId + '" onclick="event.stopPropagation();nachoRate(\'' + msgId + '\',1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Good answer">👍</button>' +
+        '<button id="nachoDn_' + msgId + '" onclick="event.stopPropagation();nachoRate(\'' + msgId + '\',-1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bad answer">👎</button>' +
+    '</div>';
+};
+
+// =============================================
+// 📈 Nacho Stats (for Stats/Nacho tab)
+// =============================================
+
+window.getNachoAnalytics = function() {
+    var topics = JSON.parse(localStorage.getItem('btc_nacho_topics') || '{}');
+    var misses = JSON.parse(localStorage.getItem('btc_nacho_misses') || '[]');
+    var ratings = JSON.parse(localStorage.getItem('btc_nacho_ratings') || '[]');
+
+    var upvotes = 0, downvotes = 0;
+    for (var i = 0; i < ratings.length; i++) {
+        if (ratings[i].rating === 1) upvotes++;
+        else if (ratings[i].rating === -1) downvotes++;
+    }
+
+    return {
+        topics: topics.topics || {},
+        sources: topics.sources || {},
+        total: topics.total || 0,
+        misses: misses,
+        missCount: misses.length,
+        upvotes: upvotes,
+        downvotes: downvotes,
+        satisfaction: (upvotes + downvotes > 0) ? Math.round(upvotes / (upvotes + downvotes) * 100) : null
+    };
+};
+
 })();
