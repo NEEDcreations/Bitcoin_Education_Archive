@@ -747,6 +747,7 @@
         </div>
         <div class="hero" id="hero"></div>
         <div class="messages" id="msgs"></div>
+        <div id="forumContainer" style="display:none;"></div>
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <div id="questModal" onclick="if(event.target===this)closeQuest()"><div id="questInner"></div></div>
@@ -812,7 +813,7 @@
     <script src="nacho-engage.js?v=7" defer></script>
     <script src="nacho-qa.js?v=7" defer></script>
     <script src="nacho-closet.js?v=7" defer></script>
-    <script src="forum.js?v=2" defer></script>
+    <script src="forum.js?v=3" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -2269,6 +2270,11 @@
     window.goHome = function goHome(fromPopState) {
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
+        // Hide forum container
+        var fc = document.getElementById('forumContainer');
+        if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
+        document.getElementById('hero').style.display = '';
+        document.getElementById('msgs').style.display = '';
         document.getElementById('home').classList.remove('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
@@ -2589,6 +2595,12 @@
         if (id === 'forum') {
             if (window._nachoMode) exitNachoMode();
             document.getElementById('home').classList.add('hidden');
+            document.getElementById('hero').innerHTML = '';
+            document.getElementById('msgs').innerHTML = '';
+            document.getElementById('msgs').style.display = 'none';
+            document.getElementById('hero').style.display = 'none';
+            var fc = document.getElementById('forumContainer');
+            if (fc) { fc.style.display = 'block'; }
             if (!fromPopState) history.pushState({ channel: 'forum' }, '', '#forum');
             if (typeof renderForum === 'function') renderForum();
             return;
@@ -2596,6 +2608,11 @@
 
         const meta = CHANNELS[id];
         if (!meta) return;
+        // Hide forum container when navigating to a channel
+        var fc = document.getElementById('forumContainer');
+        if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
+        document.getElementById('hero').style.display = '';
+        document.getElementById('msgs').style.display = '';
         // Hide floating random button when navigating to a different channel
         if (!window._keepFloatingBtn) {
             var fb = document.getElementById('floatingRandomBtn');
