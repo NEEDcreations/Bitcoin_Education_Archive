@@ -1,0 +1,506 @@
+// =============================================
+// 🗣️ Bitcoin Education Archive — Community Forum
+// Stacker News-inspired discussion board
+// =============================================
+
+(function() {
+
+var FORUM_CATEGORIES = [
+    { id: 'general', name: 'General', emoji: '💬' },
+    { id: 'beginner', name: 'Beginner Questions', emoji: '🌱' },
+    { id: 'lightning', name: 'Lightning', emoji: '⚡' },
+    { id: 'mining', name: 'Mining', emoji: '⛏️' },
+    { id: 'security', name: 'Security & Privacy', emoji: '🔒' },
+    { id: 'wallets', name: 'Wallets & Self-Custody', emoji: '💼' },
+    { id: 'economics', name: 'Economics & Theory', emoji: '📈' },
+    { id: 'news', name: 'News & Events', emoji: '📰' },
+    { id: 'dev', name: 'Development & Tech', emoji: '⚙️' },
+    { id: 'offtopic', name: 'Off-Topic', emoji: '🎭' },
+];
+
+// Profanity filter (shared approach with Nacho)
+var FORUM_BLOCKED = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo'];
+function isCleanText(text) {
+    var lower = text.toLowerCase().replace(/[^a-z\s]/g, '');
+    var words = lower.split(/\s+/);
+    for (var i = 0; i < words.length; i++) {
+        for (var j = 0; j < FORUM_BLOCKED.length; j++) {
+            if (words[i] === FORUM_BLOCKED[j]) return false;
+            if (FORUM_BLOCKED[j].length >= 4 && words[i].indexOf(FORUM_BLOCKED[j]) !== -1) return false;
+        }
+    }
+    return true;
+}
+
+// Sanitize HTML
+function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Time ago helper
+function timeAgo(ts) {
+    var now = Date.now();
+    var d = ts && ts.toDate ? ts.toDate().getTime() : (typeof ts === 'number' ? ts : new Date(ts).getTime());
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+    return new Date(d).toLocaleDateString();
+}
+
+// State
+var forumSort = 'recent';
+var forumCategory = 'all';
+var forumPage = 'list'; // list | post | new
+var forumCurrentPost = null;
+var forumPostsCache = [];
+var forumLastLoad = 0;
+
+// ---- Render Forum ----
+window.renderForum = function() {
+    var main = document.getElementById('main');
+    if (!main) return;
+
+    var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
+
+    // Header
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">' +
+        '<div>' +
+            '<h2 style="color:var(--heading);font-size:1.5rem;font-weight:800;margin:0;">🗣️ Community Forum</h2>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Discuss Bitcoin with fellow learners</div>' +
+        '</div>' +
+        '<button onclick="forumNewPost()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">+ New Post</button>' +
+    '</div>';
+
+    // Sort + Filter bar
+    html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">';
+    // Sort buttons
+    ['recent','top','discussed'].forEach(function(s) {
+        var labels = { recent: '🕐 Recent', top: '🔥 Top', discussed: '💬 Most Discussed' };
+        var active = forumSort === s;
+        html += '<button onclick="forumSetSort(\'' + s + '\')" style="padding:6px 14px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';touch-action:manipulation;">' + labels[s] + '</button>';
+    });
+    // Category dropdown
+    html += '<select id="forumCatFilter" onchange="forumSetCategory(this.value)" style="padding:6px 10px;border-radius:8px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:0.75rem;font-family:inherit;cursor:pointer;">';
+    html += '<option value="all"' + (forumCategory === 'all' ? ' selected' : '') + '>All Categories</option>';
+    FORUM_CATEGORIES.forEach(function(c) {
+        html += '<option value="' + c.id + '"' + (forumCategory === c.id ? ' selected' : '') + '>' + c.emoji + ' ' + c.name + '</option>';
+    });
+    html += '</select></div>';
+
+    // Posts list
+    html += '<div id="forumPosts"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading posts...</div></div>';
+
+    html += '</div>';
+    main.innerHTML = html;
+    main.scrollTop = 0;
+
+    // Load posts
+    forumLoadPosts();
+};
+
+// ---- Load Posts ----
+window.forumLoadPosts = async function() {
+    var container = document.getElementById('forumPosts');
+    if (!container || typeof db === 'undefined') return;
+
+    try {
+        var query = db.collection('forum_posts').orderBy(
+            forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt',
+            'desc'
+        ).limit(50);
+
+        if (forumCategory !== 'all') {
+            query = db.collection('forum_posts')
+                .where('category', '==', forumCategory)
+                .orderBy(forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt', 'desc')
+                .limit(50);
+        }
+
+        var snap = await query.get();
+        var posts = [];
+        snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
+        forumPostsCache = posts;
+        forumLastLoad = Date.now();
+
+        if (posts.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;">' +
+                '<div style="font-size:2rem;margin-bottom:8px;">🦌</div>' +
+                '<div style="color:var(--text-muted);">No posts yet. Be the first to start a discussion!</div>' +
+            '</div>';
+            return;
+        }
+
+        var html = '';
+        posts.forEach(function(p) {
+            var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
+            var cat = FORUM_CATEGORIES.find(function(c) { return c.id === p.category; });
+            var catLabel = cat ? cat.emoji + ' ' + cat.name : '';
+            var isOwn = auth && auth.currentUser && p.authorId === auth.currentUser.uid;
+            var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
+
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:0.2s;" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                '<div style="display:flex;gap:12px;">' +
+                    // Upvote column
+                    '<div style="display:flex;flex-direction:column;align-items:center;min-width:40px;flex-shrink:0;">' +
+                        '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">⚡</button>' +
+                        '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
+                    '</div>' +
+                    // Content
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="color:var(--heading);font-size:0.95rem;font-weight:700;margin-bottom:4px;line-height:1.3;">' + fEsc(p.title) + '</div>' +
+                        (p.body ? '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;margin-bottom:6px;overflow:hidden;max-height:2.8em;">' + fEsc(p.body).substring(0, 150) + (p.body.length > 150 ? '...' : '') + '</div>' : '') +
+                        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
+                            '<span style="font-size:0.7rem;color:var(--text-faint);">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                            '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                            '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
+                            (catLabel ? '<span style="font-size:0.65rem;padding:2px 8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);">' + catLabel + '</span>' : '') +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        });
+
+        container.innerHTML = html;
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Error loading posts. Try refreshing.</div>';
+    }
+};
+
+// ---- Sort/Filter ----
+window.forumSetSort = function(s) { forumSort = s; renderForum(); };
+window.forumSetCategory = function(c) { forumCategory = c; renderForum(); };
+
+// ---- View Post ----
+window.forumViewPost = async function(postId) {
+    var main = document.getElementById('main');
+    if (!main || typeof db === 'undefined') return;
+
+    main.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div></div>';
+
+    try {
+        var doc = await db.collection('forum_posts').doc(postId).get();
+        if (!doc.exists) { renderForum(); return; }
+        var p = { id: doc.id, ...doc.data() };
+        forumCurrentPost = p;
+        var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
+        var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
+
+        var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
+
+        // Back button
+        html += '<button onclick="go(\'forum\')" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
+
+        // Post
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">' +
+            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0 0 8px;line-height:1.3;">' + fEsc(p.title) + '</h2>' +
+            '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
+                '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+            '</div>';
+
+        if (p.body) {
+            // Simple markdown-ish: newlines to <br>, **bold**, links
+            var bodyHtml = fEsc(p.body).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            // Auto-link URLs
+            bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
+            html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;">' + bodyHtml + '</div>';
+        }
+
+        if (p.link) {
+            html += '<a href="' + fEsc(p.link) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(p.link).substring(0, 60) + (p.link.length > 60 ? '...' : '') + '</a><br>';
+        }
+
+        // Vote + meta
+        html += '<div style="display:flex;gap:16px;align-items:center;">' +
+            '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">⚡ ' + (p.upvotes || 0) + '</button>' +
+            '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
+        '</div>';
+        html += '</div>';
+
+        // Reply box
+        if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;">' +
+                '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                    '<span id="forumReplyStatus" style="font-size:0.8rem;"></span>' +
+                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Reply</button>' +
+                '</div></div>';
+        } else {
+            html += '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;"><a href="#" onclick="event.preventDefault();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt();" style="color:var(--accent);">Sign in</a> to join the discussion</div>';
+        }
+
+        // Replies
+        html += '<div id="forumReplies"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading replies...</div></div>';
+
+        html += '</div>';
+        main.innerHTML = html;
+        main.scrollTop = 0;
+
+        // Load replies
+        forumLoadReplies(postId);
+    } catch(e) {
+        main.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:40px 16px;text-align:center;color:#ef4444;">Error loading post</div>';
+    }
+};
+
+// ---- Load Replies ----
+async function forumLoadReplies(postId) {
+    var container = document.getElementById('forumReplies');
+    if (!container) return;
+
+    try {
+        var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
+        var replies = [];
+        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+
+        if (replies.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';
+            return;
+        }
+
+        var html = '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">' + replies.length + ' ' + (replies.length === 1 ? 'reply' : 'replies') + '</div>';
+        replies.forEach(function(r) {
+            var rlv = typeof getLevel === 'function' ? getLevel(r.authorPoints || 0) : { emoji: '🟢' };
+            var hasVotedR = r.voters && auth && auth.currentUser && r.voters.indexOf(auth.currentUser.uid) !== -1;
+            var bodyHtml = fEsc(r.body).replace(/\n/g, '<br>');
+            bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
+
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                    '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
+                '</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
+                '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">⚡ ' + (r.upvotes || 0) + '</button>' +
+            '</div>';
+        });
+
+        container.innerHTML = html;
+    } catch(e) {
+        container.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Error loading replies</div>';
+    }
+}
+
+// ---- New Post Form ----
+window.forumNewPost = function() {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to create a post');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+
+    var main = document.getElementById('main');
+    var html = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">';
+    html += '<button onclick="go(\'forum\')" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
+
+    html += '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0 0 16px;">📝 Create New Post</h2>';
+
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;">';
+
+    // Category
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Category</label>' +
+        '<select id="forumNewCat" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;cursor:pointer;">';
+    FORUM_CATEGORIES.forEach(function(c) {
+        html += '<option value="' + c.id + '">' + c.emoji + ' ' + c.name + '</option>';
+    });
+    html += '</select>';
+
+    // Title
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Title *</label>' +
+        '<input type="text" id="forumNewTitle" maxlength="120" placeholder="What\'s on your mind?" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.95rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px;">';
+
+    // Body
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Details <span style="color:var(--text-faint);">(optional, 2000 chars max)</span></label>' +
+        '<textarea id="forumNewBody" rows="6" maxlength="2000" placeholder="Share your thoughts, ask a question, start a discussion..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:12px;"></textarea>';
+
+    // Link
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Link <span style="color:var(--text-faint);">(optional)</span></label>' +
+        '<input type="url" id="forumNewLink" maxlength="200" placeholder="https://..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:16px;">';
+
+    html += '<button onclick="forumSubmitPost()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Post to Forum</button>';
+    html += '<div id="forumPostStatus" style="margin-top:8px;font-size:0.85rem;text-align:center;"></div>';
+
+    html += '</div></div>';
+    main.innerHTML = html;
+    main.scrollTop = 0;
+};
+
+// ---- Submit Post ----
+window.forumSubmitPost = async function() {
+    var status = document.getElementById('forumPostStatus');
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">You must be signed in</span>';
+        return;
+    }
+
+    var title = (document.getElementById('forumNewTitle').value || '').trim();
+    var body = (document.getElementById('forumNewBody').value || '').trim();
+    var link = (document.getElementById('forumNewLink').value || '').trim();
+    var category = document.getElementById('forumNewCat').value;
+
+    if (!title || title.length < 5) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Title must be at least 5 characters</span>';
+        return;
+    }
+
+    if (!isCleanText(title) || (body && !isCleanText(body))) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Post contains inappropriate language. Keep it clean!</span>';
+        return;
+    }
+
+    if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+
+    // Rate limit: max 5 posts per day
+    var postCount = parseInt(localStorage.getItem('btc_forum_post_count') || '0');
+    var postDate = localStorage.getItem('btc_forum_post_date') || '';
+    var today = new Date().toISOString().split('T')[0];
+    if (postDate !== today) { postCount = 0; }
+    if (postCount >= 5) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">You\'ve reached the daily post limit (5). Try again tomorrow!</span>';
+        return;
+    }
+
+    if (status) status.innerHTML = '<span style="color:var(--text-muted);">Posting...</span>';
+
+    try {
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
+        var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
+
+        await db.collection('forum_posts').add({
+            title: title,
+            body: body.substring(0, 2000),
+            link: link.substring(0, 200) || null,
+            category: category,
+            authorId: auth.currentUser.uid,
+            authorName: userName,
+            authorPoints: userPts,
+            upvotes: 0,
+            voters: [],
+            replyCount: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        localStorage.setItem('btc_forum_post_count', (postCount + 1).toString());
+        localStorage.setItem('btc_forum_post_date', today);
+
+        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
+        go('forum');
+    } catch(e) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';
+    }
+};
+
+// ---- Submit Reply ----
+window.forumSubmitReply = async function(postId) {
+    var status = document.getElementById('forumReplyStatus');
+    var input = document.getElementById('forumReplyInput');
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || !input) return;
+
+    var body = input.value.trim();
+    if (!body || body.length < 2) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Reply is too short</span>';
+        return;
+    }
+    if (!isCleanText(body)) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Reply contains inappropriate language</span>';
+        return;
+    }
+
+    if (status) status.innerHTML = '<span style="color:var(--text-muted);">Posting...</span>';
+
+    try {
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
+        var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
+
+        await db.collection('forum_replies').add({
+            postId: postId,
+            body: body.substring(0, 1000),
+            authorId: auth.currentUser.uid,
+            authorName: userName,
+            authorPoints: userPts,
+            upvotes: 0,
+            voters: [],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Increment reply count
+        await db.collection('forum_posts').doc(postId).update({
+            replyCount: firebase.firestore.FieldValue.increment(1)
+        });
+
+        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        input.value = '';
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Reply posted!</span>';
+        forumLoadReplies(postId);
+    } catch(e) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting reply</span>';
+    }
+};
+
+// ---- Vote Post ----
+window.forumVotePost = async function(postId) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to upvote');
+        return;
+    }
+
+    try {
+        var ref = db.collection('forum_posts').doc(postId);
+        var doc = await ref.get();
+        if (!doc.exists) return;
+        var voters = doc.data().voters || [];
+        var uid = auth.currentUser.uid;
+
+        if (voters.indexOf(uid) !== -1) {
+            // Already voted — remove vote
+            await ref.update({
+                upvotes: firebase.firestore.FieldValue.increment(-1),
+                voters: firebase.firestore.FieldValue.arrayRemove(uid)
+            });
+        } else {
+            await ref.update({
+                upvotes: firebase.firestore.FieldValue.increment(1),
+                voters: firebase.firestore.FieldValue.arrayUnion(uid)
+            });
+        }
+
+        // Refresh
+        if (forumCurrentPost && forumCurrentPost.id === postId) {
+            forumViewPost(postId);
+        } else {
+            forumLoadPosts();
+        }
+    } catch(e) {}
+};
+
+// ---- Vote Reply ----
+window.forumVoteReply = async function(replyId) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to upvote');
+        return;
+    }
+
+    try {
+        var ref = db.collection('forum_replies').doc(replyId);
+        var doc = await ref.get();
+        if (!doc.exists) return;
+        var voters = doc.data().voters || [];
+        var uid = auth.currentUser.uid;
+
+        if (voters.indexOf(uid) !== -1) {
+            await ref.update({
+                upvotes: firebase.firestore.FieldValue.increment(-1),
+                voters: firebase.firestore.FieldValue.arrayRemove(uid)
+            });
+        } else {
+            await ref.update({
+                upvotes: firebase.firestore.FieldValue.increment(1),
+                voters: firebase.firestore.FieldValue.arrayUnion(uid)
+            });
+        }
+
+        if (forumCurrentPost) forumLoadReplies(forumCurrentPost.id);
+    } catch(e) {}
+};
+
+})();

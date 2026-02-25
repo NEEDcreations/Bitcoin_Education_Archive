@@ -638,6 +638,7 @@
         </div>
         <button class="quest-start-btn" onclick="startQuestManual()">⚡ Start a Quest</button>
         <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:2px solid #f7931a;color:var(--text);margin-top:4px;transition:0.2s;" onmouseover="this.style.background='linear-gradient(135deg,#f7931a,#ea580c)';this.style.color='#fff';this.style.boxShadow='0 0 20px rgba(247,147,26,0.4)';" onmouseout="this.style.background='var(--card-bg)';this.style.color='var(--text)';this.style.boxShadow='none';">🎓 Bitcoin Scholar Certification Quest</button>
+        <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('forum')">🗣️ Community Forum</button>
         <button id="supportBtn" class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:4px;position:relative;" onclick="handleSupportClick()">📧 Support</button>
         <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ Powered by 603btc.com</a>
         <div id="rankBar"></div>
@@ -811,6 +812,7 @@
     <script src="nacho-engage.js?v=7" defer></script>
     <script src="nacho-qa.js?v=7" defer></script>
     <script src="nacho-closet.js?v=7" defer></script>
+    <script src="forum.js?v=1" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -2582,6 +2584,15 @@
     }
 
     async function go(id, btn, fromPopState) {
+        // Forum route
+        if (id === 'forum') {
+            if (window._nachoMode) exitNachoMode();
+            document.getElementById('home').classList.add('hidden');
+            if (!fromPopState) history.pushState({ channel: 'forum' }, '', '#forum');
+            if (typeof renderForum === 'function') renderForum();
+            return;
+        }
+
         const meta = CHANNELS[id];
         if (!meta) return;
         // Hide floating random button when navigating to a different channel

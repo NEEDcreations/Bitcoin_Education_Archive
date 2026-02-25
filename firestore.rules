@@ -139,6 +139,54 @@ service cloud.firestore {
     }
 
     // =============================================
+    // FORUM POSTS
+    // =============================================
+    match /forum_posts/{postId} {
+      // Anyone can read forum posts
+      allow read: if true;
+
+      // Authenticated users can create posts
+      allow create: if request.auth != null
+                    && !request.auth.token.anonymous
+                    && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 5
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.authorId == request.auth.uid;
+
+      // Allow upvote updates (voters array + upvotes count)
+      allow update: if request.auth != null;
+
+      // Only author can delete their post
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+    }
+
+    // =============================================
+    // FORUM REPLIES
+    // =============================================
+    match /forum_replies/{replyId} {
+      // Anyone can read replies
+      allow read: if true;
+
+      // Authenticated users can create replies
+      allow create: if request.auth != null
+                    && !request.auth.token.anonymous
+                    && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
+                    && request.resource.data.body is string
+                    && request.resource.data.body.size() >= 2
+                    && request.resource.data.body.size() <= 1000
+                    && request.resource.data.authorId == request.auth.uid;
+
+      // Allow upvote updates
+      allow update: if request.auth != null;
+
+      // Only author can delete their reply
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+    }
+
+    // =============================================
     // DEFAULT: deny everything else
     // =============================================
     match /{document=**} {
