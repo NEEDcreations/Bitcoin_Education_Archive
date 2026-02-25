@@ -1421,6 +1421,11 @@
         var eli5Btn = document.getElementById('nachoEli5Btn');
         if (eli5Btn) eli5Btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
 
+        // Fetch BTC price and start refresh timer
+        setTimeout(fetchBtcPrice, 300);
+        if (window._btcPriceTimer) clearInterval(window._btcPriceTimer);
+        window._btcPriceTimer = setInterval(fetchBtcPrice, 60000);
+
         // Focus input
         setTimeout(function() {
             var inp = document.getElementById('nachoModeInput');
@@ -1619,9 +1624,6 @@
             }
         }).catch(function() {});
     }
-    // Fetch on enter, refresh every 60s
-    setTimeout(fetchBtcPrice, 500);
-    window._btcPriceTimer = setInterval(fetchBtcPrice, 60000);
 
     // =============================================
     // 📤 Share Answer
