@@ -1363,19 +1363,17 @@
         screen.style.cssText = 'display:flex;flex-direction:column;height:100vh;animation:fadeSlideIn 0.4s ease-out;';
         screen.innerHTML =
             '<style>' +
-                '@keyframes nachoModeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }' +
+                '@keyframes nachoModeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }' +
                 '@keyframes nachoModeTalk { 0%,100%{transform:scale(1)} 15%{transform:scale(1.03)} 30%{transform:scale(0.98)} 45%{transform:scale(1.02)} }' +
-                '@keyframes nachoModeGlow { 0%,100%{filter:drop-shadow(0 0 15px rgba(247,147,26,0.3))} 50%{filter:drop-shadow(0 0 30px rgba(247,147,26,0.6))} }' +
-                '#nachoModeAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; transition: transform 0.3s; }' +
-                '#nachoModeAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
-                '#nachoModeAvatar:hover { transform: scale(1.05); }' +
-                '#nachoModeSideAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; }' +
-                '#nachoModeSideAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
+                '@keyframes nachoModeGlow { 0%,100%{filter:drop-shadow(0 0 20px rgba(247,147,26,0.4))} 50%{filter:drop-shadow(0 0 40px rgba(247,147,26,0.7))} }' +
+                '@keyframes nachoCapeBlow { 0%,100%{transform:rotate(-5deg) skewX(-2deg)} 50%{transform:rotate(-12deg) skewX(-5deg)} }' +
+                '@keyframes nmTitleGlow { 0%,100%{text-shadow:0 0 20px rgba(247,147,26,0.3),0 0 40px rgba(247,147,26,0.1)} 50%{text-shadow:0 0 30px rgba(247,147,26,0.6),0 0 60px rgba(247,147,26,0.2)} }' +
+                '#nachoHeroAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; transition: transform 0.3s; cursor:pointer; }' +
+                '#nachoHeroAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
+                '#nachoHeroAvatar:hover { transform: scale(1.08); }' +
                 '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 16px; scroll-behavior:smooth; }' +
                 '#nachoModeChat::-webkit-scrollbar { width:4px; }' +
                 '#nachoModeChat::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }' +
-                '@media(max-width:768px){#nachoModeSideAvatar{width:100px!important;height:100px!important;bottom:8px!important;left:8px!important;}#nachoModeSideAvatar img{width:100px!important;height:100px!important;}#nachoModeChat{padding-left:8px!important;padding-bottom:110px!important;}}' +
-                '@media(min-width:769px){#nachoModeChat{padding-left:200px!important;}}' +
                 '.nm-msg { margin-bottom:10px; max-width:500px; margin-left:auto; margin-right:auto; }' +
                 '.nm-user { text-align:right; }' +
                 '.nm-user span { background:var(--accent-bg,#2a1a00);border:1px solid var(--accent);padding:10px 14px;border-radius:16px 16px 4px 16px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;line-height:1.4; }' +
@@ -1384,34 +1382,39 @@
                 '.nm-time { font-size:0.65rem;color:var(--text-faint);margin-top:2px; }' +
                 '.nm-nacho .nm-time { text-align:left; }' +
                 '.nm-user .nm-time { text-align:right; }' +
+                '@media(max-width:768px){.nm-hero-avatar{width:120px!important;height:120px!important;}.nm-hero-avatar img{width:120px!important;height:120px!important;}.nm-hero-cape{width:50px!important;height:65px!important;right:-10px!important;top:25px!important;}.nm-hero-title{font-size:1.8rem!important;letter-spacing:4px!important;}.nm-hero-bar{flex-wrap:wrap;gap:6px!important;}}' +
             '</style>' +
-            /* Header bar */
-            '<div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
-                '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
-                '<div id="nachoModeAvatar" style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="nachoModeAvatarTap()">' +
-                    '<img src="nacho-deer.svg" alt="Nacho" style="width:36px;height:36px;pointer-events:none;">' +
-                    '<div style="text-align:left;">' +
-                        '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;">Nacho 🦌</div>' +
-                        '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.65rem;"></div>' +
+            /* ===== HERO SECTION ===== */
+            '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.08) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:16px 16px 12px;text-align:center;position:relative;">' +
+                /* Top bar: back + tools */
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+                    '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
+                    '<div id="nachoModePrice" style="color:var(--accent);font-size:0.8rem;font-weight:700;"></div>' +
+                    '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:8px;">' +
+                        '<button id="nachoEli5Btn" onclick="toggleNachoEli5()" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;opacity:0.5;touch-action:manipulation;" title="Explain Like I\'m 5">🧒</button>' +
+                        '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Save chat">💾</button>' +
+                        '<button onclick="nachoChatClear()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Clear chat">🗑️</button>' +
+                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:28px;height:28px;border-radius:50%;cursor:pointer;" onclick="exitNachoMode()" title="Go to Home">' +
+                        '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="24" height="24" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
                     '</div>' +
                 '</div>' +
-                '<div id="nachoModePrice" style="color:var(--accent);font-size:0.75rem;font-weight:700;min-width:60px;text-align:center;"></div>' +
-                '<div style="display:flex;align-items:center;gap:6px;">' +
-                    '<button id="nachoEli5Btn" onclick="toggleNachoEli5()" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;opacity:0.5;touch-action:manipulation;" title="Explain Like I\'m 5">🧒</button>' +
-                    '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Save chat">💾</button>' +
-                    '<button onclick="nachoChatClear()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Clear chat">🗑️</button>' +
-                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:32px;height:32px;border-radius:50%;cursor:pointer;" onclick="exitNachoMode()" title="Go to Home">' +
-                    '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="28" height="28" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+                /* Avatar with cape */
+                '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:160px;height:160px;margin:0 auto 8px;" onclick="nachoModeAvatarTap()">' +
+                    '<img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;position:relative;z-index:2;">' +
+                    /* Orange cape SVG */
+                    '<svg class="nm-hero-cape" viewBox="0 0 80 100" style="position:absolute;right:-15px;top:30px;width:65px;height:80px;z-index:1;animation:nachoCapeBlow 3s ease-in-out infinite;" xmlns="http://www.w3.org/2000/svg">' +
+                        '<defs><linearGradient id="capeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#f7931a;stop-opacity:1"/><stop offset="100%" style="stop-color:#e67e00;stop-opacity:0.9"/></linearGradient></defs>' +
+                        '<path d="M10,5 Q15,0 25,3 L70,15 Q80,18 78,30 L72,85 Q70,95 60,92 L15,75 Q5,72 8,60 Z" fill="url(#capeGrad)" opacity="0.9"/>' +
+                        '<path d="M15,10 Q20,6 28,8 L65,20 Q72,22 70,32 L66,78 Q64,86 56,84 L20,70 Q12,68 14,58 Z" fill="url(#capeGrad)" opacity="0.3"/>' +
+                    '</svg>' +
+                    '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
                 '</div>' +
+                /* Title */
+                '<div class="nm-hero-title" style="font-size:2.2rem;font-weight:900;letter-spacing:6px;color:var(--accent);text-transform:uppercase;animation:nmTitleGlow 4s ease-in-out infinite;margin-bottom:4px;">NACHO MODE</div>' +
+                '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.75rem;"></div>' +
             '</div>' +
-            /* Chat area with persistent Nacho */
-            '<div style="flex:1;display:flex;position:relative;overflow:hidden;">' +
-                '<div id="nachoModeSideAvatar" style="position:absolute;bottom:16px;left:16px;width:180px;height:180px;cursor:pointer;transition:opacity 0.3s,transform 0.3s;z-index:5;pointer-events:auto;" onclick="nachoModeAvatarTap()" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'\'">' +
-                    '<img src="nacho-deer.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;">' +
-                    '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>' +
-                '</div>' +
-                '<div id="nachoModeChat" style="flex:1;"></div>' +
-            '</div>' +
+            /* ===== CHAT AREA ===== */
+            '<div id="nachoModeChat" style="flex:1;"></div>' +
             /* Input bar */
             '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
                 '<div style="max-width:500px;margin:0 auto;position:relative;">' +
@@ -2193,16 +2196,12 @@
 
     // Nacho Mode talking animation
     function nachoModeStartTalking() {
-        var avatar = document.getElementById('nachoModeAvatar');
-        var side = document.getElementById('nachoModeSideAvatar');
-        if (avatar) avatar.classList.add('talking');
-        if (side) side.classList.add('talking');
+        var hero = document.getElementById('nachoHeroAvatar');
+        if (hero) hero.classList.add('talking');
     }
     function nachoModeStopTalking() {
-        var avatar = document.getElementById('nachoModeAvatar');
-        var side = document.getElementById('nachoModeSideAvatar');
-        if (avatar) avatar.classList.remove('talking');
-        if (side) side.classList.remove('talking');
+        var hero = document.getElementById('nachoHeroAvatar');
+        if (hero) hero.classList.remove('talking');
     }
 
     // Nacho Mode voice input
