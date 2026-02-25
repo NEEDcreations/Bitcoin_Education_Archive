@@ -866,7 +866,8 @@ async function awardVisitPoints() {
     currentUser.points = (currentUser.points || 0) + pointsToAdd;
     currentUser.lastVisit = today;
     currentUser.streak = newStreak;
-    showToast('+' + POINTS.visit + ' pts — Daily visit!' + (streakBonus ? ' 🔥+' + POINTS.streak + ' streak bonus!' : ''));
+    if (streakBonus) showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
+    // Silent for non-streak daily visits — ticket toast covers it
     updateRankUI();
     refreshLeaderboardIfOpen();
 }
@@ -877,7 +878,8 @@ async function awardPoints(pts, reason) {
         points: firebase.firestore.FieldValue.increment(pts)
     });
     currentUser.points = (currentUser.points || 0) + pts;
-    showToast('+' + pts + ' pts — ' + reason);
+    // Only toast for significant point awards (25+), not routine ones
+    if (pts >= 25) showToast('+' + pts + ' pts — ' + reason);
     updateRankUI();
     refreshLeaderboardIfOpen();
     if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
@@ -915,7 +917,7 @@ async function onChannelOpen(channelId) {
         });
         currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
         currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
-        showToast('+' + POINTS.openChannel + ' pts — Explored #' + channelId);
+        // Silent — routine action, don't interrupt
         updateRankUI();
         refreshLeaderboardIfOpen();
 
@@ -1030,7 +1032,7 @@ function startReadTimer() {
                 points: firebase.firestore.FieldValue.increment(POINTS.readTime)
             });
             currentUser.points = (currentUser.points || 0) + POINTS.readTime;
-            showToast('+' + POINTS.readTime + ' pts — Reading time 📖');
+            // Silent — don't interrupt reading flow
             updateRankUI();
             refreshLeaderboardIfOpen();
         }

@@ -407,12 +407,16 @@ window.updateChannelProgress = function(channelId, msgCount) {
 };
 
 // ---- #14: Nacho Sticker Collection ----
+window._stickerToastsReady = false;
+setTimeout(function() { window._stickerToastsReady = true; }, 10000); // Suppress sticker toasts for first 10s
+
 window.earnSticker = function(stickerId) {
     var stickers = JSON.parse(localStorage.getItem('btc_nacho_stickers') || '[]');
     if (stickers.indexOf(stickerId) !== -1) return; // Already have it
     stickers.push(stickerId);
     localStorage.setItem('btc_nacho_stickers', JSON.stringify(stickers));
-    if (typeof showToast === 'function') showToast('🦌 New sticker earned: ' + stickerId + '!');
+    // Only toast after initial load (prevents 5+ toasts on first visit)
+    if (window._stickerToastsReady && typeof showToast === 'function') showToast('🦌 New sticker earned!');
 };
 
 var NACHO_STICKERS = [

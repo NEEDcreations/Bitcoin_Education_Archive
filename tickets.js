@@ -63,7 +63,7 @@ async function awardDailyTicket() {
     currentUser.lastTicketDate = today;
     currentUser.points = (currentUser.points || 0) + bonusPoints;
 
-    showToast('<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg> +' + ticketsToAdd + ' Orange Ticket — Daily login! (+' + bonusPoints + ' pts)');
+    showToast('🎟️ +1 Orange Ticket — Daily login!');
     updateRankUI();
 
     // Check ticket badges after earning
