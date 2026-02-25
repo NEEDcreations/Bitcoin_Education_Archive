@@ -982,7 +982,9 @@ function stopNachoThinking() {
 function renderNachoAnswer(textEl, answerHtml, match) {
     // Remember this Q&A for conversation context
     if (match && match.answer) nachoRemember(window._nachoLastQ || '', match.answer);
-    var html = answerHtml;
+    var _kbMsgId = 'nb_' + Date.now();
+    nachoTrackTopic(window._nachoLastQ || '', 'kb');
+    var html = answerHtml + nachoRatingHtml(_kbMsgId);
 
     // Auto-add financial disclaimer if the answer touches on price/buying/investing
     var lastQ = (window._nachoLastQ || '').toLowerCase();
@@ -1093,10 +1095,13 @@ window.nachoAnswer = function() {
         var otAnswer = typeof personalize === 'function' ? personalize(offTopic) : offTopic;
         bubble.setAttribute('data-interactive', 'true');
         clearTimeout(window._nachoBubbleTimeout);
+        var _otMsgId = 'nb_' + Date.now();
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + otAnswer + '</div>' +
+            nachoRatingHtml(_otMsgId) +
             '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question 🦌</button>';
         if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
         if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+        nachoTrackTopic(q, 'offtopic');
         return;
     }
 
@@ -1136,6 +1141,8 @@ window.nachoAnswer = function() {
                 clearInterval(dt3);
                 if (results && results.length > 0) {
                     if (typeof setPose === 'function') setPose('cool');
+                    var _ceMsgId = 'nb_' + Date.now();
+                    nachoTrackTopic(q, 'websearch');
                     var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
                         '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
                     for (var ri = 0; ri < results.length; ri++) {
@@ -1145,7 +1152,7 @@ window.nachoAnswer = function() {
                             (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
                             '</div>';
                     }
-                    html += '</div>';
+                    html += '</div>' + nachoRatingHtml(_ceMsgId);
                     html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
                     textEl.innerHTML = html;
                     if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
@@ -1192,9 +1199,11 @@ window.nachoAnswer = function() {
                 clearInterval(dtAI);
                 if (aiAnswer) {
                     if (typeof setPose === 'function') setPose('brain');
+                    var _aiMsgId = 'nb_' + Date.now();
+                    nachoTrackTopic(q, 'ai');
                     var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
                         '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">🧠 Nacho AI:</div>' +
-                        escapeHtml(aiAnswer) + '</div>';
+                        escapeHtml(aiAnswer) + '</div>' + nachoRatingHtml(_aiMsgId);
                     html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
                     textEl.innerHTML = html;
                     if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
@@ -1228,6 +1237,8 @@ function tryWebSearch(textEl, q) {
             clearInterval(dt2);
             if (results && results.length > 0) {
                 if (typeof setPose === 'function') setPose('cool');
+                var _wsMsgId = 'nb_' + Date.now();
+                nachoTrackTopic(q, 'websearch');
                 var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
                     '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found online:</div>';
                 for (var ri = 0; ri < results.length; ri++) {
@@ -1237,7 +1248,7 @@ function tryWebSearch(textEl, q) {
                         (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
                         '</div>';
                 }
-                html += '</div>';
+                html += '</div>' + nachoRatingHtml(_wsMsgId);
                 html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
                 textEl.innerHTML = html;
                 if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
@@ -1252,6 +1263,8 @@ function tryWebSearch(textEl, q) {
 
 function showNachoFallback(textEl, q) {
     if (typeof setPose === 'function') setPose('think');
+    nachoTrackTopic(q, 'fallback');
+    nachoTrackMiss(q);
     var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
     fb = typeof personalize === 'function' ? personalize(fb) : fb;
 
