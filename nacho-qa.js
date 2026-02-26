@@ -74,9 +74,15 @@ const NACHO_KB = [
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
 
     // === BUYING & INVESTING ===
-    { keys: ['how to buy','where to buy','buy bitcoin','purchase bitcoin','get bitcoin','acquire','best place to buy','good place to buy','where can i buy','where do i buy','where should i buy'],
-      answer: "Great question, {name}! There are some great places to buy Bitcoin referenced in our Referral Links channel — like Strike, River, and Cash App! All are trusted platforms to get started. Start small, you can buy a fraction of a Bitcoin, and DCA (buying a little regularly) is the most popular strategy. Check it out! 🦌",
-      channel: 'referral-links', channelName: 'Referral Links' },
+    { keys: ['how to buy','where to buy','buy bitcoin','purchase bitcoin','get bitcoin','acquire','best place to buy','good place to buy','where can i buy','where do i buy','where should i buy','my first bitcoin','first bitcoin'],
+      answer: "Great question, {name}! The best places to buy Bitcoin are:\\n\\n⚡ <strong>Strike</strong> — zero-fee Bitcoin buying + Lightning\\n🏔️ <strong>River</strong> — auto-DCA, great for stacking sats\\n💵 <strong>Cash App</strong> — easy for beginners, auto-invest option\\n\\nCheck our Referral Links channel for links! Start small — you can buy a fraction of a Bitcoin. DCA (buying a little regularly) is the most popular strategy.\\n\\nOnce you have sats, you can spend them on our ⚡ LightningMart too! 🦌",
+      channel: 'referral-links', channelName: 'Referral Links',
+      followUp: "🤔 Ask me: 'What is DCA?' or 'What is a Lightning wallet?' or 'Where can I spend Bitcoin?'" },
+
+    { keys: ['where to spend','spend bitcoin','spend sats','spend btc','what can i buy with bitcoin','use bitcoin','pay with bitcoin','who accepts bitcoin','where can i spend'],
+      answer: "You can spend your sats right here on ⚡ LightningMart — our peer-to-peer marketplace! Buy and sell with Bitcoin directly. Beyond that, more and more places accept Bitcoin via Lightning: restaurants, online shops, even some bills. Check our Use Cases channel for ideas! 🦌",
+      channel: 'use-cases', channelName: 'Use Cases',
+      followUp: "🤔 Ask me: 'What is Lightning Network?' or 'How does LightningMart work?'" },
 
     { keys: ['too late','am i too late','too expensive','missed out','already too high','can\'t afford'],
       answer: "You can buy fractions of Bitcoin — even $10 worth! With ~1-3% global adoption, it's like the internet in 1997. You're still incredibly early.",
@@ -607,7 +613,7 @@ function matchSiteNavigation(input) {
         { patterns: /where.*(forum|community|discuss|chat|post)|how.*(post|discuss|talk)|community forum|where.*talk|where.*chat/,
           answer: "PlebTalk is where Bitcoiners discuss, share ideas, and help each other! 🗣️",
           action: "go('forum')", label: "🗣️ PlebTalk" },
-        { patterns: /where.*(market|shop|buy|sell|store)|how.*(buy|sell|list|trade)|marketplace|buy.*sell/,
+        { patterns: /where.*(market|shop|store|lightningmart|lightning.?mart)|how.*(list|trade).*(?:item|product|stuff)|marketplace|lightningmart|lightning.?mart|where.*sell.*(?:item|stuff|thing)|where.*buy.*(?:item|merch|stuff|thing)|spend.*(?:bitcoin|btc|sats)/,
           answer: "LightningMart is where you can buy and sell items for sats! ⚡",
           action: "go('marketplace')", label: "⚡ LightningMart" },
         { patterns: /where.*(sign.?in|log.?in|register|create.*account|sign.?up)|how.*(sign|log|register|create.*account)|sign.?in|create.*account|log.?in/,
