@@ -640,6 +640,7 @@
         <button class="quest-start-btn" onclick="startQuestManual()">⚡ Start a Quest</button>
         <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:2px solid #f7931a;color:var(--text);margin-top:4px;transition:0.2s;" onmouseover="this.style.background='linear-gradient(135deg,#f7931a,#ea580c)';this.style.color='#fff';this.style.boxShadow='0 0 20px rgba(247,147,26,0.4)';" onmouseout="this.style.background='var(--card-bg)';this.style.color='var(--text)';this.style.boxShadow='none';">🎓 Bitcoin Scholar Certification Quest</button>
         <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('forum')">🗣️ Community Forum</button>
+        <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('marketplace')">🛒 Marketplace</button>
         <button class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;margin-top:4px;font-weight:700;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.3);" onclick="if(typeof enterNachoMode==='function')enterNachoMode()">🦌 Nacho Mode</button>
         <button id="supportBtn" class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:4px;position:relative;" onclick="handleSupportClick()">📧 Support</button>
         <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ Powered by 603btc.com</a>
@@ -826,6 +827,7 @@
     <script src="nacho-closet.js?v=8" defer></script>
     <script src="forum.js?v=4" defer></script>
     <script src="engagement.js?v=5" defer></script>
+    <script src="marketplace.js?v=1" defer></script>
     <script src="mobile-ux.js?v=10" defer></script>
     <script>
     function openImg(src) {
@@ -2771,7 +2773,7 @@
 
     window.go = async function go(id, btn, fromPopState) {
         // Forum route
-        if (id === 'forum') {
+        if (id === 'forum' || id === 'marketplace') {
             if (window._nachoMode) exitNachoMode();
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -2780,9 +2782,10 @@
             document.getElementById('hero').style.display = 'none';
             var fc = document.getElementById('forumContainer');
             if (fc) { fc.style.display = 'block'; }
-            if (!fromPopState) history.pushState({ channel: 'forum' }, '', '#forum');
+            if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
             if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
-            if (typeof renderForum === 'function') renderForum();
+            if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
+            else if (typeof renderForum === 'function') renderForum();
             return;
         }
 
@@ -2972,6 +2975,7 @@
     const APP_PAGES = [
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
         { id: '_forum', title: '🗣️ Community Forum', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
+        { id: '_market', title: '🛒 Marketplace', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
         { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: 'startQuestManual()' },
