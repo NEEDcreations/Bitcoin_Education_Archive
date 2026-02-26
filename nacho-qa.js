@@ -39,7 +39,7 @@ const NACHO_KB = [
       followUp: "🤔 Try asking: 'ELI5 mining' or 'ELI5 wallets' or 'ELI5 why bitcoin is special'" },
 
     { keys: ['eli5 mining','explain mining simply','how mining works simple','mining for kids','mining for beginners'],
-      answer: "Imagine there's a really hard math puzzle — like a giant jigsaw puzzle with a million pieces! 🧩 Thousands of computers around the world race to solve it. The FIRST one to finish gets a prize: brand new Bitcoin! They also get to add a new page to everyone's notebook (the blockchain). This happens every 10 minutes, like clockwork. These puzzle-solvers are called 'miners' — they keep the whole system safe because to cheat, you'd have to solve puzzles faster than ALL the other computers combined. That's basically impossible! ⛏️🦌" },
+      answer: "Imagine there's a giant raffle — but instead of buying tickets, your computer guesses random numbers as FAST as possible! 🎰 Each guess runs through a magic formula (SHA-256) and if the answer starts with enough zeros, YOU WIN! The prize? Brand new Bitcoin! Your computer adds a new page to everyone's notebook (the blockchain). This happens every 10 minutes. These guessers are called 'miners' — they keep the whole system safe because to cheat, you'd have to guess faster than ALL the other computers combined. That's basically impossible! ⛏️🦌" },
 
     { keys: ['eli5 wallet','eli5 wallets','explain wallet simply','wallet for kids','wallet for beginners'],
       answer: "Your Bitcoin wallet is like a magic stamp! 🔏 Imagine every kid in school has a mailbox (that's your Bitcoin address — anyone can drop coins in). But only YOU have the special stamp that lets you take coins OUT. Without the stamp, the coins just sit there and nobody can touch them. Your wallet holds that stamp (called a private key). If you lose the stamp, nobody — not even the teacher — can get your coins back. That's why we say 'not your keys, not your coins!' The stamp IS your proof of ownership. Keep it secret, keep it safe! 🦌🔑" },
@@ -92,7 +92,20 @@ const NACHO_KB = [
 
     // === TECHNICAL ===
     { keys: ['mining','how mining works','bitcoin mining','miners','what is mining'],
-      answer: "Mining is how new Bitcoin is created and transactions are confirmed. Miners use powerful computers to solve math puzzles — the winner gets to add the next block and earns Bitcoin as a reward!",
+      answer: "Mining is how new Bitcoin is created and transactions are confirmed. Miners run specialized machines (ASICs) that rapidly guess random numbers called nonces — short for 'number used once.' Each guess is hashed through SHA-256, and if the output meets the network's difficulty target (starts with enough zeros), that miner wins the block and earns Bitcoin as a reward! It's not 'solving complex math' — it's a pure brute-force guessing game at incredible speed. The difficulty adjusts every 2,016 blocks to keep blocks coming every ~10 minutes. ⛏️",
+      channel: 'mining', channelName: 'Mining',
+      followUp: "🤔 Ask me: 'What is a nonce?' or 'What is SHA-256?' or 'What is difficulty adjustment?'" },
+
+    { keys: ['nonce','what is a nonce','number used once','what is nonce','mining nonce'],
+      answer: "A nonce stands for 'Number used ONCE'! 🔢 In Bitcoin mining, the miner takes all the transaction data for a block, adds a random number (the nonce), and runs it through SHA-256. If the hash output doesn't meet the target, they change the nonce and try again. And again. And again — billions of times per second! It's like trying every combination on a lock until it clicks. The nonce is what makes mining a fair lottery — there's no shortcut, no way to game it. Pure energy and computation. Every nonce is used exactly once and discarded. First miner to find a winning nonce gets the block reward! 🎰🦌",
+      channel: 'mining', channelName: 'Mining' },
+
+    { keys: ['sha-256','sha256','what is sha-256','what is sha256','hash function','hashing','hash algorithm'],
+      answer: "SHA-256 (Secure Hash Algorithm 256-bit) is Bitcoin's backbone! 🔐 It takes ANY input — a word, a number, the entire Bible — and spits out a fixed 64-character hexadecimal string. The magic: even changing ONE letter completely changes the output (this is called the avalanche effect). It's a one-way function — you can't reverse-engineer the input from the output. In mining, miners hash block data + a nonce through SHA-256 and check if the result starts with enough zeros. If yes, valid block! If no, try another nonce. It's not 'complex math' — it's simple, deterministic, and incredibly fast. The complexity comes from doing it trillions of times! 🦌⚡",
+      channel: 'mining', channelName: 'Mining' },
+
+    { keys: ['difficulty','difficulty adjustment','mining difficulty','what is difficulty','2016 blocks','difficulty target'],
+      answer: "Bitcoin's difficulty adjustment is pure genius! 🧠 Every 2,016 blocks (~2 weeks), the network looks at how fast blocks have been coming in. If miners found blocks too fast (under 10 min average), difficulty goes UP — the hash target requires MORE leading zeros. If too slow, difficulty goes DOWN. This means no matter how much mining power joins or leaves, Bitcoin ALWAYS produces a block roughly every 10 minutes. It's a self-regulating thermostat for the entire network. No central authority needed — just math! This is why Bitcoin's monetary policy is so reliable — nobody can speed up coin issuance by adding more miners. 🦌⏱️",
       channel: 'mining', channelName: 'Mining' },
 
     { keys: ['blockchain','timechain','what is blockchain','block chain','how blockchain works'],
