@@ -1503,7 +1503,41 @@ var FINANCIAL_ADVICE_PATTERNS = [
     /guaranteed return/i, /guaranteed profit/i,
 ];
 
-var FINANCIAL_DISCLAIMER = '<div style="margin-top:8px;padding:8px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;font-size:0.75rem;color:var(--text-faint,#888);">⚠️ <strong>Not financial advice.</strong> Nacho is an educational mascot, not a financial advisor. Always do your own research and never invest more than you can afford to lose.</div>';
+// Track whether we've explained NFA this session
+window._nachoNfaExplained = false;
+
+var NFA_FIRST_TIME = '<div style="margin-top:10px;padding:10px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;font-size:0.8rem;color:var(--text-muted,#aaa);line-height:1.5;">' +
+    '⚠️ <strong>What does "Not financial advice" mean?</strong><br>' +
+    'When I talk about Bitcoin\'s price, returns, or investment strategies, I always add this reminder. It means: ' +
+    'I\'m Nacho — an educational deer, not a licensed financial advisor! 🦌 I can teach you HOW Bitcoin works and share its history, ' +
+    'but I can\'t tell you what to do with YOUR money. Past performance doesn\'t guarantee future results. ' +
+    'Always do your own research (DYOR), only invest what you can afford to lose, and consider talking to a real financial professional before making big decisions. ' +
+    'My job is to make you SMARTER about Bitcoin — your decisions are yours! 🧡</div>';
+
+var NFA_SHORT = '<div style="margin-top:8px;padding:8px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;font-size:0.75rem;color:var(--text-faint,#888);">⚠️ Not financial advice — DYOR.</div>';
+
+function getNfaDisclaimer() {
+    if (!window._nachoNfaExplained) {
+        window._nachoNfaExplained = true;
+        return NFA_FIRST_TIME;
+    }
+    return NFA_SHORT;
+}
+
+// Replace inline NFA tags in KB answers with the dynamic version
+function processNfa(answer) {
+    // Check if answer contains any inline NFA text
+    if (/⚠️\s*Not financial advice|⚠️\s*not financial advice/i.test(answer)) {
+        // Remove the inline NFA text
+        answer = answer.replace(/\s*⚠️\s*Not financial advice[^.]*\.\s*/gi, ' ');
+        answer = answer.replace(/\s*⚠️\s*not financial advice[^.]*\.\s*/gi, ' ');
+        // Append the proper dynamic disclaimer
+        answer = answer.trim() + '<br>' + getNfaDisclaimer();
+    }
+    return answer;
+}
+
+var FINANCIAL_DISCLAIMER = NFA_SHORT; // Keep for backward compatibility
 
 var FINANCIAL_ADVICE_RESPONSES = [
     "I'm flattered you'd ask me, {name}, but I'm a deer — not a financial advisor! 🦌 What I CAN tell you is that Bitcoin has historically rewarded patient, long-term holders. But that's history, not a guarantee. Do your own research!",
@@ -2391,7 +2425,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
     // ---- STEP 2: Detect context ----
     var isFinAdvice = isFinancialAdvice(q);
-    var disclaimer = isFinAdvice ? '<br><br><div style="font-size:0.7rem;color:var(--text-faint);font-style:italic;">⚠️ Nacho is not a financial advisor. Always do your own research.</div>' : '';
+    var disclaimer = isFinAdvice ? '<br><br>' + getNfaDisclaimer() : '';
     var isCurrentEvent = isCurrentEventQuestion(q);
 
     // ---- STEP 3: Find KB match (for context, not final answer) ----
@@ -2416,7 +2450,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 // If AI deflected but we have a KB match, use KB instead
                 if (isDeflection && kbMatch) {
                     nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: pq(kbMatch.answer) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+                    callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
                     return;
                 }
 
@@ -2435,7 +2469,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
             // AI failed — try KB directly
             if (kbMatch) {
                 nachoRemember(q, kbMatch.answer);
-                callback({ type: 'kb', answer: pq(kbMatch.answer) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+                callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
                 return;
             }
 
@@ -2486,7 +2520,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
     // ---- STEP 5: No AI available — KB direct ----
     if (kbMatch) {
         nachoRemember(q, kbMatch.answer);
-        callback({ type: 'kb', answer: pq(kbMatch.answer) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+        callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
         return;
     }
 
