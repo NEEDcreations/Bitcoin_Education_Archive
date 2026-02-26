@@ -79,8 +79,17 @@ const NACHO_KB = [
       answer: "A node is a computer that stores and verifies the entire Bitcoin blockchain. Running one means you don't have to trust anyone — you verify everything yourself! Don't trust, verify!",
       channel: 'nodes', channelName: 'Nodes' },
 
+    { keys: ['where are bitcoins stored','where is bitcoin stored','where do bitcoins live','where does bitcoin exist','are bitcoins in my wallet','stored on blockchain'],
+      answer: "Here's something that surprises most people: Bitcoins aren't actually stored IN your wallet! 🤯 Your Bitcoin exists as UTXOs (Unspent Transaction Outputs) on the blockchain — a public ledger that's recorded and verified by thousands of nodes around the world. Your wallet just holds your private keys, which prove you OWN those UTXOs. Think of it like this: the blockchain is a giant record book that says 'this address has X bitcoin.' Your wallet holds the key that proves you control that address. So when people say 'I have Bitcoin on my Ledger,' what they really mean is 'my Ledger holds the keys that control my Bitcoin on the blockchain.' 🔑🦌 Want to know more about UTXOs? Just ask!",
+      channel: 'self-custody', channelName: 'Self Custody',
+      followUp: "🤔 Want to learn more? Ask me: 'What are UTXOs?'" },
+
+    { keys: ['utxo','utxos','unspent transaction','what are utxos','what is a utxo'],
+      answer: "UTXOs — Unspent Transaction Outputs — are how Bitcoin actually tracks ownership! 🧠 Every Bitcoin transaction creates outputs. When you receive 0.5 BTC, that creates a UTXO. When you spend it, that UTXO gets consumed and new ones are created (one for the recipient, one for your change). It's like breaking a $20 bill — you hand over the $20 (consumed), get your item, and get change back (new UTXOs). Your wallet's 'balance' is really just the sum of all your UTXOs. This model is what makes Bitcoin so secure and auditable — every sat can be traced! No hidden inflation possible. 🦌⚡",
+      channel: 'self-custody', channelName: 'Self Custody' },
+
     { keys: ['wallet','bitcoin wallet','best wallet','which wallet','where to store','cold storage','hardware wallet','ledger','trezor','coldcard'],
-      answer: "Great question! The most important thing to learn about is SELF-CUSTODY — holding your own Bitcoin keys instead of trusting someone else with them. 'Not your keys, not your coins!' 🔑 There are different types: software wallets (apps on your phone), hardware wallets (dedicated devices), and even multisig setups. I won't recommend specific brands — instead, check out our Self Custody channel to learn how to evaluate and choose what's right for you. Nacho keys, nacho cheese! 🧀🦌",
+      answer: "Great question! The most important thing to learn about is SELF-CUSTODY — holding your own Bitcoin keys instead of trusting someone else with them. 'Not your keys, not your coins!' 🔑 Your wallet doesn't actually store Bitcoin — it stores your private keys that control your Bitcoin on the blockchain. There are different types: software wallets (apps on your phone), hardware wallets (dedicated devices), and even multisig setups. Check out our Self Custody channel to learn how to evaluate and choose what's right for you. Nacho keys, nacho cheese! 🧀🦌",
       channel: 'self-custody', channelName: 'Self Custody' },
 
     { keys: ['metamask','trust wallet','phantom wallet','exodus','coinbase wallet','crypto.com wallet'],
@@ -1075,7 +1084,10 @@ function renderNachoAnswer(textEl, answerHtml, match) {
         html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
     }
 
-    // Follow-up suggestions
+    // Follow-up suggestions (use explicit followUp from KB entry, or auto-generate)
+    if (match && match.followUp) {
+        html += '<div style="margin-top:8px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.08));border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted);font-size:0.8rem;">' + match.followUp + '</div>';
+    }
     if (match && match.answer) {
         var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
         if (followUps.length > 0) {
