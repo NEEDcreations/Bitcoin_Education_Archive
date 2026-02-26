@@ -52,6 +52,96 @@ async function fetchLiveData() {
     }
 }
 
+// ---- Expose live data for ticker ----
+window.getNachoLiveData = function() { return nachoLiveData; };
+
+// ---- Live Ticker Bar ----
+function initTicker() {
+    // Don't add if already exists
+    if (document.getElementById('btcTicker')) return;
+
+    var ticker = document.createElement('div');
+    ticker.id = 'btcTicker';
+    ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(90deg,#0d0d0d,#1a1a2e);border-bottom:1px solid rgba(247,147,26,0.2);padding:4px 12px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:0.7rem;font-family:inherit;color:var(--text-muted,#888);transition:opacity 0.3s;';
+    ticker.innerHTML =
+        '<span id="tickerPrice" style="display:flex;align-items:center;gap:4px;cursor:pointer;" onclick="window.open(\'https://mempool.space\',\'_blank\')" title="View on mempool.space">' +
+            '<span style="color:#f7931a;font-weight:800;">₿</span>' +
+            '<span id="tickerPriceVal" style="color:var(--text,#eee);font-weight:700;">---</span>' +
+            '<span id="tickerPriceChange" style="font-size:0.6rem;"></span>' +
+        '</span>' +
+        '<span style="color:rgba(255,255,255,0.1);">|</span>' +
+        '<span id="tickerBlock" style="display:flex;align-items:center;gap:4px;cursor:pointer;" onclick="window.open(\'https://mempool.space\',\'_blank\')" title="Current block height">' +
+            '<span style="color:#f7931a;">⛏️</span>' +
+            '<span id="tickerBlockVal" style="color:var(--text,#eee);font-weight:600;">---</span>' +
+        '</span>';
+
+    document.body.appendChild(ticker);
+
+    // Add CSS to push content down
+    var style = document.createElement('style');
+    style.id = 'btcTickerStyle';
+    style.textContent =
+        '#btcTicker { font-variant-numeric: tabular-nums; }' +
+        '@media(max-width:900px) { ' +
+            '.mobile-bar { top: 24px !important; }' +
+            'main { padding-top: 78px !important; }' +
+            'aside { top: 78px !important; }' +
+            '#btcTicker { font-size: 0.65rem; padding: 2px 8px; gap: 10px; }' +
+        '}' +
+        '@media(min-width:901px) { ' +
+            'aside { margin-top: 26px; }' +
+            'main { margin-top: 26px; }' +
+        '}';
+    document.head.appendChild(style);
+
+    // Start updating
+    updateTicker();
+    setInterval(updateTicker, 30000); // Update display every 30s
+}
+
+var _lastTickerPrice = null;
+
+function updateTicker() {
+    fetchLiveData().then(function() {
+        var priceEl = document.getElementById('tickerPriceVal');
+        var blockEl = document.getElementById('tickerBlockVal');
+        var changeEl = document.getElementById('tickerPriceChange');
+        if (!priceEl || !blockEl) return;
+
+        if (nachoLiveData.price) {
+            var p = nachoLiveData.price;
+            priceEl.textContent = '$' + Math.round(p).toLocaleString();
+            // Cache for marketplace USD conversion
+            localStorage.setItem('btc_last_price', p);
+
+            // Price change indicator
+            if (_lastTickerPrice !== null && changeEl) {
+                if (p > _lastTickerPrice) {
+                    changeEl.textContent = '▲';
+                    changeEl.style.color = '#22c55e';
+                } else if (p < _lastTickerPrice) {
+                    changeEl.textContent = '▼';
+                    changeEl.style.color = '#ef4444';
+                } else {
+                    changeEl.textContent = '';
+                }
+            }
+            _lastTickerPrice = p;
+        }
+
+        if (nachoLiveData.blockHeight) {
+            blockEl.textContent = nachoLiveData.blockHeight.toLocaleString();
+        }
+    });
+}
+
+// Init ticker on DOM ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTicker);
+} else {
+    initTicker();
+}
+
 // ---- Format price nicely ----
 function formatPrice(p) {
     if (!p) return null;
