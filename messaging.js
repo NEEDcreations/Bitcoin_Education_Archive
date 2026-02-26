@@ -50,6 +50,39 @@ var BLOCKED_CONTENT = [
     /\b(?:doxx|doxing|swat)\b/i,
 ];
 
+// "Friends in distress" scam warning popup
+window.showFriendsInDistressWarning = function() {
+    var html = '<div id="distressWarning" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:10005;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(239,68,68,0.3);">' +
+            '<div style="font-size:2rem;text-align:center;margin-bottom:8px;">🚨</div>' +
+            '<div style="font-size:1.1rem;font-weight:800;color:#ef4444;text-align:center;margin-bottom:12px;">"Friends in Distress" Scam</div>' +
+            '<div style="font-size:0.85rem;color:var(--text,#ccc);line-height:1.7;margin-bottom:16px;">' +
+                'Scammers will <strong style="color:#ef4444;">impersonate people you know and trust</strong> — your friends, family, even coworkers. They can:' +
+                '<ul style="margin:10px 0;padding-left:20px;">' +
+                    '<li style="margin-bottom:6px;">Clone their <strong>profile picture, name, and bio</strong></li>' +
+                    '<li style="margin-bottom:6px;">Copy their <strong>writing style and messages</strong></li>' +
+                    '<li style="margin-bottom:6px;">Use <strong>AI-generated voice clones</strong> that sound exactly like them</li>' +
+                    '<li style="margin-bottom:6px;">Create fake <strong>emergencies</strong> — "I\'m stuck," "I need help," "send me Bitcoin and I\'ll pay you back"</li>' +
+                '</ul>' +
+                'The scammer will pressure you to act <strong>fast</strong> so you don\'t have time to think or verify. They prey on your emotions and trust.' +
+            '</div>' +
+            '<div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:10px;padding:12px;margin-bottom:16px;">' +
+                '<div style="font-size:0.85rem;color:#eab308;font-weight:700;margin-bottom:6px;">🛡️ How to protect yourself:</div>' +
+                '<div style="font-size:0.8rem;color:var(--text-muted,#aaa);line-height:1.6;">' +
+                    '• <strong>NEVER</strong> send Bitcoin to anyone claiming to be in distress over a message<br>' +
+                    '• <strong>Verify their identity</strong> through a separate channel — call them, video chat, or meet in person<br>' +
+                    '• <strong>Real friends</strong> will understand if you take time to verify<br>' +
+                    '• <strong>Bitcoin transactions are irreversible</strong> — once sent, it\'s gone forever<br>' +
+                    '• If it feels urgent and emotional, that\'s exactly what the scammer wants' +
+                '</div>' +
+            '</div>' +
+            '<button onclick="this.closest(\'#distressWarning\').remove()" style="width:100%;padding:12px;background:#ef4444;color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">I understand — stay vigilant 🛡️</button>' +
+        '</div></div>';
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstChild);
+};
+
 // Warn about external links
 function containsSuspiciousLink(text) {
     // Check for URLs
@@ -432,7 +465,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '</div>' +
         // Messages area
         // Safety banner
-        '<div style="padding:8px 16px;background:rgba(234,179,8,0.1);border-bottom:1px solid rgba(234,179,8,0.2);font-size:0.7rem;color:#eab308;text-align:center;flex-shrink:0;">⚠️ Never share your seed phrase, private keys, or send Bitcoin to strangers.</div>' +
+        '<div style="padding:8px 16px;background:rgba(234,179,8,0.1);border-bottom:1px solid rgba(234,179,8,0.2);font-size:0.7rem;color:#eab308;text-align:center;flex-shrink:0;">⚠️ Never share your seed phrase, private keys, or send Bitcoin to strangers or <span onclick="event.stopPropagation();showFriendsInDistressWarning()" style="text-decoration:underline;cursor:pointer;font-weight:700;">&quot;friends in distress.&quot;</span></div>' +
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
