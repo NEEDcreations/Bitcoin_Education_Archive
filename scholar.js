@@ -1,4 +1,4 @@
-// © 2024-2026 Bitcoin Education Archive / NEEDcreations. All rights reserved.
+// © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
 // Bitcoin Education Archive - Bitcoin Scholar Certification
