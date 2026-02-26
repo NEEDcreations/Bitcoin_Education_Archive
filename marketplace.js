@@ -20,6 +20,7 @@ var MARKETPLACE_CATEGORIES = [
     { id: 'nodes', name: 'Node Kits & Guides', emoji: '💻', section: 'educational' },
     { id: 'kids', name: 'Kids & Family', emoji: '👨‍👩‍👧‍👦', section: 'educational' },
     { id: 'tools', name: 'Learning Tools', emoji: '🧰', section: 'educational' },
+    { id: 'edu_other', name: 'Other Educational', emoji: '📦', section: 'educational' },
     // General Marketplace
     { id: 'mining', name: 'Mining Equipment', emoji: '⛏️', section: 'general' },
     { id: 'merch', name: 'Apparel & Merch', emoji: '👕', section: 'general' },
