@@ -1721,13 +1721,22 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⌨️ Keyboard Shortcuts</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Navigation</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
+            shortcutRow('H','Home') + shortcutRow('S / /','Search') + shortcutRow('B','Last channel') +
+            shortcutRow('C','Random channel') + shortcutRow('R','Random meme') + shortcutRow('P','Random art') +
+            shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
+            '</div>' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Features</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
+            shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') + shortcutRow('M','Marketplace') +
+            shortcutRow('F','Forum') + shortcutRow('Q','Start quest') + shortcutRow('L','Leaderboard') +
+            '</div>' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Actions</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">' +
-            shortcutRow('H','Home') + shortcutRow('S / /','Search') + shortcutRow('R','Random channel') +
-            shortcutRow('M','Random meme') + shortcutRow('P','Random art') + shortcutRow('B','Last channel') +
-            shortcutRow('L','Leaderboard') + shortcutRow('Q','Start quest') + shortcutRow('F','Forum') + shortcutRow('Z','Favorite') +
-            shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') + shortcutRow('T','Toggle theme') + shortcutRow('G','Gallery view') +
-            shortcutRow('I','Settings') + shortcutRow('D','Donate') + shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
-            shortcutRow('?','This help') + shortcutRow('Esc','Close modals') +
+            shortcutRow('Z','Save to favorites') + shortcutRow('G','Gallery view') +
+            shortcutRow('T','Toggle theme') + shortcutRow('I','Settings') + shortcutRow('D','Donate') +
+            shortcutRow('?','Show shortcuts') + shortcutRow('Esc','Close modals') +
             '</div>' +
             '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">' +
             '<div style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-bottom:8px;">📱 Mobile Gestures</div>' +

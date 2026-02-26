@@ -814,7 +814,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="ranking.js?v=28" defer></script>
+    <script src="ranking.js?v=29" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
     <script src="features.js" defer></script>
@@ -2450,11 +2450,13 @@
         if (key === 'h') { goHome(); return; }
         // S or / = focus search
         if (key === 's' || key === '/') { e.preventDefault(); var si = document.getElementById('searchInput'); if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); } return; }
-        // R = random channel
-        if (key === 'r') { goRandom(); return; }
-        // M = random meme
-        if (key === 'm') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
-        // A = random art
+        // C = random channel
+        if (key === 'c') { goRandom(); return; }
+        // R = random meme
+        if (key === 'r') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
+        // M = marketplace
+        if (key === 'm') { go('marketplace'); return; }
+        // A = ask Nacho
         if (key === 'a') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
 
         // === Quick Actions ===
