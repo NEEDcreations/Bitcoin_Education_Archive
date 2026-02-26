@@ -66,7 +66,7 @@ function initBottomNav() {
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span>🏠</span><span>Home</span></button>' +
             '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
             '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>Forum</span></button>' +
-            '<button onclick="go(\'marketplace\')" class="bnav-btn" id="bnavMarket"><span>🛒</span><span>Market</span></button>' +
+            '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span>💬</span><span>DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:8px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;"></span></button>' +
             '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span>🦌</span><span>Nacho</span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span>⚙️</span><span>Settings</span></button>' +
         '</div>';

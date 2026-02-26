@@ -815,7 +815,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="ranking.js?v=33" defer></script>
+    <script src="ranking.js?v=34" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
     <script src="features.js" defer></script>
@@ -826,10 +826,11 @@
     <script src="nacho-engage.js?v=7" defer></script>
     <script src="nacho-qa.js?v=18" defer></script>
     <script src="nacho-closet.js?v=6" defer></script>
+    <script src="messaging.js?v=1" defer></script>
     <script src="forum.js?v=8" defer></script>
     <script src="engagement.js?v=7" defer></script>
     <script src="marketplace.js?v=6" defer></script>
-    <script src="mobile-ux.js?v=7" defer></script>
+    <script src="mobile-ux.js?v=8" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -3193,6 +3194,7 @@
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
+        { id: '_messages', title: '💬 Messages', desc: 'Direct messages inbox', keywords: 'messages dm direct message inbox chat private', action: 'showInbox()' },
         { id: '_signin', title: '🔐 Sign In', desc: 'Sign in or create an account', keywords: 'sign in login register create account google twitter github facebook email', action: 'showUsernamePrompt()' },
         { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
     ];

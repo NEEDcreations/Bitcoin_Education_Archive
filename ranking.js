@@ -692,6 +692,8 @@ async function loadUser(uid) {
 
         // Initialize Orange Tickets system
         if (typeof onUserLoadedTickets === 'function') onUserLoadedTickets();
+        // Initialize messaging (presence + unread polling)
+        if (typeof initMessaging === 'function') initMessaging();
 
     } else {
         // User exists in auth but not in Firestore — recreate their doc
@@ -847,6 +849,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     if (typeof attachReferral === 'function') attachReferral(uid);
     // Initialize Orange Tickets for new user
     if (typeof onUserLoadedTickets === 'function') onUserLoadedTickets();
+    // Initialize messaging
+    if (typeof initMessaging === 'function') initMessaging();
 }
 
 async function awardVisitPoints() {
@@ -1418,9 +1422,10 @@ async function toggleLeaderboard() {
             }
             const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-name">' + lv.emoji + ' ' + (d.username || 'Anon') + '</span>' +
+                '<span class="lb-name">' + lv.emoji + ' ' + (d.username || 'Anon') + statusDot + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
             '</div>';
         });
