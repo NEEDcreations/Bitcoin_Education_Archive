@@ -273,7 +273,8 @@ function loadMarketListings(category, search, sort, section) {
             '</div>';
         }).join('');
     }).catch(function(e) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error loading listings. Try refreshing.</div>';
+        console.error('Marketplace load error:', e);
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
     });
 }
 
@@ -654,6 +655,9 @@ window.showMyListings = function(fromPopState) {
 
             // Load messages
             loadMyMessages();
+        }).catch(function(e) {
+            console.error('My listings error:', e);
+            container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '</div>';
         });
 };
 
