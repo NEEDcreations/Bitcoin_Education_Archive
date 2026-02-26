@@ -21,6 +21,8 @@
         .divider { border: none; border-top: 1px solid #222; margin: 32px 0; }
         .highlight { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 16px; margin: 20px 0; }
         .highlight strong { color: #22c55e; }
+        .warn { background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); border-radius: 8px; padding: 16px; margin: 20px 0; }
+        .warn strong { color: #eab308; }
         table { width: 100%; border-collapse: collapse; margin: 16px 0; }
         th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #222; font-size: 0.9rem; }
         th { color: #f7931a; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -31,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: February 23, 2026</p>
+    <p class="subtitle">Last updated: February 26, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -43,7 +45,7 @@
     <h3>Account Data (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
-        <tr><td>Username</td><td>Display on leaderboard and in-site identity</td></tr>
+        <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages</td></tr>
         <tr><td>Email (if provided)</td><td>Account verification via magic link sign-in</td></tr>
         <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, or Facebook authentication</td></tr>
         <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
@@ -55,6 +57,45 @@
         <tr><td>Hidden badges earned</td><td>Badge/achievement tracking</td></tr>
         <tr><td>Scholar certification status</td><td>Certification tracking</td></tr>
         <tr><td>Favorites</td><td>Saved channel list sync across devices</td></tr>
+        <tr><td>Online presence (lastSeen timestamp)</td><td>Show online/away/offline status on leaderboard and profiles</td></tr>
+        <tr><td>Blocked users list</td><td>Synced block list to prevent unwanted messages across devices</td></tr>
+    </table>
+
+    <h3>Direct Messages (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Message text</td><td>Deliver private messages between users</td></tr>
+        <tr><td>Sender & recipient IDs</td><td>Route messages to correct users</td></tr>
+        <tr><td>Timestamps</td><td>Display message times, sort conversations</td></tr>
+        <tr><td>Unread counts</td><td>Show unread badge notifications</td></tr>
+    </table>
+    <div class="warn">
+        <strong>⚠️ Direct messages are private between participants</strong> but are stored on Firebase servers. We may access messages when investigating abuse reports. Messages are not end-to-end encrypted.
+    </div>
+
+    <h3>PlebTalk Forum (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Posts & replies</td><td>Community discussion</td></tr>
+        <tr><td>Author username & ID</td><td>Attribution and profile linking</td></tr>
+        <tr><td>Upvotes</td><td>Content ranking</td></tr>
+    </table>
+
+    <h3>LightningMart Marketplace (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Listing details (title, description, price, images)</td><td>Display marketplace listings</td></tr>
+        <tr><td>Seller username & ID</td><td>Attribution and profile linking</td></tr>
+        <tr><td>Buyer-seller messages</td><td>Facilitate transactions</td></tr>
+        <tr><td>Uploaded images</td><td>Stored as base64 in Firestore (max 5MB, resized to 800px)</td></tr>
+    </table>
+
+    <h3>Reports (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Reporter & reported user IDs</td><td>Process abuse reports</td></tr>
+        <tr><td>Report reason</td><td>Categorize and prioritize reports</td></tr>
+        <tr><td>Timestamp</td><td>Track report timeline</td></tr>
     </table>
 
     <h3>Local Data (stored in your browser only — never sent to us)</h3>
@@ -65,12 +106,15 @@
         <tr><td>Audio/sound settings</td><td>Sound effect preferences (site + Nacho)</td></tr>
         <tr><td>Nacho interaction count</td><td>Friendship level calculation</td></tr>
         <tr><td>Nacho questions asked</td><td>Question badge tracking</td></tr>
-        <tr><td>Nacho equipped accessory</td><td>Closet/outfit selection</td></tr>
+        <tr><td>Nacho equipped accessory & colors</td><td>Closet/outfit selection and customization</td></tr>
+        <tr><td>Nacho chat history (Nacho Mode)</td><td>Conversation continuity within sessions</td></tr>
         <tr><td>Nacho question analytics</td><td>Last 100 questions (local only, helps improve answers)</td></tr>
         <tr><td>Nacho trivia progress</td><td>Which trivia questions you've answered</td></tr>
+        <tr><td>Blocked users (local copy)</td><td>Fast block checking without server round-trip</td></tr>
         <tr><td>Referral code (pre-signup)</td><td>Stores referral link code before account creation</td></tr>
         <tr><td>Pending signup data</td><td>Temporarily stores username/email during email verification</td></tr>
         <tr><td>Visited channels</td><td>Checkmarks and exploration map (also synced to Firebase if signed in)</td></tr>
+        <tr><td>BTC price cache</td><td>Cached price for marketplace USD conversion</td></tr>
     </table>
 
     <p>We do <strong>not</strong> collect your real name, physical location, IP address, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway).</p>
@@ -85,78 +129,122 @@
         <li>Send optional push notifications (only if you opt in)</li>
         <li>Power Nacho's personalized greetings (using your username only)</li>
         <li>Sync your favorites, read progress, and badges across devices</li>
+        <li>Deliver direct messages between users</li>
+        <li>Display online/away/offline status on profiles and leaderboard</li>
+        <li>Display your public profile (username, level, badges, points) to other users</li>
+        <li>Process and investigate user reports for abuse, scams, or harassment</li>
+        <li>Enforce block lists to prevent unwanted communication</li>
+        <li>Power the PlebTalk community forum (posts, replies, upvotes)</li>
+        <li>Power the LightningMart marketplace (listings, buyer-seller communication)</li>
     </ul>
 
-    <h2>3. Data Storage</h2>
+    <h2>3. User Profiles</h2>
+    <p>When you create an account, a <strong>public profile</strong> is visible to other signed-in users. Your profile displays:</p>
+    <ul>
+        <li>Username, level, and points</li>
+        <li>Badge count and channel progress</li>
+        <li>Orange Ticket count and streak</li>
+        <li>Online/away/offline status</li>
+        <li>Forum post count and join date</li>
+    </ul>
+    <p>Your <strong>email, sign-in provider, and blocked list are never visible</strong> to other users.</p>
+
+    <h2>4. Data Storage</h2>
     <p>Server-side data is stored in <strong>Google Firebase</strong> (Firestore), hosted in the United States. Firebase is operated by Google and subject to Google's enterprise security practices and certifications.</p>
     <p>Client-side data is stored in your browser's <strong>localStorage</strong> and in the PWA's <strong>service worker cache</strong>. This data stays on your device and is never transmitted to us.</p>
+    <p>Direct messages and forum posts are stored in Firebase Firestore. <strong>Messages are not end-to-end encrypted.</strong> We may access message content when investigating abuse reports.</p>
 
-    <h2>4. Third-Party Services</h2>
+    <h2>5. Third-Party Services</h2>
     <p>We use the following third-party services:</p>
     <table>
         <tr><th>Service</th><th>Purpose</th><th>Data Shared</th></tr>
         <tr><td>Firebase Authentication</td><td>Account sign-in</td><td>Email, provider token</td></tr>
-        <tr><td>Firebase Firestore</td><td>Data storage</td><td>Account data (see above)</td></tr>
+        <tr><td>Firebase Firestore</td><td>Data storage</td><td>Account data, messages, posts, listings</td></tr>
         <tr><td>Firebase Cloud Messaging</td><td>Push notifications (opt-in)</td><td>Device token</td></tr>
         <tr><td>Google OAuth</td><td>Google sign-in</td><td>Google account email/name</td></tr>
         <tr><td>Twitter/X OAuth</td><td>Twitter sign-in</td><td>Twitter account info</td></tr>
         <tr><td>GitHub OAuth</td><td>GitHub sign-in</td><td>GitHub account email</td></tr>
         <tr><td>Facebook OAuth</td><td>Facebook sign-in</td><td>Facebook account info</td></tr>
+        <tr><td>Cloudflare Workers</td><td>Nacho AI proxy (question answering)</td><td>Question text (no user identity)</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
     </table>
     <p>We do <strong>not</strong> use Google Analytics, Facebook Pixel, ad networks, or any tracking/analytics services.</p>
 
-    <h2>5. Data Sharing</h2>
-    <p>We do <strong>not</strong> share, sell, rent, or monetize your data with anyone. Period. The only data visible to other users is your <strong>username</strong> and <strong>points</strong> on the public leaderboard.</p>
-
-    <h2>6. Cookies & Local Storage</h2>
-    <p>We do not use tracking cookies. Firebase Authentication may set necessary session cookies for sign-in functionality. Your browser's localStorage is used extensively to store preferences, Nacho interaction data, and cached progress. The PWA service worker caches site assets for offline access.</p>
-
-    <h2>7. Nacho (AI Mascot) Privacy</h2>
+    <h2>6. Data Sharing</h2>
+    <p>We do <strong>not</strong> share, sell, rent, or monetize your data with anyone. Data visible to other users includes:</p>
     <ul>
-        <li>Questions you ask Nacho are processed <strong>entirely in your browser</strong> using keyword matching — they are never sent to a server or AI service</li>
-        <li>Question history is stored <strong>only in your browser's localStorage</strong> (last 100 questions) for analytics and improvement purposes</li>
+        <li>Your <strong>username, points, level, badges, and online status</strong> on the public leaderboard and user profiles</li>
+        <li>Your <strong>posts and replies</strong> in the PlebTalk forum</li>
+        <li>Your <strong>marketplace listings</strong> and seller name on LightningMart</li>
+        <li>Your <strong>direct messages</strong> are visible only to you and the recipient</li>
+    </ul>
+
+    <h2>7. Cookies & Local Storage</h2>
+    <p>We do not use tracking cookies. Firebase Authentication may set necessary session cookies for sign-in functionality. Your browser's localStorage is used extensively to store preferences, Nacho interaction data, block lists, and cached progress. The PWA service worker caches site assets for offline access.</p>
+
+    <h2>8. Nacho (AI Mascot) Privacy</h2>
+    <ul>
+        <li>Questions you ask Nacho are first processed <strong>in your browser</strong> using keyword matching</li>
+        <li>If no local answer is found, questions may be sent to our <strong>Cloudflare Worker proxy</strong> for AI-assisted answers — only the question text is sent, with no user identity attached</li>
+        <li>Nacho Mode chat history is stored <strong>only in your browser's localStorage</strong></li>
+        <li>Question history (last 100 questions) is stored locally for analytics and improvement</li>
         <li>Nacho uses your username to personalize greetings — no other personal data is accessed</li>
-        <li>Nacho's friendship level, trivia progress, and closet items are all stored locally</li>
+        <li>Nacho's friendship levels, trivia scores, and closet items are all stored locally</li>
         <li>Live data (price, fees) is fetched from the public mempool.space API — no user data is sent in these requests</li>
     </ul>
 
-    <h2>8. Your Rights</h2>
+    <h2>9. Messaging & Communication Safety</h2>
+    <ul>
+        <li>Direct messages are scanned <strong>client-side</strong> for known scam patterns and suspicious links</li>
+        <li>Flagged messages display a warning to the recipient — we do not prevent delivery of flagged messages</li>
+        <li>You can <strong>block</strong> any user to prevent them from messaging you</li>
+        <li>You can <strong>report</strong> users for spam, scams, harassment, inappropriate content, or impersonation</li>
+        <li>Reports are stored in Firebase and reviewed by site administrators</li>
+        <li>Blocked user lists are synced to Firebase for cross-device consistency</li>
+        <li>Messages are sanitized (HTML stripped) before storage and display</li>
+    </ul>
+
+    <h2>10. Your Rights</h2>
     <p>You can:</p>
     <ul>
         <li><strong>Export your data</strong> — use the "Export My Data" button in Settings → Data</li>
-        <li><strong>Delete your account</strong> — use the "Delete My Account" button in Settings → Data (permanently removes all server-side data)</li>
+        <li><strong>Delete your account</strong> — use the "Delete My Account" button in Settings → Data (permanently removes all server-side data including messages, posts, and listings)</li>
         <li><strong>Clear local data</strong> — clear your browser's localStorage/cache to remove all client-side data</li>
         <li><strong>Change your username</strong> — in Settings → Account</li>
+        <li><strong>Block users</strong> — from any user profile or DM window</li>
+        <li><strong>Report users</strong> — from any user profile, DM window, or marketplace listing</li>
         <li><strong>Sign out</strong> — at any time from Settings → Account</li>
         <li><strong>Disable Nacho</strong> — in Settings → Prefs (stops all Nacho interactions and data collection)</li>
         <li><strong>Disable sounds</strong> — in Settings → Prefs</li>
         <li><strong>Disable push notifications</strong> — in Settings → Prefs or your browser settings</li>
     </ul>
-    <p>When you delete your account, all your data is permanently removed from our Firebase database. Local browser data must be cleared separately.</p>
+    <p>When you delete your account, all your data is permanently removed from our Firebase database, including messages, posts, listings, and reports. Local browser data must be cleared separately.</p>
 
-    <h2>9. Children</h2>
-    <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. If you are a parent and believe your child has provided personal information, please contact us and we will delete it promptly.</p>
+    <h2>11. Children</h2>
+    <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. The direct messaging feature is available only to registered users. If you are a parent and believe your child has provided personal information or been contacted inappropriately, please contact us immediately and we will take action.</p>
 
-    <h2>10. Data Security</h2>
+    <h2>12. Data Security</h2>
     <p>We use industry-standard security measures including:</p>
     <ul>
         <li>HTTPS encryption for all data in transit</li>
         <li>Firebase security rules restricting data access</li>
         <li>OAuth 2.0 for third-party authentication</li>
         <li>Email verification required for email-based sign-ins</li>
-        <li>Rate limiting on sign-in attempts</li>
-        <li>Profanity filtering on user inputs</li>
+        <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
+        <li>Profanity and scam content filtering on user inputs</li>
+        <li>HTML sanitization on all user-generated content</li>
+        <li>Client-side scam and phishing link detection in messages</li>
+        <li>User blocking and reporting system</li>
     </ul>
 
-    <h2>11. Data Retention</h2>
-    <p>Account data is retained as long as your account exists. If you delete your account, all associated data is permanently deleted from Firebase. Anonymous visit data (visitor ID and count) may be retained for aggregate statistics but contains no personally identifiable information.</p>
+    <h2>13. Data Retention</h2>
+    <p>Account data is retained as long as your account exists. Direct messages are retained as long as both participants' accounts exist. Forum posts and marketplace listings are retained indefinitely unless deleted by the author or removed by administrators. If you delete your account, all associated data is permanently deleted from Firebase. Anonymous visit data (visitor ID and count) may be retained for aggregate statistics but contains no personally identifiable information.</p>
 
-    <h2>12. Changes</h2>
+    <h2>14. Changes</h2>
     <p>We may update this Privacy Policy from time to time. Changes will be reflected in the "Last updated" date above. Continued use of the Site after changes constitutes acceptance.</p>
 
-    <h2>13. Contact</h2>
+    <h2>15. Contact</h2>
     <p>Questions about privacy? Email <a href="mailto:needcreations@gmail.com">needcreations@gmail.com</a>.</p>
 
     <hr class="divider">
