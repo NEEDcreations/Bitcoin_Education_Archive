@@ -309,8 +309,9 @@ function getBadgeHTML() {
     let html = '<div class="badges-grid">';
     for (const badge of BADGE_DEFS) {
         const earned = earnedBadges.has(badge.id);
-        const tip = earned ? '✅ ' + badge.desc : '🔒 ' + badge.desc;
-        html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '">' +
+        const pts = badge.pts || 20;
+        const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 ' + badge.desc;
+        html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')">' +
             '<div class="badge-emoji">' + (earned ? badge.emoji : '🔒') + '</div>' +
             '<div class="badge-name">' + badge.name + '</div>' +
             '<div class="badge-tooltip">' + tip + '</div>' +
@@ -329,7 +330,7 @@ function getBadgeHTML() {
                 const unlocked = earnedHidden.includes(badge.id);
                 const progressText = (!unlocked && badge.progress) ? badge.progress() : '';
                 const hintText = (!unlocked && badge.hint) ? badge.hint : '';
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" style="position:relative;">' +
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" style="position:relative;" onclick="this.classList.toggle(\'tapped\')">' +
                     '<div class="badge-emoji">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
                     '<div class="badge-name">' + badge.name + '</div>' +
                     (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
@@ -349,7 +350,7 @@ function getBadgeHTML() {
             html += '<div class="badges-grid">';
             for (const badge of hiddenBadges) {
                 const unlocked = earnedHidden.includes(badge.id);
-                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '">' +
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')">' +
                     '<div class="badge-emoji">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name">' + (unlocked ? badge.name : '???') + '</div>' +
                     '<div class="badge-tooltip">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' pts)' : '🔒 Keep exploring!') + '</div>' +
