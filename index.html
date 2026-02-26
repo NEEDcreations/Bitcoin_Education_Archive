@@ -1482,6 +1482,11 @@
 
         // Render saved chat history
         nachoChatRender();
+        // Scroll to bottom of chat (especially on back-navigation)
+        setTimeout(function() {
+            var chat = document.getElementById('nachoModeChat');
+            if (chat) chat.scrollTop = chat.scrollHeight;
+        }, 100);
         updateNachoModeFriendship();
 
         // Set ELI5 button state
@@ -2094,7 +2099,7 @@
     }
 
     // Save chat to localStorage (keep last 100 messages)
-    function nachoChatSave() {
+    window.nachoChatSave = function nachoChatSave() {
         var hist = window._nachoChatHistory || [];
         if (hist.length > 100) hist = hist.slice(hist.length - 100);
         window._nachoChatHistory = hist;
@@ -2535,7 +2540,7 @@
         el.textContent = f.emoji + ' Friendship: ' + f.name + ' · ' + interactions + ' interactions';
     }
 
-    window.exitNachoMode = function() {
+    window.exitNachoMode = function(skipGoHome) {
         window._nachoMode = false;
         window._nachoBusy = false;
         if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
@@ -2552,17 +2557,18 @@
         var mbar = document.querySelector('.mobile-bar');
         if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
 
-        // Show summary of what was earned
-        var e = window._nachoModeEarnings;
-        if (e.interactions > 0 && typeof showToast === 'function') {
-            var parts = ['🦌 ' + e.interactions + ' interactions'];
-            if (e.points > 0) parts.push('+' + e.points + ' pts');
-            var bc = Array.isArray(e.badges) ? e.badges.length : (e.badges || 0);
-            if (bc > 0) parts.push(bc + ' badge' + (bc > 1 ? 's' : ''));
-            showToast(parts.join(' · '));
+        // Show summary of what was earned (only on full exit, not channel navigation)
+        if (!skipGoHome) {
+            var e = window._nachoModeEarnings;
+            if (e && e.interactions > 0 && typeof showToast === 'function') {
+                var parts = ['🦌 ' + e.interactions + ' interactions'];
+                if (e.points > 0) parts.push('+' + e.points + ' pts');
+                var bc = Array.isArray(e.badges) ? e.badges.length : (e.badges || 0);
+                if (bc > 0) parts.push(bc + ' badge' + (bc > 1 ? 's' : ''));
+                showToast(parts.join(' · '));
+            }
+            goHome();
         }
-
-        goHome();
     };
 
     window.goHome = function goHome(fromPopState) {
@@ -2945,9 +2951,16 @@
     }
 
     window.go = async function go(id, btn, fromPopState) {
+        // If navigating away from Nacho Mode, save chat state for back-navigation
+        if (window._nachoMode && !fromPopState) {
+            // Save chat before exiting so back button can restore it
+            if (typeof nachoChatSave === 'function') nachoChatSave();
+            window._nachoReturnPending = true;
+        }
+
         // Forum route
         if (id === 'forum' || id === 'marketplace') {
-            if (window._nachoMode) exitNachoMode();
+            if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
             document.getElementById('msgs').innerHTML = '';
@@ -2964,6 +2977,8 @@
 
         const meta = CHANNELS[id];
         if (!meta) return;
+        // Exit Nacho Mode if active (skip goHome since we're navigating to a channel)
+        if (window._nachoMode) exitNachoMode(true);
         // Hide forum container when navigating to a channel
         var fc = document.getElementById('forumContainer');
         if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
@@ -3431,16 +3446,9 @@
                 return;
             }
 
-            // Exit Nacho Mode if we're leaving it
+            // Exit Nacho Mode if we're leaving it (skip goHome since popstate handles navigation)
             if (window._nachoMode && hash !== 'nacho' && !state.nachoMode) {
-                window._nachoMode = false;
-                window._nachoBusy = false;
-                if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
-                var nmScreen = document.getElementById('nachoModeScreen');
-                if (nmScreen) nmScreen.remove();
-                document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) { if (el) el.style.display = ''; });
-                var mbar2 = document.querySelector('.mobile-bar');
-                if (mbar2 && window.innerWidth <= 900) mbar2.style.display = 'flex';
+                exitNachoMode(true);
             }
 
             // Nacho Mode
