@@ -154,8 +154,17 @@ service cloud.firestore {
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.authorId == request.auth.uid;
 
-      // Allow upvote updates (voters array + upvotes count)
-      allow update: if request.auth != null;
+      // Allow upvote updates (voters array + upvotes count) — only vote-related fields
+      allow update: if request.auth != null
+                    && !request.auth.token.anonymous
+                    && (
+                      // Voting: only upvotes and voters can change
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount']))
+                      // Author can edit their own post
+                      || resource.data.authorId == request.auth.uid
+                      // Admin can edit anything
+                      || request.auth.token.email == 'needcreations@gmail.com'
+                    );
 
       // Author or admin can delete posts
       allow delete: if request.auth != null
@@ -179,8 +188,14 @@ service cloud.firestore {
                     && request.resource.data.body.size() <= 1000
                     && request.resource.data.authorId == request.auth.uid;
 
-      // Allow upvote updates
-      allow update: if request.auth != null;
+      // Allow upvote updates — only vote-related fields, or author/admin edits
+      allow update: if request.auth != null
+                    && !request.auth.token.anonymous
+                    && (
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                      || resource.data.authorId == request.auth.uid
+                      || request.auth.token.email == 'needcreations@gmail.com'
+                    );
 
       // Author or admin can delete replies
       allow delete: if request.auth != null

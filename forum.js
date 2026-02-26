@@ -188,74 +188,119 @@ window.renderForum = function() {
 };
 
 // ---- Load Posts ----
+// Real-time forum listener
+window._forumUnsubscribe = null;
+
 window.forumLoadPosts = async function() {
     var container = document.getElementById('forumPosts');
     if (!container || typeof db === 'undefined') return;
 
+    // Unsubscribe previous listener if any
+    if (window._forumUnsubscribe) {
+        window._forumUnsubscribe();
+        window._forumUnsubscribe = null;
+    }
+
     try {
-        var query = db.collection('forum_posts').orderBy(
-            forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt',
-            'desc'
-        ).limit(50);
+        var sortField = forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt';
+        var query;
 
         if (forumCategory !== 'all') {
             query = db.collection('forum_posts')
                 .where('category', '==', forumCategory)
-                .orderBy(forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt', 'desc')
+                .orderBy(sortField, 'desc')
                 .limit(50);
+        } else {
+            query = db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
         }
 
+        // Use onSnapshot for real-time updates
+        window._forumUnsubscribe = query.onSnapshot(function(snap) {
+            var posts = [];
+            snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
+            forumPostsCache = posts;
+            forumLastLoad = Date.now();
+
+            // Re-render only if we're on the forum list view (not viewing a single post)
+            var container = document.getElementById('forumPosts');
+            if (container && !document.getElementById('forumPostView')) {
+                forumRenderPosts(posts, container);
+            }
+        }, function(err) {
+            console.log('Forum listener error:', err);
+            // Fallback to one-time read
+            forumLoadPostsFallback();
+        });
+
+        // Initial load is handled by the first onSnapshot callback
+    } catch(e) {
+        console.log('Forum load error:', e);
+        forumLoadPostsFallback();
+    }
+};
+
+// Fallback: one-time read if real-time listener fails
+async function forumLoadPostsFallback() {
+    var container = document.getElementById('forumPosts');
+    if (!container) return;
+    try {
+        var sortField = forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt';
+        var query = forumCategory !== 'all'
+            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(50)
+            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
         var snap = await query.get();
         var posts = [];
         snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
         forumPostsCache = posts;
-        forumLastLoad = Date.now();
-
-        if (posts.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;">' +
-                '<div style="font-size:2rem;margin-bottom:8px;">🦌</div>' +
-                '<div style="color:var(--text-muted);">No posts yet. Be the first to start a discussion!</div>' +
-            '</div>';
-            return;
-        }
-
-        var html = '';
-        posts.forEach(function(p) {
-            var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
-            var cat = FORUM_CATEGORIES.find(function(c) { return c.id === p.category; });
-            var catLabel = cat ? cat.emoji + ' ' + cat.name : '';
-            var isOwn = auth && auth.currentUser && p.authorId === auth.currentUser.uid;
-            var canDelete = isOwn || isForumAdmin();
-            var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
-
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                '<div style="display:flex;gap:10px;">' +
-                    // Upvote column
-                    '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
-                        '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">⚡</button>' +
-                        '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
-                    '</div>' +
-                    // Content
-                    '<div style="flex:1;min-width:0;overflow:hidden;">' +
-                        '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
-                        (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
-                        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                            '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;color:var(--text-faint);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-faint)\'">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
-                            '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
-                            '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
-                            (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
-                            (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>';
-        });
-
-        container.innerHTML = html;
+        forumRenderPosts(posts, container);
     } catch(e) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Error loading posts. Try refreshing.</div>';
     }
-};
+}
+
+// Render forum post list
+function forumRenderPosts(posts, container) {
+    if (!container) return;
+    if (posts.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;">' +
+            '<div style="font-size:2rem;margin-bottom:8px;">🦌</div>' +
+            '<div style="color:var(--text-muted);">No posts yet. Be the first to start a discussion!</div>' +
+        '</div>';
+        return;
+    }
+
+    var html = '';
+    posts.forEach(function(p) {
+        var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
+        var cat = FORUM_CATEGORIES.find(function(c) { return c.id === p.category; });
+        var catLabel = cat ? cat.emoji + ' ' + cat.name : '';
+        var isOwn = auth && auth.currentUser && p.authorId === auth.currentUser.uid;
+        var canDelete = isOwn || isForumAdmin();
+        var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+            '<div style="display:flex;gap:10px;">' +
+                '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
+                    '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">⚡</button>' +
+                    '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
+                '</div>' +
+                '<div style="flex:1;min-width:0;overflow:hidden;">' +
+                    '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
+                    (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
+                    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;color:var(--text-faint);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-faint)\'">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                        '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                        '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
+                        (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
+                        (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    });
+
+    container.innerHTML = html;
+}
 
 // ---- Sort/Filter ----
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
