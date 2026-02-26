@@ -2152,7 +2152,13 @@
             div.innerHTML = '<span>🦌 ' + html + '</span><div class="nm-time">' + ts + '</div>';
         }
         chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
+        // User messages: scroll to bottom so they see their sent message
+        // Nacho messages: scroll to the TOP of the response so they can read from the start
+        if (role === 'user') {
+            chat.scrollTop = chat.scrollHeight;
+        } else {
+            div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }
 
     // Show thinking indicator
