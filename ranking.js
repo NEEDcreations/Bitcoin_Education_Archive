@@ -148,7 +148,7 @@ function initRanking() {
                     // Got anonymous or null on first event — load immediately, don't wait
                     // If a real user restores later, onAuthStateChanged fires again and swaps them in
                     if (user && user.isAnonymous) {
-                        loadUser(user.uid);
+                        loadUserLocal(user.uid);
                     } else {
                         // null user — sign in anonymously right away
                         auth.signInAnonymously().then(() => {});
@@ -162,7 +162,11 @@ function initRanking() {
                     updateAuthButton();
                     return;
                 }
-                loadUser(user.uid);
+                if (user.isAnonymous) {
+                    loadUserLocal(user.uid);
+                } else {
+                    loadUser(user.uid);
+                }
             } else {
                 currentUser = null;
                 auth.signInAnonymously().then(() => {});
@@ -588,6 +592,31 @@ async function sendMagicLink(email) {
     }
 }
 
+// Load anonymous user from localStorage only — no Firestore reads
+function loadUserLocal(uid) {
+    var localPoints = parseInt(localStorage.getItem('btc_points') || '0');
+    var localChannels = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    currentUser = {
+        uid: uid,
+        points: localPoints,
+        channelsVisited: localChannels.length,
+        readChannels: localChannels,
+        totalVisits: parseInt(localStorage.getItem('btc_total_visits') || '1'),
+        streak: parseInt(localStorage.getItem('btc_streak') || '0'),
+        lastVisit: localStorage.getItem('btc_last_visit') || '',
+        _isLocal: true  // Flag: this user has no Firestore doc yet
+    };
+    rankingReady = true;
+    window._badgesReady = true;
+    if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+    restoreVisitedUI();
+    updateRankUI();
+    updateAuthButton();
+    if (typeof renderProgressRings === 'function') renderProgressRings();
+    if (typeof renderExplorationMap === 'function') renderExplorationMap();
+    startReadTimer();
+}
+
 async function loadUser(uid) {
     const doc = await db.collection('users').doc(uid).get();
     if (doc.exists) {
@@ -893,16 +922,27 @@ async function awardVisitPoints() {
         }
     }
 
-    await db.collection('users').doc(currentUser.uid).update({
-        totalVisits: firebase.firestore.FieldValue.increment(1),
-        lastVisit: today,
-        streak: newStreak,
-        points: firebase.firestore.FieldValue.increment(pointsToAdd)
-    });
-
-    currentUser.points = (currentUser.points || 0) + pointsToAdd;
-    currentUser.lastVisit = today;
-    currentUser.streak = newStreak;
+    if (currentUser._isLocal) {
+        // Anonymous local user — save to localStorage only
+        currentUser.points = (currentUser.points || 0) + pointsToAdd;
+        currentUser.lastVisit = today;
+        currentUser.streak = newStreak;
+        currentUser.totalVisits = (currentUser.totalVisits || 0) + 1;
+        localStorage.setItem('btc_points', currentUser.points.toString());
+        localStorage.setItem('btc_last_visit', today);
+        localStorage.setItem('btc_streak', newStreak.toString());
+        localStorage.setItem('btc_total_visits', currentUser.totalVisits.toString());
+    } else {
+        await db.collection('users').doc(currentUser.uid).update({
+            totalVisits: firebase.firestore.FieldValue.increment(1),
+            lastVisit: today,
+            streak: newStreak,
+            points: firebase.firestore.FieldValue.increment(pointsToAdd)
+        });
+        currentUser.points = (currentUser.points || 0) + pointsToAdd;
+        currentUser.lastVisit = today;
+        currentUser.streak = newStreak;
+    }
     if (streakBonus) showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
     // Silent for non-streak daily visits — ticket toast covers it
     updateRankUI();
@@ -912,10 +952,16 @@ async function awardVisitPoints() {
 
 async function awardPoints(pts, reason) {
     if (!currentUser || !rankingReady) return;
-    await db.collection('users').doc(currentUser.uid).update({
-        points: firebase.firestore.FieldValue.increment(pts)
-    });
-    currentUser.points = (currentUser.points || 0) + pts;
+    if (currentUser._isLocal) {
+        // Anonymous user — save to localStorage only, no Firestore write
+        currentUser.points = (currentUser.points || 0) + pts;
+        localStorage.setItem('btc_points', currentUser.points.toString());
+    } else {
+        await db.collection('users').doc(currentUser.uid).update({
+            points: firebase.firestore.FieldValue.increment(pts)
+        });
+        currentUser.points = (currentUser.points || 0) + pts;
+    }
     // Toast for point awards — show for trivia/quiz (5+) and significant awards (25+)
     if (pts >= 5 || (reason && (reason.indexOf('Trivia') !== -1 || reason.indexOf('trivia') !== -1 || reason.indexOf('🧠') !== -1))) {
         showToast('+' + pts + ' pts — ' + reason);
@@ -951,13 +997,19 @@ async function onChannelOpen(channelId) {
     if (!allTimeChannels.has(channelId)) {
         allTimeChannels.add(channelId);
         sessionChannels.add(channelId);
-        await db.collection('users').doc(currentUser.uid).update({
-            channelsVisited: firebase.firestore.FieldValue.increment(1),
-            points: firebase.firestore.FieldValue.increment(POINTS.openChannel),
-            visitedChannelsList: firebase.firestore.FieldValue.arrayUnion(channelId)
-        });
-        currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
-        currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
+        if (currentUser._isLocal) {
+            currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
+            currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
+            localStorage.setItem('btc_points', currentUser.points.toString());
+        } else {
+            await db.collection('users').doc(currentUser.uid).update({
+                channelsVisited: firebase.firestore.FieldValue.increment(1),
+                points: firebase.firestore.FieldValue.increment(POINTS.openChannel),
+                visitedChannelsList: firebase.firestore.FieldValue.arrayUnion(channelId)
+            });
+            currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
+            currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
+        }
         if (currentUser.readChannels) {
             if (currentUser.readChannels.indexOf(channelId) === -1) currentUser.readChannels.push(channelId);
         } else {
@@ -990,7 +1042,7 @@ async function onChannelOpen(channelId) {
 
 // Sync read checkmarks to Firebase
 async function syncReadToFirebase(channelId) {
-    if (!currentUser || !db || !auth.currentUser) return;
+    if (!currentUser || !db || !auth.currentUser || currentUser._isLocal) return;
     try {
         await db.collection('users').doc(auth.currentUser.uid).update({
             readChannels: firebase.firestore.FieldValue.arrayUnion(channelId)
@@ -1000,7 +1052,7 @@ async function syncReadToFirebase(channelId) {
 
 // Sync favorites to Firebase (called from index.html)
 async function syncFavsToFirebase() {
-    if (!currentUser || !db || !auth.currentUser) return;
+    if (!currentUser || !db || !auth.currentUser || currentUser._isLocal) return;
     try {
         const favs = JSON.parse(localStorage.getItem('btc_favs') || '[]');
         await db.collection('users').doc(auth.currentUser.uid).update({
@@ -1065,10 +1117,15 @@ function startReadTimer() {
         if (readSeconds - lastReadAward >= 30) {
             lastReadAward = readSeconds;
             hasScrolledSinceLastAward = false; // Reset — must scroll again for next award
-            await db.collection('users').doc(currentUser.uid).update({
-                points: firebase.firestore.FieldValue.increment(POINTS.readTime)
-            });
-            currentUser.points = (currentUser.points || 0) + POINTS.readTime;
+            if (currentUser._isLocal) {
+                currentUser.points = (currentUser.points || 0) + POINTS.readTime;
+                localStorage.setItem('btc_points', currentUser.points.toString());
+            } else {
+                await db.collection('users').doc(currentUser.uid).update({
+                    points: firebase.firestore.FieldValue.increment(POINTS.readTime)
+                });
+                currentUser.points = (currentUser.points || 0) + POINTS.readTime;
+            }
             // Silent — don't interrupt reading flow
             updateRankUI();
             refreshLeaderboardIfOpen();

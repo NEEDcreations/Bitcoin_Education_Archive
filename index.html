@@ -12,6 +12,9 @@
     <link rel="dns-prefetch" href="https://firestore.googleapis.com">
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, 8800+ messages, and 3000+ images — for the world.">
     <meta name="theme-color" content="#f7931a">
     <link rel="manifest" href="/manifest.json">
@@ -812,7 +815,7 @@
         </div>
     </div>
 
-    <script src="channel_index.js"></script>
+    <script src="channel_index.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer integrity="sha384-XMIl1b2Ez9tKAM0R5q67/iLdfnlLBl9kfo40X5WMtCPb+3OLplrjnOxZTYCg1SKY" crossorigin="anonymous"></script>
@@ -828,7 +831,7 @@
     <script src="nacho.js?v=17" defer></script>
     <script src="nacho-live.js?v=7" defer></script>
     <script src="nacho-engage.js?v=8" defer></script>
-    <script src="nacho-qa.js?v=20" defer></script>
+    <!-- nacho-qa.js lazy-loaded on first Nacho interaction -->
     <script src="nacho-closet.js?v=7" defer></script>
     <script src="messaging.js?v=7" defer></script>
     <script src="forum.js?v=10" defer></script>
