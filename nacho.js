@@ -981,7 +981,9 @@ window.nachoOnChannel = function(channelId) {
 
     // Bubble quiz: offer a quiz after reading a channel (30% chance, not on first visit)
     var channelReadTime = parseInt(sessionStorage.getItem('btc_channel_read_seconds') || '0');
-    if (channelReadTime >= 15 && Math.random() < 0.30 && typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+    // Quest triggers after 30-120 seconds of reading (randomized so it's not predictable)
+    var questMinTime = 30 + Math.floor(Math.random() * 90); // 30 to 120 seconds
+    if (channelReadTime >= questMinTime && Math.random() < 0.30 && typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
         // Find a question related to this channel's category
         var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[channelId] : null;
         var catName = meta ? meta.cat : '';
