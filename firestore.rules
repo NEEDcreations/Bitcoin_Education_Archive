@@ -147,7 +147,7 @@ service cloud.firestore {
 
       // Authenticated users can create posts
       allow create: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
@@ -156,7 +156,7 @@ service cloud.firestore {
 
       // Allow upvote updates (voters array + upvotes count) — only vote-related fields
       allow update: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && (
                       // Voting: only upvotes and voters can change
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount']))
@@ -181,7 +181,7 @@ service cloud.firestore {
 
       // Authenticated users can create replies
       allow create: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
@@ -190,7 +190,7 @@ service cloud.firestore {
 
       // Allow upvote updates — only vote-related fields, or author/admin edits
       allow update: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && (
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                       || resource.data.authorId == request.auth.uid
@@ -212,7 +212,7 @@ service cloud.firestore {
 
       // Authenticated non-anonymous users can create listings
       allow create: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && request.resource.data.sellerUid == request.auth.uid;
 
       // Seller or admin can update/delete
@@ -234,7 +234,7 @@ service cloud.firestore {
 
       // Authenticated users can send messages
       allow create: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && request.resource.data.buyerUid == request.auth.uid;
     }
 
@@ -248,7 +248,7 @@ service cloud.firestore {
 
       // Authenticated users can create/update conversations they're part of
       allow create: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && request.auth.uid in request.resource.data.participants;
 
       allow update: if request.auth != null
@@ -261,7 +261,7 @@ service cloud.firestore {
 
         // Authenticated users can send messages
         allow create: if request.auth != null
-                      && !request.auth.token.anonymous
+                      
                       && request.resource.data.senderUid == request.auth.uid;
       }
     }
@@ -276,7 +276,7 @@ service cloud.firestore {
 
       // Any authenticated user can create a report
       allow create: if request.auth != null
-                    && !request.auth.token.anonymous
+                    
                     && request.resource.data.reporterUid == request.auth.uid;
     }
 
