@@ -1632,132 +1632,369 @@
     // Strategy: every answer should nudge toward understanding WHY Bitcoin matters
     // Flow: curiosity → understanding → conviction → action (self-custody, running a node)
     var NACHO_MODE_FOLLOWUPS = {
-        // Beginner → deepen understanding of WHY Bitcoin
+        // ===== BEGINNER / BASICS =====
         bitcoin: [
             'Why is Bitcoin better than regular money?',
             'What problem does Bitcoin actually solve?',
-            'Why can\'t governments just ban Bitcoin?'
+            'Why can\'t governments just ban Bitcoin?',
+            'How does Bitcoin work?',
+            'What is a satoshi?'
         ],
-        // Money/economics → understand the broken system Bitcoin fixes
+        beginner: [
+            'What is Bitcoin and why should I care?',
+            'How do I buy my first Bitcoin?',
+            'What is a Bitcoin wallet?',
+            'Is it too late to buy Bitcoin?'
+        ],
+        // ===== MONEY & ECONOMICS =====
         money: [
             'What is inflation doing to my savings?',
             'Why can\'t Bitcoin\'s supply be changed?',
-            'What is the Cantillon Effect?'
+            'What is the Cantillon Effect?',
+            'Why is 21 million important?'
         ],
         inflation: [
             'How does Bitcoin protect against inflation?',
             'Why is 21 million important?',
-            'What happened to currencies that got printed too much?'
+            'What happened to currencies that got printed too much?',
+            'What is dollar cost averaging?'
         ],
-        // Mining → understand security and decentralization
+        // ===== MINING & PROOF OF WORK =====
         mining: [
             'Why is proof of work important for security?',
             'Why can\'t Bitcoin be hacked?',
-            'Is mining actually wasteful or is that FUD?'
+            'Is mining actually wasteful or is that FUD?',
+            'What is the difficulty adjustment?',
+            'What is SHA-256 and how does hashing work?'
         ],
-        // Lightning → understand scaling and daily use
+        hash: [
+            'What is SHA-256 and how does hashing work?',
+            'What is a nonce in Bitcoin mining?',
+            'What is the difficulty adjustment?'
+        ],
+        difficulty: [
+            'What is the difficulty adjustment?',
+            'How does Bitcoin mining work?',
+            'Why is proof of work so secure?'
+        ],
+        nonce: [
+            'How does Bitcoin mining actually work?',
+            'What is SHA-256?',
+            'What is the difficulty adjustment?'
+        ],
+        // ===== LIGHTNING & SCALING =====
         lightning: [
             'Can I actually buy coffee with Bitcoin?',
             'How fast are Lightning payments?',
-            'Why is Lightning better than Visa?'
+            'Why is Lightning better than Visa?',
+            'Where can I spend Bitcoin?'
         ],
-        // Wallets/security → push toward self-custody (maxi behavior)
+        layer: [
+            'What is the Lightning Network and why does it matter?',
+            'What are Fedimints and Cashu?',
+            'How does Bitcoin scale without sacrificing decentralization?'
+        ],
+        spend: [
+            'Where can I spend Bitcoin?',
+            'How fast are Lightning payments?',
+            'What is the Lightning Network?'
+        ],
+        // ===== WALLETS & SELF-CUSTODY =====
         wallet: [
             'Why is self-custody so important?',
             'What happens if an exchange goes bankrupt?',
-            'What does "not your keys, not your coins" really mean?'
+            'What does "not your keys, not your coins" really mean?',
+            'What is a seed phrase and why is it so important?',
+            'Where are my Bitcoins actually stored?'
         ],
         seed: [
             'Why should I NEVER store my seed phrase digitally?',
             'What is the best way to backup a seed phrase?',
-            'Why is self-custody the most important thing in Bitcoin?'
+            'Why is self-custody the most important thing in Bitcoin?',
+            'What is a private key?'
         ],
-        // Halving → understand scarcity and long-term value
+        key: [
+            'What is the difference between a public key and a private key?',
+            'What is a seed phrase?',
+            'Why is self-custody so important?'
+        ],
+        custody: [
+            'What does "not your keys, not your coins" mean?',
+            'What is a hardware wallet?',
+            'What is a seed phrase and why is it so important?'
+        ],
+        utxo: [
+            'What is a UTXO?',
+            'How does the Bitcoin blockchain work?',
+            'Where are my Bitcoins actually stored?'
+        ],
+        // ===== HALVING & SCARCITY =====
         halving: [
             'Why does scarcity make Bitcoin valuable?',
             'Is it too late to buy Bitcoin?',
-            'What happens when all 21 million are mined?'
+            'What happens when all 21 million are mined?',
+            'What is the genesis block?'
         ],
-        // Buying → push toward stacking sats and self-custody
+        scarc: [
+            'Why is 21 million important?',
+            'What is the halving?',
+            'Why can\'t Bitcoin\'s supply be changed?'
+        ],
+        // ===== BUYING & INVESTING =====
         buy: [
             'What is dollar cost averaging and why is it the best strategy?',
             'Should I move my Bitcoin off the exchange?',
-            'Why do Bitcoiners say "stay humble, stack sats"?'
+            'Why do Bitcoiners say "stay humble, stack sats"?',
+            'What is a satoshi?'
         ],
         price: [
             'Why shouldn\'t I worry about short-term price?',
             'What is low time preference?',
-            'Why do Bitcoiners think in sats, not dollars?'
+            'Why do Bitcoiners think in sats, not dollars?',
+            'Is Bitcoin volatile? Is that bad?'
         ],
-        // Security → build conviction in Bitcoin\'s strength
+        invest: [
+            'What is dollar cost averaging?',
+            'Is it too late to buy Bitcoin?',
+            'Why shouldn\'t I worry about short-term price?'
+        ],
+        volatile: [
+            'Is Bitcoin volatile? Is that bad?',
+            'Why shouldn\'t I worry about short-term price?',
+            'What is low time preference?'
+        ],
+        // ===== SECURITY & TRUST =====
         security: [
             'Has the Bitcoin network ever been hacked?',
             'What protects Bitcoin from quantum computers?',
-            'Why is Bitcoin the most secure network on Earth?'
+            'Why is Bitcoin the most secure network on Earth?',
+            'What is the double spend problem and how did Bitcoin solve it?'
         ],
-        // Privacy → maxi values
+        hack: [
+            'Has the Bitcoin network ever been hacked?',
+            'Why is Bitcoin the most secure network on Earth?',
+            'What protects Bitcoin from quantum computers?'
+        ],
+        quantum: [
+            'What protects Bitcoin from quantum computers?',
+            'How secure is Bitcoin really?',
+            'What is SHA-256 and how does hashing work?'
+        ],
+        double: [
+            'What is the double spend problem?',
+            'What is the Byzantine Generals Problem?',
+            'How does Bitcoin mining secure the network?'
+        ],
+        byzantine: [
+            'What is the Byzantine Generals Problem?',
+            'What is the double spend problem?',
+            'Why is proof of work so secure?'
+        ],
+        // ===== PRIVACY =====
         privacy: [
             'Why is financial privacy a human right?',
             'What is KYC and why do Bitcoiners avoid it?',
             'How can I buy Bitcoin more privately?'
         ],
-        // Node → ultimate maxi action
+        kyc: [
+            'What is KYC and why do Bitcoiners avoid it?',
+            'Why is financial privacy a human right?',
+            'How can I buy Bitcoin more privately?'
+        ],
+        // ===== NODES =====
         node: [
             'Why does running a node make Bitcoin stronger?',
             'What does "don\'t trust, verify" actually mean?',
             'Can I run a Bitcoin node on a Raspberry Pi?'
         ],
-        // Altcoins → strengthen Bitcoin maximalist conviction
+        // ===== BLOCKCHAIN BASICS =====
+        blockchain: [
+            'How does the Bitcoin blockchain work?',
+            'What is a UTXO?',
+            'What is the mempool?',
+            'What is the genesis block?'
+        ],
+        block: [
+            'How does the Bitcoin blockchain work?',
+            'What is the genesis block?',
+            'What is the mempool?'
+        ],
+        mempool: [
+            'What is the mempool?',
+            'How do transaction fees work in Bitcoin?',
+            'How does the Bitcoin blockchain work?'
+        ],
+        fee: [
+            'How do transaction fees work in Bitcoin?',
+            'What is the mempool?',
+            'What is the Lightning Network?'
+        ],
+        transaction: [
+            'How do transaction fees work in Bitcoin?',
+            'What is a UTXO?',
+            'What is the mempool?'
+        ],
+        genesis: [
+            'What is the genesis block?',
+            'Who is Satoshi Nakamoto?',
+            'How was Bitcoin created?'
+        ],
+        // ===== UPGRADES & TECH =====
+        taproot: [
+            'What is Taproot?',
+            'What is a soft fork vs hard fork?',
+            'How does Bitcoin get upgraded?'
+        ],
+        fork: [
+            'What is a soft fork vs hard fork?',
+            'What is Taproot?',
+            'Why is Bitcoin\'s decentralization so important?'
+        ],
+        ordinal: [
+            'What are ordinals and inscriptions on Bitcoin?',
+            'What is a soft fork vs hard fork?',
+            'How does the Bitcoin blockchain work?'
+        ],
+        nostr: [
+            'What is Nostr?',
+            'Why do Bitcoiners care about decentralized social media?',
+            'How does Bitcoin protect human rights?'
+        ],
+        // ===== ALTCOINS → MAXIMIZE CONVICTION =====
         altcoin: [
             'Why is Bitcoin the only truly decentralized cryptocurrency?',
             'What makes Bitcoin different from every other crypto?',
-            'Why do all altcoins eventually fail against Bitcoin?'
+            'Why do Bitcoiners say "there is no second best"?'
         ],
         ethereum: [
             'Why is proof of stake inferior to proof of work?',
             'Can Ethereum really compete with Bitcoin?',
             'Why do Bitcoiners say "there is no second best"?'
         ],
-        // Regulation → understand Bitcoin\'s resilience
+        crypto: [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why is Bitcoin the only truly decentralized cryptocurrency?'
+        ],
+        solana: [
+            'Why is Bitcoin the only truly decentralized cryptocurrency?',
+            'Why is proof of work more secure than proof of stake?',
+            'What makes Bitcoin different from every other crypto?'
+        ],
+        xrp: [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why is decentralization so important?'
+        ],
+        cardano: [
+            'Why is Bitcoin the only truly decentralized cryptocurrency?',
+            'Why is proof of work more secure than proof of stake?',
+            'Why do Bitcoiners say "there is no second best"?'
+        ],
+        dogecoin: [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why is 21 million important?'
+        ],
+        // ===== REGULATION & ADOPTION =====
         regulation: [
             'Can any government actually stop Bitcoin?',
             'Why did El Salvador adopt Bitcoin?',
             'How does Bitcoin protect human rights?'
         ],
-        // Energy → debunk FUD
+        ban: [
+            'Can any government actually stop Bitcoin?',
+            'Why can\'t governments just ban Bitcoin?',
+            'How does Bitcoin protect human rights?'
+        ],
+        legal: [
+            'Can any government actually stop Bitcoin?',
+            'Why did El Salvador adopt Bitcoin?',
+            'Is Bitcoin used by criminals?'
+        ],
+        adopt: [
+            'Why did El Salvador adopt Bitcoin?',
+            'Can any government actually stop Bitcoin?',
+            'How is Bitcoin changing the world right now?'
+        ],
+        // ===== ENERGY → DEBUNK FUD =====
         energy: [
             'Does Bitcoin actually waste energy?',
             'How does Bitcoin mining help renewable energy?',
             'Why is energy use a feature, not a bug?'
         ],
-        // Scams/FUD → arm them against misinformation
+        environment: [
+            'Does Bitcoin actually waste energy?',
+            'How does Bitcoin mining help renewable energy?',
+            'Why is proof of work important for security?'
+        ],
+        // ===== SCAMS & FUD =====
         scam: [
             'What are the most common Bitcoin scams to avoid?',
             'Why do people say Bitcoin is dead when it keeps growing?',
-            'How do I know what Bitcoin information to trust?'
+            'How do I know what Bitcoin information to trust?',
+            'Is Bitcoin a Ponzi scheme?'
         ],
         fud: [
             'What are the biggest misconceptions about Bitcoin?',
             'Why do banks and media attack Bitcoin?',
-            'Is Bitcoin really used by criminals?'
+            'Is Bitcoin really used by criminals?',
+            'Does Bitcoin actually waste energy?'
         ],
-        // History → build appreciation for what Bitcoin is
+        ponzi: [
+            'Is Bitcoin a Ponzi scheme?',
+            'What makes Bitcoin different from a scam?',
+            'Why is Bitcoin the most secure network on Earth?'
+        ],
+        bubble: [
+            'Is Bitcoin a bubble?',
+            'Why shouldn\'t I worry about short-term price?',
+            'Why does Bitcoin keep coming back stronger after crashes?'
+        ],
+        criminal: [
+            'Is Bitcoin really used by criminals?',
+            'Why is financial privacy a human right?',
+            'What are the biggest misconceptions about Bitcoin?'
+        ],
+        dead: [
+            'Why do people say Bitcoin is dead when it keeps growing?',
+            'How many times has Bitcoin been declared dead?',
+            'Why does Bitcoin keep coming back stronger after crashes?'
+        ],
+        // ===== HISTORY & PHILOSOPHY =====
         satoshi: [
             'Why is it important that Satoshi disappeared?',
             'What was the financial crisis that inspired Bitcoin?',
-            'Why is Bitcoin\'s immaculate conception so rare?'
+            'Why is Bitcoin\'s immaculate conception so rare?',
+            'Who was Hal Finney?'
         ],
-        // Layer 2
-        layer: [
-            'What is the Lightning Network and why does it matter?',
-            'What are Fedimints and Cashu?',
-            'How does Bitcoin scale without sacrificing decentralization?'
+        history: [
+            'What is the genesis block?',
+            'Who is Satoshi Nakamoto?',
+            'Who was Hal Finney?'
         ],
-        // General fallback — always push toward conviction
+        hal: [
+            'Who was Hal Finney?',
+            'Who is Satoshi Nakamoto?',
+            'What is the genesis block?'
+        ],
+        maximalis: [
+            'Why do people who study Bitcoin the most become maximalists?',
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What does "fix the money, fix the world" mean?'
+        ],
+        standard: [
+            'What would a world on a Bitcoin standard look like?',
+            'Why is 21 million important?',
+            'How is Bitcoin changing the world right now?'
+        ],
+        // ===== GENERAL FALLBACK — always push toward conviction =====
         general: [
             'Why do people who study Bitcoin the most become maximalists?',
             'What\'s the most important thing about Bitcoin that most people don\'t know?',
-            'How is Bitcoin changing the world right now?'
+            'How is Bitcoin changing the world right now?',
+            'What would a world on a Bitcoin standard look like?',
+            'Why is self-custody the most important thing in Bitcoin?'
         ],
     };
 
@@ -1783,7 +2020,12 @@
             'What would a world on a Bitcoin standard look like?',
             'Why do Bitcoiners say "fix the money, fix the world"?',
             'How does Bitcoin give power back to individuals?',
-            'Why is self-custody the most revolutionary act?',
+            'Why is self-custody the most important thing in Bitcoin?',
+            'Why do people who study Bitcoin the most become maximalists?',
+            'Why is 21 million important?',
+            'What is the double spend problem and how did Bitcoin solve it?',
+            'Why is proof of work important for security?',
+            'How does Bitcoin protect human rights?',
         ];
 
         // Dedupe, validate against KB, and limit to 3
