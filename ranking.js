@@ -177,9 +177,21 @@ function initRanking() {
 
 // Handle email magic link return
 async function handleEmailSignIn() {
-    let email = localStorage.getItem('btc_signin_email');
+    // Try to get email from: 1) URL param (works cross-device), 2) localStorage (same device), 3) prompt (last resort)
+    let email = null;
+    // Check URL parameter first — this is embedded in the magic link
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('signin_email')) {
+        email = decodeURIComponent(urlParams.get('signin_email'));
+    }
+    // Fallback to localStorage (same device/browser)
     if (!email) {
-        email = prompt('Please enter your email to confirm sign-in:');
+        email = localStorage.getItem('btc_signin_email');
+    }
+    // Clean the URL parameter so it doesn't persist in the address bar
+    if (urlParams.get('signin_email')) {
+        var cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
     }
     if (!email) return;
 
@@ -562,7 +574,8 @@ async function submitGiveawayProvider(uid, displayName) {
 // Send magic link email
 async function sendMagicLink(email) {
     const actionCodeSettings = {
-        url: window.location.origin + window.location.pathname,
+        // Embed email in URL so it works even when opened on a different device/browser
+        url: window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email),
         handleCodeInApp: true,
     };
     try {
