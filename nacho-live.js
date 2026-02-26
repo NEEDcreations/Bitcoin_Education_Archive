@@ -87,10 +87,12 @@ function initTicker() {
             'main { padding-top: 78px !important; }' +
             'aside { top: 78px !important; }' +
             '#btcTicker { font-size: 0.65rem; padding: 2px 8px; gap: 10px; }' +
+            '#nachoModeScreen { height: calc(100vh - 24px) !important; margin-top: 24px; }' +
         '}' +
         '@media(min-width:901px) { ' +
             'aside { margin-top: 26px; }' +
             'main { margin-top: 26px; }' +
+            '#nachoModeScreen { height: calc(100vh - 26px) !important; margin-top: 26px; }' +
         '}';
     document.head.appendChild(style);
 
