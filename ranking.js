@@ -1570,16 +1570,14 @@ function showSettingsPage(tab) {
 
             // How it works
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How It Works</div>' +
-                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.7;">' +
-                '<strong style="color:var(--text);">📅 Daily Login:</strong> Earn 1 Orange Ticket each day you visit the site.<br>' +
-                '<strong style="color:var(--text);">🤝 Referrals:</strong> Share your unique link. When someone signs up through your link, logs in, and earns 2,100+ points (Maxi rank), you earn <strong style="color:var(--accent);">50 Orange Tickets</strong>.<br>' +
-                '<strong style="color:var(--text);">⏳ Verification:</strong> Referrals are verified automatically when your friend hits the points threshold.<br>' +
-                '<strong style="color:var(--text);">⭐ Bonus Points:</strong> Each ticket earned = 5 bonus points towards your rank.<br>' +
-                '<strong style="color:var(--text);">🎡 Daily:</strong> Log in (+1 ticket) and spin the wheel for more!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per verified friend!<br>' +
-                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock badges at 25 🐟, 50 🦈, and 100 🐋 tickets!<br>' +
-                '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats giveaways!' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How to Earn Tickets</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+                '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
+                '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (2,100+ pts). Verified automatically.<br>' +
+                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
         }
 
