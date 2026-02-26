@@ -339,7 +339,7 @@ const NACHO_KB = [
       answer: "Bitcoin is the best store of value ever invented — scarce, portable, divisible, durable, verifiable, and uncensorable. It's digital gold but better in almost every way!",
       channel: 'money', channelName: 'Money' },
 
-    { keys: ['21 million','supply cap','how many bitcoin','total supply','limited supply','max supply','exact supply'],
+    { keys: ['21 million','supply cap','how many bitcoin','total supply','limited supply','max supply','exact supply','exact max supply','exactly 21 million','precise supply','actual supply','true supply','real supply','how many btc','how many total bitcoin','what is the max supply','what is the exact supply'],
       answer: "Fun fact: the total supply is actually slightly LESS than 21 million! 🤯 The exact number is 20,999,999.9769 BTC — that's 2,310,000 satoshis short of 21 million. Why? Because the block reward halves every 210,000 blocks, and since Bitcoin uses integer math (no decimals in satoshis), tiny fractions get truncated at each halving. Those lost fractions add up over 33 halving epochs! About 19.5M have been mined so far, and ~20% are estimated lost forever. Your sats are rarer than you think! 🦌",
       channel: 'scarce', channelName: 'Scarce',
       followUp: "🤔 Ask me: 'Show me the halving math' or 'Why not exactly 21 million?' or 'What is a halving?'" },
