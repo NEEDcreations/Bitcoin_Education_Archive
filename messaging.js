@@ -520,7 +520,10 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
             // Mark messages as read
             markDMRead(convoId, myUid);
         }, function(err) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Could not load messages</div>';
+            container.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
+                '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;">Start a conversation!</div>' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Send your first message below.</div></div>';
         });
 }
 
@@ -671,9 +674,14 @@ window.showInbox = function() {
                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
                 '</div>';
             });
-        }).catch(function() {
+        }).catch(function(err) {
             var list = document.getElementById('dmInboxList');
-            if (list) list.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:20px;">Could not load messages</div>';
+            if (!list) return;
+            // Index not ready or no conversations — show empty state
+            list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
+                '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div>' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard or in PlebTalk to start chatting!</div></div>';
         });
 };
 
