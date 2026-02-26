@@ -215,10 +215,10 @@
         .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-muted); font-size: 0.8rem; }
 
         /* Username Modal */
-        #usernameModal { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 250; justify-content: center; align-items: center; }
+        #usernameModal { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 10000; justify-content: center; align-items: center; }
         #usernameModal.open { display: flex; }
-        .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; max-height: 90vh; overflow-y: auto; }
-        @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; max-height: 90vh; -webkit-overflow-scrolling: touch; } }
+        .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; max-height: 85vh; overflow-y: auto; }
+        @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; max-height: 80vh; -webkit-overflow-scrolling: touch; } }
         .username-box h2 { color: #fff; margin-bottom: 8px; font-size: 1.5rem; }
         .username-box p { color: #64748b; margin-bottom: 24px; font-size: 0.95rem; }
         .username-box input { width: 100%; padding: 14px 18px; background: #020617; border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit; outline: none; margin-bottom: 16px; text-align: center; }
