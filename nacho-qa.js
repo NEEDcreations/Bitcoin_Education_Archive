@@ -477,6 +477,34 @@ const NACHO_KB = [
       channel: 'books', channelName: 'Books' },
 
     // ========================================
+    // EXPANDED KB — sourced from documentaries/videos
+    // ========================================
+
+    { keys: ['bitcoin documentary','bitcoin movie','bitcoin film','documentaries','watch bitcoin','learn bitcoin video','best bitcoin video','bitcoin videos'],
+      answer: "Great way to learn, {name}! 🎬🦌 Here are must-watch Bitcoin documentaries from our Movies & TV channel: 'The Great Reset and the Rise of Bitcoin' — a crash course in modern economics and why Bitcoin is essential for financial freedom. 'Hard Money' — deep dive into the corrupted nature of what money has become (no Bitcoin mentioned, just pure fiat critique). 'The Anatomy of Bitcoin' — an open-source, community-funded film that visually explains how Bitcoin works. 'Magic Money: The Bitcoin Revolution' and 'Cypherpunks Write Code' are also excellent! And for lectures, start with Andreas Antonopoulos — his talks at MIT and the Canadian Senate are legendary. Check our Videos and Movies channels! 📺🧡",
+      channel: 'movies-tv', channelName: 'Movies & TV' },
+
+    { keys: ['the big short','margin call','financial crisis movie','2008 crisis','housing crisis','bank bailout','bailout'],
+      answer: "The Big Short is basically a Bitcoin origin story, {name}! 🎬🦌 It shows EXACTLY why Satoshi created Bitcoin — the 2008 financial crisis where banks gambled with everyone's money, got bailed out with printed dollars, and nobody went to jail. The message of the Genesis Block literally references this: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.' If you haven't seen The Big Short, watch it ASAP — it'll make you understand why Bitcoiners are so passionate about sound money. Margin Call is also worth watching — it shows the emptiness of a life devoted to fiat money alone. Both films make you grateful to be long Bitcoin and short fiat! 📈🍿",
+      channel: 'movies-tv', channelName: 'Movies & TV' },
+
+    { keys: ['andreas','andreas antonopoulos','antonopoulos','mastering bitcoin','internet of money'],
+      answer: "Andreas Antonopoulos is one of the greatest Bitcoin educators of all time, {name}! 🎤🦌 His lectures are LEGENDARY — he taught at MIT, testified before the Canadian Senate, and his YouTube talks have orange-pilled millions. Key lectures to watch: 'Currency Wars' (the sinking ship metaphor — Bitcoin is the lifeboat), 'The Stories We Tell About Money', and 'The Trust Machine' (brilliant description of mining at 15:05). He also wrote 'Mastering Bitcoin' (the technical bible) and 'The Internet of Money' (the philosophical case). Start with his talks — they're free on YouTube and they WILL change how you see the world. Check our Videos channel! 📺🔥",
+      channel: 'videos', channelName: 'Videos' },
+
+    { keys: ['bitcoin book','bitcoin books','best book','what to read','book recommendation','reading list','bitcoin standard book'],
+      answer: "Oh {name}, the Bitcoin rabbit hole has INCREDIBLE books! 📚🦌 The must-reads: 'The Bitcoin Standard' by Saifedean Ammous — the history of money and why Bitcoin is the next evolution (this is THE book that orange-pills economists). '21 Lessons' by Gigi — philosophical journey down the rabbit hole (free at 21lessons.com!). 'The Internet of Money' by Andreas Antonopoulos — the WHY of Bitcoin. 'Layered Money' by Nik Bhatia — why Bitcoin is the evolution of the monetary system. 'The Blocksize War' by Jonathan Bier — the governance battle that proved Bitcoin's decentralization. And 'Broken Money' by Lyn Alden — the macro case for Bitcoin. Check our Books channel for the complete list! 📖🧡",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['milton friedman','friedman predicted','predicted bitcoin','who predicted bitcoin','bitcoin prediction old'],
+      answer: "Nobel Prize-winning economist Milton Friedman predicted Bitcoin in 1999 — 10 years before it existed! 🤯🦌 In an interview, he described needing a 'reliable e-cash' where you could transfer funds on the Internet 'without A knowing B or B knowing A.' He basically described Bitcoin's pseudonymous, peer-to-peer nature before it was invented. The video is on YouTube and it's mind-blowing. Friedman, Hayek, and the Austrian economists all understood that sound money needed to be free from government control. Satoshi made it real. Check our Videos channel! 📺",
+      channel: 'videos', channelName: 'Videos' },
+
+    { keys: ['genesis block message','chancellor on brink','times headline','first block message','satoshi message','genesis block text'],
+      answer: "Satoshi embedded a powerful message in Bitcoin's very first block (the Genesis Block), {name}: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.' 📰🦌 This wasn't random — it was a timestamp AND a statement. It proves the block was mined on or after January 3, 2009, AND it's a permanent reminder of WHY Bitcoin was created: because the existing financial system was broken, banks were being bailed out with printed money, and regular people paid the price. That message is etched into the blockchain FOREVER. Every single Bitcoin node carries it. It's Satoshi's declaration of independence from the fiat system. 🔥",
+      channel: 'history', channelName: 'History' },
+
+    // ========================================
     // EXPANDED KB — sourced from site channels
     // ========================================
 
@@ -700,7 +728,7 @@ var OFF_TOPIC_PATTERNS = [
         "I eat grass, {name} — not much of a chef! 🦌🌿 But you know what pairs great with any meal? Stacking sats. What Bitcoin topic can I help with?",
         "The only recipe I know: take 21 million coins, add scarcity, mix with decentralization, and let it simmer for a few decades. 🧑‍🍳🦌 Got a Bitcoin question?"
     ]},
-    { pattern: /movie|film|netflix|tv show|series|watch|anime|manga/,
+    { pattern: /netflix|tv show|series|anime|manga|favorite movie|best movie|recommend.*movie|movie recommend/,
       answers: [
         "I don't watch TV, but I hear there are some great Bitcoin documentaries! 🎬🦌 Check our Movies & TV channel. Got a Bitcoin question I can help with?",
         "My favorite movie? 'The Big Short' — because it shows exactly why Bitcoin was created! 🎬 Want to know about the financial crisis that inspired Bitcoin?"
