@@ -445,6 +445,38 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     // ========================================
+    // EXPANDED KB — recovered from broken/paywalled articles (Phase 2b)
+    // ========================================
+
+    { keys: ['bullish case','vijay boyapati','bull case for bitcoin','why bitcoin will succeed','investment case'],
+      answer: "Vijay Boyapati's 'The Bullish Case for Bitcoin' is one of the most important Bitcoin essays ever written, {name}! 📈🦌 Key thesis: never in the history of the world had it been possible to transfer value between distant peoples without a trusted intermediary. Bitcoin changed that forever. The bullish case isn't just about price — it's about Bitcoin evolving through the classic stages of money: collectible → store of value → medium of exchange → unit of account. There are risks, but the opportunity is immense. This essay orange-pilled millions. Read it! 🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['no intrinsic value','intrinsic value argument','bitcoin has no value','commodity value','gold has value bitcoin doesn\'t','bitcoin worthless'],
+      answer: "The 'no intrinsic value' argument has been demolished, {name}! 💡🦌 Critics say: 'Money must first be useful as a commodity — gold has jewelry, Bitcoin has nothing.' But here's the truth: Bitcoin having no commodity use is actually its STRENGTH. Gold's commodity demand (jewelry, electronics) actually COMPETES with its monetary use — creating inefficiency. Bitcoin is PURE money. Its only use IS being money. Even Aristotle's requirement that money be 'useful for the purposes of life' is satisfied — what's more useful than uncensorable, unseizable, inflation-proof money? The lack of 'intrinsic value' is a FEATURE. 💎",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['can government stop','government stop bitcoin','governments vs bitcoin','can they shut it down','can bitcoin be stopped','undefeated'],
+      answer: "Since its creation, Bitcoin is UNDEFEATED against governments, {name}! 🏆🦌 From Quillette: 'The reality is Bitcoin is a political project that threatens to fundamentally disrupt the Davos-led economic system, with everyone from Janet Yellen to Christine Lagarde expressing fear.' China banned it — Bitcoin survived and grew. India restricted it — peer-to-peer usage exploded. Nigeria banned bank involvement — it became Nigeria's most popular investment. Dozens of companies including Tesla and Square added Bitcoin to their treasuries. Every attempt to stop it has failed. You can't kill a decentralized network of 14,000+ nodes across 100+ countries. Bitcoin doesn't just survive bans — it THRIVES on them. 🔥",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    { keys: ['number zero','zero and bitcoin','bitcoin like zero','invention of zero','breedlove','robert breedlove','zero discovery'],
+      answer: "Robert Breedlove's 'The Number Zero and Bitcoin' draws a brilliant parallel, {name}! 🧠🦌 Zero was an invention that led to a discovery that reshaped all of mathematics. Bitcoin is an invention reshaping all of money. Before zero, math was clunky and inefficient (try dividing with Roman numerals!). Before Bitcoin, money was clunky and corruptible. As Breedlove writes: 'Both math and money are possible without zero and Bitcoin — however both are tremendously more wasteful systems without these core elements.' Money and math are humanity's two universal languages. Bitcoin is to money what zero is to math — the missing piece that makes everything work better. 🔢🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['masters and slaves','slavery and money','money as control','money and slavery','monetary slavery','fiat slavery','corruptible money'],
+      answer: "Breedlove's 'Masters and Slaves of Money' is devastating, {name}! ⛓️🦌 Key insight: 'Central banks, the modern-era masters of money, wield this tool as a weapon to steal time and inflict wealth inequality.' He traces monetary corruption through history — from the aggry beads used as money in western Africa (European colonizers mass-produced them to steal African wealth) to modern fiat printing. The pattern is always the same: whoever controls the money supply enslaves those who use it. 'The corruption of monetary systems leads to moral decay, social collapse, and slavery.' Bitcoin breaks this cycle. An incorruptible money that NO ONE controls. 🗽🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin declared dead','bitcoin obituaries','how many times bitcoin died','bitcoin dead','is bitcoin dead','death of bitcoin','bitcoin failed'],
+      answer: "Bitcoin has been declared dead over 470+ times, {name} — and it keeps hitting new all-time highs! 😂🦌 The site 99bitcoins.com/bitcoin-obituaries tracks every single 'Bitcoin is dead' article. The obituaries come during every crash: 2011, 2014, 2018, 2022 — and Bitcoin comes back stronger EVERY time. Nobel Prize economists, JP Morgan's CEO, Warren Buffett — all said it was dead. They've all been wrong. Each 'death' just shakes out the weak hands and lets the believers accumulate more cheaply. The reports of Bitcoin's death have been greatly exaggerated! 📈💪",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['wtf happened in 1971','1971','nixon shock','gold standard ended','off the gold standard','bretton woods'],
+      answer: "WTF happened in 1971? EVERYTHING broke, {name}! 📉🦌 In 1971, President Nixon took the US dollar off the gold standard — ending the Bretton Woods system. Before that, every dollar was backed by gold. After? The money printer went BRRRR. The site wtfhappenedin1971.com shows the charts: that's when wages stopped keeping up with productivity, wealth inequality exploded, home prices disconnected from income, healthcare costs skyrocketed, and the middle class began its slow death. ALL the charts break in 1971. Bitcoin fixes this by bringing back sound money — a money that can't be printed at will. Check out the charts yourself! 📊🔥",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    // ========================================
     // EXPANDED KB — sourced from 220 fetched articles (Phase 2)
     // ========================================
 
