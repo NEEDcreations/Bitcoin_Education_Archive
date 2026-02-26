@@ -639,8 +639,8 @@
         </div>
         <button class="quest-start-btn" onclick="startQuestManual()">⚡ Start a Quest</button>
         <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:2px solid #f7931a;color:var(--text);margin-top:4px;transition:0.2s;" onmouseover="this.style.background='linear-gradient(135deg,#f7931a,#ea580c)';this.style.color='#fff';this.style.boxShadow='0 0 20px rgba(247,147,26,0.4)';" onmouseout="this.style.background='var(--card-bg)';this.style.color='var(--text)';this.style.boxShadow='none';">🎓 Bitcoin Scholar Certification Quest</button>
-        <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('forum')">🗣️ Community Forum</button>
-        <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('marketplace')">🛒 Marketplace</button>
+        <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('forum')">🗣️ PlebTalk</button>
+        <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('marketplace')">⚡ LightningMart</button>
         <button class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;margin-top:4px;font-weight:700;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.3);" onclick="if(typeof enterNachoMode==='function')enterNachoMode()">🦌 Nacho Mode</button>
         <button id="supportBtn" class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:4px;position:relative;" onclick="handleSupportClick()">📧 Support</button>
         <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ Powered by 603btc.com</a>
@@ -700,8 +700,8 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <button class="home-cta" onclick="go('whitepaper')" style="margin-bottom:0;width:100%;max-width:340px;">Start Exploring →</button>
                         <button id="authBtn" onclick="showUsernamePrompt()" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Free Account / Sign In</button>
-                        <button onclick="go('forum')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🗣️ Community Forum</button>
-                        <button onclick="go('marketplace')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🛒 Marketplace</button>
+                        <button onclick="go('forum')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🗣️ PlebTalk</button>
+                        <button onclick="go('marketplace')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">⚡ LightningMart</button>
                         <button onclick="enterNachoMode()" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🦌 Nacho Mode</button>
                 </div>
                 <div style="margin-top:30px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">
@@ -815,22 +815,22 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="ranking.js?v=34" defer></script>
+    <script src="ranking.js?v=35" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
     <script src="features.js" defer></script>
     <script src="badges.js" defer></script>
     <script src="tickets.js" defer></script>
-    <script src="nacho.js?v=16" defer></script>
+    <script src="nacho.js?v=17" defer></script>
     <script src="nacho-live.js?v=7" defer></script>
-    <script src="nacho-engage.js?v=7" defer></script>
-    <script src="nacho-qa.js?v=18" defer></script>
+    <script src="nacho-engage.js?v=8" defer></script>
+    <script src="nacho-qa.js?v=19" defer></script>
     <script src="nacho-closet.js?v=6" defer></script>
     <script src="messaging.js?v=1" defer></script>
-    <script src="forum.js?v=8" defer></script>
-    <script src="engagement.js?v=7" defer></script>
-    <script src="marketplace.js?v=6" defer></script>
-    <script src="mobile-ux.js?v=8" defer></script>
+    <script src="forum.js?v=9" defer></script>
+    <script src="engagement.js?v=8" defer></script>
+    <script src="marketplace.js?v=7" defer></script>
+    <script src="mobile-ux.js?v=9" defer></script>
     <script>
     function openImg(src) {
         document.getElementById('lb-img').src = src;
@@ -2878,7 +2878,7 @@
             document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
         }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
-        // Three-finger tap → Community Forum
+        // Three-finger tap → PlebTalk
         // Must be a quick tap, not during scroll
         var threeFingerLast = 0;
         var threeFingerStart = 0;
@@ -3172,8 +3172,8 @@
     // Internal app pages searchable by keyword
     const APP_PAGES = [
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
-        { id: '_forum', title: '🗣️ Community Forum', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
-        { id: '_market', title: '🛒 Marketplace', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
+        { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
+        { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
         { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: 'startQuestManual()' },

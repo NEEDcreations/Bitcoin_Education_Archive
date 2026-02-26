@@ -9,7 +9,7 @@
 
 var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
-    { id: 'general', name: 'General Marketplace', emoji: '🛒', desc: 'Buy & sell everything else' },
+    { id: 'general', name: 'General LightningMart', emoji: '🛒', desc: 'Buy & sell everything else' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -108,9 +108,9 @@ window.renderMarketplace = function(options) {
     // Top bar
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<span style="font-size:1.5rem;">🛒</span>' +
+            '<span style="font-size:1.5rem;">⚡</span>' +
             '<div>' +
-                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">Marketplace</div>' +
+                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">LightningMart</div>' +
                 '<div style="font-size:0.7rem;color:var(--text-faint);">Buy & sell with Bitcoin ⚡</div>' +
             '</div>' +
         '</div>' +
@@ -280,7 +280,7 @@ function renderListingDetail(container, listingId) {
 
     db.collection('marketplace').doc(listingId).get().then(function(doc) {
         if (!doc.exists) {
-            container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">😕</div><div style="color:var(--text-muted);">Listing not found</div><button onclick="history.back()" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;">← Back to Marketplace</button></div>';
+            container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">😕</div><div style="color:var(--text-muted);">Listing not found</div><button onclick="history.back()" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;">← Back to LightningMart</button></div>';
             return;
         }
         var l = { id: doc.id, ...doc.data() };
@@ -606,7 +606,7 @@ window.showMyListings = function(fromPopState) {
         .orderBy('createdAt', 'desc')
         .get().then(function(snap) {
             var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
-            html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back to Marketplace</button>';
+            html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back to LightningMart</button>';
             html += '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:16px;">📋 My Listings</div>';
 
             if (snap.empty) {

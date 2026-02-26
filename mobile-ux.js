@@ -65,7 +65,7 @@ function initBottomNav() {
         '<div style="display:flex;justify-content:space-around;align-items:center;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span>🏠</span><span>Home</span></button>' +
             '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
-            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>Forum</span></button>' +
+            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>PlebTalk</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span>💬</span><span>DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:8px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:8px;min-width:14px;text-align:center;"></span></button>' +
             '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span>🦌</span><span>Nacho</span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span>⚙️</span><span>Settings</span></button>' +
@@ -227,7 +227,7 @@ var DAILY_CHALLENGES = [
     { id: 'nacho', text: '🦌 Ask Nacho a question', check: function() { return parseInt(sessionStorage.getItem('btc_nacho_asked') || '0') > 0; } },
     { id: 'quiz', text: '🎮 Complete a quiz question', check: function() { return sessionStorage.getItem('btc_quiz_done') === 'true'; } },
     { id: 'explore', text: '🗺️ Visit 3 different channels', check: function() { return parseInt(sessionStorage.getItem('btc_channels_today') || '0') >= 3; } },
-    { id: 'forum', text: '🗣️ Visit the Community Forum', check: function() { return sessionStorage.getItem('btc_forum_visited') === 'true'; } },
+    { id: 'forum', text: '🗣️ Visit the PlebTalk', check: function() { return sessionStorage.getItem('btc_forum_visited') === 'true'; } },
     { id: 'streak', text: '🔥 Log in to keep your streak', check: function() { return true; } }, // Always completable
     { id: 'favorite', text: '⭐ Save a channel to favorites', check: function() { return sessionStorage.getItem('btc_fav_added') === 'true'; } },
 ];

@@ -111,10 +111,10 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: New to Bitcoin? Start with the 'one-stop-shop' channel — it has everything to get you started! 🎯" },
     { pose: 'brain', text: "💡 Tip: Channels are organized into Properties, Experienced Topics, Resources, and Additional Info. Start with Properties!" },
     // Forum & Marketplace
-    { pose: 'point', text: "💡 Tip: Post in the Community Forum to earn the 📣 Town Crier badge + 100 points! Press F or find it in the sidebar." },
-    { pose: 'point', text: "💡 Tip: Reply to forum posts to earn the 💬 Conversationalist badge + 75 points! Join the discussion!" },
-    { pose: 'cheese', text: "💡 Tip: The Marketplace lets you buy and sell with Bitcoin! List an item to earn the 🏪 Merchant badge! Press M to check it out." },
-    { pose: 'point', text: "💡 Tip: Found something cool on the Marketplace? Contact the seller to earn the 🛍️ Shopper badge!" },
+    { pose: 'point', text: "💡 Tip: Post in the PlebTalk to earn the 📣 Town Crier badge + 100 points! Press F or find it in the sidebar." },
+    { pose: 'point', text: "💡 Tip: Reply to PlebTalk posts to earn the 💬 Conversationalist badge + 75 points! Join the discussion!" },
+    { pose: 'cheese', text: "💡 Tip: LightningMart lets you buy and sell with Bitcoin! List an item to earn the 🏪 Merchant badge! Press M to check it out." },
+    { pose: 'point', text: "💡 Tip: Found something cool on LightningMart? Contact the seller to earn the 🛍️ Shopper badge!" },
     // Closet
     { pose: 'celebrate', text: "💡 Tip: Check out my closet in Settings → Nacho! You can dress me up with items you unlock! 🎽🦌" },
     { pose: 'point', text: "💡 Tip: Closet items are colorable! Equip an item, then tap 🎨 Color to customize it! 🌈" },
@@ -134,9 +134,9 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Nacho Mode saves your full chat history — come back anytime to pick up where you left off!" },
     { pose: 'celebrate', text: "💡 Tip: Ask me 10, 25, 50, or 100 questions in Nacho Mode to unlock special milestones! 🎉" },
     // Forum
-    { pose: 'fire', text: "💡 Tip: We have a Community Forum! Press F or click '🗣️ Community Forum' in the sidebar to discuss Bitcoin! 💬" },
-    { pose: 'point', text: "💡 Tip: In the Forum, upvote great posts with ⚡ and earn +10 points for posting, +5 for replying!" },
-    { pose: 'brain', text: "💡 Tip: Forum posts can include links! Share interesting Bitcoin articles or resources with the community! 🔗" },
+    { pose: 'fire', text: "💡 Tip: We have a PlebTalk! Press F or click '🗣️ PlebTalk' in the sidebar to discuss Bitcoin! 💬" },
+    { pose: 'point', text: "💡 Tip: In PlebTalk, upvote great posts with ⚡ and earn +10 points for posting, +5 for replying!" },
+    { pose: 'brain', text: "💡 Tip: PlebTalk posts can include links! Share interesting Bitcoin articles or resources with the community! 🔗" },
     // Profiles
     { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
     { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
@@ -146,7 +146,7 @@ const TIPS = [
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
     // Keyboard shortcuts
-    { pose: 'point', text: "💡 Tip: Press ? to see ALL keyboard shortcuts! N=Nacho, F=Forum, D=Donate, L=Leaderboard, and more! ⌨️" },
+    { pose: 'point', text: "💡 Tip: Press ? to see ALL keyboard shortcuts! N=Nacho, F=PlebTalk, D=Donate, L=Leaderboard, and more! ⌨️" },
     { pose: 'point', text: "💡 Tip: Press A to quickly ask me a question from any page — no need to enter Nacho Mode! 🦌" },
     // Nostr
     { pose: 'cool', text: "💡 Tip: You can sign in with Nostr! If you have Alby or nos2x, click the 🟣 Nostr button on the sign-in page! ⚡" },

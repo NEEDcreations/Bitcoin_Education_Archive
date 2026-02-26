@@ -1,5 +1,5 @@
 // =============================================
-// 🗣️ Bitcoin Education Archive — Community Forum
+// 🗣️ Bitcoin Education Archive — PlebTalk
 // Stacker News-inspired discussion board
 // =============================================
 
@@ -48,7 +48,7 @@ function showForumRules(force) {
         '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">📜</div>' +
-                '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">Community Forum Rules</h2>' +
+                '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">PlebTalk Rules</h2>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;">Please read before posting</div>' +
             '</div>';
 
@@ -146,7 +146,7 @@ window.renderForum = function() {
     // Header
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;">' +
         '<div style="min-width:0;">' +
-            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0;">🗣️ Community Forum</h2>' +
+            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0;">🗣️ PlebTalk</h2>' +
             '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">Discuss Bitcoin with fellow learners</div>' +
         '</div>' +
         '<div style="display:flex;gap:8px;flex-shrink:0;">' +
@@ -277,7 +277,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
 
         // Back button
-        html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
+        html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
 
         // Post
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -386,7 +386,7 @@ window.forumNewPost = function() {
         var _fc = document.getElementById('forumContainer');
         if (_fc) {
             _fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">' +
-                '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;">← Back to Forum</button>' +
+                '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;">← Back to PlebTalk</button>' +
                 '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
                     '<div style="font-size:3rem;margin-bottom:12px;">🔒</div>' +
                     '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 8px;">Registration Required</h2>' +
@@ -406,7 +406,7 @@ window.forumNewPost = function() {
     
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
-    html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to Forum</button>';
+    html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
 
     html += '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 14px;">📝 Create New Post</h2>';
 

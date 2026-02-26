@@ -1795,7 +1795,7 @@ function showSettingsPage(tab) {
             '</div>' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Features</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
-            shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') + shortcutRow('M','Marketplace') +
+            shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') + shortcutRow('M','LightningMart') +
             shortcutRow('F','Forum') + shortcutRow('Q','Start quest') + shortcutRow('L','Leaderboard') +
             '</div>' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Actions</div>' +
@@ -1810,7 +1810,7 @@ function showSettingsPage(tab) {
             shortcutRow('Swipe →','Go home') +
             shortcutRow('Swipe ←','Random channel') +
             shortcutRow('2-finger tap','Leaderboard') +
-            shortcutRow('3-finger tap','Community Forum') +
+            shortcutRow('3-finger tap','PlebTalk') +
             shortcutRow('Long-press logo','Nacho Mode') +
             '</div></div>' +
             '</div></div>';
