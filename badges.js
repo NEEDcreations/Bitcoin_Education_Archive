@@ -317,22 +317,47 @@ function getBadgeHTML() {
         '</div>';
     }
 
-    // Hidden badges
+    // Goal badges (visible with progress) and Hidden badges (surprise)
     if (typeof HIDDEN_BADGES !== 'undefined') {
         const earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
-        const anyEarned = earnedHidden.length > 0;
-        if (anyEarned) {
-            html += '</div><h4 style="margin-top:12px;">🔓 Hidden Badges</h4><div class="badges-grid">';
-            for (const badge of HIDDEN_BADGES) {
+
+        // Visible goal badges — shown with name, progress, and hints
+        const visibleGoals = HIDDEN_BADGES.filter(function(b) { return !b.hidden; });
+        if (visibleGoals.length > 0) {
+            html += '</div><h4 style="margin-top:16px;color:var(--heading);font-size:0.9rem;">🎯 Goals</h4><div class="badges-grid">';
+            for (const badge of visibleGoals) {
+                const unlocked = earnedHidden.includes(badge.id);
+                const progressText = (!unlocked && badge.progress) ? badge.progress() : '';
+                const hintText = (!unlocked && badge.hint) ? badge.hint : '';
+                html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '" style="position:relative;">' +
+                    '<div class="badge-emoji">' + (unlocked ? badge.emoji : '🔒') + '</div>' +
+                    '<div class="badge-name">' + badge.name + '</div>' +
+                    (progressText ? '<div style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">' + progressText + '</div>' : '') +
+                    '<div class="badge-tooltip">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' pts)' : '🔒 ' + badge.desc + (hintText ? ' — ' + hintText : '')) + '</div>' +
+                '</div>';
+            }
+        }
+
+        // True hidden badges — only show after at least one is earned
+        const hiddenBadges = HIDDEN_BADGES.filter(function(b) { return b.hidden; });
+        const anyHiddenEarned = hiddenBadges.some(function(b) { return earnedHidden.includes(b.id); });
+        const hiddenCount = hiddenBadges.length;
+        const hiddenEarnedCount = hiddenBadges.filter(function(b) { return earnedHidden.includes(b.id); }).length;
+
+        html += '</div><h4 style="margin-top:16px;color:var(--heading);font-size:0.9rem;">🔮 Secret Badges <span style="font-size:0.7rem;color:var(--text-faint);font-weight:400;">' + hiddenEarnedCount + '/' + hiddenCount + '</span></h4>';
+        if (anyHiddenEarned) {
+            html += '<div class="badges-grid">';
+            for (const badge of hiddenBadges) {
                 const unlocked = earnedHidden.includes(badge.id);
                 html += '<div class="badge-item ' + (unlocked ? 'earned' : 'locked') + '">' +
                     '<div class="badge-emoji">' + (unlocked ? badge.emoji : '❓') + '</div>' +
                     '<div class="badge-name">' + (unlocked ? badge.name : '???') + '</div>' +
-                    '<div class="badge-tooltip">' + (unlocked ? '✅ ' + badge.desc : '🔒 Keep exploring to unlock!') + '</div>' +
+                    '<div class="badge-tooltip">' + (unlocked ? '✅ ' + badge.desc + ' (+' + badge.pts + ' pts)' : '🔒 Keep exploring!') + '</div>' +
                 '</div>';
             }
         } else {
-            html += '</div><div style="text-align:center;padding:8px;color:var(--text-faint);font-size:0.8rem;margin-top:8px;">🔓 5 hidden badges to discover...</div><div class="badges-grid" style="display:none;">';
+            html += '<div style="text-align:center;padding:10px;color:var(--text-faint);font-size:0.8rem;" class="badges-grid">' +
+                hiddenCount + ' secret badges waiting to be discovered... 🔮</div><div class="badges-grid" style="display:none;">';
         }
     }
 
