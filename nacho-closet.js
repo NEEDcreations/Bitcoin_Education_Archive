@@ -364,7 +364,7 @@ window.renderNachoClosetUI = function(container) {
             '<div style="font-size:1.8rem;margin-bottom:4px;' + (isEquipped ? 'animation:nachoItemFloat 2s ease-in-out infinite;' : '') + '">' + displayEmoji + '</div>' +
             '<div style="font-size:0.7rem;color:' + (unlocked ? 'var(--text)' : 'var(--text-faint)') + ';font-weight:600;line-height:1.3;">' + displayName + '</div>' +
             (isEquipped ? '<div style="font-size:0.6rem;color:#f7931a;font-weight:700;margin-top:2px;">✓ EQUIPPED</div>' : '') +
-            (isEquipped && item.colorable && typeof showColorPicker === 'function' ? '<div onclick="event.stopPropagation();showColorPicker(\'' + item.id + '\')" style="font-size:0.55rem;color:var(--accent);cursor:pointer;margin-top:2px;">🎨 Color</div>' : '') +
+            (isEquipped && item.colorable ? '<div onclick="event.stopPropagation();if(typeof showColorPicker===\'function\')showColorPicker(\'' + item.id + '\')" style="font-size:0.65rem;color:var(--accent);cursor:pointer;margin-top:4px;font-weight:600;padding:2px 6px;background:var(--accent-bg,rgba(247,147,26,0.1));border-radius:4px;display:inline-block;">🎨 Color</div>' : '') +
             (!unlocked && !isHidden ? '<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">Lvl ' + item.level + '</div>' : '') +
             (isHidden ? '<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">🔒</div>' : '') +
             (item.seasonal ? '<div style="font-size:0.5rem;color:var(--accent);margin-top:2px;">🗓️ ' + item.seasonal + '</div>' : '') +

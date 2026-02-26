@@ -9,8 +9,16 @@
 
 // ---- #1: Color Picker for Closet Items ----
 window.showColorPicker = function(itemId) {
+    // Remove existing picker if any
+    var old = document.getElementById('nachoColorPicker');
+    if (old) old.remove();
+
+    var item = typeof NACHO_ITEMS !== 'undefined' ? NACHO_ITEMS.find(function(i) { return i.id === itemId; }) : null;
+    var emoji = item ? (item.hidden ? item.revealEmoji : item.emoji) : '🦌';
+    var itemName = item ? (item.hidden ? item.revealName : item.name) : 'Item';
+
     var colors = [
-        { name: 'Orange', hue: '0deg', color: '#f7931a' },
+        { name: 'Default', hue: '0deg', color: '#f7931a' },
         { name: 'Red', hue: '-30deg', color: '#ef4444' },
         { name: 'Blue', hue: '200deg', color: '#3b82f6' },
         { name: 'Green', hue: '120deg', color: '#22c55e' },
@@ -18,29 +26,64 @@ window.showColorPicker = function(itemId) {
         { name: 'Pink', hue: '310deg', color: '#ec4899' },
         { name: 'Gold', hue: '30deg', color: '#eab308' },
         { name: 'Cyan', hue: '170deg', color: '#06b6d4' },
+        { name: 'White', hue: '0deg', color: '#e2e8f0', filter: 'grayscale(1) brightness(2)' },
     ];
     var saved = localStorage.getItem('btc_nacho_color_' + itemId) || '0deg';
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:20px;max-width:300px;width:100%;text-align:center;">' +
-        '<div style="font-size:1.2rem;margin-bottom:8px;">🎨 Choose Color</div>' +
+
+    var html = '<div id="nachoColorPicker" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center;">' +
+        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">🎨 Customize ' + itemName + '</div>' +
+        // Live preview of the item with current color
+        '<div id="colorPickerPreview" style="font-size:3.5rem;margin-bottom:16px;filter:hue-rotate(' + saved + ');transition:filter 0.3s;">' + emoji + '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:16px;">';
     for (var i = 0; i < colors.length; i++) {
         var active = saved === colors[i].hue;
-        html += '<button onclick="setItemColor(\'' + itemId + '\',\'' + colors[i].hue + '\')" style="width:40px;height:40px;border-radius:50%;background:' + colors[i].color + ';border:' + (active ? '3px solid #fff' : '2px solid var(--border)') + ';cursor:pointer;touch-action:manipulation;" title="' + colors[i].name + '"></button>';
+        html += '<button onclick="event.stopPropagation();previewItemColor(\'' + itemId + '\',\'' + colors[i].hue + '\',\'' + (colors[i].filter || '') + '\')" style="width:44px;height:44px;border-radius:50%;background:' + colors[i].color + ';border:' + (active ? '3px solid #fff;box-shadow:0 0 10px ' + colors[i].color : '2px solid var(--border)') + ';cursor:pointer;touch-action:manipulation;transition:0.2s;" title="' + colors[i].name + '"></button>';
     }
-    html += '</div><button onclick="this.closest(\'[style]\').remove()" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;">Done</button></div></div>';
+    html += '</div>' +
+        '<button onclick="document.getElementById(\'nachoColorPicker\').remove()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.9rem;">Done ✓</button>' +
+        '</div></div>';
     var div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
 };
 
+// Live preview color in picker before committing
+window.previewItemColor = function(itemId, hue, customFilter) {
+    var preview = document.getElementById('colorPickerPreview');
+    if (preview) {
+        preview.style.filter = customFilter || ('hue-rotate(' + hue + ')');
+    }
+    // Update all color buttons to show which is selected
+    var picker = document.getElementById('nachoColorPicker');
+    if (picker) {
+        picker.querySelectorAll('button[title]').forEach(function(btn) {
+            btn.style.borderWidth = '2px';
+            btn.style.boxShadow = 'none';
+        });
+    }
+    // Commit the color
+    localStorage.setItem('btc_nacho_color_' + itemId, hue);
+    // Update main avatar overlay
+    if (typeof renderNachoOverlay === 'function') renderNachoOverlay();
+    // Update closet preview
+    if (document.getElementById('nachoClosetGrid') && typeof renderNachoClosetUI === 'function') {
+        renderNachoClosetUI(document.getElementById('nachoClosetGrid').parentElement);
+    }
+};
+
 window.setItemColor = function(itemId, hue) {
     localStorage.setItem('btc_nacho_color_' + itemId, hue);
+    // Update main Nacho avatar overlay
     if (typeof renderNachoOverlay === 'function') renderNachoOverlay();
+    // Update closet preview
+    if (document.getElementById('nachoClosetGrid') && typeof renderNachoClosetUI === 'function') {
+        renderNachoClosetUI(document.getElementById('nachoClosetGrid').parentElement);
+    }
     if (typeof showToast === 'function') showToast('🎨 Color updated!');
-    // Close picker
-    var picker = document.querySelector('[onclick*="showColorPicker"]');
-    if (picker) picker.closest('[style*="position:fixed"]');
+    // Close picker modal
+    var modal = document.getElementById('nachoColorPicker');
+    if (modal) modal.remove();
 };
 
 // ---- #3: Nacho Mood Based on BTC Price ----
