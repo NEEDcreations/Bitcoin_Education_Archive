@@ -68,7 +68,7 @@ function initRanking() {
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});
 
         // Check if returning from email magic link
-        if (firebase.auth.isSignInWithEmailLink(window.location.href)) {
+        if (auth.isSignInWithEmailLink(window.location.href)) {
             handleEmailSignIn();
             // Still set up auth listener for future state changes
         }
@@ -128,7 +128,7 @@ function initRanking() {
         // Wait for auth to fully resolve before doing anything
         // This prevents the race condition where anonymous user loads before Google auth restores
         let firstAuthEvent = true;
-        let emailLinkHandled = firebase.auth.isSignInWithEmailLink(window.location.href);
+        let emailLinkHandled = auth.isSignInWithEmailLink(window.location.href);
         auth.onAuthStateChanged(user => {
             if (firstAuthEvent) {
                 firstAuthEvent = false;
