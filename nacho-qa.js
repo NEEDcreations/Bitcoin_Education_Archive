@@ -445,6 +445,38 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     // ========================================
+    // EXPANDED KB — recovered broken articles + missing topics (Phase 2c)
+    // ========================================
+
+    { keys: ['ethereum premine','ethereum ico','ethereum sale','2014 premine','eth premine','how much ethereum premined','ethereum unfair'],
+      answer: "The Ethereum premine is one of the most damning facts in all of crypto, {name}! 🎭🦌 From CoinDesk's investigation: in 2014, Ethereum held a presale where 1 BTC bought 2,000 ETH. The whole process was plagued with problems — the team had been 'promising the sale would arise in two weeks for six months.' Insiders got tokens before anyone else. 72 million ETH were premined. Today, 70% of supply is controlled by a handful of early adopters. Compare that to Bitcoin: no premine, no ICO, no insider advantage. Satoshi mined with the same software anyone could download. THAT is the difference between fair money and a corporate token sale. ⚖️",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['planting bitcoin','dan held','bitcoin like tree','bitcoin origin design','bitcoin was designed','satoshi designed bitcoin','bitcoin intentional'],
+      answer: "Dan Held's 'Planting Bitcoin' is brilliant, {name}! 🌳🦌 Key insight: Bitcoin's origin is akin to planting a tree — its deep roots had to support the weight of becoming a new world reserve currency. This wasn't an accident. Satoshi carefully designed every parameter: the 21 million cap, the 10-minute blocks, the difficulty adjustment, the halving schedule. And here's the profound part: 'Money is not just paper in your hand or numbers in your bank account. Money is a primitive form of memory or record-keeping.' Bitcoin is the most perfect form of that memory ever created — unforgeable, incorruptible, permanent. Sound money. Sanum pecuniam. 🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin energy offensive','energy shift','energy perspective','bitcoin offensive','why bitcoin uses energy','energy worth it'],
+      answer: "Gigi puts it perfectly, {name}: 'Bitcoin is a global, permissionless, censorship-resistant network. It offends governments, bankers, and central authorities alike. Offending banks was the whole point!' ⚡🦌 The energy debate needs a shift in perspective. Yes, Bitcoin uses energy — deliberately! That energy expenditure is what makes it UNFORGEABLE. You can't fake proof of work. You can't counterfeit energy expenditure. Every kilowatt-hour burned secures the network and makes your Bitcoin more trustworthy. The question isn't 'does it use energy?' The question is: 'Is securing a global, censorship-resistant monetary system worth 0.1% of global energy?' The answer is obviously yes. 🔥",
+      channel: 'energy', channelName: 'Energy' },
+
+    { keys: ['check your financial privilege','financial privilege','alex gladstein','human rights foundation','bitcoin human rights','privilege of currency','first world privilege'],
+      answer: "Alex Gladstein's 'Check Your Financial Privilege' is a wake-up call, {name}! 🌍🦌 His core message: if you live in a country with a stable currency, functioning banks, and property rights — you are in the global minority. Only 13% of humans live in a liberal democracy with a reserve currency. The other 87%? They face inflation, capital controls, surveillance, and seizure. For a woman in Afghanistan, a dissident in China, or a family in Venezuela — Bitcoin isn't speculation. It's SURVIVAL. The ability to save in money that can't be debased or confiscated is a HUMAN RIGHT. Gladstein (VP of the Human Rights Foundation) has documented dozens of cases worldwide. Check your privilege. 🗽🧡",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    { keys: ['lindy effect','lindy','longer it survives','survived 15 years','bitcoin longevity','will bitcoin last','bitcoin survive'],
+      answer: "The Lindy Effect is one of the strongest arguments for Bitcoin, {name}! ⏳🦌 The concept: for non-perishable things like technologies and ideas, every day they survive INCREASES their expected remaining lifespan. Bitcoin has survived 15+ years of attacks, bans, crashes, FUD, and 470+ death declarations. Each year it survives makes it MORE likely to survive the NEXT year. At 15+ years, Bitcoin has outlasted 99.99% of all cryptocurrencies ever created. It's outlived countless 'Bitcoin killers.' The Lindy Effect says: the longer Bitcoin persists, the longer it WILL persist. Time is Bitcoin's greatest asset. And time is on our side. ⏰💪",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin for progressives','left wing bitcoin','liberal case for bitcoin','progressive case','bitcoin not right wing','bitcoin for everyone'],
+      answer: "Bitcoin isn't a left or right issue — it's a human rights issue, {name}! ✊🦌 The progressive case: Bitcoin fights wealth inequality (the Cantillon Effect means money printing benefits the rich FIRST). Bitcoin empowers the unbanked — 2 billion people worldwide have no bank account but many have phones. Bitcoin protects activists, journalists, and dissidents from financial censorship. Bitcoin is the ultimate tool against corporate and government financial surveillance. It enables direct peer-to-peer aid without NGO overhead. Bitcoin is open source, permissionless, and can't discriminate. Every progressive value — equality, access, anti-corruption, privacy — is served by Bitcoin. 🌍🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin cuba','bitcoin venezuela','bitcoin africa','bitcoin developing world','bitcoin authoritarian','bitcoin oppression','bitcoin third world','bitcoin unbanked','unbanked','underbanked','no bank account','developing countries','global south'],
+      answer: "Bitcoin is literally saving lives in authoritarian regimes, {name}! 🌍🦌 In Cuba, where the government controls all banking and currency, Bitcoiners can receive remittances without 10%+ fees. In Venezuela, where hyperinflation destroyed the bolívar, Bitcoin preserved families' life savings. In Nigeria, where the government banned crypto banking, peer-to-peer Bitcoin trading EXPLODED. In Afghanistan, women who can't legally own bank accounts can hold Bitcoin on a phone. In Lebanon, where banks froze everyone's accounts, Bitcoiners kept access to their money. For 4+ billion people living under authoritarian regimes, Bitcoin isn't an investment — it's an escape route from financial oppression. 🗽🔥",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    // ========================================
     // EXPANDED KB — recovered from broken/paywalled articles (Phase 2b)
     // ========================================
 
