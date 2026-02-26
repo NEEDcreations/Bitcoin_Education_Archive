@@ -128,6 +128,10 @@ const NACHO_KB = [
       answer: "The Lightning Network is Bitcoin's second layer — it enables instant, nearly-free payments. You can send fractions of a penny anywhere in the world in milliseconds! ⚡",
       channel: 'layer-2-lightning', channelName: 'Lightning Network' },
 
+    { keys: ['ecash','e-cash','cashu','fedimint','fedimints','chaumian mint','chaumian','what is ecash','what are fedimints'],
+      answer: "Ecash and Fedimints are privacy layers built on top of Bitcoin! 🔒🦌 Chaumian ecash (like Cashu) lets you send Bitcoin with blinded signatures — meaning the 'bank' (or mint) can't see who sent what to whom. Fedimints take it further: a federation of trusted guardians holds the Bitcoin, and users get ecash tokens they can spend privately and instantly. Think of it like a Bitcoin credit union run by a group of people you trust, with way more privacy than on-chain transactions. It's one of the most exciting developments in Bitcoin privacy right now! Check our Chaumian Mints channel for the deep dive.",
+      channel: 'chaumian-mints', channelName: 'Chaumian Mints & Ecash' },
+
     { keys: ['node','full node','run a node','bitcoin node','what is a node','why run a node'],
       answer: "A node is a computer that stores and verifies the entire Bitcoin blockchain. Running one means you don't have to trust anyone — you verify everything yourself! Don't trust, verify!",
       channel: 'nodes', channelName: 'Nodes' },
@@ -443,11 +447,12 @@ const NACHO_KB = [
 
 // Fallback if no match
 const FALLBACKS = [
-    "Hmm, that's a tough one, {name}. I don't have a great answer for that. Try searching the archive — there's probably a channel that covers it! 🔍",
-    "You know, I'm not sure about that one. I'm still learning! But this archive has 146 channels — there might be something in there. 🦌",
-    "That's a new one for me, {name}! Let me know if you find the answer in one of the channels — I'd love to learn too! 🧡",
-    "I wish I knew more about that. Try the One Stop Shop channel — it's got a bit of everything. And keep asking me stuff! I get smarter the more we talk. 🦌",
-    "Honestly, {name}, that's outside my wheelhouse right now. But I bet if you search for it, this archive has something useful. 🔍",
+    "Hmm, that one's outside my expertise, {name}! I'm a Bitcoin deer — it's what I know best. 🦌 Try asking me about wallets, mining, Lightning, or why Bitcoin is the future of money!",
+    "I'm not sure about that one — but I know a LOT about Bitcoin! 🧡 Want to know how the Lightning Network works? Or why self-custody matters? I've got 146 channels of knowledge ready for you!",
+    "That's a bit outside my lane, {name}! 🦌 I'm sharpest on Bitcoin topics — mining, halving, wallets, self-custody, you name it. What Bitcoin question can I tackle for you?",
+    "Hmm, I'm better at Bitcoin than that topic! 🦌💪 Try me with something like 'What is the halving?' or 'Why is Bitcoin important?' — I promise I won't let you down!",
+    "I wish I could help with that, but I'm all about Bitcoin, {name}! 🧡 Ask me anything about how it works, how to buy it, or why it's changing the world — that's my jam!",
+    "My antlers work best with Bitcoin questions! 🦌 Try asking about mining, wallets, the Lightning Network, or why 21 million matters. I've got answers for days!",
 ];
 
 // ---- Match user input to knowledge base ----
@@ -578,6 +583,96 @@ var OFF_TOPIC_PATTERNS = [
         "My favorite thing? Easy — when someone goes from 'What is Bitcoin?' to 'How do I run a node?' That journey is beautiful! 🦌 What's YOUR favorite thing about Bitcoin so far?",
         "I'm partial to Lightning Network content — it's like magic! ⚡ But honestly, I love all 146 channels equally. Okay, maybe the memes channel a little more. 😏"
     ]},
+    { pattern: /recipe|cook|cooking|baking|food|meal|dinner|lunch|breakfast|pizza|pasta|burger|sandwich/,
+      answers: [
+        "I eat grass, {name} — not much of a chef! 🦌🌿 But you know what pairs great with any meal? Stacking sats. What Bitcoin topic can I help with?",
+        "The only recipe I know: take 21 million coins, add scarcity, mix with decentralization, and let it simmer for a few decades. 🧑‍🍳🦌 Got a Bitcoin question?"
+    ]},
+    { pattern: /movie|film|netflix|tv show|series|watch|anime|manga/,
+      answers: [
+        "I don't watch TV, but I hear there are some great Bitcoin documentaries! 🎬🦌 Check our Movies & TV channel. Got a Bitcoin question I can help with?",
+        "My favorite movie? 'The Big Short' — because it shows exactly why Bitcoin was created! 🎬 Want to know about the financial crisis that inspired Bitcoin?"
+    ]},
+    { pattern: /sport|football|soccer|basketball|baseball|nfl|nba|super bowl|world cup|game score/,
+      answers: [
+        "I'm more of a 'watch the hashrate' kind of deer than a sports fan! 📊🦌 But Bitcoin and game theory actually have a lot in common — want to hear about that?",
+        "The only score I track is the block height, {name}! ⛓️ Sports aren't my thing, but Bitcoin strategy IS. What would you like to learn?"
+    ]},
+    { pattern: /car|drive|vehicle|truck|motorcycle|engine|tire|mechanic|tesla/,
+      answers: [
+        "I've got four hooves — no need for wheels! 🦌 But fun fact: you CAN buy a car with Bitcoin. Want to learn about where you can spend sats?",
+        "No car talk here, {name}! But if you're thinking about investments, ask me why Bitcoiners say 'stay humble, stack sats' instead of buying depreciating assets. 🧡"
+    ]},
+    { pattern: /school|homework|class|teacher|exam|study|university|college|math class|science class/,
+      answers: [
+        "The best education is right here — 146 channels of Bitcoin knowledge! 🎓🦌 Plus, if you're feeling ambitious, try our Bitcoin Scholar Certification Quest!",
+        "School is important, {name}! But Bitcoin education? That's life-changing. 🦌 What would you like to learn about Bitcoin today?"
+    ]},
+    { pattern: /music|song|singer|artist|concert|band|album|spotify|rap|hip hop|taylor swift|drake/,
+      answers: [
+        "My taste in music? Just the sweet sound of a confirmed transaction! 🎵🦌 Fun fact: we have a Bitcoin music channel — check it out! Got a Bitcoin question for me?",
+        "I can't carry a tune, but I CAN carry 21 million reasons to learn about Bitcoin! 🦌🎶 What topic interests you?"
+    ]},
+    { pattern: /relationship|dating|girlfriend|boyfriend|crush|love life|marriage|wife|husband/,
+      answers: [
+        "Love advice from a deer? Bold move, {name}! 🦌💛 I'm more of a 'commit to HODLing' kind of guy. Got a Bitcoin question instead?",
+        "The only long-term relationship I'm in is with the blockchain, {name}! ⛓️🦌 Want to talk about something I actually know — like Bitcoin?"
+    ]},
+    { pattern: /phone|iphone|android|samsung|apple|laptop|computer|tablet|gadget|device/,
+      answers: [
+        "I run on pure blockchain energy — no charger needed! 🦌🔋 But if you're looking for Bitcoin apps, ask me about the best Bitcoin wallets!",
+        "Tech talk isn't my specialty, but Bitcoin tech IS! 🦌 Want to hear about how the Lightning Network enables instant payments from your phone?"
+    ]},
+    { pattern: /health|diet|exercise|weight|workout|gym|sleep|sick|doctor|medicine|lose weight/,
+      answers: [
+        "I'm a deer — my health plan is grass, fresh air, and sound money! 🌿🦌 For Bitcoin health, though? Self-custody is the cure. What can I help you learn?",
+        "Healthy body, healthy portfolio! 💪🦌 I can't help with fitness, but I CAN help you understand why Bitcoin is the healthiest money ever created. Ask away!"
+    ]},
+    { pattern: /stock|stocks|stock market|invest in stocks|shares|index fund|s&p|dow jones|nasdaq|dividend/,
+      answers: [
+        "Stocks? I'm a Bitcoin deer, {name}! 🦌📈 But here's a fun comparison: Bitcoin has outperformed every stock index over any 4+ year period in its history. Want to know why?",
+        "The stock market is denominated in depreciating dollars — Bitcoin fixes that! 🦌 Want to learn about why Bitcoiners think differently about money?"
+    ]},
+    { pattern: /gold|silver|precious metal|commodity|commodities/,
+      answers: [
+        "Gold was money for thousands of years — but Bitcoin does everything gold does, better! 🥇🦌 It's scarcer (21M cap), more portable, more divisible, and verifiable in seconds. Want to hear the full comparison?",
+        "Gold bugs and Bitcoiners actually agree on a lot! Sound money, scarcity, distrust of central banks. 🦌 Bitcoin just takes it further. Want to learn about the Bitcoin Standard?"
+    ]},
+    { pattern: /real estate|house|housing|property|mortgage|rent/,
+      answers: [
+        "Housing prices look high because the dollar keeps losing value — that's inflation! 🏠🦌 Bitcoin fixes that. Want to understand how inflation steals your savings?",
+        "Fun fact: more and more Bitcoiners are buying homes with their gains! 🦌🏡 But the real question is — do you understand WHY Bitcoin keeps outperforming real estate? Ask me!"
+    ]},
+    { pattern: /nft|nfts|web3|metaverse|defi|yield farm|token|tokenomics|rug pull/,
+      answers: [
+        "NFTs, Web3, DeFi — most of it is just marketing for altcoin casinos, {name}. 🎰🦌 The real innovation? Bitcoin. The rest is noise. Want to know why Bitcoiners see it that way?",
+        "Here's the thing: Bitcoin ordinals exist if you want NFTs on the most secure network ever built. But 99% of the NFT space? Hype and rug pulls. 🦌 Want to learn about what makes Bitcoin different?"
+    ]},
+    { pattern: /how to make money|get rich|side hustle|passive income|make money online|free money/,
+      answers: [
+        "Get rich quick? That's not my style, {name}! 🦌 But 'get rich slowly with sound money'? Now THAT'S a strategy. It's called DCA — dollar cost averaging. Want to learn about it?",
+        "The best way to build wealth? Stop losing purchasing power to inflation and start saving in hard money. 🦌🧡 Ask me about dollar cost averaging into Bitcoin!"
+    ]},
+    { pattern: /meaning of life|capital of|learn to code|learn programming|teach me to code|programming language|javascript|python|html|css/,
+      answers: [
+        "That's outside my Bitcoin brain, {name}! 🦌 But you know what's worth learning about? How Bitcoin works. It combines cryptography, economics, and game theory — pretty cool stuff. Want to dive in?",
+        "I'm a Bitcoin deer, not a general knowledge deer! 🦌📚 Ask me about mining, wallets, Lightning, or why 21 million matters — that's where I shine!"
+    ]},
+    { pattern: /tell me about (?!bitcoin|btc|nacho|lightning|mining|wallet|seed|halving|satoshi|blockchain|node)/,
+      answers: [
+        "I'm a one-topic deer, {name} — and that topic is Bitcoin! 🦌🧡 Ask me anything about how it works, why it matters, or how to get started.",
+        "That's not in my wheelhouse, but Bitcoin sure is! 🦌 Try asking me about self-custody, mining, or why Bitcoin is the only crypto that matters."
+    ]},
+    { pattern: /animal|dog|cat|pet|horse|bird|fish|hamster|rabbit|snake|dinosaur/,
+      answers: [
+        "I'm the only animal you need to talk to, {name}! 🦌 I'm Nacho — a Bitcoin deer from New Hampshire. What would you like to learn about Bitcoin?",
+        "Other animals? The only animal in crypto worth knowing is this deer right here! 🦌💪 Got a Bitcoin question for me?"
+    ]},
+    { pattern: /^[a-z]{1,4}$|^lol$|^ok$|^no$|^yes$|^why$|^how$|^what$|^huh$|^hmm$|^idk$|^bruh$/,
+      answers: [
+        "That's a bit short for me to work with, {name}! 🦌 Try asking me a Bitcoin question like 'What is Bitcoin?' or 'How does mining work?'",
+        "I need a bit more to go on! 🦌 Ask me anything about Bitcoin — wallets, mining, Lightning, self-custody — I'm ready!"
+    ]},
 ];
 
 function checkOffTopic(input) {
@@ -696,6 +791,10 @@ function findAnswer(input) {
     var siteMatch = matchSiteNavigation(input);
     if (siteMatch) return siteMatch;
 
+    // SECOND: If it matches an off-topic pattern, bail early — don't let fuzzy KB scoring
+    // produce false matches on random non-Bitcoin questions
+    if (typeof checkOffTopic === 'function' && checkOffTopic(input)) return null;
+
     // NOTE: Current event detection moved AFTER KB topic matching.
     // This ensures questions like "What happened when China banned Bitcoin?"
     // get a KB answer instead of being routed to web search.
@@ -777,7 +876,9 @@ function findAnswer(input) {
     }
 
     // If we found a strong KB match, return it (even for current-event-like questions)
-    if (bestScore >= 40) return bestMatch;
+    // Score 50+ required — prevents false matches on random off-topic questions
+    // (40 was too low: common words like "what", "how", "is" would accumulate score)
+    if (bestScore >= 50) return bestMatch;
 
     // No KB match — check if this is a current event question (route to web search)
     if (isCurrentEventQuestion(input)) return null;
