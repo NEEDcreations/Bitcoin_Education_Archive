@@ -7,6 +7,13 @@
 (function() {
 'use strict';
 
+// ---- Admin check ----
+function isMarketAdmin() {
+    if (!auth || !auth.currentUser) return false;
+    var email = auth.currentUser.email || '';
+    return email === 'needcreations@gmail.com';
+}
+
 var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
     { id: 'general', name: 'General LightningMart', emoji: '🛒', desc: 'Buy & sell everything else' },
@@ -292,6 +299,7 @@ function renderListingDetail(container, listingId) {
         var savedItems = JSON.parse(localStorage.getItem('btc_market_saved') || '[]');
         var isSaved = savedItems.indexOf(l.id) !== -1;
         var isOwner = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.uid === l.sellerUid);
+        var isAdmin = isMarketAdmin();
 
         // Format price
         var priceDisplay = l.priceSats >= 1000000 ? (l.priceSats / 1000000).toFixed(2) + 'M sats' :
@@ -362,6 +370,7 @@ function renderListingDetail(container, listingId) {
                 '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\')" style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
                 '<button onclick="toggleMarketSave(\'' + l.id + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
                 '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice
             html += '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
@@ -705,8 +714,14 @@ window.markSold = function(listingId) {
 
 // ---- Delete Listing ----
 window.deleteListing = function(listingId) {
-    if (!confirm('Delete this listing?')) return;
-    db.collection('marketplace').doc(listingId).update({ status: 'deleted' }).then(function() {
+    if (!auth || !auth.currentUser) return;
+    var isAdmin = isMarketAdmin();
+    if (!confirm(isAdmin ? 'Admin: Delete this listing?' : 'Delete this listing?')) return;
+    db.collection('marketplace').doc(listingId).update({
+        status: 'deleted',
+        deletedBy: isAdmin ? 'admin' : 'owner',
+        deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }).then(function() {
         showToast('🗑️ Listing deleted');
         renderMarketplace();
     });
