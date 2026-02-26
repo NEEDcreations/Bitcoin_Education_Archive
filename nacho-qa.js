@@ -339,8 +339,13 @@ const NACHO_KB = [
       answer: "Bitcoin is the best store of value ever invented — scarce, portable, divisible, durable, verifiable, and uncensorable. It's digital gold but better in almost every way!",
       channel: 'money', channelName: 'Money' },
 
-    { keys: ['21 million','supply cap','how many bitcoin','total supply','limited supply'],
-      answer: "There will only ever be 21 million Bitcoin. Ever. No one can change this. About 19.5 million have been mined, and ~20% are estimated lost forever. Your sats are rarer than you think!",
+    { keys: ['21 million','supply cap','how many bitcoin','total supply','limited supply','max supply','exact supply'],
+      answer: "Fun fact: the total supply is actually slightly LESS than 21 million! 🤯 The exact number is 20,999,999.9769 BTC — that's 2,310,000 satoshis short of 21 million. Why? Because the block reward halves every 210,000 blocks, and since Bitcoin uses integer math (no decimals in satoshis), tiny fractions get truncated at each halving. Those lost fractions add up over 33 halving epochs! About 19.5M have been mined so far, and ~20% are estimated lost forever. Your sats are rarer than you think! 🦌",
+      channel: 'scarce', channelName: 'Scarce',
+      followUp: "🤔 Ask me: 'Show me the halving math' or 'Why not exactly 21 million?' or 'What is a halving?'" },
+
+    { keys: ['halving math','supply math','show me the math','why not exactly 21 million','why not 21 million','exact bitcoin math','supply calculation','bitcoin math'],
+      answer: "Here's why Bitcoin's supply is 20,999,999.9769 BTC, not 21,000,000: 🧮\\n\\nThe block reward starts at 50 BTC and halves every 210,000 blocks:\\n\\n⛏️ Epoch 0: 50 BTC × 210,000 = 10,500,000 BTC\\n⛏️ Epoch 1: 25 BTC × 210,000 = 5,250,000 BTC\\n⛏️ Epoch 2: 12.5 BTC × 210,000 = 2,625,000 BTC\\n⛏️ Epoch 3: 6.25 BTC × 210,000 = 1,312,500 BTC\\n⛏️ Epoch 4: 3.125 BTC × 210,000 = 656,250 BTC\\n...and so on for 33 epochs total.\\n\\nThe trick: Bitcoin uses integers (satoshis), not decimals. When 1 satoshi gets halved, it truncates to 0 — not 0.5. Those tiny rounding losses at each epoch after epoch 9 add up to exactly 2,310,000 missing satoshis (0.0231 BTC). The last satoshi is mined around the year 2140. After that: zero new Bitcoin, ever. ♾️🦌",
       channel: 'scarce', channelName: 'Scarce' },
 
     // === PRIVACY ===
