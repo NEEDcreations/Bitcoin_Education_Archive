@@ -445,6 +445,58 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     // ========================================
+    // EXPANDED KB — sourced from 220 fetched articles (Phase 2)
+    // ========================================
+
+    { keys: ['what backs bitcoin','backed by nothing','bitcoin backed by','intrinsic value','why is bitcoin valuable','what gives bitcoin value','value of bitcoin'],
+      answer: "Contrary to popular belief, Bitcoin IS backed by something, {name}! 💡🦌 It's backed by the only thing that backs ANY form of money: the credibility of its monetary properties. From the Nakamoto Institute: 'Monetary goods possess unique properties — scarcity, durability, portability, divisibility, fungibility, and verifiability.' Bitcoin has ALL of these, and does them BETTER than any money in history. Gold isn't backed by anything either — it's valuable because of its properties. Bitcoin's properties are mathematically enforced by a network of thousands of nodes. No trust required, no government backing needed. The code IS the backing. 🔐🧡",
+      channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
+
+    { keys: ['bitcoin cant be copied','why not copy bitcoin','fork bitcoin','bitcoin copy','litecoin copy','bitcoin clone','why no second bitcoin'],
+      answer: "You can copy Bitcoin's code, but you can't copy its network, {name}! 🦌🔥 From Unchained: 'Whether by hard-forking (Bitcoin Cash), cloning (Litecoin), or creating a new protocol with \"better\" features (Ethereum), each is an attempt to create a new monetary network — and each has failed.' Why? Because Bitcoin's value comes from its NETWORK EFFECTS: thousands of nodes, massive hashrate, deep liquidity, 15+ years of unbroken operation, and an immaculate conception that can never be replicated. You can fork the code, but you can't fork the trust. It's like photocopying the Mona Lisa — technically identical, economically worthless. 🎨",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['cbdc','central bank digital','digital dollar','digital euro','government digital currency','fed digital','digital yuan'],
+      answer: "CBDCs are the OPPOSITE of Bitcoin, {name} — don't let anyone tell you otherwise! 🚨🦌 A Central Bank Digital Currency gives governments unprecedented surveillance power over every transaction you make. No more cash. Every purchase tracked. And the most troubling part: the government could CONTROL how you spend your money — expiration dates on your savings, restrictions on purchases, negative interest rates, account freezes. As one article from our site puts it: 'The most troubling aspect of a centrally managed digital currency is the potential for the government to control its use.' Bitcoin is the escape hatch. Self-custody, pseudonymous, uncensorable. CBDCs enslave. Bitcoin liberates. 🗽",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    { keys: ['ethereum cloud','ethereum nodes cloud','aws ethereum','amazon ethereum','ethereum centralized nodes','60 percent ethereum'],
+      answer: "Here's a damning fact from The Next Web, {name}: as of research, 61.6% of ALL Ethereum nodes run in the cloud — with Amazon Web Services ALONE hosting nearly 25% of them! 🏢🦌 That means Jeff Bezos's company could theoretically disrupt a quarter of the Ethereum network with one policy change. Compare that to Bitcoin: nodes run on Raspberry Pis, old laptops, and home servers worldwide. No single cloud provider, no single country, no single company controls a significant portion. THAT is real decentralization vs. marketing decentralization. Ethereum is DINO: Decentralized In Name Only. 🎭",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['bitcoin energy grid','grid balancing','bitcoin energy stabilize','demand response','curtailment','energy waste reduction'],
+      answer: "Bitcoin mining is actually the HERO of energy grids, {name}! ⚡🦌 From the research papers on our site: Bitcoin mining acts as a crucial grid balancer, supporting intermittent renewable energy. When there's excess solar or wind power with nowhere to go, miners USE it — preventing waste. When consumer demand spikes, miners can shut down INSTANTLY, freeing up power. And here's the kicker: methane from oil wells (84x more warming than CO2!) is being captured to mine Bitcoin instead of being flared into the atmosphere. Bitcoin creates a financial incentive to capture greenhouse gases. The energy FUD has it completely backwards! 🌍💪",
+      channel: 'energy', channelName: 'Energy' },
+
+    { keys: ['softwar','jason lowery','bitcoin warfare','proof of work warfare','power projection','bitcoin weapon','bitcoin military'],
+      answer: "Jason Lowery's Softwar thesis is mind-bending, {name}! 🧠🦌 The core idea: war is essentially 'proof of work' — nations expend energy, capital, and lives to determine property rights. Bitcoin's proof of work is a NON-LETHAL alternative. Instead of physical power projection through armies, Bitcoin enables power projection through computing. Nations can compete economically through hashrate rather than violence. As articles on our site describe: 'Bitcoin is a non-lethal weapons technology — a non-lethal physical power competition.' Enemies become frenemies, adversarial nations become de facto cooperators. Bitcoin doesn't just fix money — it could reduce war. 🕊️🔥",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['definancialization','great definancialization','parker lewis','financialization problem','wall street problem','too much finance'],
+      answer: "Parker Lewis's 'Bitcoin is the Great Definancialization' is essential reading, {name}! 📖🦌 The thesis: because fiat money constantly loses value, people are FORCED to become investors. You can't just save — your savings rot. So Wall Street sells you stocks, bonds, 401ks, index funds, real estate as 'investments.' The entire financial industry exists because money is BROKEN. Bitcoin fixes this. If your money holds or gains value over time, you don't NEED Wall Street. You just... save. In hard money. Bitcoin makes most of the financial industry obsolete by fixing the money itself. Save in sats, not stocks. 📈🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['glacier protocol','high security','large amount','cold storage protocol','serious security','institutional security','multisig setup'],
+      answer: "For serious Bitcoin security, check out the Glacier Protocol, {name}! 🏔️🦌 From our Self-Custody channel: it's a step-by-step guide for storing large amounts ($100K+) that thoroughly considers obscure attack vectors, malware infection paths, estate planning, and human error. Key principles: air-gapped computers, multisig setups, geographically distributed backups, and detailed procedures that minimize the chance of mistakes. Even if your holdings are modest NOW, consider this: if Bitcoin 10x's, your security needs change dramatically. Plan your custody like your future self will thank you! 🔐",
+      channel: 'self-custody', channelName: 'Self Custody' },
+
+    { keys: ['moxie','web3 critique','web3 centralized','web3 problems','decentralized apps','dapps problem'],
+      answer: "Moxie Marlinspike (creator of Signal) wrote the most devastating critique of Web3, {name}! 🔥🦌 His key finding: despite claiming decentralization, almost all 'decentralized' apps actually rely on a handful of centralized APIs. NFT images aren't stored on-chain — they're just URLs pointing to centralized servers. Most 'DeFi' runs through centralized front-ends. The 'decentralized web' mostly just added extra steps between you and the same centralized services. Meanwhile, Bitcoin ACTUALLY works without centralized intermediaries — 14,000+ nodes, each independently verifiable. Real decentralization doesn't need marketing. 🛡️",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
+
+    { keys: ['executive order 6102','gold confiscation','gold seizure','government took gold','forced to sell gold','gold illegal'],
+      answer: "On April 5, 1933, President Roosevelt signed Executive Order 6102, making it ILLEGAL for Americans to own gold, {name}! 🏛️🦌 Citizens were forced to surrender their gold to the Federal Reserve at $20.67/oz — under threat of 10 YEARS in prison and $10,000 fines. Then the government revalued gold to $35/oz, instantly stealing 40% of everyone's wealth. Americans couldn't legally own gold again until 1975. This is EXACTLY why Bitcoin matters: try confiscating math. Try seizing a memorized seed phrase. Try shutting down 14,000 nodes across 100+ countries. You can't 6102 Bitcoin. That's the whole point. 🔑🧡",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    { keys: ['lyn alden','lyn alden bitcoin','lyn alden misconceptions','broken money','macro case for bitcoin'],
+      answer: "Lyn Alden is one of the most respected macro analysts who became a Bitcoiner, {name}! 📊🦌 Her article 'Misconceptions About Bitcoin' dismantled every major critique: energy FUD, volatility concerns, 'backed by nothing' claims. She showed that MicroStrategy became the first major public company to put Bitcoin on its balance sheet — and the CEO's analysis drove the decision. Her book 'Broken Money' lays out the macro case: the global monetary system is literally broken, and Bitcoin is the most credible fix. When Wall Street analysts do the math honestly, they arrive at Bitcoin. 📈",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['nakamoto effect','reverse cantillon','bitcoin distribution','fair distribution','bitcoin fairness','equitable money'],
+      answer: "Bitcoin has what some call the 'Nakamoto Effect' — the OPPOSITE of the Cantillon Effect, {name}! ⚖️🦌 While fiat money printing benefits those closest to the money printer (banks, corporations, insiders), Bitcoin distributes new coins through WORK — mining. Anyone can mine. Anyone can buy. No insider access, no pre-allocation, no special deals. The rules are the same for a teenager in Nigeria and a billionaire in New York. And as Bitcoin appreciates, early believers who took the risk are rewarded — not political insiders who printed money for themselves. Fair money. Fair rules. Fair distribution. 🧡",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    // ========================================
     // EXPANDED KB — sourced from Fun Facts channel + PDFs
     // ========================================
 
@@ -862,7 +914,7 @@ var OFF_TOPIC_PATTERNS = [
         "Housing prices look high because the dollar keeps losing value — that's inflation! 🏠🦌 Bitcoin fixes that. Want to understand how inflation steals your savings?",
         "Fun fact: more and more Bitcoiners are buying homes with their gains! 🦌🏡 But the real question is — do you understand WHY Bitcoin keeps outperforming real estate? Ask me!"
     ]},
-    { pattern: /nft|nfts|web3|metaverse|defi|yield farm|token|tokenomics|rug pull/,
+    { pattern: /\bnft\b|\bnfts\b|metaverse|\bdefi\b|yield farm|\btoken\b|tokenomics|rug pull/,
       answers: [
         "NFTs, Web3, DeFi — most of it is just marketing for altcoin casinos, {name}. 🎰🦌 The real innovation? Bitcoin. The rest is noise. Want to know why Bitcoiners see it that way?",
         "Here's the thing: Bitcoin ordinals exist if you want NFTs on the most secure network ever built. But 99% of the NFT space? Hype and rug pulls. 🦌 Want to learn about what makes Bitcoin different?"
@@ -1032,6 +1084,11 @@ function findAnswer(input) {
         { pattern: /node\b|full node|run a node|bitcoin node/, key: 'node' },
         { pattern: /difficulty adjustment|mining difficulty/, key: 'difficulty adjustment' },
         { pattern: /privacy|kyc|coinjoin|anonymous/, key: 'privacy' },
+        { pattern: /definanciali|great definanciali/, key: 'definancialization' },
+        { pattern: /web3.*(?:wrong|problem|critique|scam|centrali)|moxie.*web3|wrong.*web3/, key: 'moxie' },
+        { pattern: /cbdc|central bank digital|digital dollar|digital euro|digital yuan/, key: 'cbdc' },
+        { pattern: /softwar|jason lowery|bitcoin.*warfare/, key: 'softwar' },
+        { pattern: /executive order 6102|gold confiscation|6102/, key: 'executive order 6102' },
     ];
     for (var ti = 0; ti < topicPatterns.length; ti++) {
         if (topicPatterns[ti].pattern.test(input)) {
