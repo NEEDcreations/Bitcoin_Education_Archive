@@ -1502,6 +1502,11 @@ function shortcutRow(key, desc) {
     return '<div><kbd style="background:var(--bg-side);border:1px solid var(--border);padding:2px 7px;border-radius:4px;font-family:monospace;font-size:0.75rem;color:var(--heading);min-width:20px;display:inline-block;text-align:center;">' + key + '</kbd></div><div style="color:var(--text-muted);font-size:0.8rem;">' + desc + '</div>';
 }
 
+// Alias for buttons that call showSettings()
+window.showSettings = function() {
+    showUsernamePrompt();
+};
+
 function showSettingsPage(tab) {
     settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
