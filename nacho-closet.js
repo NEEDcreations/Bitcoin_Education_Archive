@@ -298,7 +298,39 @@ window.renderNachoClosetUI = function(container) {
         }
     }
 
+    // ---- Nacho Preview (shows equipped item on deer) ----
+    var previewItem = equipped ? NACHO_ITEMS.find(function(i) { return i.id === equipped; }) : null;
+    var previewEmoji = '';
+    var previewOverlayStyle = '';
+    if (previewItem) {
+        previewEmoji = previewItem.hidden ? previewItem.revealEmoji : previewItem.emoji;
+        if (previewItem.overlay && previewItem.overlay.custom) previewEmoji = previewItem.overlay.custom;
+        // Build overlay positioning
+        var ovr = previewItem.overlay || {};
+        previewOverlayStyle = 'position:absolute;font-size:' + (ovr.fontSize || '1.5rem') + ';';
+        if (ovr.top) previewOverlayStyle += 'top:' + ovr.top + ';';
+        if (ovr.bottom) previewOverlayStyle += 'bottom:' + ovr.bottom + ';';
+        if (ovr.left) previewOverlayStyle += 'left:' + ovr.left + ';';
+        if (ovr.right) previewOverlayStyle += 'right:' + ovr.right + ';';
+        if (ovr.transform) previewOverlayStyle += 'transform:' + ovr.transform + ';';
+        previewOverlayStyle += 'z-index:5;pointer-events:none;';
+        // Apply color if set
+        if (previewItem.colorable) {
+            var savedHue = localStorage.getItem('btc_nacho_color_' + previewItem.id);
+            if (savedHue && savedHue !== '0deg') previewOverlayStyle += 'filter:hue-rotate(' + savedHue + ');';
+        }
+    }
+
     var html = '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🦌 Nacho\'s Closet</div>';
+
+    // Nacho preview avatar
+    html += '<div id="nachoClosetPreview" style="text-align:center;margin-bottom:16px;background:radial-gradient(circle,rgba(247,147,26,0.08) 0%,transparent 70%);border-radius:16px;padding:16px 0 8px;">' +
+        '<div style="position:relative;display:inline-block;width:120px;height:120px;">' +
+            '<img src="nacho-deer.svg" alt="Nacho" style="width:120px;height:120px;position:relative;z-index:2;">' +
+            (previewEmoji ? '<span id="nachoClosetOverlay" style="' + previewOverlayStyle + '">' + previewEmoji + '</span>' : '') +
+        '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">' + (previewItem ? '✨ Wearing: <strong style="color:var(--accent);">' + (previewItem.hidden ? previewItem.revealName : previewItem.name) + '</strong>' : 'No item equipped — tap one below!') + '</div>' +
+    '</div>';
 
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
         '<span style="color:var(--text);font-size:0.85rem;">Friendship: <strong style="color:var(--accent);">' + friendship.emoji + ' ' + friendship.name + '</strong></span>' +
