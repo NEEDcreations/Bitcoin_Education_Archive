@@ -1444,11 +1444,10 @@
                 /* Top bar: back + tools */
                 '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
                     '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
-                    '<div id="nachoModePrice" style="color:var(--accent);font-size:0.8rem;font-weight:700;"></div>' +
                     '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:12px;">' +
-                        '<button id="nachoEli5Btn" onclick="toggleNachoEli5()" style="background:none;border:none;font-size:1.6rem;cursor:pointer;padding:6px;opacity:0.5;touch-action:manipulation;transition:0.2s;" title="Explain Like I\'m 5">🧒</button>' +
-                        '<button onclick="nachoChatExport()" style="background:none;border:none;color:var(--text-muted);font-size:1.6rem;cursor:pointer;padding:6px;touch-action:manipulation;transition:0.2s;" title="Download chat">💾</button>' +
-                        '<button onclick="nachoChatClear()" style="background:none;border:none;color:var(--text-muted);font-size:1.6rem;cursor:pointer;padding:6px;touch-action:manipulation;transition:0.2s;" title="Clear chat">🗑️</button>' +
+                        '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:4px 6px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;gap:1px;" title="ELI5 Mode"><span style="font-size:1.4rem;">🧒</span><span style="font-size:0.5rem;color:var(--text-faint);">ELI5</span></button>' +
+                        '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:4px 6px;touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;gap:1px;" title="Save chat"><span style="font-size:1.4rem;">💾</span><span style="font-size:0.5rem;color:var(--text-faint);">Save</span></button>' +
+                        '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:4px 6px;touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;gap:1px;" title="Clear chat"><span style="font-size:1.4rem;">🗑️</span><span style="font-size:0.5rem;color:var(--text-faint);">Clear</span></button>' +
                         '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:36px;height:36px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);" onclick="exitNachoMode()" title="Go to Home">' +
                         '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="32" height="32" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
                     '</div>' +
@@ -1497,10 +1496,7 @@
         // Render equipped outfit on Nacho Mode avatar
         nachoModeRenderOutfit();
 
-        // Fetch BTC price and start refresh timer
-        setTimeout(fetchBtcPrice, 300);
-        if (window._btcPriceTimer) clearInterval(window._btcPriceTimer);
-        window._btcPriceTimer = setInterval(fetchBtcPrice, 60000);
+        // BTC price now shown in global ticker bar — no need for duplicate
 
         // Focus input
         setTimeout(function() {
@@ -1853,7 +1849,27 @@
             btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
             btn.title = window._nachoEli5 ? 'ELI5 Mode ON — Simple language' : 'Explain Like I\'m 5';
         }
-        if (typeof showToast === 'function') showToast(window._nachoEli5 ? '🧒 ELI5 Mode ON — Nacho will use simple language' : '🧒 ELI5 Mode OFF');
+        if (typeof showToast === 'function') showToast(window._nachoEli5 ? '🧒 ELI5 Mode ON — Nacho will use simple language!' : '🧒 ELI5 Mode OFF — Back to normal');
+    };
+
+    window.showEli5Prompt = function() {
+        var isOn = window._nachoEli5;
+        var html = '<div id="eli5Prompt" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10003;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
+                '<div style="font-size:2.5rem;margin-bottom:8px;">🧒</div>' +
+                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">ELI5 Mode</div>' +
+                '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">' +
+                    '<strong style="color:var(--accent);">Explain Like I\'m 5</strong><br><br>' +
+                    'When turned on, Nacho will answer your questions using super simple language — like explaining Bitcoin to a 5-year-old! 🦌<br><br>' +
+                    'Perfect for beginners or anyone who wants the basics without the jargon.' +
+                '</div>' +
+                '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:16px;">Currently: <strong style="color:' + (isOn ? '#22c55e' : 'var(--text-muted)') + ';">' + (isOn ? 'ON ✅' : 'OFF') + '</strong></div>' +
+                '<button onclick="toggleNachoEli5();document.getElementById(\'eli5Prompt\').remove()" style="width:100%;padding:14px;background:' + (isOn ? 'var(--card-bg)' : 'var(--accent)') + ';color:' + (isOn ? 'var(--text)' : '#fff') + ';border:' + (isOn ? '1px solid var(--border)' : 'none') + ';border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">' + (isOn ? '🧒 Turn OFF ELI5 Mode' : '🧒 Turn ON ELI5 Mode') + '</button>' +
+                '<button onclick="document.getElementById(\'eli5Prompt\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div></div>';
+        var div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div.firstChild);
     };
 
     // =============================================
