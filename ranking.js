@@ -1501,6 +1501,11 @@ function showSettingsPage(tab) {
     const box = modal.querySelector('.username-box');
     if (!modal || !box) return;
     const user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    // If no auth user resolved yet, show sign-up form instead of crashing
+    if (!user) {
+        modal.classList.add('open');
+        return;
+    }
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
 
     // X close button
