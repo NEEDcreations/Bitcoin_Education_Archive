@@ -2150,18 +2150,18 @@ function showSettingsPage(tab) {
             }
         }
 
-        // Nacho's Closet
-        if (typeof renderNachoClosetUI === 'function') {
-            html += '<div id="nachoClosetContainer" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;"></div>';
-
-        // Nacho Nickname
+        // Nacho Nickname (above closet so user names Nacho first)
         var nickname = typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Nacho</div>' +
             '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Give Nacho a nickname..." style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Give Nacho a nickname..." style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
             '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;">Save</button>' +
             '</div></div>';
+
+        // Nacho's Closet
+        if (typeof renderNachoClosetUI === 'function') {
+            html += '<div id="nachoClosetContainer" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;"></div>';
 
         // Sticker Book
         if (typeof renderStickerBook === 'function') {
