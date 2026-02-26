@@ -824,7 +824,7 @@
     <script src="nacho.js?v=12" defer></script>
     <script src="nacho-live.js?v=7" defer></script>
     <script src="nacho-engage.js?v=6" defer></script>
-    <script src="nacho-qa.js?v=17" defer></script>
+    <script src="nacho-qa.js?v=18" defer></script>
     <script src="nacho-closet.js?v=8" defer></script>
     <script src="forum.js?v=8" defer></script>
     <script src="engagement.js?v=6" defer></script>
@@ -2418,11 +2418,18 @@
         // Use unified pipeline (same logic as regular Nacho bubble)
         if (typeof nachoUnifiedAnswer === 'function') {
             nachoUnifiedAnswer(q, function(result) {
-                var channelLink = '';
-                if (result.channel) {
-                    channelLink = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                var extra = '';
+                if (result.siteAction) {
+                    extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
+                } else if (result.channel) {
+                    extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                 }
-                reply(result.answer + channelLink, result.type);
+                reply(result.answer + extra, result.type);
+
+
+
+
+
             });
             return;
         }
@@ -2437,11 +2444,13 @@
         setTimeout(function() {
             if (typeof nachoUnifiedAnswer === 'function') {
                 nachoUnifiedAnswer(q, function(result) {
-                    var channelLink = '';
-                    if (result.channel) {
-                        channelLink = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode();setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                    var extra = '';
+                    if (result.siteAction) {
+                        extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go \u2192') + '</button>';
+                    } else if (result.channel) {
+                        extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">\ud83d\udcd6 Read more: ' + (result.channelName || result.channel) + ' \u2192</a>';
                     }
-                    reply(result.answer + channelLink, result.type);
+                    reply(result.answer + extra, result.type);
                 });
             } else {
                 nachoModeFallbackReply(q, reply);

@@ -596,9 +596,90 @@ function checkOffTopic(input) {
     return null;
 }
 
+// ---- Site Navigation Awareness ----
+// Matches user questions about site features/pages and returns a Nacho-style answer with action button
+function matchSiteNavigation(input) {
+    var q = input.toLowerCase().replace(/[?!.,]/g, '').trim();
+    var SITE_NAV = [
+        { patterns: /where.*(setting|preference|profile|account|theme|dark mode|light mode)|how.*(change|edit|update).*(name|username|profile|theme|avatar)|setting|my account|my profile|change theme|dark mode|light mode|toggle theme/,
+          answer: "Settings is where you manage your profile, theme, tickets, referral link, and more! 🎛️",
+          action: "showSettings()", label: "⚙️ Open Settings" },
+        { patterns: /where.*(forum|community|discuss|chat|post)|how.*(post|discuss|talk)|community forum|where.*talk|where.*chat/,
+          answer: "The Community Forum is where Bitcoiners discuss, share ideas, and help each other! 🗣️",
+          action: "go('forum')", label: "🗣️ Go to Forum" },
+        { patterns: /where.*(market|shop|buy|sell|store)|how.*(buy|sell|list|trade)|marketplace|buy.*sell/,
+          answer: "The Marketplace is where you can buy and sell items for sats! ⚡",
+          action: "go('marketplace')", label: "🛒 Go to Marketplace" },
+        { patterns: /where.*(sign.?in|log.?in|register|create.*account|sign.?up)|how.*(sign|log|register|create.*account)|sign.?in|create.*account|log.?in/,
+          answer: "You can create an account or sign in to sync your progress across devices! 🔐",
+          action: "showUsernamePrompt()", label: "🔐 Sign In / Create Account" },
+        { patterns: /where.*(quest|test|quiz|challenge)|how.*(start|take|begin).*quest|start.*quest|take.*quiz/,
+          answer: "Quests are guided learning journeys that test your Bitcoin knowledge! ⚡",
+          action: "startQuestManual()", label: "⚡ Start a Quest" },
+        { patterns: /where.*(scholar|certif|exam|diploma)|scholar.*cert|bitcoin.*scholar/,
+          answer: "The Bitcoin Scholar Certification is the ultimate test — pass it and earn your certificate! 🎓",
+          action: "startScholarQuest()", label: "🎓 Scholar Certification" },
+        { patterns: /where.*(ticket|spin|wheel|giveaway|raffle)|how.*(earn|get|win).*ticket|orange ticket|daily spin|spin.*wheel/,
+          answer: "You can earn Orange Tickets by spinning the daily wheel, referrals, and exploring! 🎟️ Tickets enter you into giveaways.",
+          action: "showSpinWheel()", label: "🎡 Daily Spin" },
+        { patterns: /where.*(leaderboard|ranking|score|top|leader)|leaderboard|who.*(top|first|leading)|ranking/,
+          answer: "The Leaderboard shows the top Bitcoiners ranked by points! 🏆",
+          action: "toggleLeaderboard()", label: "🏆 Open Leaderboard" },
+        { patterns: /where.*(badge|achievement|trophy|goal)|my badge|how.*earn.*badge|badge.*progress/,
+          answer: "Your badges and goals are in the Leaderboard panel — check your progress! 🏅",
+          action: "toggleLeaderboard()", label: "🏆 View Badges" },
+        { patterns: /where.*(closet|outfit|dress|costume|customize)|nacho.*closet|dress.*nacho|customize.*nacho/,
+          answer: "Nacho's Closet is where you dress up your favorite deer with items you unlock! 👔🦌",
+          action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
+        { patterns: /where.*(referral|invite|share.*link)|referral|invite.*friend|share.*link|how.*refer/,
+          answer: "Your referral link is in Settings → you earn 50 Orange Tickets for each friend who joins! 🔗",
+          action: "showSettings()", label: "🔗 Open Settings" },
+        { patterns: /where.*(story|chapter|adventure|tale)|nacho.*story|read.*story/,
+          answer: "Nacho's Story is a daily Bitcoin adventure — one chapter unlocks each day! 📖",
+          action: "showNachoStory()", label: "📖 Read Story" },
+        { patterns: /where.*(predict|forecast|price predict)|price prediction|predict.*price/,
+          answer: "Price Prediction lets you guess if Bitcoin goes up or down in 24 hours! 📈",
+          action: "showPrediction()", label: "📈 Predict Price" },
+        { patterns: /where.*(home|main|start|beginning)|go.*home|back.*home|main.*page|home.*page/,
+          answer: "Home is where all the main features live — let me take you there! 🏠",
+          action: "goHome()", label: "🏠 Go Home" },
+        { patterns: /where.*(donate|support|tip|contribute)|how.*(donate|support|tip)|donate|support.*archive/,
+          answer: "You can support the archive with a Lightning donation — every sat helps! 💛",
+          action: "showDonateModal()", label: "💛 Donate" },
+        { patterns: /where.*(flashcard|study|study card)|flashcard|study card|how.*study/,
+          answer: "Flashcards are on the homepage — pick a topic and study to prepare for quests! 👩‍🎓",
+          action: "goHome()", label: "🏠 Go to Flashcards" },
+        { patterns: /where.*(map|exploration|progress|visited)|exploration.*map|which.*channel.*visited|my.*progress/,
+          answer: "The Exploration Map is on the homepage — it shows which channels you've visited! 🗺️",
+          action: "goHome()", label: "🗺️ View Map" },
+        { patterns: /where.*(keyboard|shortcut|hotkey)|keyboard.*short|shortcut/,
+          answer: "Press ? or K on your keyboard to see all shortcuts! ⌨️",
+          action: "showKeyboardHelp()", label: "⌨️ View Shortcuts" },
+        { patterns: /how.*(use|navigate|work).*site|how.*this.*work|what.*can.*do.*here|site.*guide|help.*navigate|tutorial/,
+          answer: "Welcome! Here's what you can do: 📚 Read 145+ Bitcoin channels, ⚡ Take quests, 🗣️ Post in the forum, 🛒 Trade on the marketplace, 🎡 Spin for tickets, and of course — talk to me! Start by exploring channels or ask me anything about Bitcoin. 🦌",
+          action: "goHome()", label: "🏠 Explore the Archive" },
+    ];
+
+    for (var i = 0; i < SITE_NAV.length; i++) {
+        if (SITE_NAV[i].patterns.test(q)) {
+            return {
+                answer: SITE_NAV[i].answer,
+                siteAction: SITE_NAV[i].action,
+                siteLabel: SITE_NAV[i].label,
+                isSiteNav: true
+            };
+        }
+    }
+    return null;
+}
+
 function findAnswer(input) {
     input = input.toLowerCase().trim();
     if (input.length < 2) return null;
+
+    // FIRST: Check if user is asking about a site feature/page
+    var siteMatch = matchSiteNavigation(input);
+    if (siteMatch) return siteMatch;
 
     // If the question is about current events, skip local KB — let web search handle it
     if (isCurrentEventQuestion(input)) return null;
@@ -1133,6 +1214,11 @@ function renderNachoAnswer(textEl, answerHtml, match) {
     var financeWords = /buy|sell|invest|price|dca|dollar cost|purchase|portfolio|return|profit|strategy|retirement/;
     if (financeWords.test(lastQ) || financeWords.test(answerLower)) {
         html += FINANCIAL_DISCLAIMER;
+    }
+
+    // Site navigation action button
+    if (match && match.isSiteNav && match.siteAction) {
+        html += '<button onclick="' + match.siteAction + ';hideBubble();" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + match.siteLabel + '</button>';
     }
 
     if (match && match.channel && match.channelName) {
@@ -1742,6 +1828,12 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var kbMatch = null;
     var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
     kbMatch = liveMatch || findAnswer(q);
+
+    // ---- STEP 3b: Site navigation (always takes priority over AI) ----
+    if (kbMatch && kbMatch.isSiteNav) {
+        callback({ type: 'site', answer: pq(kbMatch.answer), siteAction: kbMatch.siteAction, siteLabel: kbMatch.siteLabel });
+        return;
+    }
 
     // ---- STEP 4: AI is the PRIMARY BRAIN ----
     if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
