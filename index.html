@@ -215,10 +215,10 @@
         .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-muted); font-size: 0.8rem; }
 
         /* Username Modal */
-        #usernameModal { display: none; position: fixed; inset: 0; background: var(--overlay); z-index: 10000; justify-content: center; align-items: flex-start; padding: 20px 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        #usernameModal.open { display: flex; }
-        .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; margin: auto; flex-shrink: 0; }
-        @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; } }
+        #usernameModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--overlay); z-index: 10000; overflow-y: scroll; -webkit-overflow-scrolling: touch; }
+        #usernameModal.open { display: block; }
+        .username-box { background: var(--bg-side); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; margin: 20px auto; position: relative; }
+        @media (max-width: 900px) { .username-box { padding: 20px 16px; width: 95%; margin: 10px auto; } }
         .username-box h2 { color: #fff; margin-bottom: 8px; font-size: 1.5rem; }
         .username-box p { color: #64748b; margin-bottom: 24px; font-size: 0.95rem; }
         .username-box input { width: 100%; padding: 14px 18px; background: #020617; border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 1rem; font-family: inherit; outline: none; margin-bottom: 16px; text-align: center; }
@@ -765,8 +765,8 @@
     <div id="questModal" onclick="if(event.target===this)closeQuest()"><div id="questInner"></div></div>
     <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:20px;right:20px;z-index:140;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆 Leaderboard</button>
     <div id="leaderboard"></div>
-    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()" style="overflow-y:auto!important;-webkit-overflow-scrolling:touch;">
-        <div class="username-box" style="position:relative;flex-shrink:0;">
+    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
+        <div class="username-box">
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning points as you explore the archive!</p>
             <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
