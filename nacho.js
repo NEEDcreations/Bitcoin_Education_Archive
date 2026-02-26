@@ -917,12 +917,10 @@ window.nachoClick = function() {
     }
 
     // Smart pool based on user tier (same logic as auto messages)
-    var clickInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
     var clickVisits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-    var clickChannels = (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels) ? currentUser.readChannels.length : 0;
     var clickTier = 'new';
-    if (clickVisits >= 30 || clickChannels >= 50 || clickInteractions >= 100) clickTier = 'veteran';
-    else if (clickVisits >= 5 || clickChannels >= 10 || clickInteractions >= 20) clickTier = 'regular';
+    if (clickVisits >= 31) clickTier = 'veteran';
+    else if (clickVisits >= 10) clickTier = 'regular';
 
     var clickPool;
     if (clickTier === 'new') clickPool = [...TIPS, ...TIPS, ...MOTIVATION, ...FUN]; // Heavy tips
@@ -1204,34 +1202,37 @@ function periodicMessage() {
     }
 
     // Smart message selection based on user experience level
-    var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
     var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-    var channels = (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels) ? currentUser.readChannels.length : JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
 
     // Determine user tier
     // NEW: < 5 visits, < 10 channels — needs onboarding tips
     // REGULAR: 5-30 visits, 10-50 channels — mix of tips + fun
     // VETERAN: 30+ visits, 50+ channels — mostly fun, advanced tips only
+    // Tier based on visits only (simple, predictable)
+    // NEW: < 10 visits — onboarding + closet (hook them!)
+    // REGULAR: 10-30 visits — balanced
+    // VETERAN: 31+ visits — entertainment
     var tier = 'new';
-    if (visits >= 30 || channels >= 50 || interactions >= 100) tier = 'veteran';
-    else if (visits >= 5 || channels >= 10 || interactions >= 20) tier = 'regular';
+    if (visits >= 31) tier = 'veteran';
+    else if (visits >= 10) tier = 'regular';
 
     var pool;
     var roll = Math.random();
 
     if (tier === 'new') {
-        // New users: 60% tips, 20% motivation, 20% fun
-        if (roll < 0.60) pool = TIPS;
+        // New users: 45% tips, 15% closet (fun hook!), 20% motivation, 20% fun
+        if (typeof NACHO_CLOSET_TIPS !== 'undefined' && roll < 0.15) pool = NACHO_CLOSET_TIPS;
+        else if (roll < 0.60) pool = TIPS;
         else if (roll < 0.80) pool = MOTIVATION;
         else pool = FUN;
     } else if (tier === 'regular') {
-        // Regular users: 30% tips, 25% motivation, 35% fun, 10% closet
+        // Regular users: 30% tips, 10% closet, 25% motivation, 35% fun
         if (typeof NACHO_CLOSET_TIPS !== 'undefined' && roll < 0.10) pool = NACHO_CLOSET_TIPS;
         else if (roll < 0.40) pool = FUN;
         else if (roll < 0.70) pool = TIPS;
         else pool = MOTIVATION;
     } else {
-        // Veterans: 10% tips (advanced only), 25% motivation, 50% fun, 15% closet
+        // Veterans: 10% tips, 15% closet, 25% motivation, 50% fun
         if (typeof NACHO_CLOSET_TIPS !== 'undefined' && roll < 0.15) pool = NACHO_CLOSET_TIPS;
         else if (roll < 0.65) pool = FUN;
         else if (roll < 0.90) pool = MOTIVATION;
