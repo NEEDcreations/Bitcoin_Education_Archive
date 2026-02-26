@@ -601,7 +601,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         return convoRef.collection('messages').add(msgData);
     }).catch(function(err) {
         console.error('DM send error:', err);
-        if (typeof showToast === 'function') showToast('Failed to send message. Check your connection.');
+        if (typeof showToast === 'function') showToast('Failed to send: ' + (err.code || err.message || 'Unknown error'));
     });
 };
 
