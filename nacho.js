@@ -908,10 +908,22 @@ window.nachoClick = function() {
         return;
     }
 
-    const all = [...FUN, ...TIPS, ...MOTIVATION];
-    const unshown = all.filter(m => !shownMessages.has(m.text));
-    const pool = unshown.length > 3 ? unshown : all;
-    const msg = pickRandom(pool);
+    // Smart pool based on user tier (same logic as auto messages)
+    var clickInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+    var clickVisits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+    var clickChannels = (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels) ? currentUser.readChannels.length : 0;
+    var clickTier = 'new';
+    if (clickVisits >= 30 || clickChannels >= 50 || clickInteractions >= 100) clickTier = 'veteran';
+    else if (clickVisits >= 5 || clickChannels >= 10 || clickInteractions >= 20) clickTier = 'regular';
+
+    var clickPool;
+    if (clickTier === 'new') clickPool = [...TIPS, ...TIPS, ...MOTIVATION, ...FUN]; // Heavy tips
+    else if (clickTier === 'regular') clickPool = [...TIPS, ...FUN, ...FUN, ...MOTIVATION];
+    else clickPool = [...FUN, ...FUN, ...FUN, ...MOTIVATION]; // Mostly fun for vets
+
+    var clickUnshown = clickPool.filter(m => !shownMessages.has(m.text));
+    var clickFinal = clickUnshown.length > 3 ? clickUnshown : clickPool;
+    const msg = pickRandom(clickFinal);
     lastBubbleTime = 0; // Override interval for clicks
     setPose(msg.pose);
     forceShowBubble(msg.text, msg.pose);
@@ -1107,12 +1119,48 @@ function periodicMessage() {
         if (newItem) { forceShowBubble(newItem.text, newItem.pose); if (typeof nachoPlaySound === 'function') nachoPlaySound('coin'); return; }
     }
 
-    // Mix in closet tips occasionally
-    var allPools = [TIPS, MOTIVATION, FUN];
-    if (typeof NACHO_CLOSET_TIPS !== 'undefined' && Math.random() < 0.15) allPools.push(NACHO_CLOSET_TIPS);
-    const pool = pickRandom(allPools);
-    const unshown = pool.filter(m => !shownMessages.has(m.text));
-    if (unshown.length === 0) return;
+    // Smart message selection based on user experience level
+    var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+    var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+    var channels = (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels) ? currentUser.readChannels.length : JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+
+    // Determine user tier
+    // NEW: < 5 visits, < 10 channels — needs onboarding tips
+    // REGULAR: 5-30 visits, 10-50 channels — mix of tips + fun
+    // VETERAN: 30+ visits, 50+ channels — mostly fun, advanced tips only
+    var tier = 'new';
+    if (visits >= 30 || channels >= 50 || interactions >= 100) tier = 'veteran';
+    else if (visits >= 5 || channels >= 10 || interactions >= 20) tier = 'regular';
+
+    var pool;
+    var roll = Math.random();
+
+    if (tier === 'new') {
+        // New users: 60% tips, 20% motivation, 20% fun
+        if (roll < 0.60) pool = TIPS;
+        else if (roll < 0.80) pool = MOTIVATION;
+        else pool = FUN;
+    } else if (tier === 'regular') {
+        // Regular users: 30% tips, 25% motivation, 35% fun, 10% closet
+        if (typeof NACHO_CLOSET_TIPS !== 'undefined' && roll < 0.10) pool = NACHO_CLOSET_TIPS;
+        else if (roll < 0.40) pool = FUN;
+        else if (roll < 0.70) pool = TIPS;
+        else pool = MOTIVATION;
+    } else {
+        // Veterans: 10% tips (advanced only), 25% motivation, 50% fun, 15% closet
+        if (typeof NACHO_CLOSET_TIPS !== 'undefined' && roll < 0.15) pool = NACHO_CLOSET_TIPS;
+        else if (roll < 0.65) pool = FUN;
+        else if (roll < 0.90) pool = MOTIVATION;
+        else pool = TIPS;
+    }
+
+    var unshown = pool.filter(m => !shownMessages.has(m.text));
+    if (unshown.length === 0) {
+        // Fallback: try any pool
+        var fallback = [...FUN, ...MOTIVATION];
+        unshown = fallback.filter(m => !shownMessages.has(m.text));
+        if (unshown.length === 0) return;
+    }
     const msg = pickRandom(unshown);
     showBubble(msg.text, msg.pose);
 }
