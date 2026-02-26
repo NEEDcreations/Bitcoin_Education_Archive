@@ -238,7 +238,7 @@ window.forumLoadPosts = async function() {
                         '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
                         (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                            '<span style="font-size:0.7rem;color:var(--text-faint);">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                            '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;color:var(--text-faint);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-faint)\'">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                             '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                             '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
                             (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
@@ -283,7 +283,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;transition:0.2s;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
             '</div>';
 
@@ -363,7 +363,7 @@ async function forumLoadReplies(postId) {
             var canDeleteReply = (auth && auth.currentUser && r.authorId === auth.currentUser.uid) || isForumAdmin();
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;">' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                    '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;transition:0.2s;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
