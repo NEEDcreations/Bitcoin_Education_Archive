@@ -162,7 +162,9 @@ function initRanking() {
             }
         });
     } catch(e) {
-        console.log('Ranking init error:', e);
+        console.error('Ranking init error:', e);
+        // Show visible error for debugging
+        setTimeout(function() { if (typeof showToast === 'function') showToast('⚠️ Init error: ' + (e.message || e)); }, 2000);
     }
 }
 
@@ -1502,6 +1504,12 @@ function shortcutRow(key, desc) {
 
 // Alias for buttons that call showSettings()
 window.showSettings = function() {
+    if (typeof auth === 'undefined' || !auth) {
+        if (typeof showToast === 'function') showToast('⚠️ Still loading... try again in a moment');
+        // Try re-init if it failed
+        if (typeof initRanking === 'function') initRanking();
+        return;
+    }
     showUsernamePrompt();
 };
 
