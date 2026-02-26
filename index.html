@@ -1352,6 +1352,9 @@
         window._nachoMode = true;
         window._nachoBusy = true; // suppress ALL popups
         window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
+        window._nachoModeStartTime = Date.now();
+        window._nachoModeTopics = []; // Track user questions for conversation quiz
+        window._nachoConvoQuizOffered = false;
 
         // Hook into awardPoints to track earnings during Nacho Mode
         if (!window._nachoPointsHooked) {
@@ -2126,6 +2129,150 @@
     }
 
     // Show thinking indicator
+    // ---- Conversation Quiz: generated from topics discussed ----
+    function offerConversationQuiz() {
+        if (!window._nachoMode) return;
+        var topics = window._nachoModeTopics || [];
+        if (topics.length < 3) return;
+
+        // Build quiz from conversation history + QUEST_QUESTIONS
+        var quizQuestions = [];
+        if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+            // Try to match questions to topics the user asked about
+            for (var t = 0; t < topics.length && quizQuestions.length < 5; t++) {
+                var topicWords = topics[t].toLowerCase().split(/\s+/);
+                for (var qi = 0; qi < QUEST_QUESTIONS.length && quizQuestions.length < 5; qi++) {
+                    var qq = QUEST_QUESTIONS[qi];
+                    if (quizQuestions.indexOf(qq) !== -1) continue;
+                    var qText = (qq.question + ' ' + (qq.category || '')).toLowerCase();
+                    for (var w = 0; w < topicWords.length; w++) {
+                        if (topicWords[w].length > 3 && qText.indexOf(topicWords[w]) !== -1) {
+                            quizQuestions.push(qq);
+                            break;
+                        }
+                    }
+                }
+            }
+            // Fill remaining with random questions
+            while (quizQuestions.length < 3) {
+                var rq = QUEST_QUESTIONS[Math.floor(Math.random() * QUEST_QUESTIONS.length)];
+                if (quizQuestions.indexOf(rq) === -1) quizQuestions.push(rq);
+            }
+        }
+
+        if (quizQuestions.length === 0) return;
+
+        // Offer the quiz
+        var offerHtml = '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,88,12,0.1));border:2px solid var(--accent);border-radius:14px;padding:16px;text-align:center;">' +
+            '<div style="font-size:1.2rem;margin-bottom:4px;">🎯</div>' +
+            '<div style="font-weight:800;color:var(--heading);font-size:0.95rem;margin-bottom:4px;">Conversation Quest!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">You\'ve been learning a lot! Let\'s see how much you remember from our chat.</div>' +
+            '<div style="display:flex;gap:8px;justify-content:center;">' +
+                '<button onclick="startConversationQuiz()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Let\'s go! ⚡</button>' +
+                '<button onclick="this.parentElement.parentElement.style.opacity=\'0.4\';this.parentElement.parentElement.style.pointerEvents=\'none\'" style="padding:10px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Maybe later</button>' +
+            '</div></div>';
+        nachoChatAppend('nacho', '', offerHtml);
+
+        // Store quiz for when they accept
+        window._convoQuizQuestions = quizQuestions;
+    }
+
+    window.startConversationQuiz = function() {
+        var questions = window._convoQuizQuestions || [];
+        if (questions.length === 0) return;
+        window._convoQuizIdx = 0;
+        window._convoQuizScore = 0;
+        window._convoQuizTotal = Math.min(questions.length, 5);
+        showConvoQuizQuestion();
+    };
+
+    function showConvoQuizQuestion() {
+        var questions = window._convoQuizQuestions || [];
+        var idx = window._convoQuizIdx || 0;
+        if (idx >= window._convoQuizTotal || idx >= questions.length) {
+            finishConvoQuiz();
+            return;
+        }
+        var q = questions[idx];
+        var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:6px;">Question ' + (idx + 1) + ' of ' + window._convoQuizTotal + '</div>' +
+            '<div style="color:var(--text);font-size:0.85rem;margin-bottom:10px;font-weight:600;">' + escapeHtml(q.question) + '</div>';
+        var opts = q.options || [];
+        for (var i = 0; i < opts.length; i++) {
+            var isCorrect = i === q.answer;
+            html += '<button onclick="convoQuizAnswer(this,' + isCorrect + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        }
+        html += '</div>';
+        nachoChatAppend('nacho', '', html);
+    }
+
+    window.convoQuizAnswer = function(btn, correct) {
+        var parent = btn.parentElement;
+        var buttons = parent.querySelectorAll('button');
+        buttons.forEach(function(b) {
+            b.disabled = true;
+            b.style.cursor = 'default';
+            b.style.opacity = '0.6';
+        });
+
+        if (correct) {
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#22c55e';
+            btn.style.opacity = '1';
+            window._convoQuizScore = (window._convoQuizScore || 0) + 1;
+            var correctDiv = document.createElement('div');
+            correctDiv.style.cssText = 'margin-top:6px;color:#22c55e;font-size:0.8rem;font-weight:700;';
+            correctDiv.textContent = '✅ Correct!';
+            parent.appendChild(correctDiv);
+        } else {
+            btn.style.background = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.style.opacity = '1';
+            buttons.forEach(function(b) {
+                if (b !== btn && b.getAttribute('onclick') && b.getAttribute('onclick').indexOf('true') !== -1) {
+                    b.style.background = '#22c55e'; b.style.color = '#fff'; b.style.borderColor = '#22c55e'; b.style.opacity = '1';
+                }
+            });
+            var wrongDiv = document.createElement('div');
+            wrongDiv.style.cssText = 'margin-top:6px;color:#ef4444;font-size:0.8rem;font-weight:700;';
+            wrongDiv.textContent = '❌ Not quite!';
+            parent.appendChild(wrongDiv);
+        }
+
+        // Next question after delay
+        window._convoQuizIdx = (window._convoQuizIdx || 0) + 1;
+        setTimeout(showConvoQuizQuestion, 1500);
+    };
+
+    function finishConvoQuiz() {
+        var score = window._convoQuizScore || 0;
+        var total = window._convoQuizTotal || 3;
+        var pct = Math.round((score / total) * 100);
+        var pts = score * 5; // 5 pts per correct answer
+
+        var emoji = pct >= 80 ? '🏆' : pct >= 60 ? '⭐' : pct >= 40 ? '💪' : '📚';
+        var msg = pct >= 80 ? 'Outstanding! You really paid attention!' :
+                  pct >= 60 ? 'Great job! You learned a lot from our chat!' :
+                  pct >= 40 ? 'Not bad! Keep learning and you\'ll get there!' :
+                  'Keep going! Every question is a learning opportunity!';
+
+        var html = '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,88,12,0.1));border:2px solid ' + (pct >= 60 ? '#22c55e' : 'var(--accent)') + ';border-radius:14px;padding:20px;text-align:center;">' +
+            '<div style="font-size:2rem;margin-bottom:8px;">' + emoji + '</div>' +
+            '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">Conversation Quest Complete!</div>' +
+            '<div style="font-size:1.2rem;font-weight:900;color:var(--accent);margin-bottom:4px;">' + score + '/' + total + ' correct</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">' + msg + '</div>' +
+            (pts > 0 ? '<div style="color:#22c55e;font-weight:700;font-size:0.9rem;">+' + pts + ' pts earned! 🎉</div>' : '') +
+        '</div>';
+        nachoChatAppend('nacho', '', html);
+
+        if (pts > 0) {
+            if (typeof awardPoints === 'function') awardPoints(pts, '🎯 Conversation Quest!');
+            if (typeof showToast === 'function') showToast('🎯 +' + pts + ' pts — Conversation Quest!');
+        }
+    }
+
     function nachoChatThinking() {
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
@@ -2196,9 +2343,22 @@
         // Start talking animation
         nachoModeStartTalking();
 
-        // Track interaction
+        // Track interaction + topic for conversation quiz
         if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
         window._nachoModeEarnings.interactions++;
+        if (window._nachoModeTopics && q.length > 10) {
+            window._nachoModeTopics.push(q);
+        }
+
+        // Check if it's time for a conversation quiz (15+ min, 5+ questions)
+        if (!window._nachoConvoQuizOffered && window._nachoModeStartTime && window._nachoModeTopics) {
+            var minsInMode = (Date.now() - window._nachoModeStartTime) / 60000;
+            if (minsInMode >= 15 && window._nachoModeTopics.length >= 5) {
+                window._nachoConvoQuizOffered = true;
+                // Delay so current Q&A finishes first
+                setTimeout(function() { offerConversationQuiz(); }, 8000);
+            }
+        }
 
         // Show user message + save
         nachoChatAdd('user', q);
