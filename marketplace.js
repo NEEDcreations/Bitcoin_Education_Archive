@@ -16,7 +16,7 @@ function isMarketAdmin() {
 
 var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
-    { id: 'general', name: 'General LightningMart', emoji: '🛒', desc: 'Buy & sell everything else' },
+    { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
