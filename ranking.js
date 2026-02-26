@@ -1609,6 +1609,10 @@ function showSettingsPage(tab) {
         var website = currentUser ? currentUser.website || '' : '';
         var twitter = currentUser ? currentUser.twitter || '' : '';
         var nostr = currentUser ? currentUser.nostr || '' : '';
+        var instagram = currentUser ? currentUser.instagram || '' : '';
+        var tiktok = currentUser ? currentUser.tiktok || '' : '';
+        var github = currentUser ? currentUser.github || '' : '';
+        var contactEmail = currentUser ? currentUser.contactEmail || '' : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📝 Public Profile</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Visible when someone clicks your name on the leaderboard</div>' +
@@ -1620,6 +1624,14 @@ function showSettingsPage(tab) {
             '<input type="text" id="profileTwitter" value="' + escapeHtml(twitter) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
             '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🟣 Nostr</label>' +
             '<input type="text" id="profileNostr" value="' + escapeHtml(nostr) + '" placeholder="npub... or NIP-05" maxlength="80" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">📸 Instagram</label>' +
+            '<input type="text" id="profileInstagram" value="' + escapeHtml(instagram) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🎵 TikTok</label>' +
+            '<input type="text" id="profileTiktok" value="' + escapeHtml(tiktok) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🐙 GitHub</label>' +
+            '<input type="text" id="profileGithub" value="' + escapeHtml(github) + '" placeholder="yourusername" maxlength="40" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">📧 Contact Email <span style="color:var(--text-faint);font-size:0.7rem;">(public)</span></label>' +
+            '<input type="email" id="profileContactEmail" value="' + escapeHtml(contactEmail) + '" placeholder="you@example.com" maxlength="80" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
             '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">⚡ Lightning Address</label>' +
             '<input type="text" id="profileLightning" value="' + escapeHtml(currentUser ? currentUser.lightning || '' : '') + '" placeholder="you@walletofsatoshi.com" maxlength="80" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px;-webkit-appearance:none;">' +
             '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
@@ -2207,6 +2219,10 @@ async function saveProfile() {
     var website = (document.getElementById('profileWebsite').value || '').trim().substring(0, 100);
     var twitter = (document.getElementById('profileTwitter').value || '').trim().substring(0, 30);
     var nostr = (document.getElementById('profileNostr').value || '').trim().substring(0, 80);
+    var instagram = (document.getElementById('profileInstagram').value || '').trim().substring(0, 30);
+    var tiktok = (document.getElementById('profileTiktok').value || '').trim().substring(0, 30);
+    var github = (document.getElementById('profileGithub').value || '').trim().substring(0, 40);
+    var contactEmail = (document.getElementById('profileContactEmail').value || '').trim().substring(0, 80);
     var lightning = (document.getElementById('profileLightning').value || '').trim().substring(0, 80);
 
     // Validate bio
@@ -2224,17 +2240,26 @@ async function saveProfile() {
         return;
     }
 
-    // Clean twitter handle
+    // Clean handles
     if (twitter) twitter = twitter.replace(/^@/, '');
+    if (instagram) instagram = instagram.replace(/^@/, '');
+    if (tiktok) tiktok = tiktok.replace(/^@/, '');
+    if (github) github = github.replace(/^@/, '');
 
     try {
         await db.collection('users').doc(auth.currentUser.uid).update({
-            bio: bio, website: website, twitter: twitter, nostr: nostr, lightning: lightning
+            bio: bio, website: website, twitter: twitter, nostr: nostr,
+            instagram: instagram, tiktok: tiktok, github: github, contactEmail: contactEmail,
+            lightning: lightning
         });
         currentUser.bio = bio;
         currentUser.website = website;
         currentUser.twitter = twitter;
         currentUser.nostr = nostr;
+        currentUser.instagram = instagram;
+        currentUser.tiktok = tiktok;
+        currentUser.github = github;
+        currentUser.contactEmail = contactEmail;
         currentUser.lightning = lightning;
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
     } catch(e) {
@@ -2251,7 +2276,7 @@ async function showUserProfile(userId) {
         var lv = getLevel(d.points || 0);
 
         // Check if they have any profile data
-        var hasBio = d.bio || d.website || d.twitter || d.nostr;
+        var hasBio = d.bio || d.website || d.twitter || d.nostr || d.instagram || d.tiktok || d.github || d.contactEmail;
 
         var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.remove()">' +
             '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;">' +
@@ -2277,6 +2302,10 @@ async function showUserProfile(userId) {
         if (d.website) links.push('<a href="' + escapeHtml(d.website) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">🌐 Website</a>');
         if (d.twitter) links.push('<a href="https://x.com/' + escapeHtml(d.twitter) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">𝕏 @' + escapeHtml(d.twitter) + '</a>');
         if (d.nostr) links.push('<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + escapeHtml(d.nostr) + '\');this.textContent=\'🟣 Copied!\';setTimeout(function(){}.bind(this),1500);" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--accent);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🟣 ' + escapeHtml(d.nostr.substring(0, 20)) + (d.nostr.length > 20 ? '...' : '') + ' 📋</button>');
+        if (d.instagram) links.push('<a href="https://instagram.com/' + escapeHtml(d.instagram) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">📸 @' + escapeHtml(d.instagram) + '</a>');
+        if (d.tiktok) links.push('<a href="https://tiktok.com/@' + escapeHtml(d.tiktok) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">🎵 @' + escapeHtml(d.tiktok) + '</a>');
+        if (d.github) links.push('<a href="https://github.com/' + escapeHtml(d.github) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">🐙 ' + escapeHtml(d.github) + '</a>');
+        if (d.contactEmail) links.push('<a href="mailto:' + escapeHtml(d.contactEmail) + '" style="color:var(--accent);font-size:0.8rem;text-decoration:none;">📧 ' + escapeHtml(d.contactEmail) + '</a>');
         if (d.lightning) links.push('<button onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + escapeHtml(d.lightning) + '\');this.textContent=\'⚡ Copied!\';setTimeout(function(){}.bind(this),1500);" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--accent);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">⚡ ' + escapeHtml(d.lightning) + ' 📋</button>');
 
         if (links.length > 0) {
