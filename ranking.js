@@ -1582,9 +1582,12 @@ function shortcutRow(key, desc) {
 // Alias for buttons that call showSettings()
 window.showSettings = function() {
     if (typeof auth === 'undefined' || !auth) {
-        if (typeof showToast === 'function') showToast('⚠️ Still loading... try again in a moment');
-        // Try re-init if it failed
+        if (typeof showToast === 'function') showToast('⚠️ Firebase not ready. Retrying...');
         if (typeof initRanking === 'function') initRanking();
+        setTimeout(function() {
+            if (typeof auth !== 'undefined' && auth) showUsernamePrompt();
+            else if (typeof showToast === 'function') showToast('❌ Could not load. Please refresh the page.');
+        }, 2000);
         return;
     }
     showUsernamePrompt();
