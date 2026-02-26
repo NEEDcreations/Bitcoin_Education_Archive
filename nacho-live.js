@@ -64,7 +64,7 @@ function initTicker() {
     ticker.id = 'btcTicker';
     ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#0a0a12;border-bottom:1px solid rgba(247,147,26,0.15);padding:4px 12px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:0.7rem;font-family:inherit;color:var(--text-muted,#888);transition:opacity 0.3s;';
     ticker.innerHTML =
-        '<span id="tickerPrice" style="display:flex;align-items:center;gap:4px;cursor:pointer;" onclick="window.open(\'https://mempool.space\',\'_blank\')" title="View on mempool.space">' +
+        '<span id="tickerPrice" style="display:flex;align-items:center;gap:4px;">' +
             '<span style="color:#f7931a;font-weight:800;">₿</span>' +
             '<span id="tickerPriceVal" style="color:var(--text,#eee);font-weight:700;">---</span>' +
             '<span id="tickerPriceChange" style="font-size:0.6rem;"></span>' +
