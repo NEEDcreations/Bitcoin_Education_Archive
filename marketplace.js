@@ -531,7 +531,8 @@ window.submitListing = function() {
         }
         renderMarketplace();
     }).catch(function(e) {
-        showToast('Error posting listing. Try again.');
+        console.error('Marketplace post error:', e);
+        showToast('Error posting: ' + (e.code || e.message || 'Unknown error'));
     });
 };
 
