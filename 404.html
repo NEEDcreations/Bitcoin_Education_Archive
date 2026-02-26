@@ -3417,9 +3417,19 @@
         showContinueReading();
 
         // Handle browser back/forward buttons
+        // Set initial state so there's always a base entry to land on
+        if (!history.state) history.replaceState({ home: true }, '', window.location.pathname + window.location.hash);
+
         window.addEventListener('popstate', function(e) {
             var state = e.state || {};
             var hash = location.hash.slice(1);
+
+            // If we've gone back to null state (would leave site), push home state and stay
+            if (!e.state && !hash) {
+                history.pushState({ home: true }, '', window.location.pathname);
+                goHome(true);
+                return;
+            }
 
             // Exit Nacho Mode if we're leaving it
             if (window._nachoMode && hash !== 'nacho' && !state.nachoMode) {
