@@ -450,11 +450,14 @@ const FALLBACKS = [
 // ---- Match user input to knowledge base ----
 // ---- Detect if a question is about current events/news ----
 // Use regex with word boundaries to avoid false matches (e.g. "event" in "eventually")
+// Word-boundary patterns to detect current event questions
+// Avoid generic words like "banned", "approved", "passed", "regulation" alone
+// as they also appear in timeless questions like "Can Bitcoin be banned?"
 var CURRENT_EVENT_PATTERNS = [
     /\bhappened\b/, /\bhappening\b/, /\bnews\b/, /\brecent\b/, /\brecently\b/,
     /\bthis week\b/, /\bthis month\b/, /\bthis year\b/, /\blast week\b/, /\blast month\b/,
     /\bconference\b/, /\bsummit\b/, /\bevent\b/, /\bannounced\b/, /\bannouncement\b/, /\bupdate\b/,
-    /\blatest\b/, /\bnew law\b/, /\bregulation\b/, /\bpassed\b/, /\bapproved\b/, /\bbanned\b/,
+    /\blatest\b/, /\bnew law\b/, /\bjust (passed|approved|banned)\b/, /\bgot (banned|approved)\b/,
     /\bprice today\b/, /\b2024\b/, /\b2025\b/, /\b2026\b/
 ];
 
