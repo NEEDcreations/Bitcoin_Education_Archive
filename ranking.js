@@ -1889,6 +1889,44 @@ function showSettingsPage(tab) {
                 '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
         }
 
+        // Blocked Users
+        var blockedList = typeof getBlockedUsers === 'function' ? getBlockedUsers() : [];
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚫 Blocked Users</div>';
+        if (blockedList.length === 0) {
+            html += '<div style="color:var(--text-muted);font-size:0.85rem;">No blocked users. 🎉</div>';
+        } else {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">' + blockedList.length + ' blocked user' + (blockedList.length > 1 ? 's' : '') + '</div>';
+            html += '<div id="blockedUsersList"><div style="color:var(--text-faint);font-size:0.8rem;">Loading...</div></div>';
+        }
+        html += '</div>';
+
+        // Load blocked user names after render
+        if (blockedList.length > 0) {
+            setTimeout(function() {
+                var container = document.getElementById('blockedUsersList');
+                if (!container) return;
+                var loaded = 0;
+                var listHtml = '';
+                blockedList.forEach(function(uid) {
+                    db.collection('users').doc(uid).get().then(function(doc) {
+                        var name = doc.exists ? (doc.data().username || 'Unknown') : 'Deleted User';
+                        listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
+                            '<span style="color:var(--text);font-size:0.85rem;">' + name + '</span>' +
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/'/g, "\\'") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                        loaded++;
+                        if (loaded === blockedList.length) container.innerHTML = listHtml;
+                    }).catch(function() {
+                        listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);">' +
+                            '<span style="color:var(--text-faint);font-size:0.85rem;">Unknown User</span>' +
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                        loaded++;
+                        if (loaded === blockedList.length) container.innerHTML = listHtml;
+                    });
+                });
+            }, 100);
+        }
+
     } else if (settingsTab === 'data') {
         // Refresh data from Firebase — cache for 2 minutes
         var now = Date.now();
