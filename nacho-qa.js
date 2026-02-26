@@ -443,6 +443,86 @@ const NACHO_KB = [
     { keys: ['thank','thanks','ty','appreciate','love you','you\'re great','good job','awesome'],
       answer: "Aww shucks, {name}! 🧡 You're the great one — you're here learning! That makes you smarter than most. Keep going and I'll keep cheering you on! 🦌💪",
       channel: null, channelName: null },
+
+    // ========================================
+    // EXPANDED KB — sourced from site channels
+    // ========================================
+
+    // --- Problems of Fiat Money ---
+    { keys: ['fiat','fiat money','fiat currency','what is fiat','problem with fiat','problems with money','whats wrong with money','broken money','money printing','money printer','printed money','fed','federal reserve'],
+      answer: "Fiat currency is money that's backed by nothing but government trust — and that trust is BREAKING, {name}! 💸🦌 Here's the reality: 70% of ALL US dollars in circulation were created after 2008. Over 40% were printed since 2020 alone. One dollar today is worth what 4 cents was worth in 1913 — that's a 96% loss in purchasing power! The Federal Reserve can print unlimited money whenever they want, silently stealing from everyone who saves in dollars. Meanwhile, Bitcoin's supply is capped at 21 million — FOREVER. No one can print more. No one can change the rules. That's why Bitcoiners say 'fix the money, fix the world.' 🧡",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    { keys: ['purchasing power','dollar losing value','dollar worthless','savings losing value','money losing value','devaluation','devalue'],
+      answer: "Your savings are being silently stolen, {name}! 🏦💸 One US dollar today buys what 4 CENTS bought in 1913. That's a 96% loss in purchasing power. 70% of all dollars in circulation were created after 2008. Over 40% printed since 2020 alone! Every dollar printed dilutes the ones in your pocket. That's not a conspiracy — it's math. Bitcoin fixes this with a hard cap of 21 million coins. No central bank, no money printer, no inflation by decree. Your sats CANNOT be diluted. 🦌🧡",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    { keys: ['cantillon effect','cantillon','who benefits from money printing','rich get richer','unfair money'],
+      answer: "The Cantillon Effect is one of the most important concepts to understand, {name}! 🎯 It means: people closest to newly printed money benefit the most, while everyone else suffers. Here's a real example from your site's channel: corporations can get $100 million loans at 2-3% interest, but the average person pays 26% on credit cards and 12%+ on bank loans. The rich and well-connected get cheap money first, buy assets, and prices go up BEFORE the money reaches regular people. By the time it trickles down, your purchasing power has already been eaten. Bitcoin eliminates this. No one gets special access. New coins are distributed through mining — through WORK, not connections. Fair money for everyone. 🦌⚖️",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    // --- Energy Deep Dive ---
+    { keys: ['how much energy','bitcoin energy usage','energy consumption','electricity usage','how much electricity','power consumption','terawatt'],
+      answer: "Let's talk real numbers, {name}! ⚡🦌 Bitcoin mining uses roughly 100-150 terawatt hours per year — that's about 0.1% of global energy usage. For comparison: the online advertising industry uses 100+ TWh/year (a lot of that is spam!), cruise ships use 25 TWh, clothes dryers in the US use 100+ TWh, and Christmas lights in the US ALONE consume more energy than the entire Bitcoin network! The real question isn't 'does it use energy?' but 'is this energy well-spent?' Bitcoin secures a $1+ trillion monetary network that provides financial freedom to billions. I'd say that's pretty good value for 0.1% of global energy. Check our Energy channel for the full deep dive! 🔋",
+      channel: 'energy', channelName: 'Energy' },
+
+    { keys: ['renewable energy','green energy','clean energy','solar mining','stranded energy','wasted energy','methane','flared gas'],
+      answer: "Here's what the media won't tell you, {name}: Bitcoin mining is one of the GREENEST industries on the planet! 🌱🦌 An estimated 52-73% of Bitcoin mining uses renewable energy. Miners actively seek out the CHEAPEST energy — which is often stranded energy that would otherwise be WASTED: hydroelectric dams producing excess power, flared natural gas at oil wells, geothermal in Iceland and El Salvador, and solar/wind that can't be stored. Bitcoin literally monetizes wasted energy! It turns energy that would vanish into thin air into the hardest money ever created. Miners are also stabilizing electrical grids by acting as flexible demand — they can instantly power down when consumers need the energy. Bitcoin doesn't waste energy; it's the buyer of last resort for the world's excess power. 🔋💪",
+      channel: 'energy', channelName: 'Energy' },
+
+    // --- Scarcity / Lost Coins ---
+    { keys: ['lost bitcoin','lost coins','how many bitcoin lost','actual supply','circulating supply','real supply','coins lost forever'],
+      answer: "Here's something wild, {name}: the actual circulating supply of Bitcoin is LESS than 21 million! 🤯🦌 An estimated 2-3 million coins are permanently lost — forgotten passwords, lost hardware wallets, and coins locked away forever. About 1 million BTC are believed to be Satoshi's untouched coins. So the real available supply might be closer to 17-18 million, and it's shrinking! Every time someone loses their keys, your remaining Bitcoin becomes MORE scarce. This is what 'unforgeable costliness' means — you can't fake it, you can't duplicate it, and lost coins are gone FOREVER. This makes Bitcoin the scarcest asset humanity has ever created. 💎",
+      channel: 'scarce', channelName: 'Scarcity' },
+
+    // --- Fun Facts ---
+    { keys: ['pizza day','bitcoin pizza','laszlo','first purchase','10000 bitcoin pizza','most expensive pizza'],
+      answer: "Bitcoin Pizza Day is legendary, {name}! 🍕🦌 On May 22, 2010, Laszlo Hanyecz paid 10,000 Bitcoin for two Papa John's pizzas — the first known real-world Bitcoin purchase. Those 10,000 BTC would be worth over HALF A BILLION dollars today! But don't feel bad for Laszlo — that transaction proved Bitcoin had real-world value and helped kickstart its journey. We celebrate Pizza Day every May 22nd. Pro tip: that's a great day to buy some sats and eat pizza! 🍕⚡",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['fun fact','interesting fact','bitcoin fact','did you know','cool fact','random fact','tell me something interesting'],
+      answer: "Ooh, fun facts are my specialty, {name}! 🦌🎉 Here are some wild ones: It took Satoshi 6 DAYS to mine the first Bitcoin block (the Genesis Block) even though blocks normally take ~10 minutes! You only need the first 4 letters of each seed word to restore your wallet — all 2,048 words in the BIP39 list have unique first 4 letters! Bitcoin's market never closes — it runs 24/7/365 with no holidays, no weekends, no circuit breakers. And in block #124,724, a miner accidentally mined 49.99999999 BTC instead of 50 BTC — that 1 sat is gone forever because the block subsidy is calculated by height, not amount remaining! 🤯",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    // --- PoW vs PoS Deep ---
+    { keys: ['why proof of work','pow vs pos','proof of work better','proof of work important','why not proof of stake','pos vs pow','staking bad'],
+      answer: "This is THE fundamental difference, {name}! 🔥🦌 Proof of Work bridges the digital world to the PHYSICAL world through real energy expenditure. Miners burn REAL electricity running SHA-256 computations — you can't fake that work. This gives Bitcoin unforgeable costliness, just like gold requires real mining. In Proof of Stake, the rich get richer by just... having more coins. No real-world cost. It's like saying 'whoever has the most money gets to make the rules' — that's not decentralization, that's plutocracy! PoW ensures everyone plays by the same rules regardless of wealth. All users have an equal voice. And PoW creates a physical barrier against attacks — you'd need to outspend the entire network's energy output. In PoS, you just need enough tokens. Bitcoin chose PoW deliberately. It's harder, more expensive, and infinitely more secure. 💪⛏️",
+      channel: 'pow-vs-pos', channelName: 'Proof of Work vs Proof of Stake' },
+
+    // --- Nodes Deep ---
+    { keys: ['how many nodes','bitcoin nodes','node count','nodes worldwide','bitcoin resilience','shutdown bitcoin','destroy bitcoin','kill bitcoin'],
+      answer: "There are roughly 14,000+ known Bitcoin nodes running worldwide right now, {name} — and those are just the ones we can count! 🌍🦌 Each one stores a complete copy of the entire blockchain and independently validates every transaction. There is NO single point of failure. You could destroy any server, any country's infrastructure, any company — and Bitcoin keeps running. Here's the wildest part from our Nodes channel: nuclear war could (God forbid) wipe out 3/4 of the planet, but as long as ONE Bitcoin node is still running, the network survives. You could even find and destroy the first computer that ever ran Bitcoin — it wouldn't matter. The network is everywhere and nowhere. THAT'S decentralization. 🛡️💪",
+      channel: 'nodes', channelName: 'Nodes' },
+
+    // --- DCA / Investment Deep ---
+    { keys: ['never lost money','4 year','four year','holding bitcoin','hodl strategy','long term','bitcoin returns','best strategy','hodl for 4 years'],
+      answer: "Here's the most powerful stat in all of finance, {name}: NO ONE who has bought Bitcoin and held for 4+ years has EVER lost money. 📈🦌 Not once in Bitcoin's 15+ year history! The strategy from our Investment channel is simple: lump sum what you can afford, then DCA (dollar cost average) daily or weekly, and HODL for at least 4 years through one full cycle. History AND math prove this works. Bitcoin has a fixed supply and growing demand — the long-term trend is inevitable. As our channel says: 'Don't plan on selling for at least 10 years.' Your future self will thank you! 🧡",
+      channel: 'investment-strategy', channelName: 'Investment Strategy' },
+
+    // --- Decentralization Deep ---
+    { keys: ['why decentralization','decentralization important','what makes bitcoin decentralized','bitcoin decentralized','no ceo','no company','who controls bitcoin','who runs bitcoin','who is in charge','ceo of bitcoin','bitcoin ceo','who owns bitcoin','who is behind bitcoin'],
+      answer: "Bitcoin has NO CEO, NO board of directors, NO head of marketing, NO headquarters, and NO company behind it, {name}! 🦌🌐 That's not a weakness — it's the ENTIRE POINT. No single person or group can change the rules, print more coins, freeze your account, or censor your transactions. Everyone — from a kid in Nigeria to a billionaire in New York — follows the same rules set by math and code. Three things make Bitcoin truly decentralized: thousands of independent nodes verifying transactions, distributed mining across 100+ countries, and open-source code anyone can audit. This is why Bitcoin survived China's ban, countless attacks, and 15+ years of people trying to kill it. You can't kill what nobody controls. 💪",
+      channel: 'decentralized', channelName: 'Decentralization' },
+
+    // --- Maximalism ---
+    { keys: ['why maximalist','bitcoin maximalist','why only bitcoin','bitcoin only','maxi','why just bitcoin','bitcoin not crypto'],
+      answer: "Everyone who studies Bitcoin long enough becomes a maximalist, {name} — and it's not because of tribalism! 🧡🦌 It's because you realize: Bitcoin solved the hardest problem in computer science (digital scarcity) with the ONE property that can never be replicated — a truly fair, leaderless launch with no premine, no ICO, no VC funding, and a founder who disappeared. Every other crypto has a CEO, a marketing team, premined tokens, and changes the rules whenever it's convenient. Bitcoin has 10,000+ years of monetary history on its side. As our Maximalism channel says: 'Bitcoin has destroyed every single competitor because it REFUSED to change.' The monetary policy is set in stone. THAT is sound money. 🔥",
+      channel: 'maximalism', channelName: 'Maximalism' },
+
+    // --- El Salvador ---
+    { keys: ['el salvador','nayib bukele','bukele','bitcoin country','bitcoin nation','legal tender','first country'],
+      answer: "In June 2021, El Salvador became the FIRST country in history to make Bitcoin legal tender! 🇸🇻🦌 President Nayib Bukele didn't just talk the talk — he instructed the state-owned power company to mine Bitcoin using volcanic geothermal energy! Salvadorans don't pay capital gains tax on Bitcoin since it's legal tender. The country has been stacking sats and building Bitcoin infrastructure. Other countries are watching closely. This is what nation-state adoption looks like, {name} — and it's just the beginning. 🌋⚡",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    // --- 24/7 Market ---
+    { keys: ['market hours','when does bitcoin trade','bitcoin market close','market open','market close','24 7','always open','never closes'],
+      answer: "Bitcoin never sleeps, {name}! 🌙🦌 Unlike stocks, banks, and traditional markets, Bitcoin trades 24 hours a day, 7 days a week, 365 days a year. No holidays, no weekends, no circuit breakers, no trading halts. The blockchain keeps producing blocks roughly every 10 minutes — it's the heartbeat of a truly global, permissionless monetary network. For TA purposes, people recognize 7 PM EST as the 'daily close,' but the market itself NEVER stops. Try doing that with your bank! 🏦⏰",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    // --- Ethereum Deep Critique ---
+    { keys: ['ethereum premine','ethereum centralized','eth not decentralized','vitalik controls','ethereum problems','why not ethereum','ethereum bad'],
+      answer: "Let's talk facts from our Evidence Against Alts channel, {name}! 🦌🔍 Ethereum had a 72 million ETH premine — meaning insiders got tokens before anyone else. 70% of the market supply is controlled by a handful of early adopters. 30% of Ethereum nodes are controlled by just three companies: Amazon, Alibaba, and Google. They rolled back the blockchain after the DAO hack (so much for immutability!). Switched from PoW to PoS (so much for monetary policy stability!). The current supply policy has changed MULTIPLE times. As our channel says: Bitcoin has destroyed every competitor because it REFUSED to change. Ethereum changes whenever it's convenient for those at the top. That's not decentralization — that's DINO: Decentralized In Name Only. 🎭",
+      channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
 ];
 
 // Fallback if no match
@@ -583,7 +663,7 @@ var OFF_TOPIC_PATTERNS = [
         "My favorite thing? Easy — when someone goes from 'What is Bitcoin?' to 'How do I run a node?' That journey is beautiful! 🦌 What's YOUR favorite thing about Bitcoin so far?",
         "I'm partial to Lightning Network content — it's like magic! ⚡ But honestly, I love all 146 channels equally. Okay, maybe the memes channel a little more. 😏"
     ]},
-    { pattern: /recipe|cook|cooking|baking|food|meal|dinner|lunch|breakfast|pizza|pasta|burger|sandwich/,
+    { pattern: /recipe|cook|cooking|baking|food|meal|dinner|lunch|breakfast|pizza(?! day)|pasta|burger|sandwich/,
       answers: [
         "I eat grass, {name} — not much of a chef! 🦌🌿 But you know what pairs great with any meal? Stacking sats. What Bitcoin topic can I help with?",
         "The only recipe I know: take 21 million coins, add scarcity, mix with decentralization, and let it simmer for a few decades. 🧑‍🍳🦌 Got a Bitcoin question?"
