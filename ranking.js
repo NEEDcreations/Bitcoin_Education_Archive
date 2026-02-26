@@ -2150,14 +2150,33 @@ function showSettingsPage(tab) {
             }
         }
 
-        // Nacho Nickname (above closet so user names Nacho first)
+        // Nacho Nickname (first — let user name their Nacho)
         var nickname = typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Nacho</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your ' + escapeHtml(nickname) + '</div>' +
             '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Give Nacho a nickname..." style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
+            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Give your deer a name..." style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
             '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;">Save</button>' +
             '</div></div>';
+
+        // Nacho Story (highlighted — right under name)
+        if (typeof getNachoStoryProgress === 'function') {
+            var storyProg = getNachoStoryProgress();
+            var storyComplete = storyProg >= 10;
+            var storyNickname = escapeHtml(nickname);
+            html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                    '<span style="font-size:1.4rem;">📖</span>' +
+                    '<div><div style="font-size:0.9rem;font-weight:800;color:var(--heading);">' + storyNickname + '\'s Story</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);">' + (storyComplete ? '✅ Complete!' : 'A new chapter unlocks every day!') + '</div></div>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+                '<div style="flex:1;background:var(--bg-side);border-radius:8px;height:10px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:' + Math.round(storyProg / 10 * 100) + '%;border-radius:8px;transition:0.5s;"></div></div>' +
+                '<span style="color:var(--accent);font-size:0.85rem;font-weight:700;">' + storyProg + '/10</span>' +
+                '</div>' +
+                '<button onclick="hideUsernamePrompt();setTimeout(function(){if(typeof showNachoStory===\'function\')showNachoStory()},300)" style="width:100%;padding:12px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);">' + (storyComplete ? '📖 Re-read ' + storyNickname + '\'s Adventure' : '📖 Read Next Chapter →') + '</button>' +
+                '</div>';
+        }
 
         // Nacho's Closet
         if (typeof renderNachoClosetUI === 'function') {
@@ -2167,19 +2186,6 @@ function showSettingsPage(tab) {
         if (typeof renderStickerBook === 'function') {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 renderStickerBook() + '</div>';
-        }
-
-        // Nacho Story Progress
-        if (typeof getNachoStoryProgress === 'function') {
-            var storyProg = getNachoStoryProgress();
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📖 Nacho\'s Story</div>' +
-                '<div style="display:flex;align-items:center;gap:10px;">' +
-                '<div style="flex:1;background:var(--bg-side);border-radius:8px;height:8px;overflow:hidden;"><div style="height:100%;background:var(--accent);width:' + Math.round(storyProg / 10 * 100) + '%;border-radius:8px;"></div></div>' +
-                '<span style="color:var(--text-muted);font-size:0.8rem;">' + storyProg + '/10</span>' +
-                '</div>' +
-                '<button onclick="if(typeof showNachoStory===\'function\')showNachoStory()" style="margin-top:8px;width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Read Next Chapter →</button>' +
-                '</div>';
         }
         }
 

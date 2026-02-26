@@ -646,7 +646,7 @@
                 <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:2px solid #f7931a;color:var(--text);margin-top:4px;transition:0.2s;" onmouseover="this.style.background='linear-gradient(135deg,#f7931a,#ea580c)';this.style.color='#fff';this.style.boxShadow='0 0 20px rgba(247,147,26,0.4)';" onmouseout="this.style.background='var(--card-bg)';this.style.color='var(--text)';this.style.boxShadow='none';">🎓 Bitcoin Scholar Certification Quest</button>
                 <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('forum')">🗣️ PlebTalk</button>
                 <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('marketplace')">⚡ LightningMart</button>
-                <button class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;margin-top:4px;font-weight:700;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.3);" onclick="if(typeof enterNachoMode==='function')enterNachoMode()">🦌 Nacho Mode</button>
+                <button id="sidebarNachoBtn" class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;margin-top:4px;font-weight:700;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.3);" onclick="if(typeof enterNachoMode==='function')enterNachoMode()">🦌 Nacho Mode</button>
                 <button id="supportBtn" class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:4px;position:relative;" onclick="handleSupportClick()">📧 Support</button>
             </div>
         </div>
@@ -835,10 +835,10 @@
     <script src="nacho-closet.js?v=7" defer></script>
     <script src="messaging.js?v=9" defer></script>
     <script src="forum.js?v=10" defer></script>
-    <script src="engagement.js?v=8" defer></script>
+    <script src="engagement.js?v=9" defer></script>
     <script src="marketplace.js?v=10" defer></script>
     <script src="mobile-ux.js?v=11" defer></script>
-    <script src="app.js?v=2" defer></script>
+    <script src="app.js?v=3" defer></script>
 <div id="recaptcha-container"></div>
 <script>
 if ('serviceWorker' in navigator) {

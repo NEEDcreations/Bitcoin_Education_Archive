@@ -630,7 +630,7 @@ function openImg(src) {
                     '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
                 '</div>' +
                 /* Title */
-                '<div class="nm-hero-title" style="font-size:2.2rem;font-weight:900;letter-spacing:6px;color:var(--accent);text-transform:uppercase;animation:nmTitleGlow 4s ease-in-out infinite;margin-bottom:4px;">NACHO MODE</div>' +
+                '<div class="nm-hero-title" style="font-size:2.2rem;font-weight:900;letter-spacing:6px;color:var(--accent);text-transform:uppercase;animation:nmTitleGlow 4s ease-in-out infinite;margin-bottom:4px;">' + ((typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho').toUpperCase()) + ' MODE</div>' +
                 '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.75rem;"></div>' +
             '</div>' +
             /* ===== CHAT AREA ===== */

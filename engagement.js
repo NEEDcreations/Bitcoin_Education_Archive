@@ -123,9 +123,52 @@ window.nachoNickname = function() { return localStorage.getItem('btc_nacho_nickn
 window.setNachoNickname = function(name) {
     name = (name || '').trim().substring(0, 20);
     if (!name) name = 'Nacho';
+    // Profanity filter
+    if (typeof isBioClean === 'function' && !isBioClean(name)) {
+        if (typeof showToast === 'function') showToast('⚠️ That name is not allowed. Keep it clean!');
+        return;
+    }
+    if (typeof containsProfanity === 'function' && containsProfanity(name)) {
+        if (typeof showToast === 'function') showToast('⚠️ That name is not allowed. Keep it clean!');
+        return;
+    }
     localStorage.setItem('btc_nacho_nickname', name);
     if (typeof showToast === 'function') showToast('🦌 I\'m now ' + name + '! Love it!');
+    // Update Nacho Mode button and any visible references
+    updateNachoNameUI(name);
 };
+
+// Update all visible Nacho name references across the app
+window.updateNachoNameUI = function(name) {
+    name = name || nachoNickname();
+    // Update bottom nav Nacho button
+    var bnavNacho = document.getElementById('bnavNacho');
+    if (bnavNacho) {
+        var span = bnavNacho.querySelector('span:last-child');
+        if (span) span.textContent = name;
+    }
+    // Update Nacho Mode hero title
+    var heroTitle = document.querySelector('.nm-hero-title');
+    if (heroTitle) heroTitle.textContent = name.toUpperCase() + ' MODE';
+    // Update sidebar Nacho Mode button
+    var sidebarBtn = document.getElementById('sidebarNachoBtn');
+    if (sidebarBtn) sidebarBtn.innerHTML = '🦌 ' + name + ' Mode';
+    // Update home page Nacho Mode button
+    var homeBtns = document.querySelectorAll('button[onclick*="enterNachoMode"]');
+    homeBtns.forEach(function(btn) {
+        if (btn.id !== 'sidebarNachoBtn' && (btn.textContent.indexOf('Nacho') !== -1 || btn.textContent.indexOf('Mode') !== -1)) {
+            btn.innerHTML = '🦌 ' + name + ' Mode';
+        }
+    });
+};
+
+// On page load, apply saved nickname to all UI elements
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        var name = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
+        if (name !== 'Nacho') updateNachoNameUI(name);
+    }, 1500);
+});
 
 // ---- #5: Weekly Leaderboard ----
 window.loadWeeklyLeaderboard = async function() {
