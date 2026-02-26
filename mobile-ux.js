@@ -1,3 +1,5 @@
+// © 2024-2026 Bitcoin Education Archive / NEEDcreations. All rights reserved.
+// This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
 // 📱 Mobile UX Enhancements
 // Pull-to-refresh, bottom nav, reading progress,

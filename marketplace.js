@@ -1,3 +1,5 @@
+// © 2024-2026 Bitcoin Education Archive / NEEDcreations. All rights reserved.
+// This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
 // 🛒 Bitcoin Marketplace
 // Inspired by: FB Marketplace (familiarity), Craigslist (simplicity),

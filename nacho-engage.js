@@ -1,3 +1,5 @@
+// © 2024-2026 Bitcoin Education Archive / NEEDcreations. All rights reserved.
+// This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
 // 🦌 Nacho Engagement — Milestones, Streaks, Time-of-Day,
 //    Trivia, Friendship, Outfits, Sound, Analytics, Follow-ups
