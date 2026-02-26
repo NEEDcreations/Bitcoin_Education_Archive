@@ -765,8 +765,8 @@
     <div id="questModal" onclick="if(event.target===this)closeQuest()"><div id="questInner"></div></div>
     <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:20px;right:20px;z-index:140;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆 Leaderboard</button>
     <div id="leaderboard"></div>
-    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
-        <div class="username-box" style="position:relative;">
+    <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()" style="overflow-y:auto!important;-webkit-overflow-scrolling:touch;">
+        <div class="username-box" style="position:relative;flex-shrink:0;">
             <h2>⚡ Join the Leaderboard</h2>
             <p>Pick a username to start earning points as you explore the archive!</p>
             <input type="text" id="usernameInput" placeholder="Enter a username..." maxlength="20" onkeydown="if(event.key==='Enter')submitUsername()">
