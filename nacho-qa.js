@@ -481,6 +481,46 @@ const NACHO_KB = [
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
     // ========================================
+    // EXPANDED KB — Parker Lewis "Gradually, Then Suddenly" + Bitcoin Standard
+    // ========================================
+
+    { keys: ['parker lewis','gradually then suddenly','gradually suddenly','unchained capital','parker lewis bitcoin'],
+      answer: "Parker Lewis's 'Gradually, Then Suddenly' is one of the most important Bitcoin essay series ever written, {name}! 📖🦌 Published on Unchained Capital's blog, it's a masterclass in first-principles thinking about money. Key essays: 'Bitcoin is Not Too Volatile', 'Bitcoin is Not for Criminals', 'Bitcoin Can't Be Copied', 'Bitcoin Obsoletes All Other Money', 'Bitcoin Does Not Waste Energy', 'Bitcoin is Not Backed by Nothing', 'Bitcoin is the Great Definancialization.' Each one demolishes a common criticism with rigorous logic. The series was later published as a book. Essential reading for every Bitcoiner! 🧡🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin not blockchain','blockchain not bitcoin','believe in blockchain','blockchain technology','bitcoin vs blockchain'],
+      answer: "Parker Lewis nails it: 'Have you ever heard a smart sounding friend say they believe in blockchain but not bitcoin?' 🦌💡 Here's the truth: there is really only one blockchain that matters — Bitcoin's. 'Blockchain technology' without Bitcoin is just a slow, expensive database. Every corporate blockchain project has failed or become irrelevant. The blockchain is only valuable because of the proof-of-work energy securing it and the monetary incentives driving it. Without those, it's just a linked list. Ignore everything else. First understand why Bitcoin exists and how it works — that's the foundation. Then you'll see why 'blockchain not bitcoin' is backwards. 🔗",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin common sense','common sense money','simple explanation money','money is simple','bitcoin is obvious'],
+      answer: "Parker Lewis puts it perfectly: 'Bitcoin is not an IQ test — it is common sense.' 🧠🦌 Here's the thing, {name}: money facilitates practically every transaction anyone has ever made, yet no one really asks WHY it works or what properties make it work. When someone first hears about Bitcoin, they often have a visceral negative reaction — because the construction of money is so deeply anchored in time that it's never questioned. But once you understand that money is simply a tool for storing and transferring value, and that Bitcoin does this better than anything before it... it becomes obvious. The understanding takes time, but the conclusion is common sense. 🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['everyone feels late','am i late','too late for bitcoin','wish i bought more','always feel late','never too late bitcoin'],
+      answer: "Parker Lewis observed two rules that never fail, {name}: '1) Everyone always feels late. 2) Everyone always wishes they had bought more bitcoin.' 📈🦌 This is because 21 million is a scarily small number — and it gets SMALLER as more people understand that the supply is credibly fixed. If you feel late, consider: only about 2-4% of the world owns any Bitcoin. The network effects are still early. El Salvador just started. ETFs just launched. The 'late' feeling is just Bitcoin's uncanny ability to mess with human psychology. You're not late. You're early. Stack sats! 🧡",
+      channel: 'investment-strategy', channelName: 'Investment Strategy' },
+
+    { keys: ['bitcoin rally cry','bitcoin freedom','fight for freedom','voluntary money','opt in','freedom money','bitcoin liberty'],
+      answer: "Parker Lewis wrote: 'Bitcoin is very much a fight for freedom.' 🗽🦌 The opening of his essay quotes the Travis Letter from the Alamo: a declaration of liberty against impossible odds. Bitcoin is similar — it's a monetary revolution. 'Prior to Bitcoin, everyone had no practical choice but to opt into a flawed currency system.' Now you do. Bitcoin is completely voluntary, controlled by no one, and gives everyone the ability to store and transfer value in money that CANNOT be manipulated. The very idea of freedom is the single most important principle behind Bitcoin. You don't have to fight — you just have to opt in. 🧡🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin standard','saifedean ammous','saifedean','bitcoin standard book','best bitcoin book','ammous'],
+      answer: "The Bitcoin Standard by Saifedean Ammous is THE book that orange-pilled more people than anything else, {name}! 📚🦌 Michael Saylor said: 'It was the most impactful on our way of thinking at MicroStrategy and it made us want to invert our balance sheet to base it on a Bitcoin standard.' The book traces the history of money from seashells to gold to fiat to Bitcoin. Key lessons: sound money creates civilization, easy money destroys it. The gold standard worked until governments couldn't resist printing. Bitcoin is the digital gold standard — but better, because NO ONE can cheat. Published in 39 languages. If you read one Bitcoin book, make it this one. 🧡",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['sound money civilization','sound money vs easy money','hard money history','history of money','money through history','gold standard history','monetary history'],
+      answer: "The Bitcoin Standard teaches the most important lesson in economics, {name}: sound money creates civilizations, easy money destroys them! 🏛️🦌 Through history: Rome fell partly because they debased their coins. The gold standard enabled the greatest era of prosperity and peace. When Nixon ended the gold standard in 1971, we got 50+ years of boom-bust cycles, wealth inequality, and endless wars. The pattern is always the same — when rulers can print money, they do, and society suffers. Bitcoin breaks this cycle permanently. 21 million. No ruler can change it. As Ammous argues: 'Since we ditched the gold standard and started relying on easily manipulated paper money, we've seen a century of boom and bust.' Bitcoin is the fix. 🔥",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['low time preference','time preference','high time preference','delayed gratification','future orientation','long term thinking','save vs spend'],
+      answer: "The Bitcoin Standard introduces one of the most powerful concepts: time preference! ⏳🦌 Low time preference means valuing the future over the present — saving, investing, building. High time preference means consuming NOW — spending everything, no savings, short-term thinking. Sound money (gold, Bitcoin) LOWERS time preference because saving actually works — your money gains value. Fiat money RAISES time preference because saving is punished by inflation — so you spend, consume, and take on debt. Entire civilizations rise with low time preference (saving, building) and fall with high time preference (spending, consuming). Bitcoin lowers time preference globally. That changes EVERYTHING. 🧠🧡",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['stock to flow','s2f','s2f model','stock to flow model','plan b','planb model','scarcity model'],
+      answer: "Stock-to-flow (S2F) is a scarcity model that helped many understand Bitcoin's value, {name}! 📊🦌 It measures how much existing supply (stock) there is relative to new annual production (flow). Gold has a high S2F ratio (~60 years) — meaning it would take ~60 years of mining to double the supply. That's why gold held value for millennia. After each halving, Bitcoin's S2F ratio DOUBLES, eventually surpassing gold's. The model was popularized by PlanB and while no model is perfect, the core insight is powerful: verifiable, mathematical scarcity drives monetary value. Bitcoin is the scarcest monetary asset humanity has ever created — and it keeps getting scarcer. 💎",
+      channel: 'charts', channelName: 'Charts' },
+
+    // ========================================
     // EXPANDED KB — recovered broken articles + missing topics (Phase 2c)
     // ========================================
 
@@ -999,7 +1039,7 @@ var OFF_TOPIC_PATTERNS = [
         "I'm a deer — my health plan is grass, fresh air, and sound money! 🌿🦌 For Bitcoin health, though? Self-custody is the cure. What can I help you learn?",
         "Healthy body, healthy portfolio! 💪🦌 I can't help with fitness, but I CAN help you understand why Bitcoin is the healthiest money ever created. Ask away!"
     ]},
-    { pattern: /stock|stocks|stock market|invest in stocks|shares|index fund|s&p|dow jones|nasdaq|dividend/,
+    { pattern: /stock market|invest in stocks|shares|index fund|s&p|dow jones|nasdaq|dividend|stocks$/,
       answers: [
         "Stocks? I'm a Bitcoin deer, {name}! 🦌📈 But here's a fun comparison: Bitcoin has outperformed every stock index over any 4+ year period in its history. Want to know why?",
         "The stock market is denominated in depreciating dollars — Bitcoin fixes that! 🦌 Want to learn about why Bitcoiners think differently about money?"
@@ -1189,6 +1229,8 @@ function findAnswer(input) {
         { pattern: /cbdc|central bank digital|digital dollar|digital euro|digital yuan/, key: 'cbdc' },
         { pattern: /softwar|jason lowery|bitcoin.*warfare/, key: 'softwar' },
         { pattern: /executive order 6102|gold confiscation|6102/, key: 'executive order 6102' },
+        { pattern: /stock.to.flow|s2f model|planb|plan.b model/, key: 'stock to flow' },
+        { pattern: /bitcoin.*freedom|freedom.*bitcoin|financial freedom|monetary freedom|rally cry/, key: 'bitcoin rally cry' },
     ];
     for (var ti = 0; ti < topicPatterns.length; ti++) {
         if (topicPatterns[ti].pattern.test(input)) {
