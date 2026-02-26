@@ -445,6 +445,42 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     // ========================================
+    // EXPANDED KB — Tomer Strolight's "Why Bitcoin" series
+    // ========================================
+
+    { keys: ['tomer strolight','why bitcoin book','why bitcoin tomer','who is tomer','tomer strolight book'],
+      answer: "Tomer Strolight is one of the best Bitcoin writers alive, {name}! 📖🦌 His 'Why Bitcoin?' series (26 short reads, 2-4 minutes each) is a masterpiece — it covers Bitcoin from every angle: philosophy, economics, physics, incentives, integrity. He's also written 'Bitcoin is like a Giant Cybernetic Meta-Brain', 'Why People Wonder if Bitcoin is Alien Technology', and 'Why Bitcoin's Rules Are Enforced by Physics.' His work is free to read and we have the PDF in our Books channel. If Gigi takes you down the rabbit hole, Tomer takes you to the bottom of it. 🧡🔥",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['bitcoin toxic','toxic maximalist','toxicity','are bitcoiners toxic','why are bitcoiners mean','bitcoin community mean','rude bitcoiners'],
+      answer: "Tomer Strolight nailed this one, {name}: 'The difference between seeing toxicity and integrity is in the eye of the beholder — and the label says more about the beholder than the people they're labeling.' 🦌💪 When Elon Musk flip-flopped on Bitcoin in 2021, Bitcoiners en masse called him out — even though he was supposed to be a 'hero.' The media called it toxic. Bitcoiners call it INTEGRITY. We don't worship billionaires. We worship truth. If someone promotes scams or FUD, we speak up — not to be mean, but because unsound money hurts the most vulnerable people on Earth. That's not toxicity. That's a moral obligation. 🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['antifragile','bitcoin antifragile','what doesn\'t kill bitcoin','bitcoin gets stronger','attacks make bitcoin stronger','bitcoin stronger after attack'],
+      answer: "Tomer Strolight explains it beautifully: 'When it comes to attacks on Bitcoin, the question isn\\'t what\\'s going to kill it — it\\'s what\\'s going to make it bigger, stronger, better, and more valuable!' 🦌💪 Bitcoin was born with capabilities that protect it against attacks that would instantly destroy any company or country. But here's the wild part: Bitcoin can ALSO develop new defenses it previously lacked! China banned it → mining decentralized globally. Exchanges got hacked → self-custody culture grew. FUD campaigns → the community became more educated. Every attack makes Bitcoin more resilient. It's not just robust — it's antifragile. ⚔️🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin is best money','most excellent money','greatest money','best money ever','why bitcoin is best','perfect money'],
+      answer: "Tomer Strolight makes the ultimate case, {name}: 'Bitcoin is the greatest money mankind has ever seen and likely will ever see.' 💰🦌 Why? Because when you actually ask 'what IS money?' — something few people have thought about, especially since the digital revolution — you realize Bitcoin satisfies every property of money better than anything before it: scarcity (21M forever), durability (exists as long as one node runs), portability (send anywhere instantly), divisibility (100M sats per coin), fungibility, and verifiability (anyone can audit the supply). No previous money had ALL of these. Bitcoin does. It's not just good money — it's the final evolution of money. 👑",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin is a brain','cybernetic brain','bitcoin organism','bitcoin is alive','bitcoin living thing','bitcoin life','bitcoin evolves'],
+      answer: "Tomer Strolight's 'How Bitcoin is Like a Giant Cybernetic Meta-Brain' is mind-expanding, {name}! 🧠🦌 The thesis: Bitcoin isn't just a network — it exhibits behavior comparable to THINKING. The community of Bitcoiners forms a brain-like structure: decentralized communication between nodes mirrors how thoughts occur in neural networks. Bitcoin keeps developing new 'organs' with new capabilities by absorbing entities and composing them into itself. Lightning Network is its payment nervous system. Developers are its creative cortex. Miners are its immune system. It learns, adapts, and grows — just like a living organism. Some call it the most complex emergent system humans have ever created. 🌐",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin alien','alien technology','bitcoin time traveler','how did satoshi','too perfect','bitcoin impossible','bitcoin miracle'],
+      answer: "Tomer Strolight tackles why people genuinely wonder if Bitcoin was sent by aliens or time travelers! 🛸🦌 His observation: 'Many people who study Bitcoin closely eventually shake their head and say: HOW did any person manage to come up with this?' Bitcoin is unlike any invention we've seen before — it solved problems that the world's best cryptographers, economists, and computer scientists couldn't solve for DECADES. And it was launched by someone who then DISAPPEARED. The perfect monetary policy, the elegant incentive design, the solution to the Byzantine Generals Problem — it all came together in one shot. No beta testing, no iteration. It just... worked. 🤯🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin rules physics','rules enforced by physics','laws of physics bitcoin','bitcoin and physics','physical laws','thermodynamics bitcoin','energy enforcement'],
+      answer: "Tomer Strolight's key insight: 'No government tells Bitcoin what rules apply or how to enforce them. The mechanisms Bitcoin relies on to enforce its rules are the LAWS OF PHYSICS.' 🔬🦌 Think about it: Bitcoin's proof of work is enforced by thermodynamics — you can't fake energy expenditure. Its cryptography is enforced by mathematics — you can't reverse SHA-256. Its scarcity is enforced by code running on thousands of independent machines. Human-made laws can be changed, bent, or broken. The laws of physics CANNOT. That's why Bitcoin is the best money the world will ever see — its rules are as immutable as gravity. ⚡🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin most important','most important thing','why bitcoin matters most','bitcoin changes everything','bitcoin significance','why is bitcoin so important'],
+      answer: "Tomer Strolight argues Bitcoin is THE most important thing happening in the world, {name}! 🌍🦌 His reasoning: think about how civilization works. You buy something — hundreds of people coordinated to make it: mining materials, manufacturing, packaging, shipping. You didn't organize any of that. MONEY did. 'The sophistication of coordinating human activity that money allows for is far beyond what anyone can plan.' Sound money creates civilization. Broken money destroys it. Bitcoin is restoring sound money for the first time in over 50 years. That's not just an investment thesis — it's a civilizational upgrade. Everything flows from fixing the money. 🧡🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    // ========================================
     // EXPANDED KB — recovered broken articles + missing topics (Phase 2c)
     // ========================================
 
