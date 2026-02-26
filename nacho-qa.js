@@ -91,7 +91,7 @@ const NACHO_KB = [
       channel: 'investment-strategy', channelName: 'Investment Strategy' },
 
     { keys: ['dca','dollar cost average','dollar cost averaging','how to invest','investment strategy','when to buy'],
-      answer: "DCA means buying a fixed amount regularly (weekly/monthly) regardless of price. It removes emotion and timing stress. Time in the market beats timing the market!",
+      answer: "DCA means buying a fixed amount regularly (weekly/monthly) regardless of price. It removes emotion and timing stress. Time in the market beats timing the market! ⚠️ Not financial advice — always do your own research.",
       channel: 'investment-strategy', channelName: 'Investment Strategy' },
 
     { keys: ['price prediction','how high','what price','price target','how much will','100k','million'],
@@ -206,7 +206,7 @@ const NACHO_KB = [
       channel: 'energy', channelName: 'Environment & Energy' },
 
     { keys: ['volatile','volatility','risky','risk','crash','bear market','goes down','drops'],
-      answer: "Yes, Bitcoin is volatile short-term. But zoom out — every 4-year period in Bitcoin's history has been profitable. Volatility is the price of admission for the best-performing asset ever.",
+      answer: "Yes, Bitcoin is volatile short-term. But zoom out — every 4-year period in Bitcoin's history has been profitable. Volatility is the price of admission for the best-performing asset ever. ⚠️ Not financial advice — past performance doesn't guarantee future results. DYOR.",
       channel: 'misconceptions-fud', channelName: 'Misconceptions & FUD' },
 
     { keys: ['double spend','double spending','double-spend','spend twice','spend same bitcoin twice'],
@@ -281,7 +281,7 @@ const NACHO_KB = [
       channel: 'scalability', channelName: 'Scalability' },
 
     { keys: ['too late','missed the boat','too expensive','can\'t afford','cant afford','already too high','priced out'],
-      answer: "You're not late, {name}! Only about 2-4% of the world owns Bitcoin. You can buy as little as $1 worth — you don't need a whole coin! Every Bitcoiner once thought they were 'too late.' The best time to plant a tree was 20 years ago. The second best time is now. 🌱",
+      answer: "You're not late, {name}! Only about 2-4% of the world owns Bitcoin. You can buy as little as $1 worth — you don't need a whole coin! Every Bitcoiner once thought they were 'too late.' The best time to plant a tree was 20 years ago. The second best time is now. 🌱 ⚠️ Not financial advice — DYOR.",
       channel: 'investment-strategy', channelName: 'Investment Strategy' },
 
     { keys: ['bitcoin is dead','bitcoin died','obituary','been declared dead','will bitcoin die','dying'],
@@ -517,7 +517,7 @@ const NACHO_KB = [
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
     { keys: ['everyone feels late','am i late','too late for bitcoin','wish i bought more','always feel late','never too late bitcoin'],
-      answer: "Parker Lewis observed two rules that never fail, {name}: '1) Everyone always feels late. 2) Everyone always wishes they had bought more bitcoin.' 📈🦌 This is because 21 million is a scarily small number — and it gets SMALLER as more people understand that the supply is credibly fixed. If you feel late, consider: only about 2-4% of the world owns any Bitcoin. The network effects are still early. El Salvador just started. ETFs just launched. The 'late' feeling is just Bitcoin's uncanny ability to mess with human psychology. You're not late. You're early. Stack sats! 🧡",
+      answer: "Parker Lewis observed two rules that never fail, {name}: '1) Everyone always feels late. 2) Everyone always wishes they had bought more bitcoin.' 📈🦌 This is because 21 million is a scarily small number — and it gets SMALLER as more people understand that the supply is credibly fixed. If you feel late, consider: only about 2-4% of the world owns any Bitcoin. The network effects are still early. El Salvador just started. ETFs just launched. The 'late' feeling is just Bitcoin's uncanny ability to mess with human psychology. You're not late. You're early. Stack sats! 🧡 ⚠️ Not financial advice — DYOR.",
       channel: 'investment-strategy', channelName: 'Investment Strategy' },
 
     { keys: ['bitcoin rally cry','bitcoin freedom','fight for freedom','voluntary money','opt in','freedom money','bitcoin liberty'],
@@ -537,7 +537,7 @@ const NACHO_KB = [
       channel: 'books', channelName: 'Books' },
 
     { keys: ['stock to flow','s2f','s2f model','stock to flow model','plan b','planb model','scarcity model'],
-      answer: "Stock-to-flow (S2F) is a scarcity model that helped many understand Bitcoin's value, {name}! 📊🦌 It measures how much existing supply (stock) there is relative to new annual production (flow). Gold has a high S2F ratio (~60 years) — meaning it would take ~60 years of mining to double the supply. That's why gold held value for millennia. After each halving, Bitcoin's S2F ratio DOUBLES, eventually surpassing gold's. The model was popularized by PlanB and while no model is perfect, the core insight is powerful: verifiable, mathematical scarcity drives monetary value. Bitcoin is the scarcest monetary asset humanity has ever created — and it keeps getting scarcer. 💎",
+      answer: "Stock-to-flow (S2F) is a scarcity model that helped many understand Bitcoin's value, {name}! 📊🦌 It measures how much existing supply (stock) there is relative to new annual production (flow). Gold has a high S2F ratio (~60 years) — meaning it would take ~60 years of mining to double the supply. That's why gold held value for millennia. After each halving, Bitcoin's S2F ratio DOUBLES, eventually surpassing gold's. The model was popularized by PlanB and while no model is perfect, the core insight is powerful: verifiable, mathematical scarcity drives monetary value. Bitcoin is the scarcest monetary asset humanity has ever created — and it keeps getting scarcer. 💎 ⚠️ Not financial advice — no model predicts price perfectly. DYOR.",
       channel: 'charts', channelName: 'Charts' },
 
     // ========================================
@@ -577,7 +577,7 @@ const NACHO_KB = [
     // ========================================
 
     { keys: ['bullish case','vijay boyapati','bull case for bitcoin','why bitcoin will succeed','investment case'],
-      answer: "Vijay Boyapati's 'The Bullish Case for Bitcoin' is one of the most important Bitcoin essays ever written, {name}! 📈🦌 Key thesis: never in the history of the world had it been possible to transfer value between distant peoples without a trusted intermediary. Bitcoin changed that forever. The bullish case isn't just about price — it's about Bitcoin evolving through the classic stages of money: collectible → store of value → medium of exchange → unit of account. There are risks, but the opportunity is immense. This essay orange-pilled millions. Read it! 🧡",
+      answer: "Vijay Boyapati's 'The Bullish Case for Bitcoin' is one of the most important Bitcoin essays ever written, {name}! 📈🦌 Key thesis: never in the history of the world had it been possible to transfer value between distant peoples without a trusted intermediary. Bitcoin changed that forever. The bullish case isn't just about price — it's about Bitcoin evolving through the classic stages of money: collectible → store of value → medium of exchange → unit of account. There are risks, but the opportunity is immense. This essay orange-pilled millions. Read it! 🧡 ⚠️ Not financial advice — DYOR.",
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
     { keys: ['no intrinsic value','intrinsic value argument','bitcoin has no value','commodity value','gold has value bitcoin doesn\'t','bitcoin worthless'],
@@ -662,7 +662,7 @@ const NACHO_KB = [
 
     // --- Bitcoin Firsts & Records ---
     { keys: ['first bitcoin price','original price','first price','how much was bitcoin first','bitcoin first worth','earliest price'],
-      answer: "Bitcoin's very first price was $0.000994 — less than a tenth of a penny, {name}! 💰🦌 It was calculated by measuring the value of the electricity needed to produce one Bitcoin at the time. For 10 MONTHS after launch, Bitcoin had literally no price — zero exchange rate. The first real-world transaction was the famous 10,000 BTC pizza purchase on May 22, 2010. From less than a penny to tens of thousands of dollars — that's the most incredible price appreciation of ANY asset in human history! 📈🔥",
+      answer: "Bitcoin's very first price was $0.000994 — less than a tenth of a penny, {name}! 💰🦌 It was calculated by measuring the value of the electricity needed to produce one Bitcoin at the time. For 10 MONTHS after launch, Bitcoin had literally no price — zero exchange rate. The first real-world transaction was the famous 10,000 BTC pizza purchase on May 22, 2010. From less than a penny to tens of thousands of dollars — that's the most incredible price appreciation of ANY asset in human history! 📈🔥 ⚠️ Not financial advice — past performance doesn't guarantee future results.",
       channel: 'fun-facts', channelName: 'Fun Facts' },
 
     { keys: ['first transaction','first bitcoin transaction','satoshi to hal','first transfer','block 170'],
@@ -847,7 +847,7 @@ const NACHO_KB = [
 
     // --- DCA / Investment Deep ---
     { keys: ['never lost money','4 year','four year','holding bitcoin','hodl strategy','long term','bitcoin returns','best strategy','hodl for 4 years'],
-      answer: "Here's the most powerful stat in all of finance, {name}: NO ONE who has bought Bitcoin and held for 4+ years has EVER lost money. 📈🦌 Not once in Bitcoin's 15+ year history! The strategy from our Investment channel is simple: lump sum what you can afford, then DCA (dollar cost average) daily or weekly, and HODL for at least 4 years through one full cycle. History AND math prove this works. Bitcoin has a fixed supply and growing demand — the long-term trend is inevitable. As our channel says: 'Don't plan on selling for at least 10 years.' Your future self will thank you! 🧡",
+      answer: "Here's the most powerful stat in all of finance, {name}: NO ONE who has bought Bitcoin and held for 4+ years has EVER lost money. 📈🦌 Not once in Bitcoin's 15+ year history! The strategy from our Investment channel is simple: lump sum what you can afford, then DCA (dollar cost average) daily or weekly, and HODL for at least 4 years through one full cycle. History AND math prove this works. Bitcoin has a fixed supply and growing demand — the long-term trend is inevitable. ⚠️ Not financial advice — past performance doesn't guarantee future results. Always do your own research and never invest more than you can afford to lose.",
       channel: 'investment-strategy', channelName: 'Investment Strategy' },
 
     // --- Decentralization Deep ---
@@ -1061,7 +1061,7 @@ var OFF_TOPIC_PATTERNS = [
     ]},
     { pattern: /stock market|invest in stocks|shares|index fund|s&p|dow jones|nasdaq|dividend|stocks$/,
       answers: [
-        "Stocks? I'm a Bitcoin deer, {name}! 🦌📈 But here's a fun comparison: Bitcoin has outperformed every stock index over any 4+ year period in its history. Want to know why?",
+        "Stocks? I'm a Bitcoin deer, {name}! 🦌📈 But here's a fun comparison: Bitcoin has historically outperformed every stock index over any 4+ year period. Want to know why? ⚠️ Not financial advice — DYOR.",
         "The stock market is denominated in depreciating dollars — Bitcoin fixes that! 🦌 Want to learn about why Bitcoiners think differently about money?"
     ]},
     { pattern: /gold|silver|precious metal|commodity|commodities/,
