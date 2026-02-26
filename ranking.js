@@ -139,6 +139,8 @@ function initRanking() {
                     loadUser(user.uid);
                 } else {
                     // Got anonymous or null on first event — wait for potential real user
+                    // Use longer timeout on mobile to give Firebase auth time to restore
+                    var waitMs = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 3000 : 1500;
                     setTimeout(function() {
                         const current = auth.currentUser;
                         if (current && !current.isAnonymous) {
@@ -149,7 +151,7 @@ function initRanking() {
                             // No user at all — sign in anonymously
                             auth.signInAnonymously().then(() => {});
                         }
-                    }, 1500);
+                    }, waitMs);
                 }
                 return;
             }
