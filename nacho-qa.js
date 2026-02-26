@@ -445,6 +445,85 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     // ========================================
+    // EXPANDED KB — sourced from Fun Facts channel + PDFs
+    // ========================================
+
+    // --- Bitcoin Firsts & Records ---
+    { keys: ['first bitcoin price','original price','first price','how much was bitcoin first','bitcoin first worth','earliest price'],
+      answer: "Bitcoin's very first price was $0.000994 — less than a tenth of a penny, {name}! 💰🦌 It was calculated by measuring the value of the electricity needed to produce one Bitcoin at the time. For 10 MONTHS after launch, Bitcoin had literally no price — zero exchange rate. The first real-world transaction was the famous 10,000 BTC pizza purchase on May 22, 2010. From less than a penny to tens of thousands of dollars — that's the most incredible price appreciation of ANY asset in human history! 📈🔥",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['first transaction','first bitcoin transaction','satoshi to hal','first transfer','block 170'],
+      answer: "The first ever Bitcoin transaction was sent from Satoshi Nakamoto to Hal Finney on January 11, 2009 — just 9 days after Bitcoin launched! 📨🦌 It was mined in block 170. Fun fact: ALL blocks before 170 were empty — zero transactions. The network existed for over a week with no one sending anything! Satoshi and Hal were the only two people running Bitcoin at the start. That humble beginning grew into a trillion-dollar global network. Check the transaction yourself on mempool.space! ⛓️",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['bitcoin uptime','has bitcoin gone down','bitcoin downtime','99 percent uptime','network downtime','did bitcoin ever stop'],
+      answer: "Bitcoin has 99.987% uptime — rivaling Google and Amazon, {name}! 🏆🦌 In its entire 15+ year history, the network has only gone down TWICE: once in 2010 for 8 hours 27 minutes (the value overflow bug) and once in 2013 for 6 hours 20 minutes (a database bug). Both were fixed by community consensus. That's roughly 14 hours of downtime in 15+ YEARS. Your bank's website goes down more than that in a single month! Bitcoin achieved 99.99% uptime in November 2025. 📈",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    // --- Satoshi Trivia ---
+    { keys: ['satoshi birthday','satoshi age','how old is satoshi','when was satoshi born','satoshi birth date','april 5'],
+      answer: "Satoshi's self-reported birthday is April 5, 1975 — but Bitcoiners believe this is symbolic, not real! 🎂🦌 April 5 is the date of Executive Order 6102 in 1933, when the US government forced Americans to sell their gold under threat of 10 years imprisonment. And the year 1975? That's when Americans were finally allowed to own gold again. Satoshi was sending a message: Bitcoin is the new gold, and this time they can't confiscate it. Even the birthday is a cypherpunk statement! 🔑",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['satoshi posts','satoshi forum','how much did satoshi write','satoshi communications','satoshi emails','satoshi words'],
+      answer: "Satoshi wrote 575 posts on the BitcoinTalk forums, plus numerous emails on the cryptography mailing list before disappearing in 2011, {name}! 📝🦌 The original Bitcoin code was about 31,000 lines of C++. Satoshi had at least 22,000 different addresses and never reused one — practicing perfect privacy from day one. Today, only 0.06% of Bitcoin Core's code remains unchanged from what Satoshi originally wrote. As Satoshi said when leaving: the project is 'in good hands with everyone.' We are all Satoshi! 🧡",
+      channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
+
+    { keys: ['satoshi coins','satoshi bitcoin','how much bitcoin does satoshi have','satoshi wallet','satoshi holdings','1 million bitcoin'],
+      answer: "Satoshi is estimated to have mined about 1 million Bitcoin in the early days — and hasn't moved a SINGLE one, {name}! 🤯🦌 Those coins have sat untouched since 2009-2010, worth tens of billions of dollars. Satoshi's realized price per coin? Less than 1 CENT. Over 68 BTC have been sent TO the Genesis Block address by fans — essentially burned as a tribute, since those coins are provably unspendable. Satoshi created the most valuable digital asset in history, and never cashed out a cent. That's conviction. 💎🙌",
+      channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
+
+    // --- Technical Quirks & Easter Eggs ---
+    { keys: ['seed phrase fact','seed words','bip39 fact','seed phrase trivia','mnemonic fact','24 word fact','seed word fact'],
+      answer: "Here are some wild seed phrase facts, {name}! 🔑🦌 You only need the FIRST 4 LETTERS of each word to restore — all 2,048 BIP39 words have unique first 4 letters! Seed phrases only came into existence in 2013 with BIP 39. 'Bacon' repeated 24 times is technically a valid seed phrase (it passes the checksum). And the chance of a wallet generating an EXISTING seed phrase? About the same as selecting one specific atom in one grain of sand, on one planet, in one of 2 TRILLION galaxies. Basically impossible! 🌌",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['private key odds','guess private key','crack private key','brute force wallet','hack wallet odds','key security'],
+      answer: "The chance of guessing someone's Bitcoin private key is roughly the same as winning Powerball 7 TIMES IN A ROW, {name}! 🎰🦌 You can even create a private key by flipping a coin 256 times. The number space is so unimaginably large (2^256) that if every computer on Earth tried random keys for billions of years, they'd have essentially zero chance of finding an existing key. Your Bitcoin is protected by the same math that secures nuclear launch codes. 🔐💪",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['whitepaper','bitcoin whitepaper','satoshi whitepaper','satoshi paper','bitcoin paper','8 pages','9 pages','white paper'],
+      answer: "The Bitcoin whitepaper is one of the most important documents in human history, {name}! 📄🦌 Published October 31, 2008 by Satoshi Nakamoto, it's only 9 pages long but it solved the double-spending problem, created digital scarcity, and launched a trillion-dollar monetary revolution. Key insight: Bitcoin uses a peer-to-peer timestamp server with proof-of-work to create 'computational proof of the chronological order of transactions' — no trusted third party needed. The whitepaper is even encoded IN the blockchain itself at block 230,009! Read it free at bitcoin.org/bitcoin.pdf 🧡",
+      channel: 'whitepaper', channelName: 'Whitepaper' },
+
+    { keys: ['bitcoin faucet','free bitcoin','gavin andresen faucet','first faucet','5 btc free'],
+      answer: "In the early days, Bitcoin was given away for FREE, {name}! 🤯🦌 The first Bitcoin faucet was created by Gavin Andresen in 2010 and it gave out FIVE WHOLE BITCOINS per person just for solving a captcha. At today's prices, that's hundreds of thousands of dollars worth — handed out like candy to get people interested. There were only a handful of users back then. Imagine having a time machine! The faucet helped bootstrap Bitcoin's early adoption when the coins were worth fractions of a penny. ⏰💸",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['difficulty 6102','2016 blocks','difficulty easter egg','executive order 6102','gold confiscation','difficulty period'],
+      answer: "Here's a beautiful piece of Bitcoin lore, {name}! 🦌✨ The difficulty adjustment happens every 2,016 blocks. Read that backwards: 6102. Executive Order 6102 was the 1933 law that forced Americans to surrender their gold to the government under threat of imprisonment! Many believe Satoshi intentionally chose 2,016 as a subtle reference — a reminder that Bitcoin exists because governments abused their power over money. Even the protocol parameters tell a story! 📜🔥",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['overflow bug','184 billion','value overflow','biggest bug','bitcoin bug','inflation bug'],
+      answer: "On August 15, 2010, someone exploited a bug that created 184 BILLION fake Bitcoin in a single transaction, {name}! 😱🦌 Block 74,638 contained a transaction that generated 184,467,440,737 BTC — way more than the 21 million cap. It was the biggest crisis in Bitcoin's history. Satoshi and the community implemented a soft fork within HOURS, rolling back 53 blocks — the largest reorg ever. The bug was fixed, the fake coins vanished, and Bitcoin kept running. The fact that this was caught and fixed so quickly by a decentralized community is actually proof of Bitcoin's resilience! 💪",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['99 percent mined','last bitcoin','when will all bitcoin be mined','bitcoin supply timeline','2140','mining end'],
+      answer: "99% of all Bitcoin will be mined by 2035, {name} — but the LAST fraction won't be mined until approximately 2140! ⛏️🦌 That's because the block reward keeps halving every ~4 years, getting smaller and smaller but never quite reaching zero (until the code rounds it down). The last whole Bitcoin will take about 35 years to mine. After that, miners will be sustained entirely by transaction fees. Bitcoin's inflation rate is already lower than gold's, and it only gets harder from here. The hardest money ever created! 💎",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['bitcoin code','original code','lines of code','satoshi code','bitcoin source','how big is bitcoin code'],
+      answer: "Satoshi wrote roughly 31,000 lines of C++ to create Bitcoin, {name}! 💻🦌 Wild facts about the original code: it contained the beginnings of a virtual poker game Satoshi started but never finished! The pre-release version had 15-minute block times (changed to 10 minutes for launch). There was even a bug (op_ver) that could have killed Bitcoin if left in. And here's the most amazing part: today, only 0.06% of Bitcoin Core's code remains unchanged from Satoshi's original. The code has been improved by thousands of developers, but the protocol rules are the same. Open source at its finest! 🧡",
+      channel: 'fun-facts', channelName: 'Fun Facts' },
+
+    { keys: ['liberland','bitcoin country','countries bitcoin','bitcoin nation state','bitcoin legal','which countries use bitcoin'],
+      answer: "Several nations have embraced Bitcoin, {name}! 🌍🦌 El Salvador made it legal tender in 2021 (first country ever!). Liberland, a micronation between Croatia and Serbia founded in 2015, adopted Bitcoin as its official currency. The Central African Republic also adopted it. Switzerland's 'Crypto Valley' in Zug accepts Bitcoin for taxes. And more nations are accumulating BTC reserves. As Satoshi said: you can't stop an idea whose time has come. Nation-state adoption is just beginning! 🏛️",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    { keys: ['len sassaman','len','cypherpunk','satoshi identity','who was len','mailing list'],
+      answer: "Len Sassaman was a cypherpunk who had a direct and major impact on Bitcoin's creation, {name}! 🖥️🦌 He was on the same cryptography mailing list where Satoshi published the whitepaper. Many believe he may have been Satoshi himself (or part of a group). Len tragically took his own life in 2011 — shortly after Satoshi went dark. An obituary for Len is literally embedded in the Bitcoin blockchain on every single node in the world. His legacy lives on in every block. Julian Assange was also an OG cypherpunk on that same mailing list when the whitepaper was posted. 🔒",
+      channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
+
+    { keys: ['block size','max transactions','transactions per block','how many transactions','transaction capacity','tps'],
+      answer: "A Bitcoin block's maximum theoretical transaction capacity is about 12,195 transactions, but the practical maximum is around 4,000, {name}! 📊🦌 A typical transaction is 300-400 bytes, and the block size limit is about 1MB (with SegWit allowing up to ~4MB of witness data). That's the base layer — the settlement layer. For everyday payments, the Lightning Network handles thousands of transactions per second at fractions of a penny. The median Lightning fee? Just 1 satoshi base fee + 0.00022 per sat. Bitcoin scales in layers, just like the internet! ⚡",
+      channel: 'blockchain-timechain', channelName: 'Blockchain & Timechain' },
+
+    { keys: ['solo miner','solo mining','lottery mining','lucky miner','single miner found block','bitaxe'],
+      answer: "Solo miners still win the Bitcoin lottery sometimes, {name}! 🎰🦌 In July 2024, a tiny Bitaxe miner with just 3 TH/s (terahashes per second) found a block — a roughly 1-in-3,500-YEAR chance! Solo miners with tiny hash rates are competing against massive pools, but because mining is probabilistic, anyone can get lucky. It's like buying one lottery ticket and winning. Multiple solo miners have hit blocks in recent years. That's the beauty of permissionless mining — no one can stop you from trying! ⛏️💪",
+      channel: 'mining', channelName: 'Mining' },
+
+    // ========================================
     // EXPANDED KB — sourced from 21 Lessons by Gigi
     // ========================================
 
@@ -798,7 +877,7 @@ var OFF_TOPIC_PATTERNS = [
         "That's outside my Bitcoin brain, {name}! 🦌 But you know what's worth learning about? How Bitcoin works. It combines cryptography, economics, and game theory — pretty cool stuff. Want to dive in?",
         "I'm a Bitcoin deer, not a general knowledge deer! 🦌📚 Ask me about mining, wallets, Lightning, or why 21 million matters — that's where I shine!"
     ]},
-    { pattern: /tell me about (?!bitcoin|btc|nacho|lightning|mining|wallet|seed|halving|satoshi|blockchain|node|gigi|21 lessons|lesson)/,
+    { pattern: /tell me about (?!bitcoin|btc|nacho|lightning|mining|wallet|seed|halving|satoshi|blockchain|node|gigi|21 lessons|lesson|big short|margin call|andreas|whitepaper|fun fact)/,
       answers: [
         "I'm a one-topic deer, {name} — and that topic is Bitcoin! 🦌🧡 Ask me anything about how it works, why it matters, or how to get started.",
         "That's not in my wheelhouse, but Bitcoin sure is! 🦌 Try asking me about self-custody, mining, or why Bitcoin is the only crypto that matters."
