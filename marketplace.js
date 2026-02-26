@@ -346,12 +346,13 @@ function renderListingDetail(container, listingId) {
         // Seller info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Seller</div>' +
-            '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\')" style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
                 '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + (l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
-                '<div>' +
+                '<div style="flex:1;">' +
                     '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + escapeHtml(l.sellerName || 'Anonymous') + '</div>' +
                     (l.sellerRank ? '<div style="font-size:0.7rem;color:var(--text-muted);">' + l.sellerRank + '</div>' : '') +
                 '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.8rem;">👤</div>' +
             '</div>' +
         '</div>';
 
