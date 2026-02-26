@@ -426,7 +426,7 @@ window.showCreateListing = function() {
 
         // Category
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Category *</label>' +
-        '<select id="mktCategory" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+        '<select id="mktCategory" style="width:100%;padding:10px 14px;background:var(--input-bg,var(--card-bg));border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23999" d="M6 8L0 0h12z"/></svg>');background-repeat:no-repeat;background-position:right 12px center;">' +
         '<optgroup label="🎓 Educational Products">' +
         MARKETPLACE_CATEGORIES.filter(function(c){ return c.section === 'educational'; }).map(function(c) { return '<option value="' + c.id + '">' + c.emoji + ' ' + c.name + '</option>'; }).join('') +
         '</optgroup><optgroup label="🛒 General Marketplace">' +
