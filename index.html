@@ -1786,20 +1786,32 @@
             'Why is self-custody the most revolutionary act?',
         ];
 
-        // Dedupe and limit to 3
+        // Dedupe, validate against KB, and limit to 3
         var seen = {};
         var unique = [];
         var qLower = question.toLowerCase();
         for (var i = 0; i < suggestions.length; i++) {
             var s = suggestions[i];
-            if (!seen[s] && s.toLowerCase() !== qLower) { seen[s] = true; unique.push(s); }
+            if (!seen[s] && s.toLowerCase() !== qLower) {
+                // Only suggest questions Nacho can actually answer
+                if (typeof findAnswer === 'function' && !findAnswer(s)) continue;
+                seen[s] = true; unique.push(s);
+            }
             if (unique.length >= 2) break;
         }
 
         // Add one deep rabbit hole question if we have room
         if (unique.length < 3) {
-            var deep = deepQuestions[Math.floor(Math.random() * deepQuestions.length)];
-            if (!seen[deep] && deep.toLowerCase() !== qLower) unique.push(deep);
+            // Shuffle deep questions so we don't always try the same one first
+            var shuffled = deepQuestions.slice().sort(function() { return Math.random() - 0.5; });
+            for (var d = 0; d < shuffled.length && unique.length < 3; d++) {
+                var deep = shuffled[d];
+                if (!seen[deep] && deep.toLowerCase() !== qLower) {
+                    if (typeof findAnswer === 'function' && !findAnswer(deep)) continue;
+                    unique.push(deep);
+                    break;
+                }
+            }
         }
 
         return unique;

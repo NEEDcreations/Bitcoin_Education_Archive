@@ -449,12 +449,13 @@ const FALLBACKS = [
 
 // ---- Match user input to knowledge base ----
 // ---- Detect if a question is about current events/news ----
-var CURRENT_EVENT_SIGNALS = [
-    'happened', 'happening', 'news', 'recent', 'recently',
-    'this week', 'this month', 'this year', 'last week', 'last month',
-    'conference', 'summit', 'event', 'announced', 'announcement', 'update',
-    'latest', 'new law', 'regulation', 'passed', 'approved', 'banned',
-    'price today', '2024', '2025', '2026'
+// Use regex with word boundaries to avoid false matches (e.g. "event" in "eventually")
+var CURRENT_EVENT_PATTERNS = [
+    /\bhappened\b/, /\bhappening\b/, /\bnews\b/, /\brecent\b/, /\brecently\b/,
+    /\bthis week\b/, /\bthis month\b/, /\bthis year\b/, /\blast week\b/, /\blast month\b/,
+    /\bconference\b/, /\bsummit\b/, /\bevent\b/, /\bannounced\b/, /\bannouncement\b/, /\bupdate\b/,
+    /\blatest\b/, /\bnew law\b/, /\bregulation\b/, /\bpassed\b/, /\bapproved\b/, /\bbanned\b/,
+    /\bprice today\b/, /\b2024\b/, /\b2025\b/, /\b2026\b/
 ];
 
 function isCurrentEventQuestion(input) {
@@ -463,8 +464,8 @@ function isCurrentEventQuestion(input) {
     var btcSignals = ['bitcoin','btc','sats','satoshi','mining','halving','lightning','crypto','blockchain','el salvador','etf','nakamoto','node','wallet','exchange'];
     var hasBtcContext = btcSignals.some(function(s) { return lower.indexOf(s) !== -1; });
     if (!hasBtcContext) return false;
-    for (var i = 0; i < CURRENT_EVENT_SIGNALS.length; i++) {
-        if (lower.indexOf(CURRENT_EVENT_SIGNALS[i]) !== -1) return true;
+    for (var i = 0; i < CURRENT_EVENT_PATTERNS.length; i++) {
+        if (CURRENT_EVENT_PATTERNS[i].test(lower)) return true;
     }
     return false;
 }
