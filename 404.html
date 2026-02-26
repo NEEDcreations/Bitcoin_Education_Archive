@@ -814,13 +814,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="ranking.js?v=30" defer></script>
+    <script src="ranking.js?v=31" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
     <script src="features.js" defer></script>
     <script src="badges.js" defer></script>
     <script src="tickets.js" defer></script>
-    <script src="nacho.js?v=9" defer></script>
+    <script src="nacho.js?v=10" defer></script>
     <script src="nacho-live.js?v=7" defer></script>
     <script src="nacho-engage.js?v=7" defer></script>
     <script src="nacho-qa.js?v=9" defer></script>
@@ -2011,6 +2011,12 @@
             btn.style.borderColor = '#22c55e';
             btn.style.opacity = '1';
             if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+            if (typeof showToast === 'function') showToast('🎮 +5 pts — Quiz correct!');
+            // Add result text
+            var resultDiv = document.createElement('div');
+            resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
+            resultDiv.textContent = '✅ Correct! +5 pts';
+            btn.parentElement.appendChild(resultDiv);
         } else {
             btn.style.background = '#ef4444';
             btn.style.color = '#fff';
@@ -2025,6 +2031,10 @@
                     b.style.opacity = '1';
                 }
             });
+            var wrongDiv = document.createElement('div');
+            wrongDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;font-weight:700;text-align:center;';
+            wrongDiv.textContent = '❌ Not quite! Correct answer highlighted above.';
+            btn.parentElement.appendChild(wrongDiv);
         }
     };
 

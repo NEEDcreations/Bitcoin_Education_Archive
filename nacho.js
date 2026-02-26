@@ -807,13 +807,21 @@ function _showBubble(text, pose) {
         ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(a => avatar.classList.remove(a));
     }
 
-    textEl.textContent = personalize(text);
+    // Use innerHTML if text contains HTML (buttons, quiz, etc.), otherwise textContent
+    var isInteractive = text.indexOf('<button') !== -1 || text.indexOf('<div') !== -1;
+    if (isInteractive) {
+        textEl.innerHTML = personalize(text);
+    } else {
+        textEl.textContent = personalize(text);
+    }
     bubble.classList.add('show');
 
     clearTimeout(bubbleTimeout);
-    // Only auto-hide for passive messages, not interactive content
-    bubble.setAttribute('data-interactive', 'false');
-    bubbleTimeout = setTimeout(hideBubble, BUBBLE_DURATION);
+    bubble.setAttribute('data-interactive', isInteractive ? 'true' : 'false');
+    // Don't auto-hide interactive content (quizzes, etc.) — user needs time to respond
+    if (!isInteractive) {
+        bubbleTimeout = setTimeout(hideBubble, BUBBLE_DURATION);
+    }
 
     // Click-outside & Escape dismissal
     if (window._nachoDismissHandler) {
@@ -973,11 +981,87 @@ window.nachoOnChannel = function(channelId) {
         return;
     }
 
+    // Bubble quiz: offer a quiz after reading a channel (30% chance, not on first visit)
+    var channelReadTime = parseInt(sessionStorage.getItem('btc_channel_read_seconds') || '0');
+    if (channelReadTime >= 15 && Math.random() < 0.30 && typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+        // Find a question related to this channel's category
+        var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[channelId] : null;
+        var catName = meta ? meta.cat : '';
+        var qs = QUEST_QUESTIONS.filter(function(q) {
+            return q.category && catName && q.category.toLowerCase().indexOf(catName.toLowerCase().split(' ')[0]) !== -1;
+        });
+        if (qs.length === 0) qs = QUEST_QUESTIONS;
+        var q = qs[Math.floor(Math.random() * qs.length)];
+
+        var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
+            '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
+        var opts = q.options || [];
+        for (var qi = 0; qi < opts.length; qi++) {
+            var isRight = qi === q.answer;
+            quizHtml += '<button onclick="nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+        }
+        forceShowBubble(quizHtml, 'brain');
+        sessionStorage.setItem('btc_channel_read_seconds', '0');
+        return;
+    }
+
     // General channel reaction (25% chance)
     if (Math.random() < 0.25) {
         const msg = pickRandom(CHANNEL_REACT);
         showBubble(msg.text, msg.pose);
     }
+};
+
+// ---- Bubble Quiz Answer Handler ----
+window.nachoBubbleQuizAnswer = function(btn, correct) {
+    // Track for daily challenge
+    sessionStorage.setItem('btc_quiz_done', 'true');
+
+    // Disable all quiz buttons in the bubble
+    var container = btn.parentElement;
+    var buttons = container.querySelectorAll('button');
+    buttons.forEach(function(b) {
+        b.disabled = true;
+        b.style.cursor = 'default';
+        b.style.opacity = '0.6';
+    });
+
+    if (correct) {
+        btn.style.background = '#22c55e';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#22c55e';
+        btn.style.opacity = '1';
+        // Show result text
+        var result = document.createElement('div');
+        result.style.cssText = 'margin-top:6px;font-size:0.8rem;font-weight:700;color:#22c55e;';
+        result.textContent = '✅ Correct! +5 pts';
+        container.appendChild(result);
+        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+        if (typeof showToast === 'function') showToast('🎮 +5 pts — Quiz correct!');
+        if (typeof haptic === 'function') haptic('success');
+    } else {
+        btn.style.background = '#ef4444';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#ef4444';
+        btn.style.opacity = '1';
+        // Highlight the correct answer
+        buttons.forEach(function(b) {
+            if (b !== btn && b.getAttribute('onclick') && b.getAttribute('onclick').indexOf('true') !== -1) {
+                b.style.background = '#22c55e';
+                b.style.color = '#fff';
+                b.style.borderColor = '#22c55e';
+                b.style.opacity = '1';
+            }
+        });
+        var wrongResult = document.createElement('div');
+        wrongResult.style.cssText = 'margin-top:6px;font-size:0.8rem;font-weight:700;color:#ef4444;';
+        wrongResult.textContent = '❌ Not quite! The correct answer is highlighted.';
+        container.appendChild(wrongResult);
+    }
+
+    // Auto-hide bubble after 5 seconds so they can see the result
+    clearTimeout(bubbleTimeout);
+    bubbleTimeout = setTimeout(hideBubble, 5000);
 };
 
 // ---- Context-Aware: Points Earned ----

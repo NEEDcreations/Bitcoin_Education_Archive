@@ -1034,6 +1034,8 @@ function startReadTimer() {
         if (!hasScrolledSinceLastAward) return; // No scrolling
 
         readSeconds++;
+        // Track for Nacho bubble quiz trigger
+        sessionStorage.setItem('btc_channel_read_seconds', readSeconds.toString());
         if (readSeconds - lastReadAward >= 30) {
             lastReadAward = readSeconds;
             hasScrolledSinceLastAward = false; // Reset — must scroll again for next award
