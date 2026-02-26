@@ -481,6 +481,26 @@ const NACHO_KB = [
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
     // ========================================
+    // EXPANDED KB — Gigi "Bitcoin is Time" + Tomer "Legendary Treasure"
+    // ========================================
+
+    { keys: ['bitcoin is time','time is money','money is time','time and bitcoin','bitcoin timekeeping','block time meaning','bitcoin clock','time and money'],
+      answer: "Gigi's 'Bitcoin is Time' is one of the most profound Bitcoin essays ever written, {name}! ⏰🦌 The core insight: 'Time is money, or so the saying goes. It follows that money is also time — a representation of the collective economic energy stored by humanity.' But the link goes deeper: if money requires no TIME to create, it doesn't work as money. That's why fiat fails — it's created with a keystroke. Bitcoin requires real energy, real time, real work. And here's the mind-bender: in a decentralized system, telling time is almost INTRACTABLE. There's no master clock. Bitcoin solved this with proof of work — each block is a tick of the most accurate, incorruptible clock humanity has ever built. Bitcoin doesn't just use time — it IS time. ⛓️🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['bitcoin keeps time','decentralized time','decentralized clock','no master clock','block height time','timechain meaning','causal time','how bitcoin tells time'],
+      answer: "Here's the deep problem Bitcoin solved, {name}: how do you create the concept of a SINGLE time when your system spans the globe with no central authority? 🌍⏰🦌 As Gigi explains: 'You might think telling time is easy — glance at a clock. But synchronizing a global, adversarial, distributed network? That's almost intractable.' There's no GPS time, no atomic clock everyone trusts. Bitcoin solves this by creating its own time: BLOCK TIME. Each block is causally linked to the previous one through proof of work. You can't fake the order. You can't rewrite history. Lewis Mumford said 'The clock, not the steam engine, is the key machine of the industrial age.' Today, Bitcoin — a timekeeping device — is transforming civilization again. 🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['digital money problem','why digital money hard','ledger vs token','double spend why','information copy problem','why bitcoin was hard to invent'],
+      answer: "Gigi explains the fundamental problem Bitcoin solved, {name}: 'In the digital realm, we can ONLY use ledgers.' 💻🦌 Physical money (coins, shells, gold) exists as TOKENS — you hand it over, it's gone. But digital information can be PERFECTLY COPIED. That's the double-spend problem — how do you stop someone from spending the same digital money twice? Before Bitcoin, the only solution was a CENTRAL authority keeping the ledger (banks, PayPal). Satoshi's genius was creating a decentralized ledger where EVERYONE agrees on the state without trusting anyone. The secret ingredient? Time, enforced through proof of work. Each block timestamp is unforgeable. That's why Bitcoin took 30 years of cryptographic research to invent. 🧠🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['satoshi treasure','legendary treasure','satoshi sacrifice','satoshi noble','satoshi didn\'t spend','satoshi coins unmoved','why satoshi didn\'t sell','heroic sacrifice'],
+      answer: "Tomer Strolight's 'The Legendary Treasure of Satoshi Nakamoto' tells one of the most powerful stories in Bitcoin, {name}! 👑🦌 Satoshi mined roughly 1 million Bitcoin in the early days to secure the network when no one else would. Those coins — worth tens of BILLIONS today — have never moved. Not one satoshi. Satoshi could be the richest person on Earth. Instead, they chose to disappear. This wasn't just privacy — it was the greatest act of selflessness in financial history. By disappearing, Satoshi ensured Bitcoin has no leader to corrupt, no founder to arrest, no billionaire to worship. The treasure isn't the coins — the treasure is the GIFT of a truly leaderless, incorruptible money to humanity. That's Satoshi's real legacy. 🧡🔥",
+      channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
+
+    // ========================================
     // EXPANDED KB — Parker Lewis "Gradually, Then Suddenly" + Bitcoin Standard
     // ========================================
 
@@ -1231,6 +1251,7 @@ function findAnswer(input) {
         { pattern: /executive order 6102|gold confiscation|6102/, key: 'executive order 6102' },
         { pattern: /stock.to.flow|s2f model|planb|plan.b model/, key: 'stock to flow' },
         { pattern: /bitcoin.*freedom|freedom.*bitcoin|financial freedom|monetary freedom|rally cry/, key: 'bitcoin rally cry' },
+        { pattern: /time is money|money is time|bitcoin.*time|time.*bitcoin/, key: 'bitcoin is time' },
     ];
     for (var ti = 0; ti < topicPatterns.length; ti++) {
         if (topicPatterns[ti].pattern.test(input)) {
