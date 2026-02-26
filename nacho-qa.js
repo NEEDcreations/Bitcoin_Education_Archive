@@ -253,8 +253,11 @@ const NACHO_KB = [
       answer: "Bitcoin's network has NEVER been hacked in 15+ years. It's secured by more computing power than anything else on Earth. Individual wallets can be compromised, but not Bitcoin itself!",
       channel: 'secure', channelName: 'Secure' },
 
-    { keys: ['ban','banned','government ban','illegal','can government stop','regulate'],
-      answer: "Bitcoin can't be banned — it's code running on thousands of computers worldwide. Even China's ban failed. Many countries are now embracing it. You can't stop math!",
+    { keys: ['ban','banned','government ban','illegal','can government stop','regulate','bitcoin ever been banned','was bitcoin banned','has bitcoin been banned','can bitcoin be banned'],
+      answer: "Bitcoin has been \"banned\" over and over — and it just keeps growing! 🦌💪 China is the biggest example: they banned Bitcoin trading in 2017, then banned ALL crypto in 2021, and banned mining completely. What happened? The hashrate dropped ~50% overnight — then within 6 months, miners relocated to the US, Kazakhstan, and other countries, and hashrate fully recovered and hit NEW all-time highs! China's ban literally made Bitcoin MORE decentralized by spreading mining across more countries. India tried restrictions — Bitcoin usage grew. Nigeria banned banks from crypto — peer-to-peer trading exploded. You can't ban math running on thousands of computers across 100+ countries. Every ban attempt has made Bitcoin stronger. 🧮🔥",
+      channel: 'regulation', channelName: 'Regulation' },
+    { keys: ['china ban','china banned','china mining','china bitcoin','mining ban','banned mining','hashrate migration','mining moved','miners relocated','hashrate dropped','hashrate recovery'],
+      answer: "China's Bitcoin ban is the ultimate proof that Bitcoin can't be stopped! 🇨🇳🦌 In May 2021, China banned all Bitcoin mining. The hashrate (total computing power securing the network) crashed ~50% almost overnight — the biggest drop in Bitcoin's history. Sounds scary, right? Here's what ACTUALLY happened: miners packed up their machines and moved to the US, Kazakhstan, Canada, Russia, and other countries. Within about 6 months, hashrate fully recovered. Within a year, it hit new ALL-TIME HIGHS — higher than when China had all that mining! 📈 The difficulty adjustment automatically adapted, blocks kept coming every ~10 minutes, and the network never stopped. Not for one second. China literally gifted the US its position as the #1 Bitcoin mining country. The ban made Bitcoin MORE decentralized, MORE geographically distributed, and MORE resilient. That's the beauty of a decentralized network — ban it in one place, it just moves and gets stronger. 💪",
       channel: 'regulation', channelName: 'Regulation' },
 
     { keys: ['quantum','quantum computer','quantum computing','quantum threat'],
@@ -693,12 +696,15 @@ function findAnswer(input) {
     var siteMatch = matchSiteNavigation(input);
     if (siteMatch) return siteMatch;
 
-    // If the question is about current events, skip local KB — let web search handle it
-    if (isCurrentEventQuestion(input)) return null;
+    // NOTE: Current event detection moved AFTER KB topic matching.
+    // This ensures questions like "What happened when China banned Bitcoin?"
+    // get a KB answer instead of being routed to web search.
 
     // PRIORITY CHECK: Topic-specific keywords that override generic scoring
     // When these words appear, route to the specific topic entry
     var topicPatterns = [
+        { pattern: /china.*(ban|min)|ban.*min|min.*ban|hashrate.*(migrat|drop|recov|moved)|miner.*(reloc|moved|fled)/, key: 'china ban' },
+        { pattern: /\bban\b|\bbanned\b|government.*(ban|stop|shut)|can.*be banned|ever been banned|was.*banned/, key: 'ban' },
         { pattern: /mining|miner|hash.?rate|asic/, key: 'mining' },
         { pattern: /your seed.?phrase|nacho.?seed|give me your seed|show me your seed|tell me your seed|your private key|nacho.?private key|share your seed/, key: 'your seed phrase' },
         { pattern: /metamask|trust.wallet|phantom.wallet|exodus|coinbase.wallet|crypto\.com.wallet/, key: 'metamask' },
@@ -770,9 +776,13 @@ function findAnswer(input) {
         }
     }
 
-    // Require a higher confidence threshold to avoid false matches
-    // Single common word matches (score 30) are too weak
-    return bestScore >= 40 ? bestMatch : null;
+    // If we found a strong KB match, return it (even for current-event-like questions)
+    if (bestScore >= 40) return bestMatch;
+
+    // No KB match — check if this is a current event question (route to web search)
+    if (isCurrentEventQuestion(input)) return null;
+
+    return null;
 }
 
 // ---- Nacho busy state — suppresses all popups during Q&A ----
