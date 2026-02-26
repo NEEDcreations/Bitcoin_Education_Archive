@@ -1847,6 +1847,17 @@ window.nachoUnifiedAnswer = function(question, callback) {
     if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
         nachoAIAnswer(q, function(aiAnswer) {
             if (aiAnswer) {
+                // Check if AI gave a deflection/refusal instead of a real answer
+                var aiLower = aiAnswer.toLowerCase();
+                var isDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
+
+                // If AI deflected but we have a KB match, use KB instead
+                if (isDeflection && kbMatch) {
+                    nachoRemember(q, kbMatch.answer);
+                    callback({ type: 'kb', answer: pq(kbMatch.answer) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+                    return;
+                }
+
                 // AI answered — enrich with KB channel link
                 var channelLink = '';
                 var ch = null, chName = null;
