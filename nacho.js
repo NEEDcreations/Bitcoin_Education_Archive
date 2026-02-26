@@ -286,6 +286,7 @@ let idleTimer = null;
 // ---- State ----
 let nachoVisible = true;
 let bubbleTimeout = null;
+window.clearNachoBubbleTimeout = function() { clearTimeout(bubbleTimeout); bubbleTimeout = null; };
 let lastBubbleTime = 0;
 let sessionMsgCount = 0;
 const MAX_SESSION_MSGS = 12;
@@ -664,7 +665,7 @@ function createNacho() {
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
             '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔</span>' +
         '</div>' +
-        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\'))hideBubble(true)">' +
+        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> Nacho says</span>' +
                 '<span class="nacho-x" onclick="event.stopPropagation();hideBubble(true)">✕</span>' +

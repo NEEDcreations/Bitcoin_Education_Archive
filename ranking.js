@@ -892,8 +892,10 @@ async function awardPoints(pts, reason) {
         points: firebase.firestore.FieldValue.increment(pts)
     });
     currentUser.points = (currentUser.points || 0) + pts;
-    // Only toast for significant point awards (25+), not routine ones
-    if (pts >= 25) showToast('+' + pts + ' pts — ' + reason);
+    // Toast for point awards — show for trivia/quiz (5+) and significant awards (25+)
+    if (pts >= 5 || (reason && (reason.indexOf('Trivia') !== -1 || reason.indexOf('trivia') !== -1 || reason.indexOf('🧠') !== -1))) {
+        showToast('+' + pts + ' pts — ' + reason);
+    }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();

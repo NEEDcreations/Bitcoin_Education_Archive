@@ -167,18 +167,18 @@ window.showNachoTrivia = function() {
 
     // Mark as interactive — prevents auto-hide
     bubble.setAttribute('data-interactive', 'true');
-    clearTimeout(window._nachoBubbleTimeout);
+    if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + t.pts + ' pts)</div>' +
         '<div style="color:var(--text,#eee);margin-bottom:10px;line-height:1.5;">' + t.q + '</div>';
 
     for (var i = 0; i < t.options.length; i++) {
-        html += '<button onclick="nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
+        html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
     }
 
     textEl.innerHTML = html;
     bubble.classList.add('show');
-    clearTimeout(window._nachoBubbleTimeout);
+    if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
     return true;
 };
 
@@ -202,7 +202,7 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
     // Keep bubble open — prevent click-outside and auto-hide from dismissing
     var bubble = document.getElementById('nacho-bubble');
     if (bubble) bubble.setAttribute('data-interactive', 'true');
-    clearTimeout(window._nachoBubbleTimeout);
+    if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     // Temporarily remove click-outside handlers so user can read the result
     if (window._nachoDismissHandler) {
