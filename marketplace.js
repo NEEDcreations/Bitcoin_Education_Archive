@@ -361,7 +361,11 @@ function renderListingDetail(container, listingId) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
                 '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\')" style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
                 '<button onclick="toggleMarketSave(\'' + l.id + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
+                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
             '</div>';
+            // Safety notice
+            html += '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
+                '<div style="font-size:0.7rem;color:#eab308;line-height:1.5;">🛡️ <strong>Safety Tips:</strong> Use escrow when possible. Never send payment before receiving the item. Meet in public if trading locally. Report suspicious listings.</div></div>';
             // Lightning payment hint
             if (l.lightningAddress) {
                 html += '<div style="background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:12px;text-align:center;margin-bottom:16px;">' +

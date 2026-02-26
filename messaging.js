@@ -16,6 +16,178 @@ var MSG_CONFIG = {
     unreadPollInterval: 30 * 1000,      // Check unread every 30s
 };
 
+// ---- SECURITY & SAFETY ----
+
+// Scam/phishing link detection
+var SUSPICIOUS_PATTERNS = [
+    /send\s*(?:me|ur|your)\s*(?:btc|bitcoin|sats|seed|key|phrase)/i,
+    /(?:double|triple|multiply)\s*(?:your|ur)\s*(?:btc|bitcoin|sats|crypto)/i,
+    /(?:free|win|won|claim|airdrop)\s*(?:btc|bitcoin|sats|crypto|nft)/i,
+    /(?:invest|deposit)\s*(?:now|today|here)\b/i,
+    /(?:guaranteed|100%)\s*(?:return|profit|roi)/i,
+    /send\s*\d+\s*(?:btc|sats)\s*(?:to|and)\s*(?:get|receive|earn)/i,
+    /(?:seed|private)\s*(?:phrase|key)\s*(?:here|now|please|share)/i,
+    /(?:validate|verify|sync)\s*(?:your|ur)\s*(?:wallet|account)/i,
+    /(?:connect|link)\s*(?:your|ur)\s*(?:wallet|metamask|phantom)/i,
+    /(?:nigerian|prince|inheritance|lottery)\s*(?:fund|money|payment)/i,
+];
+
+// Suspicious URL patterns
+var SUSPICIOUS_URLS = [
+    /bit\.ly|tinyurl|t\.co|goo\.gl|is\.gd|buff\.ly|ow\.ly|rebrand\.ly/i,   // URL shorteners
+    /(?:discord\.gift|discordapp\.gift|nitro.*free)/i,                        // Discord scams
+    /(?:steamcommunity|steampowered).*(?:gift|trade|login)/i,                 // Steam scams
+    /(?:wallet|connect|validate|sync|claim|airdrop).*(?:\.com|\.io|\.xyz|\.site|\.app)/i,  // Crypto scam sites
+    /(?:dapp|defi|swap|bridge|mint).*(?:\.com|\.io|\.xyz|\.site)/i,           // DeFi scam sites
+];
+
+// Blocked content
+var BLOCKED_CONTENT = [
+    /(?:child|minor|underage).*(?:porn|nude|nsfw)/i,
+    /(?:kill|murder|attack|bomb|shoot).*(?:yourself|someone|them|people|school)/i,
+    /\b(?:doxx|doxing|swat)\b/i,
+];
+
+// Warn about external links
+function containsSuspiciousLink(text) {
+    // Check for URLs
+    var urlPattern = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
+    var urls = text.match(urlPattern) || [];
+    for (var i = 0; i < urls.length; i++) {
+        for (var j = 0; j < SUSPICIOUS_URLS.length; j++) {
+            if (SUSPICIOUS_URLS[j].test(urls[i])) return 'suspicious_link';
+        }
+    }
+    return null;
+}
+
+function containsScamPattern(text) {
+    for (var i = 0; i < SUSPICIOUS_PATTERNS.length; i++) {
+        if (SUSPICIOUS_PATTERNS[i].test(text)) return true;
+    }
+    return false;
+}
+
+function containsBlockedContent(text) {
+    for (var i = 0; i < BLOCKED_CONTENT.length; i++) {
+        if (BLOCKED_CONTENT[i].test(text)) return true;
+    }
+    return false;
+}
+
+// Sanitize message text (strip HTML, limit length)
+function sanitizeMessage(text) {
+    if (!text) return '';
+    // Strip any HTML tags
+    text = text.replace(/<[^>]*>/g, '');
+    // Trim whitespace
+    text = text.trim();
+    // Enforce max length
+    if (text.length > MSG_CONFIG.maxMsgLength) text = text.substring(0, MSG_CONFIG.maxMsgLength);
+    return text;
+}
+
+// ---- BLOCK/UNBLOCK USERS ----
+window.getBlockedUsers = function() {
+    try { return JSON.parse(localStorage.getItem('btc_blocked_users') || '[]'); } catch(e) { return []; }
+};
+
+window.isUserBlocked = function(uid) {
+    return getBlockedUsers().indexOf(uid) !== -1;
+};
+
+window.blockUser = function(uid, username) {
+    if (!uid) return;
+    var blocked = getBlockedUsers();
+    if (blocked.indexOf(uid) !== -1) return; // Already blocked
+    blocked.push(uid);
+    localStorage.setItem('btc_blocked_users', JSON.stringify(blocked));
+    // Also save to Firestore for cross-device sync
+    if (auth && auth.currentUser && db) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            blockedUsers: firebase.firestore.FieldValue.arrayUnion(uid)
+        }).catch(function(){});
+    }
+    if (typeof showToast === 'function') showToast('🚫 Blocked ' + (username || 'user') + '. You won\'t see their messages.');
+    // Close DM if open with this user
+    closeDM();
+};
+
+window.unblockUser = function(uid, username) {
+    if (!uid) return;
+    var blocked = getBlockedUsers();
+    blocked = blocked.filter(function(id) { return id !== uid; });
+    localStorage.setItem('btc_blocked_users', JSON.stringify(blocked));
+    if (auth && auth.currentUser && db) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            blockedUsers: firebase.firestore.FieldValue.arrayRemove(uid)
+        }).catch(function(){});
+    }
+    if (typeof showToast === 'function') showToast('✅ Unblocked ' + (username || 'user'));
+};
+
+// ---- REPORT USER ----
+window.reportUser = function(uid, username, reason) {
+    if (!uid || !auth || !auth.currentUser) return;
+    var reporterName = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : 'Anonymous';
+
+    // Show report dialog if no reason provided
+    if (!reason) {
+        var html = '<div id="reportModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10003;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;">' +
+            '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">🚩 Report ' + escapeHtml(username || 'User') + '</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">Why are you reporting this user?</div>' +
+            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/'/g, "\\'") + '\',\'spam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
+            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/'/g, "\\'") + '\',\'scam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
+            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/'/g, "\\'") + '\',\'harassment\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
+            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/'/g, "\\'") + '\',\'inappropriate\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
+            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/'/g, "\\'") + '\',\'impersonation\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
+            '<button onclick="document.getElementById(\'reportModal\').remove()" style="width:100%;padding:10px;margin-top:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div></div>';
+        var div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div.firstChild);
+        return;
+    }
+};
+
+window.submitReport = function(uid, username, reason) {
+    var modal = document.getElementById('reportModal');
+    if (modal) modal.remove();
+
+    if (!db || !auth || !auth.currentUser) return;
+    var reporterName = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : 'Anonymous';
+
+    db.collection('reports').add({
+        reportedUid: uid,
+        reportedName: username,
+        reporterUid: auth.currentUser.uid,
+        reporterName: reporterName,
+        reason: reason,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'pending',
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('🚩 Report submitted. Thank you for keeping the community safe.');
+        // Auto-block the reported user
+        blockUser(uid, username);
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Failed to submit report');
+    });
+};
+
+// ---- RESTORE BLOCKED LIST FROM FIRESTORE ----
+function restoreBlockedList() {
+    if (!auth || !auth.currentUser || !db) return;
+    db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+        if (doc.exists && doc.data().blockedUsers) {
+            var remote = doc.data().blockedUsers;
+            var local = getBlockedUsers();
+            var merged = Array.from(new Set(local.concat(remote)));
+            localStorage.setItem('btc_blocked_users', JSON.stringify(merged));
+        }
+    }).catch(function(){});
+}
+
 // ---- ONLINE PRESENCE ----
 var _presenceTimer = null;
 
@@ -138,6 +310,14 @@ window.showUserProfile = function(uid) {
                 : (!auth || !auth.currentUser || auth.currentUser.isAnonymous ?
                     '<button onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:12px;font-size:0.9rem;cursor:pointer;font-family:inherit;">🔒 Sign in to message</button>'
                     : '')) +
+            // Block & Report buttons
+            (canMessage ?
+                '<div style="display:flex;gap:8px;margin-top:8px;">' +
+                    (isUserBlocked(uid) ?
+                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/'/g, "\\'") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
+                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/'/g, "\\'") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
+                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/'/g, "\\'") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                '</div>' : '') +
             '</div></div>';
 
         var modal = document.getElementById('userProfileModal');
@@ -200,6 +380,12 @@ window.openDM = function(recipientUid, recipientName) {
         return;
     }
 
+    // Block check
+    if (isUserBlocked(recipientUid)) {
+        if (typeof showToast === 'function') showToast('🚫 This user is blocked. Unblock them to message.');
+        return;
+    }
+
     var myUid = auth.currentUser.uid;
     var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
     var convoId = getConversationId(myUid, recipientUid);
@@ -222,9 +408,14 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + escapeHtml(otherName) + '</div>' +
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
-            '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+            '<div style="display:flex;gap:6px;align-items:center;">' +
+                '<button onclick="event.stopPropagation();reportUser(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/'/g, "\\'") + '\')" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
+                '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+            '</div>' +
         '</div>' +
         // Messages area
+        // Safety banner
+        '<div style="padding:8px 16px;background:rgba(234,179,8,0.1);border-bottom:1px solid rgba(234,179,8,0.2);font-size:0.7rem;color:#eab308;text-align:center;flex-shrink:0;">⚠️ Never share your seed phrase, private keys, or send Bitcoin to strangers.</div>' +
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
@@ -298,9 +489,12 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 }
 
                 var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // Scam warning on incoming messages
+                var scamWarn = (!isMe && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
+                    '<div style="font-size:0.65rem;color:#ef4444;margin-top:4px;padding:3px 6px;background:rgba(239,68,68,0.1);border-radius:4px;">⚠️ This message may contain a scam. Never send money to strangers.</div>' : '';
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:80%;padding:10px 14px;border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + (isMe ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isMe ? '#fff' : 'var(--text)') + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
-                        escapeHtml(m.text) +
+                        escapeHtml(m.text) + scamWarn +
                         '<div style="font-size:0.6rem;color:' + (isMe ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
                     '</div></div>';
             });
@@ -319,11 +513,34 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
 window.sendDM = function(convoId, recipientUid, recipientName) {
     var inp = document.getElementById('dmInput');
     if (!inp) return;
-    var text = inp.value.trim();
+    var text = sanitizeMessage(inp.value);
     if (!text) return;
     if (text.length > MSG_CONFIG.maxMsgLength) {
         if (typeof showToast === 'function') showToast('Message too long (max ' + MSG_CONFIG.maxMsgLength + ' chars)');
         return;
+    }
+
+    // Block check
+    if (isUserBlocked(recipientUid)) {
+        if (typeof showToast === 'function') showToast('🚫 You have blocked this user');
+        return;
+    }
+
+    // Blocked content check
+    if (containsBlockedContent(text)) {
+        if (typeof showToast === 'function') showToast('⛔ Message contains prohibited content');
+        return;
+    }
+
+    // Scam detection — warn but allow send
+    if (containsScamPattern(text)) {
+        if (typeof showToast === 'function') showToast('⚠️ Warning: Your message looks like it could be a scam. Please be careful.');
+    }
+
+    // Suspicious link warning
+    var linkCheck = containsSuspiciousLink(text);
+    if (linkCheck) {
+        if (typeof showToast === 'function') showToast('⚠️ Warning: Suspicious link detected. Be cautious with URLs.');
     }
 
     // Rate limit
@@ -501,6 +718,8 @@ function startUnreadPolling() {
 window.initMessaging = function() {
     // Start presence tracking
     startPresenceTracking();
+    // Restore blocked users list from Firestore
+    restoreBlockedList();
     // Start unread polling (with delay to let auth settle)
     setTimeout(startUnreadPolling, 5000);
 };
