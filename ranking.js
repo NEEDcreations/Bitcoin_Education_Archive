@@ -1606,35 +1606,56 @@ function showSettingsPage(tab) {
 
         // Profile section
         var bio = currentUser ? currentUser.bio || '' : '';
-        var website = currentUser ? currentUser.website || '' : '';
-        var twitter = currentUser ? currentUser.twitter || '' : '';
-        var nostr = currentUser ? currentUser.nostr || '' : '';
-        var instagram = currentUser ? currentUser.instagram || '' : '';
-        var tiktok = currentUser ? currentUser.tiktok || '' : '';
-        var github = currentUser ? currentUser.github || '' : '';
-        var contactEmail = currentUser ? currentUser.contactEmail || '' : '';
+        // Social links config: key, emoji, label, placeholder, maxlen, type
+        var _slDef = [
+            { k:'website', e:'🌐', l:'Website', p:'https://yoursite.com', m:100, t:'url' },
+            { k:'twitter', e:'𝕏', l:'Twitter/X', p:'@yourusername', m:30 },
+            { k:'nostr', e:'🟣', l:'Nostr', p:'npub... or NIP-05', m:80 },
+            { k:'instagram', e:'📸', l:'Instagram', p:'@yourusername', m:30 },
+            { k:'tiktok', e:'🎵', l:'TikTok', p:'@yourusername', m:30 },
+            { k:'github', e:'🐙', l:'GitHub', p:'yourusername', m:40 },
+            { k:'contactEmail', e:'📧', l:'Email', p:'you@example.com', m:80, t:'email', note:'public' },
+            { k:'lightning', e:'⚡', l:'Lightning', p:'you@walletofsatoshi.com', m:80 }
+        ];
+        // Build list of filled links and available (empty) links
+        var _filledLinks = [], _emptyLinks = [];
+        _slDef.forEach(function(s) {
+            var val = currentUser ? currentUser[s.k] || '' : '';
+            if (val) _filledLinks.push(s);
+            else _emptyLinks.push(s);
+        });
+
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📝 Public Profile</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Visible when someone clicks your name on the leaderboard</div>' +
             '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Bio <span id="bioCharCount" style="color:var(--text-faint);">(' + (160 - bio.length) + ' chars left)</span></label>' +
-            '<textarea id="profileBio" maxlength="160" rows="3" placeholder="Tell the community about yourself..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:10px;" oninput="document.getElementById(\'bioCharCount\').textContent=\'(\' + (160-this.value.length) + \' chars left)\'">' + escapeHtml(bio) + '</textarea>' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🌐 Website</label>' +
-            '<input type="url" id="profileWebsite"  value="' + escapeHtml(website) + '" placeholder="https://yoursite.com" maxlength="100" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">𝕏 Twitter/X</label>' +
-            '<input type="text" id="profileTwitter" value="' + escapeHtml(twitter) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🟣 Nostr</label>' +
-            '<input type="text" id="profileNostr" value="' + escapeHtml(nostr) + '" placeholder="npub... or NIP-05" maxlength="80" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">📸 Instagram</label>' +
-            '<input type="text" id="profileInstagram" value="' + escapeHtml(instagram) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🎵 TikTok</label>' +
-            '<input type="text" id="profileTiktok" value="' + escapeHtml(tiktok) + '" placeholder="@yourusername" maxlength="30" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">🐙 GitHub</label>' +
-            '<input type="text" id="profileGithub" value="' + escapeHtml(github) + '" placeholder="yourusername" maxlength="40" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">📧 Contact Email <span style="color:var(--text-faint);font-size:0.7rem;">(public)</span></label>' +
-            '<input type="email" id="profileContactEmail" value="' + escapeHtml(contactEmail) + '" placeholder="you@example.com" maxlength="80" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;-webkit-appearance:none;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">⚡ Lightning Address</label>' +
-            '<input type="text" id="profileLightning" value="' + escapeHtml(currentUser ? currentUser.lightning || '' : '') + '" placeholder="you@walletofsatoshi.com" maxlength="80" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:10px;-webkit-appearance:none;">' +
-            '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
+            '<textarea id="profileBio" maxlength="160" rows="2" placeholder="Tell the community about yourself..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:12px;" oninput="document.getElementById(\'bioCharCount\').textContent=\'(\' + (160-this.value.length) + \' chars left)\'">' + escapeHtml(bio) + '</textarea>';
+
+        // Existing links shown as editable chips
+        html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Links & Socials</div>';
+        html += '<div id="profileLinksArea">';
+        _filledLinks.forEach(function(s) {
+            var val = currentUser ? currentUser[s.k] || '' : '';
+            html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
+                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
+                '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
+            '</div>';
+        });
+        html += '</div>';
+
+        // Add link dropdown — only show if there are empty slots
+        if (_emptyLinks.length > 0) {
+            html += '<div id="addLinkArea" style="margin-bottom:12px;">' +
+                '<button id="addLinkBtn" onclick="document.getElementById(\'addLinkMenu\').style.display=document.getElementById(\'addLinkMenu\').style.display===\'none\'?\'block\':\'none\'" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;width:100%;touch-action:manipulation;"><span style="font-size:1rem;">＋</span> Add a link</button>' +
+                '<div id="addLinkMenu" style="display:none;margin-top:6px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.3);">';
+            _emptyLinks.forEach(function(s) {
+                html += '<button onclick="addProfileLink(\'' + s.k + '\',\'' + s.e + '\',\'' + s.l + '\',\'' + s.p + '\',' + s.m + ',\'' + (s.t||'text') + '\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;text-align:left;touch-action:manipulation;"><span style="font-size:1.1rem;">' + s.e + '</span> ' + s.l + (s.note ? ' <span style="color:var(--text-faint);font-size:0.7rem;">(' + s.note + ')</span>' : '') + '</button>';
+            });
+            html += '</div></div>';
+        }
+
+        html += '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
             '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
             '</div>';
 
@@ -2194,6 +2215,42 @@ function setFontSize(size) {
     }
 })();
 
+// Profile link helpers
+window._removedProfileLinks = {};
+window.profileLinkRemoved = function(key) {
+    window._removedProfileLinks[key] = true;
+};
+window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
+    var area = document.getElementById('profileLinksArea');
+    if (!area) return;
+    // Remove from _removed tracker
+    delete window._removedProfileLinks[key];
+    // Add editable row
+    var row = document.createElement('div');
+    row.className = 'pf-link-row';
+    row.setAttribute('data-key', key);
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML = '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + emoji + '</span>' +
+        '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;" autofocus>' +
+        '<button onclick="document.getElementById(\'profile_' + key + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + key + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>';
+    area.appendChild(row);
+    // Hide the menu item and close menu
+    document.getElementById('addLinkMenu').style.display = 'none';
+    // Focus the new input
+    var inp = document.getElementById('profile_' + key);
+    if (inp) inp.focus();
+    // Remove option from dropdown (hide button)
+    var btns = document.getElementById('addLinkMenu').querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) {
+        if (btns[i].textContent.indexOf(label) !== -1) { btns[i].style.display = 'none'; break; }
+    }
+    // Hide "Add a link" button if no more options
+    var visible = 0;
+    btns = document.getElementById('addLinkMenu').querySelectorAll('button');
+    for (var j = 0; j < btns.length; j++) { if (btns[j].style.display !== 'none') visible++; }
+    if (visible === 0) document.getElementById('addLinkArea').style.display = 'none';
+};
+
 // Change username
 // Bio moderation — check for inappropriate content
 var PROFILE_BLOCKED = ['fuck','shit','ass','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','sex','nude','hentai','kill','rape','pedo'];
@@ -2215,15 +2272,16 @@ async function saveProfile() {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in to save your profile</span>';
         return;
     }
+    function _pv(id, max) { var key = id.replace('profile_',''); if (window._removedProfileLinks && window._removedProfileLinks[key]) return ''; var el = document.getElementById(id); return el ? (el.value || '').trim().substring(0, max) : ''; }
     var bio = (document.getElementById('profileBio').value || '').trim().substring(0, 160);
-    var website = (document.getElementById('profileWebsite').value || '').trim().substring(0, 100);
-    var twitter = (document.getElementById('profileTwitter').value || '').trim().substring(0, 30);
-    var nostr = (document.getElementById('profileNostr').value || '').trim().substring(0, 80);
-    var instagram = (document.getElementById('profileInstagram').value || '').trim().substring(0, 30);
-    var tiktok = (document.getElementById('profileTiktok').value || '').trim().substring(0, 30);
-    var github = (document.getElementById('profileGithub').value || '').trim().substring(0, 40);
-    var contactEmail = (document.getElementById('profileContactEmail').value || '').trim().substring(0, 80);
-    var lightning = (document.getElementById('profileLightning').value || '').trim().substring(0, 80);
+    var website = _pv('profile_website', 100);
+    var twitter = _pv('profile_twitter', 30);
+    var nostr = _pv('profile_nostr', 80);
+    var instagram = _pv('profile_instagram', 30);
+    var tiktok = _pv('profile_tiktok', 30);
+    var github = _pv('profile_github', 40);
+    var contactEmail = _pv('profile_contactEmail', 80);
+    var lightning = _pv('profile_lightning', 80);
 
     // Validate bio
     if (bio && !isBioClean(bio)) {
