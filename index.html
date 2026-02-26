@@ -1915,11 +1915,11 @@
     function checkNachoMilestone() {
         var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
         var milestones = { 10: 'beginner', 25: 'explorer', 50: 'apprentice', 100: 'scholar', 200: 'expert', 500: 'legend' };
-        var shown = JSON.parse(localStorage.getItem('btc_nacho_milestones') || '[]');
+        var shown = JSON.parse(localStorage.getItem('btc_nacho_q_milestones') || '[]');
         for (var count in milestones) {
-            if (interactions >= parseInt(count) && shown.indexOf(count) === -1) {
+            if (interactions >= parseInt(count) && shown.indexOf(count) === -1 && shown.indexOf(parseInt(count)) === -1) {
                 shown.push(count);
-                localStorage.setItem('btc_nacho_milestones', JSON.stringify(shown));
+                localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(shown));
                 var msgs = {
                     10: "🎉 10 questions! You're officially a Bitcoin Beginner! Keep going — there's so much to learn! 🦌",
                     25: "🎉 25 questions! You've leveled up to Bitcoin Explorer! You're asking the right questions! 💪",
