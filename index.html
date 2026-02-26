@@ -826,9 +826,9 @@
     <script src="nacho-engage.js?v=6" defer></script>
     <script src="nacho-qa.js?v=16" defer></script>
     <script src="nacho-closet.js?v=8" defer></script>
-    <script src="forum.js?v=5" defer></script>
+    <script src="forum.js?v=8" defer></script>
     <script src="engagement.js?v=6" defer></script>
-    <script src="marketplace.js?v=5" defer></script>
+    <script src="marketplace.js?v=6" defer></script>
     <script src="mobile-ux.js?v=7" defer></script>
     <script>
     function openImg(src) {
@@ -3420,17 +3420,9 @@
         window.addEventListener('popstate', function(e) {
             var state = e.state || {};
             var hash = location.hash.slice(1);
-            if (hash === 'nacho' || state.nachoMode) {
-                if (!window._nachoMode) enterNachoMode(true);
-                return;
-            }
-            if (hash === 'forum' || (state.channel && state.channel.indexOf('forum') === 0)) {
-                if (window._nachoMode) exitNachoMode();
-                if (typeof renderForum === 'function') renderForum();
-                return;
-            }
-            // If we were in Nacho Mode and navigated away, exit it
-            if (window._nachoMode) {
+
+            // Exit Nacho Mode if we're leaving it
+            if (window._nachoMode && hash !== 'nacho' && !state.nachoMode) {
                 window._nachoMode = false;
                 window._nachoBusy = false;
                 if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
@@ -3440,6 +3432,55 @@
                 var mbar2 = document.querySelector('.mobile-bar');
                 if (mbar2 && window.innerWidth <= 900) mbar2.style.display = 'flex';
             }
+
+            // Nacho Mode
+            if (hash === 'nacho' || state.nachoMode) {
+                if (!window._nachoMode) enterNachoMode(true);
+                return;
+            }
+
+            // Marketplace sub-views (listing detail, my listings)
+            if (state.channel === 'marketplace' && state.mktView) {
+                if (typeof handleMarketplacePopState === 'function') {
+                    handleMarketplacePopState(state, hash);
+                    return;
+                }
+            }
+            if (hash && hash.indexOf('marketplace/') === 0) {
+                if (typeof handleMarketplacePopState === 'function') {
+                    handleMarketplacePopState(state, hash);
+                    return;
+                }
+            }
+
+            // Marketplace browse
+            if (hash === 'marketplace' || state.channel === 'marketplace') {
+                go('marketplace', null, true);
+                return;
+            }
+
+            // Forum post detail
+            if ((state.channel === 'forum' && state.forumPost) || (hash && hash.indexOf('forum/post/') === 0)) {
+                var postId = state.forumPost || hash.replace('forum/post/', '');
+                if (typeof forumViewPost === 'function') {
+                    // Make sure forum container is visible
+                    document.getElementById('home').classList.add('hidden');
+                    document.getElementById('msgs').style.display = 'none';
+                    document.getElementById('hero').style.display = 'none';
+                    var fc = document.getElementById('forumContainer');
+                    if (fc) fc.style.display = 'block';
+                    forumViewPost(postId, true);
+                }
+                return;
+            }
+
+            // Forum listing
+            if (hash === 'forum' || (state.channel && state.channel.indexOf('forum') === 0)) {
+                go('forum', null, true);
+                return;
+            }
+
+            // Channel
             if (hash) {
                 go(hash, null, true);
             } else {

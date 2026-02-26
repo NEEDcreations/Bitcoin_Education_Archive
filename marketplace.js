@@ -47,29 +47,39 @@ var SORT_OPTIONS = [
 ];
 
 // ---- Marketplace History (back button support) ----
-// window._mktHistoryStack = [];
-//
-// function mktPushState(options) {
-//     window._mktHistoryStack.push(options);
-//     // Use hash to track marketplace sub-views
-//     var hash = '#marketplace';
-//     if (options.listingId) hash += '/listing/' + options.listingId;
-//     else if (options.myListings) hash += '/my';
-//     history.pushState({ marketplace: options }, '', hash);
-// }
-//
-// // Listen for back button
-// window.addEventListener('popstate', function(e) {
-//     if (e.state && e.state.marketplace) {
-//         var opts = e.state.marketplace;
-//         if (opts.myListings) { showMyListings(true); }
-//         else if (opts.listingId) { renderMarketplace({ listingId: opts.listingId, _noHistory: true }); }
-//         else { renderMarketplace(Object.assign({}, opts, { _noHistory: true })); }
-//     } else if (window._mktHistoryStack.length > 0 && location.hash === '#marketplace') {
-//         window._mktHistoryStack = [];
-//         renderMarketplace({ _noHistory: true });
-//     }
-// });
+// Sub-view pushState — marketplace browse is handled by go('marketplace')
+// These push additional states for listing detail and my listings
+function mktPushState(type, id) {
+    if (type === 'listing') {
+        history.pushState({ channel: 'marketplace', mktView: 'listing', listingId: id }, '', '#marketplace/listing/' + id);
+    } else if (type === 'my') {
+        history.pushState({ channel: 'marketplace', mktView: 'my' }, '', '#marketplace/my');
+    }
+}
+
+// Called from the main popstate handler in index.html
+window.handleMarketplacePopState = function(state, hash) {
+    if (state && state.mktView === 'listing' && state.listingId) {
+        renderMarketplace({ listingId: state.listingId, _noHistory: true });
+        return true;
+    }
+    if (state && state.mktView === 'my') {
+        showMyListings(true);
+        return true;
+    }
+    if (hash && hash.indexOf('marketplace/listing/') === 0) {
+        var lid = hash.replace('marketplace/listing/', '');
+        renderMarketplace({ listingId: lid, _noHistory: true });
+        return true;
+    }
+    if (hash === 'marketplace/my') {
+        showMyListings(true);
+        return true;
+    }
+    // Default: show marketplace browse
+    renderMarketplace({ _noHistory: true });
+    return true;
+};
 
 // ---- Render Marketplace ----
 window.renderMarketplace = function(options) {
@@ -87,6 +97,7 @@ window.renderMarketplace = function(options) {
 
     // View single listing
     if (viewListing) {
+        if (!options._noHistory) mktPushState('listing', viewListing);
         renderListingDetail(container, viewListing);
         return;
     }
@@ -269,7 +280,7 @@ function renderListingDetail(container, listingId) {
 
     db.collection('marketplace').doc(listingId).get().then(function(doc) {
         if (!doc.exists) {
-            container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">😕</div><div style="color:var(--text-muted);">Listing not found</div><button onclick="renderMarketplace()" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;">← Back to Marketplace</button></div>';
+            container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;"><div style="font-size:2rem;margin-bottom:8px;">😕</div><div style="color:var(--text-muted);">Listing not found</div><button onclick="history.back()" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;">← Back to Marketplace</button></div>';
             return;
         }
         var l = { id: doc.id, ...doc.data() };
@@ -301,7 +312,7 @@ function renderListingDetail(container, listingId) {
         var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
 
         // Back button
-        html += '<button onclick="renderMarketplace()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back</button>';
+        html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back</button>';
 
         // Image
         if (l.imageUrl) {
@@ -584,7 +595,7 @@ window.showMyListings = function(fromPopState) {
         showToast('🔒 Sign in to see your listings');
         return;
     }
-    if (!fromPopState) mktPushState({ myListings: true });
+    if (!fromPopState) mktPushState('my');
 
     var container = document.getElementById('forumContainer');
     if (!container) return;
@@ -595,7 +606,7 @@ window.showMyListings = function(fromPopState) {
         .orderBy('createdAt', 'desc')
         .get().then(function(snap) {
             var html = '<div style="max-width:600px;margin:0 auto;padding:16px;">';
-            html += '<button onclick="renderMarketplace()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back to Marketplace</button>';
+            html += '<button onclick="history.back()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:16px;">← Back to Marketplace</button>';
             html += '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:16px;">📋 My Listings</div>';
 
             if (snap.empty) {

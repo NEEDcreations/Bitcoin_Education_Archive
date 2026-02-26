@@ -120,8 +120,7 @@ function timeAgo(ts) {
 
 // Navigate back to forum list
 window.forumBack = function() {
-    history.pushState({ channel: 'forum' }, '', '#forum');
-    renderForum();
+    history.back();
 };
 
 // State
@@ -261,13 +260,10 @@ window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; renderForum(); };
 
 // ---- View Post ----
-window.forumViewPost = async function(postId) {
+window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
-    
-    
     if (!fc || typeof db === 'undefined') return;
-    
-    
+    if (!fromPopState) history.pushState({ channel: 'forum', forumPost: postId }, '', '#forum/post/' + postId);
     fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div></div>';
 
     try {
