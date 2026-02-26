@@ -7,15 +7,27 @@
 (function() {
 'use strict';
 
+var MARKETPLACE_SECTIONS = [
+    { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
+    { id: 'general', name: 'General Marketplace', emoji: '🛒', desc: 'Buy & sell everything else' },
+];
+
 var MARKETPLACE_CATEGORIES = [
-    { id: 'hardware', name: 'Hardware Wallets', emoji: '🔐' },
-    { id: 'books', name: 'Books & Education', emoji: '📚' },
-    { id: 'mining', name: 'Mining Equipment', emoji: '⛏️' },
-    { id: 'merch', name: 'Merchandise', emoji: '👕' },
-    { id: 'art', name: 'Art & Collectibles', emoji: '🎨' },
-    { id: 'nodes', name: 'Nodes & Tech', emoji: '💻' },
-    { id: 'services', name: 'Services', emoji: '🛠️' },
-    { id: 'other', name: 'Other', emoji: '📦' },
+    // Educational Products
+    { id: 'books', name: 'Books', emoji: '📚', section: 'educational' },
+    { id: 'courses', name: 'Courses & Workshops', emoji: '🎓', section: 'educational' },
+    { id: 'hardware_edu', name: 'Hardware Wallets', emoji: '🔐', section: 'educational' },
+    { id: 'nodes', name: 'Node Kits & Guides', emoji: '💻', section: 'educational' },
+    { id: 'kids', name: 'Kids & Family', emoji: '👨‍👩‍👧‍👦', section: 'educational' },
+    { id: 'tools', name: 'Learning Tools', emoji: '🧰', section: 'educational' },
+    // General Marketplace
+    { id: 'mining', name: 'Mining Equipment', emoji: '⛏️', section: 'general' },
+    { id: 'merch', name: 'Apparel & Merch', emoji: '👕', section: 'general' },
+    { id: 'art', name: 'Art & Collectibles', emoji: '🎨', section: 'general' },
+    { id: 'stickers', name: 'Stickers & Prints', emoji: '🖼️', section: 'general' },
+    { id: 'services', name: 'Services', emoji: '🛠️', section: 'general' },
+    { id: 'electronics', name: 'Electronics & Tech', emoji: '📱', section: 'general' },
+    { id: 'other', name: 'Other', emoji: '📦', section: 'general' },
 ];
 
 var CONDITIONS = [
@@ -78,14 +90,33 @@ window.renderMarketplace = function(options) {
         'style="width:100%;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
     '</div>';
 
-    // Category pills
+    // Determine active section from category
+    var activeSection = options.section || 'all';
+    if (activeCategory !== 'all' && activeSection === 'all') {
+        var catObj = MARKETPLACE_CATEGORIES.find(function(c) { return c.id === activeCategory; });
+        if (catObj) activeSection = catObj.section;
+    }
+
+    // Section tabs: All | Educational | General
+    html += '<div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">';
+    var sectionTabs = [{ id: 'all', name: 'All', emoji: '🛒' }].concat(MARKETPLACE_SECTIONS);
+    for (var si = 0; si < sectionTabs.length; si++) {
+        var sec = sectionTabs[si];
+        var secActive = activeSection === sec.id;
+        html += '<button onclick="renderMarketplace({section:\'' + sec.id + '\',category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+            'style="flex:1;padding:10px 8px;background:' + (secActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (secActive ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.8rem;font-weight:' + (secActive ? '700' : '500') + ';cursor:pointer;font-family:inherit;transition:0.2s;">' + sec.emoji + ' ' + sec.name + '</button>';
+    }
+    html += '</div>';
+
+    // Subcategory pills (filtered by active section)
+    var visibleCats = activeSection === 'all' ? MARKETPLACE_CATEGORIES : MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === activeSection; });
     html += '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;-webkit-overflow-scrolling:touch;">';
-    html += '<button onclick="renderMarketplace({category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+    html += '<button onclick="renderMarketplace({section:\'' + activeSection + '\',category:\'all\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
         'style="padding:6px 14px;border-radius:20px;border:1px solid ' + (activeCategory === 'all' ? 'var(--accent)' : 'var(--border)') + ';background:' + (activeCategory === 'all' ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (activeCategory === 'all' ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;">All</button>';
-    for (var c = 0; c < MARKETPLACE_CATEGORIES.length; c++) {
-        var cat = MARKETPLACE_CATEGORIES[c];
+    for (var c = 0; c < visibleCats.length; c++) {
+        var cat = visibleCats[c];
         var isActive = activeCategory === cat.id;
-        html += '<button onclick="renderMarketplace({category:\'' + cat.id + '\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
+        html += '<button onclick="renderMarketplace({section:\'' + activeSection + '\',category:\'' + cat.id + '\',search:\'' + searchQuery + '\',sort:\'' + sortBy + '\'})" ' +
             'style="padding:6px 14px;border-radius:20px;border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';background:' + (isActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isActive ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;">' + cat.emoji + ' ' + cat.name + '</button>';
     }
     html += '</div>';
@@ -93,7 +124,7 @@ window.renderMarketplace = function(options) {
     // Sort dropdown
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
         '<span id="marketResultCount" style="font-size:0.75rem;color:var(--text-faint);">Loading...</span>' +
-        '<select id="marketSort" onchange="renderMarketplace({category:\'' + activeCategory + '\',search:\'' + searchQuery + '\',sort:this.value})" ' +
+        '<select id="marketSort" onchange="renderMarketplace({section:\'' + activeSection + '\',category:\'' + activeCategory + '\',search:\'' + searchQuery + '\',sort:this.value})" ' +
         'style="padding:6px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-family:inherit;">';
     for (var s = 0; s < SORT_OPTIONS.length; s++) {
         html += '<option value="' + SORT_OPTIONS[s].id + '"' + (sortBy === SORT_OPTIONS[s].id ? ' selected' : '') + '>' + SORT_OPTIONS[s].label + '</option>';
@@ -107,11 +138,11 @@ window.renderMarketplace = function(options) {
     container.innerHTML = html;
 
     // Load listings from Firestore
-    loadMarketListings(activeCategory, searchQuery, sortBy);
+    loadMarketListings(activeCategory, searchQuery, sortBy, activeSection);
 };
 
 // ---- Load Listings from Firestore ----
-function loadMarketListings(category, search, sort) {
+function loadMarketListings(category, search, sort, section) {
     var grid = document.getElementById('marketListings');
     var countEl = document.getElementById('marketResultCount');
     if (!grid || typeof db === 'undefined') {
@@ -135,6 +166,12 @@ function loadMarketListings(category, search, sort) {
         snap.forEach(function(doc) {
             listings.push({ id: doc.id, ...doc.data() });
         });
+
+        // Client-side section filter
+        if (section && section !== 'all') {
+            var sectionCatIds = MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === section; }).map(function(c) { return c.id; });
+            listings = listings.filter(function(l) { return sectionCatIds.indexOf(l.category) !== -1; });
+        }
 
         // Client-side search filter
         if (search) {
@@ -335,8 +372,11 @@ window.showCreateListing = function() {
         // Category
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Category *</label>' +
         '<select id="mktCategory" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
-        MARKETPLACE_CATEGORIES.map(function(c) { return '<option value="' + c.id + '">' + c.emoji + ' ' + c.name + '</option>'; }).join('') +
-        '</select>' +
+        '<optgroup label="🎓 Educational Products">' +
+        MARKETPLACE_CATEGORIES.filter(function(c){ return c.section === 'educational'; }).map(function(c) { return '<option value="' + c.id + '">' + c.emoji + ' ' + c.name + '</option>'; }).join('') +
+        '</optgroup><optgroup label="🛒 General Marketplace">' +
+        MARKETPLACE_CATEGORIES.filter(function(c){ return c.section === 'general'; }).map(function(c) { return '<option value="' + c.id + '">' + c.emoji + ' ' + c.name + '</option>'; }).join('') +
+        '</optgroup></select>' +
 
         // Condition
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Condition *</label>' +
