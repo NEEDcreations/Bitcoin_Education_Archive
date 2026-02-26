@@ -194,13 +194,28 @@ var _presenceTimer = null;
 function updatePresence() {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
     if (!db) return;
+    // Respect user's online status toggle
+    var statusOn = localStorage.getItem('btc_online_status') !== 'false';
     try {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
-            isOnline: true,
-        }).catch(function() {});
+        if (statusOn) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                isOnline: true,
+            }).catch(function() {});
+        } else {
+            // Clear online status so user appears offline
+            db.collection('users').doc(auth.currentUser.uid).update({
+                isOnline: false,
+                lastSeen: null,
+            }).catch(function() {});
+        }
     } catch(e) {}
 }
+
+// Called when user toggles online status in settings
+window.toggleOnlineStatus = function() {
+    updatePresence();
+};
 
 function startPresenceTracking() {
     updatePresence();
