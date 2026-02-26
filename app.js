@@ -1,0 +1,3051 @@
+function openImg(src) {
+        document.getElementById('lb-img').src = src;
+        document.getElementById('lb').classList.add('open');
+    }
+
+    function isMobile() { return window.innerWidth <= 900; }
+
+    function toggleTheme() {
+        const isDark = document.body.getAttribute('data-theme') !== 'light';
+        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+        localStorage.setItem('btc_theme', isDark ? 'light' : 'dark');
+    }
+    // Restore saved theme
+    (function() {
+        const saved = localStorage.getItem('btc_theme');
+        if (saved === 'light') {
+            document.body.setAttribute('data-theme', 'light');
+            setTimeout(() => { const b = document.getElementById('themeBtn'); if(b) b.textContent = '☀️'; }, 0);
+        }
+        // Set audio state
+        setTimeout(() => { updateAudioUI(); }, 0);
+    })();
+
+    function setFloatingElementsVisible(visible) {
+        var ids = ['nacho-container','nacho-toggle','lbFloatBtn','floatingRandomBtn','userDisplay','backToTop','scrollToBottom'];
+        ids.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function toggleMenu() {
+        var sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('open');
+        // Hide floating elements when sidebar is open on mobile (they block scrolling)
+        setFloatingElementsVisible(!sidebar.classList.contains('open'));
+    }
+
+    function toggleCat(label) {
+        var group = label.nextElementSibling;
+        var arrow = label.querySelector('.cat-arrow');
+        var expanded = label.getAttribute('data-expanded') === 'true';
+        if (expanded) {
+            group.style.display = 'none';
+            label.setAttribute('data-expanded', 'false');
+            if (arrow) arrow.textContent = '▶';
+        } else {
+            group.style.display = '';
+            label.setAttribute('data-expanded', 'true');
+            if (arrow) arrow.textContent = '▼';
+        }
+    }
+
+    // Auto-expand the section when navigating to a channel
+    function expandCatForChannel(btn) {
+        if (!btn) return;
+        var group = btn.closest('.cat-group');
+        if (group && group.style.display === 'none') {
+            var label = group.previousElementSibling;
+            if (label && label.classList.contains('cat-toggle')) {
+                group.style.display = '';
+                label.setAttribute('data-expanded', 'true');
+                var arrow = label.querySelector('.cat-arrow');
+                if (arrow) arrow.textContent = '▼';
+            }
+        }
+    }
+
+    function getFavs() { return JSON.parse(localStorage.getItem('btc_favs') || '[]'); }
+    function setFavs(f) { localStorage.setItem('btc_favs', JSON.stringify(f)); renderFavs(); }
+
+    function toggleFav(id, btn) {
+        let favs = getFavs();
+        if (favs.includes(id)) {
+            favs = favs.filter(f => f !== id);
+            if (btn) btn.innerHTML = '☆ Save';
+        } else {
+            favs.push(id);
+            if (btn) btn.innerHTML = '⭐ Saved';
+            // Track for daily challenge
+            sessionStorage.setItem('btc_fav_added', 'true');
+        }
+        setFavs(favs);
+        // Sync to Firebase
+        if (typeof syncFavsToFirebase === 'function') syncFavsToFirebase();
+    }
+
+    function renderFavs() {
+        const favs = getFavs();
+        const section = document.getElementById('favsSection');
+        const list = document.getElementById('favsList');
+        if (favs.length === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+        list.innerHTML = favs.map(id => {
+            const meta = CHANNELS[id];
+            if (!meta) return '';
+            const short = meta.title.length > 28 ? meta.title.substring(0, 28) + '...' : meta.title;
+            return '<button class="ch-btn" onclick="go(\'' + id + '\',this)">⭐ ' + short + '</button>';
+        }).join('');
+    }
+
+    let galleryMode = false;
+    let currentChannelData = null;
+    let currentChannelId = null;
+
+    function toggleGallery(id) {
+        galleryMode = !galleryMode;
+        const btn = document.getElementById('galleryBtn');
+        if (btn) {
+            btn.classList.toggle('active', galleryMode);
+            btn.textContent = galleryMode ? '📄 List View' : '🖼️ Gallery View';
+        }
+        renderContent(id);
+    }
+
+    function renderContent(id) {
+        const d = currentChannelData;
+        if (!d) return;
+        const msgsEl = document.getElementById('msgs');
+
+        if (galleryMode) {
+            // Collect all images
+            let allImgs = [];
+            d.msgs.forEach(m => {
+                if (m.imgs) m.imgs.forEach(img => allImgs.push(img));
+            });
+
+            let html = '<div class="gallery-grid">';
+            const PAGE = 100;
+            const showing = allImgs.slice(0, PAGE);
+            showing.forEach(img => {
+                html += '<img src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+            });
+            html += '</div>';
+            if (allImgs.length > PAGE) {
+                window._galleryImgs = allImgs;
+                window._galleryOffset = PAGE;
+                html += '<button class="load-more-btn" id="loadMoreGallery" onclick="loadMoreGallery()">Load more (' + (allImgs.length - PAGE) + ' remaining)</button>';
+            }
+            msgsEl.innerHTML = html;
+        } else {
+            // Normal list view - re-render
+            const PAGE_SIZE = 50;
+            // Skip the first message since it's already shown in the hero description
+            const allMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
+
+            function renderBatch(startIdx) {
+                const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
+                let html = '';
+                batch.forEach((m, bi) => {
+                    html += '<div class="msg" id="msg-' + (startIdx + bi) + '">';
+                    if (m.text) {
+                        let t = m.text;
+                        // Embed YouTube videos — extract them first, replace with placeholders
+                        let ytEmbeds = [];
+                        t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
+                            ytEmbeds.push(id);
+                            return '%%YT' + (ytEmbeds.length - 1) + '%%';
+                        });
+                        t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g, function(match, id) {
+                            ytEmbeds.push(id);
+                            return '%%YT' + (ytEmbeds.length - 1) + '%%';
+                        });
+                        // Extract Twitter/X links for click-to-embed
+                        let twEmbeds = [];
+                        t = t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g, function(match) {
+                            const url = match.startsWith('http') ? match : 'https://' + match;
+                            twEmbeds.push(url);
+                            return '%%TW' + (twEmbeds.length - 1) + '%%';
+                        });
+                        // Now linkify remaining URLs
+                        t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+                        // Restore YouTube embeds
+                        t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
+                            return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
+                        });
+                        // Restore Twitter embeds as click-to-load cards
+                        t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
+                            const twUrl = twEmbeds[parseInt(idx)];
+                            const twId = 'tw_' + Math.random().toString(36).substr(2, 8);
+                            const isMob = typeof isMobile === 'function' && isMobile();
+                            const handle = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
+                            const displayHandle = handle ? '@' + handle[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
+                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl.replace(/'/g, "\\'") + '\')">' +
+                                '<div class="tw-preview-icon">𝕏</div>' +
+                                '<div class="tw-preview-content">' +
+                                '<div class="tw-preview-url">' + displayHandle + '</div>' +
+                                '<div class="tw-preview-hint">' + (isMob ? '▶ Tap to display tweet' : '▶ Click to display tweet') + '</div>' +
+                                '</div>' +
+                                '<div class="tw-preview-arrow">→</div>' +
+                                '</div>';
+                        });
+                        t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
+                        html += '<div class="msg-text">' + t + '</div>';
+                    }
+                    if (m.imgs) m.imgs.forEach(img => {
+                        if (m.link) {
+                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>';
+                        } else {
+                            html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
+                        }
+                    });
+                    html += '</div>';
+                });
+                return html;
+            }
+
+            let msgsHtml = renderBatch(0);
+            if (allMsgs.length > PAGE_SIZE) {
+                msgsHtml += '<button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreMsgs()">Load more (' + (allMsgs.length - PAGE_SIZE) + ' remaining)</button>';
+            }
+            msgsEl.innerHTML = msgsHtml;
+            window._currentMsgs = allMsgs;
+            window._currentOffset = PAGE_SIZE;
+        }
+
+        // Add Next + Random buttons at the bottom
+        // Use sidebar order for navigation
+        if (!window._sidebarOrder) {
+            window._sidebarOrder = [...document.querySelectorAll('.ch-btn')].map(b => {
+                const m = b.getAttribute('onclick').match(/go\('([^']+)'/);
+                return m ? m[1] : null;
+            }).filter(Boolean);
+        }
+        const channelKeys = window._sidebarOrder.length > 0 ? window._sidebarOrder : Object.keys(CHANNELS);
+        const currentIdx = channelKeys.indexOf(id);
+        const nextId = currentIdx < channelKeys.length - 1 ? channelKeys[currentIdx + 1] : channelKeys[0];
+        const nextTitle = CHANNELS[nextId] ? CHANNELS[nextId].title : nextId;
+
+        const prevId = currentIdx > 0 ? channelKeys[currentIdx - 1] : channelKeys[channelKeys.length - 1];
+        const prevTitle = CHANNELS[prevId] ? CHANNELS[prevId].title : prevId;
+
+        let navHtml = '<div style="display:flex;gap:12px;justify-content:center;align-items:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;flex-wrap:wrap;">';
+        navHtml += '<button onclick="go(\'' + prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
+        navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
+        navHtml += '<button onclick="goRandomArt()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Art">🎨</button>';
+        navHtml += '<button onclick="goRandomMeme()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Meme">😂</button>';
+        navHtml += '<button onclick="go(\'' + nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
+        navHtml += '</div>';
+        navHtml += '<div style="text-align:center;padding-bottom:20px;">';
+        navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
+        navHtml += '</div>';
+        // Read Next suggestions
+        if (typeof renderReadNext === 'function') {
+            navHtml += renderReadNext(id);
+        }
+        msgsEl.innerHTML += navHtml;
+
+        msgsEl.classList.add('fade-in');
+    }
+
+    // Twitter/X embed
+    let twttrLoaded = false;
+    function loadTweetEmbed(containerId, url) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '<div class="tw-loading">Loading tweet...</div>';
+
+        if (!twttrLoaded) {
+            const s = document.createElement('script');
+            s.src = 'https://platform.twitter.com/widgets.js';
+            s.async = true;
+            s.onload = function() { twttrLoaded = true; embedTweet(containerId, url); };
+            document.head.appendChild(s);
+        } else {
+            embedTweet(containerId, url);
+        }
+    }
+
+    function embedTweet(containerId, url) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (window.twttr && window.twttr.widgets) {
+            const match = url.match(/status\/(\d+)/);
+            if (match) {
+                const tweetDiv = document.createElement('div');
+                container.appendChild(tweetDiv);
+                twttr.widgets.createTweet(match[1], tweetDiv, {
+                    theme: document.body.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+                    align: 'center',
+                    conversation: 'none',
+                    width: 500
+                }).then(function(el) {
+                    if (!el) {
+                        container.innerHTML = '<div class="tw-embedded"><div class="tw-header">𝕏</div><div class="tw-body"><a class="msg-link" href="' + url + '" target="_blank">View on X →</a></div></div>';
+                    }
+                });
+            }
+        } else {
+            container.innerHTML = '<div class="tw-embedded"><div class="tw-header">𝕏</div><div class="tw-body"><a class="msg-link" href="' + url + '" target="_blank">View on X →</a></div></div>';
+        }
+    }
+
+    async function goRandom() {
+        window._keepFloatingBtn = true;
+        const keys = Object.keys(CHANNELS);
+        if (!window._randomChannelHistory) window._randomChannelHistory = [];
+        var avail = keys.filter(function(k) { return window._randomChannelHistory.indexOf(k) === -1; });
+        if (avail.length === 0) { window._randomChannelHistory.length = 0; avail = keys; }
+        const randomId = avail[Math.floor(Math.random() * avail.length)];
+        window._randomChannelHistory.push(randomId);
+        if (window._randomChannelHistory.length > Math.floor(keys.length * 0.3)) window._randomChannelHistory.shift();
+        await go(randomId);
+        window._keepFloatingBtn = false;
+        showFloatingBtn('__random__', '🎲', 'Next Random Channel');
+    }
+
+    async function goRandomFromChannel(channelId, emoji, label) {
+        window._keepFloatingBtn = true;
+        const meta = CHANNELS[channelId];
+        if (!meta) { window._keepFloatingBtn = false; return; }
+        let d;
+        if (channelCache[channelId]) {
+            d = channelCache[channelId];
+        } else {
+            try {
+                const resp = await fetch(meta.file);
+                d = await resp.json();
+                channelCache[channelId] = d;
+            } catch(e) { return; }
+        }
+
+        // Find all messages that have images (skip first which is hero desc)
+        const allMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
+        const imgMsgs = [];
+        allMsgs.forEach((m, i) => { if (m.imgs && m.imgs.length > 0) imgMsgs.push(i); });
+        if (imgMsgs.length === 0) return;
+
+        // Anti-repeat: track recent picks per channel, avoid them
+        if (!window._randomHistory) window._randomHistory = {};
+        if (!window._randomHistory[channelId]) window._randomHistory[channelId] = [];
+        var history = window._randomHistory[channelId];
+        // Keep history to ~20% of pool so we cycle through most before repeating
+        var maxHistory = Math.min(Math.floor(imgMsgs.length * 0.2), 50);
+        var available = imgMsgs.filter(function(idx) { return history.indexOf(idx) === -1; });
+        if (available.length === 0) { history.length = 0; available = imgMsgs; } // Reset if exhausted
+        var randomIdx = available[Math.floor(Math.random() * available.length)];
+        history.push(randomIdx);
+        if (history.length > maxHistory) history.shift();
+        await go(channelId);
+
+        const PAGE_SIZE = 50;
+        if (randomIdx >= PAGE_SIZE) {
+            const loadBtn = document.getElementById('loadMoreBtn');
+            while (window._currentOffset <= randomIdx && loadBtn && document.contains(loadBtn)) {
+                window.loadMoreMsgs();
+            }
+        }
+
+        setTimeout(function() {
+            const el = document.getElementById('msg-' + randomIdx);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+                el.style.boxShadow = '0 0 20px rgba(247,147,26,0.4)';
+                el.style.borderColor = '#f7931a';
+                setTimeout(function() {
+                    el.style.boxShadow = '';
+                    el.style.borderColor = '';
+                }, 2000);
+                window._keepFloatingBtn = false;
+                showFloatingBtn(channelId, emoji, label);
+            }
+        }, 300);
+    }
+
+    function goRandomMeme() { return goRandomFromChannel('memes-funny', '😂', 'Next Random Meme'); }
+    function goRandomArt() { return goRandomFromChannel('art-inspiration', '🎨', 'Next Random Art'); }
+
+    function showFloatingBtn(channelId, emoji, label) {
+        var btn = document.getElementById('floatingRandomBtn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'floatingRandomBtn';
+            btn.style.cssText = 'position:fixed;bottom:140px;right:180px;z-index:150;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:0.2s;display:flex;align-items:center;gap:6px;';
+            document.body.appendChild(btn);
+        }
+        btn.innerHTML = emoji + ' ' + label;
+        btn.onclick = channelId === '__random__'
+            ? function() { goRandom(); }
+            : function() { goRandomFromChannel(channelId, emoji, label); };
+        btn.style.display = 'flex';
+        function hideOnNav() {
+            btn.style.display = 'none';
+            window.removeEventListener('popstate', hideOnNav);
+        }
+        window.addEventListener('popstate', hideOnNav, { once: true });
+    }
+
+    window.goRandomMeme = goRandomMeme;
+    window.goRandomArt = goRandomArt;
+
+    window.loadMoreGallery = function() {
+        const imgs = window._galleryImgs;
+        const offset = window._galleryOffset;
+        const grid = document.querySelector('.gallery-grid');
+        const btn = document.getElementById('loadMoreGallery');
+        const next = imgs.slice(offset, offset + 100);
+
+        next.forEach(img => {
+            const el = document.createElement('img');
+            el.src = img;
+            el.loading = 'lazy';
+            el.onclick = function() { openImg(this.src); };
+            grid.appendChild(el);
+        });
+
+        window._galleryOffset = offset + 100;
+        if (window._galleryOffset >= imgs.length) {
+            btn.remove();
+        } else {
+            btn.textContent = 'Load more (' + (imgs.length - window._galleryOffset) + ' remaining)';
+        }
+    };
+
+    function shareNostr(text, url) {
+        const note = text + '\n\n' + url;
+        // Copy to clipboard first
+        navigator.clipboard.writeText(note).then(() => {
+            showToast('📋 Note copied! Paste it in Primal to post.');
+        }).catch(() => {});
+        // Open Primal home where they can paste
+        window.open('https://primal.net/home', '_blank');
+    }
+
+    window.showDonateModal = function() {
+        var existing = document.getElementById('donateModal');
+        if (existing) existing.remove();
+        var modal = document.createElement('div');
+        modal.id = 'donateModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);-webkit-overflow-scrolling:touch;overflow-y:auto;padding:20px;';
+        var lnAddr = 'spontaneousleopard54@zeuspay.com';
+        modal.innerHTML =
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:16px;padding:24px 20px;max-width:340px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
+                '<button onclick="document.getElementById(\'donateModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+                '<div style="font-size:2rem;margin-bottom:8px;">⚡</div>' +
+                '<div style="color:var(--heading,#fff);font-weight:700;font-size:1.1rem;margin-bottom:4px;">Support the Archive</div>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:14px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>' +
+                '<img src="donation-qr.jpg" alt="Bitcoin Donation QR Code" style="max-width:180px;width:60%;height:auto;margin-bottom:12px;border:2px solid var(--border,#333);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.2);">' +
+                '<div style="margin-bottom:12px;">' +
+                    '<div style="color:var(--accent,#f7931a);font-weight:600;font-size:0.8rem;word-break:break-all;margin-bottom:8px;">' + lnAddr + '</div>' +
+                    '<button id="donateCopyBtn" style="padding:8px 20px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid var(--accent,#f7931a);border-radius:8px;color:var(--accent,#f7931a);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">📋 Copy Address</button>' +
+                '</div>' +
+                '<p style="color:var(--text-faint,#666);font-size:0.75rem;margin:0;">⚠️ Donations are non-refundable</p>' +
+            '</div>';
+        document.body.appendChild(modal);
+        // Copy button handler (avoids inline this-binding issues on mobile)
+        var copyBtn = document.getElementById('donateCopyBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var btn = this;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(lnAddr).then(function() {
+                        btn.textContent = '✅ Copied!';
+                        setTimeout(function() { btn.textContent = '📋 Copy Address'; }, 2000);
+                    });
+                } else {
+                    // Fallback for older browsers
+                    var ta = document.createElement('textarea');
+                    ta.value = lnAddr; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    btn.textContent = '✅ Copied!';
+                    setTimeout(function() { btn.textContent = '📋 Copy Address'; }, 2000);
+                }
+            });
+        }
+        modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    };
+
+    function copyLink(url, btn) {
+        navigator.clipboard.writeText(url).then(() => {
+            btn.classList.add('copied');
+            btn.textContent = '✅ Copied!';
+            setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '🔗 Copy Link'; }, 2000);
+        });
+    }
+
+    // goRandom defined above with floating button support
+
+    let supportRevealed = false;
+    function handleSupportClick() {
+        const btn = document.getElementById('supportBtn');
+        if (!supportRevealed) {
+            // First click: reveal email with flash animation
+            supportRevealed = true;
+            btn.style.transition = '0.3s';
+            btn.style.background = 'var(--accent)';
+            btn.style.color = '#fff';
+            btn.style.borderColor = 'var(--accent)';
+            btn.innerHTML = 'info.603btc.com@gmail.com <span style="font-size:0.7rem;opacity:0.8;margin-left:4px;">tap to copy</span>';
+            setTimeout(function() {
+                btn.style.background = 'var(--card-bg)';
+                btn.style.color = 'var(--text)';
+                btn.style.borderColor = 'var(--border)';
+            }, 400);
+        } else {
+            // Second click: copy email and open mailto
+            navigator.clipboard.writeText('info.603btc.com@gmail.com').then(function() {
+                btn.innerHTML = '✅ Copied!';
+                btn.style.color = '#22c55e';
+                setTimeout(function() {
+                    btn.innerHTML = 'info.603btc.com@gmail.com <span style="font-size:0.7rem;opacity:0.8;margin-left:4px;">tap to copy</span>';
+                    btn.style.color = 'var(--text)';
+                }, 1500);
+            }).catch(function() {});
+            window.location.href = 'mailto:info.603btc.com@gmail.com?subject=Support%20-%20Bitcoin%20Education%20Archive';
+        }
+    }
+
+    // ---- NACHO MODE ----
+    window._nachoMode = false;
+    window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
+
+    window.enterNachoMode = function(fromPopState) {
+        window._nachoMode = true;
+        window._nachoBusy = true; // suppress ALL popups
+        window._nachoModeEarnings = { points: 0, badges: [], interactions: 0 };
+        window._nachoModeStartTime = Date.now();
+        window._nachoModeTopics = []; // Track user questions for conversation quiz
+        window._nachoConvoQuizOffered = false;
+
+        // Hook into awardPoints to track earnings during Nacho Mode
+        if (!window._nachoPointsHooked) {
+            window._nachoPointsHooked = true;
+            var _origAward = window.awardPoints;
+            if (_origAward) {
+                window.awardPoints = function(pts, reason) {
+                    if (window._nachoMode && window._nachoModeEarnings) {
+                        window._nachoModeEarnings.points += pts;
+                    }
+                    return _origAward.apply(this, arguments);
+                };
+            }
+            // Hook into badge toast to track badge earns
+            var _origToast = window.showToast;
+            if (_origToast) {
+                window.showToast = function(msg) {
+                    if (window._nachoMode && window._nachoModeEarnings && typeof msg === 'string' && (msg.indexOf('badge') !== -1 || msg.indexOf('Badge') !== -1 || msg.indexOf('🏅') !== -1)) {
+                        window._nachoModeEarnings.badges.push(msg);
+                    }
+                    return _origToast.apply(this, arguments);
+                };
+            }
+        }
+
+        // Push history state so browser back button returns to Nacho Mode
+        if (!fromPopState) history.pushState({ nachoMode: true }, '', '#nacho');
+
+        // Hide everything
+        document.getElementById('home').classList.add('hidden');
+        document.getElementById('hero').innerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+            if (el) el.style.display = 'none';
+        });
+        // Hide mobile top bar in Nacho mode (fullscreen takeover)
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar) mbar.style.display = 'none';
+
+        // Build Nacho Mode screen
+        var main = document.getElementById('main');
+        main.scrollTop = 0;
+
+        var nachoSvg = typeof NACHO_SVG !== 'undefined' ? NACHO_SVG : '🦌';
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+        var greeting = userName ? "Hey " + userName + "! Let's talk Bitcoin." : "Hey! Let's talk Bitcoin.";
+
+        var hasSpeech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+        var micHtml = hasSpeech ?
+            '<button id="nachoModeMic" onclick="nachoModeVoice()" style="position:absolute;right:60px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.6;transition:0.2s;touch-action:manipulation;" title="Voice input">🎙️</button>' : '';
+
+        // Init chat history from localStorage
+        window._nachoChatHistory = JSON.parse(localStorage.getItem('btc_nacho_chat') || '[]');
+        window._nachoSentHistory = JSON.parse(localStorage.getItem('btc_nacho_sent') || '[]');
+        window._nachoSentIdx = -1;
+
+        var screen = document.createElement('div');
+        screen.id = 'nachoModeScreen';
+        screen.style.cssText = 'display:flex;flex-direction:column;height:100vh;animation:fadeSlideIn 0.4s ease-out;';
+        screen.innerHTML =
+            '<style>' +
+                '@keyframes nachoModeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }' +
+                '@keyframes nachoModeTalk { 0%,100%{transform:scale(1)} 15%{transform:scale(1.03)} 30%{transform:scale(0.98)} 45%{transform:scale(1.02)} }' +
+                '@keyframes nachoModeGlow { 0%,100%{filter:drop-shadow(0 0 20px rgba(247,147,26,0.4))} 50%{filter:drop-shadow(0 0 40px rgba(247,147,26,0.7))} }' +
+                '@keyframes nachoCapeBlow { 0%,100%{transform:rotate(-5deg) skewX(-2deg)} 50%{transform:rotate(-12deg) skewX(-5deg)} }' +
+                '@keyframes nmTitleGlow { 0%,100%{text-shadow:0 0 20px rgba(247,147,26,0.3),0 0 40px rgba(247,147,26,0.1)} 50%{text-shadow:0 0 30px rgba(247,147,26,0.6),0 0 60px rgba(247,147,26,0.2)} }' +
+                '#nachoHeroAvatar { animation: nachoModeBounce 3s ease-in-out infinite, nachoModeGlow 4s ease-in-out infinite; transition: transform 0.3s; cursor:pointer; }' +
+                '#nachoHeroAvatar.talking { animation: nachoModeTalk 0.5s ease-in-out infinite, nachoModeGlow 1s ease-in-out infinite; }' +
+                '#nachoHeroAvatar:hover { transform: scale(1.08); }' +
+                '#nachoModeChat { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 16px; scroll-behavior:smooth; }' +
+                '#nachoModeChat::-webkit-scrollbar { width:4px; }' +
+                '#nachoModeChat::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }' +
+                '.nm-msg { margin-bottom:10px; max-width:500px; margin-left:auto; margin-right:auto; }' +
+                '.nm-user { text-align:right; }' +
+                '.nm-user span { background:var(--accent-bg,#2a1a00);border:1px solid var(--accent);padding:10px 14px;border-radius:16px 16px 4px 16px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;text-align:left;line-height:1.4; }' +
+                '.nm-nacho { text-align:left; }' +
+                '.nm-nacho span { background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;border-radius:16px 16px 16px 4px;display:inline-block;max-width:80%;color:var(--text);font-size:0.9rem;line-height:1.5; }' +
+                '.nm-time { font-size:0.65rem;color:var(--text-faint);margin-top:2px; }' +
+                '.nm-nacho .nm-time { text-align:left; }' +
+                '.nm-user .nm-time { text-align:right; }' +
+                '@media(max-width:768px){.nm-hero-avatar{width:120px!important;height:120px!important;}.nm-hero-avatar img{width:120px!important;height:120px!important;}.nm-hero-cape{width:50px!important;height:65px!important;right:-10px!important;top:25px!important;}.nm-hero-title{font-size:1.8rem!important;letter-spacing:4px!important;}.nm-hero-bar{flex-wrap:wrap;gap:6px!important;}}' +
+            '</style>' +
+            /* ===== HERO SECTION ===== */
+            '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.08) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:16px 16px 12px;text-align:center;position:relative;">' +
+                /* Top bar: back + tools */
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+                    '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
+                    '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:12px;">' +
+                        '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:4px 6px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;gap:1px;" title="ELI5 Mode"><span style="font-size:1.4rem;">🧒</span><span style="font-size:0.5rem;color:var(--text-faint);">ELI5</span></button>' +
+                        '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:4px 6px;touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;gap:1px;" title="Save chat"><span style="font-size:1.4rem;">💾</span><span style="font-size:0.5rem;color:var(--text-faint);">Save</span></button>' +
+                        '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:4px 6px;touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;gap:1px;" title="Clear chat"><span style="font-size:1.4rem;">🗑️</span><span style="font-size:0.5rem;color:var(--text-faint);">Clear</span></button>' +
+                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:36px;height:36px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);" onclick="exitNachoMode()" title="Go to Home">' +
+                        '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="32" height="32" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+                    '</div>' +
+                '</div>' +
+                /* Avatar with cape */
+                '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:160px;height:160px;margin:0 auto 8px;" onclick="nachoModeAvatarTap()">' +
+                    '<img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;position:relative;z-index:2;">' +
+                    /* Orange cape SVG */
+                    '<svg class="nm-hero-cape" viewBox="0 0 80 100" style="position:absolute;right:-15px;top:30px;width:65px;height:80px;z-index:1;animation:nachoCapeBlow 3s ease-in-out infinite;" xmlns="http://www.w3.org/2000/svg">' +
+                        '<defs><linearGradient id="capeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#f7931a;stop-opacity:1"/><stop offset="100%" style="stop-color:#e67e00;stop-opacity:0.9"/></linearGradient></defs>' +
+                        '<path d="M10,5 Q15,0 25,3 L70,15 Q80,18 78,30 L72,85 Q70,95 60,92 L15,75 Q5,72 8,60 Z" fill="url(#capeGrad)" opacity="0.9"/>' +
+                        '<path d="M15,10 Q20,6 28,8 L65,20 Q72,22 70,32 L66,78 Q64,86 56,84 L20,70 Q12,68 14,58 Z" fill="url(#capeGrad)" opacity="0.3"/>' +
+                    '</svg>' +
+                    '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
+                '</div>' +
+                /* Title */
+                '<div class="nm-hero-title" style="font-size:2.2rem;font-weight:900;letter-spacing:6px;color:var(--accent);text-transform:uppercase;animation:nmTitleGlow 4s ease-in-out infinite;margin-bottom:4px;">NACHO MODE</div>' +
+                '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.75rem;"></div>' +
+            '</div>' +
+            /* ===== CHAT AREA ===== */
+            '<div id="nachoModeChat" style="flex:1;"></div>' +
+            /* Input bar */
+            '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
+                '<div style="max-width:500px;margin:0 auto;position:relative;">' +
+                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:12px ' + (hasSpeech ? '96px' : '56px') + ' 12px 16px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:24px;color:var(--text,#eee);font-size:0.95rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="nachoModeKeydown(event)">' +
+                    micHtml +
+                    '<button onclick="nachoModeSend()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--accent);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;justify-content:center;">▶</button>' +
+                '</div>' +
+            '</div>';
+
+        main.appendChild(screen);
+
+        // Render saved chat history
+        nachoChatRender();
+        // Scroll to bottom of chat (especially on back-navigation)
+        setTimeout(function() {
+            var chat = document.getElementById('nachoModeChat');
+            if (chat) chat.scrollTop = chat.scrollHeight;
+        }, 100);
+        updateNachoModeFriendship();
+
+        // Set ELI5 button state
+        var eli5Btn = document.getElementById('nachoEli5Btn');
+        if (eli5Btn) eli5Btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
+
+        // Render equipped outfit on Nacho Mode avatar
+        nachoModeRenderOutfit();
+
+        // BTC price now shown in global ticker bar — no need for duplicate
+
+        // Focus input
+        setTimeout(function() {
+            var inp = document.getElementById('nachoModeInput');
+            if (inp) inp.focus();
+        }, 300);
+    };
+
+    // Fallback reply when no scripts/AI available
+    function nachoModeFallbackReply(q, reply) {
+        if (typeof checkOffTopic === 'function') {
+            var ot = checkOffTopic(q);
+            if (ot) { reply(typeof personalize === 'function' ? personalize(ot) : ot, 'offtopic'); return; }
+        }
+        var ql = q.toLowerCase().trim();
+        if (/^(hey|hi|hello|yo|sup|howdy|hola|what'?s up|how are you|how'?s it going|good morning|good evening|good afternoon|gm|greetings)$/i.test(ql) || /^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)/i.test(ql)) {
+            var greetings = [
+                "Hey there! 🦌 Doing great — just hanging out waiting for someone to ask me about Bitcoin! What's on your mind?",
+                "Hey hey! 🧡 Welcome! I'm Nacho, your Bitcoin buddy. What would you like to learn about today?",
+                "Well hello! 🦌 Nice to see you. Ask me anything about Bitcoin — I've got 146 channels of knowledge in these antlers!",
+                "Hey! 👋 I'm good, thanks for asking! Ready to talk Bitcoin whenever you are. What's on your mind?"
+            ];
+            reply(greetings[Math.floor(Math.random() * greetings.length)], 'offtopic');
+            return;
+        }
+        if (typeof nachoTrackMiss === 'function') nachoTrackMiss(q);
+        reply("Give me just a moment — I'm loading up my Bitcoin knowledge! Try again in a few seconds. 🦌", 'fallback');
+    }
+
+    // Keyboard handler: Enter=send, ArrowUp/Down=history
+    window.nachoModeKeydown = function(e) {
+        if (e.key === 'Enter') { nachoModeSend(); return; }
+        var inp = document.getElementById('nachoModeInput');
+        if (!inp) return;
+        var hist = window._nachoSentHistory || [];
+        if (e.key === 'ArrowUp') {
+            if (hist.length === 0) return;
+            if (window._nachoSentIdx === -1) window._nachoSentDraft = inp.value;
+            window._nachoSentIdx = Math.min(window._nachoSentIdx + 1, hist.length - 1);
+            inp.value = hist[hist.length - 1 - window._nachoSentIdx];
+            e.preventDefault();
+            setTimeout(function() { inp.setSelectionRange(inp.value.length, inp.value.length); }, 0);
+        } else if (e.key === 'ArrowDown') {
+            if (window._nachoSentIdx <= 0) { window._nachoSentIdx = -1; inp.value = window._nachoSentDraft || ''; return; }
+            window._nachoSentIdx--;
+            inp.value = hist[hist.length - 1 - window._nachoSentIdx];
+            e.preventDefault();
+        }
+    };
+
+    // Format time for chat bubbles
+    function nmTime(ts) {
+        if (!ts) return '';
+        var d = new Date(ts);
+        var h = d.getHours(); var m = d.getMinutes();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12; if (h === 0) h = 12;
+        return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    }
+
+    // Daily Bitcoin facts — rotates daily
+    var NACHO_DAILY_FACTS = [
+        "There will only ever be 21 million Bitcoin. No government, company, or person can change this. 🔒",
+        "The Bitcoin network has been running non-stop since January 3, 2009 — over 99.98% uptime. No bank can say that! 🏦",
+        "The first Bitcoin transaction was 10,000 BTC for two pizzas. Today that's worth hundreds of millions! 🍕",
+        "Bitcoin processes over $10 billion in transactions daily — more than most countries' payment systems. 💸",
+        "Bitcoin mining now uses more renewable energy than almost any other industry — over 50%! ⚡",
+        "Satoshi Nakamoto's true identity remains unknown. They hold about 1 million BTC and have never spent any. 🕵️",
+        "A 'satoshi' (sat) is the smallest unit of Bitcoin: 0.00000001 BTC. You don't need to buy a whole coin! 🪙",
+        "The Bitcoin Lightning Network can process millions of transactions per second — faster than Visa! ⚡",
+        "El Salvador became the first country to adopt Bitcoin as legal tender in September 2021. 🇸🇻",
+        "Bitcoin's code is completely open source — anyone can read, verify, and contribute to it. 📖",
+        "Every 4 years, Bitcoin's new supply gets cut in half. This is called the 'halving.' The next one is in 2028! 📉",
+        "There are more Bitcoin wallets than bank accounts in most countries. Over 100 million and growing! 📈",
+        "Bitcoin can be sent anywhere in the world in minutes, 24/7, with no middleman. Try that on a Sunday with a bank! 🌍",
+        "The Genesis Block contains a hidden message: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.' 📰",
+        "About 20% of all Bitcoin is estimated to be permanently lost — mostly from early users who lost their keys. 🔑",
+        "Bitcoin's difficulty adjustment is like a thermostat — it automatically adapts every 2 weeks to keep blocks at ~10 minutes. ⚙️",
+        "Running a Bitcoin node means YOU verify every transaction yourself. No trust required. Don't trust, verify! ✅",
+        "The Lightning Network lets you send payments as small as 1 sat (~$0.0003). Try doing that with a credit card! 💳",
+        "Bitcoin has survived 400+ declared 'deaths' by media. It keeps coming back stronger every time. 💪",
+        "Over 50 publicly traded companies now hold Bitcoin on their balance sheets, led by MicroStrategy. 🏢",
+        "Bitcoin transactions are pseudonymous, not anonymous. Every transaction is recorded on the public blockchain forever. 🔍",
+        "The Bitcoin network is protected by more computing power than all the world's supercomputers combined. 🖥️",
+        "You can run a full Bitcoin node on a Raspberry Pi — a $50 computer can verify the entire monetary system. 🥧",
+        "Bitcoin's inflation rate is currently lower than gold's. After the 2028 halving, it'll be even lower. 🥇",
+        "Multisig wallets require multiple keys to spend Bitcoin — like a safety deposit box that needs 2 of 3 keys. 🗝️",
+        "Bitcoin doesn't care about borders, politics, or holidays. It works the same everywhere, always. 🌐",
+        "The last Bitcoin won't be mined until approximately the year 2140. We're still very early! ⏰",
+        "Jack Dorsey, Elon Musk, and many tech leaders have publicly supported Bitcoin's vision. 🚀",
+        "A Bitcoin block is mined roughly every 10 minutes. That's about 144 blocks per day, every day, forever. ⛏️",
+        "Nostr is a decentralized social protocol that many Bitcoiners are building on — social media you can't be censored from. 📡",
+    ];
+
+    function getDailyFact() {
+        var dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+        return NACHO_DAILY_FACTS[dayOfYear % NACHO_DAILY_FACTS.length];
+    }
+
+    // Topic chips HTML
+    function nachoTopicChips() {
+        // Ordered to guide beginners: understand → believe → act
+        var chips = [
+            { emoji: '📘', label: 'What is Bitcoin?', q: 'What is Bitcoin and what problem does it solve?' },
+            { emoji: '💰', label: 'Why Bitcoin?', q: 'Why is Bitcoin better than regular money and why should I care?' },
+            { emoji: '🔒', label: '21 Million', q: 'Why is the 21 million cap important and why can\'t it be changed?' },
+            { emoji: '🛒', label: 'How to Buy', q: 'How do I buy my first Bitcoin and start stacking sats?' },
+            { emoji: '🔑', label: 'Self-Custody', q: 'What is self-custody and why is it the most important thing in Bitcoin?' },
+            { emoji: '⚡', label: 'Lightning', q: 'What is the Lightning Network and how does it make Bitcoin faster?' },
+            { emoji: '🪙', label: 'Why Not Altcoins?', q: 'Why do Bitcoiners only focus on Bitcoin and not other cryptocurrencies?' },
+            { emoji: '🌍', label: 'Fix the World', q: 'How is Bitcoin actually changing the world for the better?' },
+        ];
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px;margin:0 auto;">';
+        for (var i = 0; i < chips.length; i++) {
+            html += '<button onclick="nachoModeChip(\'' + chips[i].q.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    // Chip click handler
+    window.nachoModeChip = function(question) {
+        var inp = document.getElementById('nachoModeInput');
+        if (inp) { inp.value = question; nachoModeSend(); }
+    };
+
+    // Follow-up suggestions based on topic
+    // Follow-up suggestions designed to guide users deeper into the Bitcoin rabbit hole
+    // Strategy: every answer should nudge toward understanding WHY Bitcoin matters
+    // Flow: curiosity → understanding → conviction → action (self-custody, running a node)
+    var NACHO_MODE_FOLLOWUPS = {
+        // ===== BEGINNER / BASICS =====
+        bitcoin: [
+            'Why is Bitcoin better than regular money?',
+            'What problem does Bitcoin actually solve?',
+            'Why can\'t governments just ban Bitcoin?',
+            'How does Bitcoin work?',
+            'What is a satoshi?'
+        ],
+        beginner: [
+            'What is Bitcoin and why should I care?',
+            'How do I buy my first Bitcoin?',
+            'What is a Bitcoin wallet?',
+            'Is it too late to buy Bitcoin?'
+        ],
+        // ===== MONEY & ECONOMICS =====
+        money: [
+            'What is inflation doing to my savings?',
+            'Why can\'t Bitcoin\'s supply be changed?',
+            'What is the Cantillon Effect?',
+            'Why is 21 million important?'
+        ],
+        inflation: [
+            'How does Bitcoin protect against inflation?',
+            'Why is 21 million important?',
+            'What happened to currencies that got printed too much?',
+            'What is dollar cost averaging?'
+        ],
+        // ===== MINING & PROOF OF WORK =====
+        mining: [
+            'Why is proof of work important for security?',
+            'Why can\'t Bitcoin be hacked?',
+            'Is mining actually wasteful or is that FUD?',
+            'What is the difficulty adjustment?',
+            'What is SHA-256 and how does hashing work?'
+        ],
+        hash: [
+            'What is SHA-256 and how does hashing work?',
+            'What is a nonce in Bitcoin mining?',
+            'What is the difficulty adjustment?'
+        ],
+        difficulty: [
+            'What is the difficulty adjustment?',
+            'How does Bitcoin mining work?',
+            'Why is proof of work so secure?'
+        ],
+        nonce: [
+            'How does Bitcoin mining actually work?',
+            'What is SHA-256?',
+            'What is the difficulty adjustment?'
+        ],
+        // ===== LIGHTNING & SCALING =====
+        lightning: [
+            'Can I actually buy coffee with Bitcoin?',
+            'How fast are Lightning payments?',
+            'Why is Lightning better than Visa?',
+            'Where can I spend Bitcoin?'
+        ],
+        layer: [
+            'What is the Lightning Network and why does it matter?',
+            'What are Fedimints and Cashu?',
+            'How does Bitcoin scale without sacrificing decentralization?'
+        ],
+        spend: [
+            'Where can I spend Bitcoin?',
+            'How fast are Lightning payments?',
+            'What is the Lightning Network?'
+        ],
+        // ===== WALLETS & SELF-CUSTODY =====
+        wallet: [
+            'Why is self-custody so important?',
+            'What happens if an exchange goes bankrupt?',
+            'What does "not your keys, not your coins" really mean?',
+            'What is a seed phrase and why is it so important?',
+            'Where are my Bitcoins actually stored?'
+        ],
+        seed: [
+            'Why should I NEVER store my seed phrase digitally?',
+            'What is the best way to backup a seed phrase?',
+            'Why is self-custody the most important thing in Bitcoin?',
+            'What is a private key?'
+        ],
+        key: [
+            'What is the difference between a public key and a private key?',
+            'What is a seed phrase?',
+            'Why is self-custody so important?'
+        ],
+        custody: [
+            'What does "not your keys, not your coins" mean?',
+            'What is a hardware wallet?',
+            'What is a seed phrase and why is it so important?'
+        ],
+        utxo: [
+            'What is a UTXO?',
+            'How does the Bitcoin blockchain work?',
+            'Where are my Bitcoins actually stored?'
+        ],
+        // ===== HALVING & SCARCITY =====
+        halving: [
+            'Why does scarcity make Bitcoin valuable?',
+            'Is it too late to buy Bitcoin?',
+            'What happens when all 21 million are mined?',
+            'What is the genesis block?'
+        ],
+        scarc: [
+            'Why is 21 million important?',
+            'What is the halving?',
+            'Why can\'t Bitcoin\'s supply be changed?'
+        ],
+        // ===== BUYING & INVESTING =====
+        buy: [
+            'What is dollar cost averaging and why is it the best strategy?',
+            'Should I move my Bitcoin off the exchange?',
+            'Why do Bitcoiners say "stay humble, stack sats"?',
+            'What is a satoshi?'
+        ],
+        price: [
+            'Why shouldn\'t I worry about short-term price?',
+            'What is low time preference?',
+            'Why do Bitcoiners think in sats, not dollars?',
+            'Is Bitcoin volatile? Is that bad?'
+        ],
+        invest: [
+            'What is dollar cost averaging?',
+            'Is it too late to buy Bitcoin?',
+            'Why shouldn\'t I worry about short-term price?'
+        ],
+        volatile: [
+            'Is Bitcoin volatile? Is that bad?',
+            'Why shouldn\'t I worry about short-term price?',
+            'What is low time preference?'
+        ],
+        // ===== SECURITY & TRUST =====
+        security: [
+            'Has the Bitcoin network ever been hacked?',
+            'What protects Bitcoin from quantum computers?',
+            'Why is Bitcoin the most secure network on Earth?',
+            'What is the double spend problem and how did Bitcoin solve it?'
+        ],
+        hack: [
+            'Has the Bitcoin network ever been hacked?',
+            'Why is Bitcoin the most secure network on Earth?',
+            'What protects Bitcoin from quantum computers?'
+        ],
+        quantum: [
+            'What protects Bitcoin from quantum computers?',
+            'How secure is Bitcoin really?',
+            'What is SHA-256 and how does hashing work?'
+        ],
+        double: [
+            'What is the double spend problem?',
+            'What is the Byzantine Generals Problem?',
+            'How does Bitcoin mining secure the network?'
+        ],
+        byzantine: [
+            'What is the Byzantine Generals Problem?',
+            'What is the double spend problem?',
+            'Why is proof of work so secure?'
+        ],
+        // ===== PRIVACY =====
+        privacy: [
+            'Why is financial privacy a human right?',
+            'What is KYC and why do Bitcoiners avoid it?',
+            'How can I buy Bitcoin more privately?'
+        ],
+        kyc: [
+            'What is KYC and why do Bitcoiners avoid it?',
+            'Why is financial privacy a human right?',
+            'How can I buy Bitcoin more privately?'
+        ],
+        // ===== NODES =====
+        node: [
+            'Why does running a node make Bitcoin stronger?',
+            'What does "don\'t trust, verify" actually mean?',
+            'Can I run a Bitcoin node on a Raspberry Pi?'
+        ],
+        // ===== BLOCKCHAIN BASICS =====
+        blockchain: [
+            'How does the Bitcoin blockchain work?',
+            'What is a UTXO?',
+            'What is the mempool?',
+            'What is the genesis block?'
+        ],
+        block: [
+            'How does the Bitcoin blockchain work?',
+            'What is the genesis block?',
+            'What is the mempool?'
+        ],
+        mempool: [
+            'What is the mempool?',
+            'How do transaction fees work in Bitcoin?',
+            'How does the Bitcoin blockchain work?'
+        ],
+        fee: [
+            'How do transaction fees work in Bitcoin?',
+            'What is the mempool?',
+            'What is the Lightning Network?'
+        ],
+        transaction: [
+            'How do transaction fees work in Bitcoin?',
+            'What is a UTXO?',
+            'What is the mempool?'
+        ],
+        genesis: [
+            'What is the genesis block?',
+            'Who is Satoshi Nakamoto?',
+            'How was Bitcoin created?'
+        ],
+        // ===== UPGRADES & TECH =====
+        taproot: [
+            'What is Taproot?',
+            'What is a soft fork vs hard fork?',
+            'How does Bitcoin get upgraded?'
+        ],
+        fork: [
+            'What is a soft fork vs hard fork?',
+            'What is Taproot?',
+            'Why is Bitcoin\'s decentralization so important?'
+        ],
+        ordinal: [
+            'What are ordinals and inscriptions on Bitcoin?',
+            'What is a soft fork vs hard fork?',
+            'How does the Bitcoin blockchain work?'
+        ],
+        nostr: [
+            'What is Nostr?',
+            'Why do Bitcoiners care about decentralized social media?',
+            'How does Bitcoin protect human rights?'
+        ],
+        // ===== ALTCOINS → MAXIMIZE CONVICTION =====
+        altcoin: [
+            'Why is Bitcoin the only truly decentralized cryptocurrency?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why do Bitcoiners say "there is no second best"?'
+        ],
+        ethereum: [
+            'Why is proof of stake inferior to proof of work?',
+            'Can Ethereum really compete with Bitcoin?',
+            'Why do Bitcoiners say "there is no second best"?'
+        ],
+        crypto: [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why is Bitcoin the only truly decentralized cryptocurrency?'
+        ],
+        solana: [
+            'Why is Bitcoin the only truly decentralized cryptocurrency?',
+            'Why is proof of work more secure than proof of stake?',
+            'What makes Bitcoin different from every other crypto?'
+        ],
+        xrp: [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why is decentralization so important?'
+        ],
+        cardano: [
+            'Why is Bitcoin the only truly decentralized cryptocurrency?',
+            'Why is proof of work more secure than proof of stake?',
+            'Why do Bitcoiners say "there is no second best"?'
+        ],
+        dogecoin: [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What makes Bitcoin different from every other crypto?',
+            'Why is 21 million important?'
+        ],
+        // ===== REGULATION & ADOPTION =====
+        regulation: [
+            'Can any government actually stop Bitcoin?',
+            'Why did El Salvador adopt Bitcoin?',
+            'How does Bitcoin protect human rights?'
+        ],
+        ban: [
+            'Can any government actually stop Bitcoin?',
+            'Why can\'t governments just ban Bitcoin?',
+            'How does Bitcoin protect human rights?'
+        ],
+        legal: [
+            'Can any government actually stop Bitcoin?',
+            'Why did El Salvador adopt Bitcoin?',
+            'Is Bitcoin used by criminals?'
+        ],
+        adopt: [
+            'Why did El Salvador adopt Bitcoin?',
+            'Can any government actually stop Bitcoin?',
+            'How is Bitcoin changing the world right now?'
+        ],
+        // ===== ENERGY → DEBUNK FUD =====
+        energy: [
+            'Does Bitcoin actually waste energy?',
+            'How does Bitcoin mining help renewable energy?',
+            'Why is energy use a feature, not a bug?'
+        ],
+        environment: [
+            'Does Bitcoin actually waste energy?',
+            'How does Bitcoin mining help renewable energy?',
+            'Why is proof of work important for security?'
+        ],
+        // ===== SCAMS & FUD =====
+        scam: [
+            'What are the most common Bitcoin scams to avoid?',
+            'Why do people say Bitcoin is dead when it keeps growing?',
+            'How do I know what Bitcoin information to trust?',
+            'Is Bitcoin a Ponzi scheme?'
+        ],
+        fud: [
+            'What are the biggest misconceptions about Bitcoin?',
+            'Why do banks and media attack Bitcoin?',
+            'Is Bitcoin really used by criminals?',
+            'Does Bitcoin actually waste energy?'
+        ],
+        ponzi: [
+            'Is Bitcoin a Ponzi scheme?',
+            'What makes Bitcoin different from a scam?',
+            'Why is Bitcoin the most secure network on Earth?'
+        ],
+        bubble: [
+            'Is Bitcoin a bubble?',
+            'Why shouldn\'t I worry about short-term price?',
+            'Why does Bitcoin keep coming back stronger after crashes?'
+        ],
+        criminal: [
+            'Is Bitcoin really used by criminals?',
+            'Why is financial privacy a human right?',
+            'What are the biggest misconceptions about Bitcoin?'
+        ],
+        dead: [
+            'Why do people say Bitcoin is dead when it keeps growing?',
+            'How many times has Bitcoin been declared dead?',
+            'Why does Bitcoin keep coming back stronger after crashes?'
+        ],
+        // ===== HISTORY & PHILOSOPHY =====
+        satoshi: [
+            'Why is it important that Satoshi disappeared?',
+            'What was the financial crisis that inspired Bitcoin?',
+            'Why is Bitcoin\'s immaculate conception so rare?',
+            'Who was Hal Finney?'
+        ],
+        history: [
+            'What is the genesis block?',
+            'Who is Satoshi Nakamoto?',
+            'Who was Hal Finney?'
+        ],
+        hal: [
+            'Who was Hal Finney?',
+            'Who is Satoshi Nakamoto?',
+            'What is the genesis block?'
+        ],
+        maximalis: [
+            'Why do people who study Bitcoin the most become maximalists?',
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What does "fix the money, fix the world" mean?'
+        ],
+        standard: [
+            'What would a world on a Bitcoin standard look like?',
+            'Why is 21 million important?',
+            'How is Bitcoin changing the world right now?'
+        ],
+        // ===== DEEP RABBIT HOLE — for curious users =====
+        time: [
+            'What does "Bitcoin is Time" mean?',
+            'How does Bitcoin keep time without a central clock?',
+            'Why was digital money so hard to invent?'
+        ],
+        freedom: [
+            'Is Bitcoin a fight for freedom?',
+            'How does Bitcoin help people under authoritarian regimes?',
+            'What is Check Your Financial Privilege about?'
+        ],
+        immaculate: [
+            'Why is Bitcoin\'s immaculate conception so important?',
+            'What is Satoshi\'s legendary treasure?',
+            'Why do people wonder if Bitcoin is alien technology?'
+        ],
+        brain: [
+            'Is Bitcoin a living organism?',
+            'Why do people wonder if Bitcoin is alien technology?',
+            'Are Bitcoin\'s rules enforced by physics?'
+        ],
+        physics: [
+            'Are Bitcoin\'s rules enforced by physics?',
+            'What does "Bitcoin is Time" mean?',
+            'Why is proof of work physically anchored to the real world?'
+        ],
+        treasure: [
+            'What is Satoshi\'s legendary treasure?',
+            'Why is it important that Satoshi disappeared?',
+            'Why is Bitcoin\'s immaculate conception so rare?'
+        ],
+        zero: [
+            'What is the connection between zero and Bitcoin?',
+            'Why is Bitcoin the most important thing in the world?',
+            'What is the Lindy Effect?'
+        ],
+        slavery: [
+            'How is fiat money a tool of slavery?',
+            'What is the Cantillon Effect?',
+            'What happened in 1971?'
+        ],
+        civilization: [
+            'Why is Bitcoin the most important thing in the world?',
+            'What would a world on a Bitcoin standard look like?',
+            'What is time preference and why does it matter?'
+        ],
+        rabbit: [
+            'What is 21 Lessons by Gigi?',
+            'What does "Bitcoin is Time" mean?',
+            'Why do people wonder if Bitcoin is alien technology?',
+            'What is Satoshi\'s legendary treasure?',
+            'Is Bitcoin a living organism?'
+        ],
+        philosophy: [
+            'What does "Bitcoin is Time" mean?',
+            'What is the connection between zero and Bitcoin?',
+            'Are Bitcoin\'s rules enforced by physics?',
+            'Why is Bitcoin the most important thing in the world?'
+        ],
+        book: [
+            'What is The Bitcoin Standard about?',
+            'What is 21 Lessons by Gigi?',
+            'What is Gradually Then Suddenly by Parker Lewis?',
+            'Who is Tomer Strolight?'
+        ],
+        author: [
+            'Who is Gigi?',
+            'Who is Tomer Strolight?',
+            'Who is Parker Lewis?',
+            'Who is Alex Gladstein?'
+        ],
+        deeper: [
+            'How is fiat money a tool of slavery?',
+            'What does "Bitcoin is Time" mean?',
+            'Is Bitcoin a living organism?',
+            'What is Satoshi\'s legendary treasure?'
+        ],
+        // ===== GENERAL FALLBACK — always push toward conviction =====
+        general: [
+            'Why do people who study Bitcoin the most become maximalists?',
+            'What\'s the most important thing about Bitcoin that most people don\'t know?',
+            'How is Bitcoin changing the world right now?',
+            'What would a world on a Bitcoin standard look like?',
+            'Why is self-custody the most important thing in Bitcoin?'
+        ],
+    };
+
+    function getFollowUps(question, answer) {
+        var text = (question + ' ' + (answer || '')).toLowerCase();
+        var suggestions = [];
+
+        // Match topic-specific follow-ups
+        for (var topic in NACHO_MODE_FOLLOWUPS) {
+            if (topic !== 'general' && text.indexOf(topic) !== -1) {
+                suggestions = suggestions.concat(NACHO_MODE_FOLLOWUPS[topic]);
+            }
+        }
+
+        // If no topic matched, use general rabbit hole questions
+        if (suggestions.length === 0) {
+            suggestions = NACHO_MODE_FOLLOWUPS.general;
+        }
+
+        // Always try to include one "deeper" question to push the rabbit hole
+        var deepQuestions = [
+            'Why is Bitcoin the only cryptocurrency that matters?',
+            'What would a world on a Bitcoin standard look like?',
+            'Why do Bitcoiners say "fix the money, fix the world"?',
+            'How does Bitcoin give power back to individuals?',
+            'What does "Bitcoin is Time" mean?',
+            'Why do people wonder if Bitcoin is alien technology?',
+            'What is Satoshi\'s legendary treasure?',
+            'Is Bitcoin a living organism?',
+            'Are Bitcoin\'s rules enforced by physics?',
+            'What is the connection between zero and Bitcoin?',
+            'How is fiat money a tool of slavery?',
+            'Why is Bitcoin the most important thing in the world?',
+            'Why is self-custody the most important thing in Bitcoin?',
+            'Why do people who study Bitcoin the most become maximalists?',
+            'Why is 21 million important?',
+            'What is the double spend problem and how did Bitcoin solve it?',
+            'Why is proof of work important for security?',
+            'How does Bitcoin protect human rights?',
+        ];
+
+        // Dedupe, validate against KB, and limit to 3
+        var seen = {};
+        var unique = [];
+        var qLower = question.toLowerCase();
+        for (var i = 0; i < suggestions.length; i++) {
+            var s = suggestions[i];
+            if (!seen[s] && s.toLowerCase() !== qLower) {
+                // Only suggest questions Nacho can actually answer
+                if (typeof findAnswer === 'function' && !findAnswer(s)) continue;
+                seen[s] = true; unique.push(s);
+            }
+            if (unique.length >= 2) break;
+        }
+
+        // Add one deep rabbit hole question if we have room
+        if (unique.length < 3) {
+            // Shuffle deep questions so we don't always try the same one first
+            var shuffled = deepQuestions.slice().sort(function() { return Math.random() - 0.5; });
+            for (var d = 0; d < shuffled.length && unique.length < 3; d++) {
+                var deep = shuffled[d];
+                if (!seen[deep] && deep.toLowerCase() !== qLower) {
+                    if (typeof findAnswer === 'function' && !findAnswer(deep)) continue;
+                    unique.push(deep);
+                    break;
+                }
+            }
+        }
+
+        return unique;
+    }
+
+    function followUpChipsHtml(followUps) {
+        if (!followUps || followUps.length === 0) return '';
+        var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
+        for (var i = 0; i < followUps.length; i++) {
+            html += '<button onclick="nachoModeChip(\'' + followUps[i].replace(/'/g, "\\'") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+        }
+        html += '</div>';
+        return html;
+    }
+
+    // =============================================
+    // 👕 Nacho Mode Outfit Overlay
+    // =============================================
+    function nachoModeRenderOutfit() {
+        var overlay = document.getElementById('nachoModeOverlay');
+        if (!overlay) return;
+        overlay.innerHTML = '';
+        if (typeof getEquippedItem !== 'function') return;
+        var item = getEquippedItem();
+        if (!item) return;
+        var emoji = item.hidden ? item.revealEmoji : item.emoji;
+        var el = document.createElement('span');
+        el.textContent = item.overlay && item.overlay.custom ? item.overlay.custom : emoji;
+        el.style.cssText = 'position:absolute;font-size:2.5rem;pointer-events:none;';
+        // Scale overlay position to the larger avatar
+        if (item.overlay) {
+            if (item.overlay.top) el.style.top = item.overlay.top;
+            if (item.overlay.left) el.style.left = item.overlay.left;
+            if (item.overlay.right) el.style.right = item.overlay.right;
+            if (item.overlay.bottom) el.style.bottom = item.overlay.bottom;
+            if (item.overlay.transform) el.style.transform = item.overlay.transform;
+        }
+        overlay.appendChild(el);
+    }
+
+    // =============================================
+    // 🧒 ELI5 Mode (Explain Like I'm 5)
+    // =============================================
+    window._nachoEli5 = localStorage.getItem('btc_nacho_eli5') === 'true';
+
+    window.toggleNachoEli5 = function() {
+        window._nachoEli5 = !window._nachoEli5;
+        localStorage.setItem('btc_nacho_eli5', window._nachoEli5 ? 'true' : 'false');
+        var btn = document.getElementById('nachoEli5Btn');
+        if (btn) {
+            btn.style.opacity = window._nachoEli5 ? '1' : '0.5';
+            btn.title = window._nachoEli5 ? 'ELI5 Mode ON — Simple language' : 'Explain Like I\'m 5';
+        }
+        if (typeof showToast === 'function') showToast(window._nachoEli5 ? '🧒 ELI5 Mode ON — Nacho will use simple language!' : '🧒 ELI5 Mode OFF — Back to normal');
+    };
+
+    window.showEli5Prompt = function() {
+        var isOn = window._nachoEli5;
+        var html = '<div id="eli5Prompt" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10003;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
+                '<div style="font-size:2.5rem;margin-bottom:8px;">🧒</div>' +
+                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:8px;">ELI5 Mode</div>' +
+                '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">' +
+                    '<strong style="color:var(--accent);">Explain Like I\'m 5</strong><br><br>' +
+                    'When turned on, Nacho will answer your questions using super simple language — like explaining Bitcoin to a 5-year-old! 🦌<br><br>' +
+                    'Perfect for beginners or anyone who wants the basics without the jargon.' +
+                '</div>' +
+                '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:16px;">Currently: <strong style="color:' + (isOn ? '#22c55e' : 'var(--text-muted)') + ';">' + (isOn ? 'ON ✅' : 'OFF') + '</strong></div>' +
+                '<button onclick="toggleNachoEli5();document.getElementById(\'eli5Prompt\').remove()" style="width:100%;padding:14px;background:' + (isOn ? 'var(--card-bg)' : 'var(--accent)') + ';color:' + (isOn ? 'var(--text)' : '#fff') + ';border:' + (isOn ? '1px solid var(--border)' : 'none') + ';border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">' + (isOn ? '🧒 Turn OFF ELI5 Mode' : '🧒 Turn ON ELI5 Mode') + '</button>' +
+                '<button onclick="document.getElementById(\'eli5Prompt\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div></div>';
+        var div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div.firstChild);
+    };
+
+    // =============================================
+    // ₿ Live Bitcoin Price in Header
+    // =============================================
+    function fetchBtcPrice() {
+        var el = document.getElementById('nachoModePrice');
+        if (!el) return;
+        fetch('https://mempool.space/api/v1/prices').then(function(r) { return r.json(); }).then(function(data) {
+            if (data && data.USD) {
+                el.textContent = '₿ $' + parseInt(data.USD).toLocaleString();
+            }
+        }).catch(function() {});
+    }
+
+    // =============================================
+    // 📤 Share Answer
+    // =============================================
+    window.nachoShareAnswer = function(text) {
+        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
+        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        if (navigator.share) {
+            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+        } else {
+            // Fallback: copy to clipboard
+            var ta = document.createElement('textarea');
+            ta.value = shareText;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            if (typeof showToast === 'function') showToast('📋 Copied to clipboard!');
+        }
+    };
+
+    // =============================================
+    // 🎉 Conversation Milestones
+    // =============================================
+    function checkNachoMilestone() {
+        var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+        var milestones = { 10: 'beginner', 25: 'explorer', 50: 'apprentice', 100: 'scholar', 200: 'expert', 500: 'legend' };
+        var shown = JSON.parse(localStorage.getItem('btc_nacho_q_milestones') || '[]');
+        for (var count in milestones) {
+            if (interactions >= parseInt(count) && shown.indexOf(count) === -1 && shown.indexOf(parseInt(count)) === -1) {
+                shown.push(count);
+                localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(shown));
+                var msgs = {
+                    10: "🎉 10 questions! You're officially a Bitcoin Beginner! Keep going — there's so much to learn! 🦌",
+                    25: "🎉 25 questions! You've leveled up to Bitcoin Explorer! You're asking the right questions! 💪",
+                    50: "🎉 50 questions! Bitcoin Apprentice unlocked! You know more than most people already! 🧠",
+                    100: "🏆 100 questions! You're a Bitcoin Scholar now! Satoshi would be proud! 🎓",
+                    200: "🔥 200 questions! Bitcoin Expert status! You could probably teach ME a thing or two! 🦌💡",
+                    500: "👑 500 QUESTIONS! You are a Bitcoin LEGEND! There's nothing Nacho can't discuss with you now! 🦌🏆🔥"
+                };
+                return msgs[count] || null;
+            }
+        }
+        return null;
+    }
+
+    // =============================================
+    // 🗺️ Guided Learning Path
+    // =============================================
+    var NACHO_LEARNING_PATH = [
+        { step: 1, emoji: '📘', title: 'What is Bitcoin?', q: 'What is Bitcoin and how does it work?' },
+        { step: 2, emoji: '💡', title: 'Why Bitcoin Matters', q: 'Why is Bitcoin important? Why should I care?' },
+        { step: 3, emoji: '📈', title: 'Bitcoin vs Money', q: 'How is Bitcoin different from regular money and gold?' },
+        { step: 4, emoji: '🛒', title: 'Buying Your First Bitcoin', q: 'How do I buy my first Bitcoin? Where do I start?' },
+        { step: 5, emoji: '💼', title: 'Wallets & Storage', q: 'What Bitcoin wallet should I use? What are the types?' },
+        { step: 6, emoji: '🔑', title: 'Seed Phrases & Security', q: 'What is a seed phrase and how do I keep my Bitcoin safe?' },
+        { step: 7, emoji: '⚡', title: 'Lightning Network', q: 'What is the Lightning Network and why does it matter?' },
+        { step: 8, emoji: '⛏️', title: 'Mining & Proof of Work', q: 'How does Bitcoin mining work? What is proof of work?' },
+        { step: 9, emoji: '🏃', title: 'Running a Node', q: 'What is a Bitcoin node and should I run one?' },
+        { step: 10, emoji: '🔒', title: 'Privacy & KYC', q: 'How private is Bitcoin? What is KYC and why does it matter?' },
+    ];
+
+    window.nachoLearningPath = function() {
+        var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+
+        var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">🗺️ Your Bitcoin Journey</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% complete — ' + progress + '/' + NACHO_LEARNING_PATH.length + ' topics</div>';
+
+        // Progress bar
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;height:8px;margin-bottom:12px;overflow:hidden;">' +
+            '<div style="background:var(--accent);height:100%;width:' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '%;border-radius:8px;transition:0.3s;"></div></div>';
+
+        for (var i = 0; i < NACHO_LEARNING_PATH.length; i++) {
+            var step = NACHO_LEARNING_PATH[i];
+            var done = i < progress;
+            var current = i === progress;
+            html += '<button onclick="nachoPathStep(' + i + ')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;margin-bottom:6px;background:' + (current ? 'var(--accent-bg)' : 'var(--card-bg)') + ';border:1px solid ' + (current ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' +
+                '<span style="font-size:1.2rem;flex-shrink:0;">' + (done ? '✅' : step.emoji) + '</span>' +
+                '<div>' +
+                    '<div style="color:' + (done ? 'var(--text-faint)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (current ? '700' : '500') + ';' + (done ? 'text-decoration:line-through;' : '') + '">Step ' + step.step + ': ' + step.title + '</div>' +
+                '</div>' +
+                (current ? '<span style="margin-left:auto;color:var(--accent);font-size:0.7rem;font-weight:700;">NEXT →</span>' : '') +
+            '</button>';
+        }
+
+        if (progress >= NACHO_LEARNING_PATH.length) {
+            html += '<div style="text-align:center;padding:12px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:10px;margin-top:8px;">' +
+                '<div style="font-size:1.5rem;margin-bottom:4px;">🎓🦌🎉</div>' +
+                '<div style="color:var(--accent);font-weight:700;">Journey Complete!</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">You\'ve covered all the Bitcoin basics. You\'re officially not a normie anymore!</div></div>';
+        }
+
+        nachoChatAppend('nacho', '', html);
+    };
+
+    window.nachoPathStep = function(stepIdx) {
+        var step = NACHO_LEARNING_PATH[stepIdx];
+        if (!step) return;
+        // Mark progress
+        var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
+        if (stepIdx >= progress) {
+            localStorage.setItem('btc_nacho_path_step', (stepIdx + 1).toString());
+        }
+        // Ask the question
+        nachoModeChip(step.q);
+    };
+
+    // =============================================
+    // 🎮 Quiz Me Button
+    // =============================================
+    window.nachoQuizMe = function(topic) {
+        // Pull from existing quest questions if available
+        if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+            var filtered = topic ? QUEST_QUESTIONS.filter(function(q) {
+                return q.category && q.category.toLowerCase().indexOf(topic.toLowerCase()) !== -1;
+            }) : QUEST_QUESTIONS;
+            if (filtered.length === 0) filtered = QUEST_QUESTIONS;
+            var q = filtered[Math.floor(Math.random() * filtered.length)];
+            var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:8px;">🎮 Quiz Time!</div>' +
+                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
+                '<div style="color:var(--text);font-size:0.9rem;margin-bottom:12px;">' + escapeHtml(q.question) + '</div>';
+            var opts = q.options || [];
+            for (var i = 0; i < opts.length; i++) {
+                var isCorrect = i === q.answer;
+                html += '<button onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+            }
+            html += '</div>';
+            html += '<button onclick="nachoQuizMe()" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Another question</button>';
+            nachoChatAppend('nacho', '', html);
+        } else {
+            nachoChatAppend('nacho', '', "Quiz questions are still loading! Try again in a moment. 🦌");
+        }
+    };
+
+    window.nachoQuizAnswer = function(btn, correct) {
+        // Track for daily challenge
+        sessionStorage.setItem('btc_quiz_done', 'true');
+        // Disable all quiz buttons
+        var parent = btn.parentElement;
+        var buttons = parent.querySelectorAll('button');
+        buttons.forEach(function(b) {
+            b.disabled = true;
+            b.style.cursor = 'default';
+            b.style.opacity = '0.7';
+        });
+        if (correct) {
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#22c55e';
+            btn.style.opacity = '1';
+            if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+            if (typeof showToast === 'function') showToast('🎮 +5 pts — Quiz correct!');
+            // Add result text
+            var resultDiv = document.createElement('div');
+            resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
+            resultDiv.textContent = '✅ Correct! +5 pts';
+            btn.parentElement.appendChild(resultDiv);
+        } else {
+            btn.style.background = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.style.opacity = '1';
+            // Highlight correct answer
+            buttons.forEach(function(b) {
+                if (b !== btn && b.onclick && b.onclick.toString().indexOf('true') !== -1) {
+                    b.style.background = '#22c55e';
+                    b.style.color = '#fff';
+                    b.style.borderColor = '#22c55e';
+                    b.style.opacity = '1';
+                }
+            });
+            var wrongDiv = document.createElement('div');
+            wrongDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;font-weight:700;text-align:center;';
+            wrongDiv.textContent = '❌ Not quite! Correct answer highlighted above.';
+            btn.parentElement.appendChild(wrongDiv);
+        }
+    };
+
+    // Render full chat from history
+    function nachoChatRender() {
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        var hist = window._nachoChatHistory || [];
+        if (hist.length === 0) {
+            // Show welcome with daily fact + topic chips
+            var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+            chat.innerHTML =
+                '<div style="text-align:center;padding:30px 20px;">' +
+                    '<div id="nachoModeAvatar" style="width:160px;height:160px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;"></div>' +
+                    '<div style="color:var(--accent);font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
+                    '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:12px;">' +
+                        (userName ? 'Hey ' + escapeHtml(userName) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
+                    '</div>' +
+                    /* Daily fact */
+                    '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin:0 auto 20px;max-width:380px;text-align:left;">' +
+                        '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">💡 DID YOU KNOW?</div>' +
+                        '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + getDailyFact() + '</div>' +
+                    '</div>' +
+                    /* Topic chips */
+                    '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Tap a topic or ask me anything:</div>' +
+                    nachoTopicChips() +
+                    /* Action buttons */
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px;max-width:400px;margin-left:auto;margin-right:auto;">' +
+                        '<button onclick="nachoLearningPath()" style="padding:8px 16px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:20px;color:var(--accent);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗺️ Start Bitcoin Journey</button>' +
+                        '<button onclick="nachoQuizMe()" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Quiz Me</button>' +
+                    '</div>' +
+                '</div>';
+            return;
+        }
+        var html = '';
+        var lastDate = '';
+        for (var i = 0; i < hist.length; i++) {
+            var m = hist[i];
+            // Date separator
+            var msgDate = new Date(m.ts).toLocaleDateString();
+            if (msgDate !== lastDate) {
+                html += '<div style="text-align:center;margin:16px 0 8px;"><span style="background:var(--card-bg);border:1px solid var(--border);padding:4px 12px;border-radius:12px;font-size:0.7rem;color:var(--text-faint);">' + msgDate + '</span></div>';
+                lastDate = msgDate;
+            }
+            if (m.role === 'user') {
+                html += '<div class="nm-msg nm-user"><span>' + escapeHtml(m.text) + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
+            } else {
+                html += '<div class="nm-msg nm-nacho"><span>🦌 ' + m.html + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
+            }
+        }
+        chat.innerHTML = html;
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Save chat to localStorage (keep last 100 messages)
+    window.nachoChatSave = function nachoChatSave() {
+        var hist = window._nachoChatHistory || [];
+        if (hist.length > 100) hist = hist.slice(hist.length - 100);
+        window._nachoChatHistory = hist;
+        try { localStorage.setItem('btc_nacho_chat', JSON.stringify(hist)); } catch(e) {}
+    }
+
+    // Add message to chat
+    function nachoChatAdd(role, text, html) {
+        var msg = { role: role, text: text || '', html: html || escapeHtml(text || ''), ts: Date.now() };
+        window._nachoChatHistory.push(msg);
+        nachoChatSave();
+        return msg;
+    }
+
+    // Show a message bubble and scroll
+    function nachoChatAppend(role, text, html) {
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        // Clear welcome screen if first message
+        if (window._nachoChatHistory.length <= 1 && chat.querySelector('#nachoModeAvatar')) {
+            chat.innerHTML = '';
+        }
+        var ts = nmTime(Date.now());
+        var div = document.createElement('div');
+        div.className = 'nm-msg ' + (role === 'user' ? 'nm-user' : 'nm-nacho');
+        if (role === 'user') {
+            div.innerHTML = '<span>' + escapeHtml(text) + '</span><div class="nm-time">' + ts + '</div>';
+        } else {
+            div.innerHTML = '<span>🦌 ' + html + '</span><div class="nm-time">' + ts + '</div>';
+        }
+        chat.appendChild(div);
+        // User messages: scroll to bottom so they see their sent message
+        // Nacho messages: scroll to the TOP of the response so they can read from the start
+        if (role === 'user') {
+            chat.scrollTop = chat.scrollHeight;
+        } else {
+            div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Show thinking indicator
+    // ---- Conversation Quiz: generated from topics discussed ----
+    function offerConversationQuiz() {
+        if (!window._nachoMode) return;
+        var topics = window._nachoModeTopics || [];
+        if (topics.length < 3) return;
+
+        // Build quiz from conversation history + QUEST_QUESTIONS
+        var quizQuestions = [];
+        if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+            // Try to match questions to topics the user asked about
+            for (var t = 0; t < topics.length && quizQuestions.length < 5; t++) {
+                var topicWords = topics[t].toLowerCase().split(/\s+/);
+                for (var qi = 0; qi < QUEST_QUESTIONS.length && quizQuestions.length < 5; qi++) {
+                    var qq = QUEST_QUESTIONS[qi];
+                    if (quizQuestions.indexOf(qq) !== -1) continue;
+                    var qText = (qq.question + ' ' + (qq.category || '')).toLowerCase();
+                    for (var w = 0; w < topicWords.length; w++) {
+                        if (topicWords[w].length > 3 && qText.indexOf(topicWords[w]) !== -1) {
+                            quizQuestions.push(qq);
+                            break;
+                        }
+                    }
+                }
+            }
+            // Fill remaining with random questions
+            while (quizQuestions.length < 3) {
+                var rq = QUEST_QUESTIONS[Math.floor(Math.random() * QUEST_QUESTIONS.length)];
+                if (quizQuestions.indexOf(rq) === -1) quizQuestions.push(rq);
+            }
+        }
+
+        if (quizQuestions.length === 0) return;
+
+        // Offer the quiz
+        var offerHtml = '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,88,12,0.1));border:2px solid var(--accent);border-radius:14px;padding:16px;text-align:center;">' +
+            '<div style="font-size:1.2rem;margin-bottom:4px;">🎯</div>' +
+            '<div style="font-weight:800;color:var(--heading);font-size:0.95rem;margin-bottom:4px;">Conversation Quest!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">You\'ve been learning a lot! Let\'s see how much you remember from our chat.</div>' +
+            '<div style="display:flex;gap:8px;justify-content:center;">' +
+                '<button onclick="startConversationQuiz()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Let\'s go! ⚡</button>' +
+                '<button onclick="this.parentElement.parentElement.style.opacity=\'0.4\';this.parentElement.parentElement.style.pointerEvents=\'none\'" style="padding:10px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Maybe later</button>' +
+            '</div></div>';
+        nachoChatAppend('nacho', '', offerHtml);
+
+        // Store quiz for when they accept
+        window._convoQuizQuestions = quizQuestions;
+    }
+
+    window.startConversationQuiz = function() {
+        var questions = window._convoQuizQuestions || [];
+        if (questions.length === 0) return;
+        window._convoQuizIdx = 0;
+        window._convoQuizScore = 0;
+        window._convoQuizTotal = Math.min(questions.length, 5);
+        showConvoQuizQuestion();
+    };
+
+    function showConvoQuizQuestion() {
+        var questions = window._convoQuizQuestions || [];
+        var idx = window._convoQuizIdx || 0;
+        if (idx >= window._convoQuizTotal || idx >= questions.length) {
+            finishConvoQuiz();
+            return;
+        }
+        var q = questions[idx];
+        var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:6px;">Question ' + (idx + 1) + ' of ' + window._convoQuizTotal + '</div>' +
+            '<div style="color:var(--text);font-size:0.85rem;margin-bottom:10px;font-weight:600;">' + escapeHtml(q.question) + '</div>';
+        var opts = q.options || [];
+        for (var i = 0; i < opts.length; i++) {
+            var isCorrect = i === q.answer;
+            html += '<button onclick="convoQuizAnswer(this,' + isCorrect + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        }
+        html += '</div>';
+        nachoChatAppend('nacho', '', html);
+    }
+
+    window.convoQuizAnswer = function(btn, correct) {
+        var parent = btn.parentElement;
+        var buttons = parent.querySelectorAll('button');
+        buttons.forEach(function(b) {
+            b.disabled = true;
+            b.style.cursor = 'default';
+            b.style.opacity = '0.6';
+        });
+
+        if (correct) {
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#22c55e';
+            btn.style.opacity = '1';
+            window._convoQuizScore = (window._convoQuizScore || 0) + 1;
+            var correctDiv = document.createElement('div');
+            correctDiv.style.cssText = 'margin-top:6px;color:#22c55e;font-size:0.8rem;font-weight:700;';
+            correctDiv.textContent = '✅ Correct!';
+            parent.appendChild(correctDiv);
+        } else {
+            btn.style.background = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.style.opacity = '1';
+            buttons.forEach(function(b) {
+                if (b !== btn && b.getAttribute('onclick') && b.getAttribute('onclick').indexOf('true') !== -1) {
+                    b.style.background = '#22c55e'; b.style.color = '#fff'; b.style.borderColor = '#22c55e'; b.style.opacity = '1';
+                }
+            });
+            var wrongDiv = document.createElement('div');
+            wrongDiv.style.cssText = 'margin-top:6px;color:#ef4444;font-size:0.8rem;font-weight:700;';
+            wrongDiv.textContent = '❌ Not quite!';
+            parent.appendChild(wrongDiv);
+        }
+
+        // Next question after delay
+        window._convoQuizIdx = (window._convoQuizIdx || 0) + 1;
+        setTimeout(showConvoQuizQuestion, 1500);
+    };
+
+    function finishConvoQuiz() {
+        var score = window._convoQuizScore || 0;
+        var total = window._convoQuizTotal || 3;
+        var pct = Math.round((score / total) * 100);
+        var pts = score * 5; // 5 pts per correct answer
+
+        var emoji = pct >= 80 ? '🏆' : pct >= 60 ? '⭐' : pct >= 40 ? '💪' : '📚';
+        var msg = pct >= 80 ? 'Outstanding! You really paid attention!' :
+                  pct >= 60 ? 'Great job! You learned a lot from our chat!' :
+                  pct >= 40 ? 'Not bad! Keep learning and you\'ll get there!' :
+                  'Keep going! Every question is a learning opportunity!';
+
+        var html = '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(234,88,12,0.1));border:2px solid ' + (pct >= 60 ? '#22c55e' : 'var(--accent)') + ';border-radius:14px;padding:20px;text-align:center;">' +
+            '<div style="font-size:2rem;margin-bottom:8px;">' + emoji + '</div>' +
+            '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">Conversation Quest Complete!</div>' +
+            '<div style="font-size:1.2rem;font-weight:900;color:var(--accent);margin-bottom:4px;">' + score + '/' + total + ' correct</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">' + msg + '</div>' +
+            (pts > 0 ? '<div style="color:#22c55e;font-weight:700;font-size:0.9rem;">+' + pts + ' pts earned! 🎉</div>' : '') +
+        '</div>';
+        nachoChatAppend('nacho', '', html);
+
+        if (pts > 0) {
+            if (typeof awardPoints === 'function') awardPoints(pts, '🎯 Conversation Quest!');
+            if (typeof showToast === 'function') showToast('🎯 +' + pts + ' pts — Conversation Quest!');
+        }
+    }
+
+    function nachoChatThinking() {
+        var chat = document.getElementById('nachoModeChat');
+        if (!chat) return;
+        if (chat.querySelector('#nachoModeAvatar')) chat.innerHTML = '';
+        var div = document.createElement('div');
+        div.id = 'nmThinking';
+        div.className = 'nm-msg nm-nacho';
+        div.innerHTML = '<span style="color:var(--text-muted);">🦌 Thinking<span class="nacho-dots"></span></span>';
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        var dotsEl = div.querySelector('.nacho-dots');
+        var dc = 0;
+        window._nmDotsTimer = setInterval(function() { dc=(dc+1)%4; if(dotsEl) dotsEl.textContent='.'.repeat(dc); }, 400);
+    }
+
+    function nachoChatClearThinking() {
+        if (window._nmDotsTimer) { clearInterval(window._nmDotsTimer); window._nmDotsTimer = null; }
+        var t = document.getElementById('nmThinking');
+        if (t) t.remove();
+    }
+
+    // Export chat
+    window.nachoChatExport = function() {
+        var hist = window._nachoChatHistory || [];
+        if (hist.length === 0) { if (typeof showToast === 'function') showToast('No chat to save!'); return; }
+        var lines = ['=== Nacho Mode Chat Export ===', 'Exported: ' + new Date().toLocaleString(), ''];
+        for (var i = 0; i < hist.length; i++) {
+            var m = hist[i];
+            var time = new Date(m.ts).toLocaleString();
+            var who = m.role === 'user' ? 'You' : 'Nacho 🦌';
+            // Strip HTML tags for export
+            var text = m.role === 'user' ? m.text : (m.html || m.text || '').replace(/<[^>]+>/g, '');
+            lines.push('[' + time + '] ' + who + ': ' + text);
+        }
+        lines.push('', '--- bitcoineducation.quest ---');
+        var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'nacho-chat-' + new Date().toISOString().slice(0,10) + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if (typeof showToast === 'function') showToast('💾 Chat saved!');
+    };
+
+    // Clear chat
+    window.nachoChatClear = function() {
+        if (!confirm('Clear all chat history with Nacho?')) return;
+        window._nachoChatHistory = [];
+        localStorage.removeItem('btc_nacho_chat');
+        nachoChatRender();
+        if (typeof showToast === 'function') showToast('🗑️ Chat cleared');
+    };
+
+    window.nachoModeSend = function() {
+        var inp = document.getElementById('nachoModeInput');
+        if (!inp) return;
+        var q = inp.value.trim();
+        if (!q) return;
+        inp.value = '';
+        window._nachoSentIdx = -1;
+        window._nachoSentDraft = '';
+
+        // Save to sent history (for ArrowUp recall, max 50)
+        window._nachoSentHistory.push(q);
+        if (window._nachoSentHistory.length > 50) window._nachoSentHistory.shift();
+        try { localStorage.setItem('btc_nacho_sent', JSON.stringify(window._nachoSentHistory)); } catch(e) {}
+
+        // Start talking animation
+        nachoModeStartTalking();
+
+        // Track interaction + topic for conversation quiz
+        if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+        window._nachoModeEarnings.interactions++;
+        if (window._nachoModeTopics && q.length > 10) {
+            window._nachoModeTopics.push(q);
+        }
+
+        // Check if it's time for a conversation quiz (15+ min, 5+ questions)
+        if (!window._nachoConvoQuizOffered && window._nachoModeStartTime && window._nachoModeTopics) {
+            var minsInMode = (Date.now() - window._nachoModeStartTime) / 60000;
+            if (minsInMode >= 15 && window._nachoModeTopics.length >= 5) {
+                window._nachoConvoQuizOffered = true;
+                // Delay so current Q&A finishes first
+                setTimeout(function() { offerConversationQuiz(); }, 8000);
+            }
+        }
+
+        // Show user message + save
+        nachoChatAdd('user', q);
+        nachoChatAppend('user', q);
+
+        // Show thinking
+        nachoChatThinking();
+
+        // Answer pipeline helper
+        var _replyMsgId = 'nm_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
+        function reply(html, source) {
+            nachoChatClearThinking();
+            nachoModeStopTalking();
+            var extras = '';
+            // Add action buttons for non-safety responses
+            if (source && source !== 'safety') {
+                // Thumbs up/down + share + bookmark row
+                // Store answer data for Share/Bookmark buttons (avoids inline HTML escaping issues)
+                if (!window._nachoAnswerData) window._nachoAnswerData = {};
+                window._nachoAnswerData[_replyMsgId] = html;
+
+                var _abtnStyle = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;transition:0.2s;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;touch-action:manipulation;';
+                var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+                if (typeof nachoRatingHtml === 'function') {
+                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👍 Helpful</button>';
+                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
+                }
+                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\']||\'\')" style="' + _abtnStyle + '">📤 Share</button>';
+                actionRow += '</div>';
+                extras += actionRow;
+
+                // Follow-up chips
+                var fups = getFollowUps(q, html);
+                extras += followUpChipsHtml(fups);
+            }
+            nachoChatAdd('nacho', '', html + extras);
+            nachoChatAppend('nacho', '', html + extras);
+            updateNachoModeFriendship();
+            // Track topic + source
+            if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
+            // Check milestones
+            var milestone = checkNachoMilestone();
+            if (milestone) {
+                setTimeout(function() {
+                    nachoChatAdd('nacho', '', milestone);
+                    nachoChatAppend('nacho', '', milestone);
+                }, 1500);
+            }
+        }
+
+        // Use unified pipeline (same logic as regular Nacho bubble)
+        if (typeof nachoUnifiedAnswer === 'function') {
+            nachoUnifiedAnswer(q, function(result) {
+                var extra = '';
+                if (result.siteAction) {
+                    extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
+                } else if (result.channel) {
+                    extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                }
+                reply(result.answer + extra, result.type);
+
+
+
+
+
+            });
+            return;
+        }
+
+        // Fallback if unified pipeline not loaded yet
+        if (!document.querySelector('script[data-nacho-retry]')) {
+            var s = document.createElement('script');
+            s.src = 'nacho-qa.js?v=' + Date.now();
+            s.setAttribute('data-nacho-retry', '1');
+            document.head.appendChild(s);
+        }
+        setTimeout(function() {
+            if (typeof nachoUnifiedAnswer === 'function') {
+                nachoUnifiedAnswer(q, function(result) {
+                    var extra = '';
+                    if (result.siteAction) {
+                        extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go \u2192') + '</button>';
+                    } else if (result.channel) {
+                        extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">\ud83d\udcd6 Read more: ' + (result.channelName || result.channel) + ' \u2192</a>';
+                    }
+                    reply(result.answer + extra, result.type);
+                });
+            } else {
+                nachoModeFallbackReply(q, reply);
+            }
+        }, 2000);
+    };
+
+    // Nacho Mode avatar tap — random fun reaction
+    window.nachoModeAvatarTap = function() {
+        var avatar = document.getElementById('nachoModeAvatar');
+        if (!avatar) return;
+        avatar.style.transform = 'scale(1.1) rotate(' + (Math.random() > 0.5 ? '5' : '-5') + 'deg)';
+        setTimeout(function() { avatar.style.transform = ''; }, 300);
+        if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+        window._nachoModeEarnings.interactions++;
+        updateNachoModeFriendship();
+    };
+
+    // Nacho Mode talking animation
+    function nachoModeStartTalking() {
+        var hero = document.getElementById('nachoHeroAvatar');
+        if (hero) hero.classList.add('talking');
+    }
+    function nachoModeStopTalking() {
+        var hero = document.getElementById('nachoHeroAvatar');
+        if (hero) hero.classList.remove('talking');
+    }
+
+    // Nacho Mode voice input
+    window._nachoModeRecognition = null;
+    window._nachoModeListening = false;
+    window.nachoModeVoice = function() {
+        var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) return;
+        var inp = document.getElementById('nachoModeInput');
+        var mic = document.getElementById('nachoModeMic');
+        if (!inp || !mic) return;
+
+        if (window._nachoModeListening && window._nachoModeRecognition) {
+            window._nachoModeRecognition.stop();
+            return;
+        }
+
+        var rec = new SpeechRec();
+        window._nachoModeRecognition = rec;
+        rec.lang = 'en-US';
+        rec.interimResults = true;
+        rec.maxAlternatives = 1;
+        rec.continuous = false;
+
+        mic.style.opacity = '1';
+        mic.innerHTML = '🔴';
+        inp.placeholder = 'Listening...';
+        inp.style.borderColor = '#f7931a';
+        window._nachoModeListening = true;
+
+        var finalTranscript = '';
+        rec.onresult = function(e) {
+            var interim = '';
+            for (var i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+                else interim += e.results[i][0].transcript;
+            }
+            inp.value = finalTranscript || interim;
+        };
+
+        rec.onend = function() {
+            window._nachoModeListening = false;
+            mic.innerHTML = '🎙️';
+            mic.style.opacity = '0.6';
+            inp.style.borderColor = 'var(--border,#333)';
+            inp.placeholder = 'Type or tap 🎙️ to speak...';
+            if (inp.value.trim().length > 0) nachoModeSend();
+        };
+
+        rec.onerror = function() {
+            window._nachoModeListening = false;
+            mic.innerHTML = '🎙️';
+            mic.style.opacity = '0.6';
+            inp.style.borderColor = 'var(--border,#333)';
+            inp.placeholder = 'Voice error — try typing';
+        };
+
+        try { rec.start(); } catch(e) {
+            window._nachoModeListening = false;
+            mic.innerHTML = '🎙️';
+            mic.style.opacity = '0.6';
+        }
+    };
+
+    function updateNachoModeFriendship() {
+        var el = document.getElementById('nachoModeFriendship');
+        if (!el) return;
+        var f = typeof getNachoFriendship === 'function' ? getNachoFriendship() : { emoji: '🦌', name: 'Unknown', level: 0 };
+        var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+        el.textContent = f.emoji + ' Friendship: ' + f.name + ' · ' + interactions + ' interactions';
+    }
+
+    window.exitNachoMode = function(skipGoHome) {
+        window._nachoMode = false;
+        window._nachoBusy = false;
+        if (window._btcPriceTimer) { clearInterval(window._btcPriceTimer); window._btcPriceTimer = null; }
+
+        // Remove Nacho Mode screen
+        var screen = document.getElementById('nachoModeScreen');
+        if (screen) screen.remove();
+
+        // Restore everything that was hidden on enter
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+            if (el) el.style.display = '';
+        });
+        // Restore mobile top bar
+        var mbar = document.querySelector('.mobile-bar');
+        if (mbar && window.innerWidth <= 900) mbar.style.display = 'flex';
+
+        // Show summary of what was earned (only on full exit, not channel navigation)
+        if (!skipGoHome) {
+            var e = window._nachoModeEarnings;
+            if (e && e.interactions > 0 && typeof showToast === 'function') {
+                var parts = ['🦌 ' + e.interactions + ' interactions'];
+                if (e.points > 0) parts.push('+' + e.points + ' pts');
+                var bc = Array.isArray(e.badges) ? e.badges.length : (e.badges || 0);
+                if (bc > 0) parts.push(bc + ' badge' + (bc > 1 ? 's' : ''));
+                showToast(parts.join(' · '));
+            }
+            goHome();
+        }
+    };
+
+    window.goHome = function goHome(fromPopState) {
+        var fb = document.getElementById('floatingRandomBtn');
+        if (fb) fb.style.display = 'none';
+        // Hide forum container
+        var fc = document.getElementById('forumContainer');
+        if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
+        document.getElementById('hero').style.display = '';
+        document.getElementById('msgs').style.display = '';
+        document.getElementById('home').classList.remove('hidden');
+        document.getElementById('hero').innerHTML = '';
+        document.getElementById('msgs').innerHTML = '';
+        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('main').scrollTop = 0;
+        if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
+        if (isMobile()) {
+            document.getElementById('sidebar').classList.remove('open');
+            setFloatingElementsVisible(true);
+            // Ensure mobile top bar is always visible
+            var mbar = document.querySelector('.mobile-bar');
+            if (mbar) mbar.style.display = 'flex';
+        }
+        // Show continue reading
+        showContinueReading();
+        // Refresh exploration map to reflect newly visited channels
+        if (typeof renderExplorationMap === 'function') renderExplorationMap();
+    }
+
+    function showContinueReading() {
+        const el = document.getElementById('continueReading');
+        if (!el) return;
+        const lastCh = localStorage.getItem('btc_last_channel');
+        if (lastCh && CHANNELS[lastCh]) {
+            const meta = CHANNELS[lastCh];
+            el.style.display = 'block';
+            el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\'' + lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
+                '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
+                '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">' + meta.cat + '</div></div>';
+        } else {
+            el.style.display = 'none';
+        }
+    }
+
+    // Keyboard shortcuts (desktop) — MMORPG style!
+    document.addEventListener('keydown', function(e) {
+        // Don't fire in inputs
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        var key = e.key.toLowerCase();
+        var ctrl = e.ctrlKey || e.metaKey;
+        if (ctrl) return; // Don't hijack browser shortcuts
+
+        // === Navigation ===
+        // H = go home
+        if (key === 'h') { goHome(); return; }
+        // S or / = focus search
+        if (key === 's' || key === '/') { e.preventDefault(); var si = document.getElementById('searchInput'); if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); } return; }
+        // C = random channel
+        if (key === 'c') { goRandom(); return; }
+        // R = random meme
+        if (key === 'r') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
+        // M = marketplace
+        if (key === 'm') { go('marketplace'); return; }
+        // A = ask Nacho
+        if (key === 'a') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
+
+        // === Quick Actions ===
+        // L = toggle leaderboard
+        if (key === 'l') { if (typeof toggleLeaderboard === 'function') toggleLeaderboard(); return; }
+        // Q = start quest on current channel
+        if (key === 'q') { var qb = document.getElementById('questBtn'); if (qb) qb.click(); return; }
+        // F = favorite/save current channel
+        if (key === 'f') { go('forum'); return; }
+        if (key === 'z') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
+        // N = talk to Nacho (open Q&A input)
+        if (key === 'n') { if (typeof enterNachoMode === 'function') enterNachoMode(); return; }
+        // T = toggle theme (dark/light)
+        if (key === 't') { var tb = document.getElementById('themeToggle'); if (tb) tb.click(); return; }
+        // G = gallery view (on supported channels)
+        if (key === 'g') { var gb = document.getElementById('galleryBtn'); if (gb) gb.click(); return; }
+
+        // === Scroll ===
+        // J = scroll down
+        if (key === 'j') { document.getElementById('main').scrollBy({ top: 300, behavior: 'smooth' }); return; }
+        // K = scroll up
+        if (key === 'k') { document.getElementById('main').scrollBy({ top: -300, behavior: 'smooth' }); return; }
+        // Space = page down (unless in modal)
+        if (key === ' ') { e.preventDefault(); document.getElementById('main').scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }); return; }
+
+        // === Info ===
+        // ? = show keyboard shortcuts help
+        if (key === '?' || (e.shiftKey && key === '/')) { showKeyboardHelp(); return; }
+        // I = open settings
+        if (key === 'i') { if (typeof showSettingsPage === 'function') showSettingsPage('account'); return; }
+        // D = donate — go home and scroll to donation section
+        if (key === 'd') {
+            showDonateModal();
+            return;
+        }
+        // B = back to previous channel
+        if (key === 'b') { var lc = localStorage.getItem('btc_last_channel'); if (lc) go(lc); return; }
+
+        // === Hidden Easter Eggs (shhh!) ===
+        // 2 = "There is no second best."
+        if (key === '2') { speakEasterEgg("There is no second best."); return; }
+        // 1 = "One more block."
+        if (key === '1') { speakEasterEgg("One more block."); return; }
+        // 0 = "Don't trust. Verify."
+        if (key === '0') { speakEasterEgg("Don't trust. Verify."); if (typeof earnSticker === 'function') earnSticker('cool'); return; }
+        // 9 = "Number go up!"
+        if (key === '9') { speakEasterEgg("Number go up!"); if (typeof nachoFly === 'function') nachoFly(); return; }
+        // P = "Stay humble, stack sats."
+        if (key === 'p') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
+        if (key === 'w') { speakEasterEgg("Stay humble. Stack sats."); return; }
+        // Secret: type "btc" to unlock Bitcoin Eyes
+        window._eggBuffer = (window._eggBuffer || '') + key;
+        if (window._eggBuffer.length > 10) window._eggBuffer = window._eggBuffer.slice(-10);
+        if (window._eggBuffer.indexOf('btc') !== -1) {
+            window._eggBuffer = '';
+            localStorage.setItem('btc_bitcoin_eyes_unlocked', 'true');
+            if (typeof showToast === 'function') showToast('₿₿ Secret unlocked: Bitcoin Eyes! Check Nacho\'s Closet!');
+            if (typeof haptic === 'function') haptic('success');
+        }
+
+        // === Escape = close modals ===
+        if (key === 'escape') {
+            if (document.getElementById('lb').classList.contains('open')) document.getElementById('lb').classList.remove('open');
+            if (document.getElementById('usernameModal').classList.contains('open')) hideUsernamePrompt();
+            if (document.getElementById('questModal').classList.contains('open')) document.getElementById('questModal').classList.remove('open');
+            if (isMobile() && document.getElementById('sidebar').classList.contains('open')) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
+        }
+    });
+
+    // Easter egg speech
+    var lastEasterEgg = 0;
+    function speakEasterEgg(text) {
+        var now = Date.now();
+        if (now - lastEasterEgg < 3000) return; // cooldown
+        lastEasterEgg = now;
+        // Show toast
+        if (typeof showToast === 'function') showToast('🟠 ' + text);
+        // Speak it
+        try {
+            var utter = new SpeechSynthesisUtterance(text);
+            utter.rate = 0.9;
+            utter.pitch = 0.85;
+            utter.volume = 0.8;
+            // Try to pick a deep/dramatic voice
+            var voices = speechSynthesis.getVoices();
+            var preferred = voices.find(function(v) { return v.name.indexOf('Daniel') !== -1 || v.name.indexOf('Google UK English Male') !== -1 || v.name.indexOf('Male') !== -1; });
+            if (preferred) utter.voice = preferred;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utter);
+        } catch(e) {}
+    }
+    // Preload voices
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
+
+    // Keyboard shortcuts help modal
+    function showKeyboardHelp() {
+        var existing = document.getElementById('kbHelpModal');
+        if (existing) { existing.remove(); return; }
+        var modal = document.createElement('div');
+        modal.id = 'kbHelpModal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);';
+        modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+        modal.innerHTML =
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:16px;padding:28px 32px;max-width:480px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+                '<h2 style="color:var(--accent);font-size:1.2rem;margin:0;">⌨️ Keyboard Shortcuts</h2>' +
+                '<span onclick="document.getElementById(\'kbHelpModal\').remove()" style="cursor:pointer;font-size:1.3rem;color:var(--text-faint);">✕</span>' +
+            '</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">Press <kbd style="background:var(--card-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-family:monospace;">?</kbd> to toggle this menu</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
+                kbRow('H','Go home') + kbRow('S / /','Search') + kbRow('R','Random channel') +
+                kbRow('M','Random meme') + kbRow('A','Random art') + kbRow('B','Back to last channel') +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
+                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('F','Favorite channel') +
+                kbRow('N','Ask Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') +
+                kbRow('I','Settings') + kbRow('D','Donate') +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
+                kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
+            '</div></div>';
+        document.body.appendChild(modal);
+    }
+    function kbRow(key, desc) {
+        return '<div><kbd style="background:var(--card-bg);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-family:monospace;font-size:0.8rem;color:var(--heading);min-width:24px;display:inline-block;text-align:center;">' + key + '</kbd></div><div style="color:var(--text-muted);">' + desc + '</div>';
+    }
+
+    // ---- Mobile Gestures ----
+    (function() {
+        if (!('ontouchstart' in window)) return; // Desktop, skip
+
+        // Shake to hear a random Bitcoin quote (easter egg)
+        // High threshold so walking/normal movement doesn't trigger it
+        var shakeThreshold = 50; // High threshold — requires obvious deliberate shake
+        var shakeCount = 0; // Require multiple hits to confirm real shake
+        var lastShake = 0;
+        var lastAccel = { x: 0, y: 0, z: 0 };
+        window.addEventListener('devicemotion', function(e) {
+            var a = e.accelerationIncludingGravity;
+            if (!a) return;
+            var dx = Math.abs(a.x - lastAccel.x);
+            var dy = Math.abs(a.y - lastAccel.y);
+            var dz = Math.abs(a.z - lastAccel.z);
+            lastAccel = { x: a.x, y: a.y, z: a.z };
+            if (dx + dy + dz > shakeThreshold) {
+                shakeCount++;
+                // Reset count if movements are too far apart
+                clearTimeout(window._shakeResetTimer);
+                window._shakeResetTimer = setTimeout(function() { shakeCount = 0; }, 1000);
+                // Require 3 strong movements within 1 second for a real shake
+                if (shakeCount < 3) return;
+                shakeCount = 0;
+                var now = Date.now();
+                if (now - lastShake < 10000) return; // 10s cooldown
+                lastShake = now;
+                var quotes = [
+                    "There is no second best.",
+                    "One more block.",
+                    "Don't trust. Verify.",
+                    "Number go up!",
+                    "Stay humble. Stack sats.",
+                    "Not your keys, not your coins.",
+                    "Bitcoin fixes this.",
+                    "Tick tock, next block."
+                ];
+                speakEasterEgg(quotes[Math.floor(Math.random() * quotes.length)]);
+                if (Math.random() < 0.3 && typeof nachoFly === 'function') nachoFly();
+            }
+        });
+
+        // Swipe left/right on content area for random channel navigation
+        var touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+        var mainEl = document.getElementById('main');
+        mainEl.addEventListener('touchstart', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        mainEl.addEventListener('touchend', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            var dx = e.changedTouches[0].clientX - touchStartX;
+            var dy = e.changedTouches[0].clientY - touchStartY;
+            var dt = Date.now() - touchStartTime;
+            // Must be a quick, horizontal swipe (not a scroll)
+            // Strict: fast, very horizontal, long swipe — won't trigger during normal scrolling
+            if (dt > 300 || Math.abs(dx) < 150 || Math.abs(dy) > Math.abs(dx) * 0.3) return;
+
+            if (dx > 150) {
+                goHome();
+            } else if (dx < -150) {
+                goRandom();
+            }
+        }, { passive: true });
+
+        // Two-finger tap → toggle leaderboard
+        // Must be a quick tap (touchend within 300ms), not during scroll
+        var twoFingerLast = 0;
+        var twoFingerStart = 0;
+        document.getElementById('main').addEventListener('touchstart', function(e) {
+            if (e.touches.length === 2) twoFingerStart = Date.now();
+        }, { passive: true });
+        document.getElementById('main').addEventListener('touchend', function(e) {
+            if (twoFingerStart && e.touches.length === 0 && e.changedTouches.length >= 1) {
+                var dt = Date.now() - twoFingerStart;
+                twoFingerStart = 0;
+                if (dt > 400) return; // Not a tap, was a hold/scroll
+                var now = Date.now();
+                if (now - twoFingerLast < 3000) return; // 3s cooldown
+                twoFingerLast = now;
+                if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
+            }
+        }, { passive: true });
+
+        // Long-press on logo → Nacho Mode
+        // Uses MutationObserver to also catch dynamically added channel logos
+        function attachLogoGesture(logo) {
+            if (logo._nachoLongPress) return; // Already attached
+            logo._nachoLongPress = true;
+            var lp;
+            logo.addEventListener('touchstart', function(e) {
+                lp = setTimeout(function() {
+                    if (typeof enterNachoMode === 'function') enterNachoMode();
+                }, 800);
+            }, { passive: true });
+            logo.addEventListener('touchend', function() { clearTimeout(lp); });
+            logo.addEventListener('touchmove', function() { clearTimeout(lp); });
+        }
+        document.querySelectorAll('.home-logos img, .channel-logos .channel-logo-img').forEach(attachLogoGesture);
+        // Watch for dynamically added channel logos
+        new MutationObserver(function() {
+            document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
+        }).observe(document.getElementById('main'), { childList: true, subtree: true });
+
+        // Three-finger tap → PlebTalk
+        // Must be a quick tap, not during scroll
+        var threeFingerLast = 0;
+        var threeFingerStart = 0;
+        document.getElementById('main').addEventListener('touchstart', function(e) {
+            if (e.touches.length === 3) threeFingerStart = Date.now();
+        }, { passive: true });
+        document.getElementById('main').addEventListener('touchend', function(e) {
+            if (threeFingerStart && e.touches.length === 0) {
+                var dt = Date.now() - threeFingerStart;
+                threeFingerStart = 0;
+                if (dt > 400) return; // Not a tap
+                var now = Date.now();
+                if (now - threeFingerLast < 3000) return; // 3s cooldown
+                threeFingerLast = now;
+                go('forum');
+            }
+        }, { passive: true });
+    })();
+
+    // Cache loaded channel data
+    const channelCache = {};
+
+    // Audio system
+    let audioEnabled = localStorage.getItem('btc_audio') !== 'false';
+    let audioVolume = parseFloat(localStorage.getItem('btc_volume') || '0.5');
+
+    function getVolume() { return audioEnabled ? audioVolume : 0; }
+
+    function playChannelSound() {
+        if (document.hidden) return;
+        if (!audioEnabled || audioVolume <= 0) return;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const vol = audioVolume;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.08 * vol, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.15);
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.frequency.value = 1318.5;
+            osc2.type = 'sine';
+            gain2.gain.setValueAtTime(0.05 * vol, ctx.currentTime + 0.05);
+            gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+            osc2.start(ctx.currentTime + 0.05);
+            osc2.stop(ctx.currentTime + 0.25);
+        } catch(e) {}
+    }
+    function toggleAudio() {
+        audioEnabled = !audioEnabled;
+        localStorage.setItem('btc_audio', audioEnabled);
+        updateAudioUI();
+        if (typeof showToast === 'function') showToast(audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
+    }
+    function setVolume(val) {
+        audioVolume = parseFloat(val);
+        localStorage.setItem('btc_volume', audioVolume);
+        if (audioVolume <= 0) {
+            audioEnabled = false;
+            localStorage.setItem('btc_audio', 'false');
+        } else if (!audioEnabled) {
+            audioEnabled = true;
+            localStorage.setItem('btc_audio', 'true');
+        }
+        updateAudioUI();
+    }
+    function updateAudioUI() {
+        const btn = document.getElementById('audioBtn');
+        if (btn) btn.textContent = audioEnabled && audioVolume > 0 ? (audioVolume > 0.5 ? '🔊' : '🔉') : '🔇';
+        const slider = document.getElementById('volumeSlider');
+        if (slider) slider.value = audioEnabled ? audioVolume : 0;
+    }
+
+    window.go = async function go(id, btn, fromPopState) {
+        // If navigating away from Nacho Mode, save chat state for back-navigation
+        if (window._nachoMode && !fromPopState) {
+            // Save chat before exiting so back button can restore it
+            if (typeof nachoChatSave === 'function') nachoChatSave();
+            window._nachoReturnPending = true;
+        }
+
+        // Forum route
+        if (id === 'forum' || id === 'marketplace') {
+            if (window._nachoMode) exitNachoMode(true);
+            document.getElementById('home').classList.add('hidden');
+            document.getElementById('hero').innerHTML = '';
+            document.getElementById('msgs').innerHTML = '';
+            document.getElementById('msgs').style.display = 'none';
+            document.getElementById('hero').style.display = 'none';
+            var fc = document.getElementById('forumContainer');
+            if (fc) { fc.style.display = 'block'; }
+            if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
+            if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
+            if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
+            else if (typeof renderForum === 'function') renderForum();
+            return;
+        }
+
+        const meta = CHANNELS[id];
+        if (!meta) return;
+        // Exit Nacho Mode if active (skip goHome since we're navigating to a channel)
+        if (window._nachoMode) exitNachoMode(true);
+        // Hide forum container when navigating to a channel
+        var fc = document.getElementById('forumContainer');
+        if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
+        document.getElementById('hero').style.display = '';
+        document.getElementById('msgs').style.display = '';
+        // Hide floating random button when navigating to a different channel
+        if (!window._keepFloatingBtn) {
+            var fb = document.getElementById('floatingRandomBtn');
+            if (fb && fb.style.display !== 'none' && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
+        }
+
+        localStorage.setItem('btc_last_channel', id);
+        playChannelSound();
+        document.getElementById('home').classList.add('hidden');
+        document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
+        if (btn) { btn.classList.add('active'); expandCatForChannel(btn); }
+        else {
+            // Find the button by channel id and expand its section
+            document.querySelectorAll('.ch-btn').forEach(b => {
+                if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + id + "'") !== -1) {
+                    b.classList.add('active');
+                    expandCatForChannel(b);
+                }
+            });
+        }
+
+        // Show loading state
+        // Check if this is an image-heavy channel
+        const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
+        const isGallery = GALLERY_CHANNELS.includes(id);
+
+        const shareUrl = 'https://bitcoineducation.quest/#' + id;
+        const shareText = meta.title + ' — Bitcoin Education Archive';
+        document.getElementById('hero').innerHTML =
+            '<div class="channel-logos">' +
+                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
+                '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+            '</div>' +
+            '<div class="cat">' + meta.cat + '</div>' +
+            '<h1>' + meta.title + '</h1>' +
+            '<p class="desc" id="channelDesc">' + meta.desc + '</p>' +
+            '<div class="share-bar">' +
+                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
+                '<button class="share-btn" onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\', \'' + shareUrl + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="copyLink(\'' + shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" id="favBtn" onclick="toggleFav(\'' + id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
+            '</div>' +
+            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\'' + id + '\')">🖼️ Gallery View</button>' : '');
+        document.getElementById('hero').classList.remove('fade-in');
+        document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
+            '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
+            '<div style="color:var(--text-faint);font-size:0.85rem;">Loading channel...</div></div>';
+        document.getElementById('main').scrollTop = 0;
+        if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
+
+        // On mobile, close the menu immediately
+        if (isMobile()) {
+            document.getElementById('sidebar').classList.remove('open');
+            setFloatingElementsVisible(true);
+        }
+
+        // Fetch channel data (lazy load with cache)
+        let d;
+        if (channelCache[id]) {
+            d = channelCache[id];
+        } else {
+            try {
+                const resp = await fetch(meta.file);
+                d = await resp.json();
+                channelCache[id] = d;
+            } catch(e) {
+                document.getElementById('msgs').innerHTML = '<div style="padding:40px;color:#ef4444;">Error loading channel data</div>';
+                return;
+            }
+        }
+
+        // Store channel data and render
+        currentChannelData = d;
+        currentChannelId = id;
+        galleryMode = false;
+
+        // Update description with full text from data, with working links and embeds
+        const descEl = document.getElementById('channelDesc');
+        if (descEl && d.msgs && d.msgs[0] && d.msgs[0].text) {
+            let t = d.msgs[0].text;
+            // YouTube embeds
+            let ytEmbeds = [];
+            t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
+                ytEmbeds.push(id); return '%%YT' + (ytEmbeds.length - 1) + '%%';
+            });
+            t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g, function(match, id) {
+                ytEmbeds.push(id); return '%%YT' + (ytEmbeds.length - 1) + '%%';
+            });
+            // Twitter/X embeds
+            let twEmbeds = [];
+            t = t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g, function(match) {
+                var url = match.startsWith('http') ? match : 'https://' + match;
+                twEmbeds.push(url); return '%%TW' + (twEmbeds.length - 1) + '%%';
+            });
+            // Linkify remaining URLs
+            t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
+            // Restore YouTube
+            t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
+                return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
+            });
+            // Restore Twitter
+            t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
+                var twUrl = twEmbeds[parseInt(idx)], twId = 'tw_' + Math.random().toString(36).substr(2, 8);
+                var isMob = typeof isMobile === 'function' && isMobile();
+                var hm = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
+                var dh = hm ? '@' + hm[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
+                return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl + '\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">' + dh + '</div><div class="tw-preview-hint">' + (isMob ? '▶ Tap to display tweet' : '▶ Click to display tweet') + '</div></div><div class="tw-preview-arrow">→</div></div>';
+            });
+            t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
+            descEl.innerHTML = t;
+        }
+
+        renderContent(id);
+
+        // Trigger fade-in animation
+        document.getElementById('hero').classList.add('fade-in');
+        document.getElementById('msgs').classList.add('fade-in');
+
+        // Setup load-more for list view (skip first msg, shown in hero)
+        window._currentMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
+        window._currentOffset = 50;
+        window.loadMoreMsgs = function() {
+            const offset = window._currentOffset;
+            const msgs = window._currentMsgs;
+            const btn = document.getElementById('loadMoreBtn');
+            const nextBatch = msgs.slice(offset, offset + 50);
+            let html = '';
+            nextBatch.forEach((m, bi) => {
+                html += '<div class="msg" id="msg-' + (offset + bi) + '">';
+                if (m.text) { let t = m.text; let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank">$1</a>'); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.imgs) m.imgs.forEach(img => { if (m.link) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">'; } });
+                html += '</div>';
+            });
+            btn.insertAdjacentHTML('beforebegin', html);
+            window._currentOffset = offset + 50;
+            if (window._currentOffset >= msgs.length) { btn.remove(); }
+            else { btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)'; }
+        };
+
+        // Mark channel as visited in sidebar
+        document.querySelectorAll('.ch-btn').forEach(b => {
+            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
+                b.classList.add('visited');
+            }
+        });
+
+        // Save visited channels locally
+        let visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        if (!visited.includes(id)) { visited.push(id); localStorage.setItem('btc_visited_channels', JSON.stringify(visited)); }
+
+        // Ranking: award points for opening channel
+        if (typeof onChannelOpen === 'function') onChannelOpen(id);
+    }
+
+    // Search index cache for deep search
+    let searchIndexLoaded = false;
+    let searchFullData = {};
+
+    async function loadSearchIndex() {
+        if (searchIndexLoaded) return;
+        // Load all data files in background for deep search
+        const promises = Object.entries(CHANNELS).map(async ([key, meta]) => {
+            if (channelCache[key]) { searchFullData[key] = channelCache[key]; return; }
+            try {
+                const resp = await fetch(meta.file);
+                const d = await resp.json();
+                channelCache[key] = d;
+                searchFullData[key] = d;
+            } catch(e) {}
+        });
+        await Promise.all(promises);
+        searchIndexLoaded = true;
+    }
+
+    let searchTimeout = null;
+    // Internal app pages searchable by keyword
+    const APP_PAGES = [
+        { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
+        { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
+        { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
+        { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
+        { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
+        { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: 'startQuestManual()' },
+        { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar Certification Quest', keywords: 'scholar certification exam test certificate diploma bitcoin', action: 'startScholarQuest()' },
+        { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
+        { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
+        { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
+        { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
+        { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals', keywords: 'badges achievement trophy unlock goal progress medal', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
+        { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },
+        { id: '_predict', title: '📈 Price Prediction', desc: 'Predict if Bitcoin goes up or down in 24 hours', keywords: 'predict prediction price bitcoin up down forecast', action: 'showPrediction()' },
+        { id: '_random', title: '🎲 Random Channel', desc: 'Jump to a random Bitcoin channel', keywords: 'random channel surprise discover explore dice', action: 'goRandom()' },
+        { id: '_meme', title: '😂 Random Meme', desc: 'See a random Bitcoin meme', keywords: 'meme funny joke random humor laugh memes', action: 'goRandomMeme()' },
+        { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
+        { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
+        { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
+        { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
+        { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
+        { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
+        { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
+        { id: '_messages', title: '💬 Messages', desc: 'Direct messages inbox', keywords: 'messages dm direct message inbox chat private', action: 'showInbox()' },
+        { id: '_signin', title: '🔐 Sign In', desc: 'Sign in or create an account', keywords: 'sign in login register create account google twitter github facebook email', action: 'showUsernamePrompt()' },
+        { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
+    ];
+
+    function doSearch(q) {
+        const sr = document.getElementById('searchResults');
+        const cl = document.getElementById('channelList');
+        if (!q || q.length < 2) {
+            sr.classList.remove('active');
+            sr.innerHTML = '';
+            cl.style.display = '';
+            return;
+        }
+        q = q.toLowerCase();
+        cl.style.display = 'none';
+        sr.classList.add('active');
+
+        // Search internal app pages first
+        let appResults = [];
+        for (const page of APP_PAGES) {
+            if (page.title.toLowerCase().includes(q) || page.keywords.includes(q) || page.desc.toLowerCase().includes(q)) {
+                appResults.push({ key: page.id, title: page.title, cat: '⚡ App', match: page.desc, action: page.action });
+            }
+        }
+
+        // Search channel titles from index
+        let results = [];
+        for (const [key, meta] of Object.entries(CHANNELS)) {
+            if (meta.title.toLowerCase().includes(q) || meta.desc.toLowerCase().includes(q)) {
+                results.push({key, title: meta.title, cat: meta.cat, match: 'Channel match'});
+            }
+        }
+
+        renderSearchResults([...appResults, ...results], sr);
+
+        // Deep search: load full data and search message content (debounced)
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            await loadSearchIndex();
+            let deepResults = [];
+            for (const [key, d] of Object.entries(searchFullData)) {
+                const meta = CHANNELS[key];
+                if (!meta) continue;
+                // Skip if already found by title
+                if (results.some(r => r.key === key)) continue;
+                for (const m of (d.msgs || [])) {
+                    if (m.text && m.text.toLowerCase().includes(q)) {
+                        let idx = m.text.toLowerCase().indexOf(q);
+                        let start = Math.max(0, idx - 30);
+                        let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + q.length + 30).replace(/<[^>]+>/g, '') + '...';
+                        deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet});
+                        break;
+                    }
+                }
+            }
+            renderSearchResults([...appResults, ...results, ...deepResults], sr);
+        }, 500);
+    }
+
+    function renderSearchResults(results, sr) {
+        if (results.length === 0) {
+            sr.innerHTML = '<div style="padding:16px;color:#475569;text-align:center;">No results found</div>';
+            return;
+        }
+        sr.innerHTML = results.slice(0, 30).map(r => {
+            const isApp = r.key && r.key.startsWith('_');
+            const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "')";
+            const style = isApp ? 'border-left:3px solid var(--accent);' : '';
+            return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
+                '<div class="sr-cat">' + r.cat + '</div>' +
+                '<div>' + r.title + '</div>' +
+                '<div class="sr-match">' + r.match + '</div></div>';
+        }).join('');
+    }
+
+    function selectResult(key) {
+        document.getElementById('searchInput').value = '';
+        doSearch('');
+        go(key);
+    }
+
+    // Unique visit counter via Firebase
+    (function() {
+        const vc = document.getElementById('visitCount');
+        function updateVisitDisplay() {
+            if (typeof firebase === 'undefined' || !firebase.firestore) return;
+            const fdb = firebase.firestore();
+            const today = new Date().toISOString().split('T')[0];
+
+            // Generate a fingerprint-based visitor ID (harder to spoof than random)
+            // Combines screen, timezone, language, platform — same device = same ID
+            var fp = [
+                screen.width, screen.height, screen.colorDepth,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.language, navigator.hardwareConcurrency || 0,
+                navigator.platform
+            ].join('|');
+            // Simple hash
+            var hash = 0;
+            for (var i = 0; i < fp.length; i++) {
+                hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+                hash |= 0;
+            }
+            var fingerprintId = 'fp_' + Math.abs(hash).toString(36);
+
+            // Also keep localStorage ID for cross-session persistence
+            var storedId = localStorage.getItem('btc_visitor_id');
+            if (!storedId) {
+                storedId = fingerprintId;
+                localStorage.setItem('btc_visitor_id', storedId);
+            }
+
+            // Use both: if fingerprint matches an existing visitor, use that
+            // This prevents incognito/clear-storage from creating new visitors on the same device
+            var visitorId = fingerprintId;
+
+            // Rate limit: don't count more than once per session
+            if (window._visitCounted) {
+                fdb.collection('stats').doc('visits').get().then(function(d) {
+                    if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
+                });
+                return;
+            }
+            window._visitCounted = true;
+
+            // Check if this visitor already counted today
+            var visitRef = fdb.collection('visits').doc(visitorId);
+            visitRef.get().then(function(doc) {
+                if (!doc.exists || doc.data().lastVisit !== today) {
+                    // New unique visit — increment counter and mark visitor
+                    var counterRef = fdb.collection('stats').doc('visits');
+                    fdb.runTransaction(function(t) {
+                        return t.get(counterRef).then(function(counterDoc) {
+                            var newCount = (counterDoc.exists ? counterDoc.data().total : 0) + 1;
+                            t.set(counterRef, { total: newCount });
+                            t.set(visitRef, { lastVisit: today, fp: fingerprintId });
+                            return newCount;
+                        });
+                    }).then(function(newCount) {
+                        vc.textContent = newCount.toLocaleString();
+                    });
+                } else {
+                    // Already counted today — just display current total
+                    fdb.collection('stats').doc('visits').get().then(function(d) {
+                        if (d.exists) vc.textContent = (d.data().total || 0).toLocaleString();
+                    });
+                }
+            }).catch(function() { vc.textContent = '—'; });
+        }
+        // Wait a moment for Firebase to init
+        setTimeout(updateVisitDisplay, 2000);
+    })();
+
+    // Suggest a topic
+    function expandSuggest() {
+        const fields = document.getElementById('suggestFields');
+        if (fields.style.display === 'none') {
+            fields.style.display = 'block';
+        } else {
+            fields.style.display = 'none';
+        }
+    }
+
+    let lastSuggestionTime = 0;
+    async function submitSuggestion() {
+        // Rate limit suggestions to 1 per 30 seconds
+        const now = Date.now();
+        if (now - lastSuggestionTime < 30000) {
+            document.getElementById('suggestStatus').innerHTML = '<span style="color:#ef4444;">Please wait before submitting another suggestion.</span>';
+            return;
+        }
+        lastSuggestionTime = now;
+        const name = typeof sanitizeInput === 'function' ? sanitizeInput(document.getElementById('suggestName').value.trim()) : document.getElementById('suggestName').value.trim();
+        const text = typeof sanitizeInput === 'function' ? sanitizeInput(document.getElementById('suggestText').value.trim()) : document.getElementById('suggestText').value.trim();
+        const status = document.getElementById('suggestStatus');
+        const btn = document.querySelector('.suggest-submit');
+
+        if (!text) { status.innerHTML = '<span style="color:#ef4444;">Please enter a suggestion!</span>'; return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+        try {
+            if (typeof firebase !== 'undefined' && firebase.firestore) {
+                await firebase.firestore().collection('suggestions').add({
+                    name: name || 'Anonymous',
+                    suggestion: text,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            status.innerHTML = '<span style="color:#22c55e;">✅ Thank you! Your suggestion has been submitted.</span>';
+            document.getElementById('suggestName').value = '';
+            document.getElementById('suggestText').value = '';
+            btn.textContent = 'Submitted!';
+            setTimeout(() => { btn.textContent = 'Submit Suggestion'; btn.disabled = false; }, 3000);
+        } catch(e) {
+            status.innerHTML = '<span style="color:#ef4444;">Error submitting. Please try again.</span>';
+            btn.textContent = 'Submit Suggestion';
+            btn.disabled = false;
+        }
+    }
+
+    // Daily featured channel
+    (function() {
+        const keys = Object.keys(CHANNELS);
+        // Use day of year as seed for deterministic daily rotation
+        const now = new Date();
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const dailyKey = keys[dayOfYear % keys.length];
+        const ch = CHANNELS[dailyKey];
+        if (ch) {
+            const el = document.getElementById('dailyChannel');
+            el.innerHTML = '<div class="daily-label">📅 Channel of the Day</div>' +
+                '<div class="daily-title">' + ch.title + '</div>' +
+                '<div class="daily-desc">' + ch.desc + '</div>';
+            el.onclick = () => go(dailyKey);
+        }
+    })();
+
+    // Reading progress bar + back to top
+    document.getElementById('main').addEventListener('scroll', function() {
+        const el = this;
+        const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
+        document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, pct)) + '%';
+        document.getElementById('backToTop').classList.toggle('visible', el.scrollTop > 400);
+        var nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
+        document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);
+    });
+
+    window.onload = () => {
+        // Auto-launch Nacho Mode if user has it set as default
+        if (localStorage.getItem('btc_nacho_mode_default') === 'true' && !window.location.hash) {
+            setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
+        }
+
+        // Restore visited channel checkmarks
+        const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        visited.forEach(id => {
+            document.querySelectorAll('.ch-btn').forEach(b => {
+                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {
+                    b.classList.add('visited');
+                }
+            });
+        });
+
+        renderFavs();
+        showContinueReading();
+
+        // Handle browser back/forward buttons
+        // Set initial state so there's always a base entry to land on
+        if (!history.state) history.replaceState({ home: true }, '', window.location.pathname + window.location.hash);
+
+        window.addEventListener('popstate', function(e) {
+            var state = e.state || {};
+            var hash = location.hash.slice(1);
+
+            // If we've gone back to null state (would leave site), push home state and stay
+            if (!e.state && !hash) {
+                history.pushState({ home: true }, '', window.location.pathname);
+                goHome(true);
+                return;
+            }
+
+            // Exit Nacho Mode if we're leaving it (skip goHome since popstate handles navigation)
+            if (window._nachoMode && hash !== 'nacho' && !state.nachoMode) {
+                exitNachoMode(true);
+            }
+
+            // Nacho Mode
+            if (hash === 'nacho' || state.nachoMode) {
+                if (!window._nachoMode) enterNachoMode(true);
+                return;
+            }
+
+            // Marketplace sub-views (listing detail, my listings)
+            if (state.channel === 'marketplace' && state.mktView) {
+                if (typeof handleMarketplacePopState === 'function') {
+                    handleMarketplacePopState(state, hash);
+                    return;
+                }
+            }
+            if (hash && hash.indexOf('marketplace/') === 0) {
+                if (typeof handleMarketplacePopState === 'function') {
+                    handleMarketplacePopState(state, hash);
+                    return;
+                }
+            }
+
+            // Marketplace browse
+            if (hash === 'marketplace' || state.channel === 'marketplace') {
+                go('marketplace', null, true);
+                return;
+            }
+
+            // Forum post detail
+            if ((state.channel === 'forum' && state.forumPost) || (hash && hash.indexOf('forum/post/') === 0)) {
+                var postId = state.forumPost || hash.replace('forum/post/', '');
+                if (typeof forumViewPost === 'function') {
+                    // Make sure forum container is visible
+                    document.getElementById('home').classList.add('hidden');
+                    document.getElementById('msgs').style.display = 'none';
+                    document.getElementById('hero').style.display = 'none';
+                    var fc = document.getElementById('forumContainer');
+                    if (fc) fc.style.display = 'block';
+                    forumViewPost(postId, true);
+                }
+                return;
+            }
+
+            // Forum listing
+            if (hash === 'forum' || (state.channel && state.channel.indexOf('forum') === 0)) {
+                go('forum', null, true);
+                return;
+            }
+
+            // Channel
+            if (hash) {
+                go(hash, null, true);
+            } else {
+                goHome(true);
+            }
+        });
+
+        const h = location.hash.slice(1);
+        if (h === 'nacho') { enterNachoMode(true); }
+        else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
+        else if (h) go(h);
+    };

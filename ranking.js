@@ -617,8 +617,8 @@ function loadUserLocal(uid) {
     startReadTimer();
 }
 
-async function loadUser(uid) {
-    const doc = await db.collection('users').doc(uid).get();
+async function loadUser(uid, prefetchedDoc) {
+    const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
         // Restore visited channels so we don't re-award
