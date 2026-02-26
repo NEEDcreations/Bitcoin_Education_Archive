@@ -244,8 +244,8 @@ window.trackNachoInteraction = function() {
     localStorage.setItem('btc_nacho_interactions', count.toString());
     window._nachoLastInteraction = Date.now();
 
-    // Sync to Firebase every 5 interactions
-    if (count % 5 === 0 && typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+    // Sync to Firebase every interaction
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
         var questions = parseInt(localStorage.getItem('btc_nacho_questions') || '0');
         try {
             db.collection('users').doc(auth.currentUser.uid).update({

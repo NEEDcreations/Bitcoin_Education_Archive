@@ -47,29 +47,29 @@ var SORT_OPTIONS = [
 ];
 
 // ---- Marketplace History (back button support) ----
-window._mktHistoryStack = [];
-
-function mktPushState(options) {
-    window._mktHistoryStack.push(options);
-    // Use hash to track marketplace sub-views
-    var hash = '#marketplace';
-    if (options.listingId) hash += '/listing/' + options.listingId;
-    else if (options.myListings) hash += '/my';
-    history.pushState({ marketplace: options }, '', hash);
-}
-
-// Listen for back button
-window.addEventListener('popstate', function(e) {
-    if (e.state && e.state.marketplace) {
-        var opts = e.state.marketplace;
-        if (opts.myListings) { showMyListings(true); }
-        else if (opts.listingId) { renderMarketplace({ listingId: opts.listingId, _noHistory: true }); }
-        else { renderMarketplace(Object.assign({}, opts, { _noHistory: true })); }
-    } else if (window._mktHistoryStack.length > 0 && location.hash === '#marketplace') {
-        window._mktHistoryStack = [];
-        renderMarketplace({ _noHistory: true });
-    }
-});
+// window._mktHistoryStack = [];
+//
+// function mktPushState(options) {
+//     window._mktHistoryStack.push(options);
+//     // Use hash to track marketplace sub-views
+//     var hash = '#marketplace';
+//     if (options.listingId) hash += '/listing/' + options.listingId;
+//     else if (options.myListings) hash += '/my';
+//     history.pushState({ marketplace: options }, '', hash);
+// }
+//
+// // Listen for back button
+// window.addEventListener('popstate', function(e) {
+//     if (e.state && e.state.marketplace) {
+//         var opts = e.state.marketplace;
+//         if (opts.myListings) { showMyListings(true); }
+//         else if (opts.listingId) { renderMarketplace({ listingId: opts.listingId, _noHistory: true }); }
+//         else { renderMarketplace(Object.assign({}, opts, { _noHistory: true })); }
+//     } else if (window._mktHistoryStack.length > 0 && location.hash === '#marketplace') {
+//         window._mktHistoryStack = [];
+//         renderMarketplace({ _noHistory: true });
+//     }
+// });
 
 // ---- Render Marketplace ----
 window.renderMarketplace = function(options) {
@@ -84,12 +84,6 @@ window.renderMarketplace = function(options) {
     var searchQuery = options.search || '';
     var sortBy = options.sort || 'newest';
     var viewListing = options.listingId || null;
-
-    // Push history for back button (unless navigating from popstate)
-    if (!options._noHistory) {
-        if (viewListing) mktPushState({ listingId: viewListing });
-        else mktPushState({ category: activeCategory, section: options.section, sort: sortBy });
-    }
 
     // View single listing
     if (viewListing) {
