@@ -1139,6 +1139,28 @@ function updateRankUI() {
 
 }
 
+// Get user's display emoji — chosen badge or default level emoji
+function getUserDisplayEmoji(lv) {
+    var chosenBadge = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.displayBadge : null;
+    if (chosenBadge) {
+        // Look in BADGE_DEFS
+        if (typeof BADGE_DEFS !== 'undefined') {
+            for (var i = 0; i < BADGE_DEFS.length; i++) {
+                if (BADGE_DEFS[i].id === chosenBadge) return BADGE_DEFS[i].emoji;
+            }
+        }
+        // Look in HIDDEN_BADGES
+        if (typeof HIDDEN_BADGES !== 'undefined') {
+            for (var j = 0; j < HIDDEN_BADGES.length; j++) {
+                if (HIDDEN_BADGES[j].id === chosenBadge) {
+                    return HIDDEN_BADGES[j].hidden ? (HIDDEN_BADGES[j].revealEmoji || HIDDEN_BADGES[j].emoji) : HIDDEN_BADGES[j].emoji;
+                }
+            }
+        }
+    }
+    return lv ? lv.emoji : '🌱';
+}
+
 function updateUserDisplay(lv) {
     // Hide old guest banner — we now use unified display
     var guestBanner = document.getElementById('guestPointsBanner');
@@ -1148,6 +1170,7 @@ function updateUserDisplay(lv) {
     var hasUsername = currentUser && currentUser.username;
     var pts = (currentUser.points || 0);
     var streakBit = (currentUser.streak || 0) > 0 ? '<span style="color:#f97316;font-weight:700;font-size:0.7rem;">🔥' + currentUser.streak + '</span>' : '';
+    var displayEmoji = getUserDisplayEmoji(lv);
 
     let el = document.getElementById('userDisplay');
     if (!el) {
@@ -1175,7 +1198,7 @@ function updateUserDisplay(lv) {
         el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:130;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;';
         el.onclick = function() { showSettingsPage('account'); };
         var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
-        el.innerHTML = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
+        el.innerHTML = '<span style="font-size:1.1rem;">' + displayEmoji + '</span>' +
             '<span style="color:var(--text);font-weight:600;">' + escapeHtml(displayName) + '</span>' +
             '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' + streakBit;
     }
@@ -1185,7 +1208,7 @@ function updateUserDisplay(lv) {
     const mobileInfo = document.getElementById('mobileUserInfo');
     if (mobileInfo) {
         const streak = (currentUser.streak || 0) > 0 ? ' 🔥' + currentUser.streak : '';
-        mobileInfo.textContent = lv.emoji + ' ' + (currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + streak;
+        mobileInfo.textContent = displayEmoji + ' ' + (currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + streak;
         mobileInfo.style.display = 'inline';
     }
 
@@ -1492,8 +1515,9 @@ function showSettingsPage(tab) {
     html += '</div>';
 
     if (settingsTab === 'account') {
+        var settingsEmoji = getUserDisplayEmoji(lvl);
         html += '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">' + settingsEmoji + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' pts</div>' +
             '</div>';
@@ -1521,6 +1545,34 @@ function showSettingsPage(tab) {
             html += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
         }
         html += '</div>';
+
+        // Display Badge chooser
+        if (!isAnon) {
+            var chosenBadge = (currentUser && currentUser.displayBadge) || '';
+            var allEarned = [];
+            // Collect earned visible badges
+            if (typeof earnedBadges !== 'undefined') {
+                if (typeof BADGE_DEFS !== 'undefined') BADGE_DEFS.forEach(function(b) { if (earnedBadges.has(b.id)) allEarned.push({ id: b.id, emoji: b.emoji, name: b.name }); });
+            }
+            // Collect earned hidden/goal badges
+            var earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+            if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(b) { if (earnedHidden.indexOf(b.id) !== -1) allEarned.push({ id: b.id, emoji: b.hidden ? (b.revealEmoji || b.emoji) : b.emoji, name: b.hidden ? (b.revealName || b.name) : b.name }); });
+
+            if (allEarned.length > 0) {
+                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏅 Display Badge</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
+                // Default (level emoji) option
+                html += '<button onclick="setDisplayBadge(\'\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="Use rank emoji (default)">' + lvl.emoji + ' Rank</button>';
+                for (var bi = 0; bi < allEarned.length; bi++) {
+                    var b = allEarned[bi];
+                    var isChosen = chosenBadge === b.id;
+                    html += '<button onclick="setDisplayBadge(\'' + b.id + '\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="' + b.name + '">' + b.emoji + '</button>';
+                }
+                html += '</div></div>';
+            }
+        }
 
         // Change username
         const currentName = currentUser ? currentUser.username || '' : '';
@@ -2486,6 +2538,19 @@ async function executeDeleteAccount() {
         showToast('Error deleting account. You may need to sign in again first.');
     }
 }
+
+// Set display badge (shown next to username)
+window.setDisplayBadge = function(badgeId) {
+    if (!currentUser || !auth || !auth.currentUser) return;
+    currentUser.displayBadge = badgeId || null;
+    db.collection('users').doc(auth.currentUser.uid).update({
+        displayBadge: badgeId || firebase.firestore.FieldValue.delete()
+    }).catch(function(){});
+    updateRankUI();
+    if (typeof showToast === 'function') showToast(badgeId ? '🏅 Badge updated!' : '🏅 Using rank emoji');
+    // Refresh settings to update selection
+    showSettingsPage('account');
+};
 
 function signOutUser() {
     clearUserData();

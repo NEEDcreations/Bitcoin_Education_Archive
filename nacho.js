@@ -110,6 +110,16 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: The Quote of the Day on the homepage changes daily — click it to jump to the related channel! 💬" },
     { pose: 'point', text: "💡 Tip: New to Bitcoin? Start with the 'one-stop-shop' channel — it has everything to get you started! 🎯" },
     { pose: 'brain', text: "💡 Tip: Channels are organized into Properties, Experienced Topics, Resources, and Additional Info. Start with Properties!" },
+    // Forum & Marketplace
+    { pose: 'point', text: "💡 Tip: Post in the Community Forum to earn the 📣 Town Crier badge + 100 points! Press F or find it in the sidebar." },
+    { pose: 'point', text: "💡 Tip: Reply to forum posts to earn the 💬 Conversationalist badge + 75 points! Join the discussion!" },
+    { pose: 'cheese', text: "💡 Tip: The Marketplace lets you buy and sell with Bitcoin! List an item to earn the 🏪 Merchant badge! Press M to check it out." },
+    { pose: 'point', text: "💡 Tip: Found something cool on the Marketplace? Contact the seller to earn the 🛍️ Shopper badge!" },
+    // Closet
+    { pose: 'celebrate', text: "💡 Tip: Check out my closet in Settings → Nacho! You can dress me up with items you unlock! 🎽🦌" },
+    { pose: 'point', text: "💡 Tip: Closet items are colorable! Equip an item, then tap 🎨 Color to customize it! 🌈" },
+    // Daily Spin
+    { pose: 'fire', text: "💡 Tip: Spin the Daily Wheel every day for free Orange Tickets! Look for the banner at the top of the homepage! 🎡" },
     // Nacho Mode
     { pose: 'fire', text: "💡 Tip: Press N to enter Nacho Mode — a full chat experience where I answer your Bitcoin questions with AI! 🦌🧠" },
     { pose: 'point', text: "💡 Tip: In Nacho Mode, press ↑ to recall your previous questions — just like in a chat app!" },

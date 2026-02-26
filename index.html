@@ -814,20 +814,20 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="ranking.js?v=29" defer></script>
+    <script src="ranking.js?v=30" defer></script>
     <script src="quests.js" defer></script>
     <script src="scholar.js" defer></script>
     <script src="features.js" defer></script>
     <script src="badges.js" defer></script>
     <script src="tickets.js" defer></script>
-    <script src="nacho.js?v=7" defer></script>
+    <script src="nacho.js?v=8" defer></script>
     <script src="nacho-live.js?v=7" defer></script>
     <script src="nacho-engage.js?v=7" defer></script>
     <script src="nacho-qa.js?v=9" defer></script>
     <script src="nacho-closet.js?v=8" defer></script>
-    <script src="forum.js?v=4" defer></script>
+    <script src="forum.js?v=5" defer></script>
     <script src="engagement.js?v=5" defer></script>
-    <script src="marketplace.js?v=1" defer></script>
+    <script src="marketplace.js?v=2" defer></script>
     <script src="mobile-ux.js?v=10" defer></script>
     <script>
     function openImg(src) {
@@ -2985,6 +2985,10 @@
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
         { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
+        { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
+        { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals', keywords: 'badges achievement trophy unlock goal progress medal', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
+        { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },
+        { id: '_predict', title: '📈 Price Prediction', desc: 'Predict if Bitcoin goes up or down in 24 hours', keywords: 'predict prediction price bitcoin up down forecast', action: 'showPrediction()' },
         { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
     ];
 

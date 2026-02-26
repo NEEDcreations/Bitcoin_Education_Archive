@@ -418,6 +418,13 @@ window.submitListing = function() {
         if (overlay) overlay.remove();
         if (typeof showToast === 'function') showToast('🛒 Listing posted!');
         if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
+        // Track for badge
+        if (auth && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                marketListings: firebase.firestore.FieldValue.increment(1)
+            }).catch(function(){});
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketListings = (currentUser.marketListings || 0) + 1;
+        }
         renderMarketplace();
     }).catch(function(e) {
         showToast('Error posting listing. Try again.');
@@ -484,6 +491,11 @@ window.sendMarketMessage = function(listingId) {
         var overlay = document.getElementById('contactSellerOverlay');
         if (overlay) overlay.remove();
         showToast('💬 Message sent to seller!');
+        // Track for badge
+        db.collection('users').doc(auth.currentUser.uid).update({
+            marketMessages: firebase.firestore.FieldValue.increment(1)
+        }).catch(function(){});
+        if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketMessages = (currentUser.marketMessages || 0) + 1;
     }).catch(function() {
         showToast('Error sending message. Try again.');
     });

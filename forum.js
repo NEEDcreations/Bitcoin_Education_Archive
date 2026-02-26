@@ -523,6 +523,11 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_date', today);
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
+        // Track for badge
+        db.collection('users').doc(auth.currentUser.uid).update({
+            forumPosts: firebase.firestore.FieldValue.increment(1)
+        }).catch(function(){});
+        if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumPosts = (currentUser.forumPosts || 0) + 1;
         forumBack();
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';
@@ -568,6 +573,11 @@ window.forumSubmitReply = async function(postId) {
         });
 
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Track for badge
+        db.collection('users').doc(auth.currentUser.uid).update({
+            forumReplies: firebase.firestore.FieldValue.increment(1)
+        }).catch(function(){});
+        if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
         input.value = '';
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Reply posted!</span>';
         forumLoadReplies(postId);
