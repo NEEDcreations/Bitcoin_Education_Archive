@@ -481,6 +481,50 @@ const NACHO_KB = [
       channel: 'articles-threads', channelName: 'Articles & Threads' },
 
     // ========================================
+    // EXPANDED KB — The Bitcoin Standard + The Fiat Standard (full books)
+    // ========================================
+
+    { keys: ['fiat standard','fiat standard book','debt slavery','what is the fiat standard','ammous fiat'],
+      answer: "The Fiat Standard by Saifedean Ammous is the devastating sequel to The Bitcoin Standard, {name}! 📚🦌 Subtitle: 'The Debt Slavery Alternative to Human Civilization.' While The Bitcoin Standard shows what sound money IS, The Fiat Standard shows what fiat money DOES — and it's ugly. Key insight: fiat money doesn't just lose value. It restructures ALL of society around debt, short-term thinking, and government dependency. Housing, education, food, energy, family — everything gets distorted when money is broken. The book traces how the gold standard's fatal flaw (low spatial salability — gold is expensive to move) opened the door for governments to take control. Bitcoin fixes both: salability across time AND space. 🔥",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['stock to flow ratio','hardness of money','monetary hardness','what makes hard money','stock and flow'],
+      answer: "From The Bitcoin Standard, {name}: 'The ratio between the stock and flow is a reliable indicator of a good\\'s hardness as money.' 📊🦌 STOCK = total existing supply. FLOW = new annual production. Gold's stock-to-flow is ~60 (it would take 60 years of mining to double the supply). That's why gold held value for millennia — you can't flood the market with new gold. Bitcoin's S/F ratio DOUBLES every halving, and it's already surpassed gold. 'Money whose supply is hard to increase is hard money. Easy money is money whose supply lends itself to large increases.' The dollar is the easiest money ever — unlimited supply at the press of a key. 💎",
+      channel: 'scarce', channelName: 'Scarcity' },
+
+    { keys: ['salability','what is salability','salability across time','salability across space','what makes good money','properties of money'],
+      answer: "Ammous explains that money has THREE dimensions of salability, {name}! 📏🦌 1) SALABILITY ACROSS SCALES — can it be divided for small purchases and combined for large ones? ✅ Bitcoin: 100M sats per coin. 2) SALABILITY ACROSS SPACE — can it be moved easily? ✅ Bitcoin: anywhere in the world in minutes. 3) SALABILITY ACROSS TIME — does it hold value into the future? ✅ Bitcoin: 21M cap, no inflation. Gold was great across time but TERRIBLE across space (expensive to ship). Fiat is great across space (digital transfers) but TERRIBLE across time (inflation). Bitcoin is the FIRST money that excels in all three. That's why it wins. 🏆",
+      channel: 'money', channelName: 'Money' },
+
+    { keys: ['gold standard era','golden age','nineteenth century','19th century','industrial revolution','gold standard prosperity'],
+      answer: "From The Bitcoin Standard: 'It is no exaggeration to say that our modern world was invented in the gold standard years preceding World War I.' 🏗️🦌 The majority of technology we use in modern life was invented in the 19th century, under the gold standard, financed with evergrowing capital accumulated by people who could SAVE in sound money. Electricity, automobiles, telephones, radio, aviation — all born in the era of hard money. When money holds value, people invest in the future. When money is debased, they consume today and let infrastructure rot. The gold standard proved it. Bitcoin is bringing it back. 🧡",
+      channel: 'history', channelName: 'History' },
+
+    { keys: ['fiat distortion','fiat food','fiat family','fiat education','fiat housing','fiat destroys','everything is broken','what fiat broke','how fiat broke society'],
+      answer: "The Fiat Standard reveals how broken money distorts EVERYTHING, {name}! 🏚️🦌 Housing: 100 years ago people saved up and bought homes outright. Now everyone needs 30-year mortgages because prices are inflated by easy credit. Education: universities charge insane tuition because student loans create infinite demand. Food: fiat incentivizes industrial farming and processed food over natural nutrition. Family: both parents must work because one income can't cover inflated costs anymore. 'Whereas 100 years ago most people would pay for their house, education, or marriage from their own labor or accumulated savings, such a notion seems ridiculous to people today.' Fiat broke everything. Bitcoin fixes this. 🔧",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    { keys: ['business cycle','boom bust','financial crisis','recession','economic cycle','keynesian','credit cycle','why recessions happen'],
+      answer: "The Bitcoin Standard explains exactly why boom-bust cycles happen, {name}! 📉📈🦌 In a free market, the interest rate balances savers and borrowers naturally. But central banks MANIPULATE interest rates by creating money from nothing — flooding the market with cheap credit. This causes a 'boom' — everyone borrows and invests in projects that SEEM profitable at low rates. But the cheap money was an illusion. When reality catches up, the bust comes — projects fail, debts can't be repaid, recessions hit. Then the central bank prints MORE money to 'fix' it, starting the cycle again, worse each time. 'All central banks operated under the same model, making it a perfect monoculture.' Bitcoin's fixed supply makes artificial boom-bust cycles impossible. 🛡️",
+      channel: 'problems-of-money', channelName: 'Problems of Money' },
+
+    { keys: ['gold spatial salability','why gold failed','gold vs bitcoin transport','gold problem','moving gold','shipping gold expensive'],
+      answer: "The Fiat Standard explains gold's fatal flaw, {name}: salability across space! 🥇🦌 'Hard money advocates can deride fiat money for losing its value across time, but gold sent across the world arrives having lost a significant portion of its value in shipping costs.' LBMA gold bars (the standard settlement unit) are expensive and risky to transport. This is WHY banks centralized gold storage and issued paper receipts — and that's how governments gained control of the money supply. The Faustian bargain: 'The ability to save for the future was compromised to transact quickly across space.' Bitcoin solves this completely — send a billion dollars anywhere in the world for pennies. Salability across time AND space. 🌍⚡",
+      channel: 'money', channelName: 'Money' },
+
+    { keys: ['fiat settlement','how banks really work','how fiat transfers work','bank settlement','swift','correspondent bank','how long does fiat take'],
+      answer: "The Fiat Standard exposes how fiat 'instant' payments are an illusion, {name}! 🏦🦌 When you send a wire transfer, it passes through: your bank → correspondent bank → intermediary banks → recipient's correspondent bank → recipient bank. 'Despite the individual user seeing a cash credit after just a few days, the FINAL settlement occurs several days, weeks, or months after.' What you see is just ledger entries — IOUs between banks. True settlement requires complex reconciliation across multiple institutions. Meanwhile, Bitcoin settles in ~10 minutes. FINAL settlement. No intermediaries. No IOUs. No counterparty risk. Bitcoin isn't just faster — it's an entirely different paradigm. ⚡",
+      channel: 'blockchain-timechain', channelName: 'Blockchain & Timechain' },
+
+    { keys: ['nassim taleb foreword','taleb bitcoin','antifragile bitcoin','black swan bitcoin'],
+      answer: "Nassim Nicholas Taleb wrote the foreword to The Bitcoin Standard, {name}: 'We are witnessing a complete riot against some class of experts, in domains too difficult for us to understand, such as macroeconomic reality, and in which not only is the expert NOT an expert, but he doesn\\'t know it.' 🧠🦌 Taleb saw Bitcoin as the ultimate antifragile system — it gains from disorder. The macroeconomic experts have been wrong about everything: the 2008 crisis, inflation, money supply. Bitcoin is the people's answer to failed expertise. (Note: Taleb later turned against Bitcoin, proving even smart people can un-orange-pill themselves. The book's foreword remains brilliant regardless.) 📖",
+      channel: 'books', channelName: 'Books' },
+
+    { keys: ['bitcoin first digital solution','bitcoin solves money','what did bitcoin solve','bitcoin innovation','why bitcoin is different'],
+      answer: "From The Bitcoin Standard: 'Bitcoin represents the first truly digital solution to the problem of money.' 💡🦌 What does that mean? For decades, cryptographers tried to create digital cash. All previous attempts required a trusted third party (DigiCash, e-gold, Liberty Reserve — all shut down or failed). Bitcoin was 'the first engineering solution that allowed for digital money without requiring trust in any third party.' It combines: proof of work (unforgeable), a decentralized network (uncensorable), a fixed supply (sound), and open-source code (transparent). No previous invention did ALL of these simultaneously. That's why 'after years of innovative trial and error by many programmers,' Bitcoin was the breakthrough. 🔥",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    // ========================================
     // EXPANDED KB — Gigi "Bitcoin is Time" + Tomer "Legendary Treasure"
     // ========================================
 
@@ -1072,7 +1116,7 @@ var OFF_TOPIC_PATTERNS = [
         "Stocks? I'm a Bitcoin deer, {name}! 🦌📈 But here's a fun comparison: Bitcoin has historically outperformed every stock index over any 4+ year period. Want to know why? ⚠️ Not financial advice — DYOR.",
         "The stock market is denominated in depreciating dollars — Bitcoin fixes that! 🦌 Want to learn about why Bitcoiners think differently about money?"
     ]},
-    { pattern: /gold|silver|precious metal|commodity|commodities/,
+    { pattern: /\bbuy gold\b|\binvest.*gold\b|silver invest|precious metal|commodity|commodities/,
       answers: [
         "Gold was money for thousands of years — but Bitcoin does everything gold does, better! 🥇🦌 It's scarcer (21M cap), more portable, more divisible, and verifiable in seconds. Want to hear the full comparison?",
         "Gold bugs and Bitcoiners actually agree on a lot! Sound money, scarcity, distrust of central banks. 🦌 Bitcoin just takes it further. Want to learn about the Bitcoin Standard?"
@@ -1260,6 +1304,11 @@ function findAnswer(input) {
         { pattern: /stock.to.flow|s2f model|planb|plan.b model/, key: 'stock to flow' },
         { pattern: /bitcoin.*freedom|freedom.*bitcoin|financial freedom|monetary freedom|rally cry/, key: 'bitcoin rally cry' },
         { pattern: /time is money|money is time|bitcoin.*time|time.*bitcoin/, key: 'bitcoin is time' },
+        { pattern: /gold standard era|golden age|nineteenth century|19th century.*gold|gold.*prosper/, key: 'gold standard era' },
+        { pattern: /gold.*fail|gold.*problem|why not gold|gold.*flaw|gold.*transport|shipping gold|moving gold/, key: 'gold spatial salability' },
+        { pattern: /boom.*bust|business cycle|why.*recession|credit cycle|financial crisis.*cause/, key: 'business cycle' },
+        { pattern: /fiat.*distort|fiat.*broke|fiat.*destroy|fiat.*food|fiat.*housing|fiat.*family|everything.*broken/, key: 'fiat distortion' },
+        { pattern: /salability|salable|marketability|properties of money|what makes good money/, key: 'salability' },
     ];
     for (var ti = 0; ti < topicPatterns.length; ti++) {
         if (topicPatterns[ti].pattern.test(input)) {
