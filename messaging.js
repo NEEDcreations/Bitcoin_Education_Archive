@@ -582,19 +582,24 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
 
-    // Update conversation metadata + add message
-    convoRef.set({
+    // Build conversation metadata (avoid computed property key issues)
+    var convoData = {
         participants: [myUid, recipientUid],
-        participantNames: { [myUid]: myName, [recipientUid]: recipientName },
         lastMessage: text,
         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
         lastSenderUid: myUid,
-        // Track unread per participant
-        ['unread_' + recipientUid]: firebase.firestore.FieldValue.increment(1),
-    }, { merge: true }).then(function() {
+    };
+    convoData.participantNames = {};
+    convoData.participantNames[myUid] = myName;
+    convoData.participantNames[recipientUid] = recipientName;
+    convoData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+
+    // Update conversation metadata + add message
+    convoRef.set(convoData, { merge: true }).then(function() {
         return convoRef.collection('messages').add(msgData);
     }).catch(function(err) {
-        if (typeof showToast === 'function') showToast('Failed to send message');
+        console.error('DM send error:', err);
+        if (typeof showToast === 'function') showToast('Failed to send message. Check your connection.');
     });
 };
 
