@@ -43,31 +43,39 @@ function captureReferralCode() {
 
 // ---- Award daily login ticket ----
 async function awardDailyTicket() {
-    if (!currentUser || !db || !auth || !auth.currentUser) return;
-    if (auth.currentUser.isAnonymous) return;
+    try {
+        if (!currentUser || !db || !auth || !auth.currentUser) return;
+        if (auth.currentUser.isAnonymous) return;
 
-    const today = new Date().toISOString().split('T')[0];
-    if (currentUser.lastTicketDate === today) return; // Already awarded today
+        const today = new Date().toISOString().split('T')[0];
+        if (currentUser.lastTicketDate === today) return; // Already awarded today
 
-    const ticketsToAdd = TICKET_CONFIG.dailyLogin;
-    const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
-    const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
+        const ticketsToAdd = TICKET_CONFIG.dailyLogin;
+        const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
+        const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
-    await db.collection('users').doc(currentUser.uid).update({
-        orangeTickets: newTickets,
-        lastTicketDate: today,
-        points: firebase.firestore.FieldValue.increment(bonusPoints),
-    });
+        await db.collection('users').doc(currentUser.uid).update({
+            orangeTickets: newTickets,
+            lastTicketDate: today,
+            points: firebase.firestore.FieldValue.increment(bonusPoints),
+        });
 
-    currentUser.orangeTickets = newTickets;
-    currentUser.lastTicketDate = today;
-    currentUser.points = (currentUser.points || 0) + bonusPoints;
+        currentUser.orangeTickets = newTickets;
+        currentUser.lastTicketDate = today;
+        currentUser.points = (currentUser.points || 0) + bonusPoints;
 
-    showToast('🎟️ +1 Orange Ticket — Daily login!');
-    updateRankUI();
+        // Delay toast so page is settled and user can see it
+        setTimeout(function() {
+            if (typeof showToast === 'function') showToast('🎟️ +1 Orange Ticket — Welcome back! (Total: ' + newTickets + ')');
+        }, 2500);
 
-    // Check ticket badges after earning
-    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+        if (typeof updateRankUI === 'function') updateRankUI();
+
+        // Check ticket badges after earning
+        if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    } catch(e) {
+        console.warn('Daily ticket error:', e);
+    }
 }
 
 // ---- Attach referral to new user on account creation ----
