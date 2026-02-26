@@ -45,6 +45,31 @@ var SORT_OPTIONS = [
     { id: 'popular', label: 'Most Saved' },
 ];
 
+// ---- Marketplace History (back button support) ----
+window._mktHistoryStack = [];
+
+function mktPushState(options) {
+    window._mktHistoryStack.push(options);
+    // Use hash to track marketplace sub-views
+    var hash = '#marketplace';
+    if (options.listingId) hash += '/listing/' + options.listingId;
+    else if (options.myListings) hash += '/my';
+    history.pushState({ marketplace: options }, '', hash);
+}
+
+// Listen for back button
+window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.marketplace) {
+        var opts = e.state.marketplace;
+        if (opts.myListings) { showMyListings(true); }
+        else if (opts.listingId) { renderMarketplace({ listingId: opts.listingId, _noHistory: true }); }
+        else { renderMarketplace(Object.assign({}, opts, { _noHistory: true })); }
+    } else if (window._mktHistoryStack.length > 0 && location.hash === '#marketplace') {
+        window._mktHistoryStack = [];
+        renderMarketplace({ _noHistory: true });
+    }
+});
+
 // ---- Render Marketplace ----
 window.renderMarketplace = function(options) {
     options = options || {};
@@ -58,6 +83,12 @@ window.renderMarketplace = function(options) {
     var searchQuery = options.search || '';
     var sortBy = options.sort || 'newest';
     var viewListing = options.listingId || null;
+
+    // Push history for back button (unless navigating from popstate)
+    if (!options._noHistory) {
+        if (viewListing) mktPushState({ listingId: viewListing });
+        else mktPushState({ category: activeCategory, section: options.section, sort: sortBy });
+    }
 
     // View single listing
     if (viewListing) {
@@ -217,7 +248,8 @@ function loadMarketListings(category, search, sort, section) {
                 ) +
                 '<div style="padding:10px;">' +
                     '<div style="font-size:0.8rem;font-weight:700;color:var(--heading);line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + escapeHtml(l.title) + '</div>' +
-                    '<div style="font-size:0.85rem;font-weight:800;color:var(--accent);margin-bottom:4px;">⚡ ' + priceDisplay + '</div>' +
+                    '<div style="font-size:0.85rem;font-weight:800;color:var(--accent);">⚡ ' + priceDisplay + '</div>' +
+                    (satsToUSD(l.priceSats) ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:4px;">' + satsToUSD(l.priceSats) + '</div>' : '<div style="margin-bottom:4px;"></div>') +
                     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                         '<span style="font-size:0.65rem;color:' + condColor + ';font-weight:600;">' + condLabel + '</span>' +
                         '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\')" style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
@@ -365,9 +397,10 @@ window.showCreateListing = function() {
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Title *</label>' +
         '<input type="text" id="mktTitle" maxlength="80" placeholder="What are you selling?" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
 
-        // Price in sats
+        // Price in sats with live USD conversion
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Price (sats) *</label>' +
-        '<input type="number" id="mktPrice" min="1" placeholder="21000" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+        '<input type="number" id="mktPrice" min="1" placeholder="21000" oninput="updateMktPriceUSD()" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:4px;box-sizing:border-box;">' +
+        '<div id="mktPriceUSD" style="font-size:0.75rem;color:var(--accent);margin-bottom:12px;min-height:1.2em;"></div>' +
 
         // Category
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Category *</label>' +
@@ -388,8 +421,16 @@ window.showCreateListing = function() {
         '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Description</label>' +
         '<textarea id="mktDesc" rows="4" maxlength="1000" placeholder="Describe your item, include details about condition, what\'s included, etc." style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;"></textarea>' +
 
-        // Image URL (optional)
-        '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Image URL (optional)</label>' +
+        // Image upload or URL
+        '<label style="display:block;font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Photo (optional)</label>' +
+        '<div style="display:flex;gap:8px;margin-bottom:4px;">' +
+            '<label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;background:var(--card-bg);border:2px dashed var(--border);border-radius:10px;cursor:pointer;color:var(--text-muted);font-size:0.85rem;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                '<input type="file" id="mktImageFile" accept="image/*" onchange="handleMktImageUpload(this)" style="display:none;">' +
+                '📷 Upload Photo' +
+            '</label>' +
+        '</div>' +
+        '<div id="mktImagePreview" style="margin-bottom:8px;display:none;text-align:center;"><img id="mktImagePreviewImg" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--border);" /><button onclick="clearMktImage()" style="display:block;margin:6px auto 0;padding:4px 12px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">✕ Remove</button></div>' +
+        '<div style="text-align:center;color:var(--text-faint);font-size:0.7rem;margin-bottom:4px;">— or paste an image URL —</div>' +
         '<input type="url" id="mktImage" placeholder="https://imgur.com/your-image.jpg" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
 
         // Lightning address
@@ -419,7 +460,7 @@ window.submitListing = function() {
     var category = document.getElementById('mktCategory').value;
     var condition = document.getElementById('mktCondition').value;
     var desc = (document.getElementById('mktDesc').value || '').trim();
-    var imageUrl = (document.getElementById('mktImage').value || '').trim();
+    var imageUrl = window._mktUploadedImage || (document.getElementById('mktImage').value || '').trim();
     var lightning = (document.getElementById('mktLightning').value || '').trim();
     var shipping = document.getElementById('mktShipping').checked;
     var local = document.getElementById('mktLocal').checked;
@@ -454,6 +495,7 @@ window.submitListing = function() {
     };
 
     db.collection('marketplace').add(listing).then(function() {
+        window._mktUploadedImage = null;
         var overlay = document.getElementById('createListingOverlay');
         if (overlay) overlay.remove();
         if (typeof showToast === 'function') showToast('🛒 Listing posted!');
@@ -542,11 +584,12 @@ window.sendMarketMessage = function(listingId) {
 };
 
 // ---- My Listings ----
-window.showMyListings = function() {
+window.showMyListings = function(fromPopState) {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
         showToast('🔒 Sign in to see your listings');
         return;
     }
+    if (!fromPopState) mktPushState({ myListings: true });
 
     var container = document.getElementById('forumContainer');
     if (!container) return;
@@ -659,6 +702,83 @@ window.deleteListing = function(listingId) {
 };
 
 // ---- Time Ago Helper ----
+// ---- Live USD Price Conversion ----
+window.updateMktPriceUSD = function() {
+    var sats = parseInt(document.getElementById('mktPrice').value) || 0;
+    var el = document.getElementById('mktPriceUSD');
+    if (!el) return;
+    if (sats <= 0) { el.textContent = ''; return; }
+    var btcPrice = parseFloat(localStorage.getItem('btc_last_price') || '0');
+    if (btcPrice <= 0) {
+        // Fetch price if not cached
+        fetch('https://mempool.space/api/v1/prices').then(function(r) { return r.json(); }).then(function(d) {
+            if (d && d.USD) {
+                localStorage.setItem('btc_last_price', d.USD);
+                updateMktPriceUSD();
+            }
+        }).catch(function(){});
+        el.textContent = 'Loading USD price...';
+        return;
+    }
+    var usd = (sats / 100000000) * btcPrice;
+    el.textContent = '≈ $' + usd.toFixed(2) + ' USD';
+};
+
+// Format sats to USD for display
+window.satsToUSD = function(sats) {
+    var btcPrice = parseFloat(localStorage.getItem('btc_last_price') || '0');
+    if (btcPrice <= 0 || !sats) return '';
+    var usd = (sats / 100000000) * btcPrice;
+    return '~$' + usd.toFixed(2);
+};
+
+// ---- Image Upload (converts to base64 data URL) ----
+window.handleMktImageUpload = function(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        if (typeof showToast === 'function') showToast('Image too large (max 5MB)');
+        return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        // Resize to max 800px wide for storage
+        var img = new Image();
+        img.onload = function() {
+            var maxW = 800;
+            var w = img.width, h = img.height;
+            if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+            var canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            // Show preview
+            var preview = document.getElementById('mktImagePreview');
+            var previewImg = document.getElementById('mktImagePreviewImg');
+            if (preview && previewImg) {
+                previewImg.src = dataUrl;
+                preview.style.display = 'block';
+            }
+            // Store for submission
+            window._mktUploadedImage = dataUrl;
+            // Clear URL field since upload takes priority
+            var urlField = document.getElementById('mktImage');
+            if (urlField) urlField.value = '';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.clearMktImage = function() {
+    window._mktUploadedImage = null;
+    var preview = document.getElementById('mktImagePreview');
+    if (preview) preview.style.display = 'none';
+    var fileInput = document.getElementById('mktImageFile');
+    if (fileInput) fileInput.value = '';
+};
+
 function getTimeAgo(date) {
     var seconds = Math.floor((new Date() - date) / 1000);
     if (seconds < 60) return 'just now';
