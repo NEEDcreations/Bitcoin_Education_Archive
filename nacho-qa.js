@@ -33,9 +33,18 @@ const NACHO_KB = [
       answer: "Bitcoin uses a network of computers (nodes) that all agree on who owns what. Transactions are grouped into blocks every ~10 minutes by miners. No middleman needed!",
       channel: 'whitepaper', channelName: 'Whitepaper' },
 
-    { keys: ['who created bitcoin','who made bitcoin','satoshi','nakamoto','who invented'],
-      answer: "Bitcoin was created by Satoshi Nakamoto in 2009. Their real identity is still unknown — could be one person or a group. The mystery is part of the magic!",
-      channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
+    { keys: ['who created bitcoin','who made bitcoin','satoshi','nakamoto','who invented','who started bitcoin'],
+      answer: "Bitcoin was created by the pseudonymous Satoshi Nakamoto, who published the Bitcoin whitepaper on October 31, 2008 and launched the network on January 3, 2009 by mining the Genesis Block. Satoshi communicated only through forums and emails, collaborated with early developers like Hal Finney (who received the first-ever Bitcoin transaction!), and then quietly disappeared in 2011. Their true identity remains unknown — and that's actually a feature, not a bug. Bitcoin has no leader, no CEO, no founder to arrest. It belongs to everyone. 🦌🔮",
+      channel: 'history', channelName: 'History',
+      followUp: "🤔 Ask me: 'What is the Genesis Block?' or 'Who is Hal Finney?'" },
+
+    { keys: ['how was bitcoin created','how did bitcoin start','how bitcoin began','bitcoin origin','bitcoin history','how was bitcoin developed','how did bitcoin develop','bitcoin development','how bitcoin works technically','how was bitcoin built'],
+      answer: "Bitcoin's development is fascinating! 🧠 It started with a 9-page whitepaper titled 'Bitcoin: A Peer-to-Peer Electronic Cash System' published in 2008. Satoshi built on decades of prior work: David Chaum's DigiCash (1989), Adam Back's Hashcash (1997), Wei Dai's b-money (1998), and Hal Finney's Reusable Proof of Work. What made Bitcoin different? It solved the 'double-spend problem' without needing a trusted third party — using proof-of-work mining and a distributed blockchain. The code was open-source from day one, and the network has been running non-stop since January 3, 2009. Over time, the community has added improvements like SegWit (2017) and Taproot (2021), all through consensus — no single person controls it! 🦌",
+      channel: 'history', channelName: 'History' },
+
+    { keys: ['hal finney','who is hal finney','who was hal finney','first bitcoin transaction'],
+      answer: "Hal Finney was a legendary cryptographer and one of Bitcoin's earliest supporters! 🫡 He was the FIRST person (other than Satoshi) to run Bitcoin software, and received the very first Bitcoin transaction ever — 10 BTC from Satoshi on January 12, 2009. He famously tweeted 'Running bitcoin' on that day. Hal had previously created Reusable Proof of Work (RPOW), a direct predecessor to Bitcoin's mining system. Sadly, Hal was diagnosed with ALS and passed away in 2014. He's cryopreserved, hoping future technology might give him another shot. Some people believe Hal WAS Satoshi — but either way, he's a true Bitcoin hero. Running bitcoin forever. 🦌💙",
+      channel: 'history', channelName: 'History' },
 
     { keys: ['why bitcoin','why is bitcoin important','why should i care','what\'s the point','why does bitcoin matter'],
       answer: "Bitcoin gives you true ownership of your money. No one can freeze it, inflate it away, or stop you from sending it. It's financial freedom for everyone on Earth.",
