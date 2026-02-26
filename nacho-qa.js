@@ -445,6 +445,38 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     // ========================================
+    // EXPANDED KB — sourced from 21 Lessons by Gigi
+    // ========================================
+
+    { keys: ['21 lessons','gigi','dergigi','21lessons','gigi book','who is gigi','tell me about 21 lessons','tell me about gigi'],
+      answer: "21 Lessons by Gigi is one of the most beautiful Bitcoin books ever written, {name}! 📖🦌 It's a personal journey down the rabbit hole, organized into three chapters: Philosophy (lessons 1-7), Economics (8-14), and Technology (15-21). Key insights: Bitcoin is an immaculate conception — no leader, no company, no premine. Scarcity of scarcity — Bitcoin creates something truly scarce in a world where tech makes everything abundant. Bitcoin IS free speech — every aspect of it is text, protected by the First Amendment. Hard money is superior to soft money in the long run. And my favorite: 'Bitcoin is an inexhaustible teacher.' The full book is free to read at 21lessons.com! 🧡",
+      channel: 'articles-threads', channelName: 'Articles & Threads' },
+
+    { keys: ['immaculate conception','fair launch','no premine','no ico','no leader','no founder','satoshi disappeared','why satoshi left'],
+      answer: "Bitcoin's origin is unique in all of history, {name} — Gigi calls it an 'immaculate conception'! 🦌✨ Satoshi Nakamoto created Bitcoin, nurtured it through its infancy, then DISAPPEARED. No CEO to arrest. No founder to blackmail. No company to subpoena. No pre-mined tokens for insiders. This wasn't a bug — it was THE most important feature. As Gigi says in 21 Lessons: 'One of the greatest things that Satoshi did was disappear.' Every other crypto has a known leader who can be pressured, threatened, or corrupted. Bitcoin has math. That's why it's unstoppable. 🔥",
+      channel: 'satoshi-nakamoto', channelName: 'Satoshi Nakamoto' },
+
+    { keys: ['scarcity of scarcity','truly scarce','digital scarcity','absolute scarcity','most scarce','nothing scarcer','what is digital scarcity','what is scarcity of scarcity'],
+      answer: "Here's a mind-bending insight from Gigi's 21 Lessons, {name}: technology usually makes things MORE abundant. Better farming → more food. Better manufacturing → cheaper goods. But Bitcoin BREAKS that pattern — it's an advanced technology that creates something truly SCARCE. 🤯🦌 You can't 3D-print more Bitcoin. You can't digitally copy it. The 21 million cap is enforced by math, not promises. Some argue Bitcoin is one of the scarcest things in the universe — because unlike gold (which we could theoretically mine from asteroids), Bitcoin's supply is absolute. 21 million. Forever. That's the scarcity of scarcity. 💎",
+      channel: 'scarce', channelName: 'Scarcity' },
+
+    { keys: ['bitcoin is speech','bitcoin is text','free speech','first amendment','code is speech','can\'t ban code','bitcoin is code'],
+      answer: "This is one of the most powerful arguments for Bitcoin's survival, {name}! 🦌📜 As Gigi explains in 21 Lessons: EVERY aspect of Bitcoin is text. The whitepaper is text. The software is text. The ledger is text. Transactions are text. And text is speech, protected by the First Amendment. You cannot ban Bitcoin without banning math, without banning speech, without banning ideas. The Crypto Wars already proved that code IS speech. Bitcoin is an idea whose time has come — and you can't un-invent an idea. As long as humans can communicate, Bitcoin exists. 🗽🔥",
+      channel: 'regulation', channelName: 'Regulation' },
+
+    { keys: ['sound money','hard money','soft money','what is sound money','why hard money','monetary hardness'],
+      answer: "Gigi's Lesson 14 nails it: 'The most important lesson I have learned from Bitcoin is that in the long run, hard money is SUPERIOR to soft money.' 🦌💰 Sound money (or hard money) means money that can't be easily created or inflated — like gold was for thousands of years. Soft money is what we have now: fiat that governments print at will, destroying purchasing power. Bitcoin is the hardest money ever invented — harder than gold! Its supply schedule is fixed in code and enforced by thousands of nodes worldwide. No human, no government, no army can print more. The market is still figuring out the fair price of this new money, which is why there's volatility. But in the long run? Hard money always wins. 📈🧡",
+      channel: 'money', channelName: 'Money' },
+
+    { keys: ['bitcoin is time','telling time','proof of work is time','block time meaning','bitcoin clock'],
+      answer: "Here's a deep one from Gigi's Lesson 17, {name}: Bitcoin isn't really about 'solving complex math problems' — it's about TELLING TIME in a decentralized system! 🕐🦌 In a world with no central authority, how do you agree on what happened and in what order? That's incredibly hard! Bitcoin solves this through proof of work — every block is timestamped with real energy expenditure. The blockchain is literally a timechain: an unforgeable record of events ordered by physics itself. Each block says 'this happened AFTER the previous block' with mathematical certainty. Bitcoin is the most accurate, incorruptible clock humanity has ever built. ⏰⛓️",
+      channel: 'blockchain-timechain', channelName: 'Blockchain & Timechain' },
+
+    { keys: ['financial ignorance','financial education','financial literacy','money education','never taught about money','school doesn\'t teach','school doesn\'t teach money','why doesn\'t school teach','why don\'t they teach'],
+      answer: "Gigi's Lesson 8 hit me hard, {name}: 'The amount of financial education I enjoyed in the educational system was essentially zero.' 🎓🦌 How many years of school did you do? 12? 16? How many hours were spent on how money ACTUALLY works? Probably zero. We're taught to earn money and spend money, but never to question WHAT money is or WHY it loses value. Bitcoin forces you to learn what school never taught: what is money? What is inflation? What is the Cantillon Effect? This is why Bitcoiners say falling down the rabbit hole changes you — you can't unsee how the fiat system works once you understand it. 📚🧡",
+      channel: 'books', channelName: 'Books' },
+
+    // ========================================
     // EXPANDED KB — sourced from site channels
     // ========================================
 
@@ -678,12 +710,12 @@ var OFF_TOPIC_PATTERNS = [
         "I'm more of a 'watch the hashrate' kind of deer than a sports fan! 📊🦌 But Bitcoin and game theory actually have a lot in common — want to hear about that?",
         "The only score I track is the block height, {name}! ⛓️ Sports aren't my thing, but Bitcoin strategy IS. What would you like to learn?"
     ]},
-    { pattern: /car|drive|vehicle|truck|motorcycle|engine|tire|mechanic|tesla/,
+    { pattern: /\bcar\b|drive a|vehicle|truck|motorcycle|engine|tire|mechanic|tesla/,
       answers: [
         "I've got four hooves — no need for wheels! 🦌 But fun fact: you CAN buy a car with Bitcoin. Want to learn about where you can spend sats?",
         "No car talk here, {name}! But if you're thinking about investments, ask me why Bitcoiners say 'stay humble, stack sats' instead of buying depreciating assets. 🧡"
     ]},
-    { pattern: /school|homework|class|teacher|exam|study|university|college|math class|science class/,
+    { pattern: /\bhomework\b|math class|science class|\bteacher\b.*help|university application|college application/,
       answers: [
         "The best education is right here — 146 channels of Bitcoin knowledge! 🎓🦌 Plus, if you're feeling ambitious, try our Bitcoin Scholar Certification Quest!",
         "School is important, {name}! But Bitcoin education? That's life-changing. 🦌 What would you like to learn about Bitcoin today?"
@@ -738,7 +770,7 @@ var OFF_TOPIC_PATTERNS = [
         "That's outside my Bitcoin brain, {name}! 🦌 But you know what's worth learning about? How Bitcoin works. It combines cryptography, economics, and game theory — pretty cool stuff. Want to dive in?",
         "I'm a Bitcoin deer, not a general knowledge deer! 🦌📚 Ask me about mining, wallets, Lightning, or why 21 million matters — that's where I shine!"
     ]},
-    { pattern: /tell me about (?!bitcoin|btc|nacho|lightning|mining|wallet|seed|halving|satoshi|blockchain|node)/,
+    { pattern: /tell me about (?!bitcoin|btc|nacho|lightning|mining|wallet|seed|halving|satoshi|blockchain|node|gigi|21 lessons|lesson)/,
       answers: [
         "I'm a one-topic deer, {name} — and that topic is Bitcoin! 🦌🧡 Ask me anything about how it works, why it matters, or how to get started.",
         "That's not in my wheelhouse, but Bitcoin sure is! 🦌 Try asking me about self-custody, mining, or why Bitcoin is the only crypto that matters."
