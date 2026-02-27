@@ -255,6 +255,9 @@ function loadMarketListings(category, search, sort, section) {
     var grid = document.getElementById('marketListings');
     var countEl = document.getElementById('marketResultCount');
     if (!grid || typeof db === 'undefined') {
+        return;
+    }
+    
     var skeletonHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">';
     for (var i=0; i<6; i++) {
         skeletonHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:12px;height:240px;display:flex;flex-direction:column;gap:8px;">' +
@@ -265,9 +268,7 @@ function loadMarketListings(category, search, sort, section) {
         '</div>';
     }
     skeletonHtml += '</div>';
-    if (grid) grid.innerHTML = skeletonHtml;
-        return;
-    }
+    grid.innerHTML = skeletonHtml;
 
     var query = db.collection('marketplace').where('status', '==', 'active');
     if (category && category !== 'all') {
