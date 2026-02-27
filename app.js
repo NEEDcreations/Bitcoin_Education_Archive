@@ -2097,12 +2097,20 @@ function openImg(src) {
         // Show summary of what was earned (only on full exit, not channel navigation)
         if (!skipGoHome) {
             var e = window._nachoModeEarnings;
-            if (e && e.interactions > 0 && typeof showToast === 'function') {
-                var parts = ['🦌 ' + e.interactions + ' interactions'];
-                if (e.points > 0) parts.push('+' + e.points + ' pts');
-                var bc = Array.isArray(e.badges) ? e.badges.length : (e.badges || 0);
-                if (bc > 0) parts.push(bc + ' badge' + (bc > 1 ? 's' : ''));
-                showToast(parts.join(' · '));
+            var startTime = window._nachoModeStartTime || Date.now();
+            var timeSpent = Math.round((Date.now() - startTime) / 60000); // minutes
+            if (typeof showToast === 'function') {
+                var parts = [];
+                if (timeSpent > 0) parts.push('⏱️ ' + timeSpent + ' min');
+                if (e && e.interactions > 0) parts.push('🦌 ' + e.interactions + ' interactions');
+                if (e && e.points > 0) parts.push('+' + e.points + ' pts');
+                var bc = e ? (Array.isArray(e.badges) ? e.badges.length : (e.badges || 0)) : 0;
+                if (bc > 0) parts.push('🏅 ' + bc + ' badge' + (bc > 1 ? 's' : ''));
+                if (parts.length > 0) {
+                    showToast(parts.join(' · '));
+                } else {
+                    showToast('🦌 Thanks for hanging out with ' + ((typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho') + '!');
+                }
             }
             goHome();
         }
@@ -2506,7 +2514,11 @@ function openImg(src) {
             var fc = document.getElementById('forumContainer');
             if (fc) { fc.style.display = 'block'; }
             if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
-            if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
+            if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); }
+            // Always show Nacho on forum/marketplace pages
+            setFloatingElementsVisible(true);
+            // Trigger Nacho context-aware greeting
+            if (typeof nachoOnPage === 'function') nachoOnPage(id);
             if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
             else if (typeof renderForum === 'function') renderForum();
             return;

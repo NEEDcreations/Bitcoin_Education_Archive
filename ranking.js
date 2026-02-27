@@ -1318,6 +1318,11 @@ function updateUserDisplay(lv) {
 }
 
 function showLevelUpCelebration(lv) {
+    // Suppress during Nacho Mode — track for exit summary instead
+    if (window._nachoBusy || window._nachoMode) {
+        if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
+        return;
+    }
     // Play triumphant sound
     if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
         try {

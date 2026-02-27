@@ -990,6 +990,37 @@ window.hideNacho = function() {
     document.getElementById('nacho-toggle').style.display = 'flex';
 };
 
+// ---- Context-Aware: Page Navigation (Forum/Marketplace) ----
+window.nachoOnPage = function(pageId) {
+    if (!nachoVisible) return;
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+
+    var nn = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
+    var tips;
+    if (pageId === 'forum') {
+        tips = [
+            { pose: 'wave', text: personalize("Welcome to PlebTalk, {name}! 🗣️ This is where Bitcoiners discuss ideas. Jump in!") },
+            { pose: 'point', text: "💡 Post a new topic to earn +10 points, or reply to an existing one for +5. Quality content gets upvoted!" },
+            { pose: 'brain', text: "Remember — this is a Bitcoin-only forum. Stay respectful, stay on topic, and attack ideas, not people! 🤝" },
+            { pose: 'cheese', text: personalize("Psst {name}... earn the 📣 Town Crier badge by posting in PlebTalk! Your first post counts!") },
+            { pose: 'fire', text: "🔥 Pro tip: Upvote posts you find valuable with ⚡ — it helps the best content rise to the top!" },
+        ];
+    } else if (pageId === 'marketplace') {
+        tips = [
+            { pose: 'wave', text: personalize("Welcome to LightningMart, {name}! ⚡ Buy and sell with Bitcoin — the way it should be!") },
+            { pose: 'point', text: "💡 All prices are in sats. Sellers set their own prices. Payments happen directly between buyer and seller." },
+            { pose: 'cheese', text: "🛒 List your first item to earn the 🏪 Merchant badge! Books, hardware, merch — whatever you've got!" },
+            { pose: 'brain', text: "🛡️ Safety first! Meet in public for local trades, use Lightning for instant payments, and report suspicious listings." },
+            { pose: 'fire', text: personalize("Pro tip {name}: add a Lightning address to your listing so buyers can pay you instantly! ⚡") },
+        ];
+    }
+
+    if (tips) {
+        var tip = tips[Math.floor(Math.random() * tips.length)];
+        forceShowBubble(tip.text, tip.pose);
+    }
+};
+
 // ---- Context-Aware: Channel Open (Clippy "It looks like...") ----
 window.nachoOnChannel = function(channelId) {
     if (!nachoVisible) return;
