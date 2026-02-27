@@ -1477,6 +1477,27 @@ document.addEventListener('click', function(e) {
     if (fab) fab.style.display = 'flex';
 });
 
+window.toggleOLEDTheme = function() {
+    const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
+    localStorage.setItem('btc_theme_oled', !isOLED);
+    applyOLEDTheme();
+    showSettingsPage('prefs');
+    showToast(!isOLED ? '🖤 Midnight OLED enabled!' : 'Deep sea mode disabled');
+};
+
+function applyOLEDTheme() {
+    const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
+    const isDark = document.body.getAttribute('data-theme') !== 'light';
+    if (isOLED && isDark) {
+        document.body.classList.add('oled-theme');
+    } else {
+        document.body.classList.remove('oled-theme');
+    }
+}
+
+// Initial apply
+document.addEventListener('DOMContentLoaded', applyOLEDTheme);
+
 window.toggleGhostMode = async function() {
     if (!currentUser) return;
     const isGhost = !currentUser.ghostMode;
@@ -1896,8 +1917,19 @@ function showSettingsPage(tab) {
             '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
             '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
             '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
-            '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Font Size</div>' +
+            '</div>';
+
+        // OLED Toggle
+        const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-top:8px;border-top:1px solid var(--border);">' +
+                '<div>' +
+                    '<div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Midnight (OLED)</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.8rem;">Pure black background</div>' +
+                '</div>' +
+                '<button onclick="toggleOLEDTheme()" style="padding:6px 14px;background:' + (isOLED ? 'var(--accent)' : 'none') + ';border:1px solid ' + (isOLED ? 'var(--accent)' : 'var(--border)') + ';border-radius:20px;color:' + (isOLED ? '#fff' : 'var(--text)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;transition:0.2s;">' + (isOLED ? 'ON' : 'OFF') + '</button>' +
+            '</div>';
+
+        html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Font Size</div>' +
             '<div style="display:flex;gap:8px;">';
         ['small', 'medium', 'large'].forEach(function(size) {
             var active = savedSize === size;

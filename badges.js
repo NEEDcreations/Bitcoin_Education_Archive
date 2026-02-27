@@ -309,19 +309,44 @@ function playBadgeSound() {
 }
 
 function getBadgeHTML() {
-    let html = '<div class="badges-grid">';
-    for (const badge of BADGE_DEFS) {
-        const earned = earnedBadges.has(badge.id);
-        const pts = badge.pts || 20;
-        const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
-        const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 Locked — ' + badge.desc;
+    // Categorize badges
+    const categories = {
+        'Discovery': BADGE_DEFS.filter(b => b.id.includes('explorer') || b.id.includes('first')),
+        'Knowledge': BADGE_DEFS.filter(b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest')),
+        'Social/Misc': BADGE_DEFS.filter(b => !b.id.includes('explorer') && !b.id.includes('first') && !b.id.includes('builder') && !b.id.includes('diver') && !b.id.includes('librarian') && !b.id.includes('quest'))
+    };
+
+    let html = '<style>' +
+        '.badge-cat-title { color: var(--text-faint); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px; font-weight: 800; display: flex; align-items:center; gap: 8px; }' +
+        '.badge-cat-title::after { content: ""; flex: 1; height: 1px; background: var(--border); opacity: 0.5; }' +
+        '.badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 10px; padding: 4px; }' +
+        '.locked .badge-emoji { filter: grayscale(1) opacity(0.2); transition: 0.3s; }' +
+        '.badge-item.locked:hover .badge-emoji { filter: grayscale(1) opacity(0.5); }' +
+        '</style>';
+
+    for (const [catName, badgeList] of Object.entries(categories)) {
+        if (badgeList.length === 0) continue;
         
-        html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')">' +
-            '<div class="badge-emoji">' + (earned ? badge.emoji : '🔒') + '</div>' +
-            '<div class="badge-name">' + badge.name + '</div>' +
-            '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;">' + tip + requirementsText + '</div>' +
-        '</div>';
+        const catEarned = badgeList.filter(b => earnedBadges.has(b.id)).length;
+        html += '<div class="badge-cat-title">' + catName + ' <span style="color:var(--accent);">' + catEarned + '/' + badgeList.length + '</span></div>';
+        html += '<div class="badges-grid">';
+        
+        for (const badge of badgeList) {
+            const earned = earnedBadges.has(badge.id);
+            const pts = badge.pts || 20;
+            const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
+            const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 Locked — ' + badge.desc;
+            
+            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
+                '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
+                '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
+                '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
+            '</div>';
+        }
+        html += '</div>';
     }
+
+    // Hidden badges section...
 
     // Goal badges (visible with progress) and Hidden badges (surprise)
     if (typeof HIDDEN_BADGES !== 'undefined') {

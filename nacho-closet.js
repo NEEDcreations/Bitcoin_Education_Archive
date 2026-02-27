@@ -301,6 +301,23 @@ function spawnEquipParticles(avatar) {
 }
 
 // ---- Render Nacho's Closet UI (for settings) ----
+window.getNachoFriendship = function() {
+    const interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+    const levels = [
+        { name: 'Stranger', emoji: '🦌', min: 0 },
+        { name: 'Acquaintance', emoji: '🤝', min: 10 },
+        { name: 'Pleb Friend', emoji: '🧡', min: 50 },
+        { name: 'HODL Buddy', emoji: '💎', min: 150 },
+        { name: 'Maxi Mentor', emoji: '👑', min: 500 }
+    ];
+    
+    let current = levels[0];
+    for (const l of levels) {
+        if (interactions >= l.min) current = l;
+    }
+    return current;
+};
+
 window.renderNachoClosetUI = function(container) {
     var level = getFriendLevel();
     var equipped = localStorage.getItem('btc_nacho_equipped') || '';

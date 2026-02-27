@@ -674,3 +674,39 @@ function downloadCertificate() {
 
     if (typeof showToast === 'function') showToast('📜 Certificate downloaded!');
 }
+
+window.showScholarDashboard = function() {
+    const modal = document.createElement('div');
+    modal.id = 'scholarModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px);';
+    
+    const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    const core = ['whitepaper','decentralized','scarce','secure','money','peaceful','dominant','organic','supranational','programmable','use-cases'];
+    const completed = core.filter(c => visited.includes(c)).length;
+    const pct = Math.round((completed / core.length) * 100);
+
+    let listHtml = '';
+    core.forEach(c => {
+        const isDone = visited.includes(c);
+        listHtml += '<div style="display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid var(--border);opacity:' + (isDone ? '1' : '0.4') + '">' +
+            '<span>' + (isDone ? '✅' : '📖') + '</span>' +
+            '<span style="color:var(--text);font-size:0.85rem;flex:1;">' + c.toUpperCase() + '</span>' +
+            (!isDone ? '<button onclick="document.getElementById(\'scholarModal\').remove();go(\'' + c + '\')" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:0.7rem;cursor:pointer;">Read</button>' : '') +
+            '</div>';
+    });
+
+    modal.innerHTML = '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:24px;padding:32px;max-width:450px;width:100%;animation:fadeSlideIn 0.5s ease-out;position:relative;max-height:90vh;overflow-y:auto;">' +
+        '<button onclick="this.closest(\'#scholarModal\').remove()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;">✕</button>' +
+        '<div style="font-size:3rem;margin-bottom:12px;">🎓</div>' +
+        '<h2 style="color:var(--heading);margin-bottom:4px;">Scholar Transcript</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">Complete the core curriculum to earn your certification.</p>' +
+        '<div style="background:var(--card-bg);padding:15px;border-radius:12px;margin-bottom:20px;border:1px solid var(--border);">' +
+            '<div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:6px;"><span style="color:var(--text-faint);">CORE PROGRESS</span><span style="color:var(--accent);font-weight:900;">' + pct + '%</span></div>' +
+            '<div style="width:100%;height:8px;background:var(--bg-side);border-radius:4px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:var(--accent);"></div></div>' +
+        '</div>' +
+        '<div style="text-align:left;margin-bottom:24px;">' + listHtml + '</div>' +
+        (pct === 100 ? '<button onclick="startScholarQuest()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;">START FINAL EXAM →</button>' : '') +
+        '</div>';
+        
+    document.body.appendChild(modal);
+}
