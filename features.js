@@ -70,7 +70,7 @@ function renderExplorationMap() {
         const isVisited = visited.includes(key);
         const emoji = CHANNELS[key].title.match(/^([\p{Emoji}\u200d]+)/u);
         const icon = emoji ? emoji[1] : '📄';
-        grid += '<div onclick="go(\'' + key + '\')" title="' + key + '" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.75rem;cursor:pointer;transition:0.2s;' +
+        grid += '<div onclick="go(\'' + key + '\')" ' + (isVisited ? 'title="' + key + '"' : '') + ' style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.75rem;cursor:pointer;transition:0.2s;' +
             (isVisited ? 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);' : 'background:var(--card-bg);border:1px solid var(--border);opacity:0.4;') +
             '">' + (isVisited ? icon : '?') + '</div>';
     });
