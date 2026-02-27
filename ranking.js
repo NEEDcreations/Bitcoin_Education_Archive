@@ -675,6 +675,11 @@ async function loadUser(uid, prefetchedDoc) {
                 var merged = [...new Set([...existing, ...currentUser.visibleBadges])];
                 localStorage.setItem('btc_badges', JSON.stringify(merged));
             }
+            if (currentUser.spinClosetItems) {
+                var existingItems = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
+                var mergedItems = [...new Set([...existingItems, ...currentUser.spinClosetItems])];
+                localStorage.setItem('btc_spin_closet_items', JSON.stringify(mergedItems));
+            }
             if (currentUser.scholarPassed) {
                 localStorage.setItem('btc_scholar_passed', 'true');
             }

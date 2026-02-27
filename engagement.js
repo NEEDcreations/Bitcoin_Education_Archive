@@ -221,6 +221,7 @@ var SPIN_PRIZES = [
     { label: 'Bitcoin Fact!', emoji: '🧠', type: 'fact' },
     { label: 'Nacho Quote!', emoji: '🦌', type: 'quote' },
     { label: 'New Sticker!', emoji: '🦌✨', type: 'sticker' },
+    { label: 'Closet Item!', emoji: '👔', type: 'closet_unlock' },
     // Rare tickets
     { label: '🎟️ 50 Tickets!!', emoji: '🔥', type: 'ticket', value: 50 },
     { label: '🎟️ 100 Tickets!!!', emoji: '💎', type: 'ticket', value: 100 },
@@ -239,7 +240,8 @@ var SPIN_WEIGHTS = [
     2000,   // +50 pts — 2%
     8000,   // Bitcoin fact — 8%
     7000,   // Nacho quote — 7%
-    5000,   // Sticker — 5%
+    4000,   // Sticker — 4%
+    1000,   // Closet Item — 1% (Rare discovery!)
     1000,   // 50 tickets — 1%
     100,    // 100 tickets — 0.1%
     1,      // 1000 tickets — 0.001%
@@ -279,6 +281,13 @@ function awardSpinPrize(prize) {
             // All stickers owned — give 5 tickets instead
             if (typeof showToast === 'function') showToast('🦌 All stickers collected! +5 bonus tickets!');
             awardSpinPrize({ type: 'ticket', value: 5 });
+        }
+    } else if (prize.type === 'closet_unlock') {
+        if (typeof earnNachoClosetItem === 'function') {
+            earnNachoClosetItem();
+        } else {
+            // Fallback if function not found
+            awardSpinPrize({ type: 'ticket', value: 10 });
         }
     }
 }

@@ -150,6 +150,21 @@ function getEquippedItem() {
 
 // ---- Equip an item (with animation) ----
 window.equipNachoItem = function(itemId) {
+    if (!itemId) {
+        localStorage.removeItem('btc_nacho_equipped');
+        renderNachoOverlay();
+        return;
+    }
+    // Check if item is unlocked (level or spin reward)
+    var level = getFriendLevel();
+    var item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
+    var spinUnlocked = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
+    
+    if (item && item.level > level && spinUnlocked.indexOf(itemId) === -1) {
+        showToast('🔒 Need a higher friendship level to wear this!');
+        return;
+    }
+
     var current = localStorage.getItem('btc_nacho_equipped');
     var avatar = document.getElementById('nacho-avatar');
 
@@ -430,3 +445,47 @@ if (document.readyState === 'loading') {
 }
 
 })();
+
+// ---- Win a closet item from the spin wheel ----
+window.earnNachoClosetItem = function() {
+    var level = getFriendLevel();
+    var spinUnlocked = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
+    
+    // Find items that aren't unlocked by level or spin
+    var pool = NACHO_ITEMS.filter(function(item) {
+        var byLevel = item.level <= level;
+        var bySpin = spinUnlocked.includes(item.id);
+        return !byLevel && !bySpin;
+    });
+
+    if (pool.length === 0) {
+        // All items owned — give 10 tickets
+        if (typeof showToast === 'function') showToast('👔 You\'ve unlocked all closet items! +10 bonus tickets!');
+        if (typeof awardSpinPrize === 'function') awardSpinPrize({ type: 'ticket', value: 10 });
+        return;
+    }
+
+    // Pick a random rare item from the pool
+    var item = pool[Math.floor(Math.random() * pool.length)];
+    spinUnlocked.push(item.id);
+    localStorage.setItem('btc_spin_closet_items', JSON.stringify(spinUnlocked));
+
+    var displayName = item.hidden ? (item.revealName || item.name) : item.name;
+    var displayEmoji = item.hidden ? (item.revealEmoji || item.emoji) : item.emoji;
+
+    if (typeof showToast === 'function') {
+        showToast('🎁 RARE SPIN! Unlocked: ' + displayEmoji + ' ' + displayName + '! Check the closet!');
+    }
+    
+    // Refresh closet if open
+    if (document.getElementById('nachoClosetGrid') && typeof renderNachoClosetUI === 'function') {
+        renderNachoClosetUI(document.getElementById('nachoClosetGrid').parentElement);
+    }
+    
+    // Sync to Firestore
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({
+            spinClosetItems: spinUnlocked
+        }).catch(function(){});
+    }
+};
