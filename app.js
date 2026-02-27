@@ -2376,8 +2376,7 @@ function openImg(src) {
             }
         }, { passive: true });
 
-        // Two-finger tap → toggle leaderboard
-        // Must be a quick tap (touchend within 300ms), not during scroll
+        // Two-finger tap → PlebTalk
         var twoFingerLast = 0;
         var twoFingerStart = 0;
         document.getElementById('main').addEventListener('touchstart', function(e) {
@@ -2387,11 +2386,11 @@ function openImg(src) {
             if (twoFingerStart && e.touches.length === 0 && e.changedTouches.length >= 1) {
                 var dt = Date.now() - twoFingerStart;
                 twoFingerStart = 0;
-                if (dt > 400) return; // Not a tap, was a hold/scroll
+                if (dt > 400) return;
                 var now = Date.now();
-                if (now - twoFingerLast < 3000) return; // 3s cooldown
+                if (now - twoFingerLast < 3000) return; 
                 twoFingerLast = now;
-                if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
+                go('forum');
             }
         }, { passive: true });
 
@@ -2430,7 +2429,7 @@ function openImg(src) {
                 var now = Date.now();
                 if (now - threeFingerLast < 3000) return; // 3s cooldown
                 threeFingerLast = now;
-                go('forum');
+                go('marketplace');
             }
         }, { passive: true });
     })();
