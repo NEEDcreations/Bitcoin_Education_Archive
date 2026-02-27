@@ -2327,6 +2327,26 @@ function openImg(src) {
     window.goHome = function goHome(fromPopState) {
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
+
+        // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
+        var visitedCount = 0;
+        try { visitedCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        var isNewUser = visitedCount < 3;
+        
+        // Hide distracting gamification for absolute beginners to focus on core education
+        var spinBtn = document.querySelector('[onclick*="showSpinWheel"]');
+        var predictBtn = document.querySelector('[onclick*="showPricePrediction"]');
+        var storyBtn = document.querySelector('[onclick*="showNachoStory"]');
+        var challengeCard = document.getElementById('dailyChallengeCard');
+        
+        if (isNewUser) {
+            if (spinBtn) spinBtn.parentElement.style.display = 'none'; // Hide the whole grid row
+            if (challengeCard) challengeCard.style.display = 'none';
+        } else {
+            if (spinBtn) spinBtn.parentElement.style.display = 'grid';
+            if (challengeCard) challengeCard.style.display = '';
+        }
+
         // Hide forum container
         var fc = document.getElementById('forumContainer');
         if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }

@@ -15,6 +15,16 @@
     ];
 
     async function initActivityTicker() {
+        // PROGRESSIVE DISCLOSURE: Hide the ticker for brand new users
+        // Only show if user has visited 3+ channels or is logged in
+        const visitedCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+        const isAuth = firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous;
+        
+        if (visitedCount < 3 && !isAuth) {
+            console.log("Ticker hidden: User is too new.");
+            return;
+        }
+
         const ticker = document.getElementById('activity-ticker');
         const content = document.getElementById('ticker-content');
         if (!ticker || !content) return;

@@ -1732,7 +1732,17 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+    
+    // PROGRESSIVE DISCLOSURE: Only show simple tabs if user hasn't explored enough
+    var exploredCount = 0;
+    try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+    var showAllTabs = exploredCount >= 5 || (auth.currentUser && !auth.currentUser.isAnonymous);
+    
+    var tabs = showAllTabs 
+        ? ['account', 'tickets', 'prefs', 'security', 'data'] 
+        : ['account', 'prefs']; // Hide complex security/data/tickets for absolute beginners
+
+    tabs.forEach(t => {
         const icons = { account: '👤', tickets: '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>', prefs: '🎨', security: '🔒', data: '📊' };
         const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats/Nacho' };
         const active = settingsTab === t;
