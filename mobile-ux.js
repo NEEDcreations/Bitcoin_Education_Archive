@@ -99,24 +99,56 @@ function initReadingProgress() {
     if (!main) return;
     var lastScrollTop = 0;
     var bnav = document.getElementById('bottomNav');
-    main.addEventListener('scroll', function() {
-        var scrollTop = main.scrollTop;
-        
+    
+    function handleScroll(e) {
+        var target = e.target;
+        var scrollTop = target.scrollTop;
+        if (scrollTop === undefined) return;
+
         // Dynamic Bottom Nav: Hide on scroll down, show on scroll up
         if (bnav && window.innerWidth <= 900) {
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
+            if (scrollTop > lastScrollTop && scrollTop > 60) {
                 bnav.classList.add('nav-hidden');
             } else {
                 bnav.classList.remove('nav-hidden');
             }
         }
         lastScrollTop = scrollTop;
+        
+        // Update reading progress bar (only for main channel container)
+        if (target.id === 'main') {
+            var scrollHeight = target.scrollHeight - target.clientHeight;
+            if (scrollHeight <= 0) { bar.style.width = '0'; return; }
+            var pct = Math.min(100, (scrollTop / scrollHeight) * 100);
+            bar.style.width = pct + '%';
+        }
+    }
 
-        var scrollHeight = main.scrollHeight - main.clientHeight;
-        if (scrollHeight <= 0) { bar.style.width = '0'; return; }
-        var pct = Math.min(100, (scrollTop / scrollHeight) * 100);
-        bar.style.width = pct + '%';
+    // Attach listener to all potential scrolling containers
+    main.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Also watch for dynamically added containers like Nacho Mode chat
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(node) {
+                if (node.id === 'nachoModeScreen') {
+                    setTimeout(function() {
+                        var chat = document.getElementById('nachoModeChat');
+                        if (chat) {
+                            chat.addEventListener('scroll', handleScroll, { passive: true });
+                            // Force bar to show on entering new mode
+                            if (bnav) bnav.classList.remove('nav-hidden');
+                        }
+                    }, 100);
+                }
+            });
+        });
     });
+    observer.observe(document.body, { childList: true });
+
+    // Initial check for existing containers
+    var forum = document.getElementById('forumContainer');
+    if (forum) forum.addEventListener('scroll', handleScroll, { passive: true });
 }
 
 // ---- #5: Scroll Position Memory ----
