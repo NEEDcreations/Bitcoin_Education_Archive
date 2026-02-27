@@ -691,6 +691,12 @@ async function loadUser(uid, prefetchedDoc) {
             }
         }
 
+            // Restore Nacho nickname from Firestore
+            if (currentUser.nachoNickname) {
+                localStorage.setItem('btc_nacho_nickname', currentUser.nachoNickname);
+                if (typeof updateNachoNameUI === 'function') updateNachoNameUI(currentUser.nachoNickname);
+            }
+
         // Restore engagement data from Firebase (cross-device sync)
         if (isRealUser) {
             if (currentUser.lastSpinDate) {
@@ -1659,31 +1665,40 @@ function showSettingsPage(tab) {
         }
         html += '</div>';
 
-        // Display Badge chooser
+        // Display Badge chooser (collapsible)
         if (!isAnon) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
             var allEarned = [];
-            // Collect earned visible badges
             if (typeof earnedBadges !== 'undefined') {
                 if (typeof BADGE_DEFS !== 'undefined') BADGE_DEFS.forEach(function(b) { if (earnedBadges.has(b.id)) allEarned.push({ id: b.id, emoji: b.emoji, name: b.name }); });
             }
-            // Collect earned hidden/goal badges
             var earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
             if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(b) { if (earnedHidden.indexOf(b.id) !== -1) allEarned.push({ id: b.id, emoji: b.hidden ? (b.revealEmoji || b.emoji) : b.emoji, name: b.hidden ? (b.revealName || b.name) : b.name }); });
 
             if (allEarned.length > 0) {
-                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏅 Display Badge</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
-                    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
-                // Default (level emoji) option
-                html += '<button onclick="setDisplayBadge(\'\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="Use rank emoji (default)">' + lvl.emoji + ' Rank</button>';
-                for (var bi = 0; bi < allEarned.length; bi++) {
-                    var b = allEarned[bi];
-                    var isChosen = chosenBadge === b.id;
-                    html += '<button onclick="setDisplayBadge(\'' + b.id + '\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="' + b.name + '">' + b.emoji + '</button>';
+                var currentBadgeDisplay = lvl.emoji + ' Rank (default)';
+                if (chosenBadge) {
+                    var found = allEarned.find(function(b) { return b.id === chosenBadge; });
+                    if (found) currentBadgeDisplay = found.emoji + ' ' + found.name;
                 }
-                html += '</div></div>';
+                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                    '<div onclick="window._expanded_badges=!window._expanded_badges;showSettingsPage(\'account\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                    '<div><div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🏅 Display Badge</div>' +
+                    '<div style="color:var(--text);font-size:0.85rem;margin-top:4px;">' + currentBadgeDisplay + '</div></div>' +
+                    '<span style="color:var(--text-faint);font-size:1rem;transition:0.2s;">' + (window._expanded_badges ? '▾' : '▸') + '</span></div>';
+                if (window._expanded_badges) {
+                    html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
+                    html += '<button onclick="setDisplayBadge(\'\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="Use rank emoji (default)">' + lvl.emoji + ' Rank</button>';
+                    for (var bi = 0; bi < allEarned.length; bi++) {
+                        var b = allEarned[bi];
+                        var isChosen = chosenBadge === b.id;
+                        html += '<button onclick="setDisplayBadge(\'' + b.id + '\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="' + b.name + '">' + b.emoji + '</button>';
+                    }
+                    html += '</div></div>';
+                }
+                html += '</div>';
             }
         }
 
@@ -1785,14 +1800,25 @@ function showSettingsPage(tab) {
         }
 
     } else if (settingsTab === 'prefs') {
-        // Theme
+        // Appearance (Theme + Font Size combined)
         const isDark = document.body.getAttribute('data-theme') !== 'light';
+        const savedSize = localStorage.getItem('btc_font_size') || 'medium';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌓 Theme</div>' +
-            '<div style="display:flex;gap:8px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎨 Appearance</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Theme</div>' +
+            '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
             '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
             '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
-            '</div></div>';
+            '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Font Size</div>' +
+            '<div style="display:flex;gap:8px;">';
+        ['small', 'medium', 'large'].forEach(function(size) {
+            var active = savedSize === size;
+            var label = size.charAt(0).toUpperCase() + size.slice(1);
+            var px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
+            html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
+        });
+        html += '</div></div>';
 
         // Language
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -1831,18 +1857,7 @@ function showSettingsPage(tab) {
             if (sel) sel.value = saved;
         }, 50);
 
-        // Font Size
-        const savedSize = localStorage.getItem('btc_font_size') || 'medium';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔤 Font Size</div>' +
-            '<div style="display:flex;gap:8px;">';
-        ['small', 'medium', 'large'].forEach(size => {
-            const active = savedSize === size;
-            const label = size.charAt(0).toUpperCase() + size.slice(1);
-            const px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
-            html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
-        });
-        html += '</div></div>';
+        // Font Size — merged into Appearance card above
 
         // Sound settings
         const soundOn = typeof audioEnabled === 'undefined' || audioEnabled;
@@ -1923,9 +1938,13 @@ function showSettingsPage(tab) {
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
             '</div>';
 
-        // Keyboard Shortcuts
+        // Keyboard Shortcuts (collapsible — takes lots of space)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⌨️ Keyboard Shortcuts</div>' +
+            '<div onclick="window._expanded_shortcuts=!window._expanded_shortcuts;showSettingsPage(\'prefs\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">⌨️ Keyboard Shortcuts & Gestures</div>' +
+            '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_shortcuts ? '▾' : '▸') + '</span></div>';
+        if (window._expanded_shortcuts) {
+        html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
             '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Navigation</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
@@ -1954,6 +1973,7 @@ function showSettingsPage(tab) {
             shortcutRow('Long-press logo','Nacho Mode') +
             '</div></div>' +
             '</div></div>';
+        } // end expanded_shortcuts
 
         // (Theme moved above)
 
@@ -2118,12 +2138,18 @@ function showSettingsPage(tab) {
 
         html += '</div>';
 
-        // Nacho Analytics
+        // Nacho Analytics (collapsible)
         if (typeof getNachoAnalytics === 'function') {
             var na = getNachoAnalytics();
             if (na.total > 0) {
                 html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📊 Nacho Q&A Analytics</div>';
+                    '<div onclick="window._expanded_analytics=!window._expanded_analytics;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">📊 ' + escapeHtml(nickname) + ' Q&A Analytics</div>' +
+                    '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_analytics ? '▾' : '▸') + '</span></div>';
+                if (!window._expanded_analytics) {
+                    html += '</div>';
+                } else {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">';
 
                 // Satisfaction
                 if (na.satisfaction !== null) {
@@ -2157,17 +2183,19 @@ function showSettingsPage(tab) {
                     html += '<div style="padding:8px 0;"><div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">🔥 Top Topics</div>' + topHtml + '</div>';
                 }
 
-                html += '</div>';
+                html += '</div></div>';
+                }
             }
         }
 
         // Nacho Nickname (first — let user name their Nacho)
         var nickname = typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your ' + escapeHtml(nickname) + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Deer</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
             '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Give your deer a name..." style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
-            '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;">Save</button>' +
+            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:10px 12px;background:var(--bg-side,#141425);border:2px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button>' +
             '</div></div>';
 
         // Nacho Story (highlighted — right under name)
@@ -2189,15 +2217,28 @@ function showSettingsPage(tab) {
                 '</div>';
         }
 
-        // Nacho's Closet
+        // Nacho's Closet (collapsible)
         if (typeof renderNachoClosetUI === 'function') {
-            html += '<div id="nachoClosetContainer" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;"></div>';
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div onclick="window._expanded_closet=!window._expanded_closet;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +
+                '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_closet ? '▾' : '▸') + '</span></div>';
+            if (window._expanded_closet) {
+                html += '<div id="nachoClosetContainer" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"></div>';
+            }
+            html += '</div>';
+        }
 
-        // Sticker Book
+        // Sticker Book (collapsible)
         if (typeof renderStickerBook === 'function') {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                renderStickerBook() + '</div>';
-        }
+                '<div onclick="window._expanded_stickers=!window._expanded_stickers;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🎨 Sticker Book</div>' +
+                '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_stickers ? '▾' : '▸') + '</span></div>';
+            if (window._expanded_stickers) {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' + renderStickerBook() + '</div>';
+            }
+            html += '</div>';
         }
 
         // Privacy note
@@ -2669,10 +2710,7 @@ async function loadTotpStatus() {
             '<span style="color:var(--text-faint);font-size:1.2rem;">📱</span>' +
             '<div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
-            '<div style="color:#ef4444;font-size:0.75rem;margin-bottom:8px;">' + errMsg + ' (code: ' + errCode + ')</div>' +
-            '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Set Up Authenticator App</button>' +
-            '<div id="totpSetupArea" style="display:none;margin-top:12px;"></div>' +
-            '<div id="totpStatus" style="margin-top:6px;font-size:0.8rem;"></div>';
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;padding:8px 10px;background:var(--bg-side);border-radius:6px;">⏳ Authenticator setup requires Cloud Functions. Deployment in progress — check back soon!</div>';
     }
 }
 

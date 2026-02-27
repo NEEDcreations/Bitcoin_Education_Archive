@@ -133,6 +133,10 @@ window.setNachoNickname = function(name) {
         return;
     }
     localStorage.setItem('btc_nacho_nickname', name);
+    // Sync to Firestore for cross-device persistence
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ nachoNickname: name }).catch(function(){});
+    }
     if (typeof showToast === 'function') showToast('🦌 I\'m now ' + name + '! Love it!');
     // Update Nacho Mode button and any visible references
     updateNachoNameUI(name);
@@ -150,6 +154,9 @@ window.updateNachoNameUI = function(name) {
     // Update Nacho Mode hero title
     var heroTitle = document.querySelector('.nm-hero-title');
     if (heroTitle) heroTitle.textContent = name.toUpperCase() + ' MODE';
+    // Update Nacho bubble label
+    var bubbleName = document.getElementById('nacho-bubble-name');
+    if (bubbleName) bubbleName.textContent = name;
     // Update sidebar Nacho Mode button
     var sidebarBtn = document.getElementById('sidebarNachoBtn');
     if (sidebarBtn) sidebarBtn.innerHTML = '🦌 ' + name + ' Mode';

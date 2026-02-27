@@ -703,7 +703,7 @@ function createNacho() {
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
             '<div class="nacho-header">' +
-                '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> Nacho says</span>' +
+                '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> <span id="nacho-bubble-name">' + ((typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho') + '</span> says</span>' +
                 '<span class="nacho-x" onclick="event.stopPropagation();hideBubble(true)">✕</span>' +
             '</div>' +
             '<div id="nacho-text"></div>' +
