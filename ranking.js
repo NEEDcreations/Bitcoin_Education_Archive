@@ -2214,10 +2214,10 @@ function showSettingsPage(tab) {
         var nickname = typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Deer</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
-            '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:10px 12px;background:var(--bg-side,#141425);border:2px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
-            '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
+            '<div style="display:flex;flex-direction:column;gap:10px;">' +
+            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="width:100%;padding:12px 14px;background:var(--bg,#020617);border:2px solid var(--border);border-radius:10px;color:#ffffff;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;display:block;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">Save Nickname</button>' +
             '</div></div>';
 
         // Nacho Story (highlighted — right under name)
