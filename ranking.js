@@ -936,6 +936,22 @@ async function awardVisitPoints() {
             pointsToAdd += POINTS.streak;
             streakBonus = true;
         }
+    } else if (currentUser.lastVisit !== today) {
+        // Streak broken? Check for STREAK FREEZE
+        if (currentUser.streakFreezes > 0) {
+            newStreak = (currentUser.streak || 0) + 1;
+            currentUser.streakFreezes--;
+            streakBonus = true;
+            setTimeout(function() {
+                showToast('🧊 STREAK FROZEN! One freeze consumed to save your ' + newStreak + ' day streak!');
+            }, 3000);
+            // Deduct from firestore immediately
+            if (!currentUser._isLocal) {
+                db.collection('users').doc(currentUser.uid).update({ 
+                    streakFreezes: firebase.firestore.FieldValue.increment(-1)
+                }).catch(function(){});
+            }
+        }
     }
 
     if (currentUser._isLocal) {
@@ -1017,17 +1033,25 @@ async function onChannelOpen(channelId) {
     if (!allTimeChannels.has(channelId)) {
         allTimeChannels.add(channelId);
         sessionChannels.add(channelId);
+        
+        let ptsAwarded = POINTS.openChannel;
+        // Apply daily 2X boost
+        if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
+            ptsAwarded *= 2;
+            setTimeout(() => { showToast('⚡ 2X POINTS! Daily boost applied! +' + ptsAwarded + ' pts'); }, 2000);
+        }
+
         if (currentUser._isLocal) {
-            currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
+            currentUser.points = (currentUser.points || 0) + ptsAwarded;
             currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
             localStorage.setItem('btc_points', currentUser.points.toString());
         } else {
             await db.collection('users').doc(currentUser.uid).update({
                 channelsVisited: firebase.firestore.FieldValue.increment(1),
-                points: firebase.firestore.FieldValue.increment(POINTS.openChannel),
+                points: firebase.firestore.FieldValue.increment(ptsAwarded),
                 visitedChannelsList: firebase.firestore.FieldValue.arrayUnion(channelId)
             });
-            currentUser.points = (currentUser.points || 0) + POINTS.openChannel;
+            currentUser.points = (currentUser.points || 0) + ptsAwarded;
             currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
         }
         if (currentUser.readChannels) {
@@ -1453,6 +1477,35 @@ document.addEventListener('click', function(e) {
     if (fab) fab.style.display = 'flex';
 });
 
+window.toggleGhostMode = async function() {
+    if (!currentUser) return;
+    const isGhost = !currentUser.ghostMode;
+    currentUser.ghostMode = isGhost;
+    
+    // Update local state and UI
+    showSettingsPage('security');
+    
+    // Update Firestore
+    try {
+        await db.collection('users').doc(auth.currentUser.uid).update({ ghostMode: isGhost });
+        showToast(isGhost ? '👻 Ghost Mode enabled!' : 'Visible mode enabled');
+    } catch(e) { console.log("Ghost mode update failed:", e); }
+};
+
+// Stubs for upcoming features
+window.startFlashcards = function() { showToast('📚 Flashcards coming soon!'); };
+window.setNachoNickname = function() { 
+    const nick = prompt('What should Nacho call you?', currentUser.username || 'Bitcoiner');
+    if (nick) {
+        currentUser.nachoNickname = nick;
+        if (!currentUser._isLocal) {
+            db.collection('users').doc(auth.currentUser.uid).update({ nachoNickname: nick }).catch(function(){});
+        }
+        showToast('🦌 Nacho will now call you ' + nick + '!');
+        showSettingsPage('data');
+    }
+};
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     const fab = document.getElementById('lbFloatBtn');
@@ -1511,7 +1564,11 @@ async function toggleLeaderboard() {
             const snap = await db.collection('users').orderBy('points', 'desc').limit(100).get();
             snap.forEach(doc => {
                 const d = doc.data();
-                if (d.points > 0) allUsers.push({ id: doc.id, ...d });
+                // Ghost Mode: only show if user is visible OR is the current user themselves
+                const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
+                if (d.points > 0 && (!d.ghostMode || isMe)) {
+                    allUsers.push({ id: doc.id, ...d });
+                }
             });
             window._lbCache = allUsers;
             window._lbCacheTime = now;
@@ -2055,6 +2112,19 @@ function showSettingsPage(tab) {
 
         // Load TOTP status after render
         setTimeout(loadTotpStatus, 100);
+
+        // --- GHOST MODE ---
+        const isGhost = (currentUser && currentUser.ghostMode) || false;
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Privacy</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<div>' +
+                    '<div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Ghost Mode</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.8rem;">Hide your streak & points from the leaderboard</div>' +
+                '</div>' +
+                '<button onclick="toggleGhostMode()" style="padding:6px 14px;background:' + (isGhost ? 'var(--accent)' : 'none') + ';border:1px solid ' + (isGhost ? 'var(--accent)' : 'var(--border)') + ';border-radius:20px;color:' + (isGhost ? '#fff' : 'var(--text)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;transition:0.2s;">' + (isGhost ? 'Enabled 👻' : 'Disabled') + '</button>' +
+            '</div>' +
+        '</div>';
 
         // Session info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -2675,6 +2745,10 @@ async function verifyMFACode() {
         status.innerHTML = '<span style="color:#ef4444;">Please enter the 6-digit code</span>';
         return;
     }
+    
+    console.log('[MFA Debug] Verifying Phone MFA. Code:', code, 'VerificationID:', mfaVerificationId);
+    status.innerHTML = '<span style="color:var(--text-muted);">Verifying...</span>';
+
     try {
         const cred = firebase.auth.PhoneAuthProvider.credential(mfaVerificationId, code);
         const assertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
@@ -2682,7 +2756,9 @@ async function verifyMFACode() {
         showToast('✅ 2FA enabled!');
         showSettingsPage('security');
     } catch(e) {
-        status.innerHTML = '<span style="color:#ef4444;">Invalid code. Please try again.</span>';
+        console.error('[MFA Debug] Error:', e);
+        status.innerHTML = '<div style="color:#ef4444;">Invalid code or expired session.</div>' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:4px;">Log: ' + e.code + '</div>';
     }
 }
 
@@ -2788,15 +2864,23 @@ async function verifyTotpSetup() {
         return;
     }
     
-    status.innerHTML = '<span style="color:var(--text-muted);">Verifying...</span>';
+    status.innerHTML = '<span style="color:var(--text-muted);">Verifying... (Debug: Code Entered: ' + code + ')</span>';
+    console.log('[2FA Debug] Attempting TOTP verification with code:', code);
     
     try {
         const totpVerify = firebase.functions().httpsCallable('totpVerify');
-        await totpVerify({ code: code });
+        const result = await totpVerify({ 
+            code: code,
+            timestamp: Date.now(), // Send client time to debug drift
+            clientTz: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
+        console.log('[2FA Debug] Verification result:', result);
         showToast('✅ Authenticator app enabled!');
         showSettingsPage('security');
     } catch(e) {
-        status.innerHTML = '<span style="color:#ef4444;">' + (e.message || 'Invalid code. Try again.') + '</span>';
+        console.error('[2FA Debug] Verification failed:', e);
+        status.innerHTML = '<div style="color:#ef4444;margin-top:8px;">' + (e.message || 'Invalid code. Try again.') + '</div>' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:4px;">Error Details: ' + e.code + ' | Time: ' + new Date().toLocaleTimeString() + '</div>';
     }
 }
 

@@ -2513,11 +2513,40 @@ function openImg(src) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
-        // If navigating away from Nacho Mode, save chat state for back-navigation
         if (window._nachoMode && !fromPopState) {
-            // Save chat before exiting so back button can restore it
             if (typeof nachoChatSave === 'function') nachoChatSave();
             window._nachoReturnPending = true;
+        }
+
+        // Show skeleton loader
+        var msgs = document.getElementById('msgs');
+        var hero = document.getElementById('hero');
+        
+        // --- BREADCRUMBS ---
+        const meta = CHANNELS[id];
+        let breadcrumbs = '';
+        if (meta) {
+            breadcrumbs = '<div class="breadcrumbs" style="padding:16px 20px 0;font-size:0.75rem;color:var(--text-faint);display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' +
+                '<span onclick="goHome()" style="cursor:pointer;color:var(--accent);">ARCHIVE</span>' +
+                '<span>/</span>' +
+                '<span>' + (meta.cat || 'General') + '</span>' +
+                '<span>/</span>' +
+                '<span style="color:var(--heading);">' + meta.title + '</span>' +
+            '</div>';
+        }
+
+        msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
+            '<div class="skeleton" style="height:32px;width:70%;margin-bottom:12px;"></div>' +
+            '<div class="skeleton" style="height:20px;width:40%;margin-bottom:24px;"></div>' +
+            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+        '</div>';
+        msgs.style.display = '';
+        document.getElementById('home').classList.add('hidden');
+        hero.style.display = 'none';
+
+        if (isMobile()) {
+            document.getElementById('sidebar').classList.remove('open');
         }
 
         // Forum route
@@ -2541,7 +2570,6 @@ function openImg(src) {
             return;
         }
 
-        const meta = CHANNELS[id];
         if (!meta) return;
         // Exit Nacho Mode if active (skip goHome since we're navigating to a channel)
         if (window._nachoMode) exitNachoMode(true);
@@ -2559,6 +2587,17 @@ function openImg(src) {
         localStorage.setItem('btc_last_channel', id);
         playChannelSound();
         document.getElementById('home').classList.add('hidden');
+
+        // Show skeleton loader for content area
+        var msgs = document.getElementById('msgs');
+        msgs.innerHTML = '<div style="padding:20px;">' +
+            '<div class="skeleton" style="height:32px;width:70%;margin-bottom:12px;"></div>' +
+            '<div class="skeleton" style="height:20px;width:40%;margin-bottom:24px;"></div>' +
+            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+        '</div>';
+
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         if (btn) { btn.classList.add('active'); expandCatForChannel(btn); }
         else {
@@ -2700,6 +2739,19 @@ function openImg(src) {
         let visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
         if (!visited.includes(id)) { visited.push(id); localStorage.setItem('btc_visited_channels', JSON.stringify(visited)); }
 
+        // --- SENTIMENT RATING ---
+        if (d.msgs && d.msgs.length > 0) {
+            const sentimentHtml = '<div id="sentiment-' + id + '" style="margin:40px 20px;padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
+                '<div style="font-weight:800;color:var(--heading);margin-bottom:8px;">Did this help you learn something?</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Your feedback helps Nacho improve the archive!</div>' +
+                '<div style="display:flex;justify-content:center;gap:12px;">' +
+                   '<button onclick="rateChannel(\'' + id + '\', 1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(34,197,94,0.1)\'" onmouseout="this.style.background=\'none\'">👍 Yes</button>' +
+                   '<button onclick="rateChannel(\'' + id + '\', -1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">👎 No</button>' +
+                '</div>' +
+            '</div>';
+            msgs.insertAdjacentHTML('beforeend', sentimentHtml);
+        }
+
         // Ranking: award points for opening channel
         if (typeof onChannelOpen === 'function') onChannelOpen(id);
     }
@@ -2758,6 +2810,14 @@ function openImg(src) {
     function doSearch(q) {
         const sr = document.getElementById('searchResults');
         const cl = document.getElementById('channelList');
+
+        // --- EASTER EGG: SATOSHI ---
+        if (q && q.toLowerCase() === 'satoshi') {
+            if (typeof awardHiddenBadge === 'function') {
+                awardHiddenBadge('discovery_satoshi', 'Found Satoshi! 🦢');
+            }
+        }
+
         if (!q || q.length < 2) {
             sr.classList.remove('active');
             sr.innerHTML = '';
