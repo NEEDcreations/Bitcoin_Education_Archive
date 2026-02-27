@@ -1266,6 +1266,37 @@ function matchSiteNavigation(input) {
     return null;
 }
 
+// Internal check for altcoins to bypass AI
+function checkAltcoin(input) {
+    if (!input) return null;
+    var lowInput = input.toLowerCase();
+    
+    var altcoinPatterns = [
+        { pattern: /ethereum|eth\b|vitalik/, key: 'ethereum' },
+        { pattern: /xrp|ripple/, key: 'xrp' },
+        { pattern: /kaspa\b|kas\b/, key: 'kaspa' },
+        { pattern: /solana|sol\b/, key: 'solana' },
+        { pattern: /dogecoin|doge\b|shiba|meme.?coin|pepe.?coin|bonk/, key: 'dogecoin' },
+        { pattern: /cardano|ada\b|hoskinson/, key: 'cardano' },
+        { pattern: /bnb|binance/, key: 'bnb' },
+        { pattern: /polkadot|dot\b|avalanche|avax|polygon|matic|tron\b/, key: 'polkadot' },
+        { pattern: /altcoin|alt.?coin|shitcoin|which crypto|best crypto|other crypto|next bitcoin|bitcoin killer/, key: 'altcoin' },
+        { pattern: /diversify|spreading out|crypto portfolio/, key: 'altcoin' }
+    ];
+
+    for (var i = 0; i < altcoinPatterns.length; i++) {
+        if (altcoinPatterns[i].pattern.test(lowInput)) {
+            // Find the KB entry
+            for (var j = 0; j < NACHO_KB.length; j++) {
+                if (NACHO_KB[j].keys.indexOf(altcoinPatterns[i].key) !== -1) {
+                    return NACHO_KB[j];
+                }
+            }
+        }
+    }
+    return null;
+}
+
 function findAnswer(input) {
     input = input.toLowerCase().trim();
     if (input.length < 2) return null;
@@ -1772,7 +1803,9 @@ function nachoAIAnswer(question, callback) {
             userName: userName,
             eli5: eli5,
             history: history,
-            kbContext: kbContext
+            kbContext: kbContext,
+            maxi: true, // Signal to proxy to use Maxi prompt instructions
+            forceMaxi: "Act as a strict Bitcoin Maximalist tutor. Do not promote any other cryptocurrencies." 
         })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
@@ -2504,52 +2537,6 @@ window.nachoUnifiedAnswer = function(question, callback) {
         originalCallback(result);
     };
 
-    // ---- END SMART MEMORY ----
-    var memoryPrefix = '';
-    if (typeof window._nachoModeTopics !== 'undefined' && window._nachoModeTopics && window._nachoModeTopics.length > 0) {
-        var recentTopics = window._nachoModeTopics.slice(-3); // Last 3 topics
-        var isFollowUp = false;
-        var referencedTopic = '';
-        
-        // Check if current question is a follow-up to recent topics
-        for (var ti = recentTopics.length - 1; ti >= 0; ti--) {
-            var prevTopic = recentTopics[ti].toLowerCase();
-            var currentQ = q.toLowerCase();
-            
-            // Extract key terms from previous topic
-            var keyTerms = prevTopic.replace(/what is|how to|why|the|a|an|in|on|at/g, '').trim().split(' ').filter(function(w) { return w.length > 3; });
-            
-            // Check if any key term appears in current question
-            for (var ki = 0; ki < keyTerms.length; ki++) {
-                if (currentQ.indexOf(keyTerms[ki]) !== -1) {
-                    isFollowUp = true;
-                    referencedTopic = recentTopics[ti];
-                    break;
-                }
-            }
-            if (isFollowUp) break;
-        }
-        
-        // If it's a vague follow-up like "tell me more" or "why?"
-        if (!isFollowUp && (q.match(/^(tell me more|explain more|why|how|what about|and|so)/i) || q.length < 15)) {
-            if (recentTopics.length > 0) {
-                referencedTopic = recentTopics[recentTopics.length - 1];
-                isFollowUp = true;
-            }
-        }
-        
-        if (isFollowUp && referencedTopic) {
-            var memoryIntros = [
-                "Building on what you asked about '{topic}' — ",
-                "Great follow-up to your question about '{topic}'! ",
-                "Connecting this to '{topic}' — ",
-                "Since you were curious about '{topic}', ",
-                "To expand on '{topic}': "
-            ];
-            memoryPrefix = memoryIntros[Math.floor(Math.random() * memoryIntros.length)].replace('{topic}', referencedTopic.substring(0, 40) + (referencedTopic.length > 40 ? '...' : ''));
-        }
-    }
-
     // ---- STEP 1: Safety (instant, hardcoded) ----
     if (isCrisis(q)) {
         callback({ type: 'crisis', answer: pq(CRISIS_RESPONSE) });
@@ -2569,10 +2556,22 @@ window.nachoUnifiedAnswer = function(question, callback) {
         return;
     }
 
-    // ---- STEP 2: Detect context ----
+    // ---- STEP 2: Detect context & Force Maxi Direction ----
     var isFinAdvice = isFinancialAdvice(q);
     var disclaimer = isFinAdvice ? '<br><br>' + getNfaDisclaimer() : '';
     var isCurrentEvent = isCurrentEventQuestion(q);
+    
+    // ANTI-SHITCOIN SHIELD: If it's about altcoins, bypass AI and use KB immediately
+    var altcoinMatch = checkAltcoin(q);
+    if (altcoinMatch) {
+        callback({ 
+            type: 'kb', 
+            answer: pq(altcoinMatch.answer), 
+            channel: altcoinMatch.channel, 
+            channelName: altcoinMatch.channelName 
+        });
+        return;
+    }
 
     // ---- STEP 3: Find KB match (for context, not final answer) ----
     var kbMatch = null;
