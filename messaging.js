@@ -682,6 +682,7 @@ window.showInbox = function() {
         .then(function(snap) {
             var list = document.getElementById('dmInboxList');
             if (!list) return;
+            console.log('Inbox snap size:', snap.size);
 
             if (snap.empty) {
                 list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
@@ -715,8 +716,15 @@ window.showInbox = function() {
                 '</div>';
             });
         }).catch(function(err) {
+            console.error('Inbox load error:', err);
             var list = document.getElementById('dmInboxList');
             if (!list) return;
+            
+            if (err.code === 'failed-precondition') {
+                list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">⚙️ Setting up inbox database (index)...<br>Please refresh in 1 minute.</div>';
+                return;
+            }
+
             // Index not ready or no conversations — show empty state
             list.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
                 '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
