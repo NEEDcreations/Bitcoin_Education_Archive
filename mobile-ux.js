@@ -60,16 +60,17 @@ function initBottomNav() {
 
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
-    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--bg-side,#0a0a0a);border-top:1px solid var(--border);padding:6px 0 env(safe-area-inset-bottom,6px);display:none;';
+    nav.className = 'mobile-nav';
+    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px);display:none;';
     // Show immediately on mobile
     if (window.innerWidth <= 900) nav.style.display = 'block';
     nav.innerHTML =
-        '<div style="display:flex;justify-content:space-around;align-items:center;max-width:500px;margin:0 auto;">' +
+        '<div style="display:flex;justify-content:space-around;align-items:center;max-width:500px;margin:0 auto;height:100%;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span>🏠</span><span>Home</span></button>' +
             '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
             '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>PlebTalk</span></button>' +
             '<button onclick="go(\'marketplace\')" class="bnav-btn" id="bnavMarket"><span>⚡</span><span>Mart</span></button>' +
-            '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span>💬</span><span>DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.5rem;font-weight:800;padding:1px 3px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
+            '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span>💬</span><span>DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span>🦌</span><span>Nacho</span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span>⚙️</span><span>Settings</span></button>' +
         '</div>';
@@ -77,9 +78,10 @@ function initBottomNav() {
     // Add styles
     var style = document.createElement('style');
     style.textContent =
-        '.bnav-btn{background:none;border:none;color:var(--text-faint);font-size:0.55rem;cursor:pointer;font-family:inherit;padding:4px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);transition:0.2s;min-width:40px;flex:1;}' +
-        '.bnav-btn span:first-child{font-size:1.2rem;}' +
-        '.bnav-btn:active,.bnav-btn.active{color:var(--accent);}' +
+        '.bnav-btn{background:none;border:none;color:var(--text-dim);font-size:0.6rem;cursor:pointer;font-family:inherit;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:0.2s;min-width:40px;flex:1;height:100%;justify-content:center;}' +
+        '.bnav-btn span:first-child{font-size:1.4rem;transition:transform 0.2s;}' +
+        '.bnav-btn:active span:first-child{transform:scale(1.2);}' +
+        '.bnav-btn.active{color:var(--accent);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
         '@media(max-width:900px){#bottomNav{display:block!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
     document.head.appendChild(style);
@@ -95,8 +97,21 @@ function initReadingProgress() {
 
     var main = document.getElementById('main');
     if (!main) return;
+    var lastScrollTop = 0;
+    var bnav = document.getElementById('bottomNav');
     main.addEventListener('scroll', function() {
         var scrollTop = main.scrollTop;
+        
+        // Dynamic Bottom Nav: Hide on scroll down, show on scroll up
+        if (bnav && window.innerWidth <= 900) {
+            if (scrollTop > lastScrollTop && scrollTop > 100) {
+                bnav.classList.add('nav-hidden');
+            } else {
+                bnav.classList.remove('nav-hidden');
+            }
+        }
+        lastScrollTop = scrollTop;
+
         var scrollHeight = main.scrollHeight - main.clientHeight;
         if (scrollHeight <= 0) { bar.style.width = '0'; return; }
         var pct = Math.min(100, (scrollTop / scrollHeight) * 100);

@@ -2367,10 +2367,12 @@ function openImg(src) {
             // Strict: fast, very horizontal, long swipe — won't trigger during normal scrolling
             if (dt > 300 || Math.abs(dx) < 150 || Math.abs(dy) > Math.abs(dx) * 0.3) return;
 
-            if (dx > 150) {
-                goHome();
-            } else if (dx < -150) {
-                goRandom();
+            if (dx > 100) {
+                // Swipe Left-to-Right → Previous Channel
+                goPrev();
+            } else if (dx < -100) {
+                // Swipe Right-to-Left → Next Channel
+                goNext();
             }
         }, { passive: true });
 
@@ -2494,6 +2496,22 @@ function openImg(src) {
         const slider = document.getElementById('volumeSlider');
         if (slider) slider.value = audioEnabled ? audioVolume : 0;
     }
+
+    window.goNext = function() {
+        const channelKeys = window._sidebarOrder && window._sidebarOrder.length > 0 ? window._sidebarOrder : Object.keys(CHANNELS);
+        const currentIdx = channelKeys.indexOf(currentChannelId);
+        if (currentIdx === -1) { go(channelKeys[0]); return; }
+        const nextId = currentIdx < channelKeys.length - 1 ? channelKeys[currentIdx + 1] : channelKeys[0];
+        go(nextId);
+    };
+
+    window.goPrev = function() {
+        const channelKeys = window._sidebarOrder && window._sidebarOrder.length > 0 ? window._sidebarOrder : Object.keys(CHANNELS);
+        const currentIdx = channelKeys.indexOf(currentChannelId);
+        if (currentIdx === -1) { go(channelKeys[channelKeys.length - 1]); return; }
+        const prevId = currentIdx > 0 ? channelKeys[currentIdx - 1] : channelKeys[channelKeys.length - 1];
+        go(prevId);
+    };
 
     window.go = async function go(id, btn, fromPopState) {
         // If navigating away from Nacho Mode, save chat state for back-navigation

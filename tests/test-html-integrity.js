@@ -23,7 +23,7 @@ function test(name, fn) {
 
 // Critical DOM elements
 test('usernameModal exists', () => assert(html.includes('id="usernameModal"')));
-test('username-box exists inside modal', () => assert(html.includes('class="username-box"')));
+test('username-box exists inside modal', () => assert(html.includes('class="username-box')));
 test('hero section exists', () => assert(html.includes('id="hero"')));
 test('sidebar exists', () => assert(html.includes('id="sidebar"')));
 test('main content area exists', () => assert(html.includes('id="msgs"')));

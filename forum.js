@@ -46,8 +46,8 @@ var FORUM_RULES = [
 ];
 
 function showForumRules(force) {
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">📜</div>' +
                 '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">PlebTalk Rules</h2>' +
@@ -311,7 +311,11 @@ window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
     if (!fc || typeof db === 'undefined') return;
     if (!fromPopState) history.pushState({ channel: 'forum', forumPost: postId }, '', '#forum/post/' + postId);
-    fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</div></div>';
+    fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="text-align:center;padding:100px 40px;display:flex;flex-direction:column;gap:12px;">' +
+        '<div class="skeleton" style="height:40px;width:80%;margin:0 auto;"></div>' +
+        '<div class="skeleton" style="height:20px;width:60%;margin:0 auto;opacity:0.6;"></div>' +
+        '<div class="skeleton" style="height:20px;width:40%;margin:0 auto;opacity:0.4;"></div>' +
+        '</div></div>';
 
     try {
         var doc = await db.collection('forum_posts').doc(postId).get();

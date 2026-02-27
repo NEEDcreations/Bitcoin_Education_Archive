@@ -24,8 +24,8 @@ var MARKETPLACE_RULES = [
 ];
 
 function showMarketRules(force) {
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
-        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">⚡</div>' +
                 '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">LightningMart Rules</h2>' +
@@ -255,7 +255,17 @@ function loadMarketListings(category, search, sort, section) {
     var grid = document.getElementById('marketListings');
     var countEl = document.getElementById('marketResultCount');
     if (!grid || typeof db === 'undefined') {
-        if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Loading marketplace...</div>';
+    var skeletonHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">';
+    for (var i=0; i<6; i++) {
+        skeletonHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:12px;height:240px;display:flex;flex-direction:column;gap:8px;">' +
+            '<div class="skeleton" style="height:120px;border-radius:12px;"></div>' +
+            '<div class="skeleton" style="height:20px;width:80%;"></div>' +
+            '<div class="skeleton" style="height:15px;width:40%;"></div>' +
+            '<div class="skeleton" style="height:30px;width:100%;margin-top:auto;border-radius:10px;"></div>' +
+        '</div>';
+    }
+    skeletonHtml += '</div>';
+    if (grid) grid.innerHTML = skeletonHtml;
         return;
     }
 

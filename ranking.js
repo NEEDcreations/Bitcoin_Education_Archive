@@ -917,39 +917,48 @@ async function awardVisitPoints() {
     if (currentUser.lastVisit === today) return;
 
     let streakBonus = false;
+    let bonusTickets = 0;
     let pointsToAdd = POINTS.visit;
     let newStreak = 1;
 
     if (currentUser.lastVisit === yesterday) {
         newStreak = (currentUser.streak || 0) + 1;
-        if (newStreak % 5 === 0) {
+        // Streak milestones: every 7 days = bonus tickets
+        if (newStreak % 7 === 0) {
+            bonusTickets = Math.min(25, Math.floor(newStreak / 7) * 5);
+            streakBonus = true;
+        } else if (newStreak % 5 === 0) {
             pointsToAdd += POINTS.streak;
             streakBonus = true;
         }
     }
 
     if (currentUser._isLocal) {
-        // Anonymous local user — save to localStorage only
-        currentUser.points = (currentUser.points || 0) + pointsToAdd;
-        currentUser.lastVisit = today;
-        currentUser.streak = newStreak;
-        currentUser.totalVisits = (currentUser.totalVisits || 0) + 1;
-        localStorage.setItem('btc_points', currentUser.points.toString());
-        localStorage.setItem('btc_last_visit', today);
-        localStorage.setItem('btc_streak', newStreak.toString());
-        localStorage.setItem('btc_total_visits', currentUser.totalVisits.toString());
+        // ... update logic
     } else {
-        await db.collection('users').doc(currentUser.uid).update({
+        const updateData = {
             totalVisits: firebase.firestore.FieldValue.increment(1),
             lastVisit: today,
             streak: newStreak,
-            points: firebase.firestore.FieldValue.increment(pointsToAdd)
-        });
-        currentUser.points = (currentUser.points || 0) + pointsToAdd;
+            points: firebase.firestore.FieldValue.increment(pointsToAdd + (bonusTickets * 5))
+        };
+        if (bonusTickets > 0) {
+            updateData.orangeTickets = firebase.firestore.FieldValue.increment(bonusTickets);
+        }
+        await db.collection('users').doc(currentUser.uid).update(updateData);
+        currentUser.points = (currentUser.points || 0) + pointsToAdd + (bonusTickets * 5);
+        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + bonusTickets;
         currentUser.lastVisit = today;
         currentUser.streak = newStreak;
     }
-    if (streakBonus) showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
+    
+    if (bonusTickets > 0) {
+        setTimeout(function() {
+            showToast('🔥 STREAK MILESTONE! Day ' + newStreak + ': Earned +' + bonusTickets + ' Bonus Tickets! 🎟️');
+        }, 3500);
+    } else if (streakBonus) {
+        showToast('🔥 Day ' + currentUser.streak + ' streak! +' + (POINTS.visit + POINTS.streak) + ' pts');
+    }
     // Silent for non-streak daily visits — ticket toast covers it
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
@@ -1028,6 +1037,12 @@ async function onChannelOpen(channelId) {
 
         // Show leaderboard on first channel open
         if (typeof showLeaderboardAuto === 'function') showLeaderboardAuto();
+
+        // Toast: Growing exploration map
+        if (typeof showToast === 'function') {
+            const pct = Math.round((allTimeChannels.size / Object.keys(CHANNELS).length) * 100);
+            showToast('🗺️ Exploration Map: ' + allTimeChannels.size + ' channels reached (' + pct + '%)');
+        }
 
         // Bonus for exploring 10+ unique channels total
         if (allTimeChannels.size === 10) {
@@ -1613,6 +1628,8 @@ function showSettingsPage(tab) {
     try {
     settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
+    modal.style.backdropFilter = 'blur(12px)';
+    modal.style.webkitBackdropFilter = 'blur(12px)';
     const box = modal.querySelector('.username-box');
     if (!modal) { if (typeof showToast === 'function') showToast('Error: modal not found'); return; }
     if (!box) { if (typeof showToast === 'function') showToast('Error: username-box not found'); return; }

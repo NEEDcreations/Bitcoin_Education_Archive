@@ -769,6 +769,22 @@ function createNacho() {
     // Periodic messages
     setInterval(periodicMessage, 55000);
 
+    // Ambient "Alive" Animation (blinking/ear wiggle)
+    setInterval(function() {
+        if (!nachoVisible || (bubble && bubble.classList.contains('show'))) return;
+        const rand = Math.random();
+        if (rand < 0.3) {
+            setPose('wave'); // Blink equivalent
+            setTimeout(() => setPose('neutral'), 400);
+        } else if (rand < 0.6) {
+            const avatar = document.getElementById('nacho-avatar');
+            if (avatar) {
+                avatar.style.transform = 'scale(1.1) rotate(5deg)';
+                setTimeout(() => avatar.style.transform = '', 500);
+            }
+        }
+    }, 20000);
+
     // Occasional trivia pop-ups (every 3 minutes, 20% chance)
     setInterval(function() {
         if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
