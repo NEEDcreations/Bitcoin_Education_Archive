@@ -1733,18 +1733,18 @@ function showSettingsPage(tab) {
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
     
-    // PROGRESSIVE DISCLOSURE: Only show simple tabs if user hasn't explored enough
+    // PROGRESSIVE DISCLOSURE
     var exploredCount = 0;
     try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
     var showAllTabs = exploredCount >= 5 || (auth.currentUser && !auth.currentUser.isAnonymous);
     
     var tabs = showAllTabs 
-        ? ['account', 'tickets', 'prefs', 'security', 'data'] 
-        : ['account', 'prefs']; // Hide complex security/data/tickets for absolute beginners
+        ? ['account', 'signal', 'tickets', 'prefs', 'security', 'data'] 
+        : ['account', 'prefs']; 
 
     tabs.forEach(t => {
-        const icons = { account: '👤', tickets: '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats/Nacho' };
+        const icons = { account: '👤', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Account', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats/Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:10px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;-webkit-tap-highlight-color:rgba(247,147,26,0.2);touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -1885,6 +1885,38 @@ function showSettingsPage(tab) {
             '</div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'signal') {
+        html += '<div style="margin-bottom:20px;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">📡</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">The Weekly Signal</div>' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;">Curated Bitcoin insights and site updates.</p>' +
+            '</div>';
+
+        // Curated "Newsletter" content
+        const newsletters = [
+            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But gigi explains why energy is the point...', link: 'pow-vs-pos' },
+            { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Parker Lewis breaks down why we don\'t need thousands of stocks if we have one form of hard money.', link: 'problems-of-money' },
+            { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Why even if every miner in the world wanted to change the supply, they couldn\'t.', link: 'scarce' }
+        ];
+
+        newsletters.forEach(n => {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;cursor:pointer;transition:0.2s;text-align:left;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'" onclick="hideUsernamePrompt(); go(\''+n.link+'\',null,false)">' +
+                '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + n.date.toUpperCase() + '</div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:6px;">' + n.title + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;">' + n.snippet + '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:10px;">Tap to read more →</div>' +
+                '</div>';
+        });
+
+        const isOptedIn = (currentUser && currentUser.newsletterOptIn);
+        if (!isOptedIn) {
+            html += '<div style="padding:20px;background:var(--accent-bg);border-radius:16px;text-align:center;margin-top:20px;border:1px dashed var(--accent);">' +
+                '<div style="font-size:1.5rem;margin-bottom:8px;">📧</div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Get these via Email?</div>' +
+                '<button onclick="optInNewsletter(); showSettingsPage(\'signal\')" style="margin-top:12px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Join Newsletter</button>' +
+                '</div>';
+        }
 
     } else if (settingsTab === 'tickets') {
         // Orange Tickets & Referral Program
