@@ -313,11 +313,13 @@ function getBadgeHTML() {
     for (const badge of BADGE_DEFS) {
         const earned = earnedBadges.has(badge.id);
         const pts = badge.pts || 20;
-        const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 ' + badge.desc;
+        const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
+        const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 Locked — ' + badge.desc;
+        
         html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')">' +
             '<div class="badge-emoji">' + (earned ? badge.emoji : '🔒') + '</div>' +
             '<div class="badge-name">' + badge.name + '</div>' +
-            '<div class="badge-tooltip">' + tip + '</div>' +
+            '<div class="badge-tooltip" style="white-space:normal;min-width:150px;line-height:1.4;">' + tip + requirementsText + '</div>' +
         '</div>';
     }
 
