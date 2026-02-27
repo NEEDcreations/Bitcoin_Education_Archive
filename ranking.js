@@ -1627,6 +1627,7 @@ function showSettingsPage(tab) {
     html += '</div>';
 
     if (settingsTab === 'account') {
+        var isAnon = user.isAnonymous;
         var settingsEmoji = getUserDisplayEmoji(lvl);
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:8px;">' + settingsEmoji + '</div>' +

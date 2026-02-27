@@ -9,6 +9,65 @@
 (function() {
 'use strict';
 
+// ---- Marketplace Rules ----
+var MARKETPLACE_RULES = [
+    { emoji: '⚡', title: 'Bitcoin Payments Only', desc: 'All transactions use Bitcoin (Lightning or on-chain). No fiat payments. Buyers and sellers handle payment directly — LightningMart is not an escrow or payment processor.' },
+    { emoji: '🚫', title: 'No Illegal or Illicit Items', desc: 'Strictly prohibited: drugs, weapons, stolen goods, counterfeit items, hacking tools, malware, pirated content, illegal services of any kind. Violation results in immediate ban and may be reported to authorities.' },
+    { emoji: '🔞', title: 'No Adult or Sexual Content', desc: 'No selling or advertising of sexual services, adult content, escort services, or any sexually explicit material. This is an educational Bitcoin marketplace — keep it appropriate for all ages.' },
+    { emoji: '🎭', title: 'No Fraud or Misrepresentation', desc: 'List items honestly. No fake photos, misleading descriptions, bait-and-switch tactics, or counterfeit goods. If it\'s used, say so. If it has defects, disclose them.' },
+    { emoji: '🛡️', title: 'Buyer & Seller Safety', desc: 'Meet in public places for local trades. Never share your seed phrase, private keys, or send Bitcoin before receiving the item. Use Lightning for instant, irreversible payments.' },
+    { emoji: '💰', title: 'No Money Laundering or Wash Trading', desc: 'No using the marketplace to launder money, create fake transactions, artificially inflate sales, or manipulate pricing. All listings must represent genuine offers.' },
+    { emoji: '📋', title: 'Accurate Listings', desc: 'Titles must clearly describe the item. Include condition, shipping options, and price in sats. One listing per item — no duplicate spam listings.' },
+    { emoji: '🤝', title: 'Be Professional & Respectful', desc: 'Communicate clearly with buyers/sellers. Respond to messages promptly. No harassment, threats, discrimination, or abusive language in any marketplace interaction.' },
+    { emoji: '🚫', title: 'No Financial Products or Securities', desc: 'No selling of financial instruments, investment schemes, MLM/pyramid schemes, "guaranteed returns," or unregistered securities. This is a marketplace for goods and services, not investments.' },
+    { emoji: '⚖️', title: 'Disputes & Moderation', desc: 'LightningMart does not mediate disputes. All sales are final between buyer and seller. Report fraudulent listings using the 🚩 button. Moderators may remove listings and ban users without notice.' },
+];
+
+function showMarketRules(force) {
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
+            '<div style="text-align:center;margin-bottom:16px;">' +
+                '<div style="font-size:2rem;margin-bottom:6px;">⚡</div>' +
+                '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">LightningMart Rules</h2>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">Read before buying or selling</div>' +
+            '</div>';
+
+    for (var i = 0; i < MARKETPLACE_RULES.length; i++) {
+        var r = MARKETPLACE_RULES[i];
+        html += '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;">' +
+            '<span style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">' + r.emoji + '</span>' +
+            '<div>' +
+                '<div style="color:var(--heading);font-size:0.85rem;font-weight:700;margin-bottom:2px;">' + r.title + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;">' + r.desc + '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    html += '<button onclick="acceptMarketRules()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;touch-action:manipulation;">I Understand — Let\'s Trade! ⚡</button>';
+    html += '</div></div>';
+
+    var div = document.createElement('div');
+    div.id = 'marketRulesOverlay';
+    div.innerHTML = html;
+    document.body.appendChild(div);
+}
+
+window.acceptMarketRules = function() {
+    localStorage.setItem('btc_market_rules_accepted', 'true');
+    var overlay = document.getElementById('marketRulesOverlay');
+    if (overlay) overlay.remove();
+};
+
+window.showMarketRulesBtn = function() {
+    showMarketRules(true);
+};
+
+function checkMarketRules() {
+    if (localStorage.getItem('btc_market_rules_accepted') !== 'true') {
+        showMarketRules(false);
+    }
+}
+
 // ---- Admin check ----
 function isMarketAdmin() {
     if (!auth || !auth.currentUser) return false;
@@ -99,6 +158,9 @@ window.renderMarketplace = function(options) {
     container.style.display = 'block';
     container.innerHTML = '';
 
+    // Show rules on first visit
+    checkMarketRules();
+
     var activeCategory = options.category || 'all';
     var searchQuery = options.search || '';
     var sortBy = options.sort || 'newest';
@@ -124,6 +186,7 @@ window.renderMarketplace = function(options) {
             '</div>' +
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
+            '<button onclick="showMarketRulesBtn()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text-faint);border-radius:10px;font-size:0.8rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">📜 Rules</button>' +
             '<button onclick="showMyListings()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">📋 My Listings</button>' +
             '<button onclick="showCreateListing()" style="padding:8px 14px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;">+ Sell</button>' +
         '</div>' +
