@@ -1,0 +1,12 @@
+#!/bin/sh
+# Pre-commit hook: run all tests before allowing a commit
+echo "🧪 Running pre-commit tests..."
+node tests/run-all.js
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Tests failed — commit blocked"
+    echo "Fix the issues above before committing."
+    exit 1
+fi
+echo ""
+echo "✅ All tests passed — committing"

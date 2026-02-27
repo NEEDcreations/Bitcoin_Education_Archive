@@ -783,6 +783,96 @@ window.markSold = function(listingId) {
 };
 
 // ---- Delete Listing ----
+// ---- Edit Listing ----
+window.editListing = function(listingId) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('marketplace').doc(listingId).get().then(function(doc) {
+        if (!doc.exists) { showToast('Listing not found'); return; }
+        var l = doc.data();
+        // Only owner or admin can edit
+        if (l.sellerUid !== auth.currentUser.uid && !isMarketAdmin()) {
+            showToast('You can only edit your own listings');
+            return;
+        }
+        // Open create form pre-filled with existing data
+        showCreateListing();
+        // Wait for DOM to render, then fill in fields
+        setTimeout(function() {
+            var titleEl = document.getElementById('mktTitle');
+            var priceEl = document.getElementById('mktPrice');
+            var catEl = document.getElementById('mktCategory');
+            var condEl = document.getElementById('mktCondition');
+            var descEl = document.getElementById('mktDesc');
+            var imgEl = document.getElementById('mktImage');
+            var lnEl = document.getElementById('mktLightning');
+            var shipEl = document.getElementById('mktShipping');
+            var localEl = document.getElementById('mktLocal');
+            if (titleEl) titleEl.value = l.title || '';
+            if (priceEl) { priceEl.value = l.priceSats || ''; updateMktPriceUSD(); }
+            if (catEl) catEl.value = l.category || '';
+            if (condEl) condEl.value = l.condition || '';
+            if (descEl) descEl.value = l.description || '';
+            if (imgEl && l.imageUrl && !l.imageUrl.startsWith('data:')) imgEl.value = l.imageUrl || '';
+            if (lnEl) lnEl.value = l.lightningAddress || '';
+            if (shipEl) shipEl.checked = !!l.shipping;
+            if (localEl) localEl.checked = !!l.local;
+            // Change header and button to "Update"
+            var overlay = document.getElementById('createListingOverlay');
+            if (overlay) {
+                var header = overlay.querySelector('div[style*="font-size:1.2rem"]');
+                if (header) header.textContent = '✏️ Edit Listing';
+            }
+            // Override submit to update instead of create
+            var submitBtn = overlay ? overlay.querySelector('button[onclick*="submitListing"]') : null;
+            if (submitBtn) {
+                submitBtn.textContent = '✏️ Update Listing';
+                submitBtn.onclick = function() { updateExistingListing(listingId); };
+            }
+        }, 100);
+    }).catch(function(e) {
+        showToast('Error loading listing: ' + (e.message || 'Unknown'));
+    });
+};
+
+// ---- Update Existing Listing ----
+window.updateExistingListing = function(listingId) {
+    var title = (document.getElementById('mktTitle').value || '').trim();
+    var price = parseInt(document.getElementById('mktPrice').value);
+    var category = document.getElementById('mktCategory').value;
+    var condition = document.getElementById('mktCondition').value;
+    var desc = (document.getElementById('mktDesc').value || '').trim();
+    var imageUrl = window._mktUploadedImage || (document.getElementById('mktImage').value || '').trim();
+    var lightning = (document.getElementById('mktLightning').value || '').trim();
+    var shipping = document.getElementById('mktShipping').checked;
+    var local = document.getElementById('mktLocal').checked;
+
+    if (!title || title.length < 3) { showToast('Please enter a title (3+ characters)'); return; }
+    if (!price || price < 1) { showToast('Please enter a price in sats'); return; }
+
+    var updateData = {
+        title: title.substring(0, 80),
+        priceSats: price,
+        category: category,
+        condition: condition,
+        description: desc.substring(0, 1000),
+        lightningAddress: lightning,
+        shipping: shipping,
+        local: local,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    if (imageUrl) updateData.imageUrl = imageUrl;
+
+    db.collection('marketplace').doc(listingId).update(updateData).then(function() {
+        var overlay = document.getElementById('createListingOverlay');
+        if (overlay) overlay.remove();
+        showToast('✅ Listing updated!');
+        window._mktUploadedImage = null;
+        renderMarketplace({ listingId: listingId });
+    }).catch(function(e) {
+        showToast('Error updating: ' + (e.message || 'Unknown'));
+    });
+};
+
 window.deleteListing = function(listingId) {
     if (!auth || !auth.currentUser) return;
     var isAdmin = isMarketAdmin();
