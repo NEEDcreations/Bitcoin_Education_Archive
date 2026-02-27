@@ -2453,6 +2453,103 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
 
+    // ---- SMART MEMORY: Reference previous topics ----
+    var memoryPrefix = '';
+    var recentTopics = [];
+    if (typeof window._nachoModeTopics !== 'undefined' && window._nachoModeTopics && window._nachoModeTopics.length > 0) {
+        recentTopics = window._nachoModeTopics.slice(-3);
+        var isFollowUp = false;
+        var referencedTopic = '';
+        
+        for (var ti = recentTopics.length - 1; ti >= 0; ti--) {
+            var prevTopic = recentTopics[ti].toLowerCase();
+            var currentQ = q.toLowerCase();
+            var keyTerms = prevTopic.replace(/what is|how to|why|the|a|an|in|on|at/g, '').trim().split(' ').filter(function(w) { return w.length > 3; });
+            
+            for (var ki = 0; ki < keyTerms.length; ki++) {
+                if (currentQ.indexOf(keyTerms[ki]) !== -1) {
+                    isFollowUp = true;
+                    referencedTopic = recentTopics[ti];
+                    break;
+                }
+            }
+            if (isFollowUp) break;
+        }
+        
+        if (!isFollowUp && (q.match(/^(tell me more|explain more|why|how|what about|and|so)/i) || q.length < 15)) {
+            if (recentTopics.length > 0) {
+                referencedTopic = recentTopics[recentTopics.length - 1];
+                isFollowUp = true;
+            }
+        }
+        
+        if (isFollowUp && referencedTopic) {
+            var memoryIntros = [
+                "Building on what you asked about '{topic}' — ",
+                "Great follow-up to your question about '{topic}'! ",
+                "Connecting this to '{topic}' — ",
+                "Since you were curious about '{topic}', ",
+                "To expand on '{topic}': "
+            ];
+            memoryPrefix = memoryIntros[Math.floor(Math.random() * memoryIntros.length)].replace('{topic}', referencedTopic.substring(0, 40) + (referencedTopic.length > 40 ? '...' : ''));
+        }
+    }
+    
+    // Wrap callback to inject memory prefix
+    var originalCallback = callback;
+    callback = function(result) {
+        if (memoryPrefix && result && result.answer && result.type !== 'crisis' && result.type !== 'harm' && result.type !== 'profanity') {
+            result.answer = memoryPrefix + result.answer;
+        }
+        originalCallback(result);
+    };
+
+    // ---- END SMART MEMORY ----
+    var memoryPrefix = '';
+    if (typeof window._nachoModeTopics !== 'undefined' && window._nachoModeTopics && window._nachoModeTopics.length > 0) {
+        var recentTopics = window._nachoModeTopics.slice(-3); // Last 3 topics
+        var isFollowUp = false;
+        var referencedTopic = '';
+        
+        // Check if current question is a follow-up to recent topics
+        for (var ti = recentTopics.length - 1; ti >= 0; ti--) {
+            var prevTopic = recentTopics[ti].toLowerCase();
+            var currentQ = q.toLowerCase();
+            
+            // Extract key terms from previous topic
+            var keyTerms = prevTopic.replace(/what is|how to|why|the|a|an|in|on|at/g, '').trim().split(' ').filter(function(w) { return w.length > 3; });
+            
+            // Check if any key term appears in current question
+            for (var ki = 0; ki < keyTerms.length; ki++) {
+                if (currentQ.indexOf(keyTerms[ki]) !== -1) {
+                    isFollowUp = true;
+                    referencedTopic = recentTopics[ti];
+                    break;
+                }
+            }
+            if (isFollowUp) break;
+        }
+        
+        // If it's a vague follow-up like "tell me more" or "why?"
+        if (!isFollowUp && (q.match(/^(tell me more|explain more|why|how|what about|and|so)/i) || q.length < 15)) {
+            if (recentTopics.length > 0) {
+                referencedTopic = recentTopics[recentTopics.length - 1];
+                isFollowUp = true;
+            }
+        }
+        
+        if (isFollowUp && referencedTopic) {
+            var memoryIntros = [
+                "Building on what you asked about '{topic}' — ",
+                "Great follow-up to your question about '{topic}'! ",
+                "Connecting this to '{topic}' — ",
+                "Since you were curious about '{topic}', ",
+                "To expand on '{topic}': "
+            ];
+            memoryPrefix = memoryIntros[Math.floor(Math.random() * memoryIntros.length)].replace('{topic}', referencedTopic.substring(0, 40) + (referencedTopic.length > 40 ? '...' : ''));
+        }
+    }
+
     // ---- STEP 1: Safety (instant, hardcoded) ----
     if (isCrisis(q)) {
         callback({ type: 'crisis', answer: pq(CRISIS_RESPONSE) });

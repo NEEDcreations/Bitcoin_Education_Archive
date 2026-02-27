@@ -2810,9 +2810,42 @@ function openImg(src) {
         }, 500);
     }
 
+    // Trending topics data
+    const TRENDING_TOPICS = [
+        { q: 'What is Bitcoin?', icon: '💰', reason: 'Most asked' },
+        { q: 'Lightning Network', icon: '⚡', reason: 'Trending' },
+        { q: 'How to buy Bitcoin', icon: '🛒', reason: 'Popular' },
+        { q: 'Self-custody wallets', icon: '🔐', reason: 'Essential' },
+        { q: 'Bitcoin vs Ethereum', icon: '🆚', reason: 'Hot topic' },
+        { q: 'Why 21 million?', icon: '🔢', reason: 'Fundamental' },
+        { q: 'Mining explained', icon: '⛏️', reason: 'Technical' },
+        { q: 'Bitcoin security', icon: '🛡️', reason: 'Important' }
+    ];
+
+    function showTrendingTopics() {
+        var sr = document.getElementById('searchResults');
+        if (!sr) return;
+        var html = '<div style="padding:20px 16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700;">🔥 Trending Topics</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+        TRENDING_TOPICS.forEach(function(t) {
+            html += '<button onclick="document.getElementById(\'searchInput\').value=\'' + t.q.replace(/'/g, "\\'") + '\';doSearch(\'' + t.q.replace(/'/g, "\\'") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
+                '<span>' + t.icon + '</span>' +
+                '<span>' + escapeHtml(t.q) + '</span>' +
+                '<span style="font-size:0.65rem;color:var(--text-faint);margin-left:4px;">' + t.reason + '</span>' +
+            '</button>';
+        });
+        html += '</div></div>';
+        sr.innerHTML = html;
+        sr.classList.add('active');
+    }
+
     function renderSearchResults(results, sr) {
         if (results.length === 0) {
-            sr.innerHTML = '<div style="padding:16px;color:#475569;text-align:center;">No results found</div>';
+            sr.innerHTML = '<div style="padding:20px;text-align:center;">' +
+                '<div style="color:var(--text-faint);margin-bottom:12px;">No results found</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-muted);">Try: "Lightning Network" or "What is Bitcoin?"</div>' +
+            '</div>';
             return;
         }
         sr.innerHTML = results.slice(0, 30).map(r => {

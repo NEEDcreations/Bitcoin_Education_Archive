@@ -989,9 +989,41 @@ window.showNacho = function() {
     
     // Smart Greeting selection
     var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+    var channelsVisited = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.channelsVisited || 0 : 0;
     var greeting;
     
-    if (visits > 20) {
+    // NEW: First-time user tour (First 5 Minutes)
+    if (visits <= 2 && channelsVisited < 3 && !localStorage.getItem('btc_nacho_tour_shown')) {
+        var tourSteps = [
+            { text: "Welcome to the Bitcoin Education Archive, {name}! I'm Nacho, your deer guide! 🦌", pose: 'wave', delay: 0 },
+            { text: "Click the grid icons to explore Bitcoin topics. Start with the orange ones — they're beginner-friendly! 📚", pose: 'point', delay: 4000 },
+            { text: "See the 🔥 number? That's your streak! Come back daily to keep it growing. ⚡", pose: 'fire', delay: 8000 },
+            { text: "Tap me anytime to chat, or double-tap to enter Nacho Mode for deep conversations! 💬", pose: 'cheese', delay: 12000 }
+        ];
+        
+        tourSteps.forEach(function(step, idx) {
+            setTimeout(function() {
+                if (idx > 0) setPose(step.pose);
+                forceShowBubble(personalize(step.text));
+            }, step.delay);
+        });
+        
+        // Mark tour as shown
+        localStorage.setItem('btc_nacho_tour_shown', 'true');
+        return;
+    }
+    
+    // NEW: Early user tips (visits 3-10)
+    if (visits > 2 && visits <= 10 && channelsVisited < 10) {
+        var tips = [
+            "Pro tip {name}: Use the ⚡ tab to check the Bitcoin price anytime! 📈",
+            "Did you know? Completing a Quest earns you bonus Orange Tickets! 🎟️",
+            "Try tapping the Menu (☰) to see your progress on the Exploration Map! 🗺️",
+            "You can customize my outfit in Settings → Stats/Nacho → Closet! 👔"
+        ];
+        greeting = tips[Math.floor(Math.random() * tips.length)];
+        setPose('cool');
+    } else if (visits > 20) {
         // Veteran greetings: Facts & Wisdom
         var facts = [
             "Tick tock, next block! Ready for some high-signal learning, {name}? 🧱",
