@@ -175,6 +175,8 @@
         .share-bar { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
         .share-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-dim); font-family: inherit; transition: 0.2s; }
         .share-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .flash-btn { padding: 8px 16px; background: var(--bg-side); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.85rem; cursor: pointer; font-family: inherit; transition: 0.2s; }
+        .flash-btn:hover { border-color: var(--accent); }
         .share-btn.copied { background: var(--accent); color: #fff; border-color: var(--accent); }
 
         /* Image gallery mode */
@@ -761,13 +763,18 @@
                     </div>
                     <div id="moreFlashcards" style="display:none;margin-top:10px;">
                         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
-                            <button onclick="startFlashcards('Privacy & Sovereignty')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🕵️ Privacy & Sovereignty</button>
-                            <button onclick="startFlashcards('Nodes & P2P')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">📡 Nodes & P2P</button>
-                            <button onclick="startFlashcards('History & Culture')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">📜 History & Culture</button>
-                            <button onclick="startFlashcards('Wallets & Tools')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">💼 Wallets & Tools</button>
-                            <button onclick="startFlashcards('El Salvador & Adoption')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🇸🇻 El Salvador & Adoption</button>
-                            <button onclick="startFlashcards('Common Myths')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🚫 Common Myths</button>
-                            <button onclick="startFlashcards('Technical Deep Dives')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔬 Technical Deep Dives</button>
+                            <button onclick="startFlashcards('Privacy & Sovereignty')" class="flash-btn">🕵️ Privacy & Sovereignty</button>
+                            <button onclick="startFlashcards('Nodes & P2P')" class="flash-btn">📡 Nodes & P2P</button>
+                            <button onclick="startFlashcards('Wallets & Tools')" class="flash-btn">💼 Wallets & Tools</button>
+                            <button onclick="startFlashcards('History & Culture')" class="flash-btn">📜 History & Culture</button>
+                            <button onclick="startFlashcards('El Salvador & Adoption')" class="flash-btn">🇸🇻 El Salvador & Adoption</button>
+                            <button onclick="startFlashcards('Common Myths')" class="flash-btn">🚫 Common Myths</button>
+                            <button onclick="startFlashcards('Technical Deep Dives')" class="flash-btn">🔬 Technical Deep Dives</button>
+                            <button onclick="startFlashcards('Austrian Economics')" class="flash-btn">🇦🇹 Austrian Economics</button>
+                            <button onclick="startFlashcards('Cypherpunk History')" class="flash-btn">🕵️ Cypherpunk History</button>
+                            <button onclick="startFlashcards('Bitcoin Governance')" class="flash-btn">🏛️ Bitcoin Governance</button>
+                            <button onclick="startFlashcards('Satoshi Nakamoto')" class="flash-btn">🦸 Satoshi Nakamoto</button>
+                            <button onclick="startFlashcards('Global Impact')" class="flash-btn">🌍 Global Impact</button>
                         </div>
                     </div>
                     <button id="expandFlashBtn" onclick="var m=document.getElementById('moreFlashcards');if(m.style.display==='none'){m.style.display='block';this.textContent='▲ Show Less'}else{m.style.display='none';this.textContent='▼ Show More Topics'}" style="margin-top:10px;padding:6px 16px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">▼ Show More Topics</button>

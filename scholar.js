@@ -7266,79 +7266,188 @@ window.startFlashcards = function(topic) {
     if (!modal || !inner) return;
 
     const flashData = {
-        'Bitcoin Basics': [
-            { q: "What is the total supply cap of Bitcoin?", a: "21 Million. This limit is hardcoded and cannot be changed without near-universal consensus." },
-            { q: "Who created Bitcoin?", a: "Satoshi Nakamoto. The pseudonymous creator who published the whitepaper in 2008." },
-            { q: "What is a 'Sat'?", a: "The smallest unit of Bitcoin. 1 Bitcoin = 100,000,000 sats." },
-            { q: "What is the Genesis Block?", a: "The very first block in the Bitcoin blockchain, mined on Jan 3, 2009." }
-        ],
-        'Security & Storage': [
-            { q: "What is a seed phrase?", a: "A list of 12 or 24 words that serves as the master key to your entire wallet. Never share it!" },
-            { q: "What is the rule of 'Not your keys'?", a: "\"Not your keys, not your coins.\" If you don't hold the private keys, you don't own the Bitcoin." },
-            { q: "What is a hardware wallet?", a: "A physical device that keeps your private keys offline, away from internet-connected hackers." },
-            { q: "Why use a passphrase?", a: "It acts as a '25th word' that protects your wallet even if someone finds your 12/24 word seed." }
-        ],
-        'Lightning Network': [
-            { q: "What is the Lightning Network?", a: "A Layer 2 scaling solution for Bitcoin that allows for instant, near-free micro-payments." },
-            { q: "What is an HTLC?", a: "Hashed Time-Locked Contract—the fundamental building block that ensures Lightning payments are secure during routing." },
-            { q: "What is inbound liquidity?", a: "The ability for your Lightning node to receive payments. Someone else must have a channel balanced toward you." },
-            { q: "What are 'sats per byte'?", a: "A measure of the fee you pay to miners for including your transaction in the blockchain." }
-        ],
-        'Mining & Energy': [
-            { q: "How are new Bitcoins created?", a: "Through mining—a brute-force lottery where computers guess random numbers to secure the network." },
-            { q: "What is Proof of Work?", a: "The mechanism that requires miners to spend real energy to prove they did the work to secure a block." },
-            { q: "What is the Hash Rate?", a: "The total computational power being used to secure the Bitcoin network at any given moment." },
-            { q: "What is difficulty adjustment?", a: "A rule every 2016 blocks that keeps block times at ~10 minutes, no matter how many miners join or leave." }
-        ],
-        'Economics & Money': [
-            { q: "What makes Bitcoin 'Sound Money'?", a: "Its fixed supply, decentralization, and the fact that no government can inflate it away." },
-            { q: "What is Time Preference?", a: "The degree to which you value the present over the future. Bitcoin encourages lower time preference (saving)." },
-            { q: "What is 'The Cantillon Effect'?", a: "The phenomenon where those closest to the source of new money printing benefit at the expense of everyone else." },
-            { q: "What is Thiers' Law?", a: "The theory that people will eventually refuse 'bad money' (fiat) completely and only accept 'good money' (Bitcoin)." }
-        ],
-        'History & Culture': [
-            { q: "What was the first physical purchase with Bitcoin?", a: "Two pizzas for 10,000 BTC in 2010—celebrated every May 22nd as Bitcoin Pizza Day." },
-            { q: "Who is Hal Finney?", a: "A legendary cryptographer and the first person to receive a Bitcoin transaction from Satoshi." },
-            { q: "What happened in the 'Blocksize Wars'?", a: "A 2015-2017 battle where users successfully fought to keep Bitcoin nodes accessible and decentralized." },
-            { q: "What is 'HODL'?", a: "A mantra for long-term conviction, born from a famous misspelling in a 2013 Bitcoin forum post." }
-        ],
-        'Privacy & Sovereignty': [
-            { q: "What is a CoinJoin?", a: "A collaborative transaction that mixes Bitcoin from multiple users to break the link between inputs and outputs." },
-            { q: "What is KYC?", a: "Know Your Customer—regulations that link your identity to your Bitcoin. Privacy-conscious users prefer Non-KYC methods." },
-            { q: "Why is financial privacy a human right?", a: "It protects individuals from surveillance, censorship, and arbitrary seizure by powerful entities." },
-            { q: "What is PayJoin?", a: "A privacy technique where a sender and receiver both contribute inputs, making it look like a normal spend to chain analysts." }
-        ],
-        'Nodes & P2P': [
-            { q: "Why run your own node?", a: "To verify your own transactions and enforce the rules of the network without trusting a third party." },
-            { q: "What is 'Initial Block Download' (IBD)?", a: "The process where a new node downloads and verifies the entire blockchain from the Genesis block." },
-            { q: "What is a 'mempool'?", a: "The waiting room for unconfirmed transactions before they are picked up by a miner for a block." },
-            { q: "What is BIP 324?", a: "An upgrade that provides encryption between Bitcoin nodes to prevent ISP surveillance and MITM attacks." }
-        ],
-        'Wallets & Tools': [
-            { q: "What is a Coldcard?", a: "A security-focused, air-gapped hardware signer that uses a microSD card to sign transactions." },
-            { q: "What is Sparrow Wallet?", a: "A professional-grade Bitcoin desktop wallet optimized for UTXO management and node connectivity." },
-            { q: "What is an xpub?", a: "An Extended Public Key that allows a wallet to generate all your future addresses for viewing, without spending power." },
-            { q: "What is multisig?", a: "A 'Vault' setup that requires multiple keys (e.g. 2-of-3) to authorize a transaction, eliminating single points of failure." }
-        ],
-        'El Salvador & Adoption': [
-            { q: "When did El Salvador adopt Bitcoin?", a: "September 7, 2021. It became the first nation in the world to make Bitcoin legal tender." },
-            { q: "What is 'Bitcoin Beach'?", a: "The ground-zero circular economy project in El Zonte, El Salvador, where Bitcoin adoption first took root." },
-            { q: "What is the Chivo Wallet?", a: "The official (custodial) Bitcoin wallet of the El Salvador government." },
-            { q: "What are 'Volcano Bonds'?", a: "Proposed government bonds backed by Bitcoin and powered by volcanic geothermal energy." }
-        ],
-        'Technical Deep Dives': [
-            { q: "What are Schnorr Signatures?", a: "A more efficient and private signature scheme introduced with the Taproot upgrade." },
-            { q: "What is a Virtual Byte (vByte)?", a: "A measure of transaction size in SegWit where witness data is discounted compared to base data." },
-            { q: "What is MuSig2?", a: "A protocol for creating aggregated Schnorr signatures, improving the privacy and efficiency of multisig." },
-            { q: "What is 'The Annex'?", a: "An optional, forward-compatible field added in Taproot for future extensibility of the protocol." }
-        ],
-        'Common Myths': [
-            { q: "Is Bitcoin 'Too slow'?", a: "No. The base layer is for settlement; the Lightning Network allows for millions of instant transactions per second." },
-            { q: "Is Bitcoin 'Backed by nothing'?", a: "Bitcoin is backed by the most secure computer network on Earth and the laws of physics/mathematics." },
-            { q: "Does Bitcoin 'waste energy'?", a: "No. Bitcoin secures a global financial system and often monetizes wasted energy (like methane flaring)." },
-            { q: "Is Bitcoin 'just for criminals'?", a: "False. Cash is used far more for crime. Bitcoin's public ledger actually makes it a poor choice for criminals." }
-        ]
-    };
+    'Bitcoin Basics': [
+        { q: "What is the total supply cap of Bitcoin?", a: "21 Million. This limit is hardcoded and cannot be changed without near-universal consensus." },
+        { q: "Who created Bitcoin?", a: "Satoshi Nakamoto. The pseudonymous creator who published the whitepaper in 2008 and disappeared in 2011." },
+        { q: "What is a 'Sat' or 'Satoshi'?", a: "The smallest unit of Bitcoin. 1 Bitcoin = 100,000,000 sats." },
+        { q: "What is the Genesis Block?", a: "The very first block in the Bitcoin blockchain, mined by Satoshi on Jan 3, 2009." },
+        { q: "What is the block time target?", a: "10 minutes. The difficulty adjustment ensures blocks are found at this average interval regardless of hash rate." },
+        { q: "What is a Halving?", a: "An event every 4 years (210,000 blocks) where the reward for mining new blocks is cut in half." },
+        { q: "What is the current block reward?", a: "3.125 BTC (as of the 2024 halving). It started at 50 BTC in 2009." },
+        { q: "What is a transaction fee?", a: "Sats paid to miners to prioritize your transaction in the next block. It is based on transaction size, not amount." },
+        { q: "What is a block?", a: "A container for transactions. In Bitcoin, blocks are linked cryptographically into a chain." },
+        { q: "What is the mempool?", a: "A 'waiting room' for unconfirmed transactions before a miner picks them up for a block." }
+    ],
+    'Security & Storage': [
+        { q: "What is a seed phrase?", a: "A list of 12 or 24 words that serves as the master key to your entire wallet. Never share it!" },
+        { q: "What is the golden rule of custody?", a: "\"Not your keys, not your coins.\" If you don't hold the private keys, you don't truly own the money." },
+        { q: "What is a hardware wallet?", a: "A physical device that keeps your private keys offline, protecting them from hackers and malware." },
+        { q: "What is 2FA?", a: "Two-Factor Authentication. An extra layer of security beyond just your password, though not a replacement for self-custody." },
+        { q: "What is a passphrase?", a: "An optional '13th' or '25th' word added to a seed phrase. It creates a completely different wallet from the same seed." },
+        { q: "What is an Air-gapped wallet?", a: "A device that never connects to the internet. Transactions are moved via QR codes or microSD cards." },
+        { q: "What is Multi-sig?", a: "A setup requiring multiple keys to authorize a spend (e.g., 2-of-3). It eliminates single points of failure." },
+        { q: "What is a cold wallet?", a: "Any wallet where the private keys were generated and are stored offline." },
+        { q: "What is a hot wallet?", a: "A wallet connected to the internet, like a phone app or exchange account. Higher risk for long-term storage." },
+        { q: "What is key derivation?", a: "The process of generating unlimited addresses from a single seed phrase using a mathematical standard (BIP 32)." }
+    ],
+    'Lightning Network': [
+        { q: "What is the Lightning Network?", a: "A 'Layer 2' scaling solution for Bitcoin that allows for instant, near-free micro-payments." },
+        { q: "What is a payment channel?", a: "A direct link between two users on the Lightning Network where they can transact instantly off-chain." },
+        { q: "What is an HTLC?", a: "Hashed Time-Locked Contract. A smart contract that ensures payments are either delivered or returned safely." },
+        { q: "What is Inbound Liquidity?", a: "The ability to receive payments on Lightning. Someone else must have a channel balanced toward you." },
+        { q: "What is a sat/byte?", a: "A measure of the fee density you pay to miners for on-chain settlement." },
+        { q: "What is a Lightning invoice?", a: "A one-time-use request for payment on the Lightning Network, usually a QR code." },
+        { q: "What is a BOLT?", a: "Basics of Lightning Technology. These are the technical specifications (BIP-equivalent) for the Lightning Network." },
+        { q: "What is a Watchtower?", a: "A service that monitors the blockchain to prevent channel partners from attempting to cheat while you are offline." },
+        { q: "What is routing?", a: "The process of moving a payment through multiple nodes to reach a recipient you don't have a direct channel with." },
+        { q: "What is LNURL?", a: "A protocol that makes Lightning more user-friendly, supporting static QR codes and withdrawal links." }
+    ],
+    'Mining & Energy': [
+        { q: "What is Bitcoin mining?", a: "The process where computers compete to find blocks, securing the network and earning rewards." },
+        { q: "What is Proof of Work?", a: "The consensus mechanism that requires miners to spend real-world energy to secure the network." },
+        { q: "What is the Hash Rate?", a: "A measure of the total computational power being used to secure the Bitcoin network at any given time." },
+        { q: "How often are new blocks found?", a: "On average, every 10 minutes. The difficulty adjustment ensures this remains consistent." },
+        { q: "What is an ASIC?", a: "Application-Specific Integrated Circuit. Specialized hardware designed solely for mining Bitcoin efficiently." },
+        { q: "What is a mining pool?", a: "A group of miners who share their hash power and split the rewards based on their contribution." },
+        { q: "What is the block subsidy?", a: "The fixed amount of new Bitcoin created in each block. It is currently 3.125 BTC." },
+        { q: "What is Stranded Energy?", a: "Energy produced in remote locations with no local buyers (like hydro or flare gas). Bitcoin miners capture this wasted value." },
+        { q: "What is the Difficulty Adjustment?", a: "A rule every 2016 blocks (~2 weeks) that recalibrates how hard it is to mine to maintain the 10-minute target." },
+        { q: "Is mining solving 'complex math puzzles'?", a: "No. It is a brute-force lottery of guessing random numbers (nonces) until a valid hash is found." }
+    ],
+    'Economics & Money': [
+        { q: "What is Sound Money?", a: "Money that cannot be easily debased or manipulated by any authority. It must be scarce and durable." },
+        { q: "What is Fiat money?", a: "Currency backed only by government decree, with no physical backing and an unlimited supply." },
+        { q: "What is Time Preference?", a: "The ratio at which you value present goods over future goods. Bitcoin encourages lower time preference (saving)." },
+        { q: "What is the Stock-to-Flow ratio?", a: "A measure of scarcity: existing supply divided by current annual production." },
+        { q: "What is the Cantillon Effect?", a: "The phenomenon where those closest to money printing benefit first, while others suffer from rising prices later." },
+        { q: "What is Hyper-bitcoinization?", a: "The theoretical process where Bitcoin becomes the world's dominant form of money and unit of account." },
+        { q: "What is an inflationary currency?", a: "Currency that loses purchasing power over time because the supply is constantly increasing." },
+        { q: "What is a Store of Value?", a: "An asset that can be saved, retrieved, and exchanged in the future without losing significant value." },
+        { q: "What is the 'Double Coincidence of Wants'?", a: "The problem in barter where two people must want exactly what the other has. Money solves this as an intermediary." },
+        { q: "What is Gresham's Law?", a: "The observation that 'bad money drives out good.' People spend devaluing fiat and hoard scarce Bitcoin." }
+    ],
+    'History & Culture': [
+        { q: "What was the first real-world Bitcoin purchase?", a: "Two pizzas for 10,000 BTC in 2010—now celebrated every May 22nd as Bitcoin Pizza Day." },
+        { q: "Who is Hal Finney?", a: "A legendary cryptographer, the first person to receive a transaction from Satoshi, and author of the first Bitcoin tweet." },
+        { q: "What is 'HODL'?", a: "A misspelling of 'hold' that became a mantra for long-term conviction during volatile market cycles." },
+        { q: "What is the Whitepaper?", a: "The original 9-page document by Satoshi Nakamoto that first described how Bitcoin works." },
+        { q: "What were the 'Blocksize Wars'?", a: "A 2015-2017 battle where users successfully fought to keep Bitcoin decentralized against corporate big-block interests." },
+        { q: "What is a Cypherpunk?", a: "A member of the movement that believes privacy and individual liberty can be protected through cryptography." },
+        { q: "What is the message in the Genesis Block?", a: "\"The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.\"" },
+        { q: "Who is Adam Back?", a: "The inventor of Hashcash (Bitcoin's PoW ancestor) and a prominent Bitcoin developer." },
+        { q: "What is a 'Pleb'?", a: "A term used by Bitcoiners to describe everyday, committed users who are not part of the elite financial class." },
+        { q: "What is the 'Orange Pill'?", a: "A reference to The Matrix, describing the moment someone truly understands why Bitcoin is necessary." }
+    ],
+    'Privacy & Sovereignty': [
+        { q: "What is a CoinJoin?", a: "A collaborative transaction that mixes Bitcoin from multiple users to break the link between inputs and outputs." },
+        { q: "What is KYC?", a: "Know Your Customer. Regulations that force exchanges to collect your ID, linking your identity to your coins." },
+        { q: "Why use a VPN or Tor?", a: "To hide your IP address from nodes and trackers, protecting your physical location from being linked to your wallet." },
+        { q: "What is a PayJoin?", a: "A privacy technique where a sender and receiver both contribute inputs, defeating common chain analysis heuristics." },
+        { q: "What is a 'Dusting Attack'?", a: "Tiny amounts of BTC sent to addresses to track the owner's movement and attempt deanonymization." },
+        { q: "What is an xpub?", a: "An Extended Public Key. It allows a wallet to generate all your future addresses for viewing, but has no spending power." },
+        { q: "What is a change address?", a: "An address used to receive the leftover Bitcoin from a transaction you sent. Good wallets use a new one every time." },
+        { q: "What is self-sovereignty?", a: "Having absolute control over your own property and data without depending on any third party or institution." },
+        { q: "What is a Non-KYC Bitcoin?", a: "Bitcoin acquired through P2P markets, mining, or trade without ever providing a government identity." },
+        { q: "Is Bitcoin 'anonymous'?", a: "No. It is pseudonymous. Every transaction is public on the ledger, but not necessarily linked to a name." }
+    ],
+    'Nodes & P2P': [
+        { q: "What is a full node?", a: "A computer that stores the entire blockchain and independently verifies every single transaction and rule." },
+        { q: "Why run your own node?", a: "To enforce the rules of the network for yourself and ensure you aren't being lied to by a third party." },
+        { q: "What is Initial Block Download (IBD)?", a: "The process where a new node downloads and validates the entire history of Bitcoin from block zero." },
+        { q: "What is a pruned node?", a: "A node that validates the full chain but deletes old block data to save disk space, keeping only the most recent blocks." },
+        { q: "How many nodes are on the Bitcoin network?", a: "Estimated between 15,000 and 50,000 publicly reachable nodes, and many more private ones." },
+        { q: "What is a peer-to-peer network?", a: "A network where participants communicate directly with each other without a central server." },
+        { q: "What is BIP 324?", a: "A protocol upgrade that provides encryption between Bitcoin nodes to prevent ISP surveillance." },
+        { q: "What is an Inventory (inv) message?", a: "A P2P message used by nodes to tell their peers about new blocks or transactions they've seen." },
+        { q: "Does a miner need a node?", a: "Yes. Every miner needs a node to construct block templates and listen for the latest chain updates." },
+        { q: "What is the 'Nakamoto Consensus'?", a: "The combination of Proof-of-Work and the 'Longest Chain Rule' to achieve global agreement on history." }
+    ],
+    'Wallets & Tools': [
+        { q: "What is a Coldcard?", a: "A security-focused, air-gapped hardware signer that uses a microSD card to sign transactions." },
+        { q: "What is Sparrow Wallet?", a: "A professional-grade Bitcoin desktop wallet optimized for UTXO management and node connectivity." },
+        { q: "What is a Block Explorer?", a: "A website (like Mempool.space) that allows you to view transactions, blocks, and network statistics." },
+        { q: "What is a seed plate?", a: "A piece of stainless steel or titanium used to engrave your seed phrase for permanent, fireproof backup." },
+        { q: "What is a multisig 'Vault'?", a: "A high-security setup using separate devices (e.g., Coldcard + Trezor) to protect large amounts of Bitcoin." },
+        { q: "What is a BIP?", a: "Bitcoin Improvement Proposal. A formal document used to propose and discuss changes to the Bitcoin protocol." },
+        { q: "What is a hardware signer?", a: "A term often used for hardware wallets to emphasize that they ONLY sign transactions and do not actually 'store' coins." },
+        { q: "What is a watch-only wallet?", a: "A wallet (often on a phone) that tracks your balance and addresses but cannot spend because it has no private keys." },
+        { q: "What is an LNURL-withdraw?", a: "A QR code that, when scanned, triggers a node to send Lightning sats to the person who scanned it." },
+        { q: "What is MuSig2?", a: "A standard for creating aggregated Schnorr signatures, improving the privacy and efficiency of multisig." }
+    ],
+    'Austrian Economics': [
+        { q: "Who is Ludwig von Mises?", a: "A famous Austrian economist who wrote 'Human Action' and theorized that markets are processes, not static models." },
+        { q: "What is the Regression Theorem?", a: "Mises' theory that a medium of exchange must have had value as a non-monetary commodity first (challenged by Bitcoin)." },
+        { q: "What is Sound Money according to Hayek?", a: "Money that is subject to market competition rather than state monopoly, as argued in 'The Denationalization of Money'." },
+        { q: "What is inflation in the Austrian view?", a: "An increase in the total supply of money, not just an increase in prices." },
+        { q: "Why is decentralized market pricing important?", a: "It provides the 'knowledge bits' necessary for entrepreneurs to calculate and allocate resources efficiently." },
+        { q: "What is malinvestment?", a: "Poor allocation of capital caused by artificially low interest rates and money printing, leading to economic bubbles." },
+        { q: "What is 'Hard Money'?", a: "Money with an supply that is difficult to increase, like gold or Bitcoin. It preserves purchasing power over time." },
+        { q: "What is the 'Subjective Theory of Value'?", a: "The economic principle that the value of a good is not inherent, but assigned by individuals based on their needs." },
+        { q: "How does Bitcoin encourage savings?", a: "By being non-inflationary, users know their money will likely buy more in the future, rewarding patience." },
+        { q: "What is 'Sound Money'?", a: "Money that has its value determined by the market, free from government or central bank manipulation." }
+    ],
+    'Cypherpunk History': [
+        { q: "What is the Cypherpunk Manifesto?", a: "A 1993 document by Eric Hughes stating that 'Privacy is necessary for an open society in the electronic age'." },
+        { q: "Who is David Chaum?", a: "A cryptography pioneer who created E-cash in the 1980s, the first attempt at private digital money." },
+        { q: "What was 'Bit Gold'?", a: "A 1998 proposal by Nick Szabo that featured Proof-of-Work and fixed supply, very similar to Bitcoin." },
+        { q: "Who were the 'Cypherpunks'?", a: "A group of activists and programmers who advocated for social change through cryptography and privacy-enhancing tech." },
+        { q: "What was 'B-money'?", a: "A 1998 proposal by Wei Dai for an anonymous, distributed electronic cash system cited in the Bitcoin whitepaper." },
+        { q: "What happened in the 90s 'Crypto Wars'?", a: "A battle between the US government and privacy advocates over whether civilian use of strong encryption should be legal." },
+        { q: "Who is Julian Assange?", a: "A cypherpunk and founder of WikiLeaks who used Bitcoin early on when banks blocked their donations." },
+        { q: "What is 'Cypherspace'?", a: "The theoretical realm where individuals can interact and transact with absolute privacy using cryptography." },
+        { q: "Was the Bitcoin whitepaper published on a blog?", a: "No. It was posted to the Cryptography Mailing List on Halloween, 2008." },
+        { q: "What is PGP?", a: "Pretty Good Privacy. An early encryption program that started a major legal battle for digital freedom." }
+    ],
+    'Bitcoin Governance': [
+        { q: "Who controls Bitcoin's rules?", a: "The users. By running their own nodes, individuals decide which rules they will follow." },
+        { q: "What is a soft fork?", a: "A backward-compatible protocol upgrade where old nodes still consider new blocks valid." },
+        { q: "What is a hard fork?", a: "A protocol change that is not backward-compatible. Nodes that don't upgrade will split onto a different chain." },
+        { q: "What is rough consensus?", a: "The process of moving forward with changes only when a massive majority of the community agrees." },
+        { q: "What is a BIP?", a: "Bitcoin Improvement Proposal. A formal document for suggesting and discussing protocol changes." },
+        { q: "What was BIP 148?", a: "The User-Activated Soft Fork (UASF) that forced the activation of SegWit in 2017." },
+        { q: "Do developers have 'admin access' to Bitcoin?", a: "No. They can write code, but they cannot force anyone to run it. Every node operator chooses their own software." },
+        { q: "What is the 'No2X' movement?", a: "The community campaign that successfully rejected a corporate attempt to hard-fork Bitcoin in 2017." },
+        { q: "How is a BIP activated?", a: "Usually through a period of miner signaling or a specific block height trigger once consensus is reached." },
+        { q: "Is Bitcoin a democracy?", a: "No. It is more like a voluntary system of rules. You choose the rules you follow by choosing your node software." }
+    ],
+    'Satoshi Nakamoto': [
+        { q: "When did Satoshi vanish?", a: "His last known private email was in April 2011, saying he had 'moved on to other things'." },
+        { q: "Why did Satoshi disappear?", a: "Likely to ensure Bitcoin had no 'head' to be attacked or co-opted, making it truly decentralized." },
+        { q: "How much Bitcoin did Satoshi mine?", a: "Estimated at around 1.1 million BTC, all of which has never been moved from its original addresses." },
+        { q: "Did Satoshi invent everything?", a: "No. He masterfully combined existing technologies like Hashcash, B-money, and public-key cryptography into a working system." },
+        { q: "What was Satoshi's P2P Foundation quote?", a: "\"The root problem with conventional currency is all the trust that's required to make it work.\"" },
+        { q: "What email provider did Satoshi use?", a: "gmx.com (satoshi@gmx.com)." },
+        { q: "Where was the Bitcoin whitepaper published?", a: "A cryptography mailing list at metzdowd.com." },
+        { q: "Who mined the Genesis Block?", a: "Satoshi Nakamoto. He included a headline from the London Times in the coinsbase." },
+        { q: "Did Satoshi use a Japanese name?", a: "Yes, but many believe his writing style suggests he was likely a native English speaker." },
+        { q: "Is Satoshi a group of people?", a: "It is possible. The identity remains one of the greatest mysteries of the digital age." }
+    ],
+    'Common Myths': [
+        { q: "Is Bitcoin 'Too slow' for payments?", a: "No. The base layer is for settlement; the Lightning Network allows for millions of instant transactions per second." },
+        { q: "Can Bitcoin be hacked?", a: "The protocol itself has never been successfully hacked. Individual wallets or exchanges are hacked due to poor security." },
+        { q: "Does Bitcoin 'waste' electricity?", a: "No. It uses energy to secure a global, neutral financial system, often using energy that would otherwise be wasted." },
+        { q: "Is Bitcoin 'only for criminals'?", a: "False. Cash is the preferred tool for crime. Bitcoin's transparent ledger is actually a nightmare for criminals." },
+        { q: "Is Bitcoin 'backed by nothing'?", a: "It is backed by the most secure computer network on Earth, the laws of physics, and mathematical proof." },
+        { q: "Will the 21 million limit be changed?", a: "No rational participant would vote to devalue their own holdings. Scarcity is Bitcoin's value." },
+        { q: "Is Bitcoin a bubble?", a: "A bubble is a temporary spike; Bitcoin has grown in value and adoption over 15 years, surviving many 80% drops." },
+        { q: "Is Bitcoin bad for the environment?", a: "Bitcoin mining incentivizes renewable energy builds and captures methane gas, which is many times worse than CO2." },
+        { q: "Can Bitcoin be shut down by the government?", a: "No. It is a decentralized protocol. As long as two people can communicate, the network exists." },
+        { q: "Are altcoins 'the next Bitcoin'?", a: "None have achieved Bitcoin's level of security, decentralization, or fair distribution. There is no second best." }
+    ],
+    'Global Impact': [
+        { q: "What is the unbanked population?", a: "Billions of people worldwide who lack access to traditional financial services. Bitcoin provides them a bank in their pocket." },
+        { q: "How does Bitcoin aid remittances?", a: "By allowing workers to send money home instantly and for nearly zero cost, bypassing expensive middlemen like Western Union." },
+        { q: "What is monetary colonialism?", a: "The control of a nation's currency by a foreign power (e.g., the CFA franc). Bitcoin offers an escape to monetary sovereignty." },
+        { q: "Why is Bitcoin important for human rights?", a: "It provides a censorship-resistant tool for activists and journalists under authoritarian regimes to receive funding." },
+        { q: "What is an 'Orange Party'?", a: "A community gathering focused on Bitcoin education and circular economy adoption." },
+        { q: "What is legal tender?", a: "Currency that must be accepted for debts and payments. El Salvador was the first to make Bitcoin legal tender." },
+        { q: "How does Bitcoin promote peace?", a: "By making it harder for governments to fund wars through hidden taxation (inflation) since they cannot print Bitcoin." },
+        { q: "What is a circular economy?", a: "An ecosystem where people earn, save, and spend Bitcoin directly without ever converting back to fiat." },
+        { q: "Can Bitcoin help the environment?", a: "Yes, by providing an incentive to develop renewable energy near remote sources and reducing methane flaring." },
+        { q: "What is the 'Great Definancialization'?", a: "The process of moving away from complex, debt-based financial instruments back to a simple, hard money standard." }
+    ]
+};
+
 
     const cards = flashData[topic] || flashData['Bitcoin Basics'];
     let index = 0;
