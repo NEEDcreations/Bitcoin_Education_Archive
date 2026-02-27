@@ -639,15 +639,15 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 130px; left: 16px; }
+            #nacho-container { bottom: 160px; left: 16px; }
             #nacho-avatar { width: 80px; height: 80px; }
             #nacho-bubble {
                 position: fixed;
-                bottom: 220px;
+                bottom: 250px;
                 left: 12px;
                 right: 12px;
                 max-width: calc(100vw - 24px);
-                max-height: calc(100vh - 260px);
+                max-height: calc(100vh - 290px);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 min-width: unset;
@@ -661,7 +661,7 @@ function createNacho() {
             #nacho-avatar .nacho-name { font-size: 0.75rem; bottom: -32px; padding: 6px 16px; }
         }
         @media (max-width: 480px) {
-            #nacho-container { bottom: 120px; left: 12px; }
+            #nacho-container { bottom: 150px; left: 12px; }
             #nacho-avatar { width: 72px; height: 72px; }
             #nacho-bubble {
                 bottom: 185px;
@@ -687,8 +687,8 @@ function createNacho() {
         }
         #nacho-toggle:hover { opacity: 1; }
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
-        @media (max-width: 900px) { #nacho-toggle { bottom: 130px; left: 16px; } }
-        @media (max-width: 480px) { #nacho-toggle { bottom: 120px; left: 12px; } }
+        @media (max-width: 900px) { #nacho-toggle { bottom: 160px; left: 16px; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: 150px; left: 12px; } }
     `;
     document.head.appendChild(style);
 
