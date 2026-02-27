@@ -67,51 +67,59 @@ function initTicker() {
         document.body.prepend(ticker);
     }
 
-    ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10005;background:#050505;border-bottom:1px solid #f7931a;padding:0;height:32px;overflow:hidden;display:flex;align-items:center;font-family:inherit;font-size:0.75rem;color:#94a3b8;line-height:32px;';
+    ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10005;background:#030712;border-bottom:1px solid #f7931a;padding:0;height:32px;overflow:hidden;display:flex;align-items:center;font-family:inherit;font-size:0.75rem;color:#94a3b8;line-height:32px;';
     
-    var scroller = document.createElement('div');
-    scroller.id = 'tickerScroller';
-    scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 45s linear infinite;';
+    var scroller = window._tickerScroller;
+    if (!scroller) {
+        scroller = document.createElement('div');
+        scroller.id = 'tickerScroller';
+        window._tickerScroller = scroller;
+    }
+    scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 60s linear infinite;will-change:transform;';
     
     const tickerContent = 
-        '<div class="ticker-item-set" style="display:flex;align-items:center;gap:35px;padding-right:35px;">' +
+        '<div class="ticker-item-set" style="display:flex;align-items:center;padding-right:50px;">' +
             '<span style="display:flex;align-items:center;gap:12px;">' +
                 '<span style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="color:#f7931a;font-weight:900;font-size:1.1rem;">₿</span>' +
                     '<span class="t-price-val" style="color:#fff;font-weight:800;">$---,---</span>' +
                     '<span class="t-price-change" style="font-size:0.7rem;font-weight:900;"></span>' +
                 '</span>' +
-                '<span style="color:rgba(255,255,255,0.1);font-weight:100;">|</span>' +
+                '<span style="color:rgba(255,255,255,0.2);font-weight:100;">|</span>' +
                 '<span style="display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="window.open(\'https://mempool.space\',\'_blank\')">' +
                     '<span style="color:#f7931a;font-size:0.9rem;">⛏️</span>' +
                     '<span class="t-block-val" style="color:#fff;font-weight:700;">---,---</span>' +
                 '</span>' +
             '</span>' +
-            '<span class="t-news-items" style="color:var(--heading,#fff);font-weight:600;display:flex;align-items:center;gap:35px;">' +
+            '<span style="color:rgba(255,255,255,0.2);margin-left:25px;margin-right:25px;">|</span>' +
+            '<span class="t-news-items" style="color:#fff;font-weight:600;display:flex;align-items:center;gap:35px;">' +
                 '<span>📡 LOADING SIGNAL...</span>' +
             '</span>' +
         '</div>';
 
-    scroller.innerHTML = tickerContent + tickerContent + tickerContent;
+    scroller.innerHTML = tickerContent + tickerContent;
     ticker.innerHTML = '';
     ticker.appendChild(scroller);
 
     var style = document.getElementById('btcTickerStyle');
     if (!style) { style = document.createElement('style'); style.id = 'btcTickerStyle'; document.head.appendChild(style); }
     style.textContent =
-        '@keyframes btcTickerScroll { from { transform: translateX(0); } to { transform: translateX(-33.33%); } }' +
+        '@keyframes btcTickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }' +
         '#btcTicker:hover #tickerScroller { animation-play-state: paused; }' +
         '@media(max-width:900px) { ' +
             '.mobile-bar { top: 32px !important; }' +
             'main { padding-top: 118px !important; }' +
             'aside { top: 118px !important; z-index: 10006; }' +
             '#nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }' +
-            '#btcTicker { font-size: 0.65rem; height: 32px; }' +
+            '#btcTicker { font-size: 0.65rem; height: 32px; display: flex !important; visibility: visible !important; }' +
+            '.progress-bar { top: 118px !important; }' +
         '}' +
         '@media(min-width:901px) { ' +
-            'aside { margin-top: 32px; }' +
-            'main { margin-top: 32px; }' +
+            'aside { padding-top: 32px; }' +
+            'main { padding-top: 32px; }' +
             '#nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }' +
+            '#btcTicker { display: flex !important; visibility: visible !important; }' +
+            '.progress-bar { top: 32px !important; }' +
         '}';
 
     fetch('newsletter-data.json?v=' + Date.now()).then(r => r.json()).then(data => {
@@ -183,12 +191,12 @@ window.nachoLiveAnswer = function(q) {
             if (cached) return { answer: "I'm still syncing, but the last block I saw was " + parseInt(cached).toLocaleString() + "! ⛓️", channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' };
             return null;
         }
-        return { answer: "We're currently at block " + nachoLiveData.blockHeight.toLocaleString() + "! Every block is history being written. ⛓️", channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' };
+        return { answer: "We're currently at block " + nachoLiveData.blockHeight.toLocaleString() + "! Every block is history being written, {name}. ⛓️", channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' };
     }
     if (/halving|halvening|next halving|when.*halving|halving countdown/.test(lower)) {
         var info = getHalvingInfo();
         if (!info) return null;
-        return { answer: "The next halving is at block " + info.nextHalving.toLocaleString() + " -- that's " + info.blocksLeft.toLocaleString() + " blocks away (~" + info.daysLeft + " days). Tick tock! ⏰", channel: 'scarce', channelName: 'Scarce' };
+        return { answer: "The next halving is at block " + info.nextHalving.toLocaleString() + " -- that's " + info.blocksLeft.toLocaleString() + " blocks away (~" + info.daysLeft + " days). Tick tock, {name}! ⏰", channel: 'scarce', channelName: 'Scarce' };
     }
     return null;
 };

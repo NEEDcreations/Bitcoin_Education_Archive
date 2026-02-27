@@ -1022,7 +1022,10 @@ function renderNachoAnswer(textEl, answerHtml, match) {
     }
 
     if (match && match.channel && match.channelName) {
-        html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
+        html += '<div style="margin-top:10px;text-align:center;">' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Study more about this topic:</div>' +
+            '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.2);">📖 ' + match.channelName + ' →</button>' +
+        '</div>';
     }
 
     // Follow-up suggestions (use explicit followUp from KB entry, or auto-generate)
@@ -1188,31 +1191,45 @@ function showNachoFallback(textEl, q) {
     if (typeof setPose === 'function') setPose('think');
     nachoTrackTopic(q, 'fallback');
     nachoTrackMiss(q);
-    var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
-    fb = typeof personalize === 'function' ? personalize(fb) : fb;
-
-    // Suggest a relevant channel based on keywords
+    
+    // Suggest a relevant channel based on keyword search
     var suggestedChannel = null;
     if (typeof CHANNELS !== 'undefined') {
-        var qLower = q.toLowerCase();
+        var qWords = q.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        var bestMatches = [];
+        
         for (var chId in CHANNELS) {
             var ch = CHANNELS[chId];
             var title = (ch.title || '').toLowerCase();
             var desc = (ch.desc || '').toLowerCase();
-            if (title.indexOf(qLower) !== -1 || qLower.split(/\s+/).some(function(w) { return w.length > 3 && (title.indexOf(w) !== -1 || desc.indexOf(w) !== -1); })) {
-                suggestedChannel = { id: chId, name: ch.title };
-                break;
-            }
+            var score = 0;
+            
+            qWords.forEach(word => {
+                if (title.indexOf(word) !== -1) score += 5;
+                if (desc.indexOf(word) !== -1) score += 2;
+                if (chId.indexOf(word) !== -1) score += 3;
+            });
+            
+            if (score > 0) bestMatches.push({ id: chId, name: ch.title, score: score });
+        }
+        
+        if (bestMatches.length > 0) {
+            bestMatches.sort((a,b) => b.score - a.score);
+            suggestedChannel = bestMatches[0];
         }
     }
 
-    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + fb + '</div>';
+    var html = '<div style="color:var(--text,#eee);line-height:1.6;">';
     if (suggestedChannel) {
-        html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: ' + suggestedChannel.name + ' →</button>';
+        html += "Hmm, that one's not in my direct notes, {name}, but I found a great channel where you can learn all about it! 🦌📚";
+        html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Explore: ' + suggestedChannel.name + ' →</button>';
     } else {
-        html += '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: One Stop Shop →</button>';
+        var fb = ["I'm still sharpening my antlers on that topic, {name}! 🦌 Let's check our 'One Stop Shop' — it's the fastest way to get oriented in the rabbit hole.", "I'm a Bitcoin deer — and that topic has me stumped! 🦌 Why don't we visit the One Stop Shop to see the highlights of the archive?"];
+        var pick = fb[Math.floor(Math.random() * fb.length)];
+        html += typeof personalize === 'function' ? personalize(pick) : pick;
+        html += '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Go to One Stop Shop →</button>';
     }
-    html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+    html += '<button onmousedown="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask something else</button></div>';
     textEl.innerHTML = html;
 }
 
@@ -1725,3 +1742,28 @@ window.nachoWebSearch = nachoWebSearch;
 window.escapeHtml = escapeHtml;
 
 })();
+
+const TOP_NOTCH_ENTRIES = [
+    { keys: ['proof of work purpose','why energy','pow efficiency'],
+      answer: "Bitcoin's energy use is its greatest feature, {name}! ⚡🦌 It's what connects the digital world to the physical laws of thermodynamics. By spending real-world energy to find blocks, we make it impossibly expensive for anyone (even a government) to forge or rewrite the ledger. It is the only known way to have absolute, decentralized truth without a middleman. 🛡️",
+      channel: 'pow-vs-pos', channelName: 'PoW vs PoS' },
+
+    { keys: ['why self-custody','moral imperative','not your keys'],
+      answer: "Self-custody is about more than just security—it is a moral imperative, {name}. 🔑🦌 When you hold your own keys, you are the final authority over your labor and time. You cannot be censored, you cannot be frozen, and no bank can gambling with your future. It is the ultimate tool for individual sovereignty. 🏁",
+      channel: 'self-custody', channelName: 'Self-Custody & Security' },
+
+    { keys: ['scarcity purpose','why 21 million','absolute scarcity'],
+      answer: "The 21 million limit is the bedrock of Bitcoin's value, {name}. 🍀🦌 For the first time in human history, we have an asset with a fixed supply that cannot be increased by anyone, ever. This absolute scarcity protects you from the 'invisible tax' of inflation, ensuring that your savings maintain their purchasing power over decades, not days. 鹿💎",
+      channel: 'scarce', channelName: 'Scarcity & Hard Money' }
+];
+
+// Combine into main KB
+if (typeof NACHO_KB !== 'undefined') {
+    TOP_NOTCH_ENTRIES.forEach(entry => {
+        // Prevent duplicates
+        const exists = NACHO_KB.find(e => e.keys[0] === entry.keys[0]);
+        if (!exists) {
+            NACHO_KB.push(entry);
+        }
+    });
+}
