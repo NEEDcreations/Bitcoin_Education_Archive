@@ -1557,16 +1557,21 @@ setInterval(function() {
 
 // Username prompt
 function showUsernamePrompt() {
-    // If user has an account (real or anonymous with username), show settings
-    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        showAccountInfo();
-        return;
+    try {
+        // If user has an account (real or anonymous with username), show settings
+        if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            showAccountInfo();
+            return;
+        }
+        if (currentUser && currentUser.username) {
+            showAccountInfo();
+            return;
+        }
+        document.getElementById('usernameModal').classList.add('open');
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('Settings error: ' + e.message);
+        console.error('showUsernamePrompt error:', e);
     }
-    if (currentUser && currentUser.username) {
-        showAccountInfo();
-        return;
-    }
-    document.getElementById('usernameModal').classList.add('open');
 }
 
 function showAccountInfo() {
@@ -1594,10 +1599,12 @@ window.showSettings = function() {
 };
 
 function showSettingsPage(tab) {
+    try {
     settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');
-    if (!modal || !box) return;
+    if (!modal) { if (typeof showToast === 'function') showToast('Error: modal not found'); return; }
+    if (!box) { if (typeof showToast === 'function') showToast('Error: username-box not found'); return; }
     const user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
@@ -2215,6 +2222,10 @@ function showSettingsPage(tab) {
     if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
         var closetContainer = document.getElementById('nachoClosetContainer');
         if (closetContainer) renderNachoClosetUI(closetContainer);
+    }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('Settings page error: ' + e.message);
+        console.error('showSettingsPage error:', e);
     }
 }
 
