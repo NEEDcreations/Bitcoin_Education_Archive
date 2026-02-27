@@ -348,7 +348,13 @@ function loadMarketListings(category, search, sort, section) {
         }).join('');
     }).catch(function(e) {
         console.error('Marketplace load error:', e);
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
+        if (grid) {
+            if (e.code === 'failed-precondition') {
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">⚙️ Setting up marketplace database (index)...<br>Please refresh in 1 minute.</div>';
+            } else {
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
+            }
+        }
     });
 }
 
@@ -731,7 +737,11 @@ window.showMyListings = function(fromPopState) {
             loadMyMessages();
         }).catch(function(e) {
             console.error('My listings error:', e);
-            container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '</div>';
+            if (e.code === 'failed-precondition') {
+                container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">⚙️ Setting up marketplace database (index)...<br>Please refresh in 1 minute.</div>';
+            } else {
+                container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '</div>';
+            }
         });
 };
 
