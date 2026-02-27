@@ -2166,7 +2166,7 @@ function showSettingsPage(tab) {
             if (na.total > 0) {
                 html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                     '<div onclick="window._expanded_analytics=!window._expanded_analytics;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
-                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">📊 ' + escapeHtml(nickname) + ' Q&A Analytics</div>' +
+                    '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:1px;font-weight:700;text-transform:none;">📊 ' + escapeHtml(nickname) + ' Q&A Analytics</div>' +
                     '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_analytics ? '▾' : '▸') + '</span></div>';
                 if (!window._expanded_analytics) {
                     html += '</div>';
@@ -2243,7 +2243,7 @@ function showSettingsPage(tab) {
         if (typeof renderNachoClosetUI === 'function') {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div onclick="window._expanded_closet=!window._expanded_closet;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
-                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:1px;font-weight:700;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +
                 '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_closet ? '▾' : '▸') + '</span></div>';
             if (window._expanded_closet) {
                 html += '<div id="nachoClosetContainer" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"></div>';

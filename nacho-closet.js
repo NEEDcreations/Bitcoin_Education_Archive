@@ -324,7 +324,8 @@ window.renderNachoClosetUI = function(container) {
         }
     }
 
-    var html = '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🦌 Nacho\'s Closet</div>';
+    var nickname = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
+    var html = '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:1px;margin-bottom:10px;font-weight:700;">🦌 ' + escapeHtml(nickname) + '\'s Closet</div>';
 
     // Nacho preview avatar
     html += '<div id="nachoClosetPreview" style="text-align:center;margin-bottom:16px;background:radial-gradient(circle,rgba(247,147,26,0.08) 0%,transparent 70%);border-radius:16px;padding:16px 0 8px;">' +
@@ -380,10 +381,10 @@ window.renderNachoClosetUI = function(container) {
         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;" id="nachoItemDesc">' +
         (equipped ? (function() {
             var eq = NACHO_ITEMS.find(function(i) { return i.id === equipped; });
-            if (!eq) return 'Tap an item to equip it on Nacho!';
+            if (!eq) return 'Tap an item to equip it on ' + escapeHtml(nickname) + '!';
             var dn = eq.hidden ? eq.revealDesc : eq.desc;
             return '<strong style="color:var(--accent);">' + (eq.hidden ? eq.revealName : eq.name) + ':</strong> ' + dn;
-        })() : 'Tap an unlocked item to equip it on Nacho!<br>Tap again to unequip.') +
+        })() : 'Tap an unlocked item to equip it on ' + escapeHtml(nickname) + '!<br>Tap again to unequip.') +
         '</div></div>';
 
     container.innerHTML = html;
@@ -391,7 +392,7 @@ window.renderNachoClosetUI = function(container) {
 
 // ---- Nacho talks about the closet ----
 window.NACHO_CLOSET_TIPS = [
-    { pose: 'cool', text: "Did you know I have a whole closet of outfits, {name}? Check Settings → Prefs → Nacho's Closet to dress me up! 👔🦌" },
+    { pose: 'cool', text: "Did you know I have a whole closet of outfits, {name}? Check Settings → Q&A/Stats → " + escapeHtml(nickname) + "'s Closet to dress me up! 👔🦌" },
     { pose: 'celebrate', text: "The more we interact, the more items you unlock for me to wear! Check my closet in Settings! 🧣⚡" },
     { pose: 'eyes', text: "I heard there are some mystery items in my closet that only my closest friends get to see... 👀🔒" },
     { pose: 'fire', text: "Proof of Steak > Proof of Stake. Ask me about it... or better yet, unlock it in my closet! 🥩🦌" },
@@ -416,7 +417,7 @@ window.checkNachoNewItems = function() {
         var displayName = item.hidden ? item.revealName : item.name;
         var displayEmoji = item.hidden ? item.revealEmoji : item.emoji;
 
-        return { pose: 'celebrate', text: "🎁 New item unlocked: " + displayEmoji + " " + displayName + "! Go to Settings → Prefs → Nacho's Closet to try it on, {name}! 🦌" };
+        return { pose: 'celebrate', text: "🎁 New item unlocked: " + displayEmoji + " " + displayName + "! Go to Settings → Q&A/Stats → " + escapeHtml(nickname) + "'s Closet to try it on, {name}! 🦌" };
     }
     return null;
 };
