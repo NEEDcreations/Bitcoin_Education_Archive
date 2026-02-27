@@ -995,8 +995,38 @@ window.showNacho = function() {
     document.getElementById('nacho-container').classList.remove('hidden');
     document.getElementById('nacho-toggle').style.display = 'none';
     lastBubbleTime = 0;
-    setPose('wave');
-    forceShowBubble(personalize("I'm back, {name}! Miss me? 🦌"));
+    
+    // Smart Greeting selection
+    var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+    var greeting;
+    
+    if (visits > 20) {
+        // Veteran greetings: Facts & Wisdom
+        var facts = [
+            "Tick tock, next block! Ready for some high-signal learning, {name}? 🧱",
+            "Welcome back, master HODLer! I've been keeping the Archive warm for you. 🦌🔥",
+            "I noticed you've visited many channels. Want to test your knowledge with a Quest today? ⚡",
+            "Back for your daily dose of decentralization? Let's dive in! 📘"
+        ];
+        greeting = facts[Math.floor(Math.random() * facts.length)];
+        setPose('brain');
+    } else if (visits > 5) {
+        // Regular greetings
+        var regulars = [
+            "Hey {name}, great to see you again! ✨",
+            "Welcome back! Ready to stack some more knowledge? 📚",
+            "I missed you! Check out my closet if you've earned new items! 👔",
+            "You're making great progress on your Exploration Map! 🗺️"
+        ];
+        greeting = regulars[Math.floor(Math.random() * regulars.length)];
+        setPose('wave');
+    } else {
+        // Standard greeting for new users
+        greeting = "I'm back, {name}! Miss me? 🦌";
+        setPose('wave');
+    }
+    
+    forceShowBubble(personalize(greeting));
 };
 
 window.hideNacho = function() {
