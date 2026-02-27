@@ -350,7 +350,10 @@ function loadMarketListings(category, search, sort, section) {
         console.error('Marketplace load error:', e);
         if (grid) {
             if (e.code === 'failed-precondition') {
-                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">⚙️ Setting up marketplace database (index)...<br>Please refresh in 1 minute.</div>';
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">' +
+                    '⚙️ Setting up marketplace database (index)...<br>Please refresh in 1 minute.<br><br>' +
+                    '<a href="https://console.firebase.google.com/project/bitcoin-education-archive/firestore/indexes" target="_blank" style="color:var(--accent);font-weight:700;">Click here to create the index manually if requested →</a>' +
+                    '</div>';
             } else {
                 grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
             }

@@ -142,12 +142,26 @@ function openImg(src) {
         } else {
             // Normal list view - re-render
             const PAGE_SIZE = 50;
-            // Skip the first message since it's already shown in the hero description
-            const allMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
+            const allMsgs = d.msgs;
 
             function renderBatch(startIdx) {
                 const batch = allMsgs.slice(startIdx, startIdx + PAGE_SIZE);
                 let html = '';
+                
+                // Add AI Summary box at the very top of the list
+                if (startIdx === 0) {
+                    const meta = typeof CHANNELS !== 'undefined' ? CHANNELS[id] : null;
+                    if (meta && meta.desc) {
+                        html += '<div class="ai-summary-box" style="margin:20px 0;padding:20px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:16px;">' +
+                            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
+                                '<span style="font-size:1.5rem;">🦌</span>' +
+                                '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Nacho\'s AI Summary</div>' +
+                            '</div>' +
+                            '<div style="color:var(--text);font-size:0.95rem;line-height:1.6;font-weight:500;">' + meta.desc + '</div>' +
+                        '</div>';
+                    }
+                }
+
                 batch.forEach((m, bi) => {
                     html += '<div class="msg" id="msg-' + (startIdx + bi) + '">';
                     if (m.text) {
@@ -239,7 +253,7 @@ function openImg(src) {
         navHtml += '<button onclick="go(\'' + nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
         navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
-        navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
+        navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual(currentChannelId)" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
         navHtml += '</div>';
         // Read Next suggestions
         if (typeof renderReadNext === 'function') {
@@ -639,20 +653,24 @@ function openImg(src) {
         if (existing) existing.remove();
         var modal = document.createElement('div');
         modal.id = 'donateModal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);-webkit-overflow-scrolling:touch;overflow-y:auto;padding:20px;';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;';
         var lnAddr = 'spontaneousleopard54@zeuspay.com';
+        var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:' + lnAddr;
+        
         modal.innerHTML =
-            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:16px;padding:24px 20px;max-width:340px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
-                '<button onclick="document.getElementById(\'donateModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
-                '<div style="font-size:2rem;margin-bottom:8px;">⚡</div>' +
-                '<div style="color:var(--heading,#fff);font-weight:700;font-size:1.1rem;margin-bottom:4px;">Support the Archive</div>' +
-                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:14px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>' +
-                '<img src="donation-qr.jpg" alt="Bitcoin Donation QR Code" style="max-width:180px;width:60%;height:auto;margin-bottom:12px;border:2px solid var(--border,#333);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.2);">' +
-                '<div style="margin-bottom:12px;">' +
-                    '<div style="color:var(--accent,#f7931a);font-weight:600;font-size:0.8rem;word-break:break-all;margin-bottom:8px;">' + lnAddr + '</div>' +
-                    '<button id="donateCopyBtn" style="padding:8px 20px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid var(--accent,#f7931a);border-radius:8px;color:var(--accent,#f7931a);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">📋 Copy Address</button>' +
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:fadeSlideIn 0.3s;margin:auto;">' +
+                '<button onclick="document.getElementById(\'donateModal\').remove()" style="position:absolute;top:15px;right:15px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+                '<div style="font-size:2.5rem;margin-bottom:12px;">🧡</div>' +
+                '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:6px;">Support the Archive</div>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.9rem;margin-bottom:20px;line-height:1.5;">Your sats help keep this archive free and open for the next billion Bitcoiners! 🦌⚡</p>' +
+                '<div style="background:#fff;padding:12px;display:inline-block;border-radius:16px;margin-bottom:20px;box-shadow:0 10px 25px rgba(247,147,26,0.2);">' +
+                    '<img src="' + qrUrl + '" alt="Lightning QR Code" style="width:180px;height:180px;display:block;">' +
                 '</div>' +
-                '<p style="color:var(--text-faint,#666);font-size:0.75rem;margin:0;">⚠️ Donations are non-refundable</p>' +
+                '<div style="margin-bottom:15px;">' +
+                    '<div style="color:var(--accent,#f7931a);font-weight:700;font-size:0.85rem;word-break:break-all;margin-bottom:10px;padding:10px;background:rgba(247,147,26,0.1);border-radius:8px;">' + lnAddr + '</div>' +
+                    '<button id="donateCopyBtn" style="width:100%;padding:14px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.3);transition:0.2s;touch-action:manipulation;" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'scale(1)\'">📋 Copy Lightning Address</button>' +
+                '</div>' +
+                '<p style="color:var(--text-faint,#666);font-size:0.75rem;margin-top:10px;">⚠️ This is a Lightning Address</p>' +
             '</div>';
         document.body.appendChild(modal);
         // Copy button handler (avoids inline this-binding issues on mobile)
@@ -1661,11 +1679,25 @@ function openImg(src) {
 
     window.nachoLearningPath = function() {
         var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
+        var exploredCount = 0;
+        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
 
         var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">🗺️ Your Bitcoin Journey</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% complete — ' + progress + '/' + NACHO_LEARNING_PATH.length + ' topics</div>';
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% concepts mastered</div>';
+
+        // TIER SYSTEM explanation box
+        html += '<div style="background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:0.8rem;line-height:1.4;">' +
+            '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">🛡️ Feature Rewards System</div>' +
+            '<p style="margin:0;color:var(--text);">The Archive unlocks more powerful features as you learn to prevent Normie overload! 🦌</p>' +
+            '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🗣️ PlebTalk & 🎸 Beats</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (isFull ? '0.5' : '1') + '"><span>🔹 10 Channels:</span> <strong>⚡ Marketplace</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (auth.currentUser && !auth.currentUser.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
+            '</div>' +
+        '</div>';
 
         // Progress bar
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;height:8px;margin-bottom:12px;overflow:hidden;">' +
@@ -1678,7 +1710,7 @@ function openImg(src) {
             html += '<button onclick="nachoPathStep(' + i + ')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;margin-bottom:6px;background:' + (current ? 'var(--accent-bg)' : 'var(--card-bg)') + ';border:1px solid ' + (current ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' +
                 '<span style="font-size:1.2rem;flex-shrink:0;">' + (done ? '✅' : step.emoji) + '</span>' +
                 '<div>' +
-                    '<div style="color:' + (done ? 'var(--text-faint)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (current ? '700' : '500') + ';' + (done ? 'text-decoration:line-through;' : '') + '">Step ' + step.step + ': ' + step.title + '</div>' +
+                    '<div style="color:' + (done ? 'var(--text-faint)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (current ? '700' : '500') + ';' + (done ? 'text-decoration:line-through;' : '') + '">Level ' + step.step + ': ' + step.title + '</div>' +
                 '</div>' +
                 (current ? '<span style="margin-left:auto;color:var(--accent);font-size:0.7rem;font-weight:700;">NEXT →</span>' : '') +
             '</button>';
@@ -1709,73 +1741,108 @@ function openImg(src) {
     // =============================================
     // 🎮 Quiz Me Button
     // =============================================
-    window.nachoQuizMe = function(topic) {
-        // Pull from existing quest questions if available
-        if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
-            var filtered = topic ? QUEST_QUESTIONS.filter(function(q) {
-                return q.category && q.category.toLowerCase().indexOf(topic.toLowerCase()) !== -1;
-            }) : QUEST_QUESTIONS;
-            if (filtered.length === 0) filtered = QUEST_QUESTIONS;
-            var q = filtered[Math.floor(Math.random() * filtered.length)];
-            var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:8px;">🎮 Quiz Time!</div>' +
-                '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
-                '<div style="color:var(--text);font-size:0.9rem;margin-bottom:12px;">' + escapeHtml(q.question) + '</div>';
-            var opts = q.options || [];
-            for (var i = 0; i < opts.length; i++) {
-                var isCorrect = i === q.answer;
-                html += '<button onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
-            }
-            html += '</div>';
-            html += '<button onclick="nachoQuizMe()" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Another question</button>';
-            nachoChatAppend('nacho', '', html);
-        } else {
-            nachoChatAppend('nacho', '', "Quiz questions are still loading! Try again in a moment. 🦌");
-        }
-    };
+// Generic fallbacks for Nacho Quiz
+const GENERIC_NACHO_QUIZ = [
+  { q: "What is the primary benefit of running a Bitcoin full node?", a: "You can independently verify the consensus rules and your own transactions.", w: ["It earns you a small percentage of every transaction fee on the network.", "It automatically mines new Bitcoins using your computer's idle CPU.", "It hides your IP address from everyone else using the network.", "It increases the speed of your internet connection by 21%."] },
+  { q: "What does 'Satoshi' represent in the context of Bitcoin?", a: "The smallest unit of Bitcoin, equal to 0.00000001 BTC.", w: ["A type of advanced encryption used for private messages.", "The official name for a Bitcoin wallet's public address.", "A digital certificate of ownership for a single Bitcoin.", "The name of the first computer used to mine block zero."] },
+  { q: "Why is Bitcoin's difficulty adjustment important?", a: "It ensures blocks are produced roughly every 10 minutes regardless of total hash rate.", w: ["It prevents the price of Bitcoin from dropping below its mining cost.", "It automatically updates the Bitcoin Core software for all users.", "It calculates the total number of users active on the network daily.", "It decides which transactions are most important for the miners."] },
+  { q: "What happens if you lose your 12 or 24-word seed phrase?", a: "You lose access to your funds forever, as there is no central 'reset' authority.", w: ["You can call Bitcoin's customer support to verify your identity and reset it.", "The government can recover your coins using your social security number.", "Your hardware wallet will automatically generate a new phrase after 24 hours.", "Your Bitcoin is donated to a pool for new developers to use for testing."] },
+  { q: "What is the primary function of the Lightning Network?", a: "To enable instant, near-free Bitcoin payments by moving them off-chain.", w: ["To increase the total number of Bitcoins that will ever exist to 42 million.", "To allow Bitcoin to be mined using only mobile phones and tablets.", "To encrypt the entire blockchain so it cannot be read by anyone.", "To create a secondary blockchain that is faster but less secure than Bitcoin."] }
+];
 
-    window.nachoQuizAnswer = function(btn, correct) {
-        // Track for daily challenge
-        sessionStorage.setItem('btc_quiz_done', 'true');
-        // Disable all quiz buttons
-        var parent = btn.parentElement;
-        var buttons = parent.querySelectorAll('button');
-        buttons.forEach(function(b) {
-            b.disabled = true;
-            b.style.cursor = 'default';
-            b.style.opacity = '0.7';
-        });
-        if (correct) {
-            btn.style.background = '#22c55e';
-            btn.style.color = '#fff';
-            btn.style.borderColor = '#22c55e';
-            btn.style.opacity = '1';
-            if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
-            if (typeof showToast === 'function') showToast('🎮 +5 pts — Quiz correct!');
-            // Add result text
-            var resultDiv = document.createElement('div');
-            resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
-            resultDiv.textContent = '✅ Correct! +5 pts';
-            btn.parentElement.appendChild(resultDiv);
-        } else {
-            btn.style.background = '#ef4444';
-            btn.style.color = '#fff';
-            btn.style.borderColor = '#ef4444';
-            btn.style.opacity = '1';
-            // Highlight correct answer
-            buttons.forEach(function(b) {
-                if (b !== btn && b.onclick && b.onclick.toString().indexOf('true') !== -1) {
-                    b.style.background = '#22c55e';
-                    b.style.color = '#fff';
-                    b.style.borderColor = '#22c55e';
-                    b.style.opacity = '1';
-                }
+window.nachoQuizMe = function(topic) {
+    let pool = [];
+    if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+        // Flatten QUEST_QUESTIONS categories into a single array of {question, options, answer}
+        Object.keys(QUEST_QUESTIONS).forEach(cat => {
+            QUEST_QUESTIONS[cat].forEach(q => {
+                pool.push({
+                    question: q.q,
+                    options: fisherYates([q.a, ...q.wrong]),
+                    answer: q.a,
+                    category: cat
+                });
             });
-            var wrongDiv = document.createElement('div');
-            wrongDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;font-weight:700;text-align:center;';
-            wrongDiv.textContent = '❌ Not quite! Correct answer highlighted above.';
-            btn.parentElement.appendChild(wrongDiv);
-        }
-    };
+        });
+    }
+
+    // Add generic fallbacks
+    GENERIC_NACHO_QUIZ.forEach(q => {
+        pool.push({
+            question: q.q,
+            options: fisherYates([q.a, ...q.w]),
+            answer: q.a,
+            category: 'generic'
+        });
+    });
+
+    var filtered = topic ? pool.filter(function(q) {
+        return q.category && q.category.toLowerCase().indexOf(topic.toLowerCase()) !== -1;
+    }) : pool;
+    
+    if (filtered.length === 0) filtered = pool;
+    
+    var q = filtered[Math.floor(Math.random() * filtered.length)];
+    var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:8px;">🎮 Quiz Time!</div>' +
+        '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;">' +
+        '<div style="color:var(--text-muted);font-size:0.7rem;margin-bottom:4px;text-transform:uppercase;">' + (topic ? 'Topic: ' + topic : 'Nacho Challenge') + '</div>' +
+        '<div style="color:var(--text);font-size:0.9rem;margin-bottom:12px;">' + escapeHtml(q.question) + '</div>';
+    
+    var opts = q.options || [];
+    for (var i = 0; i < opts.length; i++) {
+        var isCorrect = opts[i] === q.answer;
+        html += '<button onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+    }
+    html += '</div>';
+    
+    if (!topic) {
+        html += '<div style="padding:10px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:8px;margin-bottom:8px;font-size:0.75rem;color:var(--text-muted);line-height:1.4;">' +
+            '🦌 <strong>Pro Tip:</strong> Chat with me first! Future quizzes will be based on the questions you ask me.' +
+            '</div>';
+    }
+
+    html += '<button onclick="nachoQuizMe(\''+(topic||'')+'\')" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Another question</button>';
+    nachoChatAppend('nacho', '', html);
+};
+
+window.nachoQuizAnswer = function(btn, correct) {
+    sessionStorage.setItem('btc_quiz_done', 'true');
+    var parent = btn.parentElement;
+    var buttons = parent.querySelectorAll('button');
+    buttons.forEach(function(b) {
+        b.disabled = true;
+        b.style.cursor = 'default';
+        b.style.opacity = '0.7';
+    });
+    if (correct) {
+        btn.style.background = '#22c55e';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#22c55e';
+        btn.style.opacity = '1';
+        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!');
+        if (typeof showToast === 'function') showToast('🎮 +10 pts — Quiz correct!');
+        var resultDiv = document.createElement('div');
+        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
+        resultDiv.textContent = '✅ Correct! +10 pts';
+        btn.parentElement.appendChild(resultDiv);
+    } else {
+        btn.style.background = '#ef4444';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#ef4444';
+        btn.style.opacity = '1';
+        buttons.forEach(function(b) {
+            if (b !== btn && b.onclick && b.onclick.toString().indexOf('true') !== -1) {
+                b.style.borderColor = '#22c55e';
+                b.style.color = '#22c55e';
+                b.style.opacity = '1';
+            }
+        });
+        var resultDiv = document.createElement('div');
+        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;font-weight:700;text-align:center;';
+        resultDiv.textContent = '❌ Incorrect. Try another!';
+        btn.parentElement.appendChild(resultDiv);
+    }
+};
 
     // Render full chat from history
     function nachoChatRender() {
@@ -2329,9 +2396,11 @@ function openImg(src) {
         if (fb) fb.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
-        var visitedCount = 0;
-        try { visitedCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
-        var isNewUser = visitedCount < 3;
+        var isAdmin = auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("needcreations") || (auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("admin")) || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+        var exploredCount = 0;
+        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        var isNewUser = !isAdmin && (visits < 2 && exploredCount < 3);
         
         // Hide distracting gamification for absolute beginners to focus on core education
         var spinBtn = document.querySelector('[onclick*="showSpinWheel"]');
@@ -2339,12 +2408,26 @@ function openImg(src) {
         var storyBtn = document.querySelector('[onclick*="showNachoStory"]');
         var challengeCard = document.getElementById('dailyChallengeCard');
         
+        var beatsBtn = document.querySelector('[onclick*="go(\'bitcoin-beats\'"]');
+        var forumBtn = document.querySelector('[onclick*="go(\'forum\'"]');
+        var marketBtn = document.querySelector('[onclick*="go(\'marketplace\'"]');
+        var nachoModeBtn = document.querySelector('[onclick*="enterNachoMode"]');
+
         if (isNewUser) {
             if (spinBtn) spinBtn.parentElement.style.display = 'none'; // Hide the whole grid row
             if (challengeCard) challengeCard.style.display = 'none';
+            if (forumBtn) forumBtn.style.display = 'none';
+            if (beatsBtn) beatsBtn.style.display = 'none';
+            if (marketBtn) marketBtn.style.display = 'none';
+            if (nachoModeBtn) nachoModeBtn.style.display = 'none';
         } else {
             if (spinBtn) spinBtn.parentElement.style.display = 'grid';
             if (challengeCard) challengeCard.style.display = '';
+            // These will still be handled by sidebar logic but let's be explicit for home buttons
+            if (forumBtn) forumBtn.style.display = isExplorer ? '' : 'none';
+            if (beatsBtn) beatsBtn.style.display = isExplorer ? '' : 'none';
+            if (marketBtn) marketBtn.style.display = isFull ? '' : 'none';
+            if (nachoModeBtn) nachoModeBtn.style.display = '';
         }
 
         // Hide forum container
@@ -2402,12 +2485,16 @@ function openImg(src) {
         if (key === 's' || key === '/') { e.preventDefault(); var si = document.getElementById('searchInput'); if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); } return; }
         // C = random channel
         if (key === 'c') { goRandom(); return; }
-        // R = random meme
-        if (key === 'r') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
-        // M = marketplace
-        if (key === 'm') { go('marketplace'); return; }
+        // R = random art
+        if (key === 'r') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
+        // M = random meme
+        if (key === 'm') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
         // A = ask Nacho
         if (key === 'a') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
+        // P = PlebTalk (Forum)
+        if (key === 'p') { go('forum'); return; }
+        // X = Marketplace (Mart)
+        if (key === 'x') { go('marketplace'); return; }
 
         // === Quick Actions ===
         // L = toggle leaderboard
@@ -2448,12 +2535,17 @@ function openImg(src) {
         // === Hidden Easter Eggs (shhh!) ===
         // 2 = "There is no second best."
         if (key === '2') { speakEasterEgg("There is no second best."); return; }
+        // 3 = Block reward "3.125"
+        if (key === '3') { speakEasterEgg("Three point one two five. The current block reward."); return; }
         // 1 = "One more block."
         if (key === '1') { speakEasterEgg("One more block."); return; }
         // 0 = "Don't trust. Verify."
         if (key === '0') { speakEasterEgg("Don't trust. Verify."); if (typeof earnSticker === 'function') earnSticker('cool'); return; }
         // 9 = "Number go up!"
         if (key === '9') { speakEasterEgg("Number go up!"); if (typeof nachoFly === 'function') nachoFly(); return; }
+        // 21 = Scarcity
+        if (window._eggBuffer === '2' && key === '1') { speakEasterEgg("Twenty-one million. Final and absolute."); return; }
+        
         // P = "Stay humble, stack sats."
         if (key === 'p') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
         if (key === 'w') { speakEasterEgg("Stay humble. Stack sats."); return; }
@@ -2518,11 +2610,12 @@ function openImg(src) {
             '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">Press <kbd style="background:var(--card-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-family:monospace;">?</kbd> to toggle this menu</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
-                kbRow('H','Go home') + kbRow('S / /','Search') + kbRow('R','Random channel') +
-                kbRow('M','Random meme') + kbRow('A','Random art') + kbRow('B','Back to last channel') +
+                kbRow('H','Go home') + kbRow('S / /','Search') + kbRow('C','Random channel') +
+                kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('B','Back to last channel') +
+                kbRow('P','PlebTalk (Forum)') + kbRow('X','Marketplace (Mart)') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
-                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('F','Favorite channel') +
-                kbRow('N','Ask Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') +
+                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('Z','Favorite channel') +
+                kbRow('N','Talk to Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') +
                 kbRow('I','Settings') + kbRow('D','Donate') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
                 kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
@@ -2577,30 +2670,56 @@ function openImg(src) {
         });
 
         // Swipe left/right on content area for random channel navigation
+        // Optimized "TikTok" style sensitivity
         var touchStartX = 0, touchStartY = 0, touchStartTime = 0;
         var mainEl = document.getElementById('main');
         mainEl.addEventListener('touchstart', function(e) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.closest('.no-swipe')) return;
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             touchStartTime = Date.now();
         }, { passive: true });
 
         mainEl.addEventListener('touchend', function(e) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.closest('.no-swipe')) return;
             var dx = e.changedTouches[0].clientX - touchStartX;
             var dy = e.changedTouches[0].clientY - touchStartY;
             var dt = Date.now() - touchStartTime;
-            // Must be a quick, horizontal swipe (not a scroll)
-            // Strict: fast, very horizontal, long swipe — won't trigger during normal scrolling
-            if (dt > 300 || Math.abs(dx) < 150 || Math.abs(dy) > Math.abs(dx) * 0.3) return;
 
-            if (dx > 100) {
-                // Swipe Left-to-Right → Previous Channel
-                goPrev();
-            } else if (dx < -100) {
-                // Swipe Right-to-Left → Next Channel
-                goNext();
+            // Strictness check: must be relatively horizontal or relatively vertical
+            var absX = Math.abs(dx);
+            var absY = Math.abs(dy);
+
+            // TikTok/Tinder Style: Quick Swipe
+            if (dt > 600) return; // Too slow
+
+            // Horizontal Swipes (Left/Right)
+            if (absX > 60 && absX > absY * 1.5) {
+                if (dx > 0) {
+                    goPrev(); // Swipe Left-to-Right → Previous
+                    if (typeof haptic === 'function') haptic('light');
+                } else {
+                    goNext(); // Swipe Right-to-Left → Next
+                    if (typeof haptic === 'function') haptic('light');
+                }
+                return;
+            }
+
+            // Vertical Swipes (Up/Down) - "TikTok style"
+            // Only trigger if at boundaries to not interfere with content scrolling
+            if (absY > 80 && absY > absX * 1.5) {
+                var isAtTop = mainEl.scrollTop <= 5;
+                var isAtBottom = mainEl.scrollHeight - mainEl.scrollTop - mainEl.clientHeight <= 5;
+
+                if (dy > 0 && isAtTop) {
+                    // Swipe Down at Top → Previous
+                    goPrev();
+                    if (typeof haptic === 'function') haptic('light');
+                } else if (dy < 0 && isAtBottom) {
+                    // Swipe Up at Bottom → Next
+                    goNext();
+                    if (typeof haptic === 'function') haptic('light');
+                }
             }
         }, { passive: true });
 
@@ -2665,15 +2784,130 @@ function openImg(src) {
     // Cache loaded channel data
     const channelCache = {};
 
+    // PROGRESSIVE SIDEBAR UPDATE
+    function updateSidebarTiers() {
+        const explored = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        const exploredCount = explored.length;
+        const visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+        
+        // Admin Bypass Logic
+        const isAdmin = auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("needcreations") || (auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("admin")) || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+
+        // Tier Logic (Sign-in or threshold met)
+        const isFull = isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous) || (visits >= 10 || exploredCount >= 10);
+        const isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
+
+        const labels = document.querySelectorAll('.cat-label');
+        const groups = document.querySelectorAll('.cat-group');
+        const sidebarButtons = document.querySelectorAll('.quest-start-btn');
+
+        // Properties Layer 1 & Referral (Always show)
+        // Experienced Topics (Explorer+) - index 1
+        if (labels[1] && groups[1]) {
+            labels[1].style.display = isExplorer ? '' : 'none';
+            groups[1].style.display = (isExplorer && labels[1].getAttribute('data-expanded') === 'true') ? '' : 'none';
+        }
+        // Resources (Explorer+) - index 2
+        if (labels[2] && groups[2]) {
+            labels[2].style.display = isExplorer ? '' : 'none';
+            groups[2].style.display = (isExplorer && labels[2].getAttribute('data-expanded') === 'true') ? '' : 'none';
+        }
+        // Additional Info (Full+) - index 3
+        if (labels[3] && groups[3]) {
+            labels[3].style.display = isFull ? '' : 'none';
+            groups[3].style.display = (isFull && labels[3].getAttribute('data-expanded') === 'true') ? '' : 'none';
+        }
+
+        // Sidebar Action Buttons
+        sidebarButtons.forEach(btn => {
+            const txt = btn.getAttribute('data-name') || btn.textContent.replace('🔒 ', '').trim();
+            if (!btn.getAttribute('data-name')) btn.setAttribute('data-name', txt);
+            
+            const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
+            if (!btn.getAttribute('data-onclick')) btn.setAttribute('data-onclick', origOnclick);
+
+            let locked = false;
+            let reqMsg = "";
+            const lowerTxt = txt.toLowerCase();
+            
+            if (lowerTxt.includes('bitcoin beats')) {
+                locked = !isExplorer;
+                const cL = Math.max(0, 3 - exploredCount);
+                const vL = Math.max(0, 3 - visits);
+                reqMsg = "🔒 Visit " + cL + " more channels OR visit " + vL + " more times to unlock Bitcoin Beats! 🎸";
+            }
+            if (lowerTxt.includes('plebtalk') || lowerTxt.includes('quest')) {
+                locked = !isExplorer;
+                const cL = Math.max(0, 3 - exploredCount);
+                const vL = Math.max(0, 3 - visits);
+                reqMsg = "🔒 Visit " + cL + " more channels OR visit " + vL + " more times to unlock PlebTalk! 🛡️";
+            }
+            if (lowerTxt.includes('marketplace')) {
+                locked = !isFull;
+                const cL = Math.max(0, 10 - exploredCount);
+                const vL = Math.max(0, 10 - visits);
+                reqMsg = "🔒 Explore " + cL + " channels OR visit " + vL + " more times to unlock the Mart! 🛡️";
+            }
+
+            if (locked) {
+                btn.innerHTML = '🔒 ' + txt;
+                btn.style.opacity = '0.5';
+                btn.style.filter = 'grayscale(1)';
+                btn.style.cursor = 'help';
+                btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); showToast(reqMsg); };
+                btn.title = reqMsg;
+            } else {
+                btn.innerHTML = txt;
+                btn.style.opacity = '1';
+                btn.style.filter = 'none';
+                btn.style.cursor = 'pointer';
+                const action = btn.getAttribute('data-onclick');
+                btn.setAttribute('onclick', action);
+                btn.title = "";
+            }
+        });
+        
+        // Add "Next Milestone" Info
+        let milestoneEl = document.getElementById('sidebarMilestone');
+        if (!milestoneEl) {
+            milestoneEl = document.createElement('div');
+            milestoneEl.id = 'sidebarMilestone';
+            milestoneEl.style.cssText = 'padding:15px;margin:10px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;font-size:0.75rem;color:var(--text-muted);';
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.insertBefore(milestoneEl, document.querySelector('.sidebar-promo'));
+        }
+        
+        if (!isExplorer) {
+            const vLeft = 3 - visits;
+            const cLeft = 3 - exploredCount;
+            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channels OR visit the app ' + vLeft + ' more times to unlock 🗣️ PlebTalk! 🦌';
+            milestoneEl.style.display = '';
+        } else if (!isFull) {
+            const vLeft = 10 - visits;
+            const cLeft = 10 - exploredCount;
+            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' channels OR visit the app ' + vLeft + ' more times to unlock ⚡ Marketplace! 🚀';
+            milestoneEl.style.display = '';
+        } else {
+            milestoneEl.style.display = 'none';
+        }
+    }
+
+    // Call updates
+    updateSidebarTiers();
+    setInterval(updateSidebarTiers, 10000);
+
     // Audio system
     let audioEnabled = localStorage.getItem('btc_audio') !== 'false';
     let audioVolume = parseFloat(localStorage.getItem('btc_volume') || '0.5');
 
+    window.canPlaySound = function() {
+        return audioEnabled && audioVolume > 0 && document.visibilityState === 'visible';
+    };
+
     function getVolume() { return audioEnabled ? audioVolume : 0; }
 
     function playChannelSound() {
-        if (document.hidden) return;
-        if (!audioEnabled || audioVolume <= 0) return;
+        if (!window.canPlaySound()) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const vol = audioVolume;
@@ -2777,8 +3011,34 @@ function openImg(src) {
             document.getElementById('sidebar').classList.remove('open');
         }
 
+        // PROGRESSIVE DISCLOSURE TIER SYSTEM
+        var exploredCount = 0;
+        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+        
+        // Admin Bypass Logic
+        var isAdmin = auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("needcreations") || (auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("admin")) || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+
+        var isFull = isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous) || (visits >= 10 || exploredCount >= 10);
+        var isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
+
+        // Lockdown for new users
+        if (!isExplorer && (id === 'forum' || id === 'marketplace')) {
+            const vL = 3 - visits;
+            const cL = 3 - exploredCount;
+            showToast('🔒 Visit ' + cL + ' more channels OR visit the app ' + vL + ' more times to unlock PlebTalk! 🛡️');
+            return;
+        }
+        if (!isFull && id === 'marketplace') {
+            const vL = 10 - visits;
+            const cL = 10 - exploredCount;
+            showToast('🔒 Explore ' + cL + ' channels OR visit the app ' + vL + ' more times to unlock the Mart! 🛡️');
+            return;
+        }
+
         // Forum route
-        if (id === 'forum' || id === 'marketplace') {
+        // Special App Routes (Non-channel content)
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -2789,12 +3049,14 @@ function openImg(src) {
             if (fc) { fc.style.display = 'block'; }
             if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
             if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); }
-            // Always show Nacho on forum/marketplace pages
-            setFloatingElementsVisible(true);
-            // Trigger Nacho context-aware greeting
-            if (typeof nachoOnPage === 'function') nachoOnPage(id);
+            
+            // Route to correct renderer
             if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
+            else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
             else if (typeof renderForum === 'function') renderForum();
+            
+            setFloatingElementsVisible(true);
+            if (typeof nachoOnPage === 'function') nachoOnPage(id);
             return;
         }
 
@@ -2852,7 +3114,6 @@ function openImg(src) {
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
-            '<p class="desc" id="channelDesc">' + meta.desc + '</p>' +
             '<div class="share-bar">' +
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
                 '<button class="share-btn" onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\', \'' + shareUrl + '\')">🟣 Nostr</button>' +
@@ -2893,50 +3154,14 @@ function openImg(src) {
         currentChannelId = id;
         galleryMode = false;
 
-        // Update description with full text from data, with working links and embeds
-        const descEl = document.getElementById('channelDesc');
-        if (descEl && d.msgs && d.msgs[0] && d.msgs[0].text) {
-            let t = d.msgs[0].text;
-            // YouTube embeds
-            let ytEmbeds = [];
-            t = t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g, function(match, id) {
-                ytEmbeds.push(id); return '%%YT' + (ytEmbeds.length - 1) + '%%';
-            });
-            t = t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g, function(match, id) {
-                ytEmbeds.push(id); return '%%YT' + (ytEmbeds.length - 1) + '%%';
-            });
-            // Twitter/X embeds
-            let twEmbeds = [];
-            t = t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g, function(match) {
-                var url = match.startsWith('http') ? match : 'https://' + match;
-                twEmbeds.push(url); return '%%TW' + (twEmbeds.length - 1) + '%%';
-            });
-            // Linkify remaining URLs
-            t = t.replace(/(https?:\/\/[^\s<>"]+)/g, '<a class="msg-link" href="$1" target="_blank">$1</a>');
-            // Restore YouTube
-            t = t.replace(/%%YT(\d+)%%/g, function(match, idx) {
-                return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/' + ytEmbeds[parseInt(idx)] + '" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
-            });
-            // Restore Twitter
-            t = t.replace(/%%TW(\d+)%%/g, function(match, idx) {
-                var twUrl = twEmbeds[parseInt(idx)], twId = 'tw_' + Math.random().toString(36).substr(2, 8);
-                var isMob = typeof isMobile === 'function' && isMobile();
-                var hm = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
-                var dh = hm ? '@' + hm[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
-                return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl + '\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">' + dh + '</div><div class="tw-preview-hint">' + (isMob ? '▶ Tap to display tweet' : '▶ Click to display tweet') + '</div></div><div class="tw-preview-arrow">→</div></div>';
-            });
-            t = t.replace(/🟠 (.+)/g, '<span class="orange-glow">$1</span>');
-            descEl.innerHTML = t;
-        }
-
         renderContent(id);
 
         // Trigger fade-in animation
         document.getElementById('hero').classList.add('fade-in');
         document.getElementById('msgs').classList.add('fade-in');
 
-        // Setup load-more for list view (skip first msg, shown in hero)
-        window._currentMsgs = d.msgs.length > 1 ? d.msgs.slice(1) : d.msgs;
+        // Setup load-more for list view
+        window._currentMsgs = d.msgs;
         window._currentOffset = 50;
         window.loadMoreMsgs = function() {
             const offset = window._currentOffset;
@@ -3007,6 +3232,7 @@ function openImg(src) {
     let searchTimeout = null;
     // Internal app pages searchable by keyword
     const APP_PAGES = [
+        { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Livestreams and community broadcasts', keywords: 'beats music livestream live video radio stream audio', action: "go('bitcoin-beats')" },
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
         { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
@@ -3044,6 +3270,14 @@ function openImg(src) {
             if (typeof awardHiddenBadge === 'function') {
                 awardHiddenBadge('discovery_satoshi', 'Found Satoshi! 🦢');
             }
+            speakEasterEgg("I am Satoshi. We are all Satoshi.");
+        }
+        
+        // --- EASTER EGG: DEER ---
+        if (q && q.toLowerCase() === 'deer') {
+            if (typeof setPose === 'function') setPose('celebrate');
+            speakEasterEgg("Fawntastic! You found the secret buck.");
+            if (typeof nachoFly === 'function') setTimeout(nachoFly, 1000);
         }
 
         if (!q || q.length < 2) {

@@ -488,14 +488,8 @@ const QUESTION_BANK = {
 
     'submarine_swap': [
         { q: 'A submarine swap allows you to:', a: 'Exchange on-chain Bitcoin for Lightning Bitcoin (or vice versa) trustlessly', wrong: ['Mine Bitcoin underwater', 'Send Bitcoin without internet', 'Convert Bitcoin to Ethereum'] },
-    ],
+]
 };
-
-// State
-let questTimerStart = Date.now();
-let completedQuests = new Set();
-let questCheckInterval = null;
-let currentQuest = null;
 let isRetry = false;
 let visitedForQuest = []; // Track channel visit order for quiz generation
 let questCount = 0;
@@ -548,7 +542,7 @@ function onChannelVisitForQuest(channelId) {
     }
 }
 
-function generateAndShowQuest(manual) {
+function generateAndShowQuest(manual, targetChannelId) {
     // Limit quests to 3 per day to prevent point farming
     var today = new Date().toISOString().split('T')[0];
     var questLog = JSON.parse(localStorage.getItem('btc_quest_daily') || '{}');
@@ -563,14 +557,23 @@ function generateAndShowQuest(manual) {
     // Track previously asked questions to avoid repeats
     const askedQuestions = JSON.parse(localStorage.getItem('btc_asked_questions') || '[]');
 
-    // Collect available questions from visited channels + general pool
+    // Collect available questions
     let pool = [];
+    
+    // Priority 1: Current Channel (highly requested)
+    if (targetChannelId && QUESTION_BANK[targetChannelId]) {
+        QUESTION_BANK[targetChannelId].forEach(q => pool.push({...q, source: targetChannelId}));
+    }
+
+    // Priority 2: Other visited channels
     for (const chId of visitedForQuest) {
+        if (chId === targetChannelId) continue;
         const questions = QUESTION_BANK[chId];
         if (questions) {
             questions.forEach(q => pool.push({...q, source: chId}));
         }
     }
+    
     // Always include general knowledge questions
     if (QUESTION_BANK['_general']) {
         QUESTION_BANK['_general'].forEach(q => pool.push({...q, source: '_general'}));
@@ -910,15 +913,16 @@ function retryQuest() {
     showQuest(currentQuest, true);
 }
 
-function startQuestManual() {
+function startQuestManual(targetChannelId) {
     if (currentQuest) return; // Already showing one
-    if (visitedForQuest.length < 1) {
+    if (visitedForQuest.length < 1 && !targetChannelId) {
         if (typeof showToast === 'function') showToast('Explore some channels first to unlock a Quest!');
         return;
     }
-    generateAndShowQuest(true);
+    generateAndShowQuest(true, targetChannelId);
     if (typeof isMobile === 'function' && isMobile()) {
-        document.getElementById('sidebar').classList.remove('open');
+        const sb = document.getElementById('sidebar');
+        if (sb) sb.classList.remove('open');
     }
 }
 
@@ -931,3 +935,43 @@ function closeQuest() {
 }
 
 setTimeout(initQuests, 3000);
+
+const NEW_BANK_QUESTIONS = {
+    'mining': [
+        { q: 'What is a "nonce" in Bitcoin mining?', a: 'A "number used once" that miners change to find a valid hash', wrong: ['A type of mining hardware', 'A fee paid to nodes', 'The total number of Bitcoins'] },
+        { q: 'Mining pools allow small miners to:', a: 'Receive more frequent, smaller payouts', wrong: ['Control the entire network', 'Mine without using electricity', 'Change the supply of Bitcoin'] },
+        { q: 'Bitcoin difficulty adjusts every how many blocks?', a: '2,016 blocks (roughly 2 weeks)', wrong: ['210,000 blocks', 'Only during halvings', 'Every single block'] }
+    ],
+    'nodes': [
+        { q: 'A pruned node saves space by:', a: 'Deleting old block data after validating it', wrong: ['Only downloading headers', 'Charging other nodes for storage', 'Reducing the frequency of blocks'] },
+        { q: 'A full node is different from a miner because:', a: 'It enforces all rules but doesn\'t create new blocks', wrong: ['It is faster than a miner', 'It requires more electricity', 'It is only for experts'] },
+        { q: 'How does your node know if a transaction is valid?', a: 'It checks the signatures and inputs against the consensus rules', wrong: ['It asks a central server', 'It votes with other nodes', 'It waits for a tweet from Satoshi'] }
+    ],
+    'privacy-nonkyc': [
+        { q: 'What is a "Dust Attack"?', a: 'Tiny amounts of BTC sent to addresses to track the owner\'s movement', wrong: ['A network overload', 'A type of mining hardware failure', 'Deleting your private keys by accident'] },
+        { q: '"WabiSabi" and "Whirlpool" are types of:', a: 'CoinJoin coordination protocols', wrong: ['Mining hardware', 'Wallet brand names', 'Bitcoin address formats'] }
+    ],
+    'problems-of-money': [
+        { q: '"Nixon Shock" in 1971 refers to:', a: 'The US ending the dollar\'s convertibility into gold', wrong: ['The launch of Bitcoin', 'A global stock market crash', 'The creation of the first bank'] },
+        { q: 'Gresham\'s Law states that:', a: '"Bad money drives out good money"', wrong: ['"Bitcoin will replace fiat"', '"Gold is always better than silver"', '"Taxes are voluntary"'] }
+    ],
+    'investment-strategy': [
+        { q: 'Lump-sum investing means:', a: 'Buying a large amount of Bitcoin all at once', wrong: ['Buying a fixed amount every week', 'Selling all your holdings', 'Trading only on weekends'] }
+    ],
+    'regulation': [
+        { q: 'What is a "Self-Custody" regulation attempt?', a: 'Rules that try to force users to use custodial services', wrong: ['Laws that guarantee free Bitcoin', 'Mining equipment safety standards', 'Bitcoin price caps'] }
+    ]
+};
+
+// Merge into QUESTION_BANK
+for(const cat in NEW_BANK_QUESTIONS) {
+    if(QUESTION_BANK[cat]) {
+        NEW_BANK_QUESTIONS[cat].forEach(q => {
+            if(!QUESTION_BANK[cat].some(p => p.q === q.q)) {
+                QUESTION_BANK[cat].push(q);
+            }
+        });
+    } else {
+        QUESTION_BANK[cat] = NEW_BANK_QUESTIONS[cat];
+    }
+}

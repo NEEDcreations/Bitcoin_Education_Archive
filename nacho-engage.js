@@ -157,6 +157,9 @@ window.nachoTrivia = function() {
 };
 
 window.showNachoTrivia = function() {
+    // ---- ANTI-INTERRUPTION SHIELD ----
+    if (window._nachoBusy) return false;
+
     var result = nachoTrivia();
     if (!result) return false;
 
@@ -256,6 +259,9 @@ window.trackNachoInteraction = function() {
             });
         } catch(e) {}
     }
+    
+    // Refresh UI
+    if (typeof renderProgressRings === 'function') renderProgressRings();
 };
 
 // ---- Follow-up Suggestions ----

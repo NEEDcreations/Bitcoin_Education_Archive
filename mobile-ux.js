@@ -172,6 +172,7 @@ if (origGo) {
 
 // ---- #6: Haptic Feedback ----
 window.haptic = function(type) {
+    if (document.visibilityState !== 'visible') return;
     if (localStorage.getItem('btc_haptic') === 'false') return;
     if (!navigator.vibrate) return;
     switch(type) {
@@ -314,7 +315,7 @@ function renderDailyChallenge() {
 }
 
 // Check challenge completion periodically
-function checkDailyChallenge() {
+window.checkDailyChallenge = function() {
     var today = new Date().toISOString().split('T')[0];
     if (localStorage.getItem('btc_challenge_done') === today) return;
 
@@ -327,7 +328,7 @@ function checkDailyChallenge() {
         renderDailyChallenge();
     }
 }
-setInterval(checkDailyChallenge, 5000);
+setInterval(window.checkDailyChallenge, 5000);
 
 // Track channel visits for challenge
 var _origGoForChallenge = window.go;

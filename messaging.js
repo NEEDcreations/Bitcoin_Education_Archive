@@ -721,7 +721,10 @@ window.showInbox = function() {
             if (!list) return;
             
             if (err.code === 'failed-precondition') {
-                list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">⚙️ Setting up inbox database (index)...<br>Please refresh in 1 minute.</div>';
+                list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">' +
+                    '⚙️ Setting up inbox database (index)...<br>Please refresh in 1 minute.<br><br>' +
+                    '<a href="https://console.firebase.google.com/project/bitcoin-education-archive/firestore/indexes" target="_blank" style="color:var(--accent);font-weight:700;">Click here to create the index manually if requested →</a>' +
+                    '</div>';
                 return;
             }
 

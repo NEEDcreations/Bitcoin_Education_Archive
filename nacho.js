@@ -27,6 +27,16 @@ const POSES = {
     love: '🧡',
 };
 
+// ---- Live Bitcoin Data Awareness ----
+window._btcData = {
+    price: null,
+    height: null,
+    halvingBlocks: null,
+    lastUpdate: 0
+};
+// Data is now handled by nacho-live.js to prevent redundant fetches. 
+// Just ensuring the object exists here.
+
 // ---- Clippy-style "It looks like..." messages ----
 const CLIPPY_HELPS = {
     // Channel-specific "It looks like..." messages
@@ -735,6 +745,30 @@ function createNacho() {
     // Welcome after delay — use time-of-day greeting or regular welcome
     setTimeout(function() {
         if (!nachoVisible) return;
+        
+        // PROGRESSIVE ONBOARDING FOR NEW USERS
+        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+        var exploredCount = 0;
+        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        
+        if (visits <= 1 && exploredCount < 2) {
+            const tutorialStep = parseInt(localStorage.getItem('btc_nacho_onboarding') || '1');
+            setPose('wave');
+            
+            if (tutorialStep === 1) {
+                forceShowBubble("Hey! I'm Nacho, your Bitcoin guide. 🦌🧡 Welcome! Ready for your 5-minute orange pill? **Step 1:** Go home and try the 🎡 Daily Spin! It's how you earn tickets for rewards.");
+                localStorage.setItem('btc_nacho_onboarding', '2');
+            } else if (tutorialStep === 2 && exploredCount > 0) {
+                forceShowBubble("Great start, {name}! **Step 2:** Explore 3 different channels. Knowledge is power—and it unlocks the rest of the Archive! 🗺️");
+                localStorage.setItem('btc_nacho_onboarding', '3');
+            } else if (tutorialStep === 3 && exploredCount >= 3) {
+                setPose('celebrate');
+                forceShowBubble("Boom! You unlocked 🗣️ **PlebTalk**. You can now discuss with the herd. Next stop: earn your first certificate in the 🎓 Scholar tab!");
+                localStorage.setItem('btc_nacho_onboarding', '4');
+            }
+            return;
+        }
+
         var msg;
         if (typeof nachoTimeGreeting === 'function' && Math.random() < 0.6) {
             msg = nachoTimeGreeting();
@@ -835,6 +869,10 @@ function forceShowBubble(text, pose) {
 }
 
 function _showBubble(text, pose) {
+    // ---- ANTI-INTERRUPTION SHIELD ----
+    // If Nacho is busy with Q&A or user input, don't overwrite the bubble
+    if (window._nachoBusy) return;
+
     const bubble = document.getElementById('nacho-bubble');
     const textEl = document.getElementById('nacho-text');
     const avatar = document.getElementById('nacho-avatar');
@@ -1448,18 +1486,32 @@ if (window.DeviceMotionEvent) {
 // Inject username into message text — replaces {name} placeholder
 window.personalize = function(text) {
     var name = nachoUserName();
+    
+    // Replace {name}
     if (!name) {
-        // Remove {name} and surrounding commas/spaces cleanly
         text = text.replace(/,?\s*\{name\}\s*,?\s*/g, function(match) {
-            // If both commas existed (e.g. ", {name},"), collapse to single comma+space
             if (match.indexOf(',') === 0 && match.lastIndexOf(',') > 0) return ', ';
             return match.charAt(0) === ',' ? ' ' : '';
         });
-        // Clean up any double spaces or leading commas
-        text = text.replace(/  +/g, ' ').replace(/^ ,/, '').replace(/, ,/g, ',').trim();
-        return text;
+    } else {
+        text = text.replace(/\{name\}/g, name);
     }
-    return text.replace(/\{name\}/g, name);
+
+    // Replace dynamic Bitcoin values
+    if (window._btcData) {
+        // Use more reliable defaults if sensors are still warming up
+        const price = window._btcData.price ? '$' + Math.round(window._btcData.price).toLocaleString() : 'over $60,000';
+        const height = window._btcData.height ? window._btcData.height.toLocaleString() : 'over 840,000';
+        const halving = window._btcData.halvingBlocks ? window._btcData.halvingBlocks.toLocaleString() : 'less than 150,000';
+        
+        text = text.replace(/\{price\}/g, price);
+        text = text.replace(/\{height\}/g, height);
+        text = text.replace(/\{halving\}/g, halving);
+    }
+
+    // Final cleanup
+    text = text.replace(/  +/g, ' ').replace(/^ ,/, '').replace(/, ,/g, ',').trim();
+    return text;
 }
 
 function pickRandom(arr) {
