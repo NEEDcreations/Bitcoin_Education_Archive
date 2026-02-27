@@ -2413,22 +2413,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         var marketBtn = document.querySelector('[onclick*="go(\'marketplace\'"]');
         var nachoModeBtn = document.querySelector('[onclick*="enterNachoMode"]');
 
-        if (isNewUser) {
-            if (spinBtn) spinBtn.parentElement.style.display = 'none'; // Hide the whole grid row
-            if (challengeCard) challengeCard.style.display = 'none';
-            if (forumBtn) forumBtn.style.display = 'none';
-            if (beatsBtn) beatsBtn.style.display = 'none';
-            if (marketBtn) marketBtn.style.display = 'none';
-            if (nachoModeBtn) nachoModeBtn.style.display = 'none';
-        } else {
-            if (spinBtn) spinBtn.parentElement.style.display = 'grid';
-            if (challengeCard) challengeCard.style.display = '';
-            // These will still be handled by sidebar logic but let's be explicit for home buttons
-            if (forumBtn) forumBtn.style.display = isExplorer ? '' : 'none';
-            if (beatsBtn) beatsBtn.style.display = isExplorer ? '' : 'none';
-            if (marketBtn) marketBtn.style.display = isFull ? '' : 'none';
-            if (nachoModeBtn) nachoModeBtn.style.display = '';
-        }
+        // Show basic game elements
+        if (spinBtn) spinBtn.parentElement.style.display = 'grid';
+        if (challengeCard) challengeCard.style.display = '';
+        if (forumBtn) forumBtn.style.display = '';
+        if (beatsBtn) beatsBtn.style.display = '';
+        if (marketBtn) marketBtn.style.display = '';
+        if (nachoModeBtn) nachoModeBtn.style.display = '';
 
         // Hide forum container
         var fc = document.getElementById('forumContainer');
@@ -2799,7 +2790,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         const labels = document.querySelectorAll('.cat-label');
         const groups = document.querySelectorAll('.cat-group');
-        const sidebarButtons = document.querySelectorAll('.quest-start-btn');
+        const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, #authBtn, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
 
         // Properties Layer 1 & Referral (Always show)
         // Experienced Topics (Explorer+) - index 1
@@ -2854,7 +2845,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.style.opacity = '0.5';
                 btn.style.filter = 'grayscale(1)';
                 btn.style.cursor = 'help';
-                btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); showToast(reqMsg); };
+                btn.onclick = function(e) { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    if (typeof showToast === 'function') showToast(reqMsg); 
+                };
                 btn.title = reqMsg;
             } else {
                 btn.innerHTML = txt;
@@ -2862,6 +2857,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.style.filter = 'none';
                 btn.style.cursor = 'pointer';
                 const action = btn.getAttribute('data-onclick');
+                // CLEAR THE PREVENT DEFAULT HANDLER
+                btn.onclick = null; 
                 btn.setAttribute('onclick', action);
                 btn.title = "";
             }

@@ -59,6 +59,7 @@ async function fetchLiveData() {
 
 window.getNachoLiveData = function() { return nachoLiveData; };
 
+
 function initTicker() {
     var ticker = document.getElementById('btcTicker');
     if (!ticker) {
@@ -67,75 +68,59 @@ function initTicker() {
         document.body.prepend(ticker);
     }
 
+    // Modern ticker style - fixed top, reserve space
     ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10005;background:#030712;border-bottom:1px solid #f7931a;padding:0;height:32px;overflow:hidden;display:flex;align-items:center;font-family:inherit;font-size:0.75rem;color:#94a3b8;line-height:32px;';
     
-    var scroller = window._tickerScroller;
-    if (!scroller) {
-        scroller = document.createElement('div');
-        scroller.id = 'tickerScroller';
-        window._tickerScroller = scroller;
-    }
-    scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 35s linear infinite;will-change:transform;';
+    // The scrolling track (Triple content for seamless loop)
+    var scroller = document.createElement('div');
+    scroller.id = 'tickerScroller';
+    scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 25s linear infinite;will-change:transform;';
     
-    const tickerContent = 
-        '<div class="ticker-item-set" style="display:flex;align-items:center;padding-right:50px;">' +
-            '<span style="display:flex;align-items:center;gap:12px;">' +
-                '<span style="display:flex;align-items:center;gap:6px;">' +
-                    '<span style="color:#f7931a;font-weight:900;font-size:1.1rem;">₿</span>' +
-                    '<span class="t-price-val" style="color:#fff;font-weight:800;">$---,---</span>' +
-                    '<span class="t-price-change" style="font-size:0.7rem;font-weight:900;"></span>' +
-                '</span>' +
-                '<span style="color:rgba(255,255,255,0.2);font-weight:100;">|</span>' +
-                '<span style="display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="window.open(\'https://mempool.space\',\'_blank\')">' +
-                    '<span style="color:#f7931a;font-size:0.9rem;">⛏️</span>' +
-                    '<span class="t-block-val" style="color:#fff;font-weight:700;">---,---</span>' +
-                '</span>' +
-            '</span>' +
-            '<span style="color:rgba(255,255,255,0.2);margin-left:25px;margin-right:25px;">|</span>' +
-            '<span class="t-news-items" style="color:#fff;font-weight:600;display:flex;align-items:center;gap:35px;">' +
-                '<span>📡 LOADING SIGNAL...</span>' +
-            '</span>' +
-        '</div>';
-
-    scroller.innerHTML = tickerContent + tickerContent;
+    const tickerHtml = "\n        <div class=\"ticker-item-set\" style=\"display:flex;align-items:center;padding-right:50px;\">\n            <span style=\"display:flex;align-items:center;gap:12px;\">\n                <span style=\"display:flex;align-items:center;gap:6px;\">\n                    <span style=\"color:#f7931a;font-weight:900;font-size:1.16rem;\">₿</span>\n                    <span class=\"t-price-val\" style=\"color:#fff;font-weight:800;\">$---,---</span>\n                    <span class=\"t-price-change\" style=\"font-size:0.7rem;font-weight:900;\"></span>\n                </span>\n                <span style=\"color:rgba(255,255,255,0.2);font-weight:100;\">|</span>\n                <span style=\"display:flex;align-items:center;gap:6px;cursor:pointer;\" onclick=\"window.open('https://mempool.space','_blank')\">\n                    <span style=\"color:#f7931a;font-size:0.9rem;\">⛏️</span>\n                    <span class=\"t-block-val\" style=\"color:#fff;font-weight:700;\">---,---</span>\n                </span>\n            </span>\n            <span style=\"color:rgba(255,255,255,0.2);margin-left:25px;margin-right:25px;\">|</span>\n            <span class=\"t-news-items\" style=\"color:#fff;font-weight:600;display:flex;align-items:center;gap:35px;\">\n                <span>📡 LOADING SIGNAL...</span>\n            </span>\n        </div>";
+    scroller.innerHTML = tickerHtml + tickerHtml + tickerHtml + tickerHtml;
     ticker.innerHTML = '';
     ticker.appendChild(scroller);
 
     var style = document.getElementById('btcTickerStyle');
-    if (!style) { style = document.createElement('style'); style.id = 'btcTickerStyle'; document.head.appendChild(style); }
-    style.textContent =
-        '@keyframes btcTickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }' +
-        '#btcTicker:hover #tickerScroller { animation-play-state: paused; }' +
-        '@media(max-width:900px) { ' +
-            '.mobile-bar { top: 32px !important; }' +
-            'main { padding-top: 118px !important; }' +
-            'aside { top: 118px !important; z-index: 10006; }' +
-            '#nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }' +
-            '#btcTicker { font-size: 0.65rem; height: 32px; display: flex !important; visibility: visible !important; }' +
-            '.progress-bar { top: 118px !important; }' +
-        '}' +
-        '@media(min-width:901px) { ' +
-            'aside { padding-top: 32px; }' +
-            'main { padding-top: 32px; }' +
-            '#nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }' +
-            '#btcTicker { display: flex !important; visibility: visible !important; }' +
-            '.progress-bar { top: 32px !important; }' +
-        '}';
+    if (!style) {
+        style = document.createElement('style');
+        style.id = 'btcTickerStyle';
+        document.head.appendChild(style);
+    }
+    style.textContent = `
+        @keyframes btcTickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        #btcTicker:hover #tickerScroller { animation-play-state: paused; }
+        @media(max-width:900px) { 
+            .mobile-bar { top: 32px !important; }
+            main { padding-top: 130px !important; }
+            aside { top: 130px !important; z-index: 10006; }
+            #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
+            #btcTicker { font-size: 0.65rem; height: 32px; visibility: visible !important; display: flex !important; }
+            .progress-bar { top: 118px !important; }
+        }
+        @media(min-width:901px) { 
+            aside { padding-top: 32px; }
+            main { padding-top: 32px; }
+            #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
+            #btcTicker { visibility: visible !important; display: flex !important; }
+            .progress-bar { top: 32px !important; }
+        }`;
 
     fetch('newsletter-data.json?v=' + Date.now()).then(r => r.json()).then(data => {
         const itemsSets = ticker.querySelectorAll('.t-news-items');
-        if (itemsSets && data.news && data.news.length > 0) {
+        if (itemsSets && data.news) {
             let html = '';
-            data.news.forEach((n, i) => {
-                html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + n.title.toUpperCase() + '</span>';
-            });
+            data.news.forEach((n, i) => { html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + n.title.toUpperCase() + '</span>'; });
             itemsSets.forEach(el => el.innerHTML = html);
         }
-    }).catch(e => {});
+    }).catch(e => {
+        ticker.querySelectorAll('.t-news-items').forEach(el => el.innerHTML = '<span>📡 TECHNICAL SIGNAL OFFLINE</span>');
+    });
 
     updateTicker();
     setInterval(updateTicker, 60000); 
 }
+
 
 function updateTicker() {
     fetchLiveData().then(function() {
