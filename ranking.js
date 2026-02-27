@@ -299,26 +299,26 @@ async function handleEmailSignIn() {
 }
 
 // Google Sign-In
-async function signInWithGoogle() {
+window.signInWithGoogle = async function() {
     await signInWithProvider(new firebase.auth.GoogleAuthProvider());
 }
 
 // Twitter/X Sign-In
-async function signInWithTwitter() {
+window.signInWithTwitter = async function() {
     await signInWithProvider(new firebase.auth.TwitterAuthProvider());
 }
 
 // GitHub Sign-In
-async function signInWithGithub() {
+window.signInWithGithub = async function() {
     await signInWithProvider(new firebase.auth.GithubAuthProvider());
 }
 
 // Facebook Sign-In
-async function signInWithFacebook() {
+window.signInWithFacebook = async function() {
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
 }
 
-async function signInWithNostr() {
+window.signInWithNostr = async function() {
     if (!checkRateLimit()) return;
 
     // Check for NIP-07 browser extension (Alby, nos2x, etc.)

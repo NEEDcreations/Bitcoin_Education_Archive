@@ -75,7 +75,7 @@ function initTicker() {
         scroller.id = 'tickerScroller';
         window._tickerScroller = scroller;
     }
-    scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 60s linear infinite;will-change:transform;';
+    scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 35s linear infinite;will-change:transform;';
     
     const tickerContent = 
         '<div class="ticker-item-set" style="display:flex;align-items:center;padding-right:50px;">' +
