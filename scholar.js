@@ -7524,3 +7524,8 @@ window.startFlashcards = function(topic) {
     renderCard();
     modal.classList.add('open');
 };
+
+
+// ---- OPENCLAW EXPORTS ----
+if (typeof startScholarQuest !== "undefined") window.startScholarQuest = startScholarQuest;
+if (typeof startFlashcards !== "undefined") window.startFlashcards = startFlashcards;

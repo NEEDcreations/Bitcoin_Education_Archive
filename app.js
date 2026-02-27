@@ -1,4 +1,18 @@
-function openImg(src) {
+(function() {
+    var _lastTickerPrice = null;
+    var _hasInited = false;
+    var nachoLiveData = { price: null, blockHeight: null };
+
+    // Create lightbox if not exists
+    if (!document.getElementById('lb')) {
+        var lb = document.createElement('div');
+        lb.id = 'lb';
+        lb.onclick = function() { document.getElementById('lb').classList.remove('open'); };
+        lb.innerHTML = '<img id="lb-img" src="">';
+        document.body.appendChild(lb);
+    }
+
+    function openImg(src) {
         document.getElementById('lb-img').src = src;
         document.getElementById('lb').classList.add('open');
     }
@@ -8,37 +22,25 @@ function openImg(src) {
     function toggleTheme() {
         const isDark = document.body.getAttribute('data-theme') !== 'light';
         document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-        document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
-        localStorage.setItem('btc_theme', isDark ? 'light' : 'dark');
-    }
-    // Restore saved theme
-    (function() {
-        const saved = localStorage.getItem('btc_theme');
-        if (saved === 'light') {
-            document.body.setAttribute('data-theme', 'light');
-            setTimeout(() => { const b = document.getElementById('themeBtn'); if(b) b.textContent = '☀️'; }, 0);
-        }
-        // Set audio state
-        setTimeout(() => { updateAudioUI(); }, 0);
-    })();
-
-    function setFloatingElementsVisible(visible) {
-        var ids = ['nacho-container','nacho-toggle','lbFloatBtn','floatingRandomBtn','userDisplay','backToTop','scrollToBottom'];
-        ids.forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.style.display = visible ? '' : 'none';
-        });
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        const icon = document.getElementById('themeBtn');
+        if (icon) icon.textContent = isDark ? '☀️' : '🌙';
     }
 
     function toggleMenu() {
         var sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('open');
-        // Hide floating elements when sidebar is open on mobile (they block scrolling)
-        setFloatingElementsVisible(!sidebar.classList.contains('open'));
+        if (sidebar) {
+            sidebar.classList.toggle('open');
+            // Hide floating elements when sidebar is open on mobile (they block scrolling)
+            if (typeof setFloatingElementsVisible === 'function') {
+                setFloatingElementsVisible(!sidebar.classList.contains('open'));
+            }
+        }
     }
 
     function toggleCat(label) {
         var group = label.nextElementSibling;
+        if (!group) return;
         var arrow = label.querySelector('.cat-arrow');
         var expanded = label.getAttribute('data-expanded') === 'true';
         if (expanded) {
@@ -78,26 +80,12 @@ function openImg(src) {
         } else {
             favs.push(id);
             if (btn) btn.innerHTML = '⭐ Saved';
-            // Track for daily challenge
+            // Track in session for daily progress
             sessionStorage.setItem('btc_fav_added', 'true');
         }
         setFavs(favs);
         // Sync to Firebase
         if (typeof syncFavsToFirebase === 'function') syncFavsToFirebase();
-    }
-
-    function renderFavs() {
-        const favs = getFavs();
-        const section = document.getElementById('favsSection');
-        const list = document.getElementById('favsList');
-        if (favs.length === 0) { section.style.display = 'none'; return; }
-        section.style.display = 'block';
-        list.innerHTML = favs.map(id => {
-            const meta = CHANNELS[id];
-            if (!meta) return '';
-            const short = meta.title.length > 28 ? meta.title.substring(0, 28) + '...' : meta.title;
-            return '<button class="ch-btn" onclick="go(\'' + id + '\',this)">⭐ ' + short + '</button>';
-        }).join('');
     }
 
     let galleryMode = false;
@@ -3630,3 +3618,16 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h) go(h);
     };
+// ---- GLOBAL EXPORTS for HTML onclick handlers ----
+if (typeof toggleCat !== 'undefined') window.toggleCat = toggleCat;
+if (typeof toggleTheme !== 'undefined') window.toggleTheme = toggleTheme;
+if (typeof toggleAudio !== 'undefined') window.toggleAudio = toggleAudio;
+if (typeof handleSupportClick !== 'undefined') window.handleSupportClick = handleSupportClick;
+if (typeof showDonateModal !== 'undefined') window.showDonateModal = showDonateModal;
+if (typeof enterNachoMode !== 'undefined') window.enterNachoMode = enterNachoMode;
+if (typeof goHome !== 'undefined') window.goHome = goHome;
+if (typeof goRandom !== 'undefined') window.goRandom = goRandom;
+if (typeof goRandomArt !== 'undefined') window.goRandomArt = goRandomArt;
+if (typeof goRandomMeme !== 'undefined') window.goRandomMeme = goRandomMeme;
+
+})();

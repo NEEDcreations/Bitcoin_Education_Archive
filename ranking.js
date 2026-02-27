@@ -1889,3 +1889,8 @@ window.exportUserData = function() {
     link.download = 'bitcoin_archive_user_data.json';
     link.click();
 };
+
+
+// ---- OPENCLAW EXPORTS ----
+if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
+if (typeof showUsernamePrompt !== "undefined") window.showUsernamePrompt = showUsernamePrompt;

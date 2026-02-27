@@ -975,3 +975,7 @@ for(const cat in NEW_BANK_QUESTIONS) {
         QUESTION_BANK[cat] = NEW_BANK_QUESTIONS[cat];
     }
 }
+
+
+// ---- OPENCLAW EXPORTS ----
+if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;

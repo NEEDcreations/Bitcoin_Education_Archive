@@ -1562,4 +1562,9 @@ if (document.readyState === 'loading') {
     createNacho();
 }
 
+
+
+// ---- OPENCLAW EXPORTS ----
+if (typeof showNachoStory !== "undefined") window.showNachoStory = showNachoStory;
+if (typeof showPricePrediction !== "undefined") window.showPricePrediction = showPricePrediction;
 })();
