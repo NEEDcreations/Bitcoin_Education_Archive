@@ -21,13 +21,13 @@ window.showColorPicker = function(itemId) {
 
     var colors = [
         { name: 'Default', hue: '0deg', color: '#f7931a' },
-        { name: 'Red', hue: '-30deg', color: '#ef4444' },
-        { name: 'Blue', hue: '200deg', color: '#3b82f6' },
-        { name: 'Green', hue: '120deg', color: '#22c55e' },
-        { name: 'Purple', hue: '260deg', color: '#8b5cf6' },
-        { name: 'Pink', hue: '310deg', color: '#ec4899' },
-        { name: 'Gold', hue: '30deg', color: '#eab308' },
-        { name: 'Cyan', hue: '170deg', color: '#06b6d4' },
+        { name: 'Red', hue: '335deg', color: '#ef4444' },
+        { name: 'Blue', hue: '190deg', color: '#3b82f6' },
+        { name: 'Green', hue: '100deg', color: '#22c55e' },
+        { name: 'Purple', hue: '245deg', color: '#8b5cf6' },
+        { name: 'Pink', hue: '290deg', color: '#ec4899' },
+        { name: 'Gold', hue: '25deg', color: '#eab308' },
+        { name: 'Cyan', hue: '150deg', color: '#06b6d4' },
         { name: 'White', hue: '0deg', color: '#e2e8f0', filter: 'grayscale(1) brightness(2)' },
     ];
     var saved = localStorage.getItem('btc_nacho_color_' + itemId) || '0deg';
