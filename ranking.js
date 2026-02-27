@@ -1773,8 +1773,8 @@ function showSettingsPage(tab) {
             var val = currentUser ? currentUser[s.k] || '' : '';
             html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
                 '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
-                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
-                '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
+                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:#ffffff;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+                '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
             '</div>';
         });
         html += '</div>';
@@ -2402,8 +2402,8 @@ window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
     row.setAttribute('data-key', key);
     row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
     row.innerHTML = '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + emoji + '</span>' +
-        '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;" autofocus>' +
-        '<button onclick="document.getElementById(\'profile_' + key + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + key + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>';
+        '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#020617);border:1px solid var(--border);border-radius:10px;color:#ffffff;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'" autofocus>' +
+        '<button onclick="document.getElementById(\'profile_' + key + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + key + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>';
     area.appendChild(row);
     // Hide the menu item and close menu
     document.getElementById('addLinkMenu').style.display = 'none';
