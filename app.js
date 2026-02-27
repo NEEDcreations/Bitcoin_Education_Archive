@@ -555,7 +555,7 @@ function openImg(src) {
         document.getElementById('home').classList.add('hidden');
         document.getElementById('hero').innerHTML = '';
         document.getElementById('msgs').innerHTML = '';
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = 'none';
         });
         // Hide mobile top bar in Nacho mode (fullscreen takeover)
@@ -2087,7 +2087,7 @@ function openImg(src) {
         if (screen) screen.remove();
 
         // Restore everything that was hidden on enter
-        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle').forEach(function(el) {
+        document.querySelectorAll('aside, #rankBar, #lbFloatBtn, #floatingRandomBtn, #userDisplay, #backToTop, #scrollToBottom, #nacho-container, #nacho-toggle, #guestPointsBanner').forEach(function(el) {
             if (el) el.style.display = '';
         });
         // Restore mobile top bar
