@@ -494,42 +494,33 @@ function createNacho() {
         /* 1. Tap tap — like Clippy tapping on the screen */
         /* Nacho victory flight — Lightning bolt ⚡ across the full screen! */
         @keyframes nachoFly {
-            /*  ⚡ Lightning bolt: zigzag from left to far right, then teleport home
-                Uses vw so he crosses the FULL viewport  */
-            0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-            /* Strike 1: up-right */
-            10%  { transform: translate(20vw, -25vh) rotate(18deg); opacity: 1; }
-            /* Strike 2: down-right */
-            20%  { transform: translate(35vw, -8vh) rotate(-15deg); opacity: 1; }
-            /* Strike 3: up-right */
-            30%  { transform: translate(50vw, -35vh) rotate(20deg); opacity: 1; }
-            /* Strike 4: down-right */
-            40%  { transform: translate(65vw, -12vh) rotate(-18deg); opacity: 1; }
-            /* Strike 5: up to peak — far right corner */
-            50%  { transform: translate(80vw, -40vh) rotate(15deg) scale(1.2); opacity: 1; }
-            /* Strike 6: final zag down to far edge */
-            60%  { transform: translate(88vw, -15vh) rotate(-10deg) scale(1.1); opacity: 1; }
-            /* Pause at the end — flash! */
-            70%  { transform: translate(88vw, -15vh) rotate(0deg) scale(1.3); opacity: 1; }
-            /* Teleport: fade out */
-            80%  { transform: translate(88vw, -15vh) scale(0.5); opacity: 0; }
-            /* Reappear at home */
-            90%  { transform: translate(0, 20px) scale(0.5); opacity: 0; }
-            /* Land with a bounce */
-            95%  { transform: translate(0, -10px) scale(1.05); opacity: 1; }
+            /*  ⚡ Lightning bolt: high-energy erratic takeoff, zigzag, and sonic boom reentry 
+            */
+            0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+            5%   { transform: translate(-5px, 10px) rotate(-10deg) scale(0.9); }
+            10%  { transform: translate(15vw, -20vh) rotate(20deg) scale(1.1); }
+            20%  { transform: translate(40vw, -5vh) rotate(-15deg) scale(1); }
+            30%  { transform: translate(65vw, -45vh) rotate(35deg) scale(1.2); }
+            45%  { transform: translate(90vw, -10vh) rotate(-20deg) scale(1.1); }
+            60%  { transform: translate(110vw, -60vh) rotate(45deg) scale(1.4); opacity: 1; }
+            61%  { transform: translate(110vw, -60vh); opacity: 0; }
+            /* Sonic boom reentry from the top left */
+            85%  { transform: translate(-50vw, -50vh) rotate(-45deg) scale(2); opacity: 0; }
+            90%  { transform: translate(-10vw, -10vh) rotate(-20deg) scale(1.5); opacity: 1; filter: brightness(3) blur(2px); }
+            95%  { transform: translate(0, -20px) rotate(0deg) scale(1.1); filter: brightness(1); }
             100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
         @keyframes nachoFlyMobile {
-            0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-            12%  { transform: translate(25vw, -20vh) rotate(18deg); opacity: 1; }
-            24%  { transform: translate(45vw, -5vh) rotate(-15deg); opacity: 1; }
-            36%  { transform: translate(60vw, -28vh) rotate(20deg); opacity: 1; }
-            48%  { transform: translate(75vw, -8vh) rotate(-12deg) scale(1.15); opacity: 1; }
-            60%  { transform: translate(85vw, -30vh) rotate(10deg) scale(1.2); opacity: 1; }
-            70%  { transform: translate(85vw, -30vh) rotate(0deg) scale(1.3); opacity: 1; }
-            80%  { transform: translate(85vw, -30vh) scale(0.5); opacity: 0; }
-            90%  { transform: translate(0, 20px) scale(0.5); opacity: 0; }
-            95%  { transform: translate(0, -8px) scale(1.05); opacity: 1; }
+            0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+            8%   { transform: translate(-2vw, 5vh) rotate(-10deg) scale(0.9); }
+            15%  { transform: translate(25vw, -30vh) rotate(15deg) scale(1.1); }
+            30%  { transform: translate(60vw, -5vh) rotate(-15deg) scale(1); }
+            50%  { transform: translate(85vw, -50vh) rotate(30deg) scale(1.3); }
+            65%  { transform: translate(105vw, -20vh) rotate(10deg) scale(1.2); opacity: 1; }
+            66%  { transform: translate(105vw, -20vh); opacity: 0; }
+            /* Reentry from top */
+            88%  { transform: translate(0, -80vh) rotate(0deg) scale(1.5); opacity: 0; }
+            94%  { transform: translate(0, -10px) rotate(0deg) scale(1.1); opacity: 1; filter: brightness(2); }
             100% { transform: translate(0, 0) scale(1); opacity: 1; }
         }
         #nacho-avatar.flying {
@@ -1180,7 +1171,15 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
 
 // ---- Context-Aware: Points Earned ----
 window.nachoOnPoints = function(pts) {
-    if (!nachoVisible || Math.random() > 0.2) return;
+    if (!nachoVisible) return;
+    
+    // Flying threshold: 250+ points in one go (very rare/big achievement)
+    if (pts >= 250) {
+        setTimeout(nachoFly, 500);
+        return;
+    }
+    
+    if (Math.random() > 0.2) return;
     const msg = pickRandom(MILESTONES);
     showBubble(msg.text, msg.pose);
 };
@@ -1217,10 +1216,9 @@ window.nachoFly = function() {
     // Sound check
     var soundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
 
-    // Zaps at each bolt direction change (timed to 1.8s animation)
-    // Zap at each bolt direction change (timed to 2.8s desktop animation)
-    var zapTimes = [0, 280, 560, 840, 1120, 1400, 1680, 1960];
-    var zapPitches = [1800, 1400, 2200, 1200, 2400, 1600, 2000, 2800];
+    // Zaps at each bolt direction change (timed to 2.8s desktop animation)
+    var zapTimes = [0, 400, 800, 1200, 1600, 2000];
+    var zapPitches = [1200, 1800, 1400, 2200, 1600, 2800];
     zapTimes.forEach(function(t, i) {
         setTimeout(function() {
             if (soundOn && avatar.classList.contains('flying')) playZap(zapPitches[i]);
@@ -1239,7 +1237,7 @@ window.nachoFly = function() {
         particle.style.top = (rect.top + rect.height / 2 + (Math.random() * 20 - 10)) + 'px';
         document.body.appendChild(particle);
         setTimeout(function() { if (particle.parentNode) particle.remove(); }, 600);
-    }, 60);
+    }, 40);
 
     // Remove flying class when animation ends, resume idle
     avatar.addEventListener('animationend', function handler() {
@@ -1375,6 +1373,46 @@ window.nachoUserName = function() {
     return '';
 }
 
+// ---- Secret Shake Gesture ----
+let lastShakeTime = 0;
+let shakeCount = 0;
+let shakeProcessing = false;
+
+if (window.DeviceMotionEvent) {
+    window.addEventListener('devicemotion', function(event) {
+        if (!nachoVisible || shakeProcessing) return;
+        
+        var acc = event.accelerationIncludingGravity;
+        if (!acc) return;
+        
+        // Decently hard shake threshold (total acceleration vector > 25 m/s^2)
+        // Gravity is 9.8, so this is a significant force
+        var totalAcc = Math.sqrt(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
+        
+        if (totalAcc > 28) {
+            var now = Date.now();
+            if (now - lastShakeTime > 1000) {
+                shakeCount = 0; // Reset if too slow
+            }
+            
+            lastShakeTime = now;
+            shakeCount++;
+            
+            // Require 2 quick hard shakes (to prevent accidental triggers from walking/dropping)
+            if (shakeCount >= 2) {
+                shakeProcessing = true;
+                shakeCount = 0;
+                
+                if (typeof haptic === 'function') haptic('heavy');
+                if (typeof nachoFly === 'function') nachoFly();
+                forceShowBubble(personalize("Whoa, {name}! Too much coffee? ⚡🦌🌪️"));
+                
+                setTimeout(function() { shakeProcessing = false; }, 3000); // Cooldown
+            }
+        }
+    }, true);
+}
+
 // Inject username into message text — replaces {name} placeholder
 window.personalize = function(text) {
     var name = nachoUserName();
@@ -1402,13 +1440,25 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         const av = document.getElementById('nacho-avatar');
         if (!av) return;
-        function startLP() { lp = setTimeout(function() { hideNacho(); if (typeof showToast === 'function') showToast('🦌 Nacho is hiding. Click the small 🦌 to bring him back!'); }, 1500); }
+        
+        function startLP(e) { 
+            if (e.type === 'touchstart') {
+                // Prevent scrolling when long-pressing Nacho
+                e.preventDefault();
+            }
+            lp = setTimeout(function() { 
+                hideNacho(); 
+                if (typeof showToast === 'function') showToast('🦌 Nacho is hiding. Click the small 🦌 to bring him back!'); 
+            }, 800); 
+        }
         function stopLP() { clearTimeout(lp); }
+        
         av.addEventListener('mousedown', startLP);
         av.addEventListener('mouseup', stopLP);
         av.addEventListener('mouseleave', stopLP);
-        av.addEventListener('touchstart', startLP, { passive: true });
+        av.addEventListener('touchstart', startLP, { passive: false });
         av.addEventListener('touchend', stopLP);
+        av.addEventListener('touchmove', stopLP);
     }, 1000);
 });
 

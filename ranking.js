@@ -1367,6 +1367,7 @@ function showLevelUpCelebration(lv) {
 
     // Confetti
     if (typeof launchConfetti === 'function') launchConfetti();
+    if (typeof nachoFly === 'function') nachoFly();
 
     // Level-up modal
     const overlay = document.createElement('div');

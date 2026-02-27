@@ -170,6 +170,7 @@ function showBadgeToast(badge) {
 
     // Major badges: full celebration
     playBadgeSound();
+    if (typeof nachoFly === 'function') nachoFly();
 
     // Launch confetti
     launchConfetti();
