@@ -426,6 +426,214 @@ function openImg(src) {
         window.open('https://primal.net/home', '_blank');
     }
 
+    window.showSpinWheel = function() {
+        // Check if already spun today
+        var lastSpin = localStorage.getItem('btc_last_spin_date');
+        var today = new Date().toDateString();
+        if (lastSpin === today) {
+            showToast('🎡 You already spun today! Come back tomorrow!');
+            return;
+        }
+        
+        var existing = document.getElementById('spinModal');
+        if (existing) existing.remove();
+        
+        var modal = document.createElement('div');
+        modal.id = 'spinModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);-webkit-overflow-scrolling:touch;overflow-y:auto;padding:20px;';
+        
+        // Wheel segments with prizes
+        var segments = [
+            { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 30, color: '#f7931a' },
+            { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 25, color: '#ea580c' },
+            { label: '⭐ 10 pts', value: 'points_10', weight: 20, color: '#22c55e' },
+            { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
+            { label: '⭐ 25 pts', value: 'points_25', weight: 8, color: '#3b82f6' },
+            { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
+            { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1, color: '#a855f7' }
+        ];
+        
+        modal.innerHTML =
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
+                '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
+                '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
+                '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, points, and rare Freeze Tickets!</p>' +
+                '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
+                    '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
+                    '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
+                '</div>' +
+                '<button id="spinBtn" style="padding:14px 40px;background:linear-gradient(135deg,var(--accent,#f7931a),#ea580c);border:none;border-radius:12px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;box-shadow:0 4px 15px rgba(247,147,26,0.4);transition:0.2s;">SPIN! 🎰</button>' +
+                '<div id="spinResult" style="margin-top:16px;min-height:60px;"></div>' +
+            '</div>';
+        
+        document.body.appendChild(modal);
+        
+        // Draw the wheel
+        var canvas = document.getElementById('spinCanvas');
+        var ctx = canvas.getContext('2d');
+        var centerX = 125, centerY = 125, radius = 120;
+        var segmentAngle = (Math.PI * 2) / segments.length;
+        
+        segments.forEach(function(seg, i) {
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, i * segmentAngle, (i + 1) * segmentAngle);
+            ctx.fillStyle = seg.color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw label
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(i * segmentAngle + segmentAngle / 2);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(seg.label, radius - 15, 4);
+            ctx.restore();
+        });
+        
+        // Spin button handler
+        var isSpinning = false;
+        var spinBtn = document.getElementById('spinBtn');
+        var resultDiv = document.getElementById('spinResult');
+        
+        spinBtn.addEventListener('click', function() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            spinBtn.style.opacity = '0.5';
+            
+            // Weighted random selection
+            var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
+            var random = Math.random() * totalWeight;
+            var selectedIndex = 0, currentWeight = 0;
+            
+            for (var i = 0; i < segments.length; i++) {
+                currentWeight += segments[i].weight;
+                if (random <= currentWeight) {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+            
+            var selected = segments[selectedIndex];
+            var spins = 5 + Math.random() * 3; // 5-8 full spins
+            var finalAngle = (Math.PI * 2) - (selectedIndex * segmentAngle + segmentAngle / 2);
+            var totalRotation = (spins * Math.PI * 2) + finalAngle;
+            
+            // Animate
+            var startTime = Date.now();
+            var duration = 4000;
+            var startAngle = 0;
+            
+            function easeOutQuart(t) {
+                return 1 - Math.pow(1 - t, 4);
+            }
+            
+            function animate() {
+                var elapsed = Date.now() - startTime;
+                var progress = Math.min(elapsed / duration, 1);
+                var eased = easeOutQuart(progress);
+                var currentAngle = startAngle + (totalRotation * eased);
+                
+                ctx.clearRect(0, 0, 250, 250);
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(currentAngle);
+                ctx.translate(-centerX, -centerY);
+                
+                segments.forEach(function(seg, i) {
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.arc(centerX, centerY, radius, i * segmentAngle, (i + 1) * segmentAngle);
+                    ctx.fillStyle = seg.color;
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(i * segmentAngle + segmentAngle / 2);
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText(seg.label, radius - 15, 4);
+                    ctx.restore();
+                });
+                
+                ctx.restore();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Show result
+                    var rewardText = '';
+                    var rewardType = selected.value.split('_')[0];
+                    var rewardAmount = parseInt(selected.value.split('_')[1]) || 1;
+                    
+                    if (rewardType === 'freeze') {
+                        rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
+                        // Add freeze ticket to user
+                        var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0');
+                        localStorage.setItem('btc_streak_freezes', freezes + 1);
+                        if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
+                            try {
+                                db.collection('users').doc(auth.currentUser.uid).update({
+                                    streakFreezes: firebase.firestore.FieldValue.increment(1)
+                                }).catch(function(){});
+                            } catch(e) {}
+                        }
+                        if (typeof currentUser !== 'undefined' && currentUser) {
+                            currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
+                        }
+                    } else if (rewardType === 'ticket') {
+                        rewardText = '🎟️ You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
+                        // Add tickets
+                        if (typeof awardOrangeTickets === 'function') {
+                            awardOrangeTickets(rewardAmount, 'Daily Spin');
+                        } else {
+                            var tickets = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
+                            localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
+                        }
+                    } else if (rewardType === 'points') {
+                        rewardText = '⭐ You won ' + rewardAmount + ' points!';
+                        if (typeof awardPoints === 'function') {
+                            awardPoints(rewardAmount, 'Daily Spin');
+                        } else {
+                            var pts = parseInt(localStorage.getItem('btc_points') || '0');
+                            localStorage.setItem('btc_points', pts + rewardAmount);
+                        }
+                    }
+                    
+                    resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
+                        '<div style="font-size:3rem;margin-bottom:8px;">' + selected.label.split(' ')[0] + '</div>' +
+                        '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
+                        '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
+                    '</div>';
+                    
+                    // Mark as spun today
+                    localStorage.setItem('btc_last_spin_date', today);
+                    if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
+                        try {
+                            db.collection('users').doc(auth.currentUser.uid).update({
+                                lastSpinDate: today
+                            }).catch(function(){});
+                        } catch(e) {}
+                    }
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        });
+        
+        modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    };
+
     window.showDonateModal = function() {
         var existing = document.getElementById('donateModal');
         if (existing) existing.remove();
