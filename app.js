@@ -712,6 +712,14 @@
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     };
 
+    // Preload QR code image so it appears instantly
+    var _donateQRPreloaded = false;
+    setTimeout(function() {
+        var img = new Image();
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:spontaneousleopard54@zeuspay.com';
+        img.onload = function() { _donateQRPreloaded = true; };
+    }, 3000);
+
     window.showDonateModal = function() {
         var existing = document.getElementById('donateModal');
         if (existing) existing.remove();
@@ -2463,6 +2471,13 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.goHome = function goHome(fromPopState) {
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
+        // Hide special page containers when returning home
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.style.display = 'none';
+        var msgs = document.getElementById('msgs');
+        if (msgs) msgs.style.display = 'none';
+        var hero = document.getElementById('hero');
+        if (hero) hero.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
         var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.displayName || "").toLowerCase().includes("needcreations")) || (_a && (_a.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));

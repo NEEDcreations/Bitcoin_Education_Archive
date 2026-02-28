@@ -1706,6 +1706,7 @@ function findAnswer(input) {
 
     for (const entry of NACHO_KB) {
         let score = 0;
+        if (!entry.keys) continue;
         for (const key of entry.keys) {
             if (input === key) { score = 100; break; } // Exact match
             if (input.includes(key)) { score = Math.max(score, 50 + key.length); } // Contains match (longer = better)
@@ -2352,7 +2353,7 @@ window.nachoAnswer = function() {
             var match = findAnswer(q);
             
             // Re-check live data priority even inside KB
-            if (match && (match.keys.includes('current price') || match.keys.includes('current block height'))) {
+            if (match && (match.keys && match.keys.includes('current price') || match.keys && match.keys.includes('current block height'))) {
                 var live = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
                 if (live) match = live;
             }
@@ -2997,7 +2998,7 @@ const TOP_NOTCH_ENTRIES = [
 if (typeof NACHO_KB !== 'undefined') {
     TOP_NOTCH_ENTRIES.forEach(entry => {
         // Prevent duplicates
-        const exists = NACHO_KB.find(e => e.keys[0] === entry.keys[0]);
+        const exists = NACHO_KB.find(e => e.keys && entry.keys && e.keys[0] === entry.keys[0]);
         if (!exists) {
             NACHO_KB.push(entry);
         }

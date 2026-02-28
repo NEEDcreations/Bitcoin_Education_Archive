@@ -128,16 +128,21 @@ function initTicker() {
         var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
         
         // Try live news from Cloudflare Worker
-        fetch(proxy + '?q=' + encodeURIComponent('Bitcoin news today'), { signal: AbortSignal.timeout(8000) })
+        fetch(proxy + '?q=' + encodeURIComponent('Bitcoin only news BTC price halving mining lightning network -ethereum -crypto -altcoin -solana -cardano'), { signal: AbortSignal.timeout(8000) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.results && data.results.length >= 2) {
                     var itemsSets = document.querySelectorAll('.t-news-items');
                     if (itemsSets.length > 0) {
                         var html = '';
-                        data.results.slice(0, 4).forEach(function(r, i) {
+                        var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3/i;
+                        var count = 0;
+                        data.results.forEach(function(r) {
+                            if (count >= 4) return;
                             var title = (r.title || '').replace(/<[^>]+>/g, '').substring(0, 80);
-                            if (title) html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + title.toUpperCase() + '</span>';
+                            if (!title || badWords.test(title)) return;
+                            count++;
+                            html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + count + '</span> ' + title.toUpperCase() + '</span>';
                         });
                         if (html) itemsSets.forEach(function(el) { el.innerHTML = html; });
                     }
