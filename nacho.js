@@ -751,22 +751,48 @@ function createNacho() {
         var exploredCount = 0;
         try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
         
-        if (visits <= 1 && exploredCount < 2) {
-            const tutorialStep = parseInt(localStorage.getItem('btc_nacho_onboarding') || '1');
+        if (visits <= 3 && exploredCount < 5) {
+            var tourStep = parseInt(localStorage.getItem('btc_nacho_onboarding') || '1');
             setPose('wave');
             
-            if (tutorialStep === 1) {
-                forceShowBubble("Hey! I'm Nacho, your Bitcoin guide. 🦌🧡 Welcome! Ready for your 5-minute orange pill? **Step 1:** Go home and try the 🎡 Daily Spin! It's how you earn tickets for rewards.");
+            if (tourStep === 1) {
+                forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                    'Here\'s what you can do here:<br>' +
+                    '📚 <strong>Read 145+ Bitcoin channels</strong> — tap any in the sidebar<br>' +
+                    '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
+                    '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                    '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
+                    '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
                 localStorage.setItem('btc_nacho_onboarding', '2');
-            } else if (tutorialStep === 2 && exploredCount > 0) {
-                forceShowBubble("Great start, {name}! **Step 2:** Explore 3 different channels. Knowledge is power—and it unlocks the rest of the Archive! 🗺️");
+            } else if (tourStep === 2 && exploredCount >= 1) {
+                forceShowBubble('<div style="line-height:1.6;">Nice, you explored your first channel! 🎉<br><br>' +
+                    'Keep going — every channel you read earns you <strong style="color:#f7931a;">+10 points</strong>. Here are some popular ones:<br><br>' +
+                    '<button onclick="hideBubble(true);go(\'whitepaper\')" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.85rem;margin-bottom:4px;">📄 The Bitcoin Whitepaper</button>' +
+                    '<button onclick="hideBubble(true);go(\'maximalism\')" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.85rem;margin-bottom:4px;">💯 Bitcoin Maximalism</button>' +
+                    '<button onclick="hideBubble(true);go(\'self-custody\')" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:0.85rem;">🔑 Self-Custody</button></div>');
                 localStorage.setItem('btc_nacho_onboarding', '3');
-            } else if (tutorialStep === 3 && exploredCount >= 3) {
+            } else if (tourStep === 3 && exploredCount >= 3) {
                 setPose('celebrate');
-                forceShowBubble("Boom! You unlocked 🗣️ **PlebTalk**. You can now discuss with the herd. Next stop: earn your first certificate in the 🎓 Scholar tab!");
+                forceShowBubble('<div style="line-height:1.6;">You\'re on fire! 🔥 ' + exploredCount + ' channels explored!<br><br>' +
+                    'Did you know you can:<br>' +
+                    '🗣️ <strong>Chat in PlebTalk</strong> — discuss Bitcoin with the community<br>' +
+                    '⚡ <strong>Browse LightningMart</strong> — buy & sell for sats<br>' +
+                    '🎓 <strong>Take the Scholar Exam</strong> — earn your Bitcoin certification<br><br>' +
+                    '<button onclick="hideBubble(true);go(\'forum\')" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🗣️ Check out PlebTalk</button>' +
+                    '<button onclick="hideBubble(true);enterNachoMode()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">🦌 Chat with me in Nacho Mode</button></div>');
                 localStorage.setItem('btc_nacho_onboarding', '4');
+            } else if (tourStep === 4 && exploredCount >= 5) {
+                setPose('brain');
+                forceShowBubble('<div style="line-height:1.6;">You\'re becoming a real Bitcoiner! 🧡<br><br>' +
+                    'Pro tips:<br>' +
+                    '📖 Read <strong>Nacho\'s Story</strong> — a new chapter unlocks each day<br>' +
+                    '📚 Study with <strong>Flashcards</strong> to prepare for quests<br>' +
+                    '🏆 Check the <strong>Leaderboard</strong> — see where you rank<br>' +
+                    '💬 Ask me anything about Bitcoin anytime!<br><br>' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;text-align:center;">— End of tour. I\'ll still be here if you need me! 🦌</div></div>');
+                localStorage.setItem('btc_nacho_onboarding', '5');
             }
-            return;
+            if (tourStep <= 4) return;
         }
 
         var msg;

@@ -2877,24 +2877,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             let reqMsg = "";
             const lowerTxt = txt.toLowerCase();
             
-            if (lowerTxt.includes('bitcoin beats')) {
-                locked = !isExplorer;
-                const cL = Math.max(0, 3 - exploredCount);
-                const vL = Math.max(0, 3 - visits);
-                reqMsg = "🔒 Visit " + cL + " more channels OR visit " + vL + " more times to unlock Bitcoin Beats! 🎸";
-            }
-            if (lowerTxt.includes('plebtalk') || lowerTxt.includes('quest')) {
-                locked = !isExplorer;
-                const cL = Math.max(0, 3 - exploredCount);
-                const vL = Math.max(0, 3 - visits);
-                reqMsg = "🔒 Visit " + cL + " more channels OR visit " + vL + " more times to unlock PlebTalk! 🛡️";
-            }
-            if (lowerTxt.includes('marketplace')) {
-                locked = !isFull;
-                const cL = Math.max(0, 10 - exploredCount);
-                const vL = Math.max(0, 10 - visits);
-                reqMsg = "🔒 Explore " + cL + " channels OR visit " + vL + " more times to unlock the Mart! 🛡️";
-            }
+            // All sidebar buttons are always accessible — no more locking
+            // Users can view everything; actions require sign-in
 
             if (locked) {
                 btn.innerHTML = '🔒 ' + txt;
@@ -3090,19 +3074,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         var isFull = isAdmin || (_a && !_a.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         var isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
 
-        // Lockdown for new users
-        if (!isExplorer && (id === 'forum' || id === 'marketplace')) {
-            const vL = 3 - visits;
-            const cL = 3 - exploredCount;
-            showToast('🔒 Visit ' + cL + ' more channels OR visit the app ' + vL + ' more times to unlock PlebTalk! 🛡️');
-            return;
-        }
-        if (!isFull && id === 'marketplace') {
-            const vL = 10 - visits;
-            const cL = 10 - exploredCount;
-            showToast('🔒 Explore ' + cL + ' channels OR visit the app ' + vL + ' more times to unlock the Mart! 🛡️');
-            return;
-        }
+        // Forum and Marketplace are ALWAYS viewable — actions (post, list) require sign-in
+        // No more page-level lockdown
 
         // Forum route
         // Special App Routes (Non-channel content)
