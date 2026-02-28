@@ -946,20 +946,27 @@ async function awardVisitPoints() {
             streakBonus = true;
         }
     } else if (currentUser.lastVisit !== today) {
-        // Streak broken? Check for STREAK FREEZE
+        // Streak broken! Check for STREAK FREEZE
+        var oldStreak = currentUser.streak || 0;
         if (currentUser.streakFreezes > 0) {
-            newStreak = (currentUser.streak || 0) + 1;
+            // AUTO-USE a freeze to save the streak
+            newStreak = oldStreak + 1;
             currentUser.streakFreezes--;
             streakBonus = true;
             setTimeout(function() {
-                showToast('🧊 STREAK FROZEN! One freeze consumed to save your ' + newStreak + ' day streak!');
+                showToast('🧊 STREAK FROZEN! A freeze ticket was used to save your ' + newStreak + '-day streak! (' + (currentUser.streakFreezes || 0) + ' freezes remaining)');
             }, 3000);
-            // Deduct from firestore immediately
+            // Deduct from Firestore immediately
             if (!currentUser._isLocal) {
                 db.collection('users').doc(currentUser.uid).update({ 
                     streakFreezes: firebase.firestore.FieldValue.increment(-1)
                 }).catch(function(){});
             }
+        } else if (oldStreak > 1) {
+            // No freeze available — streak is broken
+            setTimeout(function() {
+                showToast('💔 Your ' + oldStreak + '-day streak was broken! Earn 🧊 Freeze Tickets from the Daily Spin to protect your streak next time.');
+            }, 3000);
         }
     }
 
@@ -2357,7 +2364,9 @@ function showSettingsPage(tab) {
 
         html += '<div id="statPts" style="display:none;">' + pts.toLocaleString() + '</div>';
         html += statRow('Total Points', pts.toLocaleString(), '⭐');
+        var freezeCount = currentUser ? (currentUser.streakFreezes || 0) : parseInt(localStorage.getItem('btc_streak_freezes') || '0');
         html += statRow('Current Streak', streak + ' days', '🔥');
+        html += statRow('🧊 Streak Freezes', freezeCount + ' available', '🧊');
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
