@@ -3028,13 +3028,13 @@ window.nachoQuizAnswer = function(btn, correct) {
     }
     function toggleAudio() {
         audioEnabled = !audioEnabled;
-        localStorage.setItem('btc_audio', audioEnabled);
+        localStorage.setItem('btc_audio', audioEnabled.toString());
         updateAudioUI();
         if (typeof showToast === 'function') showToast(audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
     }
     function setVolume(val) {
         audioVolume = parseFloat(val);
-        localStorage.setItem('btc_volume', audioVolume);
+        localStorage.setItem('btc_volume', audioVolume.toString());
         if (audioVolume <= 0) {
             audioEnabled = false;
             localStorage.setItem('btc_audio', 'false');
@@ -3049,6 +3049,15 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (btn) btn.textContent = audioEnabled && audioVolume > 0 ? (audioVolume > 0.5 ? '🔊' : '🔉') : '🔇';
         const slider = document.getElementById('volumeSlider');
         if (slider) slider.value = audioEnabled ? audioVolume : 0;
+        
+        // Update any ON/OFF toggle buttons in settings
+        document.querySelectorAll('button[onclick*="toggleAudio"]').forEach(function(b) {
+            if (b.textContent === 'ON' || b.textContent === 'OFF') {
+                b.textContent = audioEnabled ? 'ON' : 'OFF';
+                b.style.background = audioEnabled ? '#22c55e' : 'var(--bg-side)';
+                b.style.color = audioEnabled ? '#fff' : 'var(--text-muted)';
+            }
+        });
     }
 
     window.goNext = function() {
