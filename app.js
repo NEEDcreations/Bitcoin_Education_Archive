@@ -143,7 +143,7 @@
                         html += '<div class="ai-summary-box" style="margin:20px 0;padding:20px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:16px;">' +
                             '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
                                 '<span style="font-size:1.5rem;">🦌</span>' +
-                                '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Nacho\'s AI Summary</div>' +
+                                '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Nacho\'s Summary</div>' +
                             '</div>' +
                             '<div style="color:var(--text);font-size:0.95rem;line-height:1.6;font-weight:500;">' + meta.desc + '</div>' +
                         '</div>';
