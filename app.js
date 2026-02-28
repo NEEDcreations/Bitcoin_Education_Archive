@@ -3138,7 +3138,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -3154,6 +3154,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
             else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
             else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
+            else if (id === 'dms' && typeof showInbox === 'function') showInbox();
             else if (typeof renderForum === 'function') renderForum();
             
             setFloatingElementsVisible(true);
