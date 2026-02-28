@@ -1747,41 +1747,30 @@ window.showSettings = function() {
 };
 
 function showSettingsPage(tab) {
+    try {
     settingsTab = tab || 'account';
     const modal = document.getElementById('usernameModal');
-    if (!modal) return;
-    modal.classList.add('open');
     const box = modal.querySelector('.username-box');
+    if (!modal) { if (typeof showToast === 'function') showToast('Error: modal not found'); return; }
+    if (!box) { if (typeof showToast === 'function') showToast('Error: username-box not found'); return; }
     const user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-    if (!user) { showSignInPrompt(); return; }
-
+    // If no auth user resolved yet, show sign-up form instead of crashing
+    if (!user) {
+        modal.classList.add('open');
+        return;
+    }
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
-    
-    // PROGRESSIVE DISCLOSURE TIER SYSTEM
-    var exploredCount = 0;
-    try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
-    var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
-    
-    var isAdmin = (user.displayName || "").toLowerCase().includes("needcreations") || (user.displayName || "").toLowerCase().includes("admin") || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
-    var isFullMember = isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous) || (visits >= 10 || exploredCount >= 10);
-    var isExplorer = isFullMember || (visits >= 3 || exploredCount >= 3);
 
-    var tabs = [];
-    // Signed-in users ALWAYS get full settings
-    var isSignedIn = user && !user.isAnonymous;
-    if (isSignedIn || isFullMember) { tabs = ['account', 'scholar', 'tickets', 'prefs', 'security', 'stats', 'nacho']; }
-    else if (isExplorer) { tabs = ['account', 'scholar', 'prefs']; }
-    else { tabs = ['account', 'prefs']; }
+    // X close button
+    let html = '<button onclick="hideUsernamePrompt()" style="position:sticky;top:8px;float:right;background:var(--bg-side,#1a1a2e);border:1px solid var(--border);color:var(--text-muted);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;transition:0.2s;touch-action:manipulation;box-shadow:0 2px 8px rgba(0,0,0,0.3);" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">✕</button>';
 
-    let html = '<button class="mobile-close" onclick="hideUsernamePrompt()">✕</button>';
-    html += '<div id="settingsTabsContainer" style="display:flex;flex-direction:row;flex-wrap:nowrap;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:relative;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
-    html += '<style>#settingsTabsContainer::-webkit-scrollbar{display:none}#settingsTabsContainer{scrollbar-width:none;}</style>';
-
-    tabs.forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', tickets: '🎟️', prefs: '🎨', security: '🔒', stats: '📊', nacho: '🦌' };
-        const names = { account: 'Account', scholar: 'Scholar', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', stats: 'Stats', nacho: 'Nacho' };
+    // Tab bar
+    html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
+    ['account', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', tickets: '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats/Nacho' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:0 0 auto;padding:10px 12px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:10px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;-webkit-tap-highlight-color:rgba(247,147,26,0.2);touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
@@ -1797,100 +1786,703 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Account Details</div>';
         if (user.email) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
-        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Rank</span><span style="color:var(--text);font-size:0.85rem;">' + lvl.name + '</span></div>';
+        if (user.displayName) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + user.displayName + '</span></div>';
+
+        // Sign-in provider
+        let provider = 'Anonymous';
+        if (user.providerData && user.providerData.length > 0) {
+            const pid = user.providerData[0].providerId;
+            if (pid === 'google.com') provider = 'Google';
+            else if (pid === 'twitter.com') provider = 'Twitter/X';
+            else if (pid === 'github.com') provider = 'GitHub';
+            else if (pid === 'facebook.com') provider = 'Facebook';
+            else if (pid === 'password') provider = 'Email';
+        }
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
+
+        // Account created
+        if (currentUser && currentUser.created) {
+            const created = currentUser.created.toDate ? currentUser.created.toDate().toLocaleDateString() : new Date(currentUser.created).toLocaleDateString();
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
+        }
         html += '</div>';
-        
+
+        // Display Badge chooser (collapsible)
+        if (!isAnon) {
+            var chosenBadge = (currentUser && currentUser.displayBadge) || '';
+            var allEarned = [];
+            if (typeof earnedBadges !== 'undefined') {
+                if (typeof BADGE_DEFS !== 'undefined') BADGE_DEFS.forEach(function(b) { if (earnedBadges.has(b.id)) allEarned.push({ id: b.id, emoji: b.emoji, name: b.name }); });
+            }
+            var earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+            if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(b) { if (earnedHidden.indexOf(b.id) !== -1) allEarned.push({ id: b.id, emoji: b.hidden ? (b.revealEmoji || b.emoji) : b.emoji, name: b.hidden ? (b.revealName || b.name) : b.name }); });
+
+            if (allEarned.length > 0) {
+                var currentBadgeDisplay = lvl.emoji + ' Rank (default)';
+                if (chosenBadge) {
+                    var found = allEarned.find(function(b) { return b.id === chosenBadge; });
+                    if (found) currentBadgeDisplay = found.emoji + ' ' + found.name;
+                }
+                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                    '<div onclick="window._expanded_badges=!window._expanded_badges;showSettingsPage(\'account\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                    '<div><div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🏅 Display Badge</div>' +
+                    '<div style="color:var(--text);font-size:0.85rem;margin-top:4px;">' + currentBadgeDisplay + '</div></div>' +
+                    '<span style="color:var(--text-faint);font-size:1rem;transition:0.2s;">' + (window._expanded_badges ? '▾' : '▸') + '</span></div>';
+                if (window._expanded_badges) {
+                    html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
+                    html += '<button onclick="setDisplayBadge(\'\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="Use rank emoji (default)">' + lvl.emoji + ' Rank</button>';
+                    for (var bi = 0; bi < allEarned.length; bi++) {
+                        var b = allEarned[bi];
+                        var isChosen = chosenBadge === b.id;
+                        html += '<button onclick="setDisplayBadge(\'' + b.id + '\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="' + b.name + '">' + b.emoji + '</button>';
+                    }
+                    html += '</div></div>';
+                }
+                html += '</div>';
+            }
+        }
+
+        // Change username
+        const currentName = currentUser ? currentUser.username || '' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
+            '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
+            '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
+
+        // Profile section
+        var bio = currentUser ? currentUser.bio || '' : '';
+        // Social links config: key, emoji, label, placeholder, maxlen, type
+        var _slDef = [
+            { k:'website', e:'🌐', l:'Website', p:'https://yoursite.com', m:100, t:'url' },
+            { k:'twitter', e:'𝕏', l:'Twitter/X', p:'@yourusername', m:30 },
+            { k:'nostr', e:'🟣', l:'Nostr', p:'npub... or NIP-05', m:80 },
+            { k:'instagram', e:'📸', l:'Instagram', p:'@yourusername', m:30 },
+            { k:'tiktok', e:'🎵', l:'TikTok', p:'@yourusername', m:30 },
+            { k:'github', e:'🐙', l:'GitHub', p:'yourusername', m:40 },
+            { k:'contactEmail', e:'📧', l:'Email', p:'you@example.com', m:80, t:'email', note:'public' },
+            { k:'lightning', e:'⚡', l:'Lightning', p:'you@walletofsatoshi.com', m:80 }
+        ];
+        // Build list of filled links and available (empty) links
+        var _filledLinks = [], _emptyLinks = [];
+        _slDef.forEach(function(s) {
+            var val = currentUser ? currentUser[s.k] || '' : '';
+            if (val) _filledLinks.push(s);
+            else _emptyLinks.push(s);
+        });
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📝 Public Profile</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Visible when someone clicks your name on the leaderboard</div>' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Bio <span id="bioCharCount" style="color:var(--text-faint);">(' + (160 - bio.length) + ' chars left)</span></label>' +
+            '<textarea id="profileBio" maxlength="160" rows="2" placeholder="Tell the community about yourself..." style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:12px;" oninput="document.getElementById(\'bioCharCount\').textContent=\'(\' + (160-this.value.length) + \' chars left)\'">' + escapeHtml(bio) + '</textarea>';
+
+        // Existing links shown as editable chips
+        html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Links & Socials</div>';
+        html += '<div id="profileLinksArea">';
+        _filledLinks.forEach(function(s) {
+            var val = currentUser ? currentUser[s.k] || '' : '';
+            html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
+                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
+                '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
+            '</div>';
+        });
+        html += '</div>';
+
+        // Add link dropdown — only show if there are empty slots
+        if (_emptyLinks.length > 0) {
+            html += '<div id="addLinkArea" style="margin-bottom:12px;">' +
+                '<button id="addLinkBtn" onclick="document.getElementById(\'addLinkMenu\').style.display=document.getElementById(\'addLinkMenu\').style.display===\'none\'?\'block\':\'none\'" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;width:100%;touch-action:manipulation;"><span style="font-size:1rem;">＋</span> Add a link</button>' +
+                '<div id="addLinkMenu" style="display:none;margin-top:6px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.3);">';
+            _emptyLinks.forEach(function(s) {
+                html += '<button onclick="addProfileLink(\'' + s.k + '\',\'' + s.e + '\',\'' + s.l + '\',\'' + s.p + '\',' + s.m + ',\'' + (s.t||'text') + '\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;text-align:left;touch-action:manipulation;"><span style="font-size:1.1rem;">' + s.e + '</span> ' + s.l + (s.note ? ' <span style="color:var(--text-faint);font-size:0.7rem;">(' + s.note + ')</span>' : '') + '</button>';
+            });
+            html += '</div></div>';
+        }
+
+        html += '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
+            '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
+            '</div>';
+
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
-    } else if (settingsTab === 'scholar') {
-        html += '<div style="margin-bottom:20px;text-align:center;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">🎓</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Bitcoin Scholar</div>' +
-            '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">Master Bitcoin via our specialized certifications.</p>' +
-            '</div>';
-
-        const propPassed = localStorage.getItem('btc_scholar_prop_passed') === 'true';
-        html += '<div style="background:linear-gradient(135deg, rgba(247,147,26,0.1), rgba(247,147,26,0.02));border:1px solid '+(propPassed ? '#22c55e' : 'var(--accent)')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
-            '<div style="font-size:1.8rem;margin-bottom:8px;">'+(propPassed ? '✅' : '📜')+'</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Scholar Certification</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:15px;line-height:1.4;">Focuses on the <strong>economic properties</strong> and scarcity of Bitcoin.</p>' +
-            '<button onclick="hideUsernamePrompt(); startScholarQuest(\'properties\');" style="width:100%;padding:12px;background:'+(propPassed ? '#22c55e' : 'var(--accent)')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(propPassed ? 'View Certificate' : 'Start Scholar Exam')+'</button>' +
-            '</div>';
-
-        const techPassed = localStorage.getItem('btc_scholar_tech_passed') === 'true';
-        html += '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.02));border:1px solid '+(techPassed ? '#22c55e' : '#3b82f6')+';border-radius:16px;padding:20px;margin-bottom:24px;text-align:center;">' +
-            '<div style="font-size:1.8rem;margin-bottom:8px;">'+(techPassed ? '✅' : '🛠️')+'</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Protocol Expert</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:15px;line-height:1.4;">Focuses on the <strong>highly technical</strong> aspects: BIPs, Script, and Networking.</p>' +
-            '<button onclick="hideUsernamePrompt(); startScholarQuest(\'technical\');" style="width:100%;padding:12px;background:'+(techPassed ? '#22c55e' : '#3b82f6')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(techPassed ? 'View Certificate' : 'Start Technical Exam')+'</button>' +
-            '</div>';
-
-    } else if (settingsTab === 'stats') {
-        const pts = currentUser ? (currentUser.points || 0) : 0;
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">App Statistics</div>' +
-            '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">⭐ Total Points</span><span style="color:#fff;font-weight:700;">' + pts.toLocaleString() + '</span></div>' +
-            '<button onclick="exportUserData()" style="width:100%;margin-top:15px;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;">📥 Export My Data</button>' +
-            '</div>';
     } else if (settingsTab === 'tickets') {
-        var tickets = (currentUser && currentUser.orangeTickets) ? currentUser.orangeTickets : 0;
-        html += '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">🎟️</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Orange Tickets</div>' +
-            '<p style="color:var(--text-muted);font-size:0.85rem;">Earn tickets through streaks and achievements!</p>' +
-            '</div>' +
-            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">' +
-            '<div style="font-size:2rem;font-weight:900;color:#f7931a;">' + tickets + '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;">tickets available</div>' +
-            '</div>';
+        // Orange Tickets & Referral Program
+        const isAnon = !user || user.isAnonymous;
+        if (isAnon) {
+            html += '<div style="text-align:center;padding:40px 20px;">' +
+                '<div style="font-size:3rem;margin-bottom:12px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg></div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;margin-bottom:8px;">Orange Tickets</div>' +
+                '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;">Sign in with Google, Twitter, or GitHub to start earning Orange Tickets and get your referral link!</div>' +
+                '</div>';
+        } else {
+            html += typeof renderTicketsSection === 'function' ? renderTicketsSection() : '';
+            html += typeof renderReferralSection === 'function' ? renderReferralSection() : '';
+
+            // How it works
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How to Earn Tickets</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+                '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
+                '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (2,100+ pts). Verified automatically.<br>' +
+                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
+                '</div></div>';
+        }
+
+        // Load referral stats asynchronously
+        if (!isAnon && typeof loadReferralStatsUI === 'function') {
+            setTimeout(loadReferralStatsUI, 100);
+        }
 
     } else if (settingsTab === 'prefs') {
-        var currentTheme = localStorage.getItem('theme') || 'dark';
-        var currentAudio = localStorage.getItem('btc_audio') !== 'false';
-        html += '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">🎨</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Preferences</div>' +
+        // Appearance (Theme + Font Size combined)
+        const isDark = document.body.getAttribute('data-theme') !== 'light';
+        const savedSize = localStorage.getItem('btc_font_size') || 'medium';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎨 Appearance</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Theme</div>' +
+            '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+            '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
+            '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
             '</div>' +
-            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text);font-size:0.9rem;">🌙 Dark Mode</span><button onclick="toggleTheme();showSettingsPage(\'prefs\')" style="padding:6px 16px;background:' + (currentTheme === 'dark' ? 'var(--accent)' : 'var(--card-bg)') + ';color:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.8rem;">' + (currentTheme === 'dark' ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;"><span style="color:var(--text);font-size:0.9rem;">🔊 Sound Effects</span><button onclick="toggleAudio();showSettingsPage(\'prefs\')" style="padding:6px 16px;background:' + (currentAudio ? 'var(--accent)' : 'var(--card-bg)') + ';color:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.8rem;">' + (currentAudio ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Font Size</div>' +
+            '<div style="display:flex;gap:8px;">';
+        ['small', 'medium', 'large'].forEach(function(size) {
+            var active = savedSize === size;
+            var label = size.charAt(0).toUpperCase() + size.slice(1);
+            var px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
+            html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
+        });
+        html += '</div></div>';
+
+        // Language
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌐 Language</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Translate the site to your preferred language</div>' +
+            '<select id="langSelect" onchange="changeLanguage(this.value)" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;cursor:pointer;">' +
+            '<option value="">English (Default)</option>' +
+            '<option value="es">🇪🇸 Español</option>' +
+            '<option value="pt">🇧🇷 Português</option>' +
+            '<option value="fr">🇫🇷 Français</option>' +
+            '<option value="de">🇩🇪 Deutsch</option>' +
+            '<option value="it">🇮🇹 Italiano</option>' +
+            '<option value="nl">🇳🇱 Nederlands</option>' +
+            '<option value="ru">🇷🇺 Русский</option>' +
+            '<option value="uk">🇺🇦 Українська</option>' +
+            '<option value="ar">🇸🇦 العربية</option>' +
+            '<option value="zh-CN">🇨🇳 中文 (简体)</option>' +
+            '<option value="zh-TW">🇹🇼 中文 (繁體)</option>' +
+            '<option value="ja">🇯🇵 日本語</option>' +
+            '<option value="ko">🇰🇷 한국어</option>' +
+            '<option value="hi">🇮🇳 हिन्दी</option>' +
+            '<option value="th">🇹🇭 ไทย</option>' +
+            '<option value="vi">🇻🇳 Tiếng Việt</option>' +
+            '<option value="tr">🇹🇷 Türkçe</option>' +
+            '<option value="pl">🇵🇱 Polski</option>' +
+            '<option value="sv">🇸🇪 Svenska</option>' +
+            '<option value="cs">🇨🇿 Čeština</option>' +
+            '</select>' +
+            '<div id="langStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
             '</div>';
 
-    } else if (settingsTab === 'security') {
-        html += '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">🔒</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Security</div>' +
-            '</div>' +
-            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
-            '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Auth Provider</span><span style="color:var(--text);font-size:0.85rem;">' + (user.providerData && user.providerData[0] ? user.providerData[0].providerId : 'anonymous') + '</span></div>' +
-            '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">User ID</span><span style="color:var(--text);font-size:0.7rem;word-break:break-all;">' + user.uid.substring(0, 16) + '...</span></div>' +
-            '<div style="display:flex;justify-content:space-between;padding:10px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Account Created</span><span style="color:var(--text);font-size:0.85rem;">' + (user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Unknown') + '</span></div>' +
-            '</div>' +
-            '<button onclick="exportUserData()" style="width:100%;margin-top:16px;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;">📥 Export My Data</button>' +
-            '<button onclick="if(confirm(\'Delete all local data? Your Firestore data will remain.\')){localStorage.clear();location.reload();}" style="width:100%;margin-top:8px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;">🗑️ Clear Local Data</button>';
+        // Set saved language in dropdown
+        setTimeout(function() {
+            const sel = document.getElementById('langSelect');
+            const saved = localStorage.getItem('btc_lang') || '';
+            if (sel) sel.value = saved;
+        }, 50);
 
-    } else if (settingsTab === 'nacho') {
-        var nachoName = localStorage.getItem('btc_nacho_nickname') || 'Nacho';
-        var nachoInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
-        var nachoQuestions = parseInt(localStorage.getItem('btc_nacho_questions') || '0');
-        html += '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">🦌</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + nachoName + '</div>' +
-            '<p style="color:var(--text-muted);font-size:0.85rem;">Your Bitcoin buddy</p>' +
+        // Font Size — merged into Appearance card above
+
+        // Sound settings
+        const soundOn = typeof audioEnabled === 'undefined' || audioEnabled;
+        const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔊 Sound</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Sound Effects</span>' +
+            '<button onclick="toggleAudio();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (soundOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (soundOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (soundOn ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span style="color:var(--text-muted);font-size:0.8rem;">Volume</span>' +
+            '<input type="range" min="0" max="1" step="0.05" value="' + vol + '" oninput="setVolume(this.value)" style="flex:1;accent-color:#f7931a;cursor:pointer;">' +
+            '</div></div>';
+
+        // Nacho mascot toggle
+        const nachoOn = localStorage.getItem('btc_nacho_hidden') !== 'true';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🦌 Nacho (Mascot)</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Show Nacho</span>' +
+            '<button onclick="if(typeof ' + (nachoOn ? 'hideNacho' : 'showNacho') + '===\'function\'){' + (nachoOn ? 'hideNacho()' : 'showNacho()') + '}showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoOn ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Long-press him to hide.</div>';
+
+        // Nacho sound toggle
+        const nachoSoundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Nacho Sounds</span>' +
+            '<button onclick="if(typeof toggleNachoSound===\'function\')toggleNachoSound();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoSoundOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoSoundOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoSoundOn ? 'ON' : 'OFF') + '</button></div>';
+
+        // Nacho friendship level
+        if (typeof getNachoFriendship === 'function') {
+            var friendship = getNachoFriendship();
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+                '<span style="color:var(--text);font-size:0.85rem;">Friendship Level</span>' +
+                '<span style="color:var(--accent);font-weight:700;font-size:0.85rem;">' + friendship.emoji + ' ' + friendship.name + '</span></div>';
+        }
+
+        // Nacho Mode default
+        var nachoModeDefault = localStorage.getItem('btc_nacho_mode_default') === 'true';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Default to Nacho Mode</span><div style="color:var(--text-faint);font-size:0.7rem;">Open Nacho Mode automatically on site load</div></div>' +
+            '<button onclick="var on=localStorage.getItem(\'btc_nacho_mode_default\')===\'true\';localStorage.setItem(\'btc_nacho_mode_default\',on?\'false\':\'true\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoModeDefault ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoModeDefault ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoModeDefault ? 'ON' : 'OFF') + '</button></div>';
+
+        html += '</div>';
+
+        // Haptic Feedback
+        var hapticOn = localStorage.getItem('btc_haptic') !== 'false';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📳 Haptic Feedback</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Vibration on actions</span><div style="color:var(--text-faint);font-size:0.7rem;">Vibrate on points, badges, and button taps</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_haptic\',localStorage.getItem(\'btc_haptic\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (hapticOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (hapticOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (hapticOn ? 'ON' : 'OFF') + '</button></div></div>';
+
+        // Online Status
+        var onlineStatusOn = localStorage.getItem('btc_online_status') !== 'false';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🟢 Online Status</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Show online status</span><div style="color:var(--text-faint);font-size:0.7rem;">Other users can see when you\'re active</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_online_status\',localStorage.getItem(\'btc_online_status\')===\'false\'?\'true\':\'false\');if(typeof toggleOnlineStatus===\'function\')toggleOnlineStatus();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (onlineStatusOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (onlineStatusOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (onlineStatusOn ? 'ON' : 'OFF') + '</button></div></div>';
+
+        // Push Notifications
+        const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔔 Push Notifications</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Off by default. We respect your attention.</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Notifications</span>' +
+            '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.75rem;color:var(--text-muted);line-height:1.5;">' +
+                '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
+                '🎡 <strong>Spin reminders</strong> — a couple times a week, never daily<br>' +
+                '🔥 <strong>Streak alerts</strong> — don\'t lose your streak!<br>' +
+                '📰 <strong>New content</strong> — when we add major new channels<br>' +
+                '🏆 <strong>Giveaway alerts</strong> — never miss a sats giveaway<br><br>' +
+                '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
-            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
-            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Total Interactions</span><span style="color:var(--text);font-weight:700;">' + nachoInteractions + '</span></div>' +
-            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Questions Asked</span><span style="color:var(--text);font-weight:700;">' + nachoQuestions + '</span></div>' +
+            '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
+            '</div>';
+
+        // Keyboard Shortcuts (collapsible — takes lots of space)
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div onclick="window._expanded_shortcuts=!window._expanded_shortcuts;showSettingsPage(\'prefs\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">⌨️ Keyboard Shortcuts & Gestures</div>' +
+            '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_shortcuts ? '▾' : '▸') + '</span></div>';
+        if (window._expanded_shortcuts) {
+        html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Navigation</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
+            shortcutRow('H','Home') + shortcutRow('S / /','Search') + shortcutRow('B','Last channel') +
+            shortcutRow('C','Random channel') + shortcutRow('R','Random meme') + shortcutRow('P','Random art') +
+            shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
             '</div>' +
-            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
-            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">Rename Nacho:</label>' +
-            '<div style="display:flex;gap:8px;"><input type="text" id="nachoNicknameInput" value="' + nachoName + '" maxlength="15" style="flex:1;padding:10px;background:var(--input-bg,#0f172a);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;">' +
-            '<button onclick="var n=document.getElementById(\'nachoNicknameInput\').value.trim();if(n){localStorage.setItem(\'btc_nacho_nickname\',n);if(typeof updateNachoNameUI===\'function\')updateNachoNameUI(n);if(typeof db!==\'undefined\'&&auth&&auth.currentUser&&!auth.currentUser.isAnonymous){db.collection(\'users\').doc(auth.currentUser.uid).update({nachoNickname:n}).catch(function(){});}showToast(\'🦌 Renamed to \'+n);showSettingsPage(\'nacho\');}" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Save</button></div>' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Features</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
+            shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') + shortcutRow('M','LightningMart') +
+            shortcutRow('F','Forum') + shortcutRow('Q','Start quest') + shortcutRow('L','Leaderboard') +
+            '</div>' +
+            '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Actions</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">' +
+            shortcutRow('Z','Save to favorites') + shortcutRow('G','Gallery view') +
+            shortcutRow('T','Toggle theme') + shortcutRow('I','Settings') + shortcutRow('D','Donate') +
+            shortcutRow('?','Show shortcuts') + shortcutRow('Esc','Close modals') +
+            '</div>' +
+            '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">' +
+            '<div style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-bottom:8px;">📱 Mobile Gestures</div>' +
+            '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;">' +
+            shortcutRow('Swipe →','Go home') +
+            shortcutRow('Swipe ←','Random channel') +
+            shortcutRow('2-finger tap','Leaderboard') +
+            shortcutRow('3-finger tap','PlebTalk') +
+            shortcutRow('Long-press logo','Nacho Mode') +
+            '</div></div>' +
+            '</div></div>';
+        } // end expanded_shortcuts
+
+        // (Theme moved above)
+
+    } else if (settingsTab === 'security') {
+        // Email verification status
+        const emailVerified = user.emailVerified;
+        const hasEmail = user.email || (user.providerData && user.providerData.some(function(p) { return p.providerId === 'password'; }));
+        
+        if (hasEmail) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Email Verification</div>';
+            if (emailVerified) {
+                html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Email verified</div><div style="color:var(--text-muted);font-size:0.8rem;">' + user.email + '</div></div></div>';
+            } else {
+                html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Email not verified</div><div style="color:var(--text-muted);font-size:0.8rem;">Required for 2FA. Check your inbox or resend below.</div></div></div>' +
+                    '<button onclick="sendEmailVerification()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">📧 Send Verification Email</button>';
+            }
+            html += '</div>';
+        }
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Two-Factor Authentication</div>';
+
+        // Check if phone MFA is enrolled
+        const enrolled = user.multiFactor && user.multiFactor.enrolledFactors && user.multiFactor.enrolledFactors.length > 0;
+        if (enrolled) {
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Your account is protected with phone verification</div></div></div>' +
+                '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable 2FA</button>';
+        } else if (!hasEmail) {
+            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔒</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA available with email sign-in</div><div style="color:var(--text-muted);font-size:0.8rem;">Link an email to your account first (in Account tab), then you can enable 2FA.</div></div></div>';
+        } else if (!emailVerified) {
+            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Verify your email first</div><div style="color:var(--text-muted);font-size:0.8rem;">You must verify your email address before you can enable 2FA.</div></div></div>';
+        } else {
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔓</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is not enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Add phone verification for extra security</div></div></div>' +
+                '<div id="mfaSetup">' +
+                '<input type="tel" id="mfaPhone" placeholder="Your phone number" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;">' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">US numbers auto-format. International: include country code (e.g. +44...)</div>' +
+                '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Send Verification Code</button>' +
+                '<div id="mfaVerify" style="display:none;margin-top:8px;"><input type="text" id="mfaCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
+                '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Verify & Enable 2FA</button></div>' +
+                '<div id="mfaStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+        }
+        html += '</div>';
+
+        // Authenticator App (TOTP)
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Authenticator App</div>' +
+            '<div id="totpSection"><div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Loading...</div></div></div>';
+
+        // Load TOTP status after render
+        setTimeout(loadTotpStatus, 100);
+
+        // Session info
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Session</div>' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Last sign-in</span><span style="color:var(--text);font-size:0.85rem;">' + (user.metadata && user.metadata.lastSignInTime ? new Date(user.metadata.lastSignInTime).toLocaleString() : 'Unknown') + '</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Session timeout</span><span style="color:var(--text);font-size:0.85rem;">30 minutes inactive</span></div>' +
+            '</div>';
+
+        // Password change (only for email/password users)
+        if (user.providerData && user.providerData.some(p => p.providerId === 'password')) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Password</div>' +
+                '<button onclick="sendPasswordReset()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Send Password Reset Email</button>' +
+                '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+        }
+
+        // Blocked Users
+        var blockedList = typeof getBlockedUsers === 'function' ? getBlockedUsers() : [];
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚫 Blocked Users</div>';
+        if (blockedList.length === 0) {
+            html += '<div style="color:var(--text-muted);font-size:0.85rem;">No blocked users. 🎉</div>';
+        } else {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">' + blockedList.length + ' blocked user' + (blockedList.length > 1 ? 's' : '') + '</div>';
+            html += '<div id="blockedUsersList"><div style="color:var(--text-faint);font-size:0.8rem;">Loading...</div></div>';
+        }
+        html += '</div>';
+
+        // Load blocked user names after render
+        if (blockedList.length > 0) {
+            setTimeout(function() {
+                var container = document.getElementById('blockedUsersList');
+                if (!container) return;
+                var loaded = 0;
+                var listHtml = '';
+                blockedList.forEach(function(uid) {
+                    db.collection('users').doc(uid).get().then(function(doc) {
+                        var name = doc.exists ? (doc.data().username || 'Unknown') : 'Deleted User';
+                        listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
+                            '<span style="color:var(--text);font-size:0.85rem;">' + name + '</span>' +
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/'/g, "\\'") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                        loaded++;
+                        if (loaded === blockedList.length) container.innerHTML = listHtml;
+                    }).catch(function() {
+                        listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);">' +
+                            '<span style="color:var(--text-faint);font-size:0.85rem;">Unknown User</span>' +
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                        loaded++;
+                        if (loaded === blockedList.length) container.innerHTML = listHtml;
+                    });
+                });
+            }, 100);
+        }
+
+    } else if (settingsTab === 'data') {
+        // Refresh data from Firebase — cache for 2 minutes
+        var now = Date.now();
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' &&
+            (!window._statsCache || now - window._statsCacheTime > 120000)) {
+            db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
+                if (doc.exists && currentUser) {
+                    const fresh = doc.data();
+                    currentUser.points = fresh.points || 0;
+                    currentUser.streak = fresh.streak || 0;
+                    currentUser.totalVisits = fresh.totalVisits || 0;
+                    currentUser.channelsVisited = fresh.channelsVisited || 0;
+                    window._statsCache = true;
+                    window._statsCacheTime = Date.now();
+                    // Re-render if data changed
+                    const ptsEl = document.getElementById('statPts');
+                    if (ptsEl && ptsEl.textContent !== (fresh.points || 0).toLocaleString()) {
+                        showSettingsPage('data');
+                    }
+                }
+            }).catch(function() {});
+        }
+        const pts = currentUser ? (currentUser.points || 0) : 0;
+        const chVisited = currentUser ? (currentUser.channelsVisited || 0) : 0;
+        const totalVisits = currentUser ? (currentUser.totalVisits || 0) : 0;
+        const streak = currentUser ? (currentUser.streak || 0) : 0;
+        const localVisited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+        const localFavs = JSON.parse(localStorage.getItem('btc_favs') || '[]').length;
+        const hiddenBadges = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]').length;
+
+        html += '<div style="text-align:center;margin-bottom:16px;">' +
+            '<div style="font-size:2rem;margin-bottom:4px;">' + lvl.emoji + '</div>' +
+            '<div style="color:var(--heading);font-weight:700;font-size:1.3rem;">' + pts.toLocaleString() + ' pts</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;">' + lvl.name + '</div></div>';
+
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Your Stats</div>';
+
+        function statRow(label, value, icon) {
+            return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">' + icon + ' ' + label + '</span><span style="color:var(--text);font-weight:600;font-size:0.85rem;">' + value + '</span></div>';
+        }
+
+        html += '<div id="statPts" style="display:none;">' + pts.toLocaleString() + '</div>';
+        html += statRow('Total Points', pts.toLocaleString(), '⭐');
+        html += statRow('Current Streak', streak + ' days', '🔥');
+        html += statRow('Total Site Visits', totalVisits, '👁️');
+        html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
+        html += statRow('Saved Favorites', localFavs, '⭐');
+        html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
+        html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
+        html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>');
+        if (typeof getNachoFriendship === 'function') {
+            var f = getNachoFriendship();
+            var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+            html += statRow('Nacho Friendship', f.emoji + ' ' + f.name + ' (' + interactions + ' interactions)', '🦌');
+        }
+
+        html += '</div>';
+
+        // Nacho Analytics (collapsible)
+        if (typeof getNachoAnalytics === 'function') {
+            var na = getNachoAnalytics();
+            if (na.total > 0) {
+                html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                    '<div onclick="window._expanded_analytics=!window._expanded_analytics;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                    '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">📊 ' + escapeHtml(nickname) + ' Q&A Analytics</div>' +
+                    '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_analytics ? '▾' : '▸') + '</span></div>';
+                if (!window._expanded_analytics) {
+                    html += '</div>';
+                } else {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">';
+
+                // Satisfaction
+                if (na.satisfaction !== null) {
+                    var satColor = na.satisfaction >= 80 ? '#22c55e' : (na.satisfaction >= 50 ? '#f7931a' : '#ef4444');
+                    html += statRow('Answer Satisfaction', '<span style="color:' + satColor + ';">' + na.satisfaction + '%</span> (' + na.upvotes + '👍 / ' + na.downvotes + '👎)', '📊');
+                }
+
+                html += statRow('Total Questions', na.total, '💬');
+                html += statRow('Missed/Fallback', na.missCount, '❓');
+
+                // Answer sources
+                if (na.sources && Object.keys(na.sources).length > 0) {
+                    var srcLabels = { kb: 'Knowledge Base', ai: 'AI (Llama)', offtopic: 'Off-topic', fallback: 'Fallback', safety: 'Safety', unknown: 'Other' };
+                    var srcHtml = '';
+                    for (var src in na.sources) {
+                        srcHtml += '<span style="display:inline-block;padding:3px 8px;margin:2px;background:var(--bg-side);border:1px solid var(--border);border-radius:6px;font-size:0.75rem;color:var(--text-muted);">' + (srcLabels[src] || src) + ': ' + na.sources[src] + '</span>';
+                    }
+                    html += '<div style="padding:8px 0;border-bottom:1px solid var(--border);"><div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">📡 Answer Sources</div>' + srcHtml + '</div>';
+                }
+
+                // Top topics
+                var topicEntries = Object.entries(na.topics).sort(function(a,b) { return b[1] - a[1]; }).slice(0, 8);
+                if (topicEntries.length > 0) {
+                    var topicEmojis = { lightning:'⚡', mining:'⛏️', wallets:'💼', basics:'📘', security:'🔒', privacy:'🕵️', economics:'📈', altcoins:'🪙', technical:'⚙️', history:'📜', price:'💰', layer2:'🔗', culture:'🎭', regulation:'⚖️', onboarding:'🚀', other:'❓' };
+                    var topHtml = '';
+                    for (var ti = 0; ti < topicEntries.length; ti++) {
+                        var tn = topicEntries[ti][0];
+                        var tc = topicEntries[ti][1];
+                        topHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;"><span style="color:var(--text-muted);font-size:0.8rem;">' + (topicEmojis[tn] || '❓') + ' ' + tn.charAt(0).toUpperCase() + tn.slice(1) + '</span><span style="color:var(--text);font-weight:600;font-size:0.8rem;">' + tc + '</span></div>';
+                    }
+                    html += '<div style="padding:8px 0;"><div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:4px;">🔥 Top Topics</div>' + topHtml + '</div>';
+                }
+
+                html += '</div></div>';
+                }
+            }
+        }
+
+        // Nacho Nickname (first — let user name their Nacho)
+        var nickname = typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Deer</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
+            '<div style="display:flex;gap:8px;">' +
+            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:10px 12px;background:var(--bg-side,#141425);border:2px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button>' +
+            '</div></div>';
+
+        // Nacho Story (highlighted — right under name)
+        if (typeof getNachoStoryProgress === 'function') {
+            var storyProg = getNachoStoryProgress();
+            var storyComplete = storyProg >= 10;
+            var storyNickname = escapeHtml(nickname);
+            html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.3);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                    '<span style="font-size:1.4rem;">📖</span>' +
+                    '<div><div style="font-size:0.9rem;font-weight:800;color:var(--heading);">' + storyNickname + '\'s Story</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);">' + (storyComplete ? '✅ Complete!' : 'A new chapter unlocks every day!') + '</div></div>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+                '<div style="flex:1;background:var(--bg-side);border-radius:8px;height:10px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:' + Math.round(storyProg / 10 * 100) + '%;border-radius:8px;transition:0.5s;"></div></div>' +
+                '<span style="color:var(--accent);font-size:0.85rem;font-weight:700;">' + storyProg + '/10</span>' +
+                '</div>' +
+                '<button onclick="hideUsernamePrompt();setTimeout(function(){if(typeof showNachoStory===\'function\')showNachoStory()},300)" style="width:100%;padding:12px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);">' + (storyComplete ? '📖 Re-read ' + storyNickname + '\'s Adventure' : '📖 Read Next Chapter →') + '</button>' +
+                '</div>';
+        }
+
+        // Nacho's Closet (collapsible)
+        if (typeof renderNachoClosetUI === 'function') {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div onclick="window._expanded_closet=!window._expanded_closet;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +
+                '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_closet ? '▾' : '▸') + '</span></div>';
+            if (window._expanded_closet) {
+                html += '<div id="nachoClosetContainer" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"></div>';
+            }
+            html += '</div>';
+        }
+
+        // Sticker Book (collapsible)
+        if (typeof renderStickerBook === 'function') {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div onclick="window._expanded_stickers=!window._expanded_stickers;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🎨 Sticker Book</div>' +
+                '<span style="color:var(--text-faint);font-size:1rem;">' + (window._expanded_stickers ? '▾' : '▸') + '</span></div>';
+            if (window._expanded_stickers) {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' + renderStickerBook() + '</div>';
+            }
+            html += '</div>';
+        }
+
+        // Privacy note
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔒 Privacy</div>' +
+            '<div style="color:var(--text);font-size:0.85rem;line-height:1.6;">' +
+            '<strong style="color:#22c55e;">We do not sell, share, or monetize your data. Ever.</strong><br>' +
+            'The only data we store is your username, points, and progress — just enough to power your experience. No tracking, no ads, no third-party analytics. Your data is yours.</div></div>';
+
+        // Export data
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Data</div>' +
+            '<button onclick="exportUserData()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">📥 Export My Data</button>' +
+            '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
     }
 
+    html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    modal.classList.add('open');
+
+    // Render Nacho's Closet if on Stats/Nacho tab
+    if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
+        var closetContainer = document.getElementById('nachoClosetContainer');
+        if (closetContainer) renderNachoClosetUI(closetContainer);
+    }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('Settings page error: ' + e.message);
+        console.error('showSettingsPage error:', e);
+    }
 }
+
+// Language translation via Google Translate
+function changeLanguage(lang) {
+    const status = document.getElementById('langStatus');
+    if (!lang) {
+        // Reset to English
+        const frame = document.querySelector('.goog-te-banner-frame');
+        if (frame) frame.remove();
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + location.hostname;
+        localStorage.setItem('btc_lang', '');
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Switched to English</span>';
+        setTimeout(() => location.reload(), 500);
+        return;
+    }
+    localStorage.setItem('btc_lang', lang);
+    document.cookie = 'googtrans=/en/' + lang + '; path=/;';
+    document.cookie = 'googtrans=/en/' + lang + '; path=/; domain=.' + location.hostname;
+    if (status) status.innerHTML = '<span style="color:var(--text-muted);">Translating...</span>';
+    // Load Google Translate if not loaded
+    if (!document.getElementById('gtranslate')) {
+        const s = document.createElement('script');
+        s.id = 'gtranslate';
+        s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateReady';
+        document.head.appendChild(s);
+        window.googleTranslateReady = function() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'gtranslateWidget');
+            setTimeout(() => {
+                triggerGoogleTranslate(lang);
+                if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Translated!</span>';
+            }, 1500);
+        };
+        // Hidden widget container
+        const div = document.createElement('div');
+        div.id = 'gtranslateWidget';
+        div.style.display = 'none';
+        document.body.appendChild(div);
+    } else {
+        triggerGoogleTranslate(lang);
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Translated!</span>';
+    }
+}
+
+function triggerGoogleTranslate(lang) {
+    const sel = document.querySelector('.goog-te-combo');
+    if (sel) {
+        sel.value = lang;
+        sel.dispatchEvent(new Event('change'));
+    }
+}
+
+// Restore language on load
+(function() {
+    const saved = localStorage.getItem('btc_lang');
+    if (saved) {
+        document.cookie = 'googtrans=/en/' + saved + '; path=/;';
+        document.cookie = 'googtrans=/en/' + saved + '; path=/; domain=.' + location.hostname;
+        const s = document.createElement('script');
+        s.id = 'gtranslate';
+        s.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateReady';
+        document.head.appendChild(s);
+        window.googleTranslateReady = function() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'gtranslateWidget');
+        };
+        const div = document.createElement('div');
+        div.id = 'gtranslateWidget';
+        div.style.display = 'none';
+        document.body.appendChild(div);
+    }
+})();
+
 
 // Soundscapes
 window.setSoundscape = function(type) {
@@ -2007,3 +2599,13 @@ if (document.readyState === 'loading') {
 // ---- OPENCLAW EXPORTS ----
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
 if (typeof showUsernamePrompt !== "undefined") window.showUsernamePrompt = showUsernamePrompt;
+// ---- Settings helper stubs ----
+if (typeof setDisplayBadge === 'undefined') window.setDisplayBadge = function() { if (typeof showToast === 'function') showToast('Coming soon!'); };
+if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) { if (!currentUser || !db || !auth || !auth.currentUser) return; try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); currentUser.username = name; updateAuthButton(); updateRankUI(); showToast('✅ Username updated to ' + name); } catch(e) { showToast('Error updating username'); } };
+if (typeof togglePushNotifications === 'undefined') window.togglePushNotifications = function() { if (typeof showToast === 'function') showToast('Push notifications coming soon!'); };
+if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
+if (typeof disable2FA === 'undefined') window.disable2FA = function() { showToast('2FA management coming soon'); };
+if (typeof startMFAEnroll === 'undefined') window.startMFAEnroll = function() { showToast('2FA enrollment coming soon'); };
+if (typeof verifyMFACode === 'undefined') window.verifyMFACode = function() { showToast('2FA verification coming soon'); };
+if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
+if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
