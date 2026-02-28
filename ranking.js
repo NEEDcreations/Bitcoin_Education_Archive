@@ -1774,14 +1774,13 @@ function showSettingsPage(tab) {
     else { tabs = ['account', 'prefs']; }
 
     let html = '<button class="mobile-close" onclick="hideUsernamePrompt()">✕</button>';
-    html += '<div id="settingsTabsContainer" style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;">';
-    html += '<style>#settingsTabsContainer::-webkit-scrollbar { display: none; }</style>';
+    html += '<div id="settingsTabsContainer" style="display:flex;flex-wrap:wrap;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:relative;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;">';
 
     tabs.forEach(t => {
         const icons = { account: '👤', scholar: '🎓', tickets: '🎟️', prefs: '🎨', security: '🔒', stats: '📊', nacho: '🦌' };
         const names = { account: 'Account', scholar: 'Scholar', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', stats: 'Stats', nacho: 'Nacho' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:0 0 auto;min-width:70px;padding:12px 15px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.75rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:3px;white-space:nowrap;-webkit-tap-highlight-color:rgba(247,147,26,0.2);touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1 0 auto;min-width:0;padding:8px 6px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.65rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;-webkit-tap-highlight-color:rgba(247,147,26,0.2);touch-action:manipulation;"><span style="font-size:1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
