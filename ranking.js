@@ -1580,6 +1580,27 @@ window.updateNachoNameUI = function(name) {
         var label = bnavNacho.querySelector('.bnav-label');
         if (label) label.textContent = name;
     }
+    // Nacho bubble header
+    var bubbleName = document.getElementById('nacho-bubble-name');
+    if (bubbleName) bubbleName.textContent = name;
+    // Nacho avatar name label
+    var avatarName = document.querySelector('.nacho-name');
+    if (avatarName) avatarName.textContent = name.toUpperCase();
+    // Closet header
+    var closetHeaders = document.querySelectorAll('[id*="nachoCloset"]');
+    closetHeaders.forEach(function(el) {
+        var header = el.querySelector('[style*="letter-spacing"]');
+        if (header && header.textContent.indexOf("'s Closet") !== -1) {
+            header.textContent = '🦌 ' + name + "'s Closet";
+        }
+    });
+    // Story header
+    var storyHeaders = document.querySelectorAll('[style*="font-weight:800"]');
+    storyHeaders.forEach(function(el) {
+        if (el.textContent.indexOf("'s Story") !== -1) {
+            el.textContent = name + "'s Story";
+        }
+    });
 };
 
 async function toggleLeaderboard() {

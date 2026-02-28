@@ -588,8 +588,14 @@
                 ctx.restore();
                 
                 if (progress < 1) {
+                    // Tick sound during spin (every ~15% progress)
+                    if (Math.floor(progress * 30) > Math.floor((progress - 0.01) * 30)) {
+                        if (typeof playSpinTick === 'function') playSpinTick();
+                    }
                     requestAnimationFrame(animate);
                 } else {
+                    // Win sound!
+                    if (typeof playSpinWin === 'function') playSpinWin();
                     // Show result
                     var rewardText = '';
                     var rewardType = selected.value.split('_')[0];
@@ -3732,3 +3738,44 @@ if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;
 
 })();
+
+// ---- Spin Wheel Sound (Web Audio API — no external files needed) ----
+window._spinSoundCtx = null;
+window.playSpinTick = function() {
+    if (localStorage.getItem('btc_audio') === 'false') return;
+    if (document.hidden) return; // Don't play when minimized
+    try {
+        if (!window._spinSoundCtx) window._spinSoundCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var ctx = window._spinSoundCtx;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 800 + Math.random() * 400;
+        osc.type = 'triangle';
+        gain.gain.value = 0.08;
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.08);
+    } catch(e) {}
+};
+window.playSpinWin = function() {
+    if (localStorage.getItem('btc_audio') === 'false') return;
+    if (document.hidden) return;
+    try {
+        if (!window._spinSoundCtx) window._spinSoundCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var ctx = window._spinSoundCtx;
+        [523, 659, 784, 1047].forEach(function(freq, i) {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            gain.gain.value = 0.1;
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15 * (i + 1) + 0.3);
+            osc.start(ctx.currentTime + 0.15 * i);
+            osc.stop(ctx.currentTime + 0.15 * (i + 1) + 0.3);
+        });
+    } catch(e) {}
+};
