@@ -65,22 +65,23 @@ function initBottomNav() {
     // Show immediately on mobile
     if (window.innerWidth <= 900) nav.style.display = 'block';
     nav.innerHTML =
-        '<div style="display:flex;justify-content:space-around;align-items:center;max-width:500px;margin:0 auto;height:100%;">' +
-            '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span>🏠</span><span>Home</span></button>' +
-            '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span>🔍</span><span>Search</span></button>' +
-            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span>🗣️</span><span>PlebTalk</span></button>' +
-            '<button onclick="go(\'marketplace\')" class="bnav-btn" id="bnavMarket"><span>⚡</span><span>Mart</span></button>' +
-            '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span>💬</span><span>DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span>🦌</span><span>Nacho</span></button>' +
-            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span>⚙️</span><span>Settings</span></button>' +
+        '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
+            '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
+            '<button onclick="if(typeof toggleMenu===\'function\')toggleMenu();setTimeout(function(){var si=document.getElementById(\'searchInput\');if(si){si.focus();si.click();}},300)" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
+            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span class="bnav-icon">🗣️</span><span class="bnav-label">Pleb</span></button>' +
+            '<button onclick="go(\'marketplace\')" class="bnav-btn" id="bnavMarket"><span class="bnav-icon">⚡</span><span class="bnav-label">Mart</span></button>' +
+            '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
+            '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span class="bnav-icon">🦌</span><span class="bnav-label">Nacho</span></button>' +
+            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">More</span></button>' +
         '</div>';
 
     // Add styles
     var style = document.createElement('style');
     style.textContent =
-        '.bnav-btn{background:none;border:none;color:var(--text-dim);font-size:0.6rem;cursor:pointer;font-family:inherit;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:0.2s;min-width:40px;flex:1;height:100%;justify-content:center;}' +
-        '.bnav-btn span:first-child{font-size:1.4rem;transition:transform 0.2s;}' +
-        '.bnav-btn:active span:first-child{transform:scale(1.2);}' +
+        '.bnav-btn{background:none;border:none;color:var(--text-dim,#666);font-size:0.6rem;cursor:pointer;font-family:inherit;padding:6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:0.2s;flex:1;min-width:0;}' +
+        '.bnav-icon{font-size:1.3rem;line-height:1;display:block;transition:transform 0.2s;}' +
+        '.bnav-label{font-size:0.55rem;line-height:1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}' +
+        '.bnav-btn:active .bnav-icon{transform:scale(1.2);}' +
         '.bnav-btn.active{color:var(--accent);}' +
         '@media(min-width:901px){#bottomNav{display:none!important;}}' +
         '@media(max-width:900px){#bottomNav{display:block!important;}.messages{padding-bottom:140px!important;}.home-page{padding-bottom:100px!important;}}';
