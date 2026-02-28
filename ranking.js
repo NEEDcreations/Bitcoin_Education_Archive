@@ -786,8 +786,9 @@ async function loadUser(uid, prefetchedDoc) {
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
+    // Perfect Identity Check: show settings if logged in OR if anonymous user has a name
     var isSignedIn = auth && auth.currentUser && !auth.currentUser.isAnonymous;
-    var hasUsername = currentUser && currentUser.username;
+    var hasUsername = currentUser && (currentUser.username || localStorage.getItem('btc_username'));
 
     if (isSignedIn || hasUsername) {
         btn.innerHTML = '⚙️ <strong>' + (hasUsername ? hasUsername : 'My Account') + '</strong> — Settings';
@@ -1778,7 +1779,7 @@ function shortcutRow(key, desc) {
     return '<div><kbd style="background:var(--bg-side);border:1px solid var(--border);padding:2px 7px;border-radius:4px;font-family:monospace;font-size:0.75rem;color:var(--heading);min-width:20px;display:inline-block;text-align:center;">' + key + '</kbd></div><div style="color:var(--text-muted);font-size:0.8rem;">' + desc + '</div>';
 }
 
-// Alias for buttons that call showSettings()
+// --- CORE SETTINGS & PROFILE LOGIC ---
 window.showSettings = function() {
     if (typeof auth === 'undefined' || !auth) {
         if (typeof showToast === 'function') showToast('⚠️ Firebase not ready. Retrying...');
@@ -1787,17 +1788,6 @@ window.showSettings = function() {
             if (typeof auth !== 'undefined' && auth) showUsernamePrompt();
             else if (typeof showToast === 'function') showToast('❌ Could not load. Please refresh the page.');
         }, 2000);
-        return;
-    }
-    showUsernamePrompt();
-};
-
-
-// --- RESTORED CORE SETTINGS & PROFILE LOGIC ---
-
-window.showSettings = function() {
-    if (typeof auth === 'undefined' || !auth) {
-        if (typeof showToast === 'function') showToast('⚠️ Firebase not ready.');
         return;
     }
     showUsernamePrompt();
