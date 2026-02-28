@@ -901,6 +901,14 @@ function createNacho() {
     setInterval(function() {
         if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
         if (Math.random() > 0.2) return;
+        // Don't interrupt if bubble is showing interactive content
+        var _b = document.getElementById('nacho-bubble');
+        if (_b && _b.classList.contains('show') && _b.getAttribute('data-interactive') === 'true') return;
+        // Don't interrupt if user is in Nacho Mode
+        if (window._nachoMode) return;
+        // Don't interrupt if quest modal is open
+        var qm = document.getElementById('questModal');
+        if (qm && qm.classList.contains('open')) return;
         if (typeof showNachoTrivia === 'function') showNachoTrivia();
     }, 180000);
 }

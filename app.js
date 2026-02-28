@@ -541,7 +541,11 @@
             
             var selected = segments[selectedIndex];
             var spins = 5 + Math.random() * 3; // 5-8 full spins
-            var finalAngle = (Math.PI * 2) - (selectedIndex * segmentAngle + segmentAngle / 2);
+            // Pointer is at top (12 o'clock = -π/2). Segments start at 3 o'clock (0 rad).
+            // To land segment[i] under the pointer: rotate so segment center aligns with top
+            var segCenter = selectedIndex * segmentAngle + segmentAngle / 2;
+            // We need the segment center to be at the top (-π/2), so final rotation = -segCenter - π/2
+            var finalAngle = (Math.PI * 2) - segCenter + (Math.PI / 2);
             var totalRotation = (spins * Math.PI * 2) + finalAngle;
             
             // Animate
@@ -2001,6 +2005,11 @@ window.nachoQuizAnswer = function(btn, correct) {
     // ---- Conversation Quiz: generated from topics discussed ----
     function offerConversationQuiz() {
         if (!window._nachoMode) return;
+        // Don't interrupt if user is reading a Nacho answer or typing
+        var chatInput = document.getElementById('nachoModeInput');
+        if (chatInput && chatInput === document.activeElement) { setTimeout(offerConversationQuiz, 30000); return; }
+        var thinking = document.querySelector('.nm-nacho .thinking, .nm-thinking');
+        if (thinking) { setTimeout(offerConversationQuiz, 10000); return; }
         var topics = window._nachoModeTopics || [];
         if (topics.length < 3) return;
 

@@ -185,21 +185,24 @@ window.showNachoStory = function(chapterOverride) {
     // Determine which chapter to show
     var chIdx;
     if (typeof chapterOverride === 'number') {
-        // User clicked a specific chapter
+        // User clicked a specific chapter (re-reading)
         chIdx = chapterOverride;
+    } else if (highestRead === 0) {
+        // Brand new user — start at Chapter 1
+        chIdx = 0;
+    } else if (lastReadDate === today) {
+        // Already read today — show last read chapter (no advancement)
+        chIdx = Math.min(highestRead - 1, CHAPTERS.length - 1);
     } else {
-        // Auto: show next unread chapter (one per day)
-        if (lastReadDate === today) {
-            // Already read today — show the chapter they read
-            chIdx = Math.min(highestRead, CHAPTERS.length - 1);
-        } else {
-            // New day — advance to next chapter
-            chIdx = Math.min(highestRead, CHAPTERS.length - 1);
-        }
+        // New day — show next unread chapter
+        chIdx = Math.min(highestRead, CHAPTERS.length - 1);
     }
 
-    // Mark as read and advance progress
-    if (chIdx >= highestRead) {
+    // Only advance progress if this is a NEW chapter being read for the first time
+    // AND it's a new day (or first ever read)
+    var isNewChapter = chIdx >= highestRead;
+    var isNewDay = lastReadDate !== today;
+    if (isNewChapter && (isNewDay || highestRead === 0)) {
         highestRead = chIdx + 1;
         localStorage.setItem('btc_nacho_story_highest', highestRead.toString());
         localStorage.setItem('btc_nacho_story_date', today);
