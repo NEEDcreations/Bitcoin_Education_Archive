@@ -15,7 +15,7 @@ const PRE_CACHE = [
   '/scholar.js',
   '/tickets.js',
   '/badges.js',
-  '/channels.js',
+  '/channel_index.js',
   '/nacho.js',
   '/nacho-qa.js',
   '/nacho-engage.js',
