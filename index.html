@@ -463,6 +463,7 @@
         #goog-gt-tt { display: none !important; }
         select, select option, select optgroup { background: var(--bg-side, #0f172a); color: var(--text, #e0e0e0); }
         select option:checked { background: var(--accent-bg, #1a1a2e); color: var(--accent, #f7931a); }
+    #desktopDMBtn { display: flex; } @media (max-width: 900px) { #desktopDMBtn { display: none !important; } }
     </style>
 </head>
 <body>
@@ -868,6 +869,7 @@
     <div id="questModal" onclick="if(event.target===this){ if(typeof scholarQuestions!=='undefined'&&scholarQuestions.length>0 && !document.querySelector('#questInner h2')) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
     <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:20px;right:20px;z-index:140;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆 Leaderboard</button>
     <div id="leaderboard"></div>
+    <button onclick="go('dms')" style="position:fixed;bottom:85px;right:20px;z-index:139;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px 18px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;" id="desktopDMBtn">💬 DMs</button>
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
