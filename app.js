@@ -3643,21 +3643,27 @@ window.nachoQuizAnswer = function(btn, correct) {
             var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
                 '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Bitcoin Apps</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                    '<button onclick="enterNachoMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.6rem;">🦌</span> Nacho Mode' +
+                    '<button onclick="enterNachoMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
+                        '<span style="font-size:1.8rem;">🦌</span>' +
+                        '<span>Nacho Mode</span>' +
                     '</button>' +
-                    '<button onclick="go(\'forum\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.6rem;">🗣️</span> Pleb Talk' +
+                    '<button onclick="go(\'forum\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
+                        '<span style="font-size:1.8rem;">🗣️</span>' +
+                        '<span>Pleb Talk</span>' +
                     '</button>' +
-                    '<button onclick="go(\'marketplace\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.6rem;">⚡</span> Lightning Mart' +
+                    '<button onclick="go(\'marketplace\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
+                        '<span style="font-size:1.8rem;">⚡</span>' +
+                        '<span>Lightning Mart</span>' +
                     '</button>' +
-                    '<button onclick="go(\'irl-sync\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.6rem;">🤝</span> IRL Sync' +
+                    '<button onclick="go(\'irl-sync\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
+                        '<span style="font-size:1.8rem;">🤝</span>' +
+                        '<span>IRL Sync</span>' +
                     '</button>' +
                 '</div>' +
                 '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);text-align:center;">' +
-                    '<button onclick="go(\'bitcoin-beats\');toggleAppsMenu()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.85rem;">🎸 Bitcoin Beats</button>' +
+                    '<button onclick="go(\'bitcoin-beats\');toggleAppsMenu()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent);font-weight:800;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+                        '<span>🎵</span> Bitcoin Beats' +
+                    '</button>' +
                 '</div>' +
             '</div>';
             document.body.insertAdjacentHTML('beforeend', html);
