@@ -446,13 +446,16 @@
         
         // Wheel segments with prizes
         var segments = [
-            { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 30, color: '#f7931a' },
-            { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 25, color: '#ea580c' },
-            { label: '⭐ 10 pts', value: 'points_10', weight: 20, color: '#22c55e' },
+            { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
+            { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
+            { label: '⭐ 10 pts', value: 'points_10', weight: 18, color: '#22c55e' },
             { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
             { label: '⭐ 25 pts', value: 'points_25', weight: 8, color: '#3b82f6' },
+            { label: '👔 Closet!', value: 'closet_item', weight: 6, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
-            { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1, color: '#a855f7' }
+            { label: '⭐ 50 pts', value: 'points_50', weight: 3, color: '#8b5cf6' },
+            { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
+            { label: '🎟️ 10 Tix!', value: 'ticket_10', weight: 0.5, color: '#ef4444' }
         ];
         
         modal.innerHTML =
@@ -578,7 +581,25 @@
                     var rewardType = selected.value.split('_')[0];
                     var rewardAmount = parseInt(selected.value.split('_')[1]) || 1;
                     
-                    if (rewardType === 'freeze') {
+                    if (rewardType === 'closet') {
+                        // Award a random closet item the user doesn't have yet
+                        var ownedItems = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
+                        var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
+                        var available = allClosetItems.filter(function(id) { return ownedItems.indexOf(id) === -1; });
+                        if (available.length > 0) {
+                            var wonItem = available[Math.floor(Math.random() * available.length)];
+                            ownedItems.push(wonItem);
+                            localStorage.setItem('btc_spin_closet_items', JSON.stringify(ownedItems));
+                            if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
+                                try { db.collection('users').doc(auth.currentUser.uid).update({ spinClosetItems: firebase.firestore.FieldValue.arrayUnion(wonItem) }).catch(function(){}); } catch(e) {}
+                            }
+                            var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
+                            rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
+                        } else {
+                            rewardText = '👔 You already own all spin closet items! +25 bonus points instead!';
+                            if (typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
+                        }
+                    } else if (rewardType === 'freeze') {
                         rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
                         // Add freeze ticket to user
                         var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0');
