@@ -11,40 +11,40 @@
 // RULE: Use the ITEM emoji (not a face wearing it). Position realistically ON Nacho's body.
 const NACHO_ITEMS = [
     // Level 1 — Just Met (1+ interactions)
-    { id: 'orange_scarf', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { top: '68%', left: '50.5%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false, colorable: true },
-    { id: 'sunglasses', name: 'Cool Shades', emoji: '🕶️', desc: 'Sunglasses so cool, even the blockchain can\'t see through them.', level: 1, overlay: { top: '43%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em' }, hidden: false },
-    { id: 'bowtie', name: 'Fancy Bowtie', emoji: '🎀', desc: 'A dapper bowtie for a distinguished buck. Class and sats.', level: 1, overlay: { top: '64%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.3em' }, hidden: false, colorable: true },
+    { id: 'orange_scarf', category: 'shirt', category: 'shirt', name: 'Bitcoin Scarf', emoji: '🧣', desc: 'A cozy orange scarf with the ₿ symbol.', level: 1, overlay: { top: '68%', left: '50.5%', transform: 'translateX(-50%)', fontSize: '1.8em' }, hidden: false, colorable: true },
+    { id: 'sunglasses', category: 'glasses', category: 'glasses', name: 'Cool Shades', emoji: '🕶️', desc: 'Sunglasses so cool, even the blockchain can\'t see through them.', level: 1, overlay: { top: '43%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em' }, hidden: false },
+    { id: 'bowtie', category: 'shirt', category: 'shirt', name: 'Fancy Bowtie', emoji: '🎀', desc: 'A dapper bowtie for a distinguished buck. Class and sats.', level: 1, overlay: { top: '64%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.3em' }, hidden: false, colorable: true },
 
     // Level 2 — Getting Acquainted (10+ interactions)
-    { id: 'mining_helmet', name: 'Mining Helmet', emoji: '⛑️', desc: 'A safety helmet for a hardworking miner. Ready to find the next block!', level: 2, overlay: { top: '5%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false },
-    { id: 'lightning_chain', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '65%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em' }, hidden: false },
-    { id: 'party_hat', name: 'Party Hat', emoji: '🎉', desc: 'Every day is a party when you\'re stacking sats!', level: 2, overlay: { top: '2%', left: '58%', transform: 'translateX(-50%) rotate(15deg)', fontSize: '1.8em' }, hidden: false, colorable: true },
+    { id: 'mining_helmet', category: 'hat', category: 'hat', name: 'Mining Helmet', emoji: '⛑️', desc: 'A safety helmet for a hardworking miner. Ready to find the next block!', level: 2, overlay: { top: '5%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false },
+    { id: 'lightning_chain', category: 'glasses', name: 'Lightning Chain', emoji: '⚡', desc: 'A chain necklace with a Lightning bolt pendant.', level: 2, overlay: { top: '65%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em' }, hidden: false },
+    { id: 'party_hat', category: 'hat', category: 'hat', name: 'Party Hat', emoji: '🎉', desc: 'Every day is a party when you\'re stacking sats!', level: 2, overlay: { top: '2%', left: '58%', transform: 'translateX(-50%) rotate(15deg)', fontSize: '1.8em' }, hidden: false, colorable: true },
 
     // Level 3 — Good Friends (25+ interactions)
-    { id: 'hodl_hoodie', name: 'HODL Hoodie', emoji: '🧥', desc: 'A hoodie that says HODL on the back. For diamond-handed deer.', level: 3, overlay: { top: '72%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false, colorable: true },
-    { id: 'laser_eyes', name: 'Laser Eyes', emoji: '🔴', desc: 'The legendary Bitcoin laser eyes. Number go up!', level: 3, overlay: { top: '43%', left: '50.5%', transform: 'translateX(-50%)', fontSize: '0.9em', custom: '🔴  🔴' }, hidden: false },
-    { id: 'wizard_hat', name: 'Wizard Hat', emoji: '🪄', desc: 'A mystical wizard hat. Nacho casts spells of financial sovereignty!', level: 3, overlay: { top: '-5%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.4em' }, hidden: false, colorable: true },
-    { id: 'crown', name: 'Royal Crown', emoji: '👑', desc: 'Fit for the king of cryptocurrency. There is no second best!', level: 3, overlay: { top: '3%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false },
+    { id: 'hodl_hoodie', category: 'shirt', category: 'shirt', name: 'HODL Hoodie', emoji: '🧥', desc: 'A hoodie that says HODL on the back. For diamond-handed deer.', level: 3, overlay: { top: '72%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false, colorable: true },
+    { id: 'laser_eyes', category: 'glasses', category: 'glasses', name: 'Laser Eyes', emoji: '🔴', desc: 'The legendary Bitcoin laser eyes. Number go up!', level: 3, overlay: { top: '43%', left: '50.5%', transform: 'translateX(-50%)', fontSize: '0.9em', custom: '🔴  🔴' }, hidden: false },
+    { id: 'wizard_hat', category: 'hat', category: 'hat', name: 'Wizard Hat', emoji: '🪄', desc: 'A mystical wizard hat. Nacho casts spells of financial sovereignty!', level: 3, overlay: { top: '-5%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.4em' }, hidden: false, colorable: true },
+    { id: 'crown', category: 'hat', category: 'hat', name: 'Royal Crown', emoji: '👑', desc: 'Fit for the king of cryptocurrency. There is no second best!', level: 3, overlay: { top: '3%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.2em' }, hidden: false },
 
     // Level 4 — Close Friends (50+ interactions)
-    { id: 'steak', name: 'Proof of Steak', emoji: '🥩', desc: 'A juicy steak for a hardworking buck. Proof of Steak > Proof of Stake!', level: 4, overlay: { top: '58%', right: '-18%', fontSize: '1.8em', transform: 'rotate(20deg)' }, hidden: false },
-    { id: 'diamond_hooves', name: 'Diamond Hooves', emoji: '💎', desc: 'Diamond hooves for a deer with diamond hands. Never selling!', level: 4, overlay: { bottom: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em', custom: '💎💎' }, hidden: false },
-    { id: 'astronaut', name: 'Moon Helmet', emoji: '🪖', desc: 'To the moon! A space helmet for the ultimate HODLer.', level: 4, overlay: { top: '8%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: false },
-    { id: 'cape_permanent', name: 'Hero Cape', emoji: '🦸', desc: 'A permanent cape for a Bitcoin hero. Earned, not given!', level: 4, overlay: { top: '55%', right: '-15%', fontSize: '2.4em', transform: 'rotate(-12deg)' }, hidden: false, colorable: true },
+    { id: 'steak', category: 'glasses', name: 'Proof of Steak', emoji: '🥩', desc: 'A juicy steak for a hardworking buck. Proof of Steak > Proof of Stake!', level: 4, overlay: { top: '58%', right: '-18%', fontSize: '1.8em', transform: 'rotate(20deg)' }, hidden: false },
+    { id: 'diamond_hooves', category: 'glasses', name: 'Diamond Hooves', emoji: '💎', desc: 'Diamond hooves for a deer with diamond hands. Never selling!', level: 4, overlay: { bottom: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '1.4em', custom: '💎💎' }, hidden: false },
+    { id: 'astronaut', category: 'hat', category: 'hat', name: 'Moon Helmet', emoji: '🪖', desc: 'To the moon! A space helmet for the ultimate HODLer.', level: 4, overlay: { top: '8%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: false },
+    { id: 'cape_permanent', category: 'shirt', category: 'shirt', name: 'Hero Cape', emoji: '🦸', desc: 'A permanent cape for a Bitcoin hero. Earned, not given!', level: 4, overlay: { top: '55%', right: '-15%', fontSize: '2.4em', transform: 'rotate(-12deg)' }, hidden: false, colorable: true },
 
     // Level 5 — Best Buds (100+ interactions) — HIDDEN until unlocked!
-    { id: 'golden_antlers', name: '???', emoji: '✨', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '0.5%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.4em' }, hidden: true, revealName: 'Golden Antlers', revealEmoji: '✨', revealDesc: 'Antlers plated in pure gold. Only the closest friends get to see these shine!' },
-    { id: 'satoshi_cloak', name: '???', emoji: '🧥', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '68%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.4em' }, hidden: true, revealName: 'Satoshi\'s Cloak', revealEmoji: '🧥', revealDesc: 'A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it.' },
-    { id: 'flame_aura', name: '???', emoji: '🔥', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '25%', left: '50%', transform: 'translateX(-50%)', fontSize: '3.5em' }, hidden: true, revealName: 'Flame Aura', revealEmoji: '🔥', revealDesc: 'A blazing aura of pure Bitcoin energy. The ultimate flex for Nacho\'s best friend!' },
-    { id: 'rainbow_antlers', name: '???', emoji: '🌈', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: true, revealName: 'Rainbow Antlers', revealEmoji: '🌈', revealDesc: 'Prismatic rainbow antlers that shimmer in every color. Legendary!' },
+    { id: 'golden_antlers', category: 'hat', category: 'hat', name: '???', emoji: '✨', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '0.5%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.4em' }, hidden: true, revealName: 'Golden Antlers', revealEmoji: '✨', revealDesc: 'Antlers plated in pure gold. Only the closest friends get to see these shine!' },
+    { id: 'satoshi_cloak', category: 'shirt', category: 'shirt', name: '???', emoji: '🧥', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '68%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.4em' }, hidden: true, revealName: 'Satoshi\'s Cloak', revealEmoji: '🧥', revealDesc: 'A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it.' },
+    { id: 'flame_aura', category: 'glasses', name: '???', emoji: '🔥', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '25%', left: '50%', transform: 'translateX(-50%)', fontSize: '3.5em' }, hidden: true, revealName: 'Flame Aura', revealEmoji: '🔥', revealDesc: 'A blazing aura of pure Bitcoin energy. The ultimate flex for Nacho\'s best friend!' },
+    { id: 'rainbow_antlers', category: 'hat', category: 'hat', name: '???', emoji: '🌈', desc: 'Reach Best Buds friendship to reveal this item!', level: 5, overlay: { top: '2%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: true, revealName: 'Rainbow Antlers', revealEmoji: '🌈', revealDesc: 'Prismatic rainbow antlers that shimmer in every color. Legendary!' },
 
     // Secret — Easter egg only
-    { id: 'bitcoin_eyes', name: '???', emoji: '₿', desc: 'How do you find this one?', level: 1, overlay: { top: '43%', left: '50.5%', transform: 'translateX(-50%)', fontSize: '1.2em', custom: '₿  ₿' }, hidden: true, revealName: 'Bitcoin Eyes', revealEmoji: '₿', revealDesc: 'Eyes made of pure Bitcoin. You found the secret! Nacho sees everything in sats now.' },
+    { id: 'bitcoin_eyes', category: 'glasses', category: 'glasses', name: '???', emoji: '₿', desc: 'How do you find this one?', level: 1, overlay: { top: '43%', left: '50.5%', transform: 'translateX(-50%)', fontSize: '1.2em', custom: '₿  ₿' }, hidden: true, revealName: 'Bitcoin Eyes', revealEmoji: '₿', revealDesc: 'Eyes made of pure Bitcoin. You found the secret! Nacho sees everything in sats now.' },
 
     // Seasonal — toggled via localStorage
-    { id: 'santa_hat', name: 'Santa Hat', emoji: '🎅', desc: 'Ho ho HODL! A festive Santa hat for the holiday season.', level: 1, overlay: { top: '1%', left: '54%', transform: 'translateX(-50%) rotate(15deg)', fontSize: '2.2em' }, hidden: false, seasonal: 'december' },
-    { id: 'pumpkin', name: 'Pumpkin Head', emoji: '🎃', desc: 'Spooky season! A jack-o-lantern for Halloween.', level: 1, overlay: { top: '8%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: false, seasonal: 'october' },
-    { id: 'halving_pickaxe', name: 'Golden Pickaxe', emoji: '⛏️', desc: 'A golden pickaxe to celebrate the halving! Limited edition.', level: 1, overlay: { top: '22%', right: '-15%', fontSize: '2.2em', transform: 'rotate(30deg)' }, hidden: false, seasonal: 'april' },
+    { id: 'santa_hat', category: 'hat', category: 'hat', name: 'Santa Hat', emoji: '🎅', desc: 'Ho ho HODL! A festive Santa hat for the holiday season.', level: 1, overlay: { top: '1%', left: '54%', transform: 'translateX(-50%) rotate(15deg)', fontSize: '2.2em' }, hidden: false, seasonal: 'december' },
+    { id: 'pumpkin', category: 'hat', category: 'hat', name: 'Pumpkin Head', emoji: '🎃', desc: 'Spooky season! A jack-o-lantern for Halloween.', level: 1, overlay: { top: '8%', left: '50%', transform: 'translateX(-50%)', fontSize: '2.8em' }, hidden: false, seasonal: 'october' },
+    { id: 'halving_pickaxe', category: 'glasses', name: 'Golden Pickaxe', emoji: '⛏️', desc: 'A golden pickaxe to celebrate the halving! Limited edition.', level: 1, overlay: { top: '22%', right: '-15%', fontSize: '2.2em', transform: 'rotate(30deg)' }, hidden: false, seasonal: 'april' },
 ];
 
 // ---- Inject CSS for overlay animations ----
@@ -151,11 +151,11 @@ function getEquippedItem() {
 // ---- Equip an item (with animation) ----
 window.equipNachoItem = function(itemId) {
     if (!itemId) {
-        localStorage.removeItem('btc_nacho_equipped');
+        localStorage.removeItem('btc_nacho_equipped_multi');
         renderNachoOverlay();
         return;
     }
-    // Check if item is unlocked (level or spin reward)
+    
     var level = getFriendLevel();
     var item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
     var spinUnlocked = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
@@ -165,44 +165,20 @@ window.equipNachoItem = function(itemId) {
         return;
     }
 
-    var current = localStorage.getItem('btc_nacho_equipped');
-    var avatar = document.getElementById('nacho-avatar');
+    var equipped = getEquippedItems();
+    var category = item ? item.category || 'misc' : 'misc';
+    var isEquipped = equipped[category] === itemId;
 
-    if (current === itemId) {
-        // Unequip with animation
-        var existing = document.getElementById('nacho-overlay');
-        if (existing) {
-            existing.classList.remove('equipping', 'idle-float', 'idle-laser', 'idle-sparkle', 'idle-wave');
-            existing.classList.add('unequipping');
-            existing.addEventListener('animationend', function() {
-                existing.remove();
-            });
-        }
-        localStorage.removeItem('btc_nacho_equipped');
+    if (isEquipped) {
+        // Unequip
+        delete equipped[category];
+        if (typeof forceShowBubble === 'function') forceShowBubble('Back to natural in the ' + category + ' department! 🦌');
+    } else {
+        // Equip (replaces same category)
+        equipped[category] = itemId;
+        
         // Nacho reacts
         if (typeof forceShowBubble === 'function') {
-            forceShowBubble('Back to natural! I look great either way. 🦌');
-        }
-    } else {
-        // Remove old overlay with animation if exists
-        var old = document.getElementById('nacho-overlay');
-        if (old) {
-            old.classList.remove('equipping', 'idle-float', 'idle-laser', 'idle-sparkle', 'idle-wave');
-            old.classList.add('unequipping');
-            old.addEventListener('animationend', function() { old.remove(); });
-        }
-
-        localStorage.setItem('btc_nacho_equipped', itemId);
-
-        // Short delay so unequip animation plays first
-        setTimeout(function() {
-            renderNachoOverlay(true);
-        }, old ? 300 : 0);
-
-        // Nacho reacts to specific items
-        var item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
-        if (item && typeof forceShowBubble === 'function') {
-            var displayName = item.hidden ? item.revealName : item.name;
             var reactions = {
                 'orange_scarf': "Looking cozy! This scarf really brings out my orange. 🧣🦌",
                 'mining_helmet': "Safety first! Time to mine some blocks! ⛑️⛏️",
@@ -210,14 +186,15 @@ window.equipNachoItem = function(itemId) {
                 'hodl_hoodie': "HODL gang! This hoodie makes me feel unstoppable! 🧥💎",
                 'laser_eyes': "LASER EYES ACTIVATED! Number go up! 🔴🔴🚀",
                 'steak': "Mmm, Proof of Steak! Way better than Proof of Stake! 🥩😋",
-                'diamond_hooves': "Diamond hooves, diamond hands! Never selling! 💎🦌",
                 'golden_antlers': "These golden antlers are MAGNIFICENT! Only for my best friends! 👑✨",
                 'satoshi_cloak': "Who am I? Nobody knows... I am Satoshi Nachoamoto! 🧙🦌"
             };
-            forceShowBubble(reactions[itemId] || "Looking fresh with my " + displayName + "! 🦌");
+            forceShowBubble(reactions[itemId] || "Looking fresh with my " + (item.hidden ? item.revealName : item.name) + "! 🦌");
         }
     }
 
+    localStorage.setItem('btc_nacho_equipped_multi', JSON.stringify(equipped));
+    renderNachoOverlay(true);
     if (typeof nachoPlaySound === 'function') nachoPlaySound('coin');
 
     // Re-render closet UI if open
@@ -228,58 +205,56 @@ window.equipNachoItem = function(itemId) {
 
 // ---- Render equipped item overlay on Nacho avatar ----
 window.renderNachoOverlay = function(animate) {
-    var existing = document.getElementById('nacho-overlay');
-    if (existing) existing.remove();
+    // Remove all old overlays
+    document.querySelectorAll('.nacho-overlay-item').forEach(el => el.remove());
 
-    var item = getEquippedItem();
-    if (!item) return;
-
+    var equipped = getEquippedItems();
     var avatar = document.getElementById('nacho-avatar');
     if (!avatar) return;
 
-    var emoji = item.hidden ? item.revealEmoji : item.emoji;
-    var idleClass = getIdleAnimation(item.id);
+    Object.values(equipped).forEach(function(itemId) {
+        var item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
+        if (!item) return;
 
-    var overlay = document.createElement('span');
-    overlay.id = 'nacho-overlay';
-    overlay.className = 'nacho-overlay-item' + (animate ? ' equipping' : ' ' + idleClass);
-    // Use custom text if defined (e.g. chain of emojis), otherwise single emoji
-    overlay.textContent = item.overlay.custom || emoji;
-    if (item.overlay.custom) {
-        overlay.style.letterSpacing = '-0.1em';
-        overlay.style.whiteSpace = 'nowrap';
-    }
+        var emoji = item.hidden ? item.revealEmoji : item.emoji;
+        var idleClass = getIdleAnimation(item.id);
 
-    // Apply positioning from item config
-    for (var prop in item.overlay) {
-        if (prop !== 'filter' && prop !== 'custom') {
-            overlay.style[prop] = item.overlay[prop];
+        var overlay = document.createElement('span');
+        overlay.className = 'nacho-overlay-item' + (animate ? ' equipping' : ' ' + idleClass);
+        overlay.id = 'nacho-overlay-' + item.id;
+        overlay.textContent = item.overlay.custom || emoji;
+        
+        if (item.overlay.custom) {
+            overlay.style.letterSpacing = '-0.1em';
+            overlay.style.whiteSpace = 'nowrap';
         }
-    }
 
-    // Apply user-selected color (hue-rotate filter)
-    if (item.colorable) {
-        var savedHue = localStorage.getItem('btc_closet_color_' + item.id);
-        if (savedHue && savedHue !== '0deg') {
-            overlay.style.filter = 'hue-rotate(' + savedHue + ')';
+        for (var prop in item.overlay) {
+            if (prop !== 'filter' && prop !== 'custom') {
+                overlay.style[prop] = item.overlay[prop];
+            }
         }
-    }
 
-    // After equip animation, switch to idle
-    if (animate) {
-        overlay.addEventListener('animationend', function handler() {
-            overlay.classList.remove('equipping');
-            overlay.classList.add(idleClass);
-            overlay.removeEventListener('animationend', handler);
-        }, { once: true });
+        if (item.colorable) {
+            var savedHue = localStorage.getItem('btc_closet_color_' + item.id);
+            if (savedHue && savedHue !== '0deg') {
+                overlay.style.filter = 'hue-rotate(' + savedHue + ')';
+            }
+        }
 
-        // Spawn sparkle particles around Nacho during equip
-        spawnEquipParticles(avatar);
-    }
+        if (animate) {
+            overlay.addEventListener('animationend', function handler() {
+                overlay.classList.remove('equipping');
+                overlay.classList.add(idleClass);
+                overlay.removeEventListener('animationend', handler);
+            }, { once: true });
+        }
 
-    avatar.appendChild(overlay);
+        avatar.appendChild(overlay);
+    });
+
+    if (animate) spawnEquipParticles(avatar);
 };
-
 // ---- Sparkle particles on equip ----
 function spawnEquipParticles(avatar) {
     var rect = avatar.getBoundingClientRect();
@@ -320,7 +295,7 @@ window.getNachoFriendship = function() {
 
 window.renderNachoClosetUI = function(container) {
     var level = getFriendLevel();
-    var equipped = localStorage.getItem('btc_nacho_equipped') || '';
+    var equippedMap = getEquippedItems();
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
     var friendship = typeof getNachoFriendship === 'function' ? getNachoFriendship() : { level: 0, name: 'Strangers', emoji: '❓' };
 
@@ -333,39 +308,43 @@ window.renderNachoClosetUI = function(container) {
         }
     }
 
-    // ---- Nacho Preview (shows equipped item on deer) ----
-    var previewItem = equipped ? NACHO_ITEMS.find(function(i) { return i.id === equipped; }) : null;
-    var previewEmoji = '';
-    var previewOverlayStyle = '';
-    if (previewItem) {
-        previewEmoji = previewItem.hidden ? previewItem.revealEmoji : previewItem.emoji;
-        if (previewItem.overlay && previewItem.overlay.custom) previewEmoji = previewItem.overlay.custom;
-        // Build overlay positioning
-        var ovr = previewItem.overlay || {};
-        previewOverlayStyle = 'position:absolute;font-size:' + (ovr.fontSize || '1.5rem') + ';';
-        if (ovr.top) previewOverlayStyle += 'top:' + ovr.top + ';';
-        if (ovr.bottom) previewOverlayStyle += 'bottom:' + ovr.bottom + ';';
-        if (ovr.left) previewOverlayStyle += 'left:' + ovr.left + ';';
-        if (ovr.right) previewOverlayStyle += 'right:' + ovr.right + ';';
-        if (ovr.transform) previewOverlayStyle += 'transform:' + ovr.transform + ';';
-        previewOverlayStyle += 'z-index:5;pointer-events:none;';
-        // Apply color if set
-        if (previewItem.colorable) {
-            var savedHue = localStorage.getItem('btc_closet_color_' + previewItem.id);
-            if (savedHue && savedHue !== '0deg') previewOverlayStyle += 'filter:hue-rotate(' + savedHue + ');';
+    // ---- Nacho Preview (shows equipped items on deer) ----
+    var previewHtml = '';
+    var itemsListText = [];
+    
+    Object.values(equippedMap).forEach(function(itemId) {
+        var item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
+        if (!item) return;
+        
+        var emoji = item.hidden ? item.revealEmoji : item.emoji;
+        if (item.overlay.custom) emoji = item.overlay.custom;
+        
+        var style = 'position:absolute;font-size:' + (item.overlay.fontSize || '1.5rem') + ';';
+        if (item.overlay.top) style += 'top:' + item.overlay.top + ';';
+        if (item.overlay.bottom) style += 'bottom:' + item.overlay.bottom + ';';
+        if (item.overlay.left) style += 'left:' + item.overlay.left + ';';
+        if (item.overlay.right) style += 'right:' + item.overlay.right + ';';
+        if (item.overlay.transform) style += 'transform:' + item.overlay.transform + ';';
+        style += 'z-index:5;pointer-events:none;';
+        
+        if (item.colorable) {
+            var hue = localStorage.getItem('btc_closet_color_' + item.id);
+            if (hue && hue !== '0deg') style += 'filter:hue-rotate(' + hue + ');';
         }
-    }
-
-    var nickname = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
+        
+        previewHtml += '<span style="' + style + '">' + emoji + '</span>';
+        itemsListText.push(item.hidden ? item.revealName : item.name);
+    });
+var nickname = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
     var html = '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:1px;margin-bottom:10px;font-weight:700;">🦌 ' + escapeHtml(nickname) + '\'s Closet</div>';
 
     // Nacho preview avatar
     html += '<div id="nachoClosetPreview" style="text-align:center;margin-bottom:16px;background:radial-gradient(circle,rgba(247,147,26,0.08) 0%,transparent 70%);border-radius:16px;padding:16px 0 8px;">' +
         '<div style="position:relative;display:inline-block;width:120px;height:120px;">' +
             '<img src="nacho-deer.svg" alt="Nacho" style="width:120px;height:120px;position:relative;z-index:2;">' +
-            (previewEmoji ? '<span id="nachoClosetOverlay" style="' + previewOverlayStyle + '">' + previewEmoji + '</span>' : '') +
+            previewHtml +
         '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">' + (previewItem ? '✨ Wearing: <strong style="color:var(--accent);">' + (previewItem.hidden ? previewItem.revealName : previewItem.name) + '</strong>' : 'No item equipped — tap one below!') + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">' + (itemsListText.length > 0 ? '✨ Wearing: <strong style="color:var(--accent);">' + itemsListText.join(', ') + '</strong>' : 'No item equipped — tap one below!') + '</div>' +
     '</div>';
 
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
@@ -385,7 +364,7 @@ window.renderNachoClosetUI = function(container) {
         // Skip seasonal items outside their month
         if (item.seasonal && currentMonth.indexOf(item.seasonal) === -1) continue;
         var unlocked = item.level <= level;
-        var isEquipped = equipped === item.id;
+        var isEquipped = Object.values(equippedMap).includes(item.id);
         var isHidden = item.hidden && !unlocked;
 
         var displayName = isHidden ? '???' : (item.hidden && unlocked ? item.revealName : item.name);
