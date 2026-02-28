@@ -3305,8 +3305,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
-        { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: 'startQuestManual()' },
-        { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar Certification Quest', keywords: 'scholar certification exam test certificate diploma bitcoin', action: 'startScholarQuest()' },
+        { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
+        { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar & Protocol Expert Certifications', keywords: 'scholar certification exam test certificate diploma bitcoin technical protocol', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
+        { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('signal')},100)" },
+        { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
         { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
@@ -3727,6 +3729,7 @@ if (typeof goRandomArt !== 'undefined') window.goRandomArt = goRandomArt;
 if (typeof goRandomMeme !== 'undefined') window.goRandomMeme = goRandomMeme;
 if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
+if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
