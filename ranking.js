@@ -2870,3 +2870,25 @@ async function disableTotp() {
         showToast('Invalid code');
     }
 }
+
+// ---- RESTORED: clearUserData ----
+function clearUserData() {
+    var userKeys = [
+        'btc_visited_channels', 'btc_favs', 'btc_hidden_badges',
+        'btc_asked_questions', 'btc_scholar_passed', 'btc_scholar_attempt_date',
+        'btc_badges', 'btc_last_channel', 'btc_signin_email',
+        'btc_nacho_equipped', 'btc_nacho_items_notified', 'btc_points',
+        'btc_total_visits', 'btc_streak', 'btc_last_visit'
+    ];
+    userKeys.forEach(function(key) { localStorage.removeItem(key); });
+    currentUser = null;
+}
+
+// ---- RESTORED: showSignInPrompt ----
+function showSignInPrompt() {
+    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        showSettings();
+        return;
+    }
+    showUsernamePrompt();
+}

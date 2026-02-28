@@ -337,3 +337,93 @@ function renderExplorationMap() {
         '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + grid + '</div></div>';
 }
 window.renderExplorationMap = renderExplorationMap;
+
+// ---- RESTORED MISSING FUNCTIONS ----
+
+// renderReadNext — suggest related channels after reading
+window.renderReadNext = function(currentId) {
+    if (typeof CHANNELS === 'undefined') return '';
+    var current = CHANNELS[currentId];
+    if (!current) return '';
+    var sameCat = Object.entries(CHANNELS).filter(function(e) { return e[1].cat === current.cat && e[0] !== currentId; });
+    if (sameCat.length === 0) return '';
+    // Pick 3 random from same category
+    var shuffled = sameCat.sort(function() { return Math.random() - 0.5; }).slice(0, 3);
+    var html = '<div style="margin-top:20px;padding:20px 0;border-top:1px solid var(--border);">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📖 Read Next</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+    shuffled.forEach(function(e) {
+        var emoji = e[1].title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}]+)/u);
+        var icon = emoji ? emoji[1] : '📄';
+        html += '<button onclick="go(\'' + e[0] + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + icon + ' ' + e[0].replace(/-/g,' ') + '</button>';
+    });
+    html += '</div></div>';
+    return html;
+};
+
+// getNachoStoryProgress
+window.getNachoStoryProgress = function() {
+    return parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');
+};
+
+// checkHiddenBadges — check and award hidden badges
+window.checkHiddenBadges = function() {
+    if (typeof HIDDEN_BADGES === 'undefined') return;
+    var earned = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+    var changed = false;
+    HIDDEN_BADGES.forEach(function(badge) {
+        if (earned.indexOf(badge.id) !== -1) return;
+        try {
+            if (badge.check && badge.check()) {
+                earned.push(badge.id);
+                changed = true;
+                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' pts');
+                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Hidden Badge: ' + (badge.revealName || badge.name));
+                // Sync to Firebase
+                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    try { db.collection('users').doc(auth.currentUser.uid).update({ hiddenBadges: earned }); } catch(e) {}
+                }
+            }
+        } catch(e) {}
+    });
+    if (changed) localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
+};
+// Check hidden badges every 30 seconds
+setInterval(function() { if (typeof checkHiddenBadges === 'function') checkHiddenBadges(); }, 30000);
+
+// awardHiddenBadge — award a specific hidden badge by ID
+window.awardHiddenBadge = function(badgeId, toastMsg) {
+    var earned = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+    if (earned.indexOf(badgeId) !== -1) return; // Already earned
+    earned.push(badgeId);
+    localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
+    if (toastMsg && typeof showToast === 'function') showToast('🏅 ' + toastMsg);
+    // Sync to Firebase
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        try { db.collection('users').doc(auth.currentUser.uid).update({ hiddenBadges: earned }); } catch(e) {}
+    }
+};
+
+// awardOrangeTickets
+window.awardOrangeTickets = function(amount, reason) {
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
+        if (!currentUser._isLocal && typeof db !== 'undefined' && auth && auth.currentUser) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                orangeTickets: firebase.firestore.FieldValue.increment(amount)
+            }).catch(function(){});
+        }
+    }
+    var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
+    localStorage.setItem('btc_orange_tickets', (local + amount).toString());
+    if (typeof showToast === 'function') showToast('🎟️ +' + amount + ' Orange Ticket' + (amount > 1 ? 's' : '') + (reason ? ' — ' + reason : ''));
+};
+
+// setFloatingElementsVisible — show/hide floating buttons when sidebar opens
+window.setFloatingElementsVisible = function(visible) {
+    var ids = ['floatingRandomBtn','lbFloatBtn','mobileSearchBtn','backToTop','scrollToBottom'];
+    ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+    });
+};
