@@ -2818,7 +2818,6 @@ window.nachoUnifiedAnswer = function(question, callback) {
     // ANTI-SHITCOIN SHIELD: If it's about altcoins, bypass AI and use KB immediately
     var altcoinMatch = checkAltcoin(q);
     if (altcoinMatch) {
-        console.log("Altcoin detected:", altcoinMatch.keys[0]);
         callback({ 
             type: 'kb', 
             answer: pq(altcoinMatch.answer), 
