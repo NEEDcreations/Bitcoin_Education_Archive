@@ -1,3 +1,25 @@
+const HIDDEN_BADGES = [
+    // === VISIBLE GOALS (shown locked with progress hints) ===
+    { id: 'nacho_friend', name: 'Nacho\'s Friend', emoji: '🦌', pts: 25, desc: 'Interact with Nacho', hint: 'Click on Nacho!', hidden: false, check: function() { return localStorage.getItem('btc_nacho_clicked') === 'true'; } },
+    { id: 'genesis', name: 'Genesis Reader', emoji: '📜', pts: 75, desc: 'Read the whitepaper channel', hint: 'Open the Whitepaper channel', hidden: false, check: function() { return typeof currentChannelId !== 'undefined' && currentChannelId === 'whitepaper'; } },
+    { id: 'nacho_curious', name: 'Curious Deer', emoji: '❓', pts: 50, desc: 'Ask Nacho your first question', hint: 'Ask Nacho anything!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 1; } },
+    { id: 'ticket_bronze', name: 'Ticket Fish', emoji: '🐟', pts: 200, desc: 'Earn 25 Orange Tickets', hint: 'Spin daily + referrals!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 25; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 25) + '/25' : '0/25'; } },
+    { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', pts: 500, desc: 'Earn 50 Orange Tickets', hint: 'Keep spinning & referring!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 50) + '/50' : '0/50'; } },
+    { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', hint: 'The ultimate ticket badge!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 100) + '/100' : '0/100'; } },
+    { id: 'nacho_10q', name: 'Inquisitive Buck', emoji: '🔍', pts: 200, desc: 'Ask Nacho 10 questions', hint: 'Keep asking Nacho!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 10; }, progress: function() { return Math.min(parseInt(localStorage.getItem('btc_nacho_questions') || '0'), 10) + '/10'; } },
+    { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', hint: 'Star your favorite channels', hidden: false, check: function() { return JSON.parse(localStorage.getItem('btc_favs') || '[]').length >= 10; }, progress: function() { return Math.min(JSON.parse(localStorage.getItem('btc_favs') || '[]').length, 10) + '/10'; } },
+    { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first forum post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
+    { id: 'first_reply', name: 'Conversationalist', emoji: '💬', pts: 75, desc: 'Reply to a forum post', hint: 'Join a discussion!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.forumReplies >= 1; } },
+    { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on the marketplace', hint: 'Sell something for sats!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
+    { id: 'market_buyer', name: 'Shopper', emoji: '🛍️', pts: 150, desc: 'Contact a seller on the marketplace', hint: 'Find something to buy!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketMessages >= 1; } },
+    // === TRUE HIDDEN (surprise discoveries) ===
+    { id: 'night_owl', name: 'Night Owl', emoji: '🦉', pts: 50, desc: 'Visit the archive after midnight', hidden: true, check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
+    { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', pts: 100, desc: 'Visit 15+ channels in one session', hidden: true, check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 15; } },
+    { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', pts: 300, desc: 'Pass the Scholar Certification', hidden: true, check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
+    { id: 'nacho_20q', name: '20 Questions', emoji: '🏅', pts: 500, desc: 'Ask Nacho 20 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 20; } },
+];
+
+
 // Phase 4: Social Proof & Live Activity 🚀
 
 (function() {
