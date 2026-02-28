@@ -181,7 +181,7 @@ window.renderMarketplace = function(options) {
         '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">⚡</span>' +
             '<div>' +
-                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">LightningMart</div>' +
+                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">Lightning Mart</div>' +
                 '<div style="font-size:0.7rem;color:var(--text-faint);">Buy & sell with Bitcoin ⚡</div>' +
             '</div>' +
         '</div>' +

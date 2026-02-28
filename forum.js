@@ -148,7 +148,7 @@ window.renderForum = function() {
     // Header
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;">' +
         '<div style="min-width:0;">' +
-            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0;">🗣️ PlebTalk</h2>' +
+            '<h2 style="color:var(--heading);font-size:1.3rem;font-weight:800;margin:0;">🗣️ Pleb Talk</h2>' +
             '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">Discuss Bitcoin with fellow learners</div>' +
         '</div>' +
         '<div style="display:flex;gap:8px;flex-shrink:0;">' +
