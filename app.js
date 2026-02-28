@@ -2952,6 +2952,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     }
 
     window.goNext = function() {
+        if (typeof CHANNELS === 'undefined') return;
         const channelKeys = window._sidebarOrder && window._sidebarOrder.length > 0 ? window._sidebarOrder : Object.keys(CHANNELS);
         const currentIdx = channelKeys.indexOf(currentChannelId);
         if (currentIdx === -1) { go(channelKeys[0]); return; }
@@ -2960,6 +2961,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goPrev = function() {
+        if (typeof CHANNELS === 'undefined') return;
         const channelKeys = window._sidebarOrder && window._sidebarOrder.length > 0 ? window._sidebarOrder : Object.keys(CHANNELS);
         const currentIdx = channelKeys.indexOf(currentChannelId);
         if (currentIdx === -1) { go(channelKeys[channelKeys.length - 1]); return; }
