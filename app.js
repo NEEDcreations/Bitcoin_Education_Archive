@@ -3610,12 +3610,23 @@ window.nachoQuizAnswer = function(btn, correct) {
         showContinueReading();
 
         // Handle browser back/forward buttons
-        // Set initial state so there's always a base entry to land on
-        if (!history.state) history.replaceState({ home: true }, '', window.location.pathname + window.location.hash);
+        // Push TWO states on initial load — a "guard" base + the current page
+        // This prevents iOS swipe-back from exiting the app
+        if (!history.state) {
+            history.replaceState({ guard: true }, '', window.location.pathname);
+            history.pushState({ home: true }, '', window.location.pathname + window.location.hash);
+        }
 
         window.addEventListener('popstate', function(e) {
             var state = e.state || {};
             var hash = location.hash.slice(1);
+
+            // GUARD STATE: user tried to leave the app — push them back to home
+            if (!e.state || state.guard) {
+                history.pushState({ home: true }, '', window.location.pathname);
+                goHome(true);
+                return;
+            }
 
             // If we've gone back to null state (would leave site), push home state and stay
             if (!e.state && !hash) {
