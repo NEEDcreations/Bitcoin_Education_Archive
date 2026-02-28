@@ -7445,6 +7445,30 @@ window.startFlashcards = function(topic) {
         { q: "What is a circular economy?", a: "An ecosystem where people earn, save, and spend Bitcoin directly without ever converting back to fiat." },
         { q: "Can Bitcoin help the environment?", a: "Yes, by providing an incentive to develop renewable energy near remote sources and reducing methane flaring." },
         { q: "What is the 'Great Definancialization'?", a: "The process of moving away from complex, debt-based financial instruments back to a simple, hard money standard." }
+    ],
+    'El Salvador & Adoption': [
+        { q: "When did El Salvador adopt Bitcoin as legal tender?", a: "September 7, 2021 — the first country in the world to do so under President Nayib Bukele." },
+        { q: "What is the Chivo Wallet?", a: "El Salvador's government-issued Bitcoin wallet. Each citizen who downloaded it received $30 in BTC." },
+        { q: "What is Bitcoin Beach?", a: "A community in El Zonte, El Salvador that became a circular Bitcoin economy before the national adoption." },
+        { q: "How does Bitcoin help El Salvador's remittances?", a: "70% of Salvadorans receive remittances. Bitcoin cuts transfer fees from 10-30% to nearly zero." },
+        { q: "Did El Salvador buy Bitcoin?", a: "Yes. The government has been buying BTC regularly, holding over 5,000 BTC in its national treasury." },
+        { q: "What is Bitcoin City?", a: "A planned city at the base of Conchagua volcano, powered by geothermal energy and funded by Bitcoin bonds." },
+        { q: "What is the 'Volcano Bond'?", a: "A $1 billion government bond (half invested in BTC, half for Bitcoin City infrastructure) backed by Bitcoin." },
+        { q: "Which other countries are considering Bitcoin?", a: "Bhutan mines BTC with hydropower, the Central African Republic adopted it, and several nations are exploring it." },
+        { q: "What is a Bitcoin ATM?", a: "A physical machine where you can buy or sell Bitcoin with cash. El Salvador deployed 200+ nationwide." },
+        { q: "What is 'Mi Primer Bitcoin'?", a: "A Salvadoran nonprofit providing free Bitcoin education to public school students — now expanding globally." }
+    ],
+    'Technical Deep Dives': [
+        { q: "What is SHA-256?", a: "The cryptographic hash function that Bitcoin uses. It takes any input and produces a unique, fixed 256-bit output." },
+        { q: "What is a Merkle Tree?", a: "A binary tree of transaction hashes used to efficiently summarize all transactions in a block." },
+        { q: "What is a nonce?", a: "A random number miners change to produce a hash below the target. It's the 'guess' in the mining lottery." },
+        { q: "What is SegWit?", a: "Segregated Witness. A 2017 upgrade that separates signature data from transaction data, increasing capacity." },
+        { q: "What is Taproot?", a: "A 2021 upgrade enabling Schnorr signatures and MAST, improving privacy and efficiency of complex transactions." },
+        { q: "What is a UTXO?", a: "Unspent Transaction Output. Bitcoin doesn't use 'accounts' — it tracks individual coins (UTXOs) you can spend." },
+        { q: "What is Script?", a: "Bitcoin's simple programming language used to define spending conditions for each UTXO." },
+        { q: "What is the target?", a: "A 256-bit number. To mine a valid block, the block header hash must be numerically less than this target." },
+        { q: "What is an OP_CODE?", a: "An operation in Bitcoin's Script language. Examples: OP_CHECKSIG (verify signature), OP_RETURN (store data)." },
+        { q: "What is a Compact Block?", a: "A bandwidth optimization (BIP 152) where nodes send only short transaction IDs instead of full blocks." }
     ]
 };
 
