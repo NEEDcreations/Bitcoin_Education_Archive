@@ -1586,7 +1586,9 @@ window.updateNachoNameUI = function(name) {
     if (bubbleName) bubbleName.textContent = name;
     // Nacho avatar name label
     var avatarName = document.querySelector('.nacho-name');
-    if (avatarName) avatarName.textContent = name.toUpperCase();
+    if (avatarName) {
+        avatarName.innerHTML = name.toUpperCase() + '<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span>';
+    }
     // Closet header
     var closetHeaders = document.querySelectorAll('[id*="nachoCloset"]');
     closetHeaders.forEach(function(el) {
