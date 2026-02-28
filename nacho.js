@@ -783,12 +783,16 @@ function createNacho() {
             e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
             if (closetTouched) {
                 closetTouched = false;
+                window._expanded_closet = true;
+                window._pendingClosetScroll = true;
                 try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
             }
         }, { passive: false });
         closetBtn.addEventListener('click', function(e) {
             e.stopPropagation(); e.stopImmediatePropagation();
             if (!closetTouched) { // Only fire on non-touch (mouse) clicks
+                window._expanded_closet = true;
+                window._pendingClosetScroll = true;
                 try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
             }
             closetTouched = false;

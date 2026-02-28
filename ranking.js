@@ -2601,7 +2601,16 @@ function showSettingsPage(tab) {
     // Render Nacho's Closet if on Stats/Nacho tab
     if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
         var closetContainer = document.getElementById('nachoClosetContainer');
-        if (closetContainer) renderNachoClosetUI(closetContainer);
+        if (closetContainer) {
+            renderNachoClosetUI(closetContainer);
+            // If requested via closet shortcut, scroll to it
+            if (window._pendingClosetScroll) {
+                setTimeout(function() {
+                    closetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    window._pendingClosetScroll = false;
+                }, 300);
+            }
+        }
     }
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings page error: ' + e.message);
