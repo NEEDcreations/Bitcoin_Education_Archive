@@ -836,6 +836,12 @@ function containsProfanity(str) {
 
 async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     // Wait for auth to be ready if not yet
+    if (typeof auth === 'undefined' || !auth) {
+        showToast('⏳ Loading... please try again in a moment.');
+        // Try to init if it hasn't happened
+        if (typeof initRanking === 'function') initRanking();
+        return;
+    }
     if (!auth.currentUser) {
         try {
             const cred = await auth.signInAnonymously();
