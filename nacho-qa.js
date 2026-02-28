@@ -2363,8 +2363,22 @@ window.nachoAnswer = function() {
                 var finalAnswer = typeof personalize === 'function' ? personalize(matchAnswer) : matchAnswer;
                 renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + finalAnswer + '</div>', match);
             } else {
-                // Future event check
-                if (isCurrentEventQuestion(q)) {
+                // No KB match — try AI (Llama via Cloudflare Worker)
+                if (typeof nachoAIAnswer === 'function' && NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+                    showNachoThinking(textEl);
+                    nachoAIAnswer(q, function(aiReply) {
+                        stopNachoThinking();
+                        if (aiReply) {
+                            if (typeof setPose === 'function') setPose('brain');
+                            var disclaimer = isFinancialAdvice(q) ? '<br><br>' + (typeof FINANCIAL_DISCLAIMER !== 'undefined' ? FINANCIAL_DISCLAIMER : '') : '';
+                            renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + aiReply + disclaimer + '</div>', { answer: aiReply });
+                        } else if (isCurrentEventQuestion(q)) {
+                            tryWebSearch(textEl, q);
+                        } else {
+                            showNachoFallback(textEl, q);
+                        }
+                    });
+                } else if (isCurrentEventQuestion(q)) {
                     tryWebSearch(textEl, q);
                 } else {
                     showNachoFallback(textEl, q);
