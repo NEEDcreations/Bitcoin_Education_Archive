@@ -790,7 +790,7 @@ function updateAuthButton() {
     var hasUsername = currentUser && currentUser.username;
 
     if (isSignedIn || hasUsername) {
-        btn.textContent = '⚙️ ' + (hasUsername ? hasUsername : 'My Account') + ' — Settings';
+        btn.innerHTML = '⚙️ <strong>' + (hasUsername ? hasUsername : 'My Account') + '</strong> — Settings';
         btn.style.borderColor = '#22c55e';
         btn.style.color = '#22c55e';
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
