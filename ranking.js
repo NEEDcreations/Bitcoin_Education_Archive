@@ -2730,7 +2730,47 @@ window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
 async function saveProfile() {
     var status = document.getElementById('profileStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
-    // ... basic save logic
+    
+    var uid = auth.currentUser.uid;
+    var bio = document.getElementById('profileBio') ? document.getElementById('profileBio').value.trim() : '';
+    
+    var updateData = { bio: bio };
+    
+    // Social links mapping
+    var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
+    links.forEach(function(k) {
+        var el = document.getElementById('profile_' + k);
+        if (el) updateData[k] = el.value.trim();
+        else if (currentUser && typeof currentUser[k] !== 'undefined') {
+            // If the element doesn't exist but the user had it, we check if it was removed
+            // Actually, addProfileLink adds the element. If it's gone from DOM, they likely clicked Remove.
+            // But we only want to null it if it was explicitly removed. 
+            // pf-link-row has data-key.
+            var row = document.querySelector('.pf-link-row[data-key="' + k + '"]');
+            if (!row) updateData[k] = ''; 
+        }
+    });
+
+    try {
+        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving...</span>';
+        await db.collection('users').doc(uid).update(updateData);
+        
+        // Update local currentUser object
+        Object.assign(currentUser, updateData);
+        
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
+        if (typeof showToast === 'function') showToast('✅ Profile saved successfully!');
+        
+        // Small delay then close or refresh settings view
+        setTimeout(function() {
+            if (status) status.innerHTML = '';
+            showSettingsPage('account');
+        }, 1500);
+    } catch(e) {
+        console.error('Error saving profile:', e);
+        if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Error saving</span>';
+        if (typeof showToast === 'function') showToast('❌ Error saving profile');
+    }
 }
 
 async function signOutUser() {
