@@ -76,14 +76,35 @@ const HIDDEN_BADGES = [
             content.style.animation = 'none';
             content.offsetHeight; // trigger reflow
             content.textContent = TICKER_ITEMS[currentIdx];
-            content.style.animation = 'tickerScroll 15s linear infinite';
+            content.style.animation = 'tickerScroll 12s linear infinite';
             
+            // Log for debug (optional)
+            // console.log("Ticker update:", TICKER_ITEMS[currentIdx]);
+
             currentIdx = (currentIdx + 1) % TICKER_ITEMS.length;
         }
 
         updateTicker();
-        setInterval(updateTicker, 15000); // Sync with animation duration
+        setInterval(updateTicker, 12000); // 12s matches animation speed better for full visibility
     }
+
+    // 🔗 UI FIX: Ensure ticker content doesn't truncate early
+    const styleFix = document.createElement('style');
+    styleFix.textContent = `
+        #ticker-content { 
+            white-space: nowrap !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            display: inline-block !important;
+            width: auto !important;
+            padding-right: 50px;
+        }
+        @keyframes tickerScroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+    `;
+    document.head.appendChild(styleFix);
 
     // Phase 7: Channel Sentiment Rating
     window.rateChannel = async function(channelId, rating) {
