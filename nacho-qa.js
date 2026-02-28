@@ -1087,20 +1087,20 @@ window.nachoAnswer = function() {
     if (isCrisis(q)) {
         if (typeof setPose === 'function') setPose('love');
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(CRISIS_RESPONSE) : CRISIS_RESPONSE) + '</div>';
-        return;
+        window._nachoBusy = false; return;
     }
     
     // Check Harm/Finance/Inappropriate
     for (var hi = 0; hi < HARM_PATTERNS.length; hi++) {
         if (HARM_PATTERNS[hi].test(q)) {
             textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(HARM_RESPONSE) : HARM_RESPONSE) + '</div>';
-            return;
+            window._nachoBusy = false; return;
         }
     }
     if (isFinancialAdvice(q)) {
         var fa = pickRandom(FINANCIAL_ADVICE_RESPONSES);
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(fa) : fa) + '</div>' + FINANCIAL_DISCLAIMER;
-        return;
+        window._nachoBusy = false; return;
     }
 
     // ---- Step 1: Check Live Data First (Price, Height, Halving) ----
@@ -1109,7 +1109,7 @@ window.nachoAnswer = function() {
         if (typeof setPose === 'function') setPose('brain');
         var answer = typeof personalize === 'function' ? personalize(liveMatch.answer) : liveMatch.answer;
         renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>', liveMatch);
-        return;
+        window._nachoBusy = false; return;
     }
 
     // ---- Step 2: Site Navigation ----
@@ -1117,7 +1117,7 @@ window.nachoAnswer = function() {
     if (siteMatch) {
         if (typeof setPose === 'function') setPose('brain');
         renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + siteMatch.answer + '</div>', siteMatch);
-        return;
+        window._nachoBusy = false; return;
     }
 
     // ---- Step 3: Off-Topic Filter ----
@@ -1126,7 +1126,7 @@ window.nachoAnswer = function() {
         if (typeof setPose === 'function') setPose('cheese');
         textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(ot) : ot) + '</div>' +
             '<button onclick="showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg);border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
-        return;
+        window._nachoBusy = false; return;
     }
 
     // ---- Step 4: Full Thinking & KB Search ----

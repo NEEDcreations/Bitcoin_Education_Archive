@@ -34,7 +34,7 @@ test('questModal exists', () => assert(html.includes('id="questModal"')));
 // Critical script references
 test('ranking.js referenced', () => assert(html.match(/src="ranking\.js\?v=[\w]+"/)));
 test('app.js referenced', () => assert(html.match(/src="app\.js\?v=[\w]+"/)));
-test('nacho-qa.js referenced', () => assert(html.match(/src="nacho-qa\.js\?v=\d+"/)));
+test('nacho-qa.js referenced', () => assert(html.match(/src="nacho-qa\.js\?v=[\w]+"/)));
 test('nacho.js referenced', () => assert(html.match(/src="nacho\.js\?v=\d+"/)));
 test('channel_index.js referenced', () => assert(html.match(/src="channel_index\.js\?v=\d+/)));
 test('messaging.js referenced', () => assert(html.match(/src="messaging\.js\?v=\d+"/)));
