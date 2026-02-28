@@ -861,7 +861,7 @@
 
         var screen = document.createElement('div');
         screen.id = 'nachoModeScreen';
-        screen.style.cssText = 'display:flex;flex-direction:column;height:100vh;animation:fadeSlideIn 0.4s ease-out;';
+        screen.style.cssText = 'display:flex;flex-direction:column;height:calc(100vh - 32px);margin-top:32px;animation:fadeSlideIn 0.4s ease-out;position:relative;z-index:9999;';
         screen.innerHTML =
             '<style>' +
                 '@keyframes nachoModeBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }' +
@@ -3307,6 +3307,12 @@ window.nachoQuizAnswer = function(btn, correct) {
         const sr = document.getElementById('searchResults');
         const cl = document.getElementById('channelList');
 
+        // Sync inputs if they exist
+        ['searchInput', 'searchOverlayInput'].forEach(id => {
+            const inp = document.getElementById(id);
+            if (inp && inp.value !== q) inp.value = q;
+        });
+
         // --- EASTER EGG: SATOSHI ---
         if (q && q.toLowerCase() === 'satoshi') {
             if (typeof awardHiddenBadge === 'function') {
@@ -3325,7 +3331,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!q || q.length < 2) {
             sr.classList.remove('active');
             sr.innerHTML = '';
-            cl.style.display = '';
+            if (cl) cl.style.display = '';
             return;
         }
         q = q.toLowerCase();
@@ -3416,7 +3422,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             const isApp = r.key && r.key.startsWith('_');
             const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "')";
             const style = isApp ? 'border-left:3px solid var(--accent);' : '';
-            return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
+            return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchOverlay\').style.display=\'none\';document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(document.getElementById(\'searchOverlayInput\'))document.getElementById(\'searchOverlayInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
                 '<div class="sr-cat">' + r.cat + '</div>' +
                 '<div>' + r.title + '</div>' +
                 '<div class="sr-match">' + r.match + '</div></div>';
@@ -3425,6 +3431,8 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     function selectResult(key) {
         document.getElementById('searchInput').value = '';
+        if (document.getElementById('searchOverlayInput')) document.getElementById('searchOverlayInput').value = '';
+        document.getElementById('searchOverlay').style.display = 'none';
         doSearch('');
         go(key);
     }

@@ -468,6 +468,16 @@
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;"></div>
     <!-- Mobile top bar -->
+    <!-- Separate independent search overlay for better visibility over Nacho Mode -->
+    <div id="searchOverlay" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.85);padding:16px;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="font-size:1.1rem;font-weight:800;color:var(--heading);">🔍 Search Archive</div>
+            <button onclick="document.getElementById('searchOverlay').style.display='none'" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>
+        </div>
+        <input type="text" class="search-input" id="searchOverlayInput" placeholder="What are you looking for?" style="width:100%;padding:14px;background:#0f172a;border:2px solid var(--accent);border-radius:12px;color:#fff;font-size:1rem;margin-bottom:12px;outline:none;" oninput="doSearch(this.value)">
+        <div id="searchResults" class="search-results active" style="flex:1;overflow-y:auto;background:none;padding:0;"></div>
+    </div>
+    
     <div class="mobile-bar">
         <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
             <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
@@ -475,13 +485,13 @@
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
             <span id="mobileUserInfo" onclick="if(auth&&auth.currentUser&&!auth.currentUser.isAnonymous){showUsernamePrompt()}else{toggleMenu()}" style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;display:none;"></span>
-            <button onclick="if(typeof toggleMenu==='function')toggleMenu();setTimeout(function(){var si=document.getElementById('searchInput');if(si){si.focus();si.click();}},300)" style="background:var(--accent);color:#fff;border:none;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;">🔍</button>
+            <button onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:var(--accent);color:#fff;border:none;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;">🔍</button>
             <button onclick="toggleMenu()">☰ Channels</button>
         </div>
     </div>
 
     <aside id="sidebar">
-        <button onclick="if(typeof toggleMenu==='function')toggleMenu();setTimeout(function(){var si=document.getElementById('searchInput');if(si){si.focus();si.click();}},300)" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn">🔍</button>
+        <button onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn">🔍</button>
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
             <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
@@ -499,14 +509,13 @@
                 <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(247,147,26,0.15);padding:2px 8px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;">Live</span>
                 <div id="ticker-content" style="flex:1;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
-            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)" onfocus="if(this.value==='')showTrendingTopics()">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)" onfocus="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();">
             <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
                 <button class="random-btn" onclick="goRandom()" title="Random Channel">🎲</button>
                 <button class="random-btn" onclick="goRandomArt()" title="Random Art">🎨</button>
                 <button class="random-btn" onclick="goRandomMeme()" title="Random Meme">😂</button>
             </div>
         </div>
-        <div class="search-results" id="searchResults"></div>
         <div class="channels" id="channelList">
             <div id="favsSection" style="display:none;">
                 <div class="cat-label">⭐ Your Saved Channels</div>

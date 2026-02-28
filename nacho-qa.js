@@ -1602,7 +1602,7 @@ function checkAltcoin(input) {
         if (altcoinPatterns[i].pattern.test(lowInput)) {
             // Find the KB entry
             for (var j = 0; j < NACHO_KB.length; j++) {
-                if (NACHO_KB[j].keys.indexOf(altcoinPatterns[i].key) !== -1) {
+                if (NACHO_KB[j].keys && NACHO_KB[j].keys.indexOf(altcoinPatterns[i].key) !== -1) {
                     return NACHO_KB[j];
                 }
             }
@@ -1617,13 +1617,13 @@ function findAnswer(input) {
 
     // ---- EMERGENCY PRIORITY: Live Data Awareness ----
     if (/bitcoin price|current price|price now|how much is bitcoin|price of bitcoin/.test(input)) {
-        return NACHO_KB.find(e => e.keys.includes('current price'));
+        return NACHO_KB.find(e => e.keys && e.keys.includes('current price'));
     }
     if (/block height|current block|latest block|what block|how many blocks|blockchain height/.test(input)) {
-        return NACHO_KB.find(e => e.keys.includes('current block height'));
+        return NACHO_KB.find(e => e.keys && e.keys.includes('current block height'));
     }
     if (/halving countdown|when is the halving|blocks until halving|days until halving/.test(input)) {
-        return NACHO_KB.find(e => e.keys.includes('when is the halving'));
+        return NACHO_KB.find(e => e.keys && e.keys.includes('when is the halving'));
     }
 
     // FIRST: Check if user is asking about a site feature/page
@@ -1672,7 +1672,7 @@ function findAnswer(input) {
     for (var ti = 0; ti < topicPatterns.length; ti++) {
         if (topicPatterns[ti].pattern.test(input)) {
             for (var tei = 0; tei < NACHO_KB.length; tei++) {
-                if (NACHO_KB[tei].keys.indexOf(topicPatterns[ti].key) !== -1) {
+                if (NACHO_KB[tei].keys && NACHO_KB[tei].keys.indexOf(topicPatterns[ti].key) !== -1) {
                     return NACHO_KB[tei];
                 }
             }
@@ -1694,7 +1694,7 @@ function findAnswer(input) {
     for (var ai = 0; ai < altcoinPatterns.length; ai++) {
         if (altcoinPatterns[ai].pattern.test(input)) {
             for (var ei = 0; ei < NACHO_KB.length; ei++) {
-                if (NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
+                if (NACHO_KB[ei].keys && NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
                     return NACHO_KB[ei];
                 }
             }
