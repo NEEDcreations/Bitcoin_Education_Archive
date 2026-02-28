@@ -258,7 +258,7 @@ function showStreakBanner() {
 
     var banner = document.createElement('div');
     banner.id = 'streakBanner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:300;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;padding:10px 16px;text-align:center;font-size:0.85rem;font-weight:700;cursor:pointer;animation:slideInUp 0.3s;';
+    banner.style.cssText = 'position:fixed;top:32px;left:0;right:0;z-index:300;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;padding:10px 16px;text-align:center;font-size:0.85rem;font-weight:700;cursor:pointer;animation:slideInUp 0.3s;';
     banner.innerHTML = '🔥 Day ' + streak + ' streak! Keep it alive! <span style="opacity:0.7;font-size:0.75rem;margin-left:8px;">tap to dismiss</span>';
     banner.onclick = function() { banner.style.transition = '0.3s'; banner.style.transform = 'translateY(-100%)'; setTimeout(function() { banner.remove(); }, 300); };
     document.body.appendChild(banner);
