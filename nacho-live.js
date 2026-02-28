@@ -120,6 +120,9 @@ function initTicker() {
     updateTicker();
     setInterval(updateTicker, 60000);
 
+    // Fetch live news immediately (don't wait 30 min)
+    setTimeout(refreshSignalNews, 5000);
+
     // Refresh Signal news every 30 minutes — try live search first, fall back to static file
     function refreshSignalNews() {
         var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';

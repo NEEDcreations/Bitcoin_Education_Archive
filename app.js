@@ -3725,6 +3725,8 @@ if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
+if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
+if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;
