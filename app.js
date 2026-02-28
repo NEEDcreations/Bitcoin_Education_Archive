@@ -2789,7 +2789,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (dt > 600) return; // Too slow
 
             // Horizontal Swipes (Left/Right)
-            if (absX > 60 && absX > absY * 1.5) {
+            if (absX > 150 && absX > absY * 2.5) {
                 if (dx > 0) {
                     goPrev(); // Swipe Left-to-Right → Previous
                     if (typeof haptic === 'function') haptic('light');
@@ -2802,7 +2802,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
             // Vertical Swipes (Up/Down) - "TikTok style"
             // Only trigger if at boundaries to not interfere with content scrolling
-            if (absY > 80 && absY > absX * 1.5) {
+            if (absY > 180 && absY > absX * 2.5) {
                 var isAtTop = mainEl.scrollTop <= 5;
                 var isAtBottom = mainEl.scrollHeight - mainEl.scrollTop - mainEl.clientHeight <= 5;
 
