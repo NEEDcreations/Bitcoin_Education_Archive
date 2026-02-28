@@ -1979,22 +1979,50 @@ function showSettingsPage(tab) {
             '<p style="color:var(--text-muted);font-size:0.85rem;">Curated Bitcoin insights and site updates.</p>' +
             '</div>';
 
+        // Curated editorial + live news from ticker
         var signalPosts = [
-            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But Gigi explains why energy IS the point — PoW converts real-world resources into unforgeable security.', link: 'pow-vs-pos' },
-            { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Parker Lewis breaks down why we don\'t need thousands of stocks, bonds, and derivatives if we have one form of hard money that can\'t be debased.', link: 'problems-of-money' },
-            { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Why even if every miner in the world wanted to change the supply, they couldn\'t. The users run the rules.', link: 'scarce' },
-            { date: 'Feb 5, 2026', title: 'Not Your Keys, Not Your Coins', snippet: 'After another exchange collapse, the importance of self-custody has never been clearer. Here\'s how to take control.', link: 'self-custody' },
-            { date: 'Jan 29, 2026', title: 'The Halving: Scarcity You Can Verify', snippet: 'Every 210,000 blocks, the supply issuance gets cut in half. No vote. No committee. Just code.', link: 'difficulty-adjustment' }
+            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But Gigi explains why energy IS the point — PoW converts real-world resources into unforgeable security.', channel: 'pow-vs-pos' },
+            { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Parker Lewis breaks down why we don\'t need thousands of stocks, bonds, and derivatives if we have one form of hard money that can\'t be debased.', channel: 'problems-of-money' },
+            { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Why even if every miner in the world wanted to change the supply, they couldn\'t. The users run the rules.', channel: 'scarce' },
+            { date: 'Feb 5, 2026', title: 'Not Your Keys, Not Your Coins', snippet: 'After another exchange collapse, the importance of self-custody has never been clearer. Here\'s how to take control.', channel: 'self-custody' },
+            { date: 'Jan 29, 2026', title: 'The Halving: Scarcity You Can Verify', snippet: 'Every 210,000 blocks, the supply issuance gets cut in half. No vote. No committee. Just code.', channel: 'difficulty-adjustment' }
         ];
 
+        // Also load live news from ticker data
+        html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">📰 Latest News</div>';
+        html += '<div id="signalLiveNews" style="margin-bottom:20px;"><div style="color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading latest news...</div></div>';
+
+        html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;margin-top:16px;font-weight:700;">📚 Featured Deep Dives</div>';
+
         signalPosts.forEach(function(n) {
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;cursor:pointer;transition:0.2s;text-align:left;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'" onclick="hideUsernamePrompt(); go(\''+n.link+'\',null,false)">' +
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;text-align:left;">' +
                 '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + n.date.toUpperCase() + '</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:6px;">' + n.title + '</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;">' + n.snippet + '</div>' +
-                '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:10px;">Tap to read the channel →</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:10px;">' + n.snippet + '</div>' +
+                '<button onclick="hideUsernamePrompt();go(\'' + n.channel + '\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read in Archive →</button>' +
                 '</div>';
         });
+
+        // Fetch live news and populate
+        setTimeout(function() {
+            fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+                var container = document.getElementById('signalLiveNews');
+                if (!container || !data.news) return;
+                var newsHtml = '';
+                data.news.forEach(function(n) {
+                    newsHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;text-align:left;">' +
+                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + (n.date || '').toUpperCase() + '</div>' +
+                        '<div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:6px;">' + n.title + '</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:8px;">' + n.snippet + '</div>' +
+                        (n.link ? '<a href="' + n.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;font-weight:700;text-decoration:none;">Read full article →</a>' : '') +
+                        '</div>';
+                });
+                container.innerHTML = newsHtml || '<div style="color:var(--text-faint);font-size:0.8rem;">No news available</div>';
+            }).catch(function() {
+                var container = document.getElementById('signalLiveNews');
+                if (container) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load news</div>';
+            });
+        }, 100);
 
         var isOptedIn = (currentUser && currentUser.newsletterOptIn);
         if (!isOptedIn) {
