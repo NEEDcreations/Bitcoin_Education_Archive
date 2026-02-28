@@ -495,9 +495,9 @@
             </div>
         </div>
         <div class="search-box">
-            <div id="activity-ticker" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;padding:6px 12px;font-size:0.75rem;color:var(--text-muted);overflow:hidden;white-space:nowrap;display:none;align-items:center;gap:8px;">
-                <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(247,147,26,0.1);padding:2px 6px;border-radius:4px;">Live</span>
-                <div id="ticker-content" style="display:inline-block;animation:tickerScroll 20s linear infinite;">Loading activity...</div>
+            <div id="activity-ticker" style="background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;padding:6px 12px;font-size:0.75rem;color:var(--text-muted);overflow:hidden;white-space:nowrap;display:none;align-items:center;gap:8px;position:relative;">
+                <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(247,147,26,0.15);padding:2px 8px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;">Live</span>
+                <div id="ticker-content" style="flex:1;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
             <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)" onfocus="if(this.value==='')showTrendingTopics()">
             <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">

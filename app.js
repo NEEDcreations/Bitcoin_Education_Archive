@@ -3651,5 +3651,13 @@ if (typeof goHome !== 'undefined') window.goHome = goHome;
 if (typeof goRandom !== 'undefined') window.goRandom = goRandom;
 if (typeof goRandomArt !== 'undefined') window.goRandomArt = goRandomArt;
 if (typeof goRandomMeme !== 'undefined') window.goRandomMeme = goRandomMeme;
+if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
+if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
+if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
+if (typeof openImg !== 'undefined') window.openImg = openImg;
+if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
+if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
+if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
+if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;
 
 })();
