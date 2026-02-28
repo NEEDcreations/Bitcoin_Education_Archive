@@ -512,6 +512,12 @@
                 <div class="cat-label">⭐ Your Saved Channels</div>
                 <div id="favsList"></div>
             </div>
+            <div style="padding:8px 12px;margin-bottom:4px;">
+                <button onclick="var msg=document.getElementById('contentNote');if(msg.style.display==='none'){msg.style.display='block';this.textContent='📌 A note about the content in our channels ▲'}else{msg.style.display='none';this.textContent='📌 A note about the content in our channels ▼'}" style="padding:6px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;width:100%;text-align:left;">📌 A note about the content in our channels ▼</button>
+                <div id="contentNote" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;line-height:1.5;">
+                    All YouTube links are embedded for you and contain videos that supplement the information in each channel. Additionally, channels are filled with tweets that were posted on Twitter over the last few years, and you can expand these tweets to view them in the channel.
+                </div>
+            </div>
             <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="true">Properties Layer 1 <span class="cat-arrow">▼</span></div>
             <div class="cat-group">
             <button class="ch-btn" onclick="go('whitepaper',this)">📄 whitepaper</button>
@@ -710,12 +716,7 @@
                     <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
                     <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
                 </div>
-                <div style="margin-top:16px;margin-bottom:8px;">
-                    <button onclick="var msg=document.getElementById('contentNote');if(msg.style.display==='none'){msg.style.display='block';this.textContent='📌 A note about the content in our channels ▲'}else{msg.style.display='none';this.textContent='📌 A note about the content in our channels ▼'}" style="padding:10px 20px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:10px;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;">📌 A note about the content in our channels ▼</button>
-                    <div id="contentNote" style="display:none;margin-top:12px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.95rem;line-height:1.6;">
-                        All YouTube links are embedded for you and contain videos that supplement the information in each channel. Additionally, channels are filled with tweets that were posted on Twitter over the last few years, and you can expand these tweets to view them in the channel.
-                    </div>
-                </div>
+                
                 <div id="giveawayBanner" style="margin-bottom:16px;padding:20px;background:linear-gradient(135deg,#f7931a 0%,#ea580c 100%);border-radius:16px;text-align:center;cursor:pointer;box-shadow:0 4px 20px rgba(247,147,26,0.3);position:relative;overflow:hidden;" onclick="showUsernamePrompt()">
                     <div style="position:absolute;top:-20px;right:-20px;font-size:5rem;opacity:0.15;pointer-events:none;">⚡</div>
                     <div style="font-size:1.8rem;margin-bottom:6px;">🎉 25,000 SATS GIVEAWAY 🎉</div>
