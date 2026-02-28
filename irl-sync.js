@@ -14,6 +14,10 @@
         // --- Header & Search Bar ---
         let html = `
             <div id="irl-sync-view" style="max-width:900px;margin:0 auto;padding:20px;font-family:inherit;color:var(--text);">
+        <div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">
+            <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
+            <span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
+        </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
                     <div>
                         <h1 style="font-size:1.8rem;color:var(--heading);margin:0;">IRL Sync 🤝</h1>

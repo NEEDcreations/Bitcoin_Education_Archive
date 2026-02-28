@@ -9,6 +9,10 @@ window.renderBitcoinBeats = function() {
 
     var html = `
     <div style="max-width:800px;margin:30px auto;padding:20px;text-align:center;animation:fadeSlideIn 0.4s ease-out;">
+        <div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">
+            <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
+            <span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
+        </div>
         <div style="margin-bottom:30px;">
             <img src="images/bitcoin-beats-logo.jpg" alt="Bitcoin Beats" style="width:120px;height:120px;border-radius:24px;object-fit:cover;box-shadow:0 10px 30px rgba(0,0,0,0.5);margin-bottom:15px;border:2px solid var(--accent);">
             <h2 style="color:var(--heading);font-weight:800;font-size:2.4rem;margin:0;letter-spacing:-1.5px;text-transform:uppercase;">Bitcoin Beats</h2>

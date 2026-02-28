@@ -144,6 +144,10 @@ window.renderForum = function() {
     fc.innerHTML = '';
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+    html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
+        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
+        '</div>';
 
     // Header
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;">' +
@@ -326,6 +330,10 @@ window.forumViewPost = async function(postId, fromPopState) {
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
         var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+    html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
+        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
+        '</div>';
 
         // Back button
         html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
@@ -457,6 +465,10 @@ window.forumNewPost = function() {
     
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+    html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
+        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
+        '</div>';
     html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
 
     html += '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 14px;">📝 Create New Post</h2>';
