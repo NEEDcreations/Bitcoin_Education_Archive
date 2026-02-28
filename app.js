@@ -2993,10 +2993,17 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
 
         msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
-            '<div class="skeleton" style="height:32px;width:70%;margin-bottom:12px;"></div>' +
-            '<div class="skeleton" style="height:20px;width:40%;margin-bottom:24px;"></div>' +
-            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
-            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+            '<!-- Nacho Summary skeleton -->' +
+            '<div style="background:var(--card-bg);border:1px dashed var(--border);border-radius:12px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">' +
+                '<div class="skeleton" style="width:32px;height:32px;border-radius:8px;flex-shrink:0;"></div>' +
+                '<div style="flex:1;"><div class="skeleton" style="height:12px;width:35%;margin-bottom:8px;"></div><div class="skeleton" style="height:14px;width:90%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:70%;"></div></div>' +
+            '</div>' +
+            '<!-- Message skeletons -->' +
+            '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:25%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:95%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:80%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:60%;"></div></div></div>' +
+            '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:30%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:85%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:70%;"></div></div></div>' +
+            '<!-- Image skeleton -->' +
+            '<div class="skeleton" style="height:180px;width:100%;margin-bottom:16px;border-radius:12px;"></div>' +
+            '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:20%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:90%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:65%;"></div></div></div>' +
         '</div>';
         msgs.style.display = '';
         document.getElementById('home').classList.add('hidden');
@@ -3076,11 +3083,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Show skeleton loader for content area
         var msgs = document.getElementById('msgs');
         msgs.innerHTML = '<div style="padding:20px;">' +
-            '<div class="skeleton" style="height:32px;width:70%;margin-bottom:12px;"></div>' +
-            '<div class="skeleton" style="height:20px;width:40%;margin-bottom:24px;"></div>' +
-            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
-            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
-            '<div class="skeleton" style="height:120px;width:100%;margin-bottom:12px;"></div>' +
+            '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:30%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:90%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:75%;"></div></div></div>' +
+            '<div class="skeleton" style="height:160px;width:100%;margin-bottom:16px;border-radius:12px;"></div>' +
+            '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:25%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:85%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:60%;"></div></div></div>' +
+            '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:35%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:80%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:50%;"></div></div></div>' +
         '</div>';
 
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
