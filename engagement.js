@@ -4,6 +4,7 @@
     // Generate 3 random boost channels based on the date
     function getDailyBoosts() {
         const seed = new Date().toISOString().split('T')[0];
+        if (typeof CHANNELS === 'undefined') return [];
         const keys = Object.keys(CHANNELS);
         const boosts = [];
         

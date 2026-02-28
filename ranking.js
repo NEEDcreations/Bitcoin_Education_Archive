@@ -1073,7 +1073,8 @@ async function onChannelOpen(channelId) {
 
         // Toast: Growing exploration map
         if (typeof showToast === 'function') {
-            const pct = Math.round((allTimeChannels.size / Object.keys(CHANNELS).length) * 100);
+            const totalCh = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
+            const pct = Math.round((allTimeChannels.size / totalCh) * 100);
             showToast('🗺️ Exploration Map: ' + allTimeChannels.size + ' channels reached (' + pct + '%)');
         }
 
@@ -1868,14 +1869,58 @@ window.hideUsernamePrompt = function() {
 };
 
 window.submitUsername = async function() {
-    const input = document.getElementById('newUsername');
+    // Check if this is the INITIAL SIGNUP modal or the settings username change
+    var input = document.getElementById('usernameInput') || document.getElementById('newUsername');
     if (!input) return;
-    const name = input.value.trim();
-    if (!name) return;
-    if (typeof changeUsername === 'function') {
-        const status = document.getElementById('usernameStatus');
-        if(status) status.innerHTML = 'Saving...';
-        await changeUsername(name);
+    var name = input.value.trim();
+    if (!name) { showToast('Please enter a username!'); return; }
+    if (name.length < 2) { showToast('Username must be at least 2 characters'); return; }
+    if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
+    if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
+
+    // INITIAL SIGNUP (usernameInput exists = signup modal)
+    if (document.getElementById('usernameInput')) {
+        var emailInput = document.getElementById('emailInput');
+        var email = emailInput ? emailInput.value.trim() : '';
+        var giveawayCheckbox = document.getElementById('giveawayCheckbox');
+        var giveawayLn = document.getElementById('giveawayLnAddress');
+        var enteredGiveaway = giveawayCheckbox && giveawayCheckbox.checked;
+        var lnAddress = giveawayLn ? giveawayLn.value.trim() : '';
+
+        if (email && enteredGiveaway) {
+            // Email signup with giveaway — send magic link for verification
+            var sent = await sendMagicLink(email);
+            if (sent) {
+                localStorage.setItem('btc_pending_username', name);
+                localStorage.setItem('btc_pending_email', email);
+                if (enteredGiveaway && lnAddress) {
+                    localStorage.setItem('btc_pending_giveaway', lnAddress);
+                }
+                showToast('📧 Check your email for a verification link!');
+                hideUsernamePrompt();
+                return;
+            }
+        }
+
+        // No email or giveaway — create user directly
+        await createUser(name, email, enteredGiveaway, lnAddress);
+        return;
+    }
+
+    // SETTINGS USERNAME CHANGE (newUsername exists = settings page)
+    if (!currentUser || currentUser._isLocal) { showToast('Sign in first to change username'); return; }
+    var status = document.getElementById('usernameStatus');
+    if (status) status.innerHTML = 'Saving...';
+    try {
+        await db.collection('users').doc(currentUser.uid).update({ username: name });
+        currentUser.username = name;
+        updateAuthButton();
+        updateRankUI();
+        if (status) status.innerHTML = '✅ Username updated!';
+        showToast('✅ Username changed to ' + name);
+    } catch(e) {
+        if (status) status.innerHTML = '❌ Error saving';
+        showToast('Error updating username. Try again.');
     }
 };
 
