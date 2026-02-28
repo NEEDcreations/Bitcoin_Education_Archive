@@ -3820,7 +3820,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         });
 
         const h = location.hash.slice(1);
-        if (h === 'nacho') { enterNachoMode(true); }
+        if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h === 'irl-sync') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h) go(h);
