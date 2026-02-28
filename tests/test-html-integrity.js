@@ -36,7 +36,7 @@ test('ranking.js referenced', () => assert(html.match(/src="ranking\.js\?v=\d+"/
 test('app.js referenced', () => assert(html.match(/src="app\.js\?v=\d+"/)));
 test('nacho-qa.js referenced', () => assert(html.match(/src="nacho-qa\.js\?v=\d+"/)));
 test('nacho.js referenced', () => assert(html.match(/src="nacho\.js\?v=\d+"/)));
-test('channel_index.js referenced', () => assert(html.match(/src="channel_index\.js\?v=\d+"/)));
+test('channels.js referenced', () => assert(html.match(/src="channels\.js\?v=\d+/)));
 test('messaging.js referenced', () => assert(html.match(/src="messaging\.js\?v=\d+"/)));
 test('forum.js referenced', () => assert(html.match(/src="forum\.js\?v=\d+"/)));
 test('marketplace.js referenced', () => assert(html.match(/src="marketplace\.js\?v=\d+"/)));

@@ -1,5 +1,5 @@
 // Bitcoin Education Archive - Service Worker v12
-const CACHE_NAME = 'btc-archive-v12';
+const CACHE_NAME = 'btc-archive-v13';
 const IMG_CACHE = 'btc-images-v1';
 const MAX_IMG_CACHE = 200; // Max cached images
 const OFFLINE_URL = '/';
@@ -15,7 +15,7 @@ const PRE_CACHE = [
   '/scholar.js',
   '/tickets.js',
   '/badges.js',
-  '/channel_index.js',
+  '/channels.js',
   '/nacho.js',
   '/nacho-qa.js',
   '/nacho-engage.js',
