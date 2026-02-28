@@ -711,6 +711,17 @@
                         <button onclick="startFlashcards('Lightning Network')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">⚡ Lightning Network</button>
                         <button onclick="startFlashcards('Mining & Energy')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">⛏️ Mining & Energy</button>
                         <button onclick="startFlashcards('Economics & Money')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">💰 Economics & Money</button>
+                        <div id="sidebarMoreFlash" style="display:none;flex-direction:column;gap:5px;">
+                            <button onclick="startFlashcards('Privacy & Sovereignty')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">🕵️ Privacy & Sovereignty</button>
+                            <button onclick="startFlashcards('Nodes & P2P')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">📡 Nodes & P2P</button>
+                            <button onclick="startFlashcards('Wallets & Tools')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">💼 Wallets & Tools</button>
+                            <button onclick="startFlashcards('History & Culture')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">📜 History & Culture</button>
+                            <button onclick="startFlashcards('Common Myths')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">🚫 Common Myths</button>
+                            <button onclick="startFlashcards('Technical Deep Dives')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">🔬 Technical Deep Dives</button>
+                            <button onclick="startFlashcards('Satoshi Nakamoto')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">🦸 Satoshi Nakamoto</button>
+                            <button onclick="startFlashcards('Global Impact')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">🌍 Global Impact</button>
+                        </div>
+                        <button onclick="var m=document.getElementById('sidebarMoreFlash');m.style.display=m.style.display==='none'?'flex':'none';this.textContent=m.style.display==='none'?'▼ More Topics':'▲ Less'" style="text-align:left;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:700;padding:4px;margin-top:5px;">▼ More Topics</button>
                     </div>
                 </div>
 
@@ -788,6 +799,17 @@
                                 <button onclick="startFlashcards('Lightning Network')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>
                                 <button onclick="startFlashcards('Mining & Energy')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>
                                 <button onclick="startFlashcards('Economics & Money')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>
+                                <div id="homeMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px;">
+                                    <button onclick="startFlashcards('Privacy & Sovereignty')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>
+                                    <button onclick="startFlashcards('Nodes & P2P')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📡 Nodes</button>
+                                    <button onclick="startFlashcards('Wallets & Tools')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💼 Wallets</button>
+                                    <button onclick="startFlashcards('History & Culture')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>
+                                    <button onclick="startFlashcards('Common Myths')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>
+                                    <button onclick="startFlashcards('Technical Deep Dives')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔬 Tech</button>
+                                    <button onclick="startFlashcards('Satoshi Nakamoto')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🦸 Satoshi</button>
+                                    <button onclick="startFlashcards('Global Impact')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🌍 Global</button>
+                                </div>
+                                <button onclick="var m=document.getElementById('homeMoreFlash');m.style.display=m.style.display==='none'?'flex':'none';this.textContent=m.style.display==='none'?'▼ More':'▲ Less'" style="width:100%;margin-top:10px;background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:0.75rem;font-weight:700;">▼ More</button>
                             </div>
                             <button onclick="startQuestManual()" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">⚡ Start a Quest</button>
                             <button onclick="startScholarQuest('properties')" style="padding:10px;background:var(--card-bg);border:1px solid #f7931a;color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">🎓 Properties Certification</button>
