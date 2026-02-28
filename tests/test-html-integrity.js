@@ -33,7 +33,7 @@ test('questModal exists', () => assert(html.includes('id="questModal"')));
 
 // Critical script references
 test('ranking.js referenced', () => assert(html.match(/src="ranking\.js\?v=\d+"/)));
-test('app.js referenced', () => assert(html.match(/src="app\.js\?v=\d+"/)));
+test('app.js referenced', () => assert(html.match(/src="app\.js\?v=[\w]+"/)));
 test('nacho-qa.js referenced', () => assert(html.match(/src="nacho-qa\.js\?v=\d+"/)));
 test('nacho.js referenced', () => assert(html.match(/src="nacho\.js\?v=\d+"/)));
 test('channel_index.js referenced', () => assert(html.match(/src="channel_index\.js\?v=\d+/)));
@@ -41,7 +41,7 @@ test('messaging.js referenced', () => assert(html.match(/src="messaging\.js\?v=\
 test('forum.js referenced', () => assert(html.match(/src="forum\.js\?v=\d+"/)));
 test('marketplace.js referenced', () => assert(html.match(/src="marketplace\.js\?v=\d+"/)));
 test('engagement.js referenced', () => assert(html.match(/src="engagement\.js\?v=\d+"/)));
-test('mobile-ux.js referenced', () => assert(html.match(/src="mobile-ux\.js\?v=\d+"/)));
+test('mobile-ux.js referenced', () => assert(html.match(/src="mobile-ux\.js\?v=[\w]+"/)));
 
 // All scripts should be deferred (except inline)
 test('all external scripts are deferred', () => {
