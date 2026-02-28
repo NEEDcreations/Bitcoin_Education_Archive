@@ -2052,25 +2052,42 @@ function showSettingsPage(tab) {
                 '</div>';
         });
 
-        // Fetch live news and populate
+        // Fetch live Bitcoin-only news (try Worker first, fall back to static file)
         setTimeout(function() {
-            fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
-                var container = document.getElementById('signalLiveNews');
-                if (!container || !data.news) return;
+            var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+            var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3/i;
+            
+            function renderNews(container, items) {
                 var newsHtml = '';
-                data.news.forEach(function(n) {
+                items.forEach(function(n) {
+                    if (badWords.test(n.title || '') || badWords.test(n.snippet || '')) return;
                     newsHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;text-align:left;">' +
-                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + (n.date || '').toUpperCase() + '</div>' +
-                        '<div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:6px;">' + n.title + '</div>' +
-                        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:8px;">' + n.snippet + '</div>' +
-                        (n.link ? '<a href="' + n.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;font-weight:700;text-decoration:none;">Read full article →</a>' : '') +
+                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + (n.date || 'TODAY').toUpperCase() + '</div>' +
+                        '<div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:6px;">' + (n.title || '').replace(/<[^>]+>/g,'') + '</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:8px;">' + (n.snippet || '').replace(/<[^>]+>/g,'') + '</div>' +
+                        (n.link || n.url ? '<a href="' + (n.link || n.url) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;font-weight:700;text-decoration:none;">Read full article →</a>' : '') +
                         '</div>';
                 });
-                container.innerHTML = newsHtml || '<div style="color:var(--text-faint);font-size:0.8rem;">No news available</div>';
-            }).catch(function() {
-                var container = document.getElementById('signalLiveNews');
-                if (container) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load news</div>';
-            });
+                container.innerHTML = newsHtml || '<div style="color:var(--text-faint);font-size:0.8rem;">No Bitcoin news available</div>';
+            }
+            
+            var container = document.getElementById('signalLiveNews');
+            if (!container) return;
+            
+            // Try live search first
+            fetch(proxy + '?q=' + encodeURIComponent('Bitcoin BTC price mining lightning network -ethereum -crypto -altcoin'), { signal: AbortSignal.timeout(6000) })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data && data.results && data.results.length >= 2) {
+                        renderNews(container, data.results.slice(0, 5).map(function(r) { return { date: 'Today', title: r.title, snippet: r.snippet, link: r.url }; }));
+                    } else { throw new Error('no results'); }
+                })
+                .catch(function() {
+                    // Fall back to static file
+                    fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+                        if (data && data.news) renderNews(container, data.news);
+                    }).catch(function() { container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load news</div>'; });
+                });
         }, 100);
 
         var isOptedIn = (currentUser && currentUser.newsletterOptIn);

@@ -341,7 +341,7 @@ function loadMarketListings(category, search, sort, section) {
                     (satsToUSD(l.priceSats) ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:4px;">' + satsToUSD(l.priceSats) + '</div>' : '<div style="margin-bottom:4px;"></div>') +
                     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                         '<span style="font-size:0.65rem;color:' + condColor + ';font-weight:600;">' + condLabel + '</span>' +
-                        '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\')" style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
+                        '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\'})"  style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -350,10 +350,28 @@ function loadMarketListings(category, search, sort, section) {
         console.error('Marketplace load error:', e);
         if (grid) {
             if (e.code === 'failed-precondition') {
-                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">' +
-                    '⚙️ Marketplace needs a database index.<br>This is a one-time setup.<br><br>' +
-                    '<a href="https://console.firebase.google.com/project/bitcoin-education-archive/firestore/indexes" target="_blank" style="color:var(--accent);font-weight:700;">Click here to create the index manually if requested →</a>' +
-                    '</div>';
+                // Fallback: try simpler query without composite index
+                console.log('Trying fallback marketplace query...');
+                db.collection('marketplace').orderBy('createdAt', 'desc').limit(50).get().then(function(snap) {
+                    var fallbackListings = [];
+                    snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; if (d.status === 'active') fallbackListings.push(d); });
+                    if (fallbackListings.length > 0) {
+                        grid.innerHTML = fallbackListings.map(function(l) {
+                            return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                                '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);margin-bottom:4px;">' + (l.title || 'Untitled') + '</div>' +
+                                '<div style="font-size:0.8rem;color:var(--accent);font-weight:800;">⚡ ' + (l.priceSats || 0).toLocaleString() + ' sats</div>' +
+                                '</div>';
+                        }).join('');
+                        if (countEl) countEl.textContent = fallbackListings.length + ' listing' + (fallbackListings.length !== 1 ? 's' : '');
+                    } else {
+                        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;"><div style="font-size:2rem;margin-bottom:8px;">🏜️</div><div style="color:var(--text-muted);">No listings yet</div></div>';
+                    }
+                }).catch(function(e2) {
+                    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">' +
+                        '⚙️ Marketplace needs a database index.<br>This is a one-time setup.<br><br>' +
+                        '<a href="https://console.firebase.google.com/project/bitcoin-education-archive/firestore/indexes" target="_blank" style="color:var(--accent);font-weight:700;">Click here to create the index manually if requested →</a>' +
+                        '</div>';
+                });
             } else {
                 grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
             }
@@ -440,7 +458,7 @@ function renderListingDetail(container, listingId) {
         // Seller info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Seller</div>' +
-            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\')" style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
+            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\'})"  style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
                 '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + (l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + escapeHtml(l.sellerName || 'Anonymous') + '</div>' +
@@ -453,10 +471,10 @@ function renderListingDetail(container, listingId) {
         // Action buttons
         if (!isOwner) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\')" style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
-                '<button onclick="toggleMarketSave(\'' + l.id + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
-                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
-                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
+                '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\'})"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
+                '<button onclick="toggleMarketSave(\'' + l.id + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
+                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice
             html += '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
@@ -469,8 +487,8 @@ function renderListingDetail(container, listingId) {
             }
         } else {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="editListing(\'' + l.id + '\')" style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
-                '<button onclick="deleteListing(\'' + l.id + '\')" style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
+                '<button onclick="editListing(\'' + l.id + '\'})"  style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
+                '<button onclick="deleteListing(\'' + l.id + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
             '</div>';
         }
 
@@ -656,7 +674,7 @@ window.contactSeller = function(listingId, sellerName) {
         '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:400px;width:100%;">' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">💬 Message ' + escapeHtml(sellerName) + '</div>' +
         '<textarea id="mktMessage" rows="4" placeholder="Hi! I\'m interested in your listing..." style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;"></textarea>' +
-        '<button onclick="sendMarketMessage(\'' + listingId + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
+        '<button onclick="sendMarketMessage(\'' + listingId + '\'})"  style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
         '</div></div>';
     var div = document.createElement('div');
     div.innerHTML = html;
@@ -724,7 +742,7 @@ window.showMyListings = function(fromPopState) {
                         '</div>' +
                         '<div style="display:flex;gap:8px;align-items:center;">' +
                             '<span style="font-size:0.65rem;color:' + statusColor + ';font-weight:700;text-transform:uppercase;">' + (l.status || 'active') + '</span>' +
-                            (l.status === 'active' ? '<button onclick="markSold(\'' + doc.id + '\')" style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
+                            (l.status === 'active' ? '<button onclick="markSold(\'' + doc.id + '\'})"  style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
                         '</div>' +
                     '</div>';
                 });
