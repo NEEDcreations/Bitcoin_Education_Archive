@@ -477,7 +477,7 @@
                 '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
                 '<div style="font-size:2.5rem;margin-bottom:8px;">🎡</div>' +
                 '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.3rem;margin-bottom:4px;">Daily Spin</div>' +
-                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, points, and rare Freeze Tickets!</p>' +
+                '<p style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:20px;">Spin for Orange Tickets, points, Nacho Closet items, and rare Freeze Tickets!</p>' +
                 '<div id="spinWheelContainer" style="position:relative;width:250px;height:250px;margin:0 auto 20px;">' +
                     '<canvas id="spinCanvas" width="250" height="250" style="border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4);"></canvas>' +
                     '<div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:20px solid #ef4444;z-index:10;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>' +
