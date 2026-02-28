@@ -166,7 +166,7 @@ const HIDDEN_BADGES = [
 })();
 
 // ---- Nacho Story (daily chapters) ----
-window.showNachoStory = function() {
+window.showNachoStory = function(chapterOverride) {
     var CHAPTERS = [
         { title: "Chapter 1: The Genesis Block", text: "In the beginning, there was nothing but fiat. Nacho was just a young deer in the forest of traditional finance, nibbling on leaves of debt and drinking from streams of inflation. One cold January day in 2009, a mysterious message appeared carved into a tree: 'Chancellor on brink of second bailout for banks.' Nacho didn't understand it yet, but something had changed forever. A new kind of money had been born — one that no government could print, no bank could freeze, and no deer could counterfeit. It was called Bitcoin." },
         { title: "Chapter 2: The Pizza That Changed Everything", text: "Nacho heard a rumor: someone had traded 10,000 bitcoins for two pizzas. 'That's crazy!' he thought. But was it? Those pizzas proved Bitcoin had real value — people would actually exchange goods for it. Nacho realized this wasn't just internet magic beans. It was the beginning of price discovery. Every great journey starts with a single transaction, and Bitcoin's started with pepperoni and cheese." },
@@ -177,22 +177,78 @@ window.showNachoStory = function() {
         { title: "Chapter 7: Nacho's Mission", text: "Nacho looked around. So many deer — so many people — still didn't understand Bitcoin. They heard 'crypto' and thought of scams, memecoins, and celebrity tokens. But Bitcoin is different. It's the signal in the noise. So Nacho decided to dedicate his life to education. Not shilling. Not pumping. Teaching. Because the best way to orange-pill someone isn't to tell them to buy — it's to help them understand WHY. And that's why you're here. Welcome to the Archive. 🦌🟠" }
     ];
 
-    var dayIdx = Math.floor(Date.now() / 86400000) % CHAPTERS.length;
-    var ch = CHAPTERS[dayIdx];
+    // Track user progress — new users always start at Chapter 1
+    var highestRead = parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');
+    var lastReadDate = localStorage.getItem('btc_nacho_story_date') || '';
+    var today = new Date().toISOString().split('T')[0];
+
+    // Determine which chapter to show
+    var chIdx;
+    if (typeof chapterOverride === 'number') {
+        // User clicked a specific chapter
+        chIdx = chapterOverride;
+    } else {
+        // Auto: show next unread chapter (one per day)
+        if (lastReadDate === today) {
+            // Already read today — show the chapter they read
+            chIdx = Math.min(highestRead, CHAPTERS.length - 1);
+        } else {
+            // New day — advance to next chapter
+            chIdx = Math.min(highestRead, CHAPTERS.length - 1);
+        }
+    }
+
+    // Mark as read and advance progress
+    if (chIdx >= highestRead) {
+        highestRead = chIdx + 1;
+        localStorage.setItem('btc_nacho_story_highest', highestRead.toString());
+        localStorage.setItem('btc_nacho_story_date', today);
+        // Sync to Firebase
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            try { db.collection('users').doc(auth.currentUser.uid).update({ nachoStoryProgress: highestRead, nachoStoryDate: today }).catch(function(){}); } catch(e) {}
+        }
+    }
+
+    var ch = CHAPTERS[chIdx];
 
     var overlay = document.createElement('div');
+    overlay.id = 'nachoStoryOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
+    // Build chapter selector pills
+    var pillsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">';
+    for (var i = 0; i < CHAPTERS.length; i++) {
+        var unlocked = i < highestRead;
+        var isCurrent = i === chIdx;
+        if (unlocked || i === highestRead) {
+            pillsHtml += '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + i + ')" style="width:32px;height:32px;border-radius:50%;border:' + (isCurrent ? '2px solid #f7931a' : '1px solid var(--border,#333)') + ';background:' + (isCurrent ? '#f7931a' : unlocked ? 'var(--card-bg,#1a1a2e)' : 'var(--bg-side,#0a0a1a)') + ';color:' + (isCurrent ? '#000' : unlocked ? 'var(--text,#e2e8f0)' : 'var(--text-faint,#475569)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + (i + 1) + '</button>';
+        } else {
+            pillsHtml += '<button disabled style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border,#222);background:var(--bg-side,#0a0a1a);color:var(--text-faint,#333);font-size:0.75rem;font-weight:700;cursor:not-allowed;display:flex;align-items:center;justify-content:center;opacity:0.4;">🔒</button>';
+        }
+    }
+    pillsHtml += '</div>';
+
+    // Nav buttons
+    var prevBtn = chIdx > 0 ? '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx - 1) + ')" style="padding:8px 16px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#e2e8f0);font-size:0.85rem;cursor:pointer;font-weight:600;">← Prev</button>' : '<span></span>';
+    var nextBtn = (chIdx < highestRead && chIdx < CHAPTERS.length - 1) ? '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx + 1) + ')" style="padding:8px 16px;background:#f7931a;border:none;border-radius:8px;color:#000;font-size:0.85rem;cursor:pointer;font-weight:700;">Next →</button>' : (chIdx < CHAPTERS.length - 1 ? '<span style="color:var(--text-faint,#475569);font-size:0.8rem;">🔒 Come back tomorrow!</span>' : '<span style="color:#22c55e;font-size:0.8rem;">✅ Story Complete!</span>');
+
     var card = document.createElement('div');
     card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;color:var(--text,#e2e8f0);font-family:inherit;';
-    card.innerHTML = '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:2.5rem;">🦌📖</span></div>' +
+    card.innerHTML = '<div style="text-align:center;margin-bottom:12px;"><span style="font-size:2.5rem;">🦌📖</span></div>' +
+        pillsHtml +
         '<h2 style="color:#f7931a;margin:0 0 12px;font-size:1.2rem;">' + ch.title + '</h2>' +
         '<p style="line-height:1.7;font-size:0.95rem;margin:0 0 16px;">' + ch.text + '</p>' +
-        '<div style="text-align:center;color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:12px;">📅 Chapter ' + (dayIdx + 1) + ' of ' + CHAPTERS.length + ' — A new chapter every day!</div>' +
-        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="display:block;margin:0 auto;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.95rem;">Close 📖</button>';
+        '<div style="text-align:center;color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:16px;">📖 Chapter ' + (chIdx + 1) + ' of ' + CHAPTERS.length + ' · Progress: ' + Math.min(highestRead, CHAPTERS.length) + '/' + CHAPTERS.length + '</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' + prevBtn + nextBtn + '</div>' +
+        '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="display:block;width:100%;margin-top:8px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#94a3b8);padding:10px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Close</button>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+
+    // Award points for first time reading each chapter
+    if (typeof awardPoints === 'function' && chIdx === highestRead - 1 && typeof chapterOverride === 'undefined') {
+        awardPoints(5, '📖 Read Chapter ' + (chIdx + 1));
+    }
 };
 
 // ---- Price Prediction Game ----
