@@ -1564,7 +1564,4 @@ if (document.readyState === 'loading') {
 
 
 
-// ---- OPENCLAW EXPORTS ----
-if (typeof showNachoStory !== "undefined") window.showNachoStory = showNachoStory;
-if (typeof showPricePrediction !== "undefined") window.showPricePrediction = showPricePrediction;
 })();
