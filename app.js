@@ -3735,6 +3735,12 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // IRL Sync browse
+            if (id === 'irl-sync' || hash === 'irl-sync' || state.channel === 'irl-sync') {
+                go('irl-sync', null, true);
+                return;
+            }
+
             // Forum listing
             if (hash === 'forum' || (state.channel && state.channel.indexOf('forum') === 0)) {
                 go('forum', null, true);
@@ -3751,6 +3757,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         const h = location.hash.slice(1);
         if (h === 'nacho') { enterNachoMode(true); }
+        else if (h === 'irl-sync') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h) go(h);
     };
