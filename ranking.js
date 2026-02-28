@@ -2491,7 +2491,7 @@ function showSettingsPage(tab) {
         // Nacho Nickname (first — let user name their Nacho)
         var nickname = localStorage.getItem('btc_nacho_nickname') || 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Deer</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Buck</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
             '<div style="display:flex;gap:8px;align-items:center;">' +
             '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:12px 14px;background:#0f172a;border:2px solid var(--border,#333);border-radius:10px;color:#f1f5f9;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;min-width:0;" onfocus="this.style.borderColor=\'#f7931a\';this.select()" onblur="this.style.borderColor=\'var(--border)\'">' +
