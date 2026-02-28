@@ -915,10 +915,31 @@ function retryQuest() {
 
 function startQuestManual(targetChannelId) {
     if (currentQuest) return; // Already showing one
-    if (visitedForQuest.length < 1 && !targetChannelId) {
-        if (typeof showToast === 'function') showToast('Explore some channels first to unlock a Quest!');
-        return;
+    
+    // If no target ID provided, check if we have enough visited channels OR if we can use general pool
+    if (!targetChannelId) {
+        // Build a temporary pool to see if we HAVE enough questions to even start
+        let tempPool = [];
+        if (QUESTION_BANK['_general']) QUESTION_BANK['_general'].forEach(q => tempPool.push(q));
+        
+        for (const chId of visitedForQuest) {
+            const questions = QUESTION_BANK[chId];
+            if (questions) questions.forEach(q => tempPool.push(q));
+        }
+
+        if (tempPool.length < 5) {
+            // Still too few? Fallback to pulling 5 random questions from any channel
+            let allQs = [];
+            for (const [chId, questions] of Object.entries(QUESTION_BANK)) {
+                questions.forEach(q => allQs.push(q));
+            }
+            if (allQs.length < 5) {
+                if (typeof showToast === 'function') showToast('📚 Learning materials loading... try again in a second!');
+                return;
+            }
+        }
     }
+    
     generateAndShowQuest(true, targetChannelId);
     if (typeof isMobile === 'function' && isMobile()) {
         const sb = document.getElementById('sidebar');
