@@ -496,6 +496,8 @@ let questCount = 0;
 
 // Quest triggers: after visiting X channels
 const QUEST_TRIGGERS = [5, 15, 25, 40, 60, 80, 100];
+let currentQuest = null;
+let completedQuests = new Set();
 
 function initQuests() {
     // Load previously visited channels from localStorage
