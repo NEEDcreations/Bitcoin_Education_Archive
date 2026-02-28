@@ -120,19 +120,45 @@ function initTicker() {
     updateTicker();
     setInterval(updateTicker, 60000);
 
-    // Refresh Signal news every 30 minutes (picks up new newsletter-data.json)
-    setInterval(function() {
-        fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
-            var itemsSets = document.querySelectorAll('.t-news-items');
-            if (itemsSets && data.news && data.news.length > 0) {
-                var html = '';
-                data.news.forEach(function(n, i) {
-                    html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + n.title.toUpperCase() + '</span>';
-                });
-                itemsSets.forEach(function(el) { el.innerHTML = html; });
-            }
-        }).catch(function() {});
-    }, 1800000); // 30 min
+    // Refresh Signal news every 30 minutes — try live search first, fall back to static file
+    function refreshSignalNews() {
+        var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+        
+        // Try live news from Cloudflare Worker
+        fetch(proxy + '?q=' + encodeURIComponent('Bitcoin news today'), { signal: AbortSignal.timeout(8000) })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data && data.results && data.results.length >= 2) {
+                    var itemsSets = document.querySelectorAll('.t-news-items');
+                    if (itemsSets.length > 0) {
+                        var html = '';
+                        data.results.slice(0, 4).forEach(function(r, i) {
+                            var title = (r.title || '').replace(/<[^>]+>/g, '').substring(0, 80);
+                            if (title) html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + title.toUpperCase() + '</span>';
+                        });
+                        if (html) itemsSets.forEach(function(el) { el.innerHTML = html; });
+                    }
+                    return; // Live news worked
+                }
+                throw new Error('No live results');
+            })
+            .catch(function() {
+                // Fall back to static file
+                fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+                    var itemsSets = document.querySelectorAll('.t-news-items');
+                    if (itemsSets.length > 0 && data.news && data.news.length > 0) {
+                        var html = '';
+                        data.news.forEach(function(n, i) {
+                            html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + n.title.toUpperCase() + '</span>';
+                        });
+                        itemsSets.forEach(function(el) { el.innerHTML = html; });
+                    }
+                }).catch(function() {});
+            });
+    }
+    
+    // First refresh after 30 min, then every 30 min
+    setInterval(refreshSignalNews, 1800000);
 }
 
 
