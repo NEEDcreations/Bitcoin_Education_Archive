@@ -3676,17 +3676,22 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.toggleSidebarMenu = function(id) {
         var menu = document.getElementById(id);
         if (!menu) return;
-        var isVisible = menu.style.display === 'flex' || menu.style.display === 'block' || (menu.style.display !== 'none' && getComputedStyle(menu).display !== 'none');
+        var isVisible = menu.style.display === 'flex' || menu.style.display === 'grid' || menu.style.display === 'block';
         
-        // Custom logic for different menu types
-        if (id.includes('Flash')) {
-            menu.style.display = isVisible ? 'none' : 'flex';
+        // Use inline-style directly to track state for simplicity in this build
+        if (isVisible) {
+            menu.style.display = 'none';
         } else {
-            menu.style.display = isVisible ? 'none' : (id.includes('Apps') && !id.includes('sidebar') ? 'grid' : 'flex');
-            if (menu.style.display === 'flex') menu.style.flexDirection = 'column';
+            if (id.includes('Flash')) {
+                menu.style.display = 'flex';
+            } else if (id.includes('homeAppsMenu')) {
+                menu.style.display = 'grid';
+            } else {
+                menu.style.display = 'flex';
+                menu.style.flexDirection = 'column';
+            }
+            if (typeof playSound === 'function') playSound('pop');
         }
-        
-        if (typeof playSound === 'function' && menu.style.display !== 'none') playSound('pop');
     };
 
     window.onload = () => {
