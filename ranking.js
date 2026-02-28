@@ -1936,6 +1936,13 @@ window.exportUserData = function() {
 };
 
 
+// ---- Init Firebase & Auth ----
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRanking);
+} else {
+    initRanking();
+}
+
 // ---- OPENCLAW EXPORTS ----
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
 if (typeof showUsernamePrompt !== "undefined") window.showUsernamePrompt = showUsernamePrompt;

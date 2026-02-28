@@ -32,7 +32,7 @@ test('forumContainer exists', () => assert(html.includes('id="forumContainer"'))
 test('questModal exists', () => assert(html.includes('id="questModal"')));
 
 // Critical script references
-test('ranking.js referenced', () => assert(html.match(/src="ranking\.js\?v=\d+"/)));
+test('ranking.js referenced', () => assert(html.match(/src="ranking\.js\?v=[\w]+"/)));
 test('app.js referenced', () => assert(html.match(/src="app\.js\?v=[\w]+"/)));
 test('nacho-qa.js referenced', () => assert(html.match(/src="nacho-qa\.js\?v=\d+"/)));
 test('nacho.js referenced', () => assert(html.match(/src="nacho\.js\?v=\d+"/)));
