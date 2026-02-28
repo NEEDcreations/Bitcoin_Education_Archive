@@ -259,7 +259,7 @@ window.renderNachoOverlay = function(animate) {
 
     // Apply user-selected color (hue-rotate filter)
     if (item.colorable) {
-        var savedHue = localStorage.getItem('btc_nacho_color_' + item.id);
+        var savedHue = localStorage.getItem('btc_closet_color_' + item.id);
         if (savedHue && savedHue !== '0deg') {
             overlay.style.filter = 'hue-rotate(' + savedHue + ')';
         }
@@ -351,7 +351,7 @@ window.renderNachoClosetUI = function(container) {
         previewOverlayStyle += 'z-index:5;pointer-events:none;';
         // Apply color if set
         if (previewItem.colorable) {
-            var savedHue = localStorage.getItem('btc_nacho_color_' + previewItem.id);
+            var savedHue = localStorage.getItem('btc_closet_color_' + previewItem.id);
             if (savedHue && savedHue !== '0deg') previewOverlayStyle += 'filter:hue-rotate(' + savedHue + ');';
         }
     }
@@ -424,7 +424,7 @@ window.renderNachoClosetUI = function(container) {
 
 // ---- Nacho talks about the closet ----
 window.NACHO_CLOSET_TIPS = [
-    { pose: 'cool', text: "Did you know I have a whole closet of outfits, {name}? Check Settings → Q&A/Stats → " + escapeHtml(nickname) + "'s Closet to dress me up! 👔🦌" },
+    { pose: 'cool', text: "Did you know I have a whole closet of outfits, {name}? Check Settings → Stats → " + escapeHtml(nickname) + "'s Closet to dress me up! 👔🦌" },
     { pose: 'celebrate', text: "The more we interact, the more items you unlock for me to wear! Check my closet in Settings! 🧣⚡" },
     { pose: 'eyes', text: "I heard there are some mystery items in my closet that only my closest friends get to see... 👀🔒" },
     { pose: 'fire', text: "Proof of Steak > Proof of Stake. Ask me about it... or better yet, unlock it in my closet! 🥩🦌" },
@@ -449,7 +449,7 @@ window.checkNachoNewItems = function() {
         var displayName = item.hidden ? item.revealName : item.name;
         var displayEmoji = item.hidden ? item.revealEmoji : item.emoji;
 
-        return { pose: 'celebrate', text: "🎁 New item unlocked: " + displayEmoji + " " + displayName + "! Go to Settings → Q&A/Stats → " + escapeHtml(nickname) + "'s Closet to try it on, {name}! 🦌" };
+        return { pose: 'celebrate', text: "🎁 New item unlocked: " + displayEmoji + " " + displayName + "! Go to Settings → Stats → " + escapeHtml(nickname) + "'s Closet to try it on, {name}! 🦌" };
     }
     return null;
 };
