@@ -2522,11 +2522,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Hide forum container
         var fc = document.getElementById('forumContainer');
         if (fc) { fc.style.display = 'none'; fc.innerHTML = ''; }
-        document.getElementById('hero').style.display = '';
-        document.getElementById('msgs').style.display = '';
+        var hdiv = document.getElementById('hero');
+        if (hdiv) { hdiv.style.display = 'none'; hdiv.innerHTML = ''; }
+        var mdiv = document.getElementById('msgs');
+        if (mdiv) { mdiv.style.display = 'none'; mdiv.innerHTML = ''; }
         document.getElementById('home').classList.remove('hidden');
-        document.getElementById('hero').innerHTML = '';
-        document.getElementById('msgs').innerHTML = '';
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
         if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
@@ -3789,7 +3789,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
 
             // IRL Sync browse
-            if (id === 'irl-sync' || hash === 'irl-sync' || state.channel === 'irl-sync') {
+            if (hash === 'irl-sync' || state.channel === 'irl-sync') {
                 go('irl-sync', null, true);
                 return;
             }
