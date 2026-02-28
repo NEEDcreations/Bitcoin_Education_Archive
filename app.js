@@ -2393,11 +2393,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         rec.lang = 'en-US';
         rec.interimResults = true;
         rec.maxAlternatives = 1;
-        rec.continuous = false;
+        rec.continuous = true; // Stay open while user pauses
 
         mic.style.opacity = '1';
-        mic.innerHTML = '🔴';
-        inp.placeholder = 'Listening...';
+        mic.innerHTML = '🛑'; // Use stop icon
+        inp.placeholder = 'Nacho is listening... (Tap 🛑 to finish)';
         inp.style.borderColor = '#f7931a';
         window._nachoModeListening = true;
 
@@ -2405,19 +2405,25 @@ window.nachoQuizAnswer = function(btn, correct) {
         rec.onresult = function(e) {
             var interim = '';
             for (var i = e.resultIndex; i < e.results.length; i++) {
-                if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript;
+                if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + ' ';
                 else interim += e.results[i][0].transcript;
             }
-            inp.value = finalTranscript || interim;
+            inp.value = (finalTranscript + interim).trim();
         };
 
         rec.onend = function() {
+            // Only send if we actually have text and it was stopped manually or naturally
+            var text = inp.value.trim();
+            
             window._nachoModeListening = false;
             mic.innerHTML = '🎙️';
             mic.style.opacity = '0.6';
             inp.style.borderColor = 'var(--border,#333)';
             inp.placeholder = 'Type or tap 🎙️ to speak...';
-            if (inp.value.trim().length > 0) nachoModeSend();
+            
+            if (text.length > 0) {
+                nachoModeSend();
+            }
         };
 
         rec.onerror = function() {
