@@ -804,37 +804,6 @@
                         </div>
                 </div>
                 <!-- Middle Home Learn Group -->
-                <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:10px;">
-                        <button class="home-cta" onclick="go('decentralized')" style="margin-bottom:0;width:100%;max-width:340px;">Start Exploring →</button>
-                        <button id="authBtn" onclick="showUsernamePrompt()" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Free Account / Sign In</button>
-                        
-                        <!-- Middle Home Learn Group -->
-                        <button onclick="toggleSidebarMenu('homeLearnMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">🎓 Scholar / Learn ▼</button>
-                        <div id="homeLearnMenu" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
-                            <button onclick="document.getElementById('newbieMsg').style.display='block';this.style.display='none';" style="padding:10px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:10px;font-weight:700;cursor:pointer;">🟢 Brand new to Bitcoin?</button>
-                            <button onclick="toggleSidebarMenu('homeFlashMenu')" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">📚 Flashcards ▶</button>
-                            <div id="homeFlashMenu" style="display:none;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px;border-top:1px solid var(--border);">
-                                <button onclick="startFlashcards('Bitcoin Basics')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>
-                                <button onclick="startFlashcards('Security & Storage')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>
-                                <button onclick="startFlashcards('Lightning Network')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>
-                                <button onclick="startFlashcards('Mining & Energy')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>
-                                <button onclick="startFlashcards('Economics & Money')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>
-                            </div>
-                            <button onclick="startQuestManual()" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">⚡ Start a Quest</button>
-                            <button onclick="startScholarQuest('properties')" style="padding:10px;background:var(--card-bg);border:1px solid #f7931a;color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">🎓 Properties Certification</button>
-                            <button onclick="startScholarQuest('technical')" style="padding:10px;background:var(--card-bg);border:1px solid #3b82f6;color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">🛠️ Technical Certification</button>
-                        </div>
-
-                        <!-- Middle Home Apps Group -->
-                        <button onclick="toggleSidebarMenu('homeAppsMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧩 Apps ▼</button>
-                        <div id="homeAppsMenu" style="display:none;width:100%;max-width:340px;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
-                            <button onclick="enterNachoMode()" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🦌 Nacho Mode</button>
-                            <button onclick="go('forum')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🗣️ Pleb Talk</button>
-                            <button onclick="go('marketplace')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">⚡ Lightning Mart</button>
-                            <button onclick="go('irl-sync')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🤝 IRL Sync</button>
-                            <button onclick="go('bitcoin-beats')" style="grid-column:1/-1;padding:10px;background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.8rem;">🎸 Bitcoin Beats</button>
-                        </div>
-                </div>
                 <!-- Flashcards relocated to Scholar / Learn -->
                 <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;margin-top:30px;">
                     <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic or Leave Feedback</h3>
