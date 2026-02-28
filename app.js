@@ -445,17 +445,31 @@
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);-webkit-overflow-scrolling:touch;overflow-y:auto;padding:20px;';
         
         // Wheel segments with prizes
+        // Visible wheel segments (what you see on the canvas)
         var segments = [
             { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
             { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
             { label: '⭐ 10 pts', value: 'points_10', weight: 18, color: '#22c55e' },
             { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
             { label: '⭐ 25 pts', value: 'points_25', weight: 8, color: '#3b82f6' },
-            { label: '👔 Closet!', value: 'closet_item', weight: 6, color: '#ec4899' },
+            { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
             { label: '⭐ 50 pts', value: 'points_50', weight: 3, color: '#8b5cf6' },
             { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
-            { label: '🎟️ 10 Tix!', value: 'ticket_10', weight: 0.5, color: '#ef4444' }
+            { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
+        ];
+
+        // Hidden ultra-rare jackpots (resolved AFTER the wheel lands on 💎 RARE!)
+        var RARE_TABLE = [
+            { label: '🎟️ 10 Tickets', value: 'ticket_10', weight: 1000 },
+            { label: '🎟️ 25 Tickets', value: 'ticket_25', weight: 500 },
+            { label: '🎟️ 50 Tickets', value: 'ticket_50', weight: 100 },
+            { label: '🎟️ 100 Tickets!', value: 'ticket_100', weight: 50 },
+            { label: '🎟️ 500 Tickets!!', value: 'ticket_500', weight: 10 },
+            { label: '🎟️💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
+            { label: '🎟️👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
+            // 10,000 tickets: ~1.5% base × 1/1664 rare table = ~1 in 110,000 spins
+            // To hit 1 in 10 million, we add a second roll:
         ];
         
         modal.innerHTML =
@@ -581,7 +595,38 @@
                     var rewardType = selected.value.split('_')[0];
                     var rewardAmount = parseInt(selected.value.split('_')[1]) || 1;
                     
-                    if (rewardType === 'closet') {
+                    if (selected.value === 'rare_drop') {
+                        // Roll on the rare table!
+                        var rareTotalWeight = RARE_TABLE.reduce(function(s, r) { return s + r.weight; }, 0);
+                        var rareRandom = Math.random() * rareTotalWeight;
+                        var rareSelected = RARE_TABLE[0];
+                        var rareCurrentWeight = 0;
+                        for (var ri = 0; ri < RARE_TABLE.length; ri++) {
+                            rareCurrentWeight += RARE_TABLE[ri].weight;
+                            if (rareRandom <= rareCurrentWeight) { rareSelected = RARE_TABLE[ri]; break; }
+                        }
+                        var rareAmount = parseInt(rareSelected.value.split('_')[1]) || 10;
+                        
+                        // Ultra jackpot: 10,000 tickets gets an extra 1-in-100 gate → ~1 in 7.3 million total
+                        if (rareAmount === 10000 && Math.random() > 0.01) {
+                            // Failed the gate — downgrade to 100 tickets (still amazing)
+                            rareAmount = 100;
+                            rareSelected = { label: '🎟️ 100 Tickets!', value: 'ticket_100' };
+                        }
+
+                        rewardText = '💎 RARE DROP! ' + rareSelected.label;
+                        if (typeof awardOrangeTickets === 'function') {
+                            awardOrangeTickets(rareAmount, 'Rare Spin Drop');
+                        } else {
+                            var rt = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
+                            localStorage.setItem('btc_orange_tickets', rt + rareAmount);
+                        }
+                        if (rareAmount >= 100) {
+                            // Celebration for big wins!
+                            if (typeof launchConfetti === 'function') launchConfetti();
+                            if (typeof playBadgeSound === 'function') playBadgeSound();
+                        }
+                    } else if (rewardType === 'closet') {
                         // Award a random closet item the user doesn't have yet
                         var ownedItems = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
                         var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
