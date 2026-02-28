@@ -302,3 +302,38 @@ window._savePrediction = function(direction) {
     // Award points
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
 };
+
+// ---- EXPLORATION MAP ----
+function renderExplorationMap() {
+    var el = document.getElementById('explorationMap');
+    if (!el) return;
+    if (typeof CHANNELS === 'undefined') return;
+
+    // Use Firestore data if available, fall back to localStorage
+    var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels && currentUser.readChannels.length > visited.length) {
+        visited = currentUser.readChannels;
+    }
+    var allKeys = Object.keys(CHANNELS);
+    var total = allKeys.length;
+    var count = visited.length;
+    var pct = Math.round((count / total) * 100);
+
+    var grid = '';
+    allKeys.forEach(function(key) {
+        var isVisited = visited.indexOf(key) !== -1;
+        var titleMatch = CHANNELS[key].title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{FE00}-\u{FEFF}|\u{1F900}-\u{1F9FF}|\u{1FA00}-\u{1FA6F}|\u{1FA70}-\u{1FAFF}|\u{200D}|\u{FE0F}]+)/u);
+        var icon = titleMatch ? titleMatch[1] : '📄';
+        grid += '<div onclick="go(\'' + key + '\')" ' + (isVisited ? 'title="' + CHANNELS[key].title.replace(/"/g, '') + '"' : '') + ' style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.75rem;cursor:pointer;transition:0.2s;' +
+            (isVisited ? 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);' : 'background:var(--card-bg);border:1px solid var(--border);opacity:0.4;') +
+            '">' + (isVisited ? icon : '?') + '</div>';
+    });
+
+    el.innerHTML = '<div style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🗺️ Exploration Map</div>' +
+        '<div style="color:var(--accent);font-weight:700;font-size:0.9rem;">' + count + '/' + total + ' (' + pct + '%)</div></div>' +
+        '<div class="rank-progress" style="margin-bottom:12px;"><div class="rank-progress-fill" style="width:' + pct + '%;"></div></div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + grid + '</div></div>';
+}
+window.renderExplorationMap = renderExplorationMap;

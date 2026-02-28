@@ -1084,7 +1084,8 @@ async function onChannelOpen(channelId) {
         // (Removed auto-show on every new channel visit)
         // if (typeof showLeaderboardAuto === 'function') showLeaderboardAuto();
 
-        // Toast: Growing exploration map
+        // Update exploration map + toast
+        if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof showToast === 'function') {
             const totalCh = typeof CHANNELS !== 'undefined' ? Object.keys(CHANNELS).length : 146;
             const pct = Math.round((allTimeChannels.size / totalCh) * 100);
