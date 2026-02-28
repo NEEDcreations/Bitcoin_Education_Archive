@@ -118,7 +118,21 @@ function initTicker() {
     });
 
     updateTicker();
-    setInterval(updateTicker, 60000); 
+    setInterval(updateTicker, 60000);
+
+    // Refresh Signal news every 30 minutes (picks up new newsletter-data.json)
+    setInterval(function() {
+        fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+            var itemsSets = document.querySelectorAll('.t-news-items');
+            if (itemsSets && data.news && data.news.length > 0) {
+                var html = '';
+                data.news.forEach(function(n, i) {
+                    html += '<span><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span> ' + n.title.toUpperCase() + '</span>';
+                });
+                itemsSets.forEach(function(el) { el.innerHTML = html; });
+            }
+        }).catch(function() {});
+    }, 1800000); // 30 min
 }
 
 
