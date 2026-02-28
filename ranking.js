@@ -2757,3 +2757,73 @@ if (typeof startMFAEnroll === 'undefined') window.startMFAEnroll = function() { 
 if (typeof verifyMFACode === 'undefined') window.verifyMFACode = function() { showToast('2FA verification coming soon'); };
 if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
 if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
+async function loadTotpStatus() {
+    var section = document.getElementById('totpSection');
+    if (!section) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.85rem;">Sign in to enable authenticator app.</div>';
+        return;
+    }
+    try {
+        var totpStatusFn = firebase.functions().httpsCallable('totpStatus');
+        var result = await totpStatusFn();
+        if (result.data.enabled) {
+            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Authenticator app enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Google Authenticator, Authy, etc.</div></div></div>' +
+                '<div style="display:flex;gap:8px;"><input type="text" id="totpDisableCode" placeholder="Enter code to disable" maxlength="6" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;">' +
+                '<button onclick="disableTotp()" style="padding:10px 16px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable</button></div>';
+        } else {
+            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">📱</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div><div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
+                '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Set Up Authenticator App</button>';
+        }
+    } catch(e) {
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;background:var(--bg-side);border-radius:6px;">⏳ Authenticator setup requires Cloud Functions. Check back soon!</div>';
+    }
+}
+
+async function startTotpSetup() {
+    try {
+        var totpSetupFn = firebase.functions().httpsCallable('totpSetup');
+        var result = await totpSetupFn();
+        if (result.data && result.data.qrUrl) {
+            var area = document.getElementById('totpSetupArea') || document.getElementById('totpSection');
+            if (area) {
+                area.style.display = 'block';
+                area.innerHTML = '<div style="text-align:center;margin:12px 0;">' +
+                    '<div style="color:var(--heading);font-weight:600;font-size:0.9rem;margin-bottom:8px;">Scan this QR code with your authenticator app:</div>' +
+                    '<img src="' + result.data.qrUrl + '" style="width:200px;height:200px;border-radius:8px;border:2px solid var(--border);margin-bottom:12px;">' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or enter this key manually: <strong>' + (result.data.secret || '') + '</strong></div>' +
+                    '<input type="text" id="totpVerifyCode" placeholder="Enter 6-digit code" maxlength="6" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;margin-bottom:8px;">' +
+                    '<button onclick="verifyTotpSetup()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Verify & Enable</button>' +
+                    '</div>';
+            }
+        }
+    } catch(e) {
+        showToast('Error setting up authenticator: ' + (e.message || 'try again'));
+    }
+}
+
+async function verifyTotpSetup() {
+    var code = document.getElementById('totpVerifyCode');
+    if (!code || code.value.trim().length !== 6) { showToast('Enter a 6-digit code'); return; }
+    try {
+        var verifyFn = firebase.functions().httpsCallable('totpVerify');
+        await verifyFn({ code: code.value.trim() });
+        showToast('✅ Authenticator app enabled!');
+        showSettingsPage('security');
+    } catch(e) {
+        showToast('Invalid code. Try again.');
+    }
+}
+
+async function disableTotp() {
+    var code = document.getElementById('totpDisableCode');
+    if (!code || code.value.trim().length !== 6) { showToast('Enter your current code'); return; }
+    try {
+        var disableFn = firebase.functions().httpsCallable('totpDisable');
+        await disableFn({ code: code.value.trim() });
+        showToast('Authenticator app disabled');
+        showSettingsPage('security');
+    } catch(e) {
+        showToast('Invalid code');
+    }
+}
