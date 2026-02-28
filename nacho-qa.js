@@ -2982,3 +2982,53 @@ if (typeof NACHO_KB !== 'undefined') {
         }
     });
 }
+
+// ---- Auto-generate follow-up suggestions to guide users deeper ----
+window.nachoFollowUps = function(answerText) {
+    if (!answerText) return [];
+    var a = answerText.toLowerCase();
+    var suggestions = [];
+
+    // Topic detection → suggest deeper maximalist questions
+    var topicMap = [
+        { keywords: ['halving','block reward','subsidy','supply'], suggestions: ['Why does the halving matter for price?','What happens when all 21 million are mined?','How does Bitcoin compare to gold scarcity?'] },
+        { keywords: ['lightning','layer 2','payment channel'], suggestions: ['Can Lightning handle millions of users?','What is a Lightning invoice?','Is Lightning Network centralized?'] },
+        { keywords: ['proof of work','mining','hash','nonce','sha-256'], suggestions: ['Why is Proof of Work better than Proof of Stake?','How much energy does Bitcoin actually use?','What is the difficulty adjustment?'] },
+        { keywords: ['self custody','hardware wallet','seed phrase','private key'], suggestions: ['What is a multisig wallet?','Why should I run my own node?','What is the best hardware wallet?'] },
+        { keywords: ['fiat','inflation','money printing','central bank','federal reserve'], suggestions: ['What is the Cantillon Effect?','How does Bitcoin fix inflation?','What is sound money?'] },
+        { keywords: ['decentraliz','censorship','permissionless','no single'], suggestions: ['Why can\'t governments shut down Bitcoin?','How many nodes run the Bitcoin network?','What happened during the Blocksize Wars?'] },
+        { keywords: ['altcoin','ethereum','crypto','shitcoin','token','defi','nft'], suggestions: ['Why do Bitcoiners reject altcoins?','What is Bitcoin maximalism?','Why is there no second best?'] },
+        { keywords: ['store of value','savings','hodl','long term'], suggestions: ['What is time preference?','How does Bitcoin compare to real estate?','What is the stock-to-flow model?'] },
+        { keywords: ['privacy','kyc','coinjoin','surveillance'], suggestions: ['How do I buy Bitcoin without KYC?','What is a CoinJoin?','Why does financial privacy matter?'] },
+        { keywords: ['satoshi','whitepaper','genesis block','2008','2009'], suggestions: ['Why did Satoshi disappear?','What is the message in the Genesis Block?','Who is Hal Finney?'] },
+        { keywords: ['node','full node','verify','trust'], suggestions: ['How do I run my own Bitcoin node?','What is BIP 324?','Why does "don\'t trust, verify" matter?'] },
+        { keywords: ['el salvador','legal tender','adoption','country'], suggestions: ['What is Bitcoin Beach?','Which other countries accept Bitcoin?','What are Bitcoin bonds?'] },
+        { keywords: ['energy','environment','renewable','methane'], suggestions: ['Does Bitcoin actually waste energy?','How does Bitcoin mining use stranded energy?','Is Proof of Work wasteful?'] },
+        { keywords: ['maximalism','maxi','only bitcoin','signal'], suggestions: ['What is the Orange Pill?','Why is there no second best?','What is hyperbitcoinization?'] },
+    ];
+
+    for (var i = 0; i < topicMap.length; i++) {
+        var topic = topicMap[i];
+        for (var k = 0; k < topic.keywords.length; k++) {
+            if (a.indexOf(topic.keywords[k]) !== -1) {
+                // Add suggestions we haven't already suggested
+                for (var s = 0; s < topic.suggestions.length; s++) {
+                    if (suggestions.indexOf(topic.suggestions[s]) === -1) {
+                        suggestions.push(topic.suggestions[s]);
+                    }
+                }
+                break;
+            }
+        }
+        if (suggestions.length >= 4) break;
+    }
+
+    // Shuffle and return 2
+    for (var j = suggestions.length - 1; j > 0; j--) {
+        var r = Math.floor(Math.random() * (j + 1));
+        var tmp = suggestions[j];
+        suggestions[j] = suggestions[r];
+        suggestions[r] = tmp;
+    }
+    return suggestions.slice(0, 2);
+};
