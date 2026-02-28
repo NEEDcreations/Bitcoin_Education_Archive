@@ -155,6 +155,19 @@ window.renderMarketplace = function(options) {
     var container = document.getElementById('forumContainer');
     if (!container) return;
 
+    // Show skeleton while loading
+    if (typeof showSkeletonLoader === 'function' && !options.listingId && !options.search) {
+        showSkeletonLoader('forumContainer');
+        setTimeout(() => _actualRenderMarketplace(options), 300);
+        return;
+    }
+    _actualRenderMarketplace(options);
+};
+
+function _actualRenderMarketplace(options) {
+    var container = document.getElementById('forumContainer');
+    if (!container) return;
+
     container.style.display = 'block';
     container.innerHTML = '';
 

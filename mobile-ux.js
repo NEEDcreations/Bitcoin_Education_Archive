@@ -68,10 +68,8 @@ function initBottomNav() {
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
             '<button onclick="document.getElementById(\'searchOverlay\').style.display=\'flex\';document.getElementById(\'searchOverlayInput\').focus();" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
-            '<button onclick="go(\'forum\')" class="bnav-btn" id="bnavForum"><span class="bnav-icon">🗣️</span><span class="bnav-label">Pleb</span></button>' +
-            '<button onclick="go(\'marketplace\')" class="bnav-btn" id="bnavMarket"><span class="bnav-icon">⚡</span><span class="bnav-label">Mart</span></button>' +
+            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧩</span><span class="bnav-label">Apps</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="enterNachoMode()" class="bnav-btn" id="bnavNacho"><span class="bnav-icon">🦌</span><span class="bnav-label">Nacho</span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">More</span></button>' +
         '</div>';
 

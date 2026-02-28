@@ -881,6 +881,85 @@ function createNacho() {
     // Periodic messages
     setInterval(periodicMessage, 55000);
 
+    // Consolidate UI cleanup: slide out ticker when Nacho Mode is open
+    function updateOverlayZIndexes() {
+        const nachoCont = document.getElementById('nachoModeContainer');
+        const irlSync = document.getElementById('irl-sync-view');
+        const searchOverlay = document.getElementById('searchOverlay');
+        const ticker = document.querySelector('.ticker-wrap');
+        
+        const isOverlayOpen = (nachoCont && nachoCont.style.display !== 'none') || 
+                              (irlSync && irlSync.offsetParent !== null) ||
+                              (searchOverlay && searchOverlay.style.display === 'flex');
+        
+        if (ticker) {
+            ticker.style.transition = 'transform 0.4s ease';
+            ticker.style.transform = isOverlayOpen ? 'translateY(-100%)' : 'translateY(0)';
+            // Also fade out sidebar mobile trigger if needed
+            const menuToggle = document.getElementById('menuToggle');
+            if (menuToggle) menuToggle.style.opacity = isOverlayOpen ? '0.2' : '1';
+        }
+    }
+
+    // Wrap existin enterNachoMode to trigger UI slide
+    const _origEnterNacho = window.enterNachoMode;
+    window.enterNachoMode = function(pop) {
+        if (typeof _origEnterNacho === 'function') _origEnterNacho(pop);
+        setTimeout(updateOverlayZIndexes, 100);
+    };
+
+    const _origExitNacho = window.exitNachoMode;
+    window.exitNachoMode = function(pop) {
+        if (typeof _origExitNacho === 'function') _origExitNacho(pop);
+        setTimeout(updateOverlayZIndexes, 100);
+    };
+
+    // Also watch go() for IRL Sync and Search
+    const _origGo = window.go;
+    window.go = function(id, btn, pop) {
+        if (typeof _origGo === 'function') _origGo(id, btn, pop);
+        setTimeout(updateOverlayZIndexes, 100);
+    };
+
+    const _origGoHome = window.goHome;
+    window.goHome = function(pop) {
+        if (typeof _origGoHome === 'function') _origGoHome(pop);
+        setTimeout(updateOverlayZIndexes, 100);
+    };
+
+    // 🔗 UI POLISH: 2-Word Consistency Search & Replace (Client Side)
+    function applyTwoWordConsistency() {
+        // Fix labels in search index
+        if (typeof APP_PAGES !== 'undefined') {
+            APP_PAGES.forEach(pg => {
+                if (pg.title === 'PlebTalk') pg.title = 'Pleb Talk';
+                if (pg.title === 'LightningMart') pg.title = 'Lightning Mart';
+            });
+        }
+    }
+    setTimeout(applyTwoWordConsistency, 2000);
+
+    // 🧱 NAVIGATION GUARD: Prevent accidental exit during Quests
+    window.addEventListener('beforeunload', function (e) {
+        const questModal = document.getElementById('questModal');
+        if (questModal && questModal.classList.contains('open')) {
+            e.preventDefault();
+            e.returnValue = 'You have an active Quest! Your progress will be lost.';
+        }
+    });
+
+    // ⚡ LOADING POLISH: Skeleton Shimmer for Mart and IRL Sync
+    window.showSkeletonLoader = function(containerId, count) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        let skeletonHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:20px;width:100%;">';
+        for (let i = 0; i < (count || 6); i++) {
+            skeletonHtml += '<div class="shimmer" style="height:180px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;animation:shimmer 1.5s infinite linear;"></div>';
+        }
+        skeletonHtml += '</div><style>@keyframes shimmer {0% {opacity:0.5;} 50% {opacity:1;} 100% {opacity:0.5;}}</style>';
+        container.innerHTML = skeletonHtml;
+    };
+
     // Ambient "Alive" Animation (blinking/ear wiggle)
     setInterval(function() {
         var _bbl = document.getElementById('nacho-bubble');
