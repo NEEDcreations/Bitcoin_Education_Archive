@@ -30,7 +30,7 @@ if [ $? -eq 0 ]; then
          -H "Content-Type: application/json" \
          --data '{"purge_everything":true}')
     
-    if echo "$RESULT" | grep -q '"success":true'; then
+    if echo "$RESULT" | grep -q '"success": true\|"success":true'; then
         echo "✅ Cloudflare cache purged! Changes are live immediately."
     else
         echo "⚠️ Cache purge failed: $RESULT"
