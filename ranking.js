@@ -1761,9 +1761,11 @@ function showSettingsPage(tab) {
     var isExplorer = isFullMember || (visits >= 3 || exploredCount >= 3);
 
     var tabs = [];
-    if (!isExplorer) { tabs = ['account', 'prefs']; } 
-    else if (!isFullMember) { tabs = ['account', 'scholar', 'prefs']; } 
-    else { tabs = ['account', 'scholar', 'tickets', 'prefs', 'security', 'stats', 'nacho']; }
+    // Signed-in users ALWAYS get full settings
+    var isSignedIn = user && !user.isAnonymous;
+    if (isSignedIn || isFullMember) { tabs = ['account', 'scholar', 'tickets', 'prefs', 'security', 'stats', 'nacho']; }
+    else if (isExplorer) { tabs = ['account', 'scholar', 'prefs']; }
+    else { tabs = ['account', 'prefs']; }
 
     let html = '<button class="mobile-close" onclick="hideUsernamePrompt()">✕</button>';
     html += '<div id="settingsTabsContainer" style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;">';
