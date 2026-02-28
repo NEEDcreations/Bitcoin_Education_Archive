@@ -3919,7 +3919,11 @@ function renderScholarQuestion(idx) {
         sessionStorage.setItem('btc_scholar_session_' + keyPrefix, JSON.stringify(saved));
     } catch(e) {}
     
-    let choices = fisherYates([q.a, ...q.w]);
+    // PERSISTENCE FIX: Only shuffle choices if they haven't been generated for this session yet
+    if (!q.shuffled) {
+        q.shuffled = fisherYates([q.a, ...q.w]);
+    }
+    let choices = q.shuffled;
     
     let html = '<div style="padding:20px;">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:20px;font-weight:bold;color:var(--accent);">' +
