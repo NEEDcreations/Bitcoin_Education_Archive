@@ -3863,6 +3863,7 @@ if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;
+if (typeof loadTweetEmbed !== 'undefined') window.loadTweetEmbed = loadTweetEmbed;
 
 })();
 
