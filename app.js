@@ -2769,11 +2769,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         const exploredCount = explored.length;
         const visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
-        // Admin Bypass Logic
-        const isAdmin = auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("needcreations") || (auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("admin")) || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        // Admin Bypass Logic — safely handle auth not being ready yet
+        var _auth = (typeof auth !== 'undefined') ? auth : null;
+        var _cu = _auth && _auth.currentUser;
+        const isAdmin = (_cu && (_cu.displayName || "").toLowerCase().includes("needcreations")) || (_cu && (_cu.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== 'undefined' && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== 'undefined' && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
 
         // Tier Logic (Sign-in or threshold met)
-        const isFull = isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous) || (visits >= 10 || exploredCount >= 10);
+        const isFull = isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         const isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
 
         const labels = document.querySelectorAll('.cat-label');
@@ -2844,11 +2846,17 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.style.opacity = '1';
                 btn.style.filter = 'none';
                 btn.style.cursor = 'pointer';
-                const action = btn.getAttribute('data-onclick');
-                // CLEAR THE PREVENT DEFAULT HANDLER
-                btn.onclick = null; 
-                btn.setAttribute('onclick', action);
                 btn.title = "";
+                var action = btn.getAttribute('data-onclick');
+                if (action) {
+                    // Re-bind onclick as an actual function, not just an attribute
+                    try {
+                        btn.onclick = new Function(action);
+                    } catch(e) {
+                        btn.setAttribute('onclick', action);
+                        btn.onclick = null;
+                    }
+                }
             }
         });
         
@@ -3520,6 +3528,20 @@ window.nachoQuizAnswer = function(btn, correct) {
     });
 
     window.onload = () => {
+        // DEBUG: Show diagnostic toast on load so we can verify app.js is running
+        setTimeout(function() {
+            var missing = [];
+            ['go','toggleMenu','enterNachoMode','showSpinWheel','startQuestManual'].forEach(function(fn) {
+                if (typeof window[fn] !== 'function') missing.push(fn);
+            });
+            if (missing.length > 0 && typeof showToast === 'function') {
+                showToast('⚠️ DEBUG: Missing functions: ' + missing.join(', '));
+            }
+            if (typeof CHANNELS === 'undefined' && typeof showToast === 'function') {
+                showToast('⚠️ DEBUG: CHANNELS not loaded!');
+            }
+        }, 3000);
+
         // Auto-launch Nacho Mode if user has it set as default
         if (localStorage.getItem('btc_nacho_mode_default') === 'true' && !window.location.hash) {
             setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
