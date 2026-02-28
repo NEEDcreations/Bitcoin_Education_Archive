@@ -2740,7 +2740,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
         }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
-        // Three-finger tap → PlebTalk
+        // Three-finger tap → LightningMart
         // Must be a quick tap, not during scroll
         var threeFingerLast = 0;
         var threeFingerStart = 0;

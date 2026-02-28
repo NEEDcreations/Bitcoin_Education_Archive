@@ -1888,7 +1888,7 @@ function showSettingsPage(tab) {
             var val = currentUser ? currentUser[s.k] || '' : '';
             html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
                 '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
-                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
+                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
                 '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
             '</div>';
         });
@@ -2503,7 +2503,25 @@ function setFontSize(size) {
 // Profile link helpers
 window._removedProfileLinks = {};
 window.profileLinkRemoved = function(key) { window._removedProfileLinks[key] = true; };
-window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) { /* restored link logic ... */ };
+window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
+    var area = document.getElementById('profileLinksArea');
+    if (!area) return;
+    // Add new input row
+    var row = document.createElement('div');
+    row.className = 'pf-link-row';
+    row.setAttribute('data-key', key);
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML = '<span style="font-size:1.1rem;width:24px;text-align:center;flex-shrink:0;">' + emoji + '</span>' +
+        '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
+        '<button onclick="document.getElementById(\'profile_' + key + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + key + '\')" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;flex-shrink:0;">✕</button>';
+    area.appendChild(row);
+    // Hide the menu
+    var menu = document.getElementById('addLinkMenu');
+    if (menu) menu.style.display = 'none';
+    // Focus the new input
+    var input = document.getElementById('profile_' + key);
+    if (input) input.focus();
+};
 
 async function saveProfile() {
     var status = document.getElementById('profileStatus');
