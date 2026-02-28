@@ -1769,6 +1769,8 @@ function showSettingsPage(tab) {
     var tabs = [];
     // Signed-in users ALWAYS get full settings
     var isSignedIn = user && !user.isAnonymous;
+    // DEBUG: show what tier the user falls into
+    if (typeof showToast === 'function') showToast('DEBUG: signedIn=' + isSignedIn + ' fullMember=' + isFullMember + ' anon=' + (user ? user.isAnonymous : 'no user') + ' visits=' + visits + ' explored=' + exploredCount);
     if (isSignedIn || isFullMember) { tabs = ['account', 'scholar', 'tickets', 'prefs', 'security', 'stats', 'nacho']; }
     else if (isExplorer) { tabs = ['account', 'scholar', 'prefs']; }
     else { tabs = ['account', 'prefs']; }
