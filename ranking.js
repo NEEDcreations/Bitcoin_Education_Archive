@@ -1230,7 +1230,7 @@ function updateGuestPointsBanner() {
     if (!banner) {
         banner = document.createElement('div');
         banner.id = 'guestPointsBanner';
-        banner.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:320px;';
+        banner.style.cssText = 'position:fixed;top:44px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:320px;';
         banner.onclick = function() { showSignInPrompt(); };
         document.body.appendChild(banner);
     }
