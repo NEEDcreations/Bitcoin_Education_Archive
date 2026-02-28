@@ -60,11 +60,13 @@ const HIDDEN_BADGES = [
                 TICKER_ITEMS.push("New Forum: \"" + data.title.substring(0, 30) + "...\" 💬");
             });
 
-            const marketSnap = await db.collection('marketplace').where('status', '==', 'active').orderBy('createdAt', 'desc').limit(2).get();
-            marketSnap.forEach(doc => {
-                const data = doc.data();
-                TICKER_ITEMS.push("Market: " + data.title + " for " + (data.priceSats || data.price) + " sats! 🛒");
-            });
+            try {
+                const marketSnap = await db.collection('marketplace').where('status', '==', 'active').orderBy('createdAt', 'desc').limit(2).get();
+                marketSnap.forEach(doc => {
+                    const data = doc.data();
+                    TICKER_ITEMS.push("Market: " + data.title + " for " + (data.priceSats || data.price) + " sats! 🛒");
+                });
+            } catch(mktErr) { /* index not ready yet — skip marketplace ticker items */ }
         } catch(e) { console.log("Ticker live data skipped:", e); }
 
         ticker.style.display = 'flex';

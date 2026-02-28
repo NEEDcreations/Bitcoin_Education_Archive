@@ -70,6 +70,20 @@
     }
 
     function getFavs() { return JSON.parse(localStorage.getItem('btc_favs') || '[]'); }
+    function renderFavs() {
+        // Update saved channels indicator in sidebar if it exists
+        var favsList = document.getElementById('favsList');
+        if (!favsList) return;
+        var favs = getFavs();
+        if (favs.length === 0) { favsList.innerHTML = ''; return; }
+        var html = '';
+        favs.forEach(function(id) {
+            var ch = (typeof CHANNELS !== 'undefined') ? CHANNELS[id] : null;
+            var label = ch ? (ch.emoji || '') + ' ' + (ch.name || id) : id;
+            html += '<div onclick="go(\'' + id + '\')" style="padding:6px 10px;cursor:pointer;font-size:0.8rem;color:var(--text);border-radius:6px;transition:0.15s;" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'none\'">' + label + '</div>';
+        });
+        favsList.innerHTML = html;
+    }
     function setFavs(f) { localStorage.setItem('btc_favs', JSON.stringify(f)); renderFavs(); }
 
     function toggleFav(id, btn) {

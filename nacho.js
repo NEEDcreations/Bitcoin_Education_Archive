@@ -883,7 +883,8 @@ function createNacho() {
 
     // Ambient "Alive" Animation (blinking/ear wiggle)
     setInterval(function() {
-        if (!nachoVisible || (bubble && bubble.classList.contains('show'))) return;
+        var _bbl = document.getElementById('nacho-bubble');
+        if (!nachoVisible || (_bbl && _bbl.classList.contains('show'))) return;
         const rand = Math.random();
         if (rand < 0.3) {
             setPose('wave'); // Blink equivalent
