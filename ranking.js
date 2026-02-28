@@ -1765,12 +1765,13 @@ function showSettingsPage(tab) {
     let html = '<button onclick="hideUsernamePrompt()" style="position:sticky;top:8px;float:right;background:var(--bg-side,#1a1a2e);border:1px solid var(--border);color:var(--text-muted);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;transition:0.2s;touch-action:manipulation;box-shadow:0 2px 8px rgba(0,0,0,0.3);" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">✕</button>';
 
     // Tab bar
-    html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
+    html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">';
+    html += '<style>#settingsTabBar::-webkit-scrollbar{display:none}</style>';
     ['account', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', tickets: '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats/Nacho' };
+        const icons = { account: '👤', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:10px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;-webkit-tap-highlight-color:rgba(247,147,26,0.2);touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1 0 auto;min-width:60px;padding:10px 8px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
@@ -2336,7 +2337,7 @@ function showSettingsPage(tab) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Deer</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
             '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:10px 12px;background:var(--bg-side,#141425);border:2px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:10px 12px;background:var(--input-bg,rgba(255,255,255,0.05));border:2px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
             '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button>' +
             '</div></div>';
 

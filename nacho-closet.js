@@ -506,3 +506,70 @@ window.earnNachoClosetItem = function() {
         }).catch(function(){});
     }
 };
+
+// ---- Color Picker for Closet Items ----
+window.showColorPicker = function(itemId) {
+    var existing = document.getElementById('nachoColorPicker');
+    if (existing) existing.remove();
+
+    var colors = [
+        { name: 'Default', hue: '0deg' },
+        { name: 'Bitcoin Orange', hue: '25deg' },
+        { name: 'Crimson', hue: '340deg' },
+        { name: 'Royal Purple', hue: '270deg' },
+        { name: 'Ocean Blue', hue: '200deg' },
+        { name: 'Forest Green', hue: '120deg' },
+        { name: 'Gold', hue: '45deg' },
+        { name: 'Hot Pink', hue: '310deg' },
+        { name: 'Cyan', hue: '175deg' },
+        { name: 'Lime', hue: '90deg' },
+    ];
+
+    var savedHue = localStorage.getItem('btc_closet_color_' + itemId) || '0deg';
+
+    var picker = document.createElement('div');
+    picker.id = 'nachoColorPicker';
+    picker.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    picker.onclick = function(e) { if (e.target === picker) picker.remove(); };
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center;';
+
+    var item = null;
+    if (typeof NACHO_ITEMS !== 'undefined') {
+        item = NACHO_ITEMS.find(function(i) { return i.id === itemId; });
+    }
+
+    var html = '<div style="font-size:2rem;margin-bottom:8px;">' + (item ? item.emoji : '🎨') + '</div>' +
+        '<div style="color:var(--heading,#fff);font-weight:700;margin-bottom:4px;">' + (item ? item.name : 'Item') + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Choose a color</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;">';
+
+    colors.forEach(function(c) {
+        var isActive = savedHue === c.hue;
+        html += '<button onclick="window._applyClosetColor(\'' + itemId + '\',\'' + c.hue + '\')" style="width:100%;aspect-ratio:1;border-radius:50%;border:' + (isActive ? '3px solid var(--accent,#f7931a)' : '2px solid var(--border)') + ';cursor:pointer;background:var(--card-bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem;filter:hue-rotate(' + c.hue + ');box-shadow:' + (isActive ? '0 0 12px rgba(247,147,26,0.5)' : 'none') + ';" title="' + c.name + '">' + (item ? item.emoji : '⬤') + '</button>';
+    });
+
+    html += '</div>' +
+        '<button onclick="document.getElementById(\'nachoColorPicker\').remove()" style="padding:10px 24px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Done</button>';
+
+    card.innerHTML = html;
+    picker.appendChild(card);
+    document.body.appendChild(picker);
+};
+
+window._applyClosetColor = function(itemId, hue) {
+    localStorage.setItem('btc_closet_color_' + itemId, hue);
+    // Apply to live overlay
+    var overlay = document.querySelector('#nacho-overlay');
+    if (overlay) {
+        overlay.style.filter = hue === '0deg' ? 'none' : 'hue-rotate(' + hue + ')';
+    }
+    // Refresh picker to show active state
+    if (typeof showColorPicker === 'function') showColorPicker(itemId);
+    // Refresh closet UI if visible
+    if (typeof renderNachoClosetUI === 'function') {
+        var container = document.getElementById('nachoClosetContainer');
+        if (container) renderNachoClosetUI(container);
+    }
+};
