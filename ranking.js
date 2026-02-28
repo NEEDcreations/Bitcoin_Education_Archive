@@ -1774,13 +1774,14 @@ function showSettingsPage(tab) {
     else { tabs = ['account', 'prefs']; }
 
     let html = '<button class="mobile-close" onclick="hideUsernamePrompt()">✕</button>';
-    html += '<div id="settingsTabsContainer" style="display:flex;flex-wrap:wrap;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:relative;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;">';
+    html += '<div id="settingsTabsContainer" style="display:flex;flex-direction:row;flex-wrap:nowrap;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:relative;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+    html += '<style>#settingsTabsContainer::-webkit-scrollbar{display:none}#settingsTabsContainer{scrollbar-width:none;}</style>';
 
     tabs.forEach(t => {
         const icons = { account: '👤', scholar: '🎓', tickets: '🎟️', prefs: '🎨', security: '🔒', stats: '📊', nacho: '🦌' };
         const names = { account: 'Account', scholar: 'Scholar', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', stats: 'Stats', nacho: 'Nacho' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1 0 auto;min-width:0;padding:8px 6px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.65rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;-webkit-tap-highlight-color:rgba(247,147,26,0.2);touch-action:manipulation;"><span style="font-size:1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:0 0 auto;padding:10px 12px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
@@ -1831,8 +1832,61 @@ function showSettingsPage(tab) {
             '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">⭐ Total Points</span><span style="color:#fff;font-weight:700;">' + pts.toLocaleString() + '</span></div>' +
             '<button onclick="exportUserData()" style="width:100%;margin-top:15px;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;">📥 Export My Data</button>' +
             '</div>';
+    } else if (settingsTab === 'tickets') {
+        var tickets = (currentUser && currentUser.orangeTickets) ? currentUser.orangeTickets : 0;
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🎟️</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Orange Tickets</div>' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;">Earn tickets through streaks and achievements!</p>' +
+            '</div>' +
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">' +
+            '<div style="font-size:2rem;font-weight:900;color:#f7931a;">' + tickets + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;">tickets available</div>' +
+            '</div>';
+
     } else if (settingsTab === 'prefs') {
-        html += '<div style="text-align:center;padding:20px;color:var(--text-muted);">Coming Soon: Theme & Sound customization</div>';
+        var currentTheme = localStorage.getItem('theme') || 'dark';
+        var currentAudio = localStorage.getItem('btc_audio') !== 'false';
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🎨</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Preferences</div>' +
+            '</div>' +
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text);font-size:0.9rem;">🌙 Dark Mode</span><button onclick="toggleTheme();showSettingsPage(\'prefs\')" style="padding:6px 16px;background:' + (currentTheme === 'dark' ? 'var(--accent)' : 'var(--card-bg)') + ';color:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.8rem;">' + (currentTheme === 'dark' ? 'ON' : 'OFF') + '</button></div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;"><span style="color:var(--text);font-size:0.9rem;">🔊 Sound Effects</span><button onclick="toggleAudio();showSettingsPage(\'prefs\')" style="padding:6px 16px;background:' + (currentAudio ? 'var(--accent)' : 'var(--card-bg)') + ';color:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.8rem;">' + (currentAudio ? 'ON' : 'OFF') + '</button></div>' +
+            '</div>';
+
+    } else if (settingsTab === 'security') {
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🔒</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">Security</div>' +
+            '</div>' +
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
+            '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Auth Provider</span><span style="color:var(--text);font-size:0.85rem;">' + (user.providerData && user.providerData[0] ? user.providerData[0].providerId : 'anonymous') + '</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">User ID</span><span style="color:var(--text);font-size:0.7rem;word-break:break-all;">' + user.uid.substring(0, 16) + '...</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:10px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Account Created</span><span style="color:var(--text);font-size:0.85rem;">' + (user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime).toLocaleDateString() : 'Unknown') + '</span></div>' +
+            '</div>' +
+            '<button onclick="exportUserData()" style="width:100%;margin-top:16px;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;">📥 Export My Data</button>' +
+            '<button onclick="if(confirm(\'Delete all local data? Your Firestore data will remain.\')){localStorage.clear();location.reload();}" style="width:100%;margin-top:8px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;">🗑️ Clear Local Data</button>';
+
+    } else if (settingsTab === 'nacho') {
+        var nachoName = localStorage.getItem('btc_nacho_nickname') || 'Nacho';
+        var nachoInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
+        var nachoQuestions = parseInt(localStorage.getItem('btc_nacho_questions') || '0');
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🦌</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + nachoName + '</div>' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;">Your Bitcoin buddy</p>' +
+            '</div>' +
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Total Interactions</span><span style="color:var(--text);font-weight:700;">' + nachoInteractions + '</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Questions Asked</span><span style="color:var(--text);font-weight:700;">' + nachoQuestions + '</span></div>' +
+            '</div>' +
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
+            '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">Rename Nacho:</label>' +
+            '<div style="display:flex;gap:8px;"><input type="text" id="nachoNicknameInput" value="' + nachoName + '" maxlength="15" style="flex:1;padding:10px;background:var(--input-bg,#0f172a);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;">' +
+            '<button onclick="var n=document.getElementById(\'nachoNicknameInput\').value.trim();if(n){localStorage.setItem(\'btc_nacho_nickname\',n);if(typeof updateNachoNameUI===\'function\')updateNachoNameUI(n);if(typeof db!==\'undefined\'&&auth&&auth.currentUser&&!auth.currentUser.isAnonymous){db.collection(\'users\').doc(auth.currentUser.uid).update({nachoNickname:n}).catch(function(){});}showToast(\'🦌 Renamed to \'+n);showSettingsPage(\'nacho\');}" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Save</button></div>' +
+            '</div>';
     }
 
     box.innerHTML = html;
