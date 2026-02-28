@@ -1840,13 +1840,13 @@ function showSettingsPage(tab) {
                     html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
                         '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
                         '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
-                    html += '<button onclick="setDisplayBadge(\'\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="Use rank emoji (default)">' + lvl.emoji + ' Rank</button>';
+                    html += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!chosenBadge ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
                     for (var bi = 0; bi < allEarned.length; bi++) {
                         var b = allEarned[bi];
                         var isChosen = chosenBadge === b.id;
-                        html += '<button onclick="setDisplayBadge(\'' + b.id + '\')" style="padding:6px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.15)' : 'var(--bg-side)') + ';cursor:pointer;font-size:0.8rem;font-family:inherit;" title="' + b.name + '">' + b.emoji + '</button>';
+                        html += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
                     }
-                    html += '</div></div>';
+                    html += '</div>';
                 }
                 html += '</div>';
             }
@@ -2748,7 +2748,22 @@ if (document.readyState === 'loading') {
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
 if (typeof showUsernamePrompt !== "undefined") window.showUsernamePrompt = showUsernamePrompt;
 // ---- Settings helper stubs ----
-if (typeof setDisplayBadge === 'undefined') window.setDisplayBadge = function() { if (typeof showToast === 'function') showToast('Coming soon!'); };
+window.setDisplayBadge = function(badgeId) {
+    if (!currentUser) return;
+    currentUser.displayBadge = badgeId || '';
+    // Save to Firestore
+    if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ displayBadge: badgeId || '' }).catch(function() {});
+    }
+    // Save to localStorage as backup
+    localStorage.setItem('btc_display_badge', badgeId || '');
+    // Update all UI that shows the badge
+    updateRankUI();
+    updateAuthButton();
+    // Refresh the settings page to show the new selection
+    showSettingsPage('account');
+    showToast(badgeId ? '🏅 Display badge updated!' : '🏅 Using default rank emoji');
+};
 if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) { if (!currentUser || !db || !auth || !auth.currentUser) return; try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); currentUser.username = name; updateAuthButton(); updateRankUI(); showToast('✅ Username updated to ' + name); } catch(e) { showToast('Error updating username'); } };
 if (typeof togglePushNotifications === 'undefined') window.togglePushNotifications = function() { if (typeof showToast === 'function') showToast('Push notifications coming soon!'); };
 if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
