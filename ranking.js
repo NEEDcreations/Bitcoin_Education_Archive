@@ -1765,13 +1765,12 @@ function showSettingsPage(tab) {
     let html = '<button onclick="hideUsernamePrompt()" style="position:sticky;top:8px;float:right;background:var(--bg-side,#1a1a2e);border:1px solid var(--border);color:var(--text-muted);width:36px;height:36px;border-radius:10px;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;transition:0.2s;touch-action:manipulation;box-shadow:0 2px 8px rgba(0,0,0,0.3);" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">✕</button>';
 
     // Tab bar
-    html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;">';
-    html += '<style>#settingsTabBar::-webkit-scrollbar{display:none}</style>';
+    html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
     ['account', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
         const icons = { account: '👤', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats' };
+        const names = { account: 'Account', tickets: 'Tickets', prefs: 'Prefs', security: 'Security', data: 'Stats/Nacho' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1 0 auto;min-width:60px;padding:10px 8px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.1rem;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.4rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
