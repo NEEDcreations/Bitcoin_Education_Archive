@@ -865,13 +865,31 @@ function showBubble(text, pose) {
 
 function forceShowBubble(text, pose) {
     if (!nachoVisible) return;
+    // Even force messages respect quest/scholar modal
+    var questModal = document.getElementById('questModal');
+    if (questModal && questModal.classList.contains('open')) return;
     _showBubble(text, pose);
 }
 
 function _showBubble(text, pose) {
     // ---- ANTI-INTERRUPTION SHIELD ----
-    // If Nacho is busy with Q&A or user input, don't overwrite the bubble
+    // Never interrupt the user during important actions
     if (window._nachoBusy) return;
+
+    // Don't interrupt if quest/scholar modal is open
+    var questModal = document.getElementById('questModal');
+    if (questModal && questModal.classList.contains('open')) return;
+
+    // Don't interrupt if user is reading an interactive bubble (Q&A answer, trivia, etc.)
+    var _bubble = document.getElementById('nacho-bubble');
+    if (_bubble && _bubble.classList.contains('show') && _bubble.getAttribute('data-interactive') === 'true') return;
+
+    // Don't interrupt if user is typing in Nacho input
+    var _nachoInp = document.getElementById('nachoInput');
+    if (_nachoInp && document.activeElement === _nachoInp) return;
+
+    // Don't interrupt if user is in Nacho Mode
+    if (window._nachoMode) return;
 
     const bubble = document.getElementById('nacho-bubble');
     const textEl = document.getElementById('nacho-text');
@@ -1234,9 +1252,10 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
         container.appendChild(wrongResult);
     }
 
-    // Auto-hide bubble after 5 seconds so they can see the result
+    // Don't auto-hide quiz results — let the user dismiss manually
     clearTimeout(bubbleTimeout);
-    bubbleTimeout = setTimeout(hideBubble, 5000);
+    var bubble = document.getElementById('nacho-bubble');
+    if (bubble) bubble.setAttribute('data-interactive', 'true');
 };
 
 // ---- Context-Aware: Points Earned ----
