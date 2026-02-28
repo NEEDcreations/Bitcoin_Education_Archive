@@ -694,14 +694,32 @@
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
             </div>
             <div style="padding:4px 0 12px;">
-                <button class="quest-start-btn" onclick="startQuestManual()">⚡ Start a Quest</button>
-                <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:2px solid #f7931a;color:var(--text);margin-top:4px;transition:0.2s;" onmouseover="this.style.background='linear-gradient(135deg,#f7931a,#ea580c)';this.style.color='#fff';this.style.boxShadow='0 0 20px rgba(247,147,26,0.4)';" onmouseout="this.style.background='var(--card-bg)';this.style.color='var(--text)';this.style.boxShadow='none';">🎓 Bitcoin Scholar Certification Quest</button>
-                <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('bitcoin-beats')">🎸 Bitcoin Beats</button>
-                <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('forum')">🗣️ Pleb Talk</button>
-                <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('marketplace')">⚡ Lightning Mart</button>
-                <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:4px;font-weight:700;" onclick="go('irl-sync')">🤝 IRL Sync</button>
-                <button id="sidebarNachoBtn" class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;margin-top:4px;font-weight:700;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.3);" onclick="if(typeof enterNachoMode==='function')enterNachoMode()">🦌 Nacho Mode</button>
-                <button id="supportBtn" class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:4px;position:relative;" onclick="handleSupportClick()">📧 Support</button>
+                <!-- Desktop Sidebar Consolidation -->
+                <button class="quest-start-btn" style="background:var(--accent);color:#000;border:none;margin-top:4px;font-weight:800;" onclick="toggleSidebarMenu('sidebarLearnMenu')">🎓 Scholar / Learn ▼</button>
+                <div id="sidebarLearnMenu" style="display:none;padding:10px;background:rgba(255,255,255,0.03);border-radius:12px;margin-top:4px;border:1px solid var(--border);">
+                    <button class="quest-start-btn" onclick="document.getElementById('newbieMsg').style.display='block';this.style.display='none';" style="border-color:#22c55e;color:#22c55e;background:none;font-size:0.8rem;">🟢 Brand new to Bitcoin?</button>
+                    <button class="quest-start-btn" onclick="startQuestManual()" style="font-size:0.8rem;margin-top:8px;">⚡ Start a Quest</button>
+                    <button class="quest-start-btn" onclick="startScholarQuest()" style="background:var(--card-bg);border:1px solid #f7931a;color:var(--text);margin-top:8px;font-size:0.8rem;">🎓 Certification Quest</button>
+                    <button class="quest-start-btn" onclick="toggleSidebarMenu('sidebarFlashMenu')" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:8px;font-size:0.8rem;">📚 Flashcards ▶</button>
+                    <div id="sidebarFlashMenu" style="display:none;padding-left:10px;margin-top:5px;display:flex;flex-direction:column;gap:5px;">
+                        <button onclick="startFlashcards('Bitcoin Basics')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">₿ Bitcoin Basics</button>
+                        <button onclick="startFlashcards('Security & Storage')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">🔑 Security & Storage</button>
+                        <button onclick="startFlashcards('Lightning Network')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">⚡ Lightning Network</button>
+                        <button onclick="startFlashcards('Mining & Energy')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">⛏️ Mining & Energy</button>
+                        <button onclick="startFlashcards('Economics & Money')" style="text-align:left;background:none;border:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;padding:4px;">💰 Economics & Money</button>
+                    </div>
+                </div>
+
+                <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:10px;font-weight:700;" onclick="toggleSidebarMenu('sidebarAppsMenu')">🧩 Apps ▼</button>
+                <div id="sidebarAppsMenu" style="display:none;padding:10px;background:rgba(255,255,255,0.03);border-radius:12px;margin-top:4px;border:1px solid var(--border);">
+                    <button class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;font-weight:700;border:none;font-size:0.8rem;" onclick="enterNachoMode()">🦌 Nacho Mode</button>
+                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('forum')">🗣️ Pleb Talk</button>
+                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('marketplace')">⚡ Lightning Mart</button>
+                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('irl-sync')">🤝 IRL Sync</button>
+                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('bitcoin-beats')">🎸 Bitcoin Beats</button>
+                </div>
+
+                <button id="supportBtn" class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);margin-top:10px;position:relative;" onclick="handleSupportClick()">📧 Support</button>
             </div>
         </div>
         <a href="https://603btc.com" target="_blank" class="sidebar-promo">⚡ Powered by 603btc.com</a>
@@ -756,41 +774,65 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <button class="home-cta" onclick="go('decentralized')" style="margin-bottom:0;width:100%;max-width:340px;">Start Exploring →</button>
                         <button id="authBtn" onclick="showUsernamePrompt()" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Free Account / Sign In</button>
-                        <button id="beatsBtnHome" onclick="go('bitcoin-beats')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🎸 Bitcoin Beats</button>
-                        <button onclick="go('forum')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🗣️ Pleb Talk</button>
-                        <button onclick="go('marketplace')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">⚡ Lightning Mart</button>
-                        <button onclick="go('irl-sync')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;margin-top:10px;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🤝 IRL Sync</button>
-                        <button onclick="enterNachoMode()" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🦌 Nacho Mode</button>
-                </div>
-                <div style="margin-top:30px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">
-                    <div style="font-size:1.2rem;margin-bottom:6px;">👩‍🎓</div>
-                    <div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:4px;">Study with Flashcards</div>
-                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Prepare for Quests! Pick a topic and study with interactive flashcards.</p>
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
-                        <button onclick="startFlashcards('Bitcoin Basics')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">₿ Bitcoin Basics</button>
-                        <button onclick="startFlashcards('Security & Storage')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🔑 Security & Storage</button>
-                        <button onclick="startFlashcards('Lightning Network')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">⚡ Lightning Network</button>
-                        <button onclick="startFlashcards('Mining & Energy')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">⛏️ Mining & Energy</button>
-                        <button onclick="startFlashcards('Economics & Money')" style="padding:8px 16px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">💰 Economics & Money</button>
-                    </div>
-                    <div id="moreFlashcards" style="display:none;margin-top:10px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
-                            <button onclick="startFlashcards('Privacy & Sovereignty')" class="flash-btn">🕵️ Privacy & Sovereignty</button>
-                            <button onclick="startFlashcards('Nodes & P2P')" class="flash-btn">📡 Nodes & P2P</button>
-                            <button onclick="startFlashcards('Wallets & Tools')" class="flash-btn">💼 Wallets & Tools</button>
-                            <button onclick="startFlashcards('History & Culture')" class="flash-btn">📜 History & Culture</button>
-                            <button onclick="startFlashcards('El Salvador & Adoption')" class="flash-btn">🇸🇻 El Salvador & Adoption</button>
-                            <button onclick="startFlashcards('Common Myths')" class="flash-btn">🚫 Common Myths</button>
-                            <button onclick="startFlashcards('Technical Deep Dives')" class="flash-btn">🔬 Technical Deep Dives</button>
-                            <button onclick="startFlashcards('Austrian Economics')" class="flash-btn">🇦🇹 Austrian Economics</button>
-                            <button onclick="startFlashcards('Cypherpunk History')" class="flash-btn">🕵️ Cypherpunk History</button>
-                            <button onclick="startFlashcards('Bitcoin Governance')" class="flash-btn">🏛️ Bitcoin Governance</button>
-                            <button onclick="startFlashcards('Satoshi Nakamoto')" class="flash-btn">🦸 Satoshi Nakamoto</button>
-                            <button onclick="startFlashcards('Global Impact')" class="flash-btn">🌍 Global Impact</button>
+                        
+                        <!-- Middle Home Learn Group -->
+                        <button onclick="toggleSidebarMenu('homeLearnMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">🎓 Scholar / Learn ▼</button>
+                        <div id="homeLearnMenu" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                            <button onclick="document.getElementById('newbieMsg').style.display='block';this.style.display='none';" style="padding:10px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:10px;font-weight:700;cursor:pointer;">🟢 Brand new to Bitcoin?</button>
+                            <button onclick="toggleSidebarMenu('homeFlashMenu')" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">📚 Flashcards ▶</button>
+                            <div id="homeFlashMenu" style="display:none;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px;border-top:1px solid var(--border);">
+                                <button onclick="startFlashcards('Bitcoin Basics')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>
+                                <button onclick="startFlashcards('Security & Storage')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>
+                                <button onclick="startFlashcards('Lightning Network')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>
+                                <button onclick="startFlashcards('Mining & Energy')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>
+                                <button onclick="startFlashcards('Economics & Money')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>
+                            </div>
+                            <button onclick="startQuestManual()" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">⚡ Start a Quest</button>
+                            <button onclick="startScholarQuest()" style="padding:10px;background:var(--card-bg);border:1px solid var(--accent);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">🎓 Certification Quest</button>
                         </div>
-                    </div>
-                    <button id="expandFlashBtn" onclick="var m=document.getElementById('moreFlashcards');if(m.style.display==='none'){m.style.display='block';this.textContent='▲ Show Less'}else{m.style.display='none';this.textContent='▼ Show More Topics'}" style="margin-top:10px;padding:6px 16px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">▼ Show More Topics</button>
+
+                        <!-- Middle Home Apps Group -->
+                        <button onclick="toggleSidebarMenu('homeAppsMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧩 Apps ▼</button>
+                        <div id="homeAppsMenu" style="display:none;width:100%;max-width:340px;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                            <button onclick="enterNachoMode()" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🦌 Nacho Mode</button>
+                            <button onclick="go('forum')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🗣️ Pleb Talk</button>
+                            <button onclick="go('marketplace')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">⚡ Lightning Mart</button>
+                            <button onclick="go('irl-sync')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🤝 IRL Sync</button>
+                            <button onclick="go('bitcoin-beats')" style="grid-column:1/-1;padding:10px;background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.8rem;">🎸 Bitcoin Beats</button>
+                        </div>
                 </div>
+                <!-- Middle Home Learn Group -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:10px;">
+                        <button class="home-cta" onclick="go('decentralized')" style="margin-bottom:0;width:100%;max-width:340px;">Start Exploring →</button>
+                        <button id="authBtn" onclick="showUsernamePrompt()" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">Create Free Account / Sign In</button>
+                        
+                        <!-- Middle Home Learn Group -->
+                        <button onclick="toggleSidebarMenu('homeLearnMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:var(--accent);color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">🎓 Scholar / Learn ▼</button>
+                        <div id="homeLearnMenu" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                            <button onclick="document.getElementById('newbieMsg').style.display='block';this.style.display='none';" style="padding:10px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:10px;font-weight:700;cursor:pointer;">🟢 Brand new to Bitcoin?</button>
+                            <button onclick="toggleSidebarMenu('homeFlashMenu')" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">📚 Flashcards ▶</button>
+                            <div id="homeFlashMenu" style="display:none;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px;border-top:1px solid var(--border);">
+                                <button onclick="startFlashcards('Bitcoin Basics')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>
+                                <button onclick="startFlashcards('Security & Storage')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>
+                                <button onclick="startFlashcards('Lightning Network')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>
+                                <button onclick="startFlashcards('Mining & Energy')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>
+                                <button onclick="startFlashcards('Economics & Money')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>
+                            </div>
+                            <button onclick="startQuestManual()" style="padding:10px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">⚡ Start a Quest</button>
+                            <button onclick="startScholarQuest()" style="padding:10px;background:var(--card-bg);border:1px solid var(--accent);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;">🎓 Certification Quest</button>
+                        </div>
+
+                        <!-- Middle Home Apps Group -->
+                        <button onclick="toggleSidebarMenu('homeAppsMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧩 Apps ▼</button>
+                        <div id="homeAppsMenu" style="display:none;width:100%;max-width:340px;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                            <button onclick="enterNachoMode()" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🦌 Nacho Mode</button>
+                            <button onclick="go('forum')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🗣️ Pleb Talk</button>
+                            <button onclick="go('marketplace')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">⚡ Lightning Mart</button>
+                            <button onclick="go('irl-sync')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🤝 IRL Sync</button>
+                            <button onclick="go('bitcoin-beats')" style="grid-column:1/-1;padding:10px;background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.8rem;">🎸 Bitcoin Beats</button>
+                        </div>
+                </div>
+                <!-- Flashcards relocated to Scholar / Learn -->
                 <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;margin-top:30px;">
                     <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic or Leave Feedback</h3>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0;">Want to see something added to the archive? Let us know!</p>

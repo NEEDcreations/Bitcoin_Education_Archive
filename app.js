@@ -3667,6 +3667,22 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!isOpen && typeof playSound === 'function') playSound('pop');
     };
 
+    window.toggleSidebarMenu = function(id) {
+        var menu = document.getElementById(id);
+        if (!menu) return;
+        var isVisible = menu.style.display === 'flex' || menu.style.display === 'block' || (menu.style.display !== 'none' && getComputedStyle(menu).display !== 'none');
+        
+        // Custom logic for different menu types
+        if (id.includes('Flash')) {
+            menu.style.display = isVisible ? 'none' : 'flex';
+        } else {
+            menu.style.display = isVisible ? 'none' : (id.includes('Apps') && !id.includes('sidebar') ? 'grid' : 'flex');
+            if (menu.style.display === 'flex') menu.style.flexDirection = 'column';
+        }
+        
+        if (typeof playSound === 'function' && menu.style.display !== 'none') playSound('pop');
+    };
+
     window.onload = () => {
         // DEBUG: Show diagnostic toast on load so we can verify app.js is running
         setTimeout(function() {
