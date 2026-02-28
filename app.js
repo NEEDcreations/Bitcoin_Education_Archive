@@ -1683,7 +1683,7 @@
             '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🗣️ PlebTalk & 🎸 Beats</strong></div>' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (isFull ? '0.5' : '1') + '"><span>🔹 10 Channels:</span> <strong>⚡ Marketplace</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (auth.currentUser && !auth.currentUser.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (_a && !_a.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
             '</div>' +
         '</div>';
 
@@ -2384,7 +2384,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (fb) fb.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
-        var isAdmin = auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("needcreations") || (auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("admin")) || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.displayName || "").toLowerCase().includes("needcreations")) || (_a && (_a.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var exploredCount = 0;
         try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
@@ -3010,9 +3010,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
         // Admin Bypass Logic
-        var isAdmin = auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("needcreations") || (auth.currentUser && (auth.currentUser.displayName || "").toLowerCase().includes("admin")) || (currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.displayName || "").toLowerCase().includes("needcreations")) || (_a && (_a.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
 
-        var isFull = isAdmin || (auth.currentUser && !auth.currentUser.isAnonymous) || (visits >= 10 || exploredCount >= 10);
+        var isFull = isAdmin || (_a && !_a.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         var isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
 
         // Lockdown for new users
