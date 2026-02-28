@@ -3123,7 +3123,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -3138,6 +3138,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Route to correct renderer
             if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
             else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
+            else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
             else if (typeof renderForum === 'function') renderForum();
             
             setFloatingElementsVisible(true);
@@ -3316,6 +3317,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     let searchTimeout = null;
     // Internal app pages searchable by keyword
     const APP_PAGES = [
+        { id: '_irl', title: '🤝 IRL Sync', desc: 'Find local Bitcoin meetups and events', keywords: 'irl meetup events sync meeting community local map', action: "go('irl-sync')" },
         { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Livestreams and community broadcasts', keywords: 'beats music livestream live video radio stream audio', action: "go('bitcoin-beats')" },
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
         { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
