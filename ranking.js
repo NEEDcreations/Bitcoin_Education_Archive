@@ -1543,14 +1543,42 @@ window.toggleGhostMode = async function() {
 
 // Stubs for upcoming features
 window.setNachoNickname = function(val) { 
-    const nick = val || prompt('What should Nacho call you?', currentUser.username || 'Bitcoiner');
-    if (nick) {
-        currentUser.nachoNickname = nick;
-        if (!currentUser._isLocal) {
-            db.collection('users').doc(auth.currentUser.uid).update({ nachoNickname: nick }).catch(function(){});
-        }
-        showToast('🦌 Nacho will now call you ' + nick + '!');
-        showSettingsPage('data');
+    var nick = (val || '').trim();
+    if (!nick) return;
+    // Save to localStorage (used everywhere)
+    localStorage.setItem('btc_nacho_nickname', nick);
+    // Save to currentUser object
+    if (currentUser) currentUser.nachoNickname = nick;
+    // Save to Firestore
+    if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ nachoNickname: nick }).catch(function(){});
+    }
+    // Update Nacho's name throughout the app
+    if (typeof updateNachoNameUI === 'function') updateNachoNameUI(nick);
+    // Update Nacho Mode title if open
+    var nmTitle = document.querySelector('.nm-hero-title');
+    if (nmTitle) nmTitle.textContent = nick.toUpperCase() + ' MODE';
+    // Update bubble header
+    var bubbleHeader = document.querySelector('#nacho-bubble .nacho-name, #nacho-name');
+    if (bubbleHeader) bubbleHeader.textContent = nick;
+    showToast('🦌 Your deer is now named "' + nick + '"!');
+    showSettingsPage('data');
+};
+
+// Update Nacho's name across all UI elements
+window.updateNachoNameUI = function(name) {
+    if (!name) return;
+    // Nacho Mode title
+    var nmTitle = document.querySelector('.nm-hero-title');
+    if (nmTitle) nmTitle.textContent = name.toUpperCase() + ' MODE';
+    // Sidebar Nacho button
+    var sidebarBtn = document.getElementById('sidebarNachoBtn');
+    if (sidebarBtn) sidebarBtn.innerHTML = '🦌 ' + name + ' Mode';
+    // Bottom nav
+    var bnavNacho = document.getElementById('bnavNacho');
+    if (bnavNacho) {
+        var label = bnavNacho.querySelector('.bnav-label');
+        if (label) label.textContent = name;
     }
 };
 
@@ -2461,13 +2489,13 @@ function showSettingsPage(tab) {
         }
 
         // Nacho Nickname (first — let user name their Nacho)
-        var nickname = typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho';
+        var nickname = localStorage.getItem('btc_nacho_nickname') || 'Nacho';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Deer</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
-            '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="nachoNicknameInput" value="" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:10px 12px;background:var(--input-bg,rgba(255,255,255,0.05));border:2px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
-            '<button onclick="setNachoNickname(document.getElementById(\'nachoNicknameInput\').value);showSettingsPage(\'data\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">Save</button>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
+            '<div style="display:flex;gap:8px;align-items:center;">' +
+            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:12px 14px;background:#0f172a;border:2px solid var(--border,#333);border-radius:10px;color:#f1f5f9;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;min-width:0;" onfocus="this.style.borderColor=\'#f7931a\';this.select()" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="var n=document.getElementById(\'nachoNicknameInput\').value.trim();if(n)setNachoNickname(n)" style="padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">Save</button>' +
             '</div></div>';
 
         // Nacho Story (highlighted — right under name)
