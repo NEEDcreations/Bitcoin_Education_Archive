@@ -2132,8 +2132,8 @@ function nachoAIAnswer(question, callback) {
             eli5: eli5,
             history: history,
             kbContext: kbContext,
-            maxi: true, // Signal to proxy to use Maxi prompt instructions
-            forceMaxi: "Act as a strict Bitcoin Maximalist tutor. Do not promote any other cryptocurrencies." 
+            maxi: true,
+            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters." 
         })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
@@ -2826,52 +2826,59 @@ window.nachoUnifiedAnswer = function(question, callback) {
         return;
     }
 
-    // ---- STEP 3: Find KB match (for context, not final answer) ----
+    // ---- STEP 3: KB is the PRIMARY BRAIN (pure maximalism) ----
     var kbMatch = null;
     var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
     kbMatch = liveMatch || findAnswer(q);
 
-    // ---- STEP 3b: Site navigation (always takes priority over AI) ----
+    // ---- STEP 3b: Site navigation (always takes priority) ----
     if (kbMatch && kbMatch.isSiteNav) {
         callback({ type: 'site', answer: pq(kbMatch.answer), siteAction: kbMatch.siteAction, siteLabel: kbMatch.siteLabel });
         return;
     }
 
-    // ---- STEP 4: AI is the PRIMARY BRAIN ----
+    // ---- STEP 4: KB HIT → Use KB answer, optionally polish with AI ----
+    if (kbMatch) {
+        var kbAnswer = processNfa(pq(kbMatch.answer));
+        var ch = kbMatch.channel || null;
+        var chName = kbMatch.channelName || null;
+
+        // Try AI to make the KB answer more conversational (but KB content is the truth)
+        if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+            nachoAIAnswer(q, function(aiAnswer) {
+                if (aiAnswer) {
+                    // AI polishes — but we keep KB's channel link and maximalist framing
+                    nachoRemember(q, aiAnswer);
+                    callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                } else {
+                    // AI unavailable — KB answer is great on its own
+                    nachoRemember(q, kbMatch.answer);
+                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+                }
+            });
+        } else {
+            // No AI budget — serve KB directly
+            nachoRemember(q, kbMatch.answer);
+            callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+        }
+        return;
+    }
+
+    // ---- STEP 5: KB MISS → AI fills the gap ----
     if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
         nachoAIAnswer(q, function(aiAnswer) {
             if (aiAnswer) {
-                // Check if AI gave a deflection/refusal instead of a real answer
                 var aiLower = aiAnswer.toLowerCase();
                 var isDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
 
-                // If AI deflected but we have a KB match, use KB instead
-                if (isDeflection && kbMatch) {
-                    nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+                if (!isDeflection) {
+                    nachoRemember(q, aiAnswer);
+                    callback({ type: 'ai', answer: aiAnswer + disclaimer });
                     return;
                 }
-
-                // AI answered — enrich with KB channel link
-                var channelLink = '';
-                var ch = null, chName = null;
-                if (kbMatch && kbMatch.channel) {
-                    ch = kbMatch.channel;
-                    chName = kbMatch.channelName;
-                }
-                nachoRemember(q, aiAnswer);
-                callback({ type: 'ai', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
-                return;
             }
 
-            // AI failed — try KB directly
-            if (kbMatch) {
-                nachoRemember(q, kbMatch.answer);
-                callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
-                return;
-            }
-
-            // Try deep content search
+            // AI failed or deflected — try deep content search
             var deepResult = deepContentSearch(q);
             if (deepResult) {
                 callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet) + disclaimer, channel: deepResult.channel, channelName: deepResult.channelName });
