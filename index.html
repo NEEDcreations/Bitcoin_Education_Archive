@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, 8800+ messages, and 3000+ images — for the world.">
     <meta name="theme-color" content="#f7931a">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -950,7 +950,7 @@
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+        navigator.serviceWorker.register('sw.js').then(function(reg) {
             // Check for updates every 5 minutes
             setInterval(function() { reg.update(); }, 300000);
 
