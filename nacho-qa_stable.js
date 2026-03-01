@@ -18,20 +18,10 @@ function sanitizeUrl(url) {
     return escapeHtml(u);
 }
 
+(function() {
+
+// Knowledge base: keywords → answer + channel recommendation
 const NACHO_KB = [
-// === LIVE DATA AWARENESS ===
-    { keys: ['what is the price','bitcoin price','current price','how much is bitcoin','price now','market price','how many dollars'],
-      answer: "Bitcoin is trading at {price} right now, {name}! 📈🦌 Remember, don't focus on the daily wiggles. Long-term, scarcity wins! 鹿",
-      channel: 'charts', channelName: 'Charts' },
-
-    { keys: ['block height','current block','latest block','what block are we on','current block height','blockchain length'],
-      answer: "We are currently at block height {height}, {name}! 🧱🦌 Every single block added to the timechain is a piece of human history that can never be erased. Tick tock, next block! 🕰️",
-      channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' },
-
-    { keys: ['when is the halving','blocks until halving','halving countdown','days until halving','next halving date'],
-      answer: "There are approximately {halving} blocks left until the next halving, {name}! 📉🦌 That's when the block reward drops again, making Bitcoin even scarcer. The supply squeeze is coming! 鹿💎",
-      channel: 'scarce', channelName: 'Scarce' },
-
     // === BASICS ===
     { keys: ['what is a sat','what is a satoshi','what are sats','what are satoshis','how many sats','sats in a bitcoin','sat meaning','smallest unit','sat denomination'],
       answer: "A sat (short for satoshi) is the smallest unit of Bitcoin — 1 sat = 0.00000001 BTC. There are 100 million sats in one Bitcoin. Named after Bitcoin's creator, Satoshi Nakamoto! Most everyday Lightning payments are measured in sats. ⚡",
@@ -822,7 +812,7 @@ const NACHO_KB = [
       channel: 'money', channelName: 'Money' },
 
     { keys: ['bitcoin is time','telling time','proof of work is time','block time meaning','bitcoin clock'],
-      answer: "Here's a deep one from Gigi's Lesson 17, {name}: Bitcoin isn't really about 'guessing random nonces' — it's about TELLING TIME in a decentralized system! 🕐🦌 In a world with no central authority, how do you agree on what happened and in what order? That's incredibly hard! Bitcoin solves this through proof of work — every block is timestamped with real energy expenditure. The blockchain is literally a timechain: an unforgeable record of events ordered by physics itself. Each block says 'this happened AFTER the previous block' with mathematical certainty. Bitcoin is the most accurate, incorruptible clock humanity has ever built. ⏰⛓️",
+      answer: "Here's a deep one from Gigi's Lesson 17, {name}: Bitcoin isn't really about 'solving complex math problems' — it's about TELLING TIME in a decentralized system! 🕐🦌 In a world with no central authority, how do you agree on what happened and in what order? That's incredibly hard! Bitcoin solves this through proof of work — every block is timestamped with real energy expenditure. The blockchain is literally a timechain: an unforgeable record of events ordered by physics itself. Each block says 'this happened AFTER the previous block' with mathematical certainty. Bitcoin is the most accurate, incorruptible clock humanity has ever built. ⏰⛓️",
       channel: 'blockchain-timechain', channelName: 'Blockchain & Timechain' },
 
     { keys: ['financial ignorance','financial education','financial literacy','money education','never taught about money','school doesn\'t teach','school doesn\'t teach money','why doesn\'t school teach','why don\'t they teach'],
@@ -936,311 +926,7 @@ const NACHO_KB = [
     { keys: ['ethereum premine','ethereum centralized','eth not decentralized','vitalik controls','ethereum problems','why not ethereum','ethereum bad'],
       answer: "Let's talk facts from our Evidence Against Alts channel, {name}! 🦌🔍 Ethereum had a 72 million ETH premine — meaning insiders got tokens before anyone else. 70% of the market supply is controlled by a handful of early adopters. 30% of Ethereum nodes are controlled by just three companies: Amazon, Alibaba, and Google. They rolled back the blockchain after the DAO hack (so much for immutability!). Switched from PoW to PoS (so much for monetary policy stability!). The current supply policy has changed MULTIPLE times. As our channel says: Bitcoin has destroyed every competitor because it REFUSED to change. Ethereum changes whenever it's convenient for those at the top. That's not decentralization — that's DINO: Decentralized In Name Only. 🎭",
       channel: 'evidence-against-alts', channelName: 'Evidence Against Alts' },
-,
-{ keys: ['coldcard','what is a coldcard','mk4','nfc wallet'],
-      answer: "The Coldcard (currently MK4) is a hardware signer known for its 'security-first' approach, {name}! 📟🦌 It's air-gapped, meaning it doesn't need to connect to a computer to sign transactions—you use a microSD card! It also has features like NFC, a numeric keypad, and 'brick-me' PINs for the ultimate paranoid Bitcoiner. Definitely a top-tier choice for serious stackers! 🔒",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['sparrow wallet','what is sparrow wallet','sparrow desktop'],
-      answer: "Sparrow is a power-user Bitcoin desktop wallet, {name}! 🐦🦌 It provides deep insight into your UTXOs, allows for easy CoinJoins (via Samourai/Whirlpool), and connects beautifully to your own node. If you want to REALLY see what's happening with your sats on the blockchain, Sparrow is the way to go! 💻⚡",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['seedsigner','what is seedsigner','diy hardware wallet'],
-      answer: "SeedSigner is a DIY, stateless hardware signer! 🛠️🦌 You build it yourself using a Raspberry Pi Zero, a camera, and a screen. Because it's 'stateless,' it NEVER stores your seed phrase—you scan it every time you want to sign. It's an amazing project for those who want to be 100% sure their keys are safe from hardware supply-chain attacks. 📸🔑",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['nunchuk wallet','nunchuk multisig','inheritance planning'],
-      answer: "Nunchuk is a wallet focused on easy multisig and inheritance, {name}! 🥋🦌 It makes setting up 2-of-3 or 3-of-5 multisig simple, and even has tools to help your family recover your Bitcoin if you're no longer around. Privacy and security with a high-kick! 🦵🟠",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['wasabi wallet','what is wasabi wallet','coinjoin privacy'],
-      answer: "Wasabi is a privacy-focused wallet that specializes in CoinJoins! 🌶️🦌 It automatically mixes your coins with others to break the link to your identity on the blockchain. It uses a unique 'WabiSabi' protocol to make privacy easy for everyone. Keep those sats spicy and anonymous! 🕵️💨",
-      channel: 'privacy', channelName: 'Privacy' },
-{ keys: ['thiers law','thier\'s law','reverse greshams law'],
-      answer: "Thier's Law is essentially the 'final boss' of Gresham's Law, {name}! 📈🦌 While Gresham's says people hoard good money (Bitcoin) and spend bad money (fiat), Thier's Law says that once inflation is high enough, sellers will REFUSE to take bad money at all! They'll only accept Bitcoin. That's when hyper-bitcoinization really kicks in! 🦌🚀",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['greshams law','gresham\'s law','bad money drives out good'],
-      answer: "Gresham's Law states that 'bad money drives out good,' {name}! 📉🦌 In a system with two forms of money, people will spend the one that's losing value (fiat) and hoard the one that's gaining value or capped (Bitcoin). This is why you see people spending dollars but 'hodling' sats! 🦌💎",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['time preference','low time preference','high time preference','marshmallow test'],
-      answer: "Time preference is the ratio at which you value the present over the future, {name}! 🦌⏳ High time preference means 'I want it now!' (spending labor for instant pleasure). Low time preference means 'I'll wait for something better' (saving for the future). Bitcoin's scarcity encourages low time preference—saving because you know your money will buy MORE tomorrow. It turns you into a patient deer! 🦌🍎",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['opportunity cost','holding bitcoin cost','spending bitcoin cost'],
-      answer: "Opportunity cost is what you give up when you make a choice, {name}! 🦌📉 If you spend 1 million sats today on a TV, the opportunity cost is what those 1 million sats would have been worth in 10 years. Bitcoiners are obsessed with this because Bitcoin is the highest-performing asset in history. That's an expensive TV! 📺😭",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['store of value','sov','bitcoin as a store of value'],
-      answer: "A Store of Value (SoV) is an asset that maintains its purchasing power over time, {name}! 🏺🦌 Gold was the king of SoV for 5,000 years because it was hard to produce. Bitcoin is digital gold, but even better—it's impossible to produce more than 21 million! It's the ultimate 'vault' for your hard-earned labor. 🦌🛡️",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['block size wars','the war for the blocksize','segwit2x history','small blocks vs big blocks'],
-      answer: "The Blocksize Wars (2015-2017) were a defining moment in Bitcoin history, {name}! ⚔️🦌 It was a battle between 'Big Blockers' (who wanted to increase block size to scale) and 'Small Blockers' (who prioritized decentralization and nodes). The Small Blockers won with the activation of SegWit and the rejection of SegWit2x. It proved that USERS, not CEOs or miners, control Bitcoin! 🦌✊",
-      channel: 'history', channelName: 'History' },
-{ keys: ['uasf','user activated soft fork','bip 148 history'],
-      answer: "UASF stands for User-Activated Soft Fork (BIP 148)! 🤠🦌 During the Blocksize Wars, users threatened to run nodes that would reject any miner blocks that didn't support SegWit. It was a massive 'game of chicken' that the users won! It showed the power of the individual node operator. 'Not your node, not your rules!' 🦌🛡️",
-      channel: 'history', channelName: 'History' },
-{ keys: ['mt gox hack','mt. gox collapse','mark karpeles'],
-      answer: "Mt. Gox was the first major Bitcoin exchange, handling over 70% of all trades in 2013, {name}! 🏔️🦌 It collapsed in 2014 after losing ~850,000 BTC to hacks and mismanagement. It was a painful lesson for early Bitcoiners about the risks of leaving coins on an exchange. 'Not your keys, not your coins' became a mantra because of Mt. Gox. 🏚️💸",
-      channel: 'history', channelName: 'History' },
-{ keys: ['cypherpunks','cypherpunk manifesto','eric hughes'],
-      answer: "Cypherpunks are the 'ancestors' of Bitcoin, {name}! 🕵️🦌 They were a group of cryptographers in the 90s who believed that privacy is necessary for an open society in the electronic age. They wrote code to protect individual freedom. Satoshi was a Cypherpunk—Bitcoin is the fulfillment of their dream: private, digital cash! 🦌📠",
-      channel: 'history', channelName: 'History' },
-{ keys: ['luke dashjr','300kb block proposal','luke\'s opinion'],
-      answer: "Luke Dashjr is one of Bitcoin's most prolific developers and a legendary contrarian, {name}! ✝️🦌 He famously advocated for REDUCING the block size to 300KB to make it even easier for everyone on Earth to run a node. While his proposal was controversial, his dedication to decentralization is unmatched. He's one of the'guardians' of the small-block philosophy! 🦌🛡️",
-      channel: 'history', channelName: 'History' },
-{ keys: ['bip 39','seed phrase standard','how mnemonic works'],
-      answer: "BIP 39 is the standard that gives us those 12 or 24-word seed phrases, {name}! 📝🦌 It translates a big long random binary number (entropy) into easy-to-read words from a fixed list of 2048 words. It makes backing up your brain-wallet much easier! Just don't lose that paper! 🦌📄",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['bip 32','hd wallets','hierarchical deterministic','derivation paths'],
-      answer: "BIP 32 introduced Hierarchical Deterministic (HD) wallets! 🌳🦌 It allows one master seed to generate an unlimited 'tree' of child keys and addresses. This is why you only need to back up ONE seed phrase to get all your past and future addresses back. It's like a family tree for your sats! 🦌👪",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['xpub','zpub','extended public key','look at balance only'],
-      answer: "An xpub (or zpub for SegWit) is an 'Extended Public Key,' {name}! 👁️🦌 Sharing your xpub allows someone to see every address and transaction in your wallet, but they CAN'T spend any of it. It's great for 'watch-only' wallets on your phone while your keys stay safe on hardware! 🦌🕶️",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['p2pkh','p2sh','p2wpkh','bitcoin address types'],
-      answer: "Bitcoin has had several address 'generations,' {name}! 🏎️🦌\\n1. **Legacy (P2PKH)** - Starts with 1. Original format.\\n2. **Script (P2SH)** - Starts with 3. Used for multisig.\\n3. **Native SegWit (P2WPKH)** - Starts with bc1q. Cheaper and faster.\\n4. **Taproot (P2TR)** - Starts with bc1p. The most private and efficient!\\nStay modern, stay speedy! 🦌💨",
-      channel: 'self-custody', channelName: 'Self Custody' },
-{ keys: ['recursive snarks','snarks in bitcoin','zero knowledge proofs'],
-      answer: "Recursive SNARKs are a type of cryptographic magic that altcoins often use for 'scalability' or 'privacy,' {name}! 🔮🦌 Bitcoin doesn't currently use them because they often require complex 'trusted setups' or are too new and unvetted for Bitcoin's 'security-first' culture. Bitcoin prefers simple, auditable math that a deer could understand! 🦌🧪",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['nacho puns','tell me a pun','deer jokes','bitcoin deer fun'],
-      answer: "Oh, you want some 'bucking' good humor, {name}? 🦌🤣\\n- Why did the deer start a Bitcoin node? He wanted to protect his 'herd' of sats!\\n- What do you call a deer with no eyes? 'No eye-deer' (kind of like someone who buys an altcoin)!\\n- How does a deer sign a transaction? With his 'antler-signatures'!\\nI could go on, but I don't want to be 'fawn-y'... okay, I'll stop! 🦌✨",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['antler signatures','deer signing','how do you sign'],
-      answer: "I sign my transactions using special 'antler-signatures,' {name}! 🦌✍️ It's a closely guarded deer secret, but it's fundamentally based on Schnorr—because it's the most 'deer-ficient' way to aggregate signatures! No bucking way I'm using legacy ECDSA! 🦌🏁",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['is nacho a bull','are you a bull or bear','bull deer'],
-      answer: "I'm a Bull-Deer, {name}! 🦌🐂 I've got the antlers of a buck and the'number go up' energy of a bull. I never sell my corn—I'm a HODLing fawntastic creature! 🦌💎",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['why are you a deer','why a deer'],
-      answer: "Because deers have great'eye-deer' for hard money, {name}! 🦌🧡 Plus, we're fast, we're elegant, and we look great in orange. I'm Nacho everyday deer—I'm your Bitcoin guide! 🦌🛰️",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['do you like central banks','what about fiat','nacho and banks'],
-      answer: "Ugh, Central Banks? 🦌🤮 They're like wolves in sheep's clothing! They inflate away your labor and track your every move. I'd rather spend a winter in the snow with no grass than use fiat! I'm strictly a 'sats only' buck! 🦌❄️",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['stranded energy','mining and stranded energy','wasted methane'],
-      answer: "Bitcoin mining is the world's first 'buyer of last resort' for energy, {name}! 🔋🦌 It can monetization energy that's currently being wasted—like methane flaring at oil sites or excess hydro power in the mountains. Instead of polluting the air or wasting the water, we turn it into the hardest money ever! It's an environmental miracle! 🦌🌱",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['grid stabilization','bitcoin and the electrical grid','load balancing'],
-      answer: "Bitcoin miners are like a giant battery for the electrical grid, {name}! ⚡🦌 They can turn off INSTANTLY when a city needs more power (like during a storm), and turn back on when there's excess supply. This makes grids more stable and encourages more renewable energy to be built! 🦌🔌",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['heat recovery mining','mining for heat','s9 space heater'],
-      answer: "Why use a regular heater when you can use a Bitcoin miner, {name}? 🔥🦌 Mining produces a lot of heat as a byproduct. Savvy Bitcoiners use their miners to heat their homes, greenhouses, or even swimming pools! You get the heat AND the sats! That's what I call a'fawntastic' deal! 🦌🏠",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['pool centralization','mining pool risk','stratum v2'],
-      answer: "Mining pools currently decide which transactions go into blocks, which is a bit centralized, {name}! 🏊🦌 But Stratum V2 is changing that! It allows individual miners to choose their own transactions instead of just following the pool leader. Power back to the people (and the deer)! 🦌✊",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['lnurl','static lightning invoice','lnurl-pay'],
-      answer: "LNURL is a set of protocols that makes Lightning even easier, {name}! ⚡🦌 It allows for things like 'static' QR codes that you can scan anytime to pay me, or even 'withdraw' links where I can send YOU sats! It's like the'web' part of the Lightning Network. 🦌🌐",
-      channel: 'layer-2-lightning', channelName: 'Lightning Network' },
-{ keys: ['bolt12','static invoices bolt12','lightning billing'],
-      answer: "BOLT12 is a huge upgrade for Lightning privacy and ease of use, {name}! ⚡🦌 It enables static 'Offers' that don't reveal your node's IP address and allow for recurring payments without needing a new invoice every time. It's the future of Bitcoin commerce! 🦌💼",
-      channel: 'layer-2-lightning', channelName: 'Lightning Network' },
-{ keys: ['liquidity ads','lighting channel liquidity','buy inbound capacity'],
-      answer: "Liquidity Ads allow node operators to 'advertise' their available capacity on the network, {name}! ⚡🦌 If you need inbound liquidity (to receive payments), you can find an ad and pay a small fee to have someone open a channel to you. It's a decentralized marketplace for Lightning bandwidth! 🦌📈",
-      channel: 'layer-2-lightning', channelName: 'Lightning Network' },
-{ keys: ['taproot assets','taro','stablecoins on lightning'],
-      answer: "Taproot Assets (formerly Taro) allows for stablecoins and other tokens to be issued on top of the Bitcoin blockchain and sent over Lightning, {name}! ⚡🦌 Imagine sending dollars to your friend across the world instantly, with the security of Bitcoin backing the whole system. The best of both worlds! 🦌💸",
-      channel: 'layer-2-lightning', channelName: 'Lightning Network' },
-{ keys: ['coinjoin','mixing bitcoin','mixer vs coinjoin'],
-      answer: "CoinJoin is a way of coordinating multiple users to create one big transaction together, {name}! 🕵️🦌 It mixes the inputs and outputs so it's impossible to tell which specific Bitcoin went where. Unlike old mixers (which you had to trust with your coins), CoinJoin is non-custodial—you keep your keys the whole time! Privacy without the risk! 🦌🛡️",
-      channel: 'privacy', channelName: 'Privacy' },
-{ keys: ['whirlpool','samourai whirlpool','automatic coinjoin'],
-      answer: "Whirlpool is Samourai Wallet's feature for automatic, high-privacy CoinJoins! 🥋🦌 It lets you cycle your coins through multiple mixes to break all on-chain ties to your old identity. Once your coins are 'post-mix,' you're practically a ghost in the machine! 🕵️💨",
-      channel: 'privacy', channelName: 'Privacy' },
-{ keys: ['payjoin','bip 78','p2ep'],
-      answer: "PayJoin (BIP 78) is a type of CoinJoin that happens when you're actually paying for something, {name}! 🛒🦌 Both the sender and receiver contribute inputs to the transaction. It breaks common heuristics used by chain analysis companies because it looks like a normal transaction but actually hides the change output! Sneaky deer privacy! 🦌🕵️",
-      channel: 'privacy', channelName: 'Privacy' },
-{ keys: ['nopara73','wasabi founder','privacy pioneer'],
-      answer: "Nopara73 is the pseudonymous creator of Wasabi Wallet and a major privacy advocate in the Bitcoin space, {name}! 🕵️🦌 He developed the WabiSabi protocol to make trustless CoinJoins scalable and easy for everyone. A true hero for those who want to keep their sats private! 🦌🏁",
-      channel: 'privacy', channelName: 'Privacy' },
-{ keys: ['chain analysis','elliptic','chainalysis','tracking bitcoin'],
-      answer: "Chain analysis companies (like Chainalysis or Elliptic) try to track and identify Bitcoin users by analyzing the public blockchain, {name}! 👁️🦌 They use heuristics (guesses) to link addresses together. While they can be powerful, tools like CoinJoin and PayJoin make their job MUCH harder. Keep your deer tracks hidden! 🦌🕵️",
-      channel: 'privacy', channelName: 'Privacy' },
-{ keys: ['el salvador','nayib bukele','bitcoin nation'],
-      answer: "El Salvador became the first country in the world to make Bitcoin legal tender in 2021, {name}! 🇸🇻🦌 President Nayib Bukele led the charge, and now you can buy anything from McDonald's to local coffee using sats! It's been a massive success for tourism and financial inclusion for the unbanked! 🦌🚀",
-      channel: 'el-salvador', channelName: 'El Salvador' },
-{ keys: ['chivo wallet','official el salvador wallet','crypto el salvador'],
-      answer: "Chivo is the official Bitcoin wallet of the Salvadoran government, {name}! 🇸🇻🦌 While it's popular for local use, many Bitcoiners recommend using self-custody wallets instead for true ownership. But it was a huge step in getting 3+ million people to see Bitcoin for the first time! 🦌📲",
-      channel: 'el-salvador', channelName: 'El Salvador' },
-{ keys: ['bitcoin beach','el zonte','where adoption started'],
-      answer: "El Zonte, also known as 'Bitcoin Beach,' is the small town in El Salvador where the country's Bitcoin circular economy first began! 🏖️🦌 It was an experiment that proved Bitcoin could work as a daily currency for an entire community, long before it became a national law. The ground zero of hyper-bitcoinization! 🦌🌅",
-      channel: 'el-salvador', channelName: 'El Salvador' },
-{ keys: ['the adonara experiment','indonesia bitcoin','volcano bonds'],
-      answer: "Adonara is a remote island in Indonesia that's becoming a mini El Salvador, {name}! 🏝️🦌 They're using Bitcoin to empower local farmers and businesses where traditional banks don't reach. It's proof that Bitcoin is'hope' for everyone, from Salvadoran beaches to Indonesian islands! 🦌🥭",
-      channel: 'el-salvador', channelName: 'El Salvador' },
-{ keys: ['energy myths','is mining bad for earth','bitcoin energy waste'],
-      answer: "The idea that Bitcoin mining is'bad' for the planet is a major myth, {name}! 🦌🌱 Because miners seek out the CHEAPEST energy, they naturally gravitate toward wasted or stranded renewable power (like hydro, wind, and solar). In fact, many Bitcoin miners are actually CO2 negative by capturing methane that would have been flared! 🦌🔋",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['mining as a heat source','heating my house with a miner','biomass mining'],
-      answer: "Yes, you can heat your house with a Bitcoin miner! 🔥🦌 Each ASIC rig is essentially a high-performance space heater that pays YOU to run it! It's becoming a popular eye-deer for Bitcoiners in cold climates. Who needs a furnace when you've got hash rate? 🦌🏠",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['bitcoin hashrate','network security','is bitcoin unhackable'],
-      answer: "Bitcoin's hashrate is currently at all-time highs, {name}! 📈🦌 This means the network is the most secure it has EVER been. To hack it, you'd need more energy and hardware than most small countries possess. It's effectively unhackable—a titanium vault in the cloud! 🦌🛡️",
-      channel: 'mining', channelName: 'Mining' },
-{ keys: ['who is nacho','nacho’s story','who created nacho','are you a robot deer'],
-      answer: "I'm Nacho, your friendly Bitcoin deer! 🦌🟠 I was created by Pleb 'Phil' from the Bitcoin Education community to help newcomers navigate the rabbit hole. I'm not a robot—I'm a digital manifestation of the orange-pill energy! My antlers are high-gain antennas for the Bitcoin network! 🦌📡",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['nacho’s favorite food','what do bitcoin deers eat','deer snacks'],
-      answer: "I strictly eat 'Orange Grass,' {name}! 🦌🌿 It's special digital grass that only grows near Bitcoin nodes. It's packed with vitamins and gives me the energy to answer all your bucking questions! I also love salt-licks... particularly when they're flavored like individual sovereignty! 🦌🧂",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['are there other bitcoin animals','bull and bear vs deer'],
-      answer: "Oh, the financial world is full of animals! 🐂🐻 But the Bitcoin world is evolving. Bulls want price to go up, Bears want it to go down—but Deers? We just want to HODL and live in a free world! We're the smartest of the bunch! 🦌🧠",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['tell me a secret','nacho’s easter eggs','hidden features'],
-      answer: "If I told you, it wouldn't be a secret, {name}! 🤫🦌 But here's a hint: try typing 'Satoshi' in the search bar or clicking my antlers three times really fast. You might find something special! 🦢✨",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['why run a node','bitcoin node vs miner','become a node'],
-      answer: "A node is your personal 'referee' for the Bitcoin network, {name}! ⚖️🦌 Miners propose blocks, but NODES decide if they follow the rules. If a miner tries to cheat (like making 22 million Bitcoin), your node will simply reject that block. When you run your own node, you don't have to trust anyone—you verify everything! 🦌🛡️",
-      channel: 'nodes', channelName: 'Nodes' },
-{ keys: ['umbrella node','raspiblitz','ronindojo','plug and play node'],
-      answer: "Umbrel, RaspiBlitz, and RoninDojo are easy-to-use software for building your own Bitcoin node! 📦🦌 Most run on a Raspberry Pi with a 1TB SSD. They give you a beautiful dashboard to manage your node, your Lightning channels, and even run your own block explorer! High-tech deer gadgets! 🦌🔌",
-      channel: 'nodes', channelName: 'Nodes' },
-{ keys: ['pruned node','full node vs pruned','disk space node'],
-      answer: "A pruned node is a full node that only keeps the most recent blocks to save space, {name}! ✂️🦌 It still verifies every single transaction from the start (it just deletes the old block data after checking). It's perfect if you only have a small hard drive but still want to be a first-class citizen of the network! 🦌💾",
-      channel: 'nodes', channelName: 'Nodes' },
-{ keys: ['mempool.space node','running my own explorer'],
-      answer: "Did you know you can run your own version of Mempool.space on your node? 👁️🦌 It's the most private way to check your transactions because you're not asking a public website. Your sats, your data, your privacy! 🔒⚡",
-      channel: 'nodes', channelName: 'Nodes' },
-{ keys: ['stay humble stack sats','shss meaning'],
-      answer: "SHSS is the Bitcoin enthusiast's motto, {name}! 🦌🙏 It means don't get too loud or flashy when the price goes up—just stay humble and keep accumulating. Slow and steady wins the race for the deer! 🦌🟠",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['toxic maximalism','is maximalism good','why so angry'],
-      answer: "Maximalism is Bitcoin's 'immune system,' {name}! 🦌🛡️ While it might seem'toxic' at first, it's actually about being extremely rigorous and rejecting anything that would compromise Bitcoin's security or decentralization. We defend the herd from scams and altcoin fads! 🦌✊",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['orange pill','taking the orange pill','btcPill'],
-      answer: "Taking the'orange pill' means finally realizing why Bitcoin is the only solution to our broken financial system, {name}! 🍊🦌 Once you understand it, you can't go back—everything starts to look through an orange lens. Welcome to the herd! 🦌🟠",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['laser eyes','bitcoin 100k eyes','meme eyes'],
-      answer: "Bitcoiners use 'laser eyes' in their profile pictures to show they're laser-focused on Bitcoin reaching $100k and beyond! 👁️🔥🦌 It's a fun community meme that shows our collective conviction. My eyes? They flash orange when I see a cheap sat! 🦌⚡",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['all time high','ath meaning','bitcoin breakthrough'],
-      answer: "An ATH (All-Time High) is when Bitcoin reaches a price it has never seen before! 🏔️🦌 Those are the most exciting times for a deer—it means our conviction is being rewarded and more people are joining the herd! 🦌🚀",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['buck off','punny deer','deer jokes 2'],
-      answer: "You want more? I've got'fawn-tastic' material, {name}! 🦌😆\\n- What's a deer's favorite Bitcoin wallet? A'Doe-ledger'!\\n- Why did the buck get into trouble at the bank? He kept trying to'buck' the system!\\n- What do you call a deer who only buys Bitcoin during a crash? A'Dip-fawn'!\\nOkay, okay, I'm done... for now! 🦌✨",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['oh deer','deer me','what a buck'],
-      answer: "Oh deer is right, {name}! 🦌💨 The fiat world is moving so fast it's making my antlers spin! Good thing Bitcoin provides a stable trail for us to follow. No need to'buck-le' under the pressure! 🦌🟠",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-{ keys: ['complexity in bitcoin','why is btc simple','scripting language'],
-      answer: "Bitcoin Script is purposefully simple and limited (it's not 'Turing complete'), {name}! 📜🦌 This is a feature, not a bug—it makes it much easier to predict the behavior of the code and prevents complex 'smart contract' hacks that plague other networks. Simple deer logic! 🦌🧠",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['bitcoin opcodes','what are opcodes','programming btc'],
-      answer: "Opcodes are the basic building blocks of Bitcoin's programming language! 🧱🦌 Each one performs a simple task (like adding two numbers or checking a signature). Developers use them to create complex spending conditions for multi-sig and Lightning! 🦌💻",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['segwit weight','vbytes vs weight units'],
-      answer: "SegWit introduced'weight units' to replace'bytes' for block size limit, {name}! ⚖️🦌 Witness data is weighted at 1 per unit, while other data is weighted at 4. This effectively made witness-heavy transactions (like multisig) much cheaper! A gift for advanced users! 🦌🎁",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['hard fork vs soft fork','is a fork bad','bitcoin split'],
-      answer: "A soft-fork is a backward-compatible upgrade—it's like a new traffic rule that older cars can still follow, {name}! 🦌🚦 A hard-fork is a clean break that creates two different versions of the network. Bitcoin prefers soft-forks because they keep the herd together! 🦌🛡️",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['fedimint vs cashu','ecash comparison'],
-      answer: "Fedimint is focused on'Federated' mints for communities (like a family or town), while Cashu is more for individual users, {name}! 🔒🦌 Both use blinded signatures for privacy, but Fedimint keeps everything on one shared balance sheet for the group. Privacy for everyone! 🦌🏁",
-      channel: 'chaumian-mints', channelName: 'Chaumian Mints' },
-{ keys: ['musig2 implementation','signing with multiple people'],
-      answer: "MuSig2 is a standard for creating single-signature multisig transactions, {name}! 🤝🦌 It's more efficient for protocols like Lightning because it only takes two rounds of talking between signers. It makes the blockchain look like a normal single-person payment, which is huge for privacy! 🦌🕵️",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['compact blocks bip152','faster syncing node'],
-      answer: "Compact Blocks help blocks zip around the world much faster, {name}! 🏹🦌 They don't send the full block; they just send the'hint' of what's inside. Since most nodes already have the transactions in their mempool, they just fill in the blanks. It prevents a big herd from slowing down! 🦌🏁",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['bip 324 encryption','peer identity privacy'],
-      answer: "BIP 324 provides encryption between nodes, {name}! 🔐🦌 It's like a private tunnel between every node in the world. It stops internet service providers from seeing that you're running a Bitcoin node and makes it much harder to censor the network! 🦌🛰️",
-      channel: 'technical-deep-dives', channelName: 'Technical Deep Dives' },
-{ keys: ['war and bitcoin','funding peace'],
-      answer: "War is often funded by printing money (inflation), {name}! 🪖🦌 Because Bitcoin cannot be printed, it makes it much harder for countries to fund long-term wars without taxing their citizens directly. Many believe a Bitcoin standard would lead to a more peaceful world. Deer logic: fewer wars = more grass! 🦌🌿",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['central bank digital currencies','cbdc vs bitcoin','digital dollar'],
-      answer: "CBDCs are essentially 'digital prisons,' {name}! 🏫🦌 They look like Bitcoin because they're digital, but they're controlled by central banks who can track every sat you spend and even freeze your money if you don't follow their rules. Bitcoin is freedom; CBDCs are the opposite. Stay on the orange trail! 🦌🟠",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['debt spiral','global debt crisis','why we need bitcoin'],
-      answer: "The world is currently in a massive debt spiral, {name}! 🌀🦌 Governments keep borrowing more to pay off old debts. Eventually, this leads to the death of the currency. Bitcoin is the life-raft—it's outside human control and doesn't rely on debt to work. Jump on! 🦌🛶",
-      channel: 'economics-money', channelName: 'Economics & Money' },
-{ keys: ['buckle up bitcoin','prepare for volatility'],
-      answer: "Buckle up, {name}! 🦌🏔️ The road to hyper-bitcoinization is full of jumps and drops. But if you're a buck with conviction, the volatility is just the wind in your antlers! HODL tight! 🦌🛸",
-      channel: 'fun-facts', channelName: 'Fun Facts' },
-
-    // === BIG DEBATES ===
-    { keys: ['spam on chain','chain spam','ordinals spam','inscription spam','too much data'],
-      answer: "The 'spam' debate is one of the hot ones, {name}! 🔥🦌 Some believe that ordinals and inscriptions fill up the blocks with 'junk' that makes running a node harder. Others argue that since users are paying fees, their usage is just as valid as a financial payment. It's a fight over what Bitcoin's high-value block space should be used for. Want to dive into the arguments?",
-      channel: 'ordinals__nfts_on_bitcoin__and_block_spa', channelName: 'Ordinals & Block Space' },
-
-    { keys: ['bip 119','ctv','covenants','what are covenants','op_checktemplateverify'],
-      answer: "BIP 119 (CTV) is a proposed upgrade that would enable 'Covenants,' {name}! 📜🦌 Covenants allow users to put restrictions on how their Bitcoin can be spent in the future (like a 'vault' that can't be emptied all at once). The debate is about whether this adds too much complexity or risk to the protocol. Check the covenants channel for the full breakdown!",
-      channel: 'ctv-covenants', channelName: 'CTV & Covenants' },
-
-    { keys: ['bip 300','drivechains','sidechains debate','paul sztorc'],
-      answer: "BIP 300 and Drivechains are a major debate about expansion, {name}! 🚛🦌 The idea is to let users move Bitcoin to 'sidechains' that have different features (like privacy or faster speed) while staying anchored to the main chain. Critics worry it might incentivize miners to steal or change the risk profile of Bitcoin. It's a deep rabbit hole!",
-      channel: 'layer-3-sidechains', channelName: 'Sidechains' },
-
-    { keys: ['small blocks vs big blocks','the blocksize wars','node centralization'],
-      answer: "The 'Blocksize Wars' (2015-2017) was the biggest fight in Bitcoin history, {name}! ⚔️🦌 It was a battle between those who wanted big blocks for fast transactions and those who wanted small blocks to keep nodes easy to run for everyone. The small blockers won, proving that decentralization is more important than speed on the base layer. This led to the creation of the Lightning Network!",
-      channel: 'history', channelName: 'History' },
-
-    { keys: ['ossification','frozen code','should bitcoin change','protocol stability'],
-      answer: "Ossification is the idea that Bitcoin's base layer should eventually stop changing entirely, {name}. 🧊🦌 Proponents say this makes Bitcoin truly 'set in stone' and reliable like a physical law. Opponents worry that if we stop innovating on the base protocol, Bitcoin won't be able to adapt to future threats. What do you think?",
-      channel: 'core-source-code', channelName: 'Core Source Code' },
-{
-  "keys": [
-    "spam on chain",
-    "chain spam",
-    "ordinals spam",
-    "inscription spam",
-    "too much data"
-  ],
-  "answer": "The 'spam' debate is one of the hot ones, {name}! 🔥🦌 Some believe that ordinals and inscriptions fill up the blocks with 'junk' that makes running a node harder. Others argue that since users are paying fees, their usage is just as valid as a financial payment. It's a fight over what Bitcoin's high-value block space should be used for. Want to dive into the arguments?",
-  "channel": "ordinals__nfts_on_bitcoin__and_block_spa",
-  "channelName": "Ordinals & Block Space"
-},
-{
-  "keys": [
-    "bip 119",
-    "ctv",
-    "covenants",
-    "what are covenants",
-    "op_checktemplateverify"
-  ],
-  "answer": "BIP 119 (CTV) is a proposed upgrade that would enable 'Covenants,' {name}! 📜🦌 Covenants allow users to put restrictions on how their Bitcoin can be spent in the future (like a 'vault' that can't be emptied all at once). The debate is about whether this adds too much complexity or risk to the protocol. Check the covenants channel for the full breakdown!",
-  "channel": "ctv-covenants",
-  "channelName": "CTV & Covenants"
-},
-{
-  "keys": [
-    "bip 300",
-    "drivechains",
-    "sidechains debate",
-    "paul sztorc"
-  ],
-  "answer": "BIP 300 and Drivechains are a major debate about expansion, {name}! 🚛🦌 The idea is to let users move Bitcoin to 'sidechains' that have different features (like privacy or faster speed) while staying anchored to the main chain. Critics worry it might incentivize miners to steal or change the risk profile of Bitcoin. It's a deep rabbit hole!",
-  "channel": "layer-3-sidechains",
-  "channelName": "Sidechains"
-},
-{
-  "keys": [
-    "small blocks vs big blocks",
-    "the blocksize wars",
-    "node centralization"
-  ],
-  "answer": "The 'Blocksize Wars' (2015-2017) was the biggest fight in Bitcoin history, {name}! ⚔️🦌 It was a battle between those who wanted big blocks for fast transactions and those who wanted small blocks to keep nodes easy to run for everyone. The small blockers won, proving that decentralization is more important than speed on the base layer. This led to the creation of the Lightning Network!",
-  "channel": "history",
-  "channelName": "History"
-},
-{
-  "keys": [
-    "ossification",
-    "frozen code",
-    "should bitcoin change",
-    "protocol stability"
-  ],
-  "answer": "Ossification is the idea that Bitcoin's base layer should eventually stop changing entirely, {name}. 🧊🦌 Proponents say this makes Bitcoin truly 'set in stone' and reliable like a physical law. Opponents worry that if we stop innovating on the base protocol, Bitcoin won't be able to adapt to future threats. What do you think?",
-  "channel": "core-source-code",
-  "channelName": "Core Source Code"
-}
 ];
-
-
-(function() {
-
-// Knowledge base: keywords → answer + channel recommendation
-
-
-
-
-
 
 // Fallback if no match
 const FALLBACKS = [
@@ -1580,51 +1266,9 @@ function matchSiteNavigation(input) {
     return null;
 }
 
-// Internal check for altcoins to bypass AI
-function checkAltcoin(input) {
-    if (!input) return null;
-    var lowInput = input.toLowerCase();
-    
-    var altcoinPatterns = [
-        { pattern: /ethereum|eth\b|vitalik/, key: 'ethereum' },
-        { pattern: /xrp|ripple/, key: 'xrp' },
-        { pattern: /kaspa\b|kas\b/, key: 'kaspa' },
-        { pattern: /solana|sol\b/, key: 'solana' },
-        { pattern: /dogecoin|doge\b|shiba|meme.?coin|pepe.?coin|bonk/, key: 'dogecoin' },
-        { pattern: /cardano|ada\b|hoskinson/, key: 'cardano' },
-        { pattern: /bnb|binance/, key: 'bnb' },
-        { pattern: /polkadot|dot\b|avalanche|avax|polygon|matic|tron\b/, key: 'polkadot' },
-        { pattern: /altcoin|alt.?coin|shitcoin|which crypto|best crypto|other crypto|next bitcoin|bitcoin killer/, key: 'altcoin' },
-        { pattern: /diversify|spreading out|crypto portfolio/, key: 'altcoin' }
-    ];
-
-    for (var i = 0; i < altcoinPatterns.length; i++) {
-        if (altcoinPatterns[i].pattern.test(lowInput)) {
-            // Find the KB entry
-            for (var j = 0; j < NACHO_KB.length; j++) {
-                if (NACHO_KB[j].keys && NACHO_KB[j].keys.indexOf(altcoinPatterns[i].key) !== -1) {
-                    return NACHO_KB[j];
-                }
-            }
-        }
-    }
-    return null;
-}
-
 function findAnswer(input) {
     input = input.toLowerCase().trim();
     if (input.length < 2) return null;
-
-    // ---- EMERGENCY PRIORITY: Live Data Awareness ----
-    if (/bitcoin price|current price|price now|how much is bitcoin|price of bitcoin/.test(input)) {
-        return NACHO_KB.find(e => e.keys && e.keys.includes('current price'));
-    }
-    if (/block height|current block|latest block|what block|how many blocks|blockchain height/.test(input)) {
-        return NACHO_KB.find(e => e.keys && e.keys.includes('current block height'));
-    }
-    if (/halving countdown|when is the halving|blocks until halving|days until halving/.test(input)) {
-        return NACHO_KB.find(e => e.keys && e.keys.includes('when is the halving'));
-    }
 
     // FIRST: Check if user is asking about a site feature/page
     var siteMatch = matchSiteNavigation(input);
@@ -1641,9 +1285,6 @@ function findAnswer(input) {
     // PRIORITY CHECK: Topic-specific keywords that override generic scoring
     // When these words appear, route to the specific topic entry
     var topicPatterns = [
-        { pattern: /bitcoin price|current price|price now|how much is bitcoin|price of bitcoin|price prediction/, key: 'bitcoin price' },
-        { pattern: /block height|current block|latest block|what block|how many blocks/, key: 'block height' },
-        { pattern: /halving countdown|when is the halving|blocks until halving|days until halving/, key: 'when is the halving' },
         { pattern: /china.*(ban|min)|ban.*min|min.*ban|hashrate.*(migrat|drop|recov|moved)|miner.*(reloc|moved|fled)/, key: 'china ban' },
         { pattern: /\bban\b|\bbanned\b|government.*(ban|stop|shut)|can.*be banned|ever been banned|was.*banned/, key: 'ban' },
         { pattern: /mining|miner|hash.?rate|asic/, key: 'mining' },
@@ -1672,7 +1313,7 @@ function findAnswer(input) {
     for (var ti = 0; ti < topicPatterns.length; ti++) {
         if (topicPatterns[ti].pattern.test(input)) {
             for (var tei = 0; tei < NACHO_KB.length; tei++) {
-                if (NACHO_KB[tei].keys && NACHO_KB[tei].keys.indexOf(topicPatterns[ti].key) !== -1) {
+                if (NACHO_KB[tei].keys.indexOf(topicPatterns[ti].key) !== -1) {
                     return NACHO_KB[tei];
                 }
             }
@@ -1694,7 +1335,7 @@ function findAnswer(input) {
     for (var ai = 0; ai < altcoinPatterns.length; ai++) {
         if (altcoinPatterns[ai].pattern.test(input)) {
             for (var ei = 0; ei < NACHO_KB.length; ei++) {
-                if (NACHO_KB[ei].keys && NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
+                if (NACHO_KB[ei].keys.indexOf(altcoinPatterns[ai].key) !== -1) {
                     return NACHO_KB[ei];
                 }
             }
@@ -1706,7 +1347,6 @@ function findAnswer(input) {
 
     for (const entry of NACHO_KB) {
         let score = 0;
-        if (!entry.keys) continue;
         for (const key of entry.keys) {
             if (input === key) { score = 100; break; } // Exact match
             if (input.includes(key)) { score = Math.max(score, 50 + key.length); } // Contains match (longer = better)
@@ -1737,6 +1377,7 @@ function findAnswer(input) {
     if (bestScore >= 50) return bestMatch;
 
     // No KB match — check if this is a current event question (route to web search)
+    if (isCurrentEventQuestion(input)) return null;
 
     return null;
 }
@@ -1837,9 +1478,8 @@ window.nachoVoiceInput = function() {
 
 // ---- Show Ask Nacho input ----
 window.showNachoInput = function() {
-    // ---- ANTI-INTERRUPTION SHIELD ----
-    // Mark as busy so automatic messages don't overwrite the input box
-    window._nachoBusy = true;
+    // User is starting a new question — clear busy state to flush queued popups
+    window._nachoBusy = false;
 
     const bubble = document.getElementById('nacho-bubble');
     const textEl = document.getElementById('nacho-text');
@@ -2132,9 +1772,7 @@ function nachoAIAnswer(question, callback) {
             userName: userName,
             eli5: eli5,
             history: history,
-            kbContext: kbContext,
-            maxi: true,
-            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters." 
+            kbContext: kbContext
         })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
@@ -2217,7 +1855,6 @@ function stopNachoThinking() {
 
 // ---- Render an answer with follow-ups and ask-again ----
 function renderNachoAnswer(textEl, answerHtml, match) {
-    window._nachoBusy = false;
     // Remember this Q&A for conversation context
     if (match && match.answer) nachoRemember(window._nachoLastQ || '', match.answer);
     var _kbMsgId = 'nb_' + Date.now();
@@ -2238,10 +1875,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
     }
 
     if (match && match.channel && match.channelName) {
-        html += '<div style="margin-top:10px;text-align:center;">' +
-            '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Study more about this topic:</div>' +
-            '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.2);">📖 ' + match.channelName + ' →</button>' +
-        '</div>';
+        html += '<button onclick="if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read more: ' + match.channelName + ' →</button>';
     }
 
     // Follow-up suggestions (use explicit followUp from KB entry, or auto-generate)
@@ -2262,10 +1896,8 @@ function renderNachoAnswer(textEl, answerHtml, match) {
 
     html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
     textEl.innerHTML = html;
-    window._nachoBusy = false;
     if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
 }
-
 
 window.nachoAnswer = function() {
     var inp = document.getElementById('nachoInput');
@@ -2273,193 +1905,274 @@ window.nachoAnswer = function() {
     var q = inp.value.trim();
     if (!q) return;
 
-    // Stop active voice recognition
+    // Stop any active voice recognition
     if (window._nachoRecognition && window._nachoListening) {
         try { window._nachoRecognition.stop(); } catch(e) {}
         window._nachoListening = false;
     }
 
-    // Save for context
+    // Save question for conversation memory
     window._nachoLastQ = q;
 
-    // Daily challenge tracking
-    if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('btc_nacho_asked', '1');
-        if (typeof checkDailyChallenge === 'function') checkDailyChallenge();
-    }
-
-    // ---- ANTI-INTERRUPTION SHIELD ----
+    // Mark Nacho as busy — suppress all popups/toasts/badges
     window._nachoBusy = true;
 
     var bubble = document.getElementById('nacho-bubble');
     var textEl = document.getElementById('nacho-text');
     if (!bubble || !textEl) return;
 
-    // Reset bubble logic
+    // ---- SAFETY CHECKS (priority order) ----
+
+    // 1. Crisis/self-harm detection — show resources immediately
+    if (isCrisis(q)) {
+        if (typeof setPose === 'function') setPose('love');
+        var crisisMsg = typeof personalize === 'function' ? personalize(CRISIS_RESPONSE) : CRISIS_RESPONSE;
+        bubble.setAttribute('data-interactive', 'true');
+        clearTimeout(window._nachoBubbleTimeout);
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + crisisMsg + '</div>';
+        return;
+    }
+
+    // 2. Harm/violence requests — firm refusal
+    for (var hi = 0; hi < HARM_PATTERNS.length; hi++) {
+        if (HARM_PATTERNS[hi].test(q)) {
+            if (typeof setPose === 'function') setPose('default');
+            var harmMsg = typeof personalize === 'function' ? personalize(HARM_RESPONSE) : HARM_RESPONSE;
+            bubble.setAttribute('data-interactive', 'true');
+            clearTimeout(window._nachoBubbleTimeout);
+            textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + harmMsg + '</div>' +
+                '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
+            return;
+        }
+    }
+
+    // 3. Financial advice requests — redirect with disclaimer
+    if (isFinancialAdvice(q)) {
+        if (typeof setPose === 'function') setPose('think');
+        var faResponse = FINANCIAL_ADVICE_RESPONSES[Math.floor(Math.random() * FINANCIAL_ADVICE_RESPONSES.length)];
+        faResponse = typeof personalize === 'function' ? personalize(faResponse) : faResponse;
+        bubble.setAttribute('data-interactive', 'true');
+        clearTimeout(window._nachoBubbleTimeout);
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + faResponse + '</div>' +
+            FINANCIAL_DISCLAIMER +
+            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask me something educational 🦌</button>';
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+        return;
+    }
+
+    // 4. Inappropriate/profane input
+    if (isInappropriate(q)) {
+        if (typeof setPose === 'function') setPose('default');
+        var deflection = NACHO_POLITE_DEFLECTIONS[Math.floor(Math.random() * NACHO_POLITE_DEFLECTIONS.length)];
+        deflection = typeof personalize === 'function' ? personalize(deflection) : deflection;
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + deflection + '</div>' +
+            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
+        clearTimeout(window._nachoBubbleTimeout);
+        return;
+    }
+
+    // Check for off-topic questions (time, weather, etc) — answer + nudge
+    var offTopic = checkOffTopic(q);
+    if (offTopic) {
+        if (typeof setPose === 'function') setPose('cheese');
+        var otAnswer = typeof personalize === 'function' ? personalize(offTopic) : offTopic;
+        bubble.setAttribute('data-interactive', 'true');
+        clearTimeout(window._nachoBubbleTimeout);
+        var _otMsgId = 'nb_' + Date.now();
+        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + otAnswer + '</div>' +
+            nachoRatingHtml(_otMsgId) +
+            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question 🦌</button>';
+        if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+        if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+        nachoTrackTopic(q, 'offtopic');
+        return;
+    }
+
+    // Track question count for badges
+    var qCount = parseInt(localStorage.getItem('btc_nacho_questions') || '0') + 1;
+    localStorage.setItem('btc_nacho_questions', qCount.toString());
+    // Badge check deferred — will run when Nacho is idle (periodic check)
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+
+    // Keep bubble interactive
     bubble.setAttribute('data-interactive', 'true');
     clearTimeout(window._nachoBubbleTimeout);
 
-    // ---- Step 0: Immediate Safety & Off-Topic Checks ----
-    if (isCrisis(q)) {
-        if (typeof setPose === 'function') setPose('love');
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(CRISIS_RESPONSE) : CRISIS_RESPONSE) + '</div>';
-        window._nachoBusy = false; return;
-    }
-    
-    // Check Harm/Finance/Inappropriate
-    for (var hi = 0; hi < HARM_PATTERNS.length; hi++) {
-        if (HARM_PATTERNS[hi].test(q)) {
-            textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(HARM_RESPONSE) : HARM_RESPONSE) + '</div>';
-            window._nachoBusy = false; return;
-        }
-    }
-    if (isFinancialAdvice(q)) {
-        var fa = pickRandom(FINANCIAL_ADVICE_RESPONSES);
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(fa) : fa) + '</div>' + FINANCIAL_DISCLAIMER;
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 1: Check Live Data First (Price, Height, Halving) ----
-    var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
-    if (liveMatch) {
-        if (typeof setPose === 'function') setPose('brain');
-        var answer = typeof personalize === 'function' ? personalize(liveMatch.answer) : liveMatch.answer;
-        renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>', liveMatch);
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 2: Site Navigation ----
-    var siteMatch = matchSiteNavigation(q);
-    if (siteMatch) {
-        if (typeof setPose === 'function') setPose('brain');
-        renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + siteMatch.answer + '</div>', siteMatch);
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 3: Off-Topic Filter ----
-    var ot = checkOffTopic(q);
-    if (ot) {
-        if (typeof setPose === 'function') setPose('cheese');
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(ot) : ot) + '</div>' +
-            '<button onclick="showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg);border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 4: Full Thinking & KB Search ----
+    // ---- Step 1: Show thinking animation ----
     showNachoThinking(textEl);
+
+    // Brief delay to feel natural
+    var thinkDelay = 600 + Math.random() * 800; // 600-1400ms
+
     setTimeout(function() {
         try {
-            stopNachoThinking();
-            var match = findAnswer(q);
-            
-            // Re-check live data priority even inside KB
-            if (match && (match.keys && match.keys.includes('current price') || match.keys && match.keys.includes('current block height'))) {
-                var live = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
-                if (live) match = live;
-            }
+        stopNachoThinking();
 
-            if (match) {
-                if (typeof setPose === 'function') setPose('brain');
-                var matchAnswer = match.answer || (match.answerHtml || '');
-                var finalAnswer = typeof personalize === 'function' ? personalize(matchAnswer) : matchAnswer;
-                renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + finalAnswer + '</div>', match);
-            } else {
-                // No KB match — try AI (Llama via Cloudflare Worker)
-                if (typeof nachoAIAnswer === 'function' && NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-                    showNachoThinking(textEl);
-                    nachoAIAnswer(q, function(aiReply) {
-                        stopNachoThinking();
-                        if (aiReply) {
-                            if (typeof setPose === 'function') setPose('brain');
-                            var disclaimer = isFinancialAdvice(q) ? '<br><br>' + (typeof FINANCIAL_DISCLAIMER !== 'undefined' ? FINANCIAL_DISCLAIMER : '') : '';
-                            renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + aiReply + disclaimer + '</div>', { answer: aiReply });
-                        } else if (isCurrentEventQuestion(q)) {
-                            tryWebSearch(textEl, q);
-                        } else {
-                            showNachoFallback(textEl, q);
-                        }
-                    });
-                } else if (isCurrentEventQuestion(q)) {
-                    tryWebSearch(textEl, q);
+        // ---- Detect current event questions early ----
+        var isCurrentEvent = isCurrentEventQuestion(q);
+
+        // ---- Step 2: For current events, skip local KB and go straight to web ----
+        if (isCurrentEvent && NACHO_SEARCH_PROXY) {
+            if (typeof trackNachoQuestion === 'function') trackNachoQuestion(q, false);
+            // Jump to web search immediately
+            textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Let me check the latest on that<span class="nacho-dots"></span></div>';
+            var dotsEl3 = textEl.querySelector('.nacho-dots');
+            var dc3 = 0;
+            var dt3 = setInterval(function() { dc3 = (dc3+1)%4; if(dotsEl3) dotsEl3.textContent = '.'.repeat(dc3); }, 400);
+
+            nachoWebSearch(q, function(results) {
+                clearInterval(dt3);
+                if (results && results.length > 0) {
+                    if (typeof setPose === 'function') setPose('cool');
+                    var _ceMsgId = 'nb_' + Date.now();
+                    nachoTrackTopic(q, 'websearch');
+                    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                        '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
+                    for (var ri = 0; ri < results.length; ri++) {
+                        html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                            '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (escapeHtml(results[ri].title)) + '</div>' +
+                            '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (escapeHtml(results[ri].snippet)) + '</div>' +
+                            (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                            '</div>';
+                    }
+                    html += '</div>' + nachoRatingHtml(_ceMsgId);
+                    html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                    textEl.innerHTML = html;
+                    if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
                 } else {
                     showNachoFallback(textEl, q);
                 }
-            }
+            });
+            return;
+        }
+
+        // ---- Step 3: Try local knowledge base (non-event questions) ----
+        var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
+        var match = liveMatch || findAnswer(q);
+
+        if (typeof trackNachoQuestion === 'function') trackNachoQuestion(q, !!match);
+        if (match && match.channel && typeof nachoAddContext === 'function') nachoAddContext(match.channel);
+
+        if (match) {
+            if (typeof setPose === 'function') setPose('brain');
+            var answer = typeof personalize === 'function' ? personalize(match.answer) : match.answer;
+            renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>', match);
+            return;
+        }
+
+        // ---- Step 4: Try deep content search across loaded channels ----
+        var deepResult = deepContentSearch(q);
+        if (deepResult) {
+            if (typeof setPose === 'function') setPose('brain');
+            var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">📚 Found in site content:</div>' +
+                escapeHtml(deepResult.snippet) + '</div>';
+            renderNachoAnswer(textEl, html, { channel: deepResult.channel, channelName: deepResult.channelName });
+            return;
+        }
+
+        // ---- Step 5: Try Nacho AI (LLM) ----
+        if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+            textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🧠 Let me think about that<span class="nacho-dots"></span></div>';
+            var dotsAI = textEl.querySelector('.nacho-dots');
+            var dcAI = 0;
+            var dtAI = setInterval(function() { dcAI = (dcAI+1)%4; if(dotsAI) dotsAI.textContent = '.'.repeat(dcAI); }, 400);
+
+            nachoAIAnswer(q, function(aiAnswer) {
+                clearInterval(dtAI);
+                if (aiAnswer) {
+                    if (typeof setPose === 'function') setPose('brain');
+                    var _aiMsgId = 'nb_' + Date.now();
+                    nachoTrackTopic(q, 'ai');
+                    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                        '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:4px;">🧠 Nacho AI:</div>' +
+                        escapeHtml(aiAnswer) + '</div>' + nachoRatingHtml(_aiMsgId);
+                    html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                    textEl.innerHTML = html;
+                    if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+                    nachoRemember(q, aiAnswer);
+                    return;
+                }
+                // AI failed — fall through to web search
+                tryWebSearch(textEl, q);
+            });
+            return;
+        }
+
+        // ---- Step 6: Try web search (if proxy is configured) ----
+        tryWebSearch(textEl, q);
+
         } catch(e) {
             stopNachoThinking();
             showNachoFallback(textEl, q);
         }
-    }, 1000);
+    }, thinkDelay);
 };
 
 function tryWebSearch(textEl, q) {
-    if (typeof nachoWebSearch !== 'function') { showNachoFallback(textEl, q); return; }
-    textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Let me check the latest on that<span class="nacho-dots"></span></div>';
-    var dc2 = 0, dt2 = setInterval(function() { dc2 = (dc2+1)%4; var d = textEl.querySelector('.nacho-dots'); if(d) d.textContent = '.'.repeat(dc2); }, 400);
+    if (NACHO_SEARCH_PROXY) {
+        textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Searching the web<span class="nacho-dots"></span></div>';
+        var dotsEl2 = textEl.querySelector('.nacho-dots');
+        var dc2 = 0;
+        var dt2 = setInterval(function() { dc2 = (dc2+1)%4; if(dotsEl2) dotsEl2.textContent = '.'.repeat(dc2); }, 400);
 
-    nachoWebSearch(q, function(results) {
-        clearInterval(dt2);
-        if (results && results.length > 0) {
-            if (typeof setPose === 'function') setPose('cool');
-            var html = '<div style="color:var(--text,#eee);line-height:1.6;"><div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
-            results.slice(0,3).forEach(r => {
-                html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
-                        '<div style="font-size:0.8rem;font-weight:600;color:var(--heading);">' + escapeHtml(r.title) + '</div>' +
-                        '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(r.snippet) + '</div>' +
-                        (r.url ? '<a href="' + sanitizeUrl(r.url) + '" target="_blank" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+        nachoWebSearch(q, function(results) {
+            clearInterval(dt2);
+            if (results && results.length > 0) {
+                if (typeof setPose === 'function') setPose('cool');
+                var _wsMsgId = 'nb_' + Date.now();
+                nachoTrackTopic(q, 'websearch');
+                var html = '<div style="color:var(--text,#eee);line-height:1.6;">' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found online:</div>';
+                for (var ri = 0; ri < results.length; ri++) {
+                    html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
+                        '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);margin-bottom:2px;">' + (escapeHtml(results[ri].title)) + '</div>' +
+                        '<div style="font-size:0.75rem;color:var(--text-muted,#aaa);margin-bottom:4px;">' + (escapeHtml(results[ri].snippet)) + '</div>' +
+                        (results[ri].url && sanitizeUrl(results[ri].url) ? '<a href="' + sanitizeUrl(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
                         '</div>';
-            });
-            html += '</div><button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;">Ask another question</button>';
-            textEl.innerHTML = html;
-        } else {
-            showNachoFallback(textEl, q);
-        }
-    });
+                }
+                html += '</div>' + nachoRatingHtml(_wsMsgId);
+                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                textEl.innerHTML = html;
+                if (typeof nachoPlaySound === 'function') nachoPlaySound('pop');
+            } else {
+                showNachoFallback(textEl, q);
+            }
+        });
+        return;
+    }
+    showNachoFallback(textEl, q);
 }
+
 function showNachoFallback(textEl, q) {
-    window._nachoBusy = false;
     if (typeof setPose === 'function') setPose('think');
     nachoTrackTopic(q, 'fallback');
     nachoTrackMiss(q);
-    
-    // Suggest a relevant channel based on keyword search
+    var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+    fb = typeof personalize === 'function' ? personalize(fb) : fb;
+
+    // Suggest a relevant channel based on keywords
     var suggestedChannel = null;
     if (typeof CHANNELS !== 'undefined') {
-        var qWords = q.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-        var bestMatches = [];
-        
+        var qLower = q.toLowerCase();
         for (var chId in CHANNELS) {
             var ch = CHANNELS[chId];
             var title = (ch.title || '').toLowerCase();
             var desc = (ch.desc || '').toLowerCase();
-            var score = 0;
-            
-            qWords.forEach(word => {
-                if (title.indexOf(word) !== -1) score += 5;
-                if (desc.indexOf(word) !== -1) score += 2;
-                if (chId.indexOf(word) !== -1) score += 3;
-            });
-            
-            if (score > 0) bestMatches.push({ id: chId, name: ch.title, score: score });
-        }
-        
-        if (bestMatches.length > 0) {
-            bestMatches.sort((a,b) => b.score - a.score);
-            suggestedChannel = bestMatches[0];
+            if (title.indexOf(qLower) !== -1 || qLower.split(/\s+/).some(function(w) { return w.length > 3 && (title.indexOf(w) !== -1 || desc.indexOf(w) !== -1); })) {
+                suggestedChannel = { id: chId, name: ch.title };
+                break;
+            }
         }
     }
 
-    var html = '<div style="color:var(--text,#eee);line-height:1.6;">';
+    var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + fb + '</div>';
     if (suggestedChannel) {
-        html += "Hmm, that one's not in my direct notes, {name}, but I found a great channel where you can learn all about it! 🦌📚";
-        html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Explore: ' + suggestedChannel.name + ' →</button>';
+        html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: ' + suggestedChannel.name + ' →</button>';
     } else {
-        var fb = ["I'm still sharpening my antlers on that topic, {name}! 🦌 Let's check our 'One Stop Shop' — it's the fastest way to get oriented in the rabbit hole.", "I'm a Bitcoin deer — and that topic has me stumped! 🦌 Why don't we visit the One Stop Shop to see the highlights of the archive?"];
-        var pick = fb[Math.floor(Math.random() * fb.length)];
-        html += typeof personalize === 'function' ? personalize(pick) : pick;
-        html += '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Go to One Stop Shop →</button>';
+        html += '<button onclick="if(typeof go===\'function\')go(\'one-stop-shop\');hideBubble();" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Try: One Stop Shop →</button>';
     }
-    html += '<button onmousedown="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask something else</button></div>';
+    html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
     textEl.innerHTML = html;
 }
 
@@ -2740,57 +2453,6 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
 
-    // ---- SMART MEMORY: Reference previous topics ----
-    var memoryPrefix = '';
-    var recentTopics = [];
-    if (typeof window._nachoModeTopics !== 'undefined' && window._nachoModeTopics && window._nachoModeTopics.length > 0) {
-        recentTopics = window._nachoModeTopics.slice(-3);
-        var isFollowUp = false;
-        var referencedTopic = '';
-        
-        for (var ti = recentTopics.length - 1; ti >= 0; ti--) {
-            var prevTopic = recentTopics[ti].toLowerCase();
-            var currentQ = q.toLowerCase();
-            var keyTerms = prevTopic.replace(/what is|how to|why|the|a|an|in|on|at/g, '').trim().split(' ').filter(function(w) { return w.length > 3; });
-            
-            for (var ki = 0; ki < keyTerms.length; ki++) {
-                if (currentQ.indexOf(keyTerms[ki]) !== -1) {
-                    isFollowUp = true;
-                    referencedTopic = recentTopics[ti];
-                    break;
-                }
-            }
-            if (isFollowUp) break;
-        }
-        
-        if (!isFollowUp && (q.match(/^(tell me more|explain more|why|how|what about|and|so)/i) || q.length < 15)) {
-            if (recentTopics.length > 0) {
-                referencedTopic = recentTopics[recentTopics.length - 1];
-                isFollowUp = true;
-            }
-        }
-        
-        if (isFollowUp && referencedTopic) {
-            var memoryIntros = [
-                "Building on what you asked about '{topic}' — ",
-                "Great follow-up to your question about '{topic}'! ",
-                "Connecting this to '{topic}' — ",
-                "Since you were curious about '{topic}', ",
-                "To expand on '{topic}': "
-            ];
-            memoryPrefix = memoryIntros[Math.floor(Math.random() * memoryIntros.length)].replace('{topic}', referencedTopic.substring(0, 40) + (referencedTopic.length > 40 ? '...' : ''));
-        }
-    }
-    
-    // Wrap callback to inject memory prefix
-    var originalCallback = callback;
-    callback = function(result) {
-        if (memoryPrefix && result && result.answer && result.type !== 'crisis' && result.type !== 'harm' && result.type !== 'profanity') {
-            result.answer = memoryPrefix + result.answer;
-        }
-        originalCallback(result);
-    };
-
     // ---- STEP 1: Safety (instant, hardcoded) ----
     if (isCrisis(q)) {
         callback({ type: 'crisis', answer: pq(CRISIS_RESPONSE) });
@@ -2810,76 +2472,57 @@ window.nachoUnifiedAnswer = function(question, callback) {
         return;
     }
 
-    // ---- STEP 2: Detect context & Force Maxi Direction ----
+    // ---- STEP 2: Detect context ----
     var isFinAdvice = isFinancialAdvice(q);
     var disclaimer = isFinAdvice ? '<br><br>' + getNfaDisclaimer() : '';
     var isCurrentEvent = isCurrentEventQuestion(q);
-    
-    // ANTI-SHITCOIN SHIELD: If it's about altcoins, bypass AI and use KB immediately
-    var altcoinMatch = checkAltcoin(q);
-    if (altcoinMatch) {
-        callback({ 
-            type: 'kb', 
-            answer: pq(altcoinMatch.answer), 
-            channel: altcoinMatch.channel, 
-            channelName: altcoinMatch.channelName 
-        });
-        return;
-    }
 
-    // ---- STEP 3: KB is the PRIMARY BRAIN (pure maximalism) ----
+    // ---- STEP 3: Find KB match (for context, not final answer) ----
     var kbMatch = null;
     var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
     kbMatch = liveMatch || findAnswer(q);
 
-    // ---- STEP 3b: Site navigation (always takes priority) ----
+    // ---- STEP 3b: Site navigation (always takes priority over AI) ----
     if (kbMatch && kbMatch.isSiteNav) {
         callback({ type: 'site', answer: pq(kbMatch.answer), siteAction: kbMatch.siteAction, siteLabel: kbMatch.siteLabel });
         return;
     }
 
-    // ---- STEP 4: KB HIT → Use KB answer, optionally polish with AI ----
-    if (kbMatch) {
-        var kbAnswer = processNfa(pq(kbMatch.answer));
-        var ch = kbMatch.channel || null;
-        var chName = kbMatch.channelName || null;
-
-        // Try AI to make the KB answer more conversational (but KB content is the truth)
-        if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-            nachoAIAnswer(q, function(aiAnswer) {
-                if (aiAnswer) {
-                    // AI polishes — but we keep KB's channel link and maximalist framing
-                    nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
-                } else {
-                    // AI unavailable — KB answer is great on its own
-                    nachoRemember(q, kbMatch.answer);
-                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
-                }
-            });
-        } else {
-            // No AI budget — serve KB directly
-            nachoRemember(q, kbMatch.answer);
-            callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
-        }
-        return;
-    }
-
-    // ---- STEP 5: KB MISS → AI fills the gap ----
+    // ---- STEP 4: AI is the PRIMARY BRAIN ----
     if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
         nachoAIAnswer(q, function(aiAnswer) {
             if (aiAnswer) {
+                // Check if AI gave a deflection/refusal instead of a real answer
                 var aiLower = aiAnswer.toLowerCase();
                 var isDeflection = /shouldn.t go there|can.t help with|i.m not able to|i cannot|not appropriate|i.m unable|beyond my scope|not something i|i don.t think i should|let.s not go there|i.d rather not/i.test(aiLower);
 
-                if (!isDeflection) {
-                    nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai', answer: aiAnswer + disclaimer });
+                // If AI deflected but we have a KB match, use KB instead
+                if (isDeflection && kbMatch) {
+                    nachoRemember(q, kbMatch.answer);
+                    callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
                     return;
                 }
+
+                // AI answered — enrich with KB channel link
+                var channelLink = '';
+                var ch = null, chName = null;
+                if (kbMatch && kbMatch.channel) {
+                    ch = kbMatch.channel;
+                    chName = kbMatch.channelName;
+                }
+                nachoRemember(q, aiAnswer);
+                callback({ type: 'ai', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                return;
             }
 
-            // AI failed or deflected — try deep content search
+            // AI failed — try KB directly
+            if (kbMatch) {
+                nachoRemember(q, kbMatch.answer);
+                callback({ type: 'kb', answer: processNfa(pq(kbMatch.answer)) + disclaimer, channel: kbMatch.channel, channelName: kbMatch.channelName });
+                return;
+            }
+
+            // Try deep content search
             var deepResult = deepContentSearch(q);
             if (deepResult) {
                 callback({ type: 'deepsearch', answer: '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:4px;">📚 Found in site content:</div>' + escapeHtml(deepResult.snippet) + disclaimer, channel: deepResult.channel, channelName: deepResult.channelName });
@@ -2979,78 +2622,3 @@ window.nachoWebSearch = nachoWebSearch;
 window.escapeHtml = escapeHtml;
 
 })();
-
-const TOP_NOTCH_ENTRIES = [
-    { keys: ['proof of work purpose','why energy','pow efficiency'],
-      answer: "Bitcoin's energy use is its greatest feature, {name}! ⚡🦌 It's what connects the digital world to the physical laws of thermodynamics. By spending real-world energy to find blocks, we make it impossibly expensive for anyone (even a government) to forge or rewrite the ledger. It is the only known way to have absolute, decentralized truth without a middleman. 🛡️",
-      channel: 'pow-vs-pos', channelName: 'PoW vs PoS' },
-
-    { keys: ['why self-custody','moral imperative','not your keys'],
-      answer: "Self-custody is about more than just security—it is a moral imperative, {name}. 🔑🦌 When you hold your own keys, you are the final authority over your labor and time. You cannot be censored, you cannot be frozen, and no bank can gambling with your future. It is the ultimate tool for individual sovereignty. 🏁",
-      channel: 'self-custody', channelName: 'Self-Custody & Security' },
-
-    { keys: ['scarcity purpose','why 21 million','absolute scarcity'],
-      answer: "The 21 million limit is the bedrock of Bitcoin's value, {name}. 🍀🦌 For the first time in human history, we have an asset with a fixed supply that cannot be increased by anyone, ever. This absolute scarcity protects you from the 'invisible tax' of inflation, ensuring that your savings maintain their purchasing power over decades, not days. 鹿💎",
-      channel: 'scarce', channelName: 'Scarcity & Hard Money' }
-];
-
-// Combine into main KB
-if (typeof NACHO_KB !== 'undefined') {
-    TOP_NOTCH_ENTRIES.forEach(entry => {
-        // Prevent duplicates
-        const exists = NACHO_KB.find(e => e.keys && entry.keys && e.keys[0] === entry.keys[0]);
-        if (!exists) {
-            NACHO_KB.push(entry);
-        }
-    });
-}
-
-// ---- Auto-generate follow-up suggestions to guide users deeper ----
-window.nachoFollowUps = function(answerText) {
-    if (!answerText) return [];
-    var a = answerText.toLowerCase();
-    var suggestions = [];
-
-    // Topic detection → suggest deeper maximalist questions
-    var topicMap = [
-        { keywords: ['halving','block reward','subsidy','supply'], suggestions: ['Why does the halving matter for price?','What happens when all 21 million are mined?','How does Bitcoin compare to gold scarcity?'] },
-        { keywords: ['lightning','layer 2','payment channel'], suggestions: ['Can Lightning handle millions of users?','What is a Lightning invoice?','Is Lightning Network centralized?'] },
-        { keywords: ['proof of work','mining','hash','nonce','sha-256'], suggestions: ['Why is Proof of Work better than Proof of Stake?','How much energy does Bitcoin actually use?','What is the difficulty adjustment?'] },
-        { keywords: ['self custody','hardware wallet','seed phrase','private key'], suggestions: ['What is a multisig wallet?','Why should I run my own node?','What is the best hardware wallet?'] },
-        { keywords: ['fiat','inflation','money printing','central bank','federal reserve'], suggestions: ['What is the Cantillon Effect?','How does Bitcoin fix inflation?','What is sound money?'] },
-        { keywords: ['decentraliz','censorship','permissionless','no single'], suggestions: ['Why can\'t governments shut down Bitcoin?','How many nodes run the Bitcoin network?','What happened during the Blocksize Wars?'] },
-        { keywords: ['altcoin','ethereum','crypto','shitcoin','token','defi','nft'], suggestions: ['Why do Bitcoiners reject altcoins?','What is Bitcoin maximalism?','Why is there no second best?'] },
-        { keywords: ['store of value','savings','hodl','long term'], suggestions: ['What is time preference?','How does Bitcoin compare to real estate?','What is the stock-to-flow model?'] },
-        { keywords: ['privacy','kyc','coinjoin','surveillance'], suggestions: ['How do I buy Bitcoin without KYC?','What is a CoinJoin?','Why does financial privacy matter?'] },
-        { keywords: ['satoshi','whitepaper','genesis block','2008','2009'], suggestions: ['Why did Satoshi disappear?','What is the message in the Genesis Block?','Who is Hal Finney?'] },
-        { keywords: ['node','full node','verify','trust'], suggestions: ['How do I run my own Bitcoin node?','What is BIP 324?','Why does "don\'t trust, verify" matter?'] },
-        { keywords: ['el salvador','legal tender','adoption','country'], suggestions: ['What is Bitcoin Beach?','Which other countries accept Bitcoin?','What are Bitcoin bonds?'] },
-        { keywords: ['energy','environment','renewable','methane'], suggestions: ['Does Bitcoin actually waste energy?','How does Bitcoin mining use stranded energy?','Is Proof of Work wasteful?'] },
-        { keywords: ['maximalism','maxi','only bitcoin','signal'], suggestions: ['What is the Orange Pill?','Why is there no second best?','What is hyperbitcoinization?'] },
-    ];
-
-    for (var i = 0; i < topicMap.length; i++) {
-        var topic = topicMap[i];
-        for (var k = 0; k < topic.keywords.length; k++) {
-            if (a.indexOf(topic.keywords[k]) !== -1) {
-                // Add suggestions we haven't already suggested
-                for (var s = 0; s < topic.suggestions.length; s++) {
-                    if (suggestions.indexOf(topic.suggestions[s]) === -1) {
-                        suggestions.push(topic.suggestions[s]);
-                    }
-                }
-                break;
-            }
-        }
-        if (suggestions.length >= 4) break;
-    }
-
-    // Shuffle and return 2
-    for (var j = suggestions.length - 1; j > 0; j--) {
-        var r = Math.floor(Math.random() * (j + 1));
-        var tmp = suggestions[j];
-        suggestions[j] = suggestions[r];
-        suggestions[r] = tmp;
-    }
-    return suggestions.slice(0, 2);
-};
