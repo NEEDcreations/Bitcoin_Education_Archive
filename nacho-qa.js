@@ -2179,7 +2179,7 @@ function nachoWebSearch(query, callback) {
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (!canWebSearch()) { callback(null); return; }
     incrementWebSearchCount();
-    var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin 2026 -2024 -crypto -ethereum -altcoin ' + query);
+    var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin ' + query);
     // Use AbortController with manual timeout for broader browser support
     var controller = null;
     var timeoutId = null;
@@ -2892,7 +2892,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
             if (NACHO_SEARCH_PROXY) {
                 nachoWebSearch(q, function(results) {
                     if (results && results.length > 0) {
-                        var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3|2024|2023/i;
+                        var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3/i;
                         var html = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
                         var count = 0;
                         for (var ri = 0; ri < results.length; ri++) {
