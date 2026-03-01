@@ -324,6 +324,11 @@ window.showUserProfile = function(uid) {
         
         // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
         var displayBadge = u.displayBadge || u.equippedBadge || '';
+        // Count badges
+        var badgeCount = 0;
+        if (u.visibleBadges) badgeCount += u.visibleBadges.length;
+        if (u.hiddenBadges) badgeCount += u.hiddenBadges.length;
+
         var badgesHtml = '';
         if (displayBadge) {
             // Find emoji for selected badge
