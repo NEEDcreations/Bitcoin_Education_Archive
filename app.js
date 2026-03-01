@@ -3062,7 +3062,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         window.audioEnabled = !window.audioEnabled;
         localStorage.setItem('btc_audio', window.audioEnabled.toString());
         updateAudioUI();
-        if (typeof showToast === 'function') showToast(audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
+        if (typeof showToast === 'function') showToast(window.audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
     }
     function setVolume(val) {
         window.audioVolume = parseFloat(val);
@@ -3085,9 +3085,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Update any ON/OFF toggle buttons in settings
         document.querySelectorAll('button[onclick*="toggleAudio"]').forEach(function(b) {
             if (b.textContent === 'ON' || b.textContent === 'OFF') {
-                b.textContent = audioEnabled ? 'ON' : 'OFF';
-                b.style.background = audioEnabled ? '#22c55e' : 'var(--bg-side)';
-                b.style.color = audioEnabled ? '#fff' : 'var(--text-muted)';
+                b.textContent = window.audioEnabled ? 'ON' : 'OFF';
+                b.style.background = window.audioEnabled ? '#22c55e' : 'var(--bg-side)';
+                b.style.color = window.audioEnabled ? '#fff' : 'var(--text-muted)';
             }
         });
     }
