@@ -128,14 +128,14 @@ function initTicker() {
         var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
         
         // Try live news from Cloudflare Worker
-        fetch(proxy + '?q=' + encodeURIComponent('Bitcoin news today'), { signal: AbortSignal.timeout(8000) })
+        fetch(proxy + '?q=' + encodeURIComponent('Bitcoin BTC price mining halving lightning'), { signal: AbortSignal.timeout(8000) })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.results && data.results.length >= 2) {
                     var itemsSets = document.querySelectorAll('.t-news-items');
                     if (itemsSets.length > 0) {
                         var html = '';
-                        var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3/i;
+                        var badWords = /ethereum|eth\b|solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft\b|defi\b|web3/i;
                         var count = 0;
                         data.results.forEach(function(r) {
                             if (count >= 4) return;

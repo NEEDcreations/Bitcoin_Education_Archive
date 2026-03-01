@@ -2843,16 +2843,26 @@ window.nachoUnifiedAnswer = function(question, callback) {
         var kbAnswer = processNfa(pq(kbMatch.answer));
         var ch = kbMatch.channel || null;
         var chName = kbMatch.channelName || null;
+        var _kbCallbackFired = false;
 
         // Try AI to make the KB answer more conversational (but KB content is the truth)
         if (NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
+            // Safety timeout: if AI doesn't respond in 5s, serve KB directly
+            var _kbSafetyTimer = setTimeout(function() {
+                if (!_kbCallbackFired) {
+                    _kbCallbackFired = true;
+                    nachoRemember(q, kbMatch.answer);
+                    callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+                }
+            }, 5000);
             nachoAIAnswer(q, function(aiAnswer) {
+                if (_kbCallbackFired) return; // Safety timer already fired
+                _kbCallbackFired = true;
+                clearTimeout(_kbSafetyTimer);
                 if (aiAnswer) {
-                    // AI polishes — but we keep KB's channel link and maximalist framing
                     nachoRemember(q, aiAnswer);
                     callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
                 } else {
-                    // AI unavailable — KB answer is great on its own
                     nachoRemember(q, kbMatch.answer);
                     callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
                 }
