@@ -321,7 +321,13 @@ window.showUserProfile = function(uid) {
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
         var joinDate = u.createdAt ? (u.createdAt.toDate ? u.createdAt.toDate().toLocaleDateString() : 'Unknown') : 'Unknown';
-        var displayBadge = u.displayBadge || lvl.emoji;
+        
+        // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
+        var displayBadge = u.displayBadge || u.equippedBadge || lvl.emoji;
+        if (typeof HIDDEN_BADGES !== 'undefined' && displayBadge.length > 5) {
+            var badgeDef = HIDDEN_BADGES.find(b => b.id === displayBadge);
+            if (badgeDef) displayBadge = badgeDef.emoji;
+        }
 
         // Count badges
         var badgeCount = 0;
