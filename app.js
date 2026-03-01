@@ -3022,20 +3022,20 @@ window.nachoQuizAnswer = function(btn, correct) {
     setInterval(updateSidebarTiers, 10000);
 
     // Audio system
-    let audioEnabled = localStorage.getItem('btc_audio') !== 'false';
-    let audioVolume = parseFloat(localStorage.getItem('btc_volume') || '0.5');
+    window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';
+    window.audioVolume = parseFloat(localStorage.getItem('btc_volume') || '0.5');
 
     window.canPlaySound = function() {
-        return audioEnabled && audioVolume > 0 && document.visibilityState === 'visible';
+        return window.audioEnabled && window.audioVolume > 0 && document.visibilityState === 'visible';
     };
 
-    function getVolume() { return audioEnabled ? audioVolume : 0; }
+    function getVolume() { return window.audioEnabled ? window.audioVolume : 0; }
 
     function playChannelSound() {
         if (!window.canPlaySound()) return;
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const vol = audioVolume;
+            const vol = window.audioVolume;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
@@ -3059,28 +3059,28 @@ window.nachoQuizAnswer = function(btn, correct) {
         } catch(e) {}
     }
     function toggleAudio() {
-        audioEnabled = !audioEnabled;
-        localStorage.setItem('btc_audio', audioEnabled.toString());
+        window.audioEnabled = !window.audioEnabled;
+        localStorage.setItem('btc_audio', window.audioEnabled.toString());
         updateAudioUI();
         if (typeof showToast === 'function') showToast(audioEnabled ? '🔊 Sound on' : '🔇 Sound off');
     }
     function setVolume(val) {
-        audioVolume = parseFloat(val);
-        localStorage.setItem('btc_volume', audioVolume.toString());
-        if (audioVolume <= 0) {
-            audioEnabled = false;
+        window.audioVolume = parseFloat(val);
+        localStorage.setItem('btc_volume', window.audioVolume.toString());
+        if (window.audioVolume <= 0) {
+            window.audioEnabled = false;
             localStorage.setItem('btc_audio', 'false');
-        } else if (!audioEnabled) {
-            audioEnabled = true;
+        } else if (!window.audioEnabled) {
+            window.audioEnabled = true;
             localStorage.setItem('btc_audio', 'true');
         }
         updateAudioUI();
     }
     function updateAudioUI() {
         const btn = document.getElementById('audioBtn');
-        if (btn) btn.textContent = audioEnabled && audioVolume > 0 ? (audioVolume > 0.5 ? '🔊' : '🔉') : '🔇';
+        if (btn) btn.textContent = window.audioEnabled && window.audioVolume > 0 ? (window.audioVolume > 0.5 ? '🔊' : '🔉') : '🔇';
         const slider = document.getElementById('volumeSlider');
-        if (slider) slider.value = audioEnabled ? audioVolume : 0;
+        if (slider) slider.value = window.audioEnabled ? window.audioVolume : 0;
         
         // Update any ON/OFF toggle buttons in settings
         document.querySelectorAll('button[onclick*="toggleAudio"]').forEach(function(b) {
