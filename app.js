@@ -73,14 +73,22 @@
     function renderFavs() {
         // Update saved channels indicator in sidebar if it exists
         var favsList = document.getElementById('favsList');
+        var favsSection = document.getElementById('favsSection');
         if (!favsList) return;
+        
         var favs = getFavs();
-        if (favs.length === 0) { favsList.innerHTML = ''; return; }
+        if (favs.length === 0) { 
+            favsList.innerHTML = ''; 
+            if (favsSection) favsSection.style.display = 'none';
+            return; 
+        }
+        
+        if (favsSection) favsSection.style.display = 'block';
         var html = '';
         favs.forEach(function(id) {
             var ch = (typeof CHANNELS !== 'undefined') ? CHANNELS[id] : null;
             var label = ch ? (ch.emoji || '') + ' ' + (ch.name || id) : id;
-            html += '<div onclick="go(\'' + id + '\')" style="padding:6px 10px;cursor:pointer;font-size:0.8rem;color:var(--text);border-radius:6px;transition:0.15s;" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'none\'">' + label + '</div>';
+            html += '<div onclick="go(\'' + id + '\')" style="margin-bottom:2px;padding:8px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' + label + '</div>';
         });
         favsList.innerHTML = html;
     }
