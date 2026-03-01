@@ -2239,100 +2239,128 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
-        
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
-        window._nachoBusy = true; // LOCK UI
-        
-        // Save to sent history
+
+        // Save to sent history (for ArrowUp recall, max 50)
         window._nachoSentHistory.push(q);
         if (window._nachoSentHistory.length > 50) window._nachoSentHistory.shift();
         try { localStorage.setItem('btc_nacho_sent', JSON.stringify(window._nachoSentHistory)); } catch(e) {}
 
+        // Start talking animation
         nachoModeStartTalking();
+
+        // Track interaction + topic for conversation quiz
         if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
         window._nachoModeEarnings.interactions++;
-        if (window._nachoModeTopics && q.length > 10) window._nachoModeTopics.push(q);
+        if (window._nachoModeTopics && q.length > 10) {
+            window._nachoModeTopics.push(q);
+        }
 
-        // 🧠 RESTORED: Conversation Quiz Trigger (15+ min, 5+ questions)
+        // Check if it's time for a conversation quiz (15+ min, 5+ questions)
         if (!window._nachoConvoQuizOffered && window._nachoModeStartTime && window._nachoModeTopics) {
             var minsInMode = (Date.now() - window._nachoModeStartTime) / 60000;
             if (minsInMode >= 15 && window._nachoModeTopics.length >= 5) {
                 window._nachoConvoQuizOffered = true;
-                setTimeout(function() { if(typeof offerConversationQuiz === 'function') offerConversationQuiz(); }, 8000);
+                // Delay so current Q&A finishes first
+                setTimeout(function() { offerConversationQuiz(); }, 8000);
             }
         }
 
+        // Show user message + save
         nachoChatAdd('user', q);
         nachoChatAppend('user', q);
+
+        // Show thinking
         nachoChatThinking();
 
-        // --- WATCHDOG --- 4.5s Emergency Fallback
-        if (window._nachoWatchdog) clearTimeout(window._nachoWatchdog);
-        window._nachoWatchdog = setTimeout(function() {
-            if (window._nachoBusy) {
-                console.warn("WATCHDOG: AI taking too long. Forcing KB search.");
-                const alt = (typeof checkAltcoin==='function') ? checkAltcoin(q) : null;
-                if (alt) { respond(alt.answer, 'kb', alt); return; }
-                const kbm = (typeof findAnswer==='function') ? findAnswer(q) : null;
-                if (kbm) respond(kbm.answer, 'kb', kbm);
-                else nachoModeFallbackReply(q, respond);
-            }
-        }, 4500);
-
-                        function respond(html, source, meta) {
-            if (window._nachoWatchdog) { clearTimeout(window._nachoWatchdog); window._nachoWatchdog = null; }
+        // Answer pipeline helper
+        var _replyMsgId = 'nm_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
+        function reply(html, source) {
             nachoChatClearThinking();
             nachoModeStopTalking();
-            window._nachoBusy = false;
+            var extras = '';
+            // Add action buttons for non-safety responses
+            if (source && source !== 'safety') {
+                // Thumbs up/down + share + bookmark row
+                // Store answer data for Share/Bookmark buttons (avoids inline HTML escaping issues)
+                if (!window._nachoAnswerData) window._nachoAnswerData = {};
+                window._nachoAnswerData[_replyMsgId] = html;
 
-            var extra = '';
-            if (meta && meta.siteAction) {
-                extra = '<br><br><button onclick="event.preventDefault();' + meta.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;">' + (meta.siteLabel || 'Go →') + '</button>';
-            } else if (meta && meta.channel) {
-                var cid = meta.channel;
-                var cname = meta.channelName || cid;
-                extra = '<br><br><div style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="exitNachoMode(true);setTimeout(function(){go(\'' + cid + '\')},300)">📖 Read more: ' + cname + ' →</div>';
+                var _abtnStyle = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;transition:0.2s;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;touch-action:manipulation;';
+                var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+                if (typeof nachoRatingHtml === 'function') {
+                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👍 Helpful</button>';
+                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
+                }
+                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\']||\'\')" style="' + _abtnStyle + '">📤 Share</button>';
+                actionRow += '</div>';
+                extras += actionRow;
+
+                // Follow-up chips
+                var fups = getFollowUps(q, html);
+                extras += followUpChipsHtml(fups);
             }
-
-            var _replyMsgId = 'nm_' + Date.now();
-            if (!window._nachoAnswerData) window._nachoAnswerData = {};
-            window._nachoAnswerData[_replyMsgId] = html;
-
-            var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
-            var btnS = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;';
-            
-            if (typeof nachoRatingHtml === 'function') {
-                actionRow += '<button onclick="nachoRate(\'' + _replyMsgId + '\', 1)" style="' + btnS + '">👍 Helpful</button>';
-                actionRow += '<button onclick="nachoRate(\'' + _replyMsgId + '\', -1)" style="' + btnS + '">👎 Not quite</button>';
-            }
-            actionRow += '<button onclick="nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\'])" style="' + btnS + '">📤 Share</button></div>';
-
-            const personalized = (typeof personalize === 'function') ? personalize(html + extra) : (html + extra);
-            
-            nachoChatAdd('nacho', '', personalized + actionRow);
-            nachoChatAppend('nacho', '', personalized + actionRow);
+            nachoChatAdd('nacho', '', html + extras);
+            nachoChatAppend('nacho', '', html + extras);
             updateNachoModeFriendship();
+            // Track topic + source
             if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
-            const ms = checkNachoMilestone();
-            if (ms) setTimeout(function(){ nachoChatAdd('nacho', '', ms); nachoChatAppend('nacho', '', ms); }, 1500);
+            // Check milestones
+            var milestone = checkNachoMilestone();
+            if (milestone) {
+                setTimeout(function() {
+                    nachoChatAdd('nacho', '', milestone);
+                    nachoChatAppend('nacho', '', milestone);
+                }, 1500);
+            }
         }
 
-        try {
+        // Use unified pipeline (same logic as regular Nacho bubble)
+        if (typeof nachoUnifiedAnswer === 'function') {
+            nachoUnifiedAnswer(q, function(result) {
+                var extra = '';
+                if (result.siteAction) {
+                    extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
+                } else if (result.channel) {
+                    extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                }
+                reply(result.answer + extra, result.type);
+
+
+
+
+
+            });
+            return;
+        }
+
+        // Fallback if unified pipeline not loaded yet
+        if (!document.querySelector('script[data-nacho-retry]')) {
+            var s = document.createElement('script');
+            s.src = 'nacho-qa.js?v=' + Date.now();
+            s.setAttribute('data-nacho-retry', '1');
+            document.head.appendChild(s);
+        }
+        setTimeout(function() {
             if (typeof nachoUnifiedAnswer === 'function') {
-                nachoUnifiedAnswer(q, function(res) {
-                    respond(res.answer, res.type, res);
+                nachoUnifiedAnswer(q, function(result) {
+                    var extra = '';
+                    if (result.siteAction) {
+                        extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go \u2192') + '</button>';
+                    } else if (result.channel) {
+                        extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">\ud83d\udcd6 Read more: ' + (result.channelName || result.channel) + ' \u2192</a>';
+                    }
+                    reply(result.answer + extra, result.type);
                 });
             } else {
-                nachoModeFallbackReply(q, respond);
+                nachoModeFallbackReply(q, reply);
             }
-        } catch(e) {
-            console.error("Nacho Pipeline Crash:", e);
-            nachoModeFallbackReply(q, respond);
-        }
+        }, 2000);
     };
 
+    // Nacho Mode avatar tap — random fun reaction
     window.nachoModeAvatarTap = function() {
         var avatar = document.getElementById('nachoModeAvatar');
         if (!avatar) return;

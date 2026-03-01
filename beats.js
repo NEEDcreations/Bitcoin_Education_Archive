@@ -109,5 +109,3 @@ window.renderBitcoinBeats = function() {
         }
     }, 300);
 }
-
-}
