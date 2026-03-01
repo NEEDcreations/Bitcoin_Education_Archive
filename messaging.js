@@ -384,10 +384,11 @@ window.showUserProfile = function(uid) {
         var div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstChild);
-    }).catch(function() {
+    }).catch(function(err) {
+        console.error('Profile load error:', err);
         var modal = document.getElementById('userProfileModal');
         if (modal) modal.remove();
-        if (typeof showToast === 'function') showToast('Could not load profile');
+        if (typeof showToast === 'function') showToast('Could not load profile: ' + (err.message || 'database error'));
     });
 };
 
