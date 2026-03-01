@@ -1395,6 +1395,9 @@ function updateUserDisplay(lv) {
     // Update home page welcome banner
     const wb = document.getElementById('welcomeBanner');
     if (wb && currentUser.username) {
+        // Sync auth button whenever we update the welcome banner to ensure identity consistency
+        updateAuthButton();
+        
         const streak = currentUser.streak || 0;
         const streakText = streak > 0 ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + ' day streak</span>' : '';
         wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
