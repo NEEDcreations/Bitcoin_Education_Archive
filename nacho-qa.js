@@ -1735,7 +1735,7 @@ function findAnswer(input) {
     // If we found a strong KB match, return it (even for current-event-like questions)
     // Score 50+ required — prevents false matches on random off-topic questions
     // (40 was too low: common words like "what", "how", "is" would accumulate score)
-    if (bestScore >= 50) return bestMatch;
+    if (bestScore >= 35) return bestMatch;
 
     // No KB match — check if this is a current event question (route to web search)
 

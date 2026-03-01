@@ -88,7 +88,7 @@
         favs.forEach(function(id) {
             var ch = (typeof CHANNELS !== 'undefined') ? CHANNELS[id] : null;
             var label = ch ? (ch.emoji || '') + ' ' + (ch.name || id) : id;
-            html += '<div onclick="go(\'' + id + '\')" style="margin-bottom:2px;padding:8px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' + label + '</div>';
+            html += '<div onclick="go(\''+ id + '\')" style="margin-bottom:2px;padding:8px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' + label + '</div>';
         });
         favsList.innerHTML = html;
     }
@@ -206,7 +206,7 @@
                             const isMob = typeof isMobile === 'function' && isMobile();
                             const handle = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
                             const displayHandle = handle ? '@' + handle[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
-                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\'' + twId + '\',\'' + twUrl.replace(/'/g, "\\'") + '\')">' +
+                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\''+ twId + '\',\''+ twUrl.replace(/'/g, "\\'") + '\')">' +
                                 '<div class="tw-preview-icon">𝕏</div>' +
                                 '<div class="tw-preview-content">' +
                                 '<div class="tw-preview-url">' + displayHandle + '</div>' +
@@ -256,11 +256,11 @@
         const prevTitle = CHANNELS[prevId] ? CHANNELS[prevId].title : prevId;
 
         let navHtml = '<div style="display:flex;gap:12px;justify-content:center;align-items:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;flex-wrap:wrap;">';
-        navHtml += '<button onclick="go(\'' + prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
+        navHtml += '<button onclick="go(\''+ prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
         navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
         navHtml += '<button onclick="goRandomArt()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Art">🎨</button>';
         navHtml += '<button onclick="goRandomMeme()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Meme">😂</button>';
-        navHtml += '<button onclick="go(\'' + nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
+        navHtml += '<button onclick="go(\''+ nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
         navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
         navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual(currentChannelId)" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
@@ -1097,7 +1097,7 @@
         ];
         var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px;margin:0 auto;">';
         for (var i = 0; i < chips.length; i++) {
-            html += '<button onclick="nachoModeChip(\'' + chips[i].q.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
+            html += '<button onclick="nachoModeChip(\''+ chips[i].q.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
         }
         html += '</div>';
         return html;
@@ -1630,7 +1630,7 @@
         if (!followUps || followUps.length === 0) return '';
         var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
         for (var i = 0; i < followUps.length; i++) {
-            html += '<button onclick="nachoModeChip(\'' + followUps[i].replace(/'/g, "\\'") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/'/g, "\\'") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
         }
         html += '</div>';
         return html;
@@ -2234,157 +2234,96 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof showToast === 'function') showToast('🗑️ Chat cleared');
     };
 
-    window.nachoModeSend = function() {
+        window.nachoModeSend = function() {
         var inp = document.getElementById('nachoModeInput');
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
         
-        // Reset any leftover busy state from voice errors
-        window._nachoBusy = true; 
-        
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
-
-        // Save to sent history (for ArrowUp recall, max 50)
+        window._nachoBusy = true; // LOCK UI
+        
+        // Save to sent history
         window._nachoSentHistory.push(q);
         if (window._nachoSentHistory.length > 50) window._nachoSentHistory.shift();
         try { localStorage.setItem('btc_nacho_sent', JSON.stringify(window._nachoSentHistory)); } catch(e) {}
 
-        // Start talking animation
         nachoModeStartTalking();
-
-        // Track interaction + topic for conversation quiz
         if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
         window._nachoModeEarnings.interactions++;
-        if (window._nachoModeTopics && q.length > 10) {
-            window._nachoModeTopics.push(q);
-        }
+        if (window._nachoModeTopics && q.length > 10) window._nachoModeTopics.push(q);
 
-        // Check if it's time for a conversation quiz (15+ min, 5+ questions)
-        if (!window._nachoConvoQuizOffered && window._nachoModeStartTime && window._nachoModeTopics) {
-            var minsInMode = (Date.now() - window._nachoModeStartTime) / 60000;
-            if (minsInMode >= 15 && window._nachoModeTopics.length >= 5) {
-                window._nachoConvoQuizOffered = true;
-                // Delay so current Q&A finishes first
-                setTimeout(function() { offerConversationQuiz(); }, 8000);
-            }
-        }
-
-        // Show user message + save
         nachoChatAdd('user', q);
         nachoChatAppend('user', q);
-
-        // Show thinking
         nachoChatThinking();
 
-        // 🛡️ PIPELINE RESET: 4.5s max wait for AI before fallback to KB
-        var _forceFallbackTimer = setTimeout(function() {
+        // --- WATCHDOG --- 4.5s Emergency Fallback
+        if (window._nachoWatchdog) clearTimeout(window._nachoWatchdog);
+        window._nachoWatchdog = setTimeout(function() {
             if (window._nachoBusy) {
-                console.log("Nacho Brain Timeout: Forcing fallback...");
-                if (typeof checkAltcoin === 'function') {
-                    var alt = checkAltcoin(q);
-                    if (alt) { reply(alt.answer, 'kb'); return; }
-                }
-                var kb = (typeof findAnswer === 'function') ? findAnswer(q) : null;
-                if (kb) reply(kb.answer, 'kb');
-                else nachoModeFallbackReply(q, reply);
+                console.warn("WATCHDOG: AI taking too long. Forcing KB search.");
+                const alt = (typeof checkAltcoin==='function') ? checkAltcoin(q) : null;
+                if (alt) { respond(alt.answer, 'kb', alt); return; }
+                const kbm = (typeof findAnswer==='function') ? findAnswer(q) : null;
+                if (kbm) respond(kbm.answer, 'kb', kbm);
+                else nachoModeFallbackReply(q, respond);
             }
         }, 4500);
 
-        // Answer pipeline helper
-        var _replyMsgId = 'nm_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
-        function reply(html, source) {
-            clearTimeout(_forceFallbackTimer);
+        function respond(html, source, meta) {
+            if (window._nachoWatchdog) { clearTimeout(window._nachoWatchdog); window._nachoWatchdog = null; }
             nachoChatClearThinking();
             nachoModeStopTalking();
-            window._nachoBusy = false; // Release lock immediately on answer
-            var extras = '';
-            // Add action buttons for non-safety responses
-            if (source && source !== 'safety') {
-                // Thumbs up/down + share + bookmark row
-                // Store answer data for Share/Bookmark buttons (avoids inline HTML escaping issues)
-                if (!window._nachoAnswerData) window._nachoAnswerData = {};
-                window._nachoAnswerData[_replyMsgId] = html;
+            window._nachoBusy = false;
 
-                var _abtnStyle = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;transition:0.2s;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;touch-action:manipulation;';
-                var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
-                if (typeof nachoRatingHtml === 'function') {
-                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👍 Helpful</button>';
-                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
-                }
-                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\']||\'\')" style="' + _abtnStyle + '">📤 Share</button>';
-                actionRow += '</div>';
-                extras += actionRow;
-
-                // Follow-up chips
-                var fups = getFollowUps(q, html);
-                extras += followUpChipsHtml(fups);
+            var extra = '';
+            if (meta && meta.siteAction) {
+                extra = '<br><br><button onclick="event.preventDefault();' + meta.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;">' + (meta.siteLabel || 'Go →') + '</button>';
+            } else if (meta && meta.channel) {
+                var cid = meta.channel;
+                var cname = meta.channelName || cid;
+                extra = '<br><br><div style="color:var(--accent);font-weight:600;cursor:pointer;" onclick="exitNachoMode(true);setTimeout(function(){go(\'' + cid + '\')},300)">📖 Read more: ' + cname + ' →</div>';
             }
+
+            var _replyMsgId = 'nm_' + Date.now();
+            if (!window._nachoAnswerData) window._nachoAnswerData = {};
+            window._nachoAnswerData[_replyMsgId] = html;
+
+            var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+            var btnS = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;';
             
-            // 👤 PERSONALIZE: Replace {name} placeholder with user's name
-            const personalizedHtml = (typeof personalize === 'function') ? personalize(html) : html;
+            if (typeof nachoRatingHtml === 'function') {
+                actionRow += '<button onclick="nachoRate(\'' + _replyMsgId + '\', 1)" style="' + btnS + '">👍 Helpful</button>';
+                actionRow += '<button onclick="nachoRate(\'' + _replyMsgId + '\', -1)" style="' + btnS + '">👎 Not quite</button>';
+            }
+            actionRow += '<button onclick="nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\'])" style="' + btnS + '">📤 Share</button></div>';
+
+            const personalized = (typeof personalize === 'function') ? personalize(html + extra) : (html + extra);
             
-            nachoChatAdd('nacho', '', personalizedHtml + extras);
-            nachoChatAppend('nacho', '', personalizedHtml + extras);
+            nachoChatAdd('nacho', '', personalized + actionRow);
+            nachoChatAppend('nacho', '', personalized + actionRow);
             updateNachoModeFriendship();
-            // Track topic + source
             if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
-            // Check milestones
-            var milestone = checkNachoMilestone();
-            if (milestone) {
-                setTimeout(function() {
-                    nachoChatAdd('nacho', '', milestone);
-                    nachoChatAppend('nacho', '', milestone);
-                }, 1500);
-            }
+            const ms = checkNachoMilestone();
+            if (ms) setTimeout(function(){ nachoChatAdd('nacho','',ms); nachoChatAppend('nacho','',ms); }, 1500);
         }
 
-        // Use unified pipeline (same logic as regular Nacho bubble)
-        if (typeof nachoUnifiedAnswer === 'function') {
-            nachoUnifiedAnswer(q, function(result) {
-                var extra = '';
-                if (result.siteAction) {
-                    extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
-                } else if (result.channel) {
-                    extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
-                }
-                reply(result.answer + extra, result.type);
-
-
-
-
-
-            });
-            return;
-        }
-
-        // Fallback if unified pipeline not loaded yet
-        if (!document.querySelector('script[data-nacho-retry]')) {
-            var s = document.createElement('script');
-            s.src = 'nacho-qa.js?v=' + Date.now();
-            s.setAttribute('data-nacho-retry', '1');
-            document.head.appendChild(s);
-        }
-        setTimeout(function() {
+        try {
             if (typeof nachoUnifiedAnswer === 'function') {
-                nachoUnifiedAnswer(q, function(result) {
-                    var extra = '';
-                    if (result.siteAction) {
-                        extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go \u2192') + '</button>';
-                    } else if (result.channel) {
-                        extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">\ud83d\udcd6 Read more: ' + (result.channelName || result.channel) + ' \u2192</a>';
-                    }
-                    reply(result.answer + extra, result.type);
+                nachoUnifiedAnswer(q, function(res) {
+                    respond(res.answer, res.type, res);
                 });
             } else {
-                nachoModeFallbackReply(q, reply);
+                nachoModeFallbackReply(q, respond);
             }
-        }, 2000);
+        } catch(e) {
+            console.error("Nacho Pipeline Crash:", e);
+            nachoModeFallbackReply(q, respond);
+        }
     };
 
-    // Nacho Mode avatar tap — random fun reaction
     window.nachoModeAvatarTap = function() {
         var avatar = document.getElementById('nachoModeAvatar');
         if (!avatar) return;
@@ -2588,7 +2527,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (lastCh && CHANNELS[lastCh]) {
             const meta = CHANNELS[lastCh];
             el.style.display = 'block';
-            el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\'' + lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
+            el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\''+ lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
                 '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
                 '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;">' + meta.cat + '</div></div>';
@@ -2933,18 +2872,18 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Properties Layer 1 & Referral (Always show)
         // Experienced Topics (Explorer+) - index 1
         if (labels[1] && groups[1]) {
-            labels[1].style.display = isExplorer ? '' : 'none';
-            groups[1].style.display = (isExplorer && labels[1].getAttribute('data-expanded') === 'true') ? '' : 'none';
+            labels[1].style.display = isExplorer ? '': 'none';
+            groups[1].style.display = (isExplorer && labels[1].getAttribute('data-expanded') === 'true') ? '': 'none';
         }
         // Resources (Explorer+) - index 2
         if (labels[2] && groups[2]) {
-            labels[2].style.display = isExplorer ? '' : 'none';
-            groups[2].style.display = (isExplorer && labels[2].getAttribute('data-expanded') === 'true') ? '' : 'none';
+            labels[2].style.display = isExplorer ? '': 'none';
+            groups[2].style.display = (isExplorer && labels[2].getAttribute('data-expanded') === 'true') ? '': 'none';
         }
         // Additional Info (Full+) - index 3
         if (labels[3] && groups[3]) {
-            labels[3].style.display = isFull ? '' : 'none';
-            groups[3].style.display = (isFull && labels[3].getAttribute('data-expanded') === 'true') ? '' : 'none';
+            labels[3].style.display = isFull ? '': 'none';
+            groups[3].style.display = (isFull && labels[3].getAttribute('data-expanded') === 'true') ? '': 'none';
         }
 
         // Sidebar Action Buttons
@@ -3249,11 +3188,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\', \'' + shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\'' + shareUrl + '\', this)">🔗 Copy Link</button>' +
-                '<button class="share-btn" id="favBtn" onclick="toggleFav(\'' + id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
+                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/'/g, "\\'") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
-            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\'' + id + '\')">🖼️ Gallery View</button>' : '');
+            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
         document.getElementById('hero').classList.remove('fade-in');
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
             '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
@@ -3331,8 +3270,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<div style="font-weight:800;color:var(--heading);margin-bottom:8px;">Did this help you learn something?</div>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Your feedback helps Nacho improve the archive!</div>' +
                 '<div style="display:flex;justify-content:center;gap:12px;">' +
-                   '<button onclick="rateChannel(\'' + id + '\', 1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(34,197,94,0.1)\'" onmouseout="this.style.background=\'none\'">👍 Yes</button>' +
-                   '<button onclick="rateChannel(\'' + id + '\', -1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">👎 No</button>' +
+                   '<button onclick="rateChannel(\''+ id + '\', 1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(34,197,94,0.1)\'" onmouseout="this.style.background=\'none\'">👍 Yes</button>' +
+                   '<button onclick="rateChannel(\''+ id + '\', -1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">👎 No</button>' +
                 '</div>' +
             '</div>';
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
@@ -3493,7 +3432,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700;">🔥 Trending Topics</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
         TRENDING_TOPICS.forEach(function(t) {
-            html += '<button onclick="document.getElementById(\'searchInput\').value=\'' + t.q.replace(/'/g, "\\'") + '\';doSearch(\'' + t.q.replace(/'/g, "\\'") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
+            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ t.q.replace(/'/g, "\\'") + '\';doSearch(\''+ t.q.replace(/'/g, "\\'") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
                 '<span>' + t.icon + '</span>' +
                 '<span>' + escapeHtml(t.q) + '</span>' +
                 '<span style="font-size:0.65rem;color:var(--text-faint);margin-left:4px;">' + t.reason + '</span>' +
