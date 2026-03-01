@@ -1632,7 +1632,8 @@ function findAnswer(input) {
 
     // SECOND: If it matches an off-topic pattern, bail early — don't let fuzzy KB scoring
     // produce false matches on random non-Bitcoin questions
-    if (typeof checkOffTopic === 'function' && checkOffTopic(input)) return null;
+    var _ot = (typeof checkOffTopic === 'function') ? checkOffTopic(input) : null;
+    if (_ot && !/bitcoin|btc|sats|halving|mining|block|nodes|self-custody|satoshi|whitepaper/i.test(input)) return null;
 
     // NOTE: Current event detection moved AFTER KB topic matching.
     // This ensures questions like "What happened when China banned Bitcoin?"

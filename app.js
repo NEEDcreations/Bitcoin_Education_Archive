@@ -2231,6 +2231,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (!inp) return;
         var q = inp.value.trim();
         if (!q) return;
+        
+        // Reset any leftover busy state from voice errors
+        window._nachoBusy = true; 
+        
         inp.value = '';
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
@@ -2267,11 +2271,27 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Show thinking
         nachoChatThinking();
 
+        // 🛡️ PIPELINE RESET: 4.5s max wait for AI before fallback to KB
+        var _forceFallbackTimer = setTimeout(function() {
+            if (window._nachoBusy) {
+                console.log("Nacho Brain Timeout: Forcing fallback...");
+                if (typeof checkAltcoin === 'function') {
+                    var alt = checkAltcoin(q);
+                    if (alt) { reply(alt.answer, 'kb'); return; }
+                }
+                var kb = (typeof findAnswer === 'function') ? findAnswer(q) : null;
+                if (kb) reply(kb.answer, 'kb');
+                else nachoModeFallbackReply(q, reply);
+            }
+        }, 4500);
+
         // Answer pipeline helper
         var _replyMsgId = 'nm_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
         function reply(html, source) {
+            clearTimeout(_forceFallbackTimer);
             nachoChatClearThinking();
             nachoModeStopTalking();
+            window._nachoBusy = false; // Release lock immediately on answer
             var extras = '';
             // Add action buttons for non-safety responses
             if (source && source !== 'safety') {
