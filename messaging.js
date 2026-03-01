@@ -323,16 +323,19 @@ window.showUserProfile = function(uid) {
         var joinDate = u.createdAt ? (u.createdAt.toDate ? u.createdAt.toDate().toLocaleDateString() : 'Unknown') : 'Unknown';
         
         // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
-        var displayBadge = u.displayBadge || u.equippedBadge || lvl.emoji;
-        if (typeof HIDDEN_BADGES !== 'undefined' && displayBadge.length > 5) {
-            var badgeDef = HIDDEN_BADGES.find(b => b.id === displayBadge);
-            if (badgeDef) displayBadge = badgeDef.emoji;
+        var displayBadge = u.displayBadge || u.equippedBadge || '';
+        var badgesHtml = '';
+        if (displayBadge) {
+            // Find emoji for selected badge
+            var badgeEmoji = displayBadge;
+            if (typeof HIDDEN_BADGES !== 'undefined' && displayBadge.length > 5) {
+                var badgeDef = HIDDEN_BADGES.find(b => b.id === displayBadge);
+                if (badgeDef) badgeEmoji = badgeDef.emoji;
+            }
+            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + badgeEmoji + ' <span style="font-size:1.8rem;opacity:0.6;vertical-align:middle;">' + lvl.emoji + '</span></div>';
+        } else {
+            badgesHtml = '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>';
         }
-
-        // Count badges
-        var badgeCount = 0;
-        if (u.visibleBadges) badgeCount += u.visibleBadges.length;
-        if (u.hiddenBadges) badgeCount += u.hiddenBadges.length;
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
 
@@ -342,7 +345,7 @@ window.showUserProfile = function(uid) {
             '<button onclick="document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             // Avatar & name
             '<div style="text-align:center;margin-bottom:16px;">' +
-                '<div style="font-size:2.5rem;margin-bottom:8px;">' + displayBadge + '</div>' +
+                badgesHtml +
                 '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">' + escapeHtml(u.username || 'Bitcoiner') +
                     '<span title="' + status.label + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + status.color + ';margin-left:6px;vertical-align:middle;' + (status.status === 'online' ? 'box-shadow:0 0 8px ' + status.color + ';' : '') + '"></span>' +
                 '</div>' +
