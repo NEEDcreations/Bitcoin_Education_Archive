@@ -3925,10 +3925,14 @@ function renderScholarQuestion(idx) {
     }
     let choices = q.shuffled;
     
+    const min = Math.floor(scholarTimeLeft / 60);
+    const sec = scholarTimeLeft % 60;
+    const timeStr = min + ':' + (sec < 10 ? '0' : '') + sec;
+    
     let html = '<div style="padding:20px;">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:20px;font-weight:bold;color:var(--accent);">' +
             '<span>' + (scholarType === 'technical' ? '🛠️ Protocol Expert' : '🎓 Bitcoin Scholar') + '</span>' +
-            '<span id="scholarTimer">10:00</span>' +
+            '<span id="scholarTimer">' + timeStr + '</span>' +
         '</div>' +
         '<div style="margin-bottom:10px;color:var(--text-muted);font-size:0.8rem;">Question ' + (idx + 1) + ' of 25</div>' +
         '<h3 style="margin-bottom:20px;line-height:1.4;">' + q.q + '</h3>' +
