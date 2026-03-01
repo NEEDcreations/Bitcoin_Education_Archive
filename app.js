@@ -2255,6 +2255,15 @@ window.nachoQuizAnswer = function(btn, correct) {
         window._nachoModeEarnings.interactions++;
         if (window._nachoModeTopics && q.length > 10) window._nachoModeTopics.push(q);
 
+        // 🧠 RESTORED: Conversation Quiz Trigger (15+ min, 5+ questions)
+        if (!window._nachoConvoQuizOffered && window._nachoModeStartTime && window._nachoModeTopics) {
+            var minsInMode = (Date.now() - window._nachoModeStartTime) / 60000;
+            if (minsInMode >= 15 && window._nachoModeTopics.length >= 5) {
+                window._nachoConvoQuizOffered = true;
+                setTimeout(function() { if(typeof offerConversationQuiz === 'function') offerConversationQuiz(); }, 8000);
+            }
+        }
+
         nachoChatAdd('user', q);
         nachoChatAppend('user', q);
         nachoChatThinking();
@@ -2272,7 +2281,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         }, 4500);
 
-        function respond(html, source, meta) {
+                        function respond(html, source, meta) {
             if (window._nachoWatchdog) { clearTimeout(window._nachoWatchdog); window._nachoWatchdog = null; }
             nachoChatClearThinking();
             nachoModeStopTalking();
@@ -2307,7 +2316,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             updateNachoModeFriendship();
             if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
             const ms = checkNachoMilestone();
-            if (ms) setTimeout(function(){ nachoChatAdd('nacho','',ms); nachoChatAppend('nacho','',ms); }, 1500);
+            if (ms) setTimeout(function(){ nachoChatAdd('nacho', '', ms); nachoChatAppend('nacho', '', ms); }, 1500);
         }
 
         try {
@@ -2468,6 +2477,19 @@ window.nachoQuizAnswer = function(btn, correct) {
         var msgs = document.getElementById('msgs');
         if (msgs) msgs.style.display = 'none';
         var hero = document.getElementById('hero');
+        // 🧱 RESTORED: Breadcrumbs logic
+        const meta = CHANNELS[id];
+        let breadcrumbs = '';
+        if (meta) {
+            breadcrumbs = '<div class="breadcrumbs" style="padding:16px 20px 0;font-size:0.75rem;color:var(--text-faint);display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' +
+                '<span onclick="goHome()" style="cursor:pointer;color:var(--accent);">ARCHIVE</span>' +
+                '<span>/</span>' +
+                '<span>' + (meta.cat || 'General') + '</span>' +
+                '<span>/</span>' +
+                '<span style="color:var(--heading);">' + meta.title + '</span>' +
+            '</div>';
+        }
+    
         if (hero) hero.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
@@ -3058,8 +3080,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Show skeleton loader
         var msgs = document.getElementById('msgs');
         var hero = document.getElementById('hero');
-        
-        // --- BREADCRUMBS ---
+        // 🧱 RESTORED: Breadcrumbs logic
         const meta = CHANNELS[id];
         let breadcrumbs = '';
         if (meta) {
@@ -3071,7 +3092,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<span style="color:var(--heading);">' + meta.title + '</span>' +
             '</div>';
         }
-
+    
+        
         msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
             '<!-- Nacho Summary skeleton -->' +
             '<div style="background:var(--card-bg);border:1px dashed var(--border);border-radius:12px;padding:14px;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start;">' +
@@ -3153,7 +3175,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Show skeleton loader for content area
         var msgs = document.getElementById('msgs');
-        msgs.innerHTML = '<div style="padding:20px;">' +
+        msgs.innerHTML = breadcrumbs + '<div style="padding:20px;">' +
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:30%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:90%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:75%;"></div></div></div>' +
             '<div class="skeleton" style="height:160px;width:100%;margin-bottom:16px;border-radius:12px;"></div>' +
             '<div style="display:flex;gap:12px;margin-bottom:16px;"><div class="skeleton" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;"></div><div style="flex:1;"><div class="skeleton" style="height:12px;width:25%;margin-bottom:6px;"></div><div class="skeleton" style="height:14px;width:85%;margin-bottom:4px;"></div><div class="skeleton" style="height:14px;width:60%;"></div></div></div>' +
