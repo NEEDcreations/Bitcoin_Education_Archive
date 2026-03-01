@@ -388,7 +388,7 @@ window.showUserProfile = function(uid) {
         console.error('Profile load error:', err);
         var modal = document.getElementById('userProfileModal');
         if (modal) modal.remove();
-        if (typeof showToast === 'function') showToast('Could not load profile: ' + (err.message || 'database error'));
+        if (typeof showToast === 'function') showToast('Could not load profile [' + uid + ']: ' + (err.message || 'permission error'));
     });
 };
 
