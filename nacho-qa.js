@@ -2179,7 +2179,7 @@ function nachoWebSearch(query, callback) {
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (!canWebSearch()) { callback(null); return; }
     incrementWebSearchCount();
-    var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin ' + query);
+    var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin 2026 -2024 -crypto -ethereum -altcoin ' + query);
     // Use AbortController with manual timeout for broader browser support
     var controller = null;
     var timeoutId = null;
@@ -2892,13 +2892,24 @@ window.nachoUnifiedAnswer = function(question, callback) {
             if (NACHO_SEARCH_PROXY) {
                 nachoWebSearch(q, function(results) {
                     if (results && results.length > 0) {
+                        var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3|2024|2023/i;
                         var html = '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
-                        for (var ri = 0; ri < Math.min(3, results.length); ri++) {
+                        var count = 0;
+                        for (var ri = 0; ri < results.length; ri++) {
+                            if (count >= 3) break;
+                            var r = results[ri];
+                            if (badWords.test(r.title) || badWords.test(r.snippet)) continue;
+                            count++;
                             html += '<div style="margin-bottom:6px;padding:6px;background:var(--card-bg,#111);border:1px solid var(--border,#333);border-radius:8px;">' +
-                                '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);">' + escapeHtml(results[ri].title) + '</div>' +
-                                '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(results[ri].snippet) + '</div>' +
-                                (results[ri].url ? '<a href="' + escapeHtml(results[ri].url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
+                                '<div style="font-size:0.8rem;font-weight:600;color:var(--heading,#fff);">' + escapeHtml(r.title) + '</div>' +
+                                '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(r.snippet) + '</div>' +
+                                (r.url ? '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
                             '</div>';
+                        }
+                        if (count === 0) { 
+                             // Filter removed all results - fallback
+                             callback({ type: 'fallback', answer: "I couldn't find any high-signal Bitcoin news about that right now! Check back later. 🦌" }); 
+                             return;
                         }
                         callback({ type: 'websearch', answer: html + disclaimer });
                     } else {

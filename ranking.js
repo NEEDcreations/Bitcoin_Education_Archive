@@ -2061,7 +2061,7 @@ function showSettingsPage(tab) {
         // Fetch live Bitcoin-only news (try Worker first, fall back to static file)
         setTimeout(function() {
             var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
-            var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3/i;
+            var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3|2024|2023/i;
             
             function renderNews(container, items) {
                 var newsHtml = '';
@@ -2081,7 +2081,7 @@ function showSettingsPage(tab) {
             if (!container) return;
             
             // Try live search first
-            fetch(proxy + '?q=' + encodeURIComponent('Bitcoin BTC price mining lightning network -ethereum -crypto -altcoin'), { signal: AbortSignal.timeout(6000) })
+            fetch(proxy + '?q=' + encodeURIComponent('Bitcoin only news BTC price mining lightning network 2026 -ethereum -crypto -altcoin -2024'), { signal: AbortSignal.timeout(6000) })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data && data.results && data.results.length >= 2) {
