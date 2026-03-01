@@ -2452,7 +2452,8 @@ function showNachoFallback(textEl, q) {
 
     var html = '<div style="color:var(--text,#eee);line-height:1.6;">';
     if (suggestedChannel) {
-        html += "Hmm, that one's not in my direct notes, {name}, but I found a great channel where you can learn all about it! 🦌📚";
+        let str = "Hmm, that one's not in my direct notes, {name}, but I found a great channel where you can learn all about it! 🦌📚";
+        html += typeof personalize === 'function' ? personalize(str) : str;
         html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Explore: ' + suggestedChannel.name + ' →</button>';
     } else {
         var fb = ["I'm still sharpening my antlers on that topic, {name}! 🦌 Let's check our 'One Stop Shop' — it's the fastest way to get oriented in the rabbit hole.", "I'm a Bitcoin deer — and that topic has me stumped! 🦌 Why don't we visit the One Stop Shop to see the highlights of the archive?"];

@@ -2322,8 +2322,12 @@ window.nachoQuizAnswer = function(btn, correct) {
                 var fups = getFollowUps(q, html);
                 extras += followUpChipsHtml(fups);
             }
-            nachoChatAdd('nacho', '', html + extras);
-            nachoChatAppend('nacho', '', html + extras);
+            
+            // 👤 PERSONALIZE: Replace {name} placeholder with user's name
+            const personalizedHtml = (typeof personalize === 'function') ? personalize(html) : html;
+            
+            nachoChatAdd('nacho', '', personalizedHtml + extras);
+            nachoChatAppend('nacho', '', personalizedHtml + extras);
             updateNachoModeFriendship();
             // Track topic + source
             if (typeof nachoTrackTopic === 'function') nachoTrackTopic(q, source || 'unknown');
