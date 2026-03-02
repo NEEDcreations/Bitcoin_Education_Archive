@@ -7,7 +7,7 @@ const HIDDEN_BADGES = [
     { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', pts: 500, desc: 'Earn 50 Orange Tickets', hint: 'Keep spinning & referring!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 50) + '/50' : '0/50'; } },
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', hint: 'The ultimate ticket badge!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 100) + '/100' : '0/100'; } },
     { id: 'nacho_10q', name: 'Inquisitive Buck', emoji: '🔍', pts: 200, desc: 'Ask Nacho 10 questions', hint: 'Keep asking Nacho!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 10; }, progress: function() { return Math.min(parseInt(localStorage.getItem('btc_nacho_questions') || '0'), 10) + '/10'; } },
-    { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', hint: 'Star your favorite channels', hidden: false, check: function() { return JSON.parse(localStorage.getItem('btc_favs') || '[]').length >= 10; }, progress: function() { return Math.min(JSON.parse(localStorage.getItem('btc_favs') || '[]').length, 10) + '/10'; } },
+    { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', hint: 'Star your favorite channels', hidden: false, check: function() { return safeJSON('btc_favs', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_favs', []).length, 10) + '/10'; } },
     { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first forum post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
     { id: 'first_reply', name: 'Conversationalist', emoji: '💬', pts: 75, desc: 'Reply to a forum post', hint: 'Join a discussion!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.forumReplies >= 1; } },
     { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on the marketplace', hint: 'Sell something for sats!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
@@ -39,7 +39,7 @@ const HIDDEN_BADGES = [
     async function initActivityTicker() {
         // PROGRESSIVE DISCLOSURE: Hide the ticker for brand new users
         // Only show if user has visited 3+ channels or is logged in
-        const visitedCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+        const visitedCount = safeJSON('btc_visited_channels', []).length;
         const isAuth = firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous;
         
         if (visitedCount < 3 && !isAuth) {
@@ -131,7 +131,7 @@ const HIDDEN_BADGES = [
     // Phase 12: Orange Pill Newsletter Prompt
     window.checkNewsletterPrompt = function() {
         if (localStorage.getItem('btc_newsletter_prompt_shown')) return;
-        const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        const visited = safeJSON('btc_visited_channels', []);
         
         if (visited.length >= 10) {
             showNewsletterModal();
@@ -287,7 +287,7 @@ window.showPricePrediction = function() {
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     // Check for existing prediction
-    var saved = JSON.parse(localStorage.getItem('btc_price_prediction') || 'null');
+    var saved = safeJSON('btc_price_prediction', null);
     var card = document.createElement('div');
     card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:420px;width:100%;color:var(--text,#e2e8f0);font-family:inherit;text-align:center;';
 
@@ -336,7 +336,7 @@ function renderExplorationMap() {
     if (typeof CHANNELS === 'undefined') return;
 
     // Use Firestore data if available, fall back to localStorage
-    var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    var visited = safeJSON('btc_visited_channels', []);
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.readChannels && currentUser.readChannels.length > visited.length) {
         visited = currentUser.readChannels;
     }
@@ -395,7 +395,7 @@ window.getNachoStoryProgress = function() {
 // checkHiddenBadges — check and award hidden badges
 window.checkHiddenBadges = function() {
     if (typeof HIDDEN_BADGES === 'undefined') return;
-    var earned = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+    var earned = safeJSON('btc_hidden_badges', []);
     var changed = false;
     HIDDEN_BADGES.forEach(function(badge) {
         if (earned.indexOf(badge.id) !== -1) return;
@@ -419,7 +419,7 @@ setInterval(function() { if (typeof checkHiddenBadges === 'function') checkHidde
 
 // awardHiddenBadge — award a specific hidden badge by ID
 window.awardHiddenBadge = function(badgeId, toastMsg) {
-    var earned = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+    var earned = safeJSON('btc_hidden_badges', []);
     if (earned.indexOf(badgeId) !== -1) return; // Already earned
     earned.push(badgeId);
     localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));

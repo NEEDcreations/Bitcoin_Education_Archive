@@ -330,7 +330,7 @@ function loadMarketListings(category, search, sort, section) {
             return;
         }
 
-        var savedItems = JSON.parse(localStorage.getItem('btc_market_saved') || '[]');
+        var savedItems = safeJSON('btc_market_saved', []);
 
         grid.innerHTML = listings.map(function(l) {
             var isSaved = savedItems.indexOf(l.id) !== -1;
@@ -358,7 +358,7 @@ function loadMarketListings(category, search, sort, section) {
                     (satsToUSD(l.priceSats) ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:4px;">' + satsToUSD(l.priceSats) + '</div>' : '<div style="margin-bottom:4px;"></div>') +
                     '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                         '<span style="font-size:0.65rem;color:' + condColor + ';font-weight:600;">' + condLabel + '</span>' +
-                        '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\'})"  style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
+                        '<span onclick="event.stopPropagation();toggleMarketSave(\'' + l.id + '\')"  style="font-size:0.9rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</span>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -396,11 +396,7 @@ function loadMarketListings(category, search, sort, section) {
     });
 }
 
-function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
+// [AUDIT FIX] escapeHtml moved to utils.js
 
 // ---- Single Listing Detail ----
 function renderListingDetail(container, listingId) {
@@ -417,7 +413,7 @@ function renderListingDetail(container, listingId) {
         var condColor = cond ? cond.color : 'var(--text-faint)';
         var catObj = MARKETPLACE_CATEGORIES.find(function(c) { return c.id === l.category; });
         var catName = catObj ? catObj.emoji + ' ' + catObj.name : '📦 Other';
-        var savedItems = JSON.parse(localStorage.getItem('btc_market_saved') || '[]');
+        var savedItems = safeJSON('btc_market_saved', []);
         var isSaved = savedItems.indexOf(l.id) !== -1;
         var isOwner = (typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.uid === l.sellerUid);
         var isAdmin = isMarketAdmin();
@@ -475,7 +471,7 @@ function renderListingDetail(container, listingId) {
         // Seller info
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Seller</div>' +
-            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\'})"  style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
+            '<div onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (l.sellerUid || '') + '\')"  style="display:flex;align-items:center;gap:10px;cursor:pointer;transition:0.2s;padding:4px;border-radius:8px;" onmouseover="this.style.background=\'var(--accent-bg,rgba(247,147,26,0.1))\'" onmouseout="this.style.background=\'none\'">' +
                 '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + (l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + escapeHtml(l.sellerName || 'Anonymous') + '</div>' +
@@ -488,10 +484,10 @@ function renderListingDetail(container, listingId) {
         // Action buttons
         if (!isOwner) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\'})"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
-                '<button onclick="toggleMarketSave(\'' + l.id + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
-                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
-                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
+                '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\')"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
+                '<button onclick="toggleMarketSave(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
+                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice
             html += '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
@@ -504,8 +500,8 @@ function renderListingDetail(container, listingId) {
             }
         } else {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
-                '<button onclick="editListing(\'' + l.id + '\'})"  style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
-                '<button onclick="deleteListing(\'' + l.id + '\'})"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
+                '<button onclick="editListing(\'' + l.id + '\')"  style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">✏️ Edit</button>' +
+                '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">🗑️ Delete</button>' +
             '</div>';
         }
 
@@ -515,7 +511,7 @@ function renderListingDetail(container, listingId) {
         // Increment view count
         db.collection('marketplace').doc(listingId).update({
             views: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
 
     }).catch(function() {
         container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:16px;text-align:center;color:var(--text-faint);">Error loading listing.</div>';
@@ -596,6 +592,8 @@ window.showCreateListing = function() {
 
 // ---- Submit Listing to Firestore ----
 window.submitListing = function() {
+    // [AUDIT FIX] Double-submit protection
+    if (window._mktSubmitting) return;
     var title = (document.getElementById('mktTitle').value || '').trim();
     var price = parseInt(document.getElementById('mktPrice').value);
     var category = document.getElementById('mktCategory').value;
@@ -607,7 +605,7 @@ window.submitListing = function() {
     var local = document.getElementById('mktLocal').checked;
 
     if (!title || title.length < 3) { showToast('Please enter a title (3+ characters)'); return; }
-    if (!price || price < 1) { showToast('Please enter a price in sats'); return; }
+    if (!price || price < 1 || price > 100000000000) { showToast('Price must be between 1 and 100B sats'); return; }
 
     var sellerName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anonymous';
     var sellerRank = '';
@@ -645,7 +643,7 @@ window.submitListing = function() {
         if (auth && auth.currentUser) {
             db.collection('users').doc(auth.currentUser.uid).update({
                 marketListings: firebase.firestore.FieldValue.increment(1)
-            }).catch(function(){});
+            }).catch(function(e) { console.error('[marketplace] Error:', e); });
             if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketListings = (currentUser.marketListings || 0) + 1;
         }
         renderMarketplace();
@@ -657,19 +655,19 @@ window.submitListing = function() {
 
 // ---- Save/Unsave Listings ----
 window.toggleMarketSave = function(listingId) {
-    var saved = JSON.parse(localStorage.getItem('btc_market_saved') || '[]');
+    var saved = safeJSON('btc_market_saved', []);
     var idx = saved.indexOf(listingId);
     if (idx !== -1) {
         saved.splice(idx, 1);
-        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(-1) }).catch(function(){});
+        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(-1) }).catch(function(e) { console.error('[marketplace] Error:', e); });
     } else {
         saved.push(listingId);
-        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(1) }).catch(function(){});
+        db.collection('marketplace').doc(listingId).update({ saves: firebase.firestore.FieldValue.increment(1) }).catch(function(e) { console.error('[marketplace] Error:', e); });
     }
     localStorage.setItem('btc_market_saved', JSON.stringify(saved));
     // Sync to Firestore
     if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({ marketSaved: saved }).catch(function(){});
+        db.collection('users').doc(auth.currentUser.uid).update({ marketSaved: saved }).catch(function(e) { console.error('[marketplace] Error:', e); });
     }
     // Refresh current view
     var container = document.getElementById('forumContainer');
@@ -691,7 +689,7 @@ window.contactSeller = function(listingId, sellerName) {
         '<div style="background:var(--bg-side);border:2px solid var(--accent);border-radius:20px;padding:24px;max-width:400px;width:100%;">' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">💬 Message ' + escapeHtml(sellerName) + '</div>' +
         '<textarea id="mktMessage" rows="4" placeholder="Hi! I\'m interested in your listing..." style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;"></textarea>' +
-        '<button onclick="sendMarketMessage(\'' + listingId + '\'})"  style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
+        '<button onclick="sendMarketMessage(\'' + listingId + '\')"  style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Send Message ⚡</button>' +
         '</div></div>';
     var div = document.createElement('div');
     div.innerHTML = html;
@@ -707,6 +705,7 @@ window.sendMarketMessage = function(listingId) {
     db.collection('marketplace_messages').add({
         listingId: listingId,
         buyerUid: auth.currentUser.uid,
+            sellerUid: listing.sellerUid || '', // [AUDIT FIX] Required for read restriction
         buyerName: buyerName,
         message: msg,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -718,7 +717,7 @@ window.sendMarketMessage = function(listingId) {
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             marketMessages: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.marketMessages = (currentUser.marketMessages || 0) + 1;
     }).catch(function() {
         showToast('Error sending message. Try again.');
@@ -759,7 +758,7 @@ window.showMyListings = function(fromPopState) {
                         '</div>' +
                         '<div style="display:flex;gap:8px;align-items:center;">' +
                             '<span style="font-size:0.65rem;color:' + statusColor + ';font-weight:700;text-transform:uppercase;">' + (l.status || 'active') + '</span>' +
-                            (l.status === 'active' ? '<button onclick="markSold(\'' + doc.id + '\'})"  style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
+                            (l.status === 'active' ? '<button onclick="markSold(\'' + doc.id + '\')"  style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
                         '</div>' +
                     '</div>';
                 });
@@ -961,7 +960,7 @@ window.updateMktPriceUSD = function() {
                 localStorage.setItem('btc_last_price', d.USD);
                 updateMktPriceUSD();
             }
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[marketplace] Error:', e); });
         el.textContent = 'Loading USD price...';
         return;
     }

@@ -501,7 +501,7 @@ let completedQuests = new Set();
 
 function initQuests() {
     // Load previously visited channels from localStorage
-    const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+    const visited = safeJSON('btc_visited_channels', []);
     visited.forEach(ch => {
         if (!visitedForQuest.includes(ch)) visitedForQuest.push(ch);
     });
@@ -547,7 +547,7 @@ function onChannelVisitForQuest(channelId) {
 function generateAndShowQuest(manual, targetChannelId) {
     // Limit quests to 3 per day to prevent point farming
     var today = new Date().toISOString().split('T')[0];
-    var questLog = JSON.parse(localStorage.getItem('btc_quest_daily') || '{}');
+    var questLog = safeJSON('btc_quest_daily', {});
     if (questLog.date !== today) {
         questLog = { date: today, count: 0 };
     }
@@ -557,7 +557,7 @@ function generateAndShowQuest(manual, targetChannelId) {
     }
 
     // Track previously asked questions to avoid repeats
-    const askedQuestions = JSON.parse(localStorage.getItem('btc_asked_questions') || '[]');
+    const askedQuestions = safeJSON('btc_asked_questions', []);
 
     // Collect available questions
     let pool = [];
@@ -792,10 +792,17 @@ async function submitQuest() {
         await awardPoints(pts, 'Quest: ' + currentQuest.title);
         // Track daily quest count
         var todayQ = new Date().toISOString().split('T')[0];
-        var qLog = JSON.parse(localStorage.getItem('btc_quest_daily') || '{}');
+        var qLog = safeJSON('btc_quest_daily', {});
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
         qLog.count++;
         localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
+        // [AUDIT FIX] Sync quest count to Firestore
+        if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                questsCompletedToday: (qLog[today] || 0),
+                lastQuestDate: today
+            }).catch(function(e) { console.error('Quest sync failed:', e); });
+        }
     }
     if (completedQuests.has(currentQuest.id) && typeof db !== 'undefined' && auth.currentUser) {
         await db.collection('users').doc(auth.currentUser.uid).update({

@@ -339,7 +339,7 @@ if (_origGoForChallenge) {
         if (id && id !== 'forum') {
             var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
             sessionStorage.setItem('btc_channels_today', count);
-            var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+            var visited = safeJSON('btc_visited_channels', []);
             if (visited.indexOf(id) === -1) sessionStorage.setItem('btc_new_channel_read', 'true');
         }
         if (id === 'forum') sessionStorage.setItem('btc_forum_visited', 'true');
@@ -375,7 +375,7 @@ window.renderProgressRings = function() {
         }
     }
     if (visited === 0) {
-        visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+        visited = safeJSON('btc_visited_channels', []).length;
     }
     var streak = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.streak || 0 : 0;
     var points = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;

@@ -3977,6 +3977,13 @@ async function submitScholarQuest() {
     const today = new Date().toISOString().split('T')[0];
     
     localStorage.setItem('btc_scholar_' + keyPrefix + '_attempt_date', today);
+    // [AUDIT FIX] Also save to Firestore to prevent localStorage bypass
+    if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        var attemptField = 'lastExamAttempt_' + keyPrefix;
+        var upd = {}; upd[attemptField] = today;
+        db.collection('users').doc(auth.currentUser.uid).update(upd)
+            .catch(function(e) { console.error('Failed to save exam attempt:', e); });
+    }
     scholarAttemptDate[scholarType] = today;
 
     if (passed) {

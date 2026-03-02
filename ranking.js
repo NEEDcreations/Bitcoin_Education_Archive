@@ -961,7 +961,7 @@ async function awardVisitPoints() {
             if (!currentUser._isLocal) {
                 db.collection('users').doc(currentUser.uid).update({ 
                     streakFreezes: firebase.firestore.FieldValue.increment(-1)
-                }).catch(function(){});
+                }).catch(function(e) { console.error('[ranking] Error:', e); });
             }
         } else if (oldStreak > 1) {
             // No freeze available — streak is broken
@@ -1569,7 +1569,7 @@ window.setNachoNickname = function(val) {
     if (currentUser) currentUser.nachoNickname = nick;
     // Save to Firestore
     if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({ nachoNickname: nick }).catch(function(){});
+        db.collection('users').doc(auth.currentUser.uid).update({ nachoNickname: nick }).catch(function(e) { console.error('[ranking] Error:', e); });
     }
     // Update Nacho's name throughout the app
     if (typeof updateNachoNameUI === 'function') updateNachoNameUI(nick);

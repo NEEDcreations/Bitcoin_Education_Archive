@@ -61,6 +61,9 @@ window.getNachoLiveData = function() { return nachoLiveData; };
 
 
 function initTicker() {
+    // Prevent duplicate initialization
+    if (window._tickerInitialized) return;
+    window._tickerInitialized = true;
     var ticker = document.getElementById('btcTicker');
     if (!ticker) {
         ticker = document.createElement('div');

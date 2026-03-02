@@ -69,7 +69,7 @@
         }
     }
 
-    function getFavs() { return JSON.parse(localStorage.getItem('btc_favs') || '[]'); }
+    function getFavs() { return safeJSON('btc_favs', []); }
     function renderFavs() {
         // Update saved channels indicator in sidebar if it exists
         var favsList = document.getElementById('favsList');
@@ -660,7 +660,7 @@
                         }
                     } else if (rewardType === 'closet') {
                         // Award a random closet item the user doesn't have yet
-                        var ownedItems = JSON.parse(localStorage.getItem('btc_spin_closet_items') || '[]');
+                        var ownedItems = safeJSON('btc_spin_closet_items', []);
                         var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
                         var available = allClosetItems.filter(function(id) { return ownedItems.indexOf(id) === -1; });
                         if (available.length > 0) {
@@ -895,8 +895,8 @@
             '<button id="nachoModeMic" onclick="nachoModeVoice()" style="position:absolute;right:60px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.6;transition:0.2s;touch-action:manipulation;" title="Voice input">🎙️</button>' : '';
 
         // Init chat history from localStorage
-        window._nachoChatHistory = JSON.parse(localStorage.getItem('btc_nacho_chat') || '[]');
-        window._nachoSentHistory = JSON.parse(localStorage.getItem('btc_nacho_sent') || '[]');
+        window._nachoChatHistory = safeJSON('btc_nacho_chat', []);
+        window._nachoSentHistory = safeJSON('btc_nacho_sent', []);
         window._nachoSentIdx = -1;
 
         var screen = document.createElement('div');
@@ -1736,7 +1736,7 @@
     function checkNachoMilestone() {
         var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
         var milestones = { 10: 'beginner', 25: 'explorer', 50: 'apprentice', 100: 'scholar', 200: 'expert', 500: 'legend' };
-        var shown = JSON.parse(localStorage.getItem('btc_nacho_q_milestones') || '[]');
+        var shown = safeJSON('btc_nacho_q_milestones', []);
         for (var count in milestones) {
             if (interactions >= parseInt(count) && shown.indexOf(count) === -1 && shown.indexOf(parseInt(count)) === -1) {
                 shown.push(count);
@@ -1774,7 +1774,7 @@
     window.nachoLearningPath = function() {
         var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
         var exploredCount = 0;
-        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
         
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
@@ -2535,7 +2535,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.displayName || "").toLowerCase().includes("needcreations")) || (_a && (_a.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var exploredCount = 0;
-        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
         var isNewUser = !isAdmin && (visits < 2 && exploredCount < 3);
         
         // Hide distracting gamification for absolute beginners to focus on core education
@@ -2913,7 +2913,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // PROGRESSIVE SIDEBAR UPDATE
     function updateSidebarTiers() {
-        const explored = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        const explored = safeJSON('btc_visited_channels', []);
         const exploredCount = explored.length;
         const visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
@@ -3156,7 +3156,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // PROGRESSIVE DISCLOSURE TIER SYSTEM
         var exploredCount = 0;
-        try { exploredCount = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length; } catch(e) {}
+        try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
         // Admin Bypass Logic
@@ -3322,7 +3322,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         });
 
         // Save visited channels locally
-        let visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        let visited = safeJSON('btc_visited_channels', []);
         if (!visited.includes(id)) { visited.push(id); localStorage.setItem('btc_visited_channels', JSON.stringify(visited)); }
 
         // --- SENTIMENT RATING ---
@@ -3763,7 +3763,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
 
         // Restore visited channel checkmarks
-        const visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+        const visited = safeJSON('btc_visited_channels', []);
         visited.forEach(id => {
             document.querySelectorAll('.ch-btn').forEach(b => {
                 if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + id + "'")) {

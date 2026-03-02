@@ -109,16 +109,7 @@ function isCleanText(text) {
 function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // Time ago helper
-function timeAgo(ts) {
-    var now = Date.now();
-    var d = ts && ts.toDate ? ts.toDate().getTime() : (typeof ts === 'number' ? ts : new Date(ts).getTime());
-    var diff = Math.floor((now - d) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-    if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
-    return new Date(d).toLocaleDateString();
-}
+// [AUDIT FIX] timeAgo moved to utils.js
 
 // Navigate back to forum list
 window.forumBack = function() {
@@ -512,6 +503,9 @@ window.forumNewPost = function() {
 
 // ---- Submit Post ----
 window.forumSubmitPost = async function() {
+    // [AUDIT FIX] Double-submit protection
+    if (window._forumSubmitting) return;
+    window._forumSubmitting = true;
     var status = document.getElementById('forumPostStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">You must be signed in</span>';
@@ -585,7 +579,7 @@ window.forumSubmitPost = async function() {
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumPosts: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[forum] Error:', e); });
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumPosts = (currentUser.forumPosts || 0) + 1;
         forumBack();
     } catch(e) {
@@ -595,6 +589,9 @@ window.forumSubmitPost = async function() {
 
 // ---- Submit Reply ----
 window.forumSubmitReply = async function(postId) {
+    // [AUDIT FIX] Double-submit protection
+    if (window._forumReplySubmitting) return;
+    window._forumReplySubmitting = true;
     var status = document.getElementById('forumReplyStatus');
     var input = document.getElementById('forumReplyInput');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || !input) return;
@@ -635,7 +632,7 @@ window.forumSubmitReply = async function(postId) {
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumReplies: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[forum] Error:', e); });
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
         input.value = '';
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Reply posted!</span>';

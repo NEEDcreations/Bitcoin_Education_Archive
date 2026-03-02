@@ -124,7 +124,7 @@ function sanitizeMessage(text) {
 
 // ---- BLOCK/UNBLOCK USERS ----
 window.getBlockedUsers = function() {
-    try { return JSON.parse(localStorage.getItem('btc_blocked_users') || '[]'); } catch(e) { return []; }
+    try { return safeJSON('btc_blocked_users', []); } catch(e) { return []; }
 };
 
 window.isUserBlocked = function(uid) {
@@ -141,7 +141,7 @@ window.blockUser = function(uid, username) {
     if (auth && auth.currentUser && db) {
         db.collection('users').doc(auth.currentUser.uid).update({
             blockedUsers: firebase.firestore.FieldValue.arrayUnion(uid)
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[messaging] Error:', e); });
     }
     if (typeof showToast === 'function') showToast('🚫 Blocked ' + (username || 'user') + '. You won\'t see their messages.');
     // Close DM if open with this user
@@ -156,7 +156,7 @@ window.unblockUser = function(uid, username) {
     if (auth && auth.currentUser && db) {
         db.collection('users').doc(auth.currentUser.uid).update({
             blockedUsers: firebase.firestore.FieldValue.arrayRemove(uid)
-        }).catch(function(){});
+        }).catch(function(e) { console.error('[messaging] Error:', e); });
     }
     if (typeof showToast === 'function') showToast('✅ Unblocked ' + (username || 'user'));
 };
@@ -220,7 +220,7 @@ function restoreBlockedList() {
             var merged = Array.from(new Set(local.concat(remote)));
             localStorage.setItem('btc_blocked_users', JSON.stringify(merged));
         }
-    }).catch(function(){});
+    }).catch(function(e) { console.error('[messaging] Error:', e); });
 }
 
 // ---- ONLINE PRESENCE ----
@@ -404,21 +404,9 @@ function profileStat(emoji, value, label) {
         '<div style="font-size:0.6rem;color:var(--text-faint);">' + label + '</div></div>';
 }
 
-function timeAgo(ts) {
-    if (!ts) return '';
-    var d = ts.toDate ? ts.toDate() : new Date(ts);
-    var diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
-    return d.toLocaleDateString();
-}
+// [AUDIT FIX] timeAgo moved to utils.js
 
-function escapeHtml(s) {
-    if (!s) return '';
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+// [AUDIT FIX] escapeHtml moved to utils.js
 
 // ---- DIRECT MESSAGING ----
 
@@ -544,6 +532,10 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
             snap.forEach(function(doc) {
                 var m = doc.data();
                 var isMe = m.senderUid === myUid;
+                // [AUDIT FIX] Filter messages from blocked users
+                if (!isMe && typeof isUserBlocked === 'function' && isUserBlocked(m.senderUid)) {
+                    return; // Skip rendering this message
+                }
                 var time = m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) : new Date();
                 var dateStr = time.toLocaleDateString();
 
@@ -600,9 +592,11 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         return;
     }
 
-    // Scam detection — warn but allow send
+    // [AUDIT FIX] Scam detection — require confirmation before sending
     if (containsScamPattern(text)) {
-        if (typeof showToast === 'function') showToast('⚠️ Warning: Your message looks like it could be a scam. Please be careful.');
+        if (!confirm('⚠️ This message contains patterns commonly used in scams. Are you sure you want to send it?')) {
+            return;
+        }
     }
 
     // Suspicious link warning

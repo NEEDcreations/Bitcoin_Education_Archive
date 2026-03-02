@@ -4,79 +4,51 @@ service cloud.firestore {
 
     // =============================================
     // USERS COLLECTION
-    // Each user doc ID = their Firebase Auth UID
     // =============================================
     match /users/{userId} {
-      // Anyone can read user profiles (leaderboard)
       allow read: if true;
-
-      // Users can only write to their OWN document
       allow create: if request.auth != null
                     && request.auth.uid == userId;
-
       allow update: if request.auth != null
                     && request.auth.uid == userId
-                    // Prevent setting absurd point values directly
                     && (!('points' in request.resource.data) 
                         || request.resource.data.points <= resource.data.points + 2200
                         || request.resource.data.points is int);
-
-      // Only allow delete of own document (account cleanup)
       allow delete: if request.auth != null
                     && request.auth.uid == userId;
     }
 
     // =============================================
-    // VISITS COLLECTION (unique visitor tracking)
-    // Doc ID = device fingerprint
+    // VISITS COLLECTION
     // =============================================
     match /visits/{visitorId} {
-      // Allow reading own visit doc to check if already counted today
       allow read: if true;
-
-      // Anyone can create/update their visit doc (anonymous visitors)
-      // But only allow setting lastVisit to today's date
       allow create: if request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
                     && request.resource.data.lastVisit.size() == 10;
-
       allow update: if request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
                     && request.resource.data.lastVisit.size() == 10
-                    // Can only update if lastVisit is changing (1 per day)
                     && request.resource.data.lastVisit != resource.data.lastVisit;
     }
 
     // =============================================
-    // STATS COLLECTION (global counters)
-    // Currently: stats/visits { total: number }
+    // STATS COLLECTION
     // =============================================
     match /stats/{statId} {
-      // Anyone can read stats (displayed on homepage)
       allow read: if true;
-
-      // Allow incrementing the visit counter
-      // Only allow total to increase by exactly 1
       allow update: if statId == 'visits'
                     && request.resource.data.total == resource.data.total + 1;
-
-      // Allow first creation
       allow create: if statId == 'visits'
                     && request.resource.data.total == 1;
-
-      // Nacho analytics — anonymous aggregate counters
-      // Only allow set/merge (increments), no deletes
       allow create, update: if statId == 'nacho-analytics';
     }
 
     // =============================================
-    // SUGGESTIONS COLLECTION (user feedback)
+    // SUGGESTIONS COLLECTION
     // =============================================
     match /suggestions/{suggestionId} {
-      // No reads from client
       allow read: if false;
-
-      // Anyone authenticated can submit (rate limited client-side)
       allow create: if request.auth != null
                     && request.resource.data.keys().hasAll(['text', 'timestamp'])
                     && request.resource.data.text is string
@@ -85,18 +57,16 @@ service cloud.firestore {
 
     // =============================================
     // REFERRALS COLLECTION
+    // [AUDIT FIX] Added admin write for verification
     // =============================================
     match /referrals/{referralId} {
-      // Users can read referral docs
       allow read: if request.auth != null;
-
-      // Users can create their own referral doc
       allow create: if request.auth != null
                     && request.auth.uid == referralId;
-
-      // Users can update their own referral doc
+      // [AUDIT FIX] Admin can update any referral (for verification payouts)
       allow update: if request.auth != null
-                    && request.auth.uid == referralId;
+                    && (request.auth.uid == referralId
+                        || request.auth.token.email == 'needcreations@gmail.com');
     }
 
     // =============================================
@@ -104,13 +74,9 @@ service cloud.firestore {
     // =============================================
     match /giveaway_entries/{entryId} {
       allow read: if false;
-
-      // Can only create own entry
       allow create: if request.auth != null
                     && (request.auth.uid == entryId 
                         || request.resource.data.uid == request.auth.uid);
-
-      // Can update own entry
       allow update: if request.auth != null
                     && resource.data.uid == request.auth.uid;
     }
@@ -120,21 +86,17 @@ service cloud.firestore {
     // =============================================
     match /push_tokens/{tokenId} {
       allow read: if false;
-
       allow create, update: if request.auth != null
                             && request.auth.uid == tokenId;
     }
 
     // =============================================
-    // TOTP SECRETS (managed by Cloud Functions only)
+    // TOTP SECRETS (Cloud Functions only)
     // =============================================
     match /totp_pending/{userId} {
-      // Only Cloud Functions (admin SDK) can read/write — never client
       allow read, write: if false;
     }
-
     match /totp_secrets/{userId} {
-      // Only Cloud Functions (admin SDK) can read/write — never client
       allow read, write: if false;
     }
 
@@ -142,31 +104,19 @@ service cloud.firestore {
     // FORUM POSTS
     // =============================================
     match /forum_posts/{postId} {
-      // Anyone can read forum posts
       allow read: if true;
-
-      // Authenticated users can create posts
       allow create: if request.auth != null
-                    
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.authorId == request.auth.uid;
-
-      // Allow upvote updates (voters array + upvotes count) — only vote-related fields
       allow update: if request.auth != null
-                    
                     && (
-                      // Voting: only upvotes and voters can change
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount']))
-                      // Author can edit their own post
                       || resource.data.authorId == request.auth.uid
-                      // Admin can edit anything
                       || request.auth.token.email == 'needcreations@gmail.com'
                     );
-
-      // Author or admin can delete posts
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || request.auth.token.email == 'needcreations@gmail.com');
@@ -176,28 +126,19 @@ service cloud.firestore {
     // FORUM REPLIES
     // =============================================
     match /forum_replies/{replyId} {
-      // Anyone can read replies
       allow read: if true;
-
-      // Authenticated users can create replies
       allow create: if request.auth != null
-                    
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 1000
                     && request.resource.data.authorId == request.auth.uid;
-
-      // Allow upvote updates — only vote-related fields, or author/admin edits
       allow update: if request.auth != null
-                    
                     && (
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                       || resource.data.authorId == request.auth.uid
                       || request.auth.token.email == 'needcreations@gmail.com'
                     );
-
-      // Author or admin can delete replies
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || request.auth.token.email == 'needcreations@gmail.com');
@@ -207,77 +148,89 @@ service cloud.firestore {
     // MARKETPLACE LISTINGS
     // =============================================
     match /marketplace/{listingId} {
-      // Anyone can read listings
       allow read: if true;
-
-      // Authenticated non-anonymous users can create listings
       allow create: if request.auth != null
-                    
                     && request.resource.data.sellerUid == request.auth.uid;
-
-      // Seller or admin can update/delete
       allow update: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
                         || request.auth.token.email == 'needcreations@gmail.com');
-
       allow delete: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
                         || request.auth.token.email == 'needcreations@gmail.com');
     }
 
     // =============================================
-    // MARKETPLACE MESSAGES (buyer-seller)
+    // MARKETPLACE MESSAGES
+    // [AUDIT FIX] Restricted reads to buyer or seller only
     // =============================================
     match /marketplace_messages/{msgId} {
-      // Seller can read messages for their listings
-      allow read: if request.auth != null;
-
-      // Authenticated users can send messages
+      allow read: if request.auth != null
+                  && (resource.data.buyerUid == request.auth.uid
+                      || resource.data.sellerUid == request.auth.uid);
       allow create: if request.auth != null
-                    
-                    && request.resource.data.buyerUid == request.auth.uid;
+                    && request.resource.data.buyerUid == request.auth.uid
+                    && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']);
     }
 
     // =============================================
     // DIRECT MESSAGES
+    // [AUDIT FIX] Messages subcollection now checks participants
     // =============================================
     match /dm_conversations/{convoId} {
-      // Participants can read their conversations
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
-
-      // Authenticated users can create/update conversations they're part of
       allow create: if request.auth != null
-                    
                     && request.auth.uid in request.resource.data.participants;
-
       allow update: if request.auth != null
                     && request.auth.uid in resource.data.participants;
 
-      // Messages subcollection
       match /messages/{messageId} {
-        // Participants can read messages
-        allow read: if request.auth != null;
-
-        // Authenticated users can send messages
+        // [AUDIT FIX] Only conversation participants can read messages
+        allow read: if request.auth != null
+                    && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
         allow create: if request.auth != null
-                      
                       && request.resource.data.senderUid == request.auth.uid;
       }
     }
 
     // =============================================
-    // REPORTS (abuse/scam reports)
+    // REPORTS
     // =============================================
     match /reports/{reportId} {
-      // Only admin can read reports
       allow read: if request.auth != null
                   && request.auth.token.email == 'needcreations@gmail.com';
-
-      // Any authenticated user can create a report
       allow create: if request.auth != null
-                    
                     && request.resource.data.reporterUid == request.auth.uid;
+    }
+
+    // =============================================
+    // IRL EVENTS
+    // [AUDIT FIX] New — was completely missing
+    // =============================================
+    match /irl_events/{eventId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.hostId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['title', 'hostId', 'date', 'location'])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 3
+                    && request.resource.data.title.size() <= 200;
+      allow update: if request.auth != null
+                    && (resource.data.hostId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+      allow delete: if request.auth != null
+                    && (resource.data.hostId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // CHANNEL RATINGS
+    // [AUDIT FIX] New — was completely missing
+    // =============================================
+    match /channel_ratings/{ratingId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
     }
 
     // =============================================
