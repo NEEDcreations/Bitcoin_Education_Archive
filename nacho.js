@@ -701,11 +701,11 @@ function createNacho() {
         }
         /* Mobile — sidebar hidden, Nacho goes bottom-left */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 160px; left: 16px; }
+            #nacho-container { bottom: 200px; left: 16px; }
             #nacho-avatar { width: 80px; height: 80px; }
             #nacho-bubble {
                 position: fixed;
-                bottom: 250px;
+                bottom: 290px;
                 left: 12px;
                 right: 12px;
                 max-width: calc(100vw - 24px);

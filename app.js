@@ -565,9 +565,17 @@
             var spins = 5 + Math.random() * 3; // 5-8 full spins
             // Pointer is at top (12 o'clock = -π/2). Segments start at 3 o'clock (0 rad).
             // To land segment[i] under the pointer: rotate so segment center aligns with top
+            // Pointer is at the TOP (12 o'clock = -π/2 in canvas coordinates)
+            // Segments are drawn starting at 0 radians (3 o'clock)
+            // To land segment[i] under the top pointer after rotation:
+            // We need: rotationAngle + segCenter ≡ -π/2 (mod 2π)
+            // So: rotationAngle = -segCenter - π/2
             var segCenter = selectedIndex * segmentAngle + segmentAngle / 2;
-            // We need the segment center to be at the top (-π/2), so final rotation = -segCenter - π/2
-            var finalAngle = (Math.PI * 2) - segCenter + (Math.PI / 2);
+            // Add small random offset within segment so it doesn't always land dead center
+            var jitter = (Math.random() - 0.5) * segmentAngle * 0.7;
+            var targetAngle = -segCenter - (Math.PI / 2) + jitter;
+            // Normalize to positive and add full spins
+            var finalAngle = ((targetAngle % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
             var totalRotation = (spins * Math.PI * 2) + finalAngle;
             
             // Animate
@@ -927,8 +935,8 @@
             '</style>' +
             /* ===== HERO SECTION ===== */
             '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.08) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:16px 16px 12px;text-align:center;position:relative;">' +
-                /* Top bar: back + tools */
-                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+                /* Top bar: back + tools (sticky) */
+                '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;position:sticky;top:0;z-index:10;background:var(--bg,#0f0f1c);">' +
                     '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
                     '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:12px;">' +
                         '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:0;width:34px;height:34px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;" title="ELI5 Mode"><span style="font-size:1.4rem;">🧒</span><span style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">ELI5</span></button>' +
