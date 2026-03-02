@@ -433,8 +433,8 @@ var _deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     _deferredInstallPrompt = e;
-    // Show install banner after 3s if on mobile and not already installed
-    if (typeof isMobile === 'function' && isMobile() && !window.matchMedia('(display-mode: standalone)').matches) {
+    // Show install banner after 3s if not already installed
+    if (!window.matchMedia('(display-mode: standalone)').matches) {
         var dismissed = localStorage.getItem('btc_pwa_dismissed');
         if (dismissed && Date.now() - parseInt(dismissed) < 7 * 86400000) return; // Don't show for 7 days after dismiss
         setTimeout(showPWAInstallBanner, 3000);
