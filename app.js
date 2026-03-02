@@ -3390,7 +3390,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals', keywords: 'badges achievement trophy unlock goal progress medal', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },
-        { id: '_predict', title: '📈 Price Prediction', desc: 'Predict if Bitcoin goes up or down in 24 hours', keywords: 'predict prediction price bitcoin up down forecast', action: 'showPrediction()' },
+        { id: '_predict', title: '📈 Price Prediction', desc: 'Predict if Bitcoin goes up or down in 24 hours', keywords: 'predict prediction price bitcoin up down forecast', action: 'showPricePrediction()' },
         { id: '_random', title: '🎲 Random Channel', desc: 'Jump to a random Bitcoin channel', keywords: 'random channel surprise discover explore dice', action: 'goRandom()' },
         { id: '_meme', title: '😂 Random Meme', desc: 'See a random Bitcoin meme', keywords: 'meme funny joke random humor laugh memes', action: 'goRandomMeme()' },
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
