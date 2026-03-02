@@ -419,23 +419,19 @@ function checkRateLimit() {
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
 function isInAppBrowser() {
     var ua = navigator.userAgent || '';
-    return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|BytedanceWebview|musical_ly|TikTok|Weibo|MicroMessenger|LinkedInApp/i.test(ua);
+    return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|BytedanceWebview|musical_ly|TikTok|Weibo|MicroMessenger|LinkedInApp|Telegram/i.test(ua);
 }
 
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
-    // In-app browsers (Twitter, Instagram, etc): use redirect instead of popup
+    // In-app browsers can't do popups or redirects reliably — open in system browser
     if (isInAppBrowser()) {
-        // Save anonymous data before redirect so we can merge when they come back
-        if (auth.currentUser && auth.currentUser.isAnonymous) {
-            const anonDoc = await db.collection('users').doc(auth.currentUser.uid).get();
-            if (anonDoc.exists) {
-                localStorage.setItem('btc_anon_uid', auth.currentUser.uid);
-                localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-            }
-        }
-        auth.signInWithRedirect(provider);
+        // Try to open in external browser instead
+        var url = window.location.href;
+        if (typeof showToast === 'function') showToast('Please open in your browser to sign in. Tap ⋮ → Open in Browser');
+        // Try to force external browser
+        window.open(url, '_system');
         return;
     }
 
