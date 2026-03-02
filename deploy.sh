@@ -41,11 +41,14 @@ if [ $? -eq 0 ]; then
     echo "🌐 Purging Cloudflare cache..."
 
     # Use env vars, fall back to hardcoded (for backward compat)
-    _CF_TOKEN="${CF_API_TOKEN:-v3WdZ_xsWECOopAXIX5QmW9RKZBLzpyOcOhFDDeo}"
-    _CF_ZONE="${CF_ZONE_ID:-60fbfd1fc52f7eee8de12df7f3c6d1de}"
+    if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ZONE_ID" ]; then
+        echo "⚠️ CF_API_TOKEN or CF_ZONE_ID not set. Skipping cache purge."
+        echo "   Set them with: export CF_API_TOKEN=... && export CF_ZONE_ID=..."
+        exit 0
+    fi
 
-    RESULT=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${_CF_ZONE}/purge_cache" \
-         -H "Authorization: Bearer ${_CF_TOKEN}" \
+    RESULT=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+         -H "Authorization: Bearer ${CF_API_TOKEN}" \
          -H "Content-Type: application/json" \
          --data '{"purge_everything":true}')
     
