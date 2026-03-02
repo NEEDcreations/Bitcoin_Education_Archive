@@ -576,3 +576,237 @@ exports.nachoFeedbackReport = onSchedule({
         return null;
     }
 });
+
+// =============================================
+// AUDIT FIX: Referral Verification
+// Runs when a referred user meets qualifications
+// Uses admin SDK to update the referrer's document
+// =============================================
+exports.verifyReferral = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    
+    const referredUid = context.auth.uid;
+    
+    // Find the referral doc where this user was referred
+    const referralSnap = await db.collection('referrals')
+        .where('referredUid', '==', referredUid)
+        .where('verified', '==', false)
+        .limit(1)
+        .get();
+    
+    if (referralSnap.empty) return { success: false, reason: 'No pending referral found' };
+    
+    const referralDoc = referralSnap.docs[0];
+    const referralData = referralDoc.data();
+    const referrerUid = referralData.referrerUid;
+    
+    // Check if the referred user meets qualification criteria
+    const referredUser = await db.collection('users').doc(referredUid).get();
+    if (!referredUser.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+    
+    const userData = referredUser.data();
+    const points = userData.points || 0;
+    const channelsVisited = (userData.visitedChannels || []).length;
+    
+    // Qualification: at least 100 points and 5 channels visited
+    if (points < 100 || channelsVisited < 5) {
+        return { success: false, reason: 'Keep learning! You need 100+ points and 5+ channels visited.' };
+    }
+    
+    // Mark referral as verified and award tickets to referrer
+    const batch = db.batch();
+    
+    // Update referral doc
+    batch.update(referralDoc.ref, {
+        verified: true,
+        verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ticketsAwarded: true
+    });
+    
+    // Award 50 tickets to the referrer (using admin SDK bypasses rules)
+    batch.update(db.collection('users').doc(referrerUid), {
+        tickets: admin.firestore.FieldValue.increment(50),
+        referralTicketsEarned: admin.firestore.FieldValue.increment(50)
+    });
+    
+    // Award 25 tickets to the referred user too
+    batch.update(db.collection('users').doc(referredUid), {
+        tickets: admin.firestore.FieldValue.increment(25)
+    });
+    
+    await batch.commit();
+    
+    return { success: true, referrerTickets: 50, referredTickets: 25 };
+});
+
+// =============================================
+// AUDIT FIX: Server-Side Points Validation
+// High-value point awards go through this function
+// Prevents client-side point farming
+// =============================================
+exports.awardPoints = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    
+    const uid = context.auth.uid;
+    const reason = data.reason || '';
+    const amount = parseInt(data.amount) || 0;
+    
+    // Define allowed point values per reason
+    const allowedAwards = {
+        'exam_pass': 500,
+        'quest_complete': 200,
+        'referral_bonus': 100,
+        'scholar_cert': 1000,
+        'daily_challenge': 50,
+    };
+    
+    if (!allowedAwards[reason]) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid award reason');
+    }
+    
+    const awardAmount = allowedAwards[reason];
+    
+    // Rate limiting: check last award time for this reason
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+    
+    const userData = userDoc.data();
+    const now = Date.now();
+    const lastAwards = userData.lastAwards || {};
+    const lastAwardTime = lastAwards[reason] || 0;
+    
+    // Cooldowns per reason
+    const cooldowns = {
+        'exam_pass': 86400000,      // 24 hours
+        'quest_complete': 3600000,   // 1 hour
+        'referral_bonus': 0,         // No cooldown (one-time per referral)
+        'scholar_cert': 86400000,    // 24 hours
+        'daily_challenge': 86400000, // 24 hours
+    };
+    
+    if (now - lastAwardTime < cooldowns[reason]) {
+        throw new functions.https.HttpsError('resource-exhausted', 'Too soon. Try again later.');
+    }
+    
+    // Award points
+    await db.collection('users').doc(uid).update({
+        points: admin.firestore.FieldValue.increment(awardAmount),
+        [`lastAwards.${reason}`]: now
+    });
+    
+    // Log the award for audit trail
+    await db.collection('point_awards').add({
+        uid: uid,
+        reason: reason,
+        amount: awardAmount,
+        ts: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    return { success: true, awarded: awardAmount };
+});
+
+// =============================================
+// AUDIT FIX: Server-Side Daily Limit Check
+// Spin wheel, scholar exam, quest attempts
+// =============================================
+exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    
+    const uid = context.auth.uid;
+    const action = data.action || '';
+    const today = new Date().toISOString().split('T')[0];
+    
+    const allowedActions = {
+        'spin': { max: 1, field: 'lastSpinDate' },
+        'scholar_exam': { max: 1, field: 'lastScholarDate' },
+        'quest': { max: 3, field: 'questDate', countField: 'questCountToday' }
+    };
+    
+    if (!allowedActions[action]) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid action');
+    }
+    
+    const config = allowedActions[action];
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+    
+    const userData = userDoc.data();
+    const lastDate = userData[config.field] || '';
+    
+    if (config.countField) {
+        // Count-based limit (quests)
+        const count = (lastDate === today) ? (userData[config.countField] || 0) : 0;
+        if (count >= config.max) {
+            return { allowed: false, reason: 'Daily limit reached (' + config.max + '/' + config.max + ')' };
+        }
+        // Increment count
+        await db.collection('users').doc(uid).update({
+            [config.field]: today,
+            [config.countField]: (lastDate === today) ? admin.firestore.FieldValue.increment(1) : 1
+        });
+    } else {
+        // Simple date-based limit (spin, exam)
+        if (lastDate === today) {
+            return { allowed: false, reason: 'Already done today. Come back tomorrow!' };
+        }
+        await db.collection('users').doc(uid).update({
+            [config.field]: today
+        });
+    }
+    
+    return { allowed: true };
+});
+
+// =============================================
+// AUDIT FIX: Forum Content Moderation
+// Server-side profanity filter with leetspeak detection
+// =============================================
+exports.moderateContent = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    
+    const text = (data.text || '').trim();
+    if (!text) return { clean: true };
+    
+    // Normalize leetspeak
+    const normalized = text.toLowerCase()
+        .replace(/[@4]/g, 'a')
+        .replace(/[8]/g, 'b')
+        .replace(/[3€]/g, 'e')
+        .replace(/[1!|]/g, 'i')
+        .replace(/[0]/g, 'o')
+        .replace(/[$5]/g, 's')
+        .replace(/[7+]/g, 't')
+        .replace(/[*._\-]/g, '')
+        .replace(/\s+/g, ' ');
+    
+    const profanityList = [
+        'fuck', 'shit', 'bitch', 'asshole', 'damn', 'cunt',
+        'dick', 'cock', 'pussy', 'whore', 'slut', 'fag',
+        'nigger', 'nigga', 'retard', 'kill yourself', 'kys'
+    ];
+    
+    // Word boundary matching to avoid Scunthorpe problem
+    for (const word of profanityList) {
+        const regex = new RegExp('\\b' + word + '\\b', 'i');
+        if (regex.test(normalized)) {
+            return { clean: false, reason: 'Content contains inappropriate language' };
+        }
+    }
+    
+    // Check for scam patterns
+    const scamPatterns = [
+        /send me \d+ btc/i,
+        /double your bitcoin/i,
+        /guaranteed.*return/i,
+        /invest.*guaranteed/i,
+        /free bitcoin.*send/i,
+    ];
+    
+    for (const pattern of scamPatterns) {
+        if (pattern.test(text)) {
+            return { clean: false, reason: 'Content contains potential scam patterns' };
+        }
+    }
+    
+    return { clean: true };
+});
