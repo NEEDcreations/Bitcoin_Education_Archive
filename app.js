@@ -2317,22 +2317,36 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         }
 
+        // Master safety timer: if nothing answers within 8s, serve hardcoded fallback
+        var _masterAnswered = false;
+        var _masterTimer = setTimeout(function() {
+            if (!_masterAnswered) {
+                _masterAnswered = true;
+                reply('That\'s a great question! I\'m having a little trouble with my brain right now 🦌 Try asking me again in a moment, or explore the channels on the left to learn about Bitcoin!', 'fallback');
+            }
+        }, 8000);
+
+        function safeReply(result) {
+            if (_masterAnswered) return;
+            _masterAnswered = true;
+            clearTimeout(_masterTimer);
+            var extra = '';
+            if (result && result.siteAction) {
+                extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
+            } else if (result && result.channel) {
+                extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+            }
+            reply((result && result.answer ? result.answer : 'Hmm, let me think about that... Try asking another way! 🦌') + extra, (result && result.type) || 'fallback');
+        }
+
         // Use unified pipeline (same logic as regular Nacho bubble)
         if (typeof nachoUnifiedAnswer === 'function') {
-            nachoUnifiedAnswer(q, function(result) {
-                var extra = '';
-                if (result.siteAction) {
-                    extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
-                } else if (result.channel) {
-                    extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
-                }
-                reply(result.answer + extra, result.type);
-
-
-
-
-
-            });
+            try {
+                nachoUnifiedAnswer(q, safeReply);
+            } catch(e) {
+                console.warn('Nacho pipeline error:', e);
+                safeReply({ type: 'fallback', answer: 'Oops, my brain hit a bump! 🦌 Try asking again — I know a LOT about Bitcoin!' });
+            }
             return;
         }
 
@@ -2345,15 +2359,12 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         setTimeout(function() {
             if (typeof nachoUnifiedAnswer === 'function') {
-                nachoUnifiedAnswer(q, function(result) {
-                    var extra = '';
-                    if (result.siteAction) {
-                        extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go \u2192') + '</button>';
-                    } else if (result.channel) {
-                        extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">\ud83d\udcd6 Read more: ' + (result.channelName || result.channel) + ' \u2192</a>';
-                    }
-                    reply(result.answer + extra, result.type);
-                });
+                try {
+                    nachoUnifiedAnswer(q, safeReply);
+                } catch(e) {
+                    console.warn('Nacho pipeline retry error:', e);
+                    safeReply({ type: 'fallback', answer: 'I\'m still loading up my Bitcoin knowledge! Try again in a moment 🦌' });
+                }
             } else {
                 nachoModeFallbackReply(q, reply);
             }

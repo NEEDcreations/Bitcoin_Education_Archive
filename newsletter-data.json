@@ -1,23 +1,29 @@
 {
-  "updated": "2026-02-28T19:00:00.000Z",
+  "updated": "2026-03-02T00:00:00.000Z",
   "news": [
     {
-      "date": "Feb 28, 2026",
-      "title": "Bitcoin Holds Strong Above $65K Amid Market Uncertainty",
-      "snippet": "Bitcoin continues to demonstrate resilience as the leading monetary network, maintaining strong support above $65,000 despite macroeconomic headwinds.",
-      "link": "https://mempool.space"
+      "date": "Mar 1, 2026",
+      "title": "Bitcoin Adoption Grew Strongly in 2025: Institutions Bought 829,000 BTC",
+      "snippet": "River Report shows Lightning payments jumped 300% and 23 nation-states now hold Bitcoin, signaling deepening global integration.",
+      "link": "https://bitcoinnews.com/p/bitcoin-adoption-2025-river-report"
     },
     {
       "date": "Feb 27, 2026",
-      "title": "Over 400,000 BTC Accumulated Between $60K and $70K",
-      "snippet": "On-chain data shows massive accumulation as long-term holders buy the dip during Bitcoin's latest price consolidation.",
-      "link": "https://mempool.space"
+      "title": "France's ENGIE Considers Bitcoin Mining to Use Extra Solar Power in Brazil",
+      "snippet": "Assu Sol, ENGIE's 895MW solar plant, explores Bitcoin mining as Brazil's grid struggles with rapid renewable expansion.",
+      "link": "https://bitcoinnews.com/p/france-engie-bitcoin-mining-solar-brazil"
     },
     {
-      "date": "Feb 26, 2026",
-      "title": "Lightning Network Capacity Hits New All-Time High",
-      "snippet": "The Lightning Network continues its growth trajectory with record channel capacity, enabling faster and cheaper Bitcoin transactions worldwide.",
-      "link": "https://mempool.space/lightning"
+      "date": "Feb 23, 2026",
+      "title": "Bitcoin's Lightning Network Is Thriving With $1B+ Monthly Volume",
+      "snippet": "Lightning Network hits record capacity with over $1 billion in monthly transaction volume, proving Bitcoin as a medium of exchange.",
+      "link": "https://bitcoinnews.com/p/bitcoin-s-lightning-network-is-thriving-with-1b-monthly-volume"
+    },
+    {
+      "date": "Feb 25, 2026",
+      "title": "Bitcoin Association of Slovenia Challenges New Taxation Law",
+      "snippet": "Slovenia's Bitcoin community pushes back against proposed taxation legislation, advocating for fair treatment of Bitcoin holders.",
+      "link": "https://bitcoinnews.com/p/bitcoin-association-slovenia-law-on-taxation"
     }
   ]
 }

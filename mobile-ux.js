@@ -428,6 +428,65 @@ function showWelcomeBack() {
 }
 
 // ---- Initialize Everything ----
+// ---- PWA Install Prompt ----
+var _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    _deferredInstallPrompt = e;
+    // Show install banner after 3s if on mobile and not already installed
+    if (typeof isMobile === 'function' && isMobile() && !window.matchMedia('(display-mode: standalone)').matches) {
+        var dismissed = localStorage.getItem('btc_pwa_dismissed');
+        if (dismissed && Date.now() - parseInt(dismissed) < 7 * 86400000) return; // Don't show for 7 days after dismiss
+        setTimeout(showPWAInstallBanner, 3000);
+    }
+});
+
+function showPWAInstallBanner() {
+    if (document.getElementById('pwaInstallBanner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'pwaInstallBanner';
+    banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+    banner.innerHTML = '<div style="display:flex;align-items:center;gap:12px;">' +
+        '<div style="font-size:2rem;">🦌</div>' +
+        '<div style="flex:1;">' +
+            '<div style="color:#f7931a;font-weight:700;font-size:0.95rem;margin-bottom:4px;">Install Bitcoin Education</div>' +
+            '<div style="color:#ccc;font-size:0.8rem;">Add to home screen for the best experience — works offline!</div>' +
+        '</div>' +
+        '<button onclick="dismissPWABanner()" style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:12px;">' +
+        '<button onclick="installPWA()" style="flex:1;padding:10px;background:#f7931a;border:none;border-radius:10px;color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">Install App</button>' +
+        '<button onclick="dismissPWABanner()" style="padding:10px 16px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:#ccc;font-size:0.85rem;cursor:pointer;font-family:inherit;">Not now</button>' +
+    '</div>';
+    // Add slideUp animation
+    if (!document.getElementById('pwaAnimStyle')) {
+        var style = document.createElement('style');
+        style.id = 'pwaAnimStyle';
+        style.textContent = '@keyframes slideUp{from{transform:translateX(-50%) translateY(100px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}';
+        document.head.appendChild(style);
+    }
+    document.body.appendChild(banner);
+}
+
+window.installPWA = function() {
+    if (_deferredInstallPrompt) {
+        _deferredInstallPrompt.prompt();
+        _deferredInstallPrompt.userChoice.then(function(result) {
+            if (result.outcome === 'accepted') {
+                if (typeof showToast === 'function') showToast('🦌 Welcome aboard! App installed!');
+            }
+            _deferredInstallPrompt = null;
+        });
+    }
+    dismissPWABanner();
+};
+
+window.dismissPWABanner = function() {
+    var banner = document.getElementById('pwaInstallBanner');
+    if (banner) banner.remove();
+    localStorage.setItem('btc_pwa_dismissed', Date.now().toString());
+};
+
 function initMobileUX() {
     console.log('[MobileUX] Initializing...');
     initPullToRefresh();
