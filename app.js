@@ -548,7 +548,7 @@
             spinBtn.disabled = true;
             spinBtn.style.opacity = '0.5';
             
-            // Weighted random selection
+            // STEP 1: Weighted random selection to pick the prize
             var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
             var random = Math.random() * totalWeight;
             var selectedIndex = 0, currentWeight = 0;
@@ -562,21 +562,26 @@
             }
             
             var selected = segments[selectedIndex];
-            var spins = 5 + Math.random() * 3; // 5-8 full spins
-            // Pointer is at top (12 o'clock = -π/2). Segments start at 3 o'clock (0 rad).
-            // To land segment[i] under the pointer: rotate so segment center aligns with top
-            // Pointer is at the TOP (12 o'clock = -π/2 in canvas coordinates)
-            // Segments are drawn starting at 0 radians (3 o'clock)
-            // To land segment[i] under the top pointer after rotation:
-            // We need: rotationAngle + segCenter ≡ -π/2 (mod 2π)
-            // So: rotationAngle = -segCenter - π/2
-            var segCenter = selectedIndex * segmentAngle + segmentAngle / 2;
-            // Add small random offset within segment so it doesn't always land dead center
-            var jitter = (Math.random() - 0.5) * segmentAngle * 0.7;
-            var targetAngle = -segCenter - (Math.PI / 2) + jitter;
-            // Normalize to positive and add full spins
-            var finalAngle = ((targetAngle % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-            var totalRotation = (spins * Math.PI * 2) + finalAngle;
+            
+            // STEP 2: Calculate rotation to land the pointer on the selected segment
+            // Canvas draws segment[0] starting at angle 0 (3 o'clock), going clockwise
+            // The pointer is at the TOP of the wheel (12 o'clock)
+            // After rotating the canvas by angle R, the segment at the top is the one
+            // whose original position (before rotation) was at angle (2π - R) mod 2π
+            // measured from 12 o'clock (i.e., 3π/2 in standard canvas coords)
+            //
+            // Simpler approach: segment[i] center is at angle (i + 0.5) * segmentAngle from 3 o'clock
+            // The pointer is at -π/2 (top). After rotation R, segment center moves to:
+            //   (i + 0.5) * segmentAngle + R
+            // For this to align with the pointer at -π/2 (or equivalently 3π/2):
+            //   R = 3π/2 - (i + 0.5) * segmentAngle
+            var spins = 5 + Math.random() * 3;
+            var segCenter = (selectedIndex + 0.5) * segmentAngle;
+            var jitter = (Math.random() - 0.5) * segmentAngle * 0.6; // Don't land on edges
+            var targetRotation = (3 * Math.PI / 2) - segCenter + jitter;
+            // Normalize to 0..2π
+            targetRotation = ((targetRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+            var totalRotation = (spins * Math.PI * 2) + targetRotation;
             
             // Animate
             var startTime = Date.now();
