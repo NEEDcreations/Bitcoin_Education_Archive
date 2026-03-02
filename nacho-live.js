@@ -138,7 +138,7 @@ function initTicker() {
                         var badWords = /ethereum|eth\b|solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft\b|defi\b|web3/i;
                         var count = 0;
                         data.results.forEach(function(r) {
-                            if (count >= 4) return;
+                            if (count >= 3) return;
                             var title = (r.title || '').replace(/<[^>]+>/g, '').substring(0, 80);
                             if (!title || badWords.test(title)) return;
                             count++;
