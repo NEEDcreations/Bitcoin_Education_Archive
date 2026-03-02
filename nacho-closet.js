@@ -3,6 +3,19 @@
 // =============================================
 // 🦌 Nacho's Closet — Collectible Outfits & Accessories
 // Unlock items as your friendship with Nacho grows!
+
+// Multi-equip storage: { hat: 'itemId', shirt: 'itemId', glasses: 'itemId' }
+function getEquippedItems() {
+    try {
+        var data = JSON.parse(localStorage.getItem('btc_nacho_equipped_multi') || '{}');
+        return data;
+    } catch(e) { return {}; }
+}
+
+function getEquippedItem() {
+    var multi = getEquippedItems();
+    return Object.values(multi)[0] || localStorage.getItem('btc_nacho_equipped') || null;
+}
 // =============================================
 
 (function() {
@@ -138,15 +151,7 @@ function getUnlockedItems() {
     return NACHO_ITEMS.filter(function(item) { return item.level <= level; });
 }
 
-// ---- Get equipped item ----
-function getEquippedItem() {
-    var id = localStorage.getItem('btc_nacho_equipped');
-    if (!id) return null;
-    var item = NACHO_ITEMS.find(function(i) { return i.id === id; });
-    if (!item) return null;
-    if (item.level > getFriendLevel()) return null;
-    return item;
-}
+// ---- Get equipped item (legacy single-item — now uses multi-equip above) ----
 
 // ---- Equip an item (with animation) ----
 window.equipNachoItem = function(itemId) {
