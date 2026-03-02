@@ -46,3 +46,35 @@ function timeAgo(ts) {
     if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
     return date.toLocaleDateString();
 }
+
+// ---- Page Visibility: pause/resume intervals when tab is hidden ----
+// Prevents wasted CPU and API calls in background tabs
+(function() {
+    var _registeredIntervals = [];
+    var _pausedIntervals = [];
+
+    window.registerInterval = function(fn, ms, name) {
+        var id = setInterval(fn, ms);
+        _registeredIntervals.push({ id: id, fn: fn, ms: ms, name: name || 'unnamed' });
+        return id;
+    };
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // Tab hidden — pause all registered intervals
+            _registeredIntervals.forEach(function(entry) {
+                clearInterval(entry.id);
+            });
+            _pausedIntervals = _registeredIntervals.slice();
+            _registeredIntervals = [];
+        } else {
+            // Tab visible — resume all paused intervals
+            _pausedIntervals.forEach(function(entry) {
+                entry.fn(); // Run immediately on resume
+                entry.id = setInterval(entry.fn, entry.ms);
+                _registeredIntervals.push(entry);
+            });
+            _pausedIntervals = [];
+        }
+    });
+})();

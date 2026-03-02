@@ -20,6 +20,21 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // Origin validation — block non-browser server-to-server abuse
+    const origin = request.headers.get('Origin') || '';
+    const referer = request.headers.get('Referer') || '';
+    const allowedOrigins = ['https://bitcoineducation.quest', 'http://localhost', 'http://127.0.0.1'];
+    const isAllowedOrigin = !origin || allowedOrigins.some(o => origin.startsWith(o));
+    const isAllowedReferer = !referer || allowedOrigins.some(o => referer.startsWith(o));
+    
+    // For AI endpoint, require valid origin (search is more permissive for RSS/ticker)
+    if (path === '/ai' && origin && !isAllowedOrigin) {
+      return new Response(JSON.stringify({ error: 'Unauthorized origin' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Route: /search?q=... (existing Brave search)
     if (path === '/search' || (path === '/' && url.searchParams.get('q'))) {
       return handleSearch(request, env, corsHeaders, url);
