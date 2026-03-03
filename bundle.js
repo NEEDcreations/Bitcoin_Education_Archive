@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 15:32 UTC
+// Generated: 2026-03-03 15:42 UTC
 
 
 // ===== channel_index.js =====
@@ -229,7 +229,6 @@ function initRanking() {
         // This prevents the race condition where anonymous user loads before Google auth restores
         let firstAuthEvent = true;
         let emailLinkHandled = auth.isSignInWithEmailLink(window.location.href);
-        let anonRetries = 0; // A7 FIX: Prevent infinite loop if anonymous sign-in keeps failing
         auth.onAuthStateChanged(user => {
             if (firstAuthEvent) {
                 firstAuthEvent = false;
@@ -245,7 +244,7 @@ function initRanking() {
                         loadUserLocal(user.uid);
                     } else {
                         // null user — sign in anonymously right away
-                        if (anonRetries++ < 3) auth.signInAnonymously().then(() => {});
+                        auth.signInAnonymously().then(() => {});
                     }
                 }
                 return;
@@ -263,7 +262,7 @@ function initRanking() {
                 }
             } else {
                 currentUser = null;
-                if (anonRetries++ < 3) auth.signInAnonymously().then(() => {});
+                auth.signInAnonymously().then(() => {});
             }
         });
     } catch(e) {
@@ -423,17 +422,6 @@ window.signInWithNostr = async function() {
     }
 
     try {
-        // A2 FIX: Save anonymous user data before Nostr sign-in changes auth state
-        var anonUid = null;
-        var anonData = null;
-        if (auth.currentUser && auth.currentUser.isAnonymous) {
-            anonUid = auth.currentUser.uid;
-            try {
-                var anonDoc = await db.collection('users').doc(anonUid).get();
-                if (anonDoc.exists) anonData = anonDoc.data();
-            } catch(e) { console.warn('Could not read anon doc:', e); }
-        }
-
         // Get public key from extension
         var pubkey = await window.nostr.getPublicKey();
         if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) {
@@ -476,22 +464,16 @@ window.signInWithNostr = async function() {
             var userDoc = await db.collection('users').doc(uid).get();
             if (!userDoc.exists || !userDoc.data().username) {
                 var npubShort = 'npub...' + pubkey.substring(0, 8);
-                // A2 FIX: Migrate anonymous data if available
                 await db.collection('users').doc(uid).set({
                     username: npubShort,
                     nostr: pubkey,
-                    points: (anonData && anonData.points) || 0,
-                    channelsVisited: (anonData && anonData.channelsVisited) || 0,
-                    totalVisits: (anonData && anonData.totalVisits) || 1,
-                    streak: (anonData && anonData.streak) || 1,
+                    points: 0,
+                    channelsVisited: 0,
+                    totalVisits: 1,
+                    streak: 1,
                     lastVisit: new Date().toISOString().split('T')[0],
                     created: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
-            }
-
-            // A2 FIX: Clean up old anonymous user doc
-            if (anonUid && anonUid !== uid) {
-                try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
             }
 
             loadUser(uid);
@@ -535,12 +517,6 @@ function isInAppBrowser() {
 
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
-
-    // A5 FIX: Warn if already signed in with a different provider
-    if (auth.currentUser && !auth.currentUser.isAnonymous) {
-        var currentName = currentUser ? (currentUser.username || auth.currentUser.displayName || 'your account') : 'your account';
-        if (!confirm('You are currently signed in as ' + currentName + '. Do you want to switch accounts? Your progress is saved.')) return;
-    }
 
     // In-app browsers can't do popups or redirects reliably — open in system browser
     if (isInAppBrowser()) {
@@ -653,7 +629,6 @@ async function signInWithProvider(provider) {
 
         // Popup blocked or closed — fallback to redirect flow
         if (e.code === 'auth/popup-blocked' ||
-            e.code === 'auth/popup-closed-by-user' ||
             e.code === 'auth/cancelled-popup-request') {
             try {
                 showToast('⏳ Popup blocked — redirecting to sign in...');
@@ -687,16 +662,8 @@ async function signInWithProvider(provider) {
             showToast('⚠️ This sign-in method is not enabled. Try a different option.');
         } else if (e.code === 'auth/account-exists-with-different-credential') {
             showToast('⚠️ An account with this email exists using a different sign-in method. Try another option.');
-        } else if (e.code === 'auth/credential-already-in-use') {
-            showToast('⚠️ This credential is already linked to another account. Try signing in with that account instead.');
-        } else if (e.code === 'auth/too-many-requests') {
-            showToast('⚠️ Too many sign-in attempts. Please wait a few minutes and try again.');
-        } else if (e.code === 'auth/user-disabled') {
-            showToast('⚠️ This account has been disabled. Contact support if you think this is an error.');
         } else if (e.code === 'auth/network-request-failed') {
             showToast('⚠️ Network error. Check your connection and try again.');
-        } else if (e.code === 'auth/web-storage-unsupported') {
-            showToast('⚠️ Browser storage is blocked. Disable private browsing or allow cookies to sign in.');
         } else {
             showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
         }
@@ -707,10 +674,8 @@ async function signInWithProvider(provider) {
 function showGiveawayPrompt(uid, displayName) {
     const modal = document.getElementById('usernameModal');
     const box = modal.querySelector('.username-box');
-    // A1 FIX: Escape displayName to prevent XSS via OAuth display names
-    var safeName = String(displayName || 'Bitcoiner').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     box.innerHTML =
-        '<h2>🎉 Welcome, ' + safeName + '!</h2>' +
+        '<h2>🎉 Welcome, ' + displayName + '!</h2>' +
         '<p style="color:var(--text-muted);margin-bottom:16px;">Your account is all set. Want to enter the giveaway?</p>' +
         '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;padding:14px;margin-bottom:16px;text-align:left;">' +
             '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:10px;">' +
@@ -2975,8 +2940,6 @@ async function saveProfile() {
 }
 
 async function signOutUser() {
-    // A3 FIX: Clear user data before sign-out to prevent stale data
-    clearUserData();
     await auth.signOut();
     location.reload();
 }
@@ -3163,19 +3126,12 @@ async function disableTotp() {
 
 // ---- RESTORED: clearUserData ----
 function clearUserData() {
-    // A3 FIX: Clear ALL user-specific localStorage keys on sign-out
     var userKeys = [
         'btc_visited_channels', 'btc_favs', 'btc_hidden_badges',
         'btc_asked_questions', 'btc_scholar_passed', 'btc_scholar_attempt_date',
         'btc_badges', 'btc_last_channel', 'btc_signin_email',
         'btc_nacho_equipped', 'btc_nacho_items_notified', 'btc_points',
-        'btc_total_visits', 'btc_streak', 'btc_last_visit',
-        // Previously missing keys:
-        'btc_anon_uid', 'btc_anon_data', 'btc_spin_closet_items',
-        'btc_nacho_interactions', 'btc_nacho_questions', 'btc_nacho_nickname',
-        'btc_last_spin', 'btc_prediction', 'btc_nacho_story',
-        'btc_nacho_story_date', 'btc_highest_level_seen', 'btc_display_badge',
-        'btc_pending_username', 'btc_pending_email', 'btc_pending_giveaway'
+        'btc_total_visits', 'btc_streak', 'btc_last_visit'
     ];
     userKeys.forEach(function(key) { localStorage.removeItem(key); });
     currentUser = null;
