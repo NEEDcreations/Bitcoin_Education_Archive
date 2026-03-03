@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 01:51 UTC
+// Generated: 2026-03-03 02:06 UTC
 
 
 // ===== channel_index.js =====
@@ -18621,7 +18621,7 @@ function initBottomNav() {
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
             '<button onclick="document.getElementById(\'searchOverlay\').style.display=\'flex\';document.getElementById(\'searchOverlayInput\').focus();" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
-            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label">Explore</span></button>' +
+            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">More</span></button>' +
         '</div>';
@@ -23314,14 +23314,12 @@ window.playSpinWin = function() {
                     '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Stream Unavailable</div>' +
                     '<div style="color:var(--text-muted,#888);font-size:0.85rem;line-height:1.6;margin-bottom:24px;">The live stream couldn\'t be loaded. Check out these great Bitcoin audio sources instead:</div>' +
                     '<div style="display:grid;gap:10px;text-align:left;">' +
-                        '<a href="https://www.youtube.com/@WhatBitcoinDid" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
-                            '<span style="font-size:1.5rem;">🎙️</span><div><div style="font-weight:700;font-size:0.9rem;">What Bitcoin Did</div><div style="font-size:0.75rem;opacity:0.6;">Peter McCormack</div></div></a>' +
-                        '<a href="https://www.youtube.com/@BitcoinAudible" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
-                            '<span style="font-size:1.5rem;">📖</span><div><div style="font-weight:700;font-size:0.9rem;">Bitcoin Audible</div><div style="font-size:0.75rem;opacity:0.6;">Guy Swann</div></div></a>' +
-                        '<a href="https://www.youtube.com/@TFTC21" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
-                            '<span style="font-size:1.5rem;">🔥</span><div><div style="font-weight:700;font-size:0.9rem;">TFTC</div><div style="font-size:0.75rem;opacity:0.6;">Marty Bent</div></div></a>' +
-                        '<a href="https://stephanlivera.com" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
-                            '<span style="font-size:1.5rem;">⚡</span><div><div style="font-weight:700;font-size:0.9rem;">Stephan Livera Podcast</div><div style="font-size:0.75rem;opacity:0.6;">Stephan Livera</div></div></a>' +
+                        '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
+                            '<span style="font-size:1.5rem;">📻</span><div><div style="font-weight:700;font-size:0.9rem;">Node Runners Radio</div><div style="font-size:0.75rem;opacity:0.6;">Live Bitcoin radio on Twitch</div></div></a>' +
+                        '<a href="https://wavlake.com/" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
+                            '<span style="font-size:1.5rem;">🌊</span><div><div style="font-weight:700;font-size:0.9rem;">Wavlake</div><div style="font-size:0.75rem;opacity:0.6;">Music streaming with Bitcoin</div></div></a>' +
+                        '<a href="https://lnbeats.com/" target="_blank" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:var(--text,#ccc);text-decoration:none;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
+                            '<span style="font-size:1.5rem;">⚡</span><div><div style="font-weight:700;font-size:0.9rem;">LN Beats</div><div style="font-size:0.75rem;opacity:0.6;">Bitcoin-powered beats</div></div></a>' +
                     '</div>' +
                     '<div style="margin-top:20px;"><button onclick="window.open(\'https://x.com/Bitcoin_Beats_\',\'_blank\')" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;">Follow @Bitcoin_Beats_ for live streams</button></div>' +
                 '</div>';
