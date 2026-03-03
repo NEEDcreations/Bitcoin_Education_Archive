@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 01:14 UTC
+// Generated: 2026-03-03 01:24 UTC
 
 
 // ===== channel_index.js =====
@@ -19787,36 +19787,36 @@ if (document.readyState === 'loading') {
             var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
             var random = Math.random() * totalWeight;
             var selectedIndex = 0, currentWeight = 0;
-            
             for (var i = 0; i < segments.length; i++) {
                 currentWeight += segments[i].weight;
-                if (random <= currentWeight) {
-                    selectedIndex = i;
-                    break;
-                }
+                if (random <= currentWeight) { selectedIndex = i; break; }
             }
-            
             var selected = segments[selectedIndex];
             
-            // STEP 2: Calculate rotation to land the pointer on the selected segment
-            // Canvas draws segment[0] starting at angle 0 (3 o'clock), going clockwise
-            // The pointer is at the TOP of the wheel (12 o'clock)
-            // After rotating the canvas by angle R, the segment at the top is the one
-            // whose original position (before rotation) was at angle (2π - R) mod 2π
-            // measured from 12 o'clock (i.e., 3π/2 in standard canvas coords)
-            //
-            // Simpler approach: segment[i] center is at angle (i + 0.5) * segmentAngle from 3 o'clock
-            // The pointer is at -π/2 (top). After rotation R, segment center moves to:
-            //   (i + 0.5) * segmentAngle + R
-            // For this to align with the pointer at -π/2 (or equivalently 3π/2):
-            //   R = 3π/2 - (i + 0.5) * segmentAngle
+            // STEP 2: Calculate rotation so the pointer visually lands on the selected segment
+            // Segments are drawn clockwise starting at 0 radians (3 o'clock position)
+            // Pointer is at the TOP of the wheel
+            // When canvas is rotated by R radians, the segment under the top pointer is:
+            //   segIdx = floor(((3π/2 - R) mod 2π) / segmentAngle)
+            // So to land on selectedIndex, we need:
+            //   (3π/2 - R) mod 2π = selectedIndex * segmentAngle + random_offset_within_segment
+            //   R = 3π/2 - selectedIndex * segmentAngle - offset
             var spins = 5 + Math.random() * 3;
-            var segCenter = (selectedIndex + 0.5) * segmentAngle;
-            var jitter = (Math.random() - 0.5) * segmentAngle * 0.6; // Don't land on edges
-            var targetRotation = (3 * Math.PI / 2) - segCenter + jitter;
+            var offsetInSeg = (0.15 + Math.random() * 0.7) * segmentAngle; // stay away from edges
+            var targetR = (3 * Math.PI / 2) - (selectedIndex * segmentAngle) - offsetInSeg;
             // Normalize to 0..2π
-            targetRotation = ((targetRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-            var totalRotation = (spins * Math.PI * 2) + targetRotation;
+            targetR = ((targetR % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+            var totalRotation = Math.floor(spins) * Math.PI * 2 + targetR;
+            
+            // VERIFY: compute which segment the pointer will actually land on
+            var verifyAngle = ((3 * Math.PI / 2) - totalRotation) % (Math.PI * 2);
+            if (verifyAngle < 0) verifyAngle += Math.PI * 2;
+            var verifyIdx = Math.floor(verifyAngle / segmentAngle) % segments.length;
+            if (verifyIdx !== selectedIndex) {
+                console.warn('[Spin] Mismatch! wanted:', selectedIndex, 'got:', verifyIdx, '— using visual result');
+                selected = segments[verifyIdx];
+                selectedIndex = verifyIdx;
+            }
             
             // Animate
             var startTime = Date.now();
