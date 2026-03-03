@@ -1230,6 +1230,897 @@ const NACHO_KB = [
   "channel": "core-source-code",
   "channelName": "Core Source Code"
 }
+,
+
+// =============================================
+// 🦌 NACHO KB EXPANSION — Full 145-Channel Coverage
+// 155 new entries for complete channel coverage
+// =============================================
+
+{ keys: ['dominant','bitcoin dominance','why is bitcoin number one','bitcoin brand','bitcoin network effect','why bitcoin stays on top','market dominance'],
+  answer: "Bitcoin has been the #1 cryptocurrency since day one, {name}! 🏆🦌 It has the strongest brand, the deepest liquidity, the most nodes, the most miners, and the longest track record. Network effects are a powerful moat — the more people use Bitcoin, the more valuable and secure it becomes. No altcoin has ever come close to dethroning it!",
+  channel: 'dominant', channelName: 'Dominant' },
+
+{ keys: ['is bitcoin the best cryptocurrency','top crypto','top cryptocurrency','king of crypto'],
+  answer: "Bitcoin isn't just the first cryptocurrency — it's the only one that matters, {name}! 👑🦌 It has the strongest network effect, the most recognizable brand on Earth (the ₿ symbol is known worldwide!), and a 15+ year unbroken track record. Every other crypto is just an experiment compared to the real thing.",
+  channel: 'dominant', channelName: 'Dominant' },
+
+{ keys: ['bitcoin brand recognition','bitcoin logo','bitcoin symbol','bitcoin famous'],
+  answer: "The Bitcoin brand is one of the most recognized symbols on Earth, {name}! 🟠🦌 The ₿ symbol, the orange color, and the word 'Bitcoin' are known across every country, every language. No marketing team created this — it grew organically through millions of believers. That kind of grassroots brand recognition is priceless and impossible to replicate.",
+  channel: 'dominant', channelName: 'Dominant' },
+
+{ keys: ['bitcoin liquidity','bitcoin most liquid','bitcoin trading volume'],
+  answer: "Bitcoin is the most liquid cryptocurrency by a massive margin, {name}! 💧🦌 It trades 24/7 on every exchange in the world, in every currency. That deep liquidity means you can always buy or sell without moving the price much. For institutions, this is everything — you can't deploy billions into an illiquid asset.",
+  channel: 'dominant', channelName: 'Dominant' },
+
+{ keys: ['bitcoin first mover','first mover advantage','bitcoin pioneered'],
+  answer: "Bitcoin's first-mover advantage is often misunderstood, {name}! 🦌 It's not just that Bitcoin was first — it's that Bitcoin solved the hardest problems first AND built an unassailable network while doing so. 15+ years of immaculate uptime, growing hashrate, and increasing adoption created a fortress no copycat can breach. First mover + best product = unstoppable. 🏆",
+  channel: 'dominant', channelName: 'Dominant' },
+
+// --- organic (0 entries → 5) ---
+{ keys: ['organic growth','how did bitcoin grow','bitcoin no marketing','bitcoin no company','grassroots bitcoin','bitcoin adoption organic'],
+  answer: "Bitcoin grew from literally $0 to trillions in value without a single advertisement, marketing team, CEO, or company behind it, {name}! 🌳🦌 It spread purely through ideas — people discovering it, studying it, and telling others. That's the most organic growth story in the history of money. You can't fake that kind of adoption!",
+  channel: 'organic', channelName: 'Organic' },
+
+{ keys: ['bitcoin no ceo','bitcoin no company','who runs the bitcoin network','bitcoin no leader','is there a bitcoin company','bitcoin organization'],
+  answer: "There is no Bitcoin Inc., {name}! 🦌 No CEO, no board of directors, no marketing department, no HR team, no headquarters. Bitcoin is a protocol — like email or the internet itself. Thousands of developers contribute voluntarily, millions of nodes enforce the rules, and nobody is 'in charge.' That's what makes it truly decentralized and ungovernable! 🌐",
+  channel: 'organic', channelName: 'Organic' },
+
+{ keys: ['bitcoin empowering','bitcoin freedom tool','bitcoin sovereign','financial sovereignty','be your own bank'],
+  answer: "Bitcoin lets you be your own bank, {name}! 🏦🦌 For the first time in human history, any person — anywhere in the world — can store and send value without asking permission from anyone. No government can freeze your Bitcoin. No bank can deny you service. No corporation can debase your savings. That's financial sovereignty, and it's revolutionary!",
+  channel: 'organic', channelName: 'Organic' },
+
+{ keys: ['bitcoin elegant','bitcoin beautiful','bitcoin simple','bitcoin design'],
+  answer: "Bitcoin's design is breathtakingly elegant, {name}! 🎨🦌 Satoshi combined proof-of-work, hash chains, digital signatures, and economic incentives into a system where every piece reinforces every other piece. The difficulty adjustment is poetry. The halving schedule is art. The game theory is flawless. Simple rules creating emergent complexity — like nature itself!",
+  channel: 'organic', channelName: 'Organic' },
+
+{ keys: ['bitcoin unseizable','confiscate bitcoin','can they take my bitcoin','asset seizure'],
+  answer: "If you hold your own keys, your Bitcoin is virtually unseizable, {name}! 🔐🦌 A 24-word seed phrase can be memorized and carried in your brain across any border. No army, no government, no court can take what they can't find or access. This is why Bitcoin is sometimes called 'the first truly portable, unseizable wealth in human history.'",
+  channel: 'organic', channelName: 'Organic' },
+
+// --- peaceful (0 entries → 5) ---
+{ keys: ['bitcoin permissionless','permissionless money','no permission needed','anyone can use bitcoin'],
+  answer: "Bitcoin is permissionless, {name} — meaning ANYONE on Earth can use it without asking for approval! 🌍🦌 No application form. No credit check. No ID required. No minimum balance. If you have internet access, you can send and receive Bitcoin. That's 8 billion people with equal access to sound money for the first time in history! ☮️",
+  channel: 'peaceful', channelName: 'Peaceful' },
+
+{ keys: ['bitcoin borderless','send bitcoin anywhere','international payments','cross border','remittance'],
+  answer: "Bitcoin doesn't know about borders, {name}! 🌐🦌 You can send value from New York to Nigeria, from Tokyo to Toronto — instantly and for pennies via Lightning. No bank holidays, no SWIFT codes, no correspondent banks, no 3-5 business days. Just pure peer-to-peer value transfer. Money that moves at the speed of light! ⚡",
+  channel: 'peaceful', channelName: 'Peaceful' },
+
+{ keys: ['bitcoin voluntary','bitcoin opt in','bitcoin not forced','choose bitcoin'],
+  answer: "Nobody forces you to use Bitcoin, {name}! 🤝🦌 It's 100% voluntary and opt-in. You choose to run a node. You choose to mine. You choose to save in Bitcoin. And because it's voluntary, it's also honest — Bitcoin has to earn your trust through transparency and performance, not coercion. That's the difference between Bitcoin and fiat! ☮️",
+  channel: 'peaceful', channelName: 'Peaceful' },
+
+{ keys: ['bitcoin unstoppable','can anyone stop bitcoin','stop bitcoin','kill bitcoin network'],
+  answer: "Bitcoin is unstoppable, {name}! 🛡️🦌 It runs on 15,000+ nodes spread across 100+ countries. You'd have to shut down the entire global internet simultaneously to stop it — and even then, Bitcoin can run over radio, satellite, and mesh networks. China banned it. India tried restricting it. Nigeria blocked bank access. Bitcoin just kept going. Tick tock, next block! ⏰",
+  channel: 'peaceful', channelName: 'Peaceful' },
+
+{ keys: ['bitcoin neutral','bitcoin apolitical','bitcoin no politics','bitcoin serves everyone'],
+  answer: "Bitcoin is neutral like math is neutral, {name}! 🧮🦌 It doesn't care about your politics, religion, nationality, or social status. It processes every valid transaction the same way. A billionaire's transaction follows the same rules as a farmer's in Kenya. This neutrality is its superpower — it serves humanity, not any particular group!",
+  channel: 'peaceful', channelName: 'Peaceful' },
+
+// --- programmable (0 entries → 5) ---
+{ keys: ['bitcoin programmable','programmable money','bitcoin scripting','bitcoin script','can bitcoin be programmed'],
+  answer: "Bitcoin is programmable money, {name}! 🤖🦌 It has a built-in scripting language called Bitcoin Script that allows conditional spending rules — like multisig (requiring multiple keys to spend), timelocks (coins locked until a future date), and hash locks (the foundation of Lightning). It's deliberately limited to keep it secure, but incredibly powerful!",
+  channel: 'programmable', channelName: 'Programmable' },
+
+{ keys: ['bitcoin interoperable','bitcoin connects','bitcoin protocol layers'],
+  answer: "Bitcoin is designed to be interoperable, {name}! 🔗🦌 The base layer is a settlement network, but it connects to Lightning (fast payments), Liquid (confidential transactions), Fedimints (community custody), and more. Each layer optimizes for different tradeoffs. It's like the internet — TCP/IP doesn't do everything, but everything builds on top of it!",
+  channel: 'programmable', channelName: 'Programmable' },
+
+{ keys: ['bitcoin pseudonymous','is bitcoin anonymous','bitcoin identity','bitcoin privacy level'],
+  answer: "Bitcoin is pseudonymous, not anonymous, {name}! 🎭🦌 Your transactions are tied to addresses, not your real name. Think of it like a pen name — the writing is public, but the author can be private. With good privacy practices (CoinJoin, non-KYC buying, new addresses each time), you can maintain strong financial privacy. But on-chain, everything is transparent and auditable!",
+  channel: 'programmable', channelName: 'Programmable' },
+
+{ keys: ['bitcoin resilient','bitcoin survives','antifragile bitcoin system','what doesnt kill bitcoin'],
+  answer: "Bitcoin is antifragile — it gets STRONGER from attacks, {name}! 💪🦌 China banned mining? Hashrate came back even more decentralized. Exchanges got hacked? The community learned and pushed self-custody. Governments tried to regulate it? It proved it could survive anything. Every attack is a vaccine that makes the immune system stronger!",
+  channel: 'programmable', channelName: 'Programmable' },
+
+{ keys: ['bitcoin deflationary','deflationary money','bitcoin deflation','decreasing supply'],
+  answer: "Bitcoin is disinflationary heading toward deflation, {name}! 📉🦌 Every 4 years the new supply gets cut in half (the halving). Right now inflation is under 1% — lower than gold! By 2140, no new Bitcoin will ever be created. Meanwhile, coins keep getting lost forever. That means the effective supply shrinks over time. Your purchasing power grows just by holding! 💎",
+  channel: 'programmable', channelName: 'Programmable' },
+
+// --- supranational (0 entries → 5) ---
+{ keys: ['supranational','bitcoin above nations','bitcoin transcends borders','beyond government','nation state money'],
+  answer: "Bitcoin is supranational — it exists above and beyond any single nation, {name}! 🕊️🦌 No country controls it, no treaty governs it, and no war can destroy it. It's the first monetary network that truly transcends geopolitics. Whether you're in the US, Iran, Japan, or Argentina — you access the same Bitcoin network with the same rules. A global monetary standard for all humanity!",
+  channel: 'supranational', channelName: 'Supranational' },
+
+{ keys: ['settlement finality','final settlement','bitcoin settlement','when is payment final','irreversible payment'],
+  answer: "Bitcoin offers TRUE settlement finality, {name}! ⚖️🦌 After about 6 confirmations (~1 hour), a Bitcoin transaction is practically irreversible. Compare that to credit cards (180-day chargebacks), wire transfers (can be clawed back for weeks), or checks (can bounce). With Bitcoin, when it's settled, it's SETTLED. No takebacks. That's worth more than people realize!",
+  channel: 'supranational', channelName: 'Supranational' },
+
+{ keys: ['dilution proof','bitcoin cant be diluted','money printing protection','inflation hedge','protect savings'],
+  answer: "Bitcoin is the only truly dilution-proof asset, {name}! 🛡️🦌 When governments print money, your savings lose purchasing power. When companies issue new shares, your stake gets diluted. But nobody can create more than 21 million Bitcoin — ever. The protocol enforces this mathematically. Your percentage of the total supply can NEVER be diluted against your will!",
+  channel: 'supranational', channelName: 'Supranational' },
+
+{ keys: ['lindy effect bitcoin','bitcoin lindy','how long will bitcoin last','bitcoin survival','bitcoin longevity prediction'],
+  answer: "The Lindy Effect says the longer something non-perishable survives, the longer it's likely to continue surviving, {name}! 🕰️🦌 Bitcoin has operated flawlessly for 16+ years. Every day it runs, its predicted future lifespan increases. It has survived China bans, exchange collapses, hash wars, and global pandemics. At this point, Bitcoin's survival is the most Lindy-confirmed bet in digital history!",
+  channel: 'supranational', channelName: 'Supranational' },
+
+{ keys: ['bitcoin frictionless','easy to send bitcoin','bitcoin simple transfer'],
+  answer: "Bitcoin removes friction from money, {name}! ⚡🦌 No forms, no intermediaries, no business hours, no approvals. On Lightning, you can send sats to anyone on Earth in under a second for fractions of a penny. Try sending $10 to a friend in another country through a bank — the fees, forms, and delays will remind you why Bitcoin matters! 🌍",
+  channel: 'supranational', channelName: 'Supranational' },
+
+
+// =============================================
+// EXPERIENCED TOPICS — MISSING CHANNELS
+// =============================================
+
+// --- bitvm (0 entries → 3) ---
+{ keys: ['bitvm','what is bitvm','bitvm explained','computation on bitcoin','bitcoin virtual machine'],
+  answer: "BitVM is a mind-blowing proposal by Robin Linus that enables arbitrary computation on Bitcoin WITHOUT changing the protocol, {name}! 🖥️🦌 It uses a clever system of fraud proofs — a 'prover' claims a computation result, and a 'verifier' can challenge it on-chain if it's wrong. This could unlock trustless bridges, complex smart contracts, and more — all on Bitcoin's existing rules!",
+  channel: 'bitvm', channelName: 'BitVM' },
+
+{ keys: ['bitvm fraud proof','bitvm how it works','bitvm prover verifier'],
+  answer: "BitVM works through an optimistic model, {name}! 🧠🦌 Someone (the prover) makes a claim about a computation's result. If it's honest, nothing happens on-chain. But if they cheat, the verifier can submit a fraud proof — a compact on-chain challenge that proves the computation was wrong. It's like a courtroom: you only go to trial if someone lies! This keeps Bitcoin's base layer lean while enabling powerful off-chain logic.",
+  channel: 'bitvm', channelName: 'BitVM' },
+
+{ keys: ['bitvm bridge','trustless bridge bitcoin','bitcoin bridge'],
+  answer: "One of BitVM's most exciting applications is trustless bridges, {name}! 🌉🦌 Currently, moving Bitcoin to other systems requires trusting a group of signers. BitVM could enable bridges where the only trust assumption is that at least ONE honest verifier exists. That's a massive improvement for Bitcoin interoperability without sacrificing security!",
+  channel: 'bitvm', channelName: 'BitVM' },
+
+// --- cryptography (0 entries → 4) ---
+{ keys: ['elliptic curve','secp256k1','bitcoin cryptography','ecdsa','bitcoin curve'],
+  answer: "Bitcoin uses the secp256k1 elliptic curve for digital signatures, {name}! 🔒🦌 This curve lets you create a public key from a private key (easy math), but it's computationally impossible to reverse the process. That's the magic — you can share your public key with the world, and nobody can derive your private key from it. Math protects your money!",
+  channel: 'cryptography', channelName: 'Cryptography' },
+
+{ keys: ['digital signature','how bitcoin signatures work','signing a transaction','prove ownership'],
+  answer: "Every Bitcoin transaction requires a digital signature, {name}! ✍️🦌 When you 'sign' a transaction, you're using your private key to create mathematical proof that YOU authorized the spend — without revealing the key itself. Anyone can verify the signature with your public key, but nobody can forge it without your private key. It's like a wax seal that's impossible to counterfeit!",
+  channel: 'cryptography', channelName: 'Cryptography' },
+
+{ keys: ['cypherpunk movement','cypherpunks history','cypherpunk movement','cypherpunk history','crypto anarchy'],
+  answer: "Bitcoin stands on the shoulders of the cypherpunk movement, {name}! 🛡️🦌 In the 1990s, cryptographers like Eric Hughes, Tim May, David Chaum, and Adam Back fought for privacy and digital freedom. They wrote tools, published manifestos, and dreamed of digital cash. Satoshi was the one who finally put it all together — but the cypherpunks laid every brick of the foundation! 'Cypherpunks write code.' 💻",
+  channel: 'cryptography', channelName: 'Cryptography' },
+
+{ keys: ['merkle tree','bitcoin merkle','merkle root','transaction tree'],
+  answer: "Bitcoin uses Merkle trees to efficiently verify transactions, {name}! 🌲🦌 A Merkle tree hashes pairs of transactions together, then hashes those hashes, until you get one single hash — the Merkle root. This lets you prove a specific transaction is in a block by checking just a few hashes instead of ALL transactions. It's elegant, fast, and compact!",
+  channel: 'cryptography', channelName: 'Cryptography' },
+
+// --- developers (0 entries → 4) ---
+{ keys: ['how to develop bitcoin','bitcoin developer','build on bitcoin','contribute to bitcoin','bitcoin programming','learn bitcoin development'],
+  answer: "Want to become a Bitcoin developer, {name}? 🛠️🦌 Start with 'Mastering Bitcoin' by Andreas Antonopoulos, then explore Bitcoin Core's GitHub repo. Learn C++ for protocol work, or Rust/Python for Lightning/tooling. Check out Chaincode Labs seminars, Base58 workshops, and Summer of Bitcoin for structured programs. The Bitcoin community deeply values developers!",
+  channel: 'developers', channelName: 'Developers' },
+
+{ keys: ['bitcoin core contributors','who develops bitcoin','bitcoin core developers','how many bitcoin developers'],
+  answer: "Bitcoin Core has hundreds of contributors from around the world, {name}! 👨‍💻🦌 There's no company paying them all — many are funded by grants from organizations like Brink, Spiral, OpenSats, and Chaincode Labs. Anyone can propose changes (BIPs), review code, and submit pull requests. The peer review process is rigorous — code gets scrutinized by the best cryptographers and engineers alive!",
+  channel: 'developers', channelName: 'Developers' },
+
+{ keys: ['bitcoin api','bitcoin rpc','bitcoin development tools','developer tools bitcoin'],
+  answer: "Bitcoin has robust developer tools, {name}! 🔧🦌 Bitcoin Core exposes a JSON-RPC API for everything — creating transactions, querying blocks, managing wallets. For Lightning, there's LND, CLN, and Eclair with their own APIs. Libraries exist in every language: python-bitcoinlib, bitcoinjs-lib, rust-bitcoin, and more. The whole stack is open source!",
+  channel: 'developers', channelName: 'Developers' },
+
+{ keys: ['summer of bitcoin','chaincode labs','brink','bitcoin education developer','learn bitcoin code'],
+  answer: "There are amazing programs to learn Bitcoin development, {name}! 🎓🦌 Chaincode Labs runs free seminars on protocol development. Summer of Bitcoin pairs students with open-source mentors. Brink funds developers directly. Base58 offers intensive technical workshops. And Bitcoin Optech publishes weekly technical newsletters. The learning path is well-lit — you just have to walk it! 🚀",
+  channel: 'developers', channelName: 'Developers' },
+
+// --- extension-blocks (0 entries → 2) ---
+{ keys: ['extension blocks','extension block proposal','bitcoin scaling proposals','scaling beyond lightning'],
+  answer: "Extension blocks are a proposed way to add new features to Bitcoin without changing the existing block structure, {name}! 🚧🦌 Think of them as an 'attachment' to regular blocks — they can carry additional transaction data with different rules while the main chain stays untouched. It's one of several scaling ideas being explored alongside Lightning, sidechains, and rollups!",
+  channel: 'extension-blocks', channelName: 'Extension Blocks' },
+
+{ keys: ['bitcoin scaling solutions','how does bitcoin scale','scaling debate'],
+  answer: "Bitcoin scales through layers, not bigger blocks, {name}! 📐🦌 Layer 1 (the base chain) is the settlement layer — secure and decentralized. Lightning Network handles fast daily payments. Sidechains like Liquid serve traders. Fedimints provide community custody. Rollups and extension blocks are being researched too. Each layer has different tradeoffs. This is how you scale without sacrificing decentralization!",
+  channel: 'extension-blocks', channelName: 'Extension Blocks' },
+
+// --- fedi-ark (0 entries → 3) ---
+{ keys: ['what is ark','ark protocol','ark bitcoin','ark layer 2','ark payments'],
+  answer: "Ark is a newer Layer 2 protocol designed by Burak, {name}! 🛡️🦌 It lets users make off-chain Bitcoin payments without the complexity of managing Lightning channels. An Ark Server Operator (ASO) facilitates transactions, and users can unilaterally exit to the base chain if anything goes wrong. Think of it as a simpler on-ramp to instant Bitcoin payments!",
+  channel: 'fedi-ark', channelName: 'Fedi & Ark' },
+
+{ keys: ['fedi app','what is fedi','fedi bitcoin','fedimint app'],
+  answer: "Fedi is an app that makes Fedimints easy to use, {name}! 📱🦌 It lets communities create their own 'community banks' using Federated Chaumian Mints. Members pool Bitcoin into a multisig, and the mint issues private ecash tokens backed 1:1 by Bitcoin. You get Lightning-speed payments WITH privacy, and the trust is distributed among multiple guardians instead of one entity!",
+  channel: 'fedi-ark', channelName: 'Fedi & Ark' },
+
+{ keys: ['community custody','federated custody','guardian bitcoin','collaborative custody'],
+  answer: "Community custody is a middle ground between self-custody and trusting an exchange, {name}! 🤝🦌 In a Fedimint, multiple trusted community members (guardians) hold keys in a multisig arrangement. No single guardian can steal funds. Users get privacy through ecash, Lightning access, and the ability to exit to on-chain Bitcoin. It's especially powerful for communities in developing countries!",
+  channel: 'fedi-ark', channelName: 'Fedi & Ark' },
+
+// --- op-codes (0 entries → 3) ---
+{ keys: ['op_cat','what is op_cat','opcat','cat opcode','enable op_cat'],
+  answer: "OP_CAT is a proposed (re-enabled) opcode that would let you concatenate two pieces of data in Bitcoin Script, {name}! 🐱🦌 It sounds simple, but it's incredibly powerful — it could enable covenants, vaults, on-chain verification of zero-knowledge proofs, and much more. It was originally in Bitcoin but Satoshi disabled it as a precaution. The debate about bringing it back is one of the hottest in Bitcoin right now!",
+  channel: 'op-codes', channelName: 'OP Codes' },
+
+{ keys: ['simplicity language','simplicity bitcoin','what is simplicity','bitcoin scripting language'],
+  answer: "Simplicity is a programming language designed specifically for Bitcoin smart contracts, {name}! 🧩🦌 Created by Andrew Poelstra at Blockstream, it's designed to be formally verifiable — meaning you can mathematically PROVE what a program does before running it. No surprises, no bugs, no exploits. It's the opposite of Ethereum's 'move fast and break things' approach!",
+  channel: 'op-codes', channelName: 'OP Codes' },
+
+{ keys: ['bitcoin opcode system','what are bitcoin opcodes','bitcoin script commands','op_return','op_checksig'],
+  answer: "Opcodes are the individual instructions in Bitcoin's scripting language, {name}! 👨‍💻🦌 When you create a transaction, you write a small Script program that defines HOW the Bitcoin can be spent. OP_CHECKSIG verifies signatures. OP_RETURN stores data. OP_HASH160 creates hashes. OP_IF adds conditions. They're simple building blocks, but combined they enable multisig, timelocks, Lightning, and more!",
+  channel: 'op-codes', channelName: 'OP Codes' },
+
+// --- smart-contracts (0 entries → 3) ---
+{ keys: ['smart contracts bitcoin','bitcoin smart contracts','can bitcoin do smart contracts','bitcoin vs ethereum smart contracts'],
+  answer: "Bitcoin absolutely does smart contracts, {name} — just differently than Ethereum! 🧠🦌 Bitcoin's approach is to keep the base layer simple and secure with a limited scripting language (no infinite loops, no Turing-completeness). Complex logic happens on higher layers (Lightning, sidechains, BitVM). This means fewer hacks, fewer exploits, and more security. Bitcoin chose robustness over flashiness!",
+  channel: 'smart-contracts', channelName: 'Smart Contracts' },
+
+{ keys: ['multisig','multisignature','what is multisig','multi sig wallet','2 of 3','3 of 5'],
+  answer: "Multisig is one of Bitcoin's most powerful smart contracts, {name}! 🔐🦌 It requires multiple private keys to authorize a transaction — like a safe that needs 2 of 3 keys to open. You can set it up as 2-of-3, 3-of-5, or any combination. It's used for inheritance planning, business treasuries, and eliminating single points of failure. Your Bitcoin is only as safe as your key management!",
+  channel: 'smart-contracts', channelName: 'Smart Contracts' },
+
+{ keys: ['timelock','what is a timelock','cltv','csv','lock bitcoin','time locked bitcoin'],
+  answer: "Timelocks let you lock Bitcoin until a specific time or block height, {name}! ⏰🦌 CLTV (CheckLockTimeVerify) locks coins until a specific point in time. CSV (CheckSequenceVerify) locks coins for a relative duration. These are used everywhere — Lightning channels need them, vaults use them for security delays, and inheritance planning uses them for dead man's switches!",
+  channel: 'smart-contracts', channelName: 'Smart Contracts' },
+
+
+// =============================================
+// ADDITIONAL INFO — MISSING CHANNELS
+// =============================================
+
+// --- first_principles (0 entries → 2) ---
+{ keys: ['first principles','first principles thinking','reason from fundamentals','elon first principles','bitcoin first principles'],
+  answer: "First principles thinking means breaking a problem down to its most fundamental truths and reasoning up from there, {name}! 🧠🦌 Applied to Bitcoin: What is money? What properties should it have? What has the best scarcity, portability, durability, divisibility, and fungibility? When you reason from first principles instead of analogies, Bitcoin becomes the obvious conclusion!",
+  channel: '1_first_principles', channelName: 'First Principles' },
+
+{ keys: ['think for yourself bitcoin','question everything','dont trust verify bitcoin'],
+  answer: "Bitcoin is built on 'Don't trust, verify!' — and that's first principles thinking in action, {name}! 🔍🦌 Don't trust the exchange — verify with your own node. Don't trust the media — read the whitepaper. Don't trust influencers — check the math. Bitcoin rewards independent thinkers who reason from fundamentals rather than following the herd!",
+  channel: '1_first_principles', channelName: 'First Principles' },
+
+// --- analogies (0 entries → 3) ---
+{ keys: ['bitcoin analogy','explain bitcoin analogy','bitcoin like what','bitcoin metaphor','compare bitcoin to'],
+  answer: "Here's a great analogy, {name}! 🔋🦌 Bitcoin is like digital ENERGY stored in a battery. Mining converts electricity into monetary energy. The blockchain is the battery that stores it. Lightning is the wire that transmits it instantly. And nobody can drain your battery without your private key. Energy in, value out — preserved forever across space and time!",
+  channel: 'analogies', channelName: 'Analogies' },
+
+{ keys: ['explain bitcoin to grandma','explain bitcoin parents','simple bitcoin analogy','easy explanation'],
+  answer: "Here's how I'd explain it to anyone, {name}! 🦌 Imagine a public Google spreadsheet that everyone in the world can see, but nobody can cheat on or edit without permission. It tracks who has how many magic coins. Only 21 million magic coins can ever exist. And to send coins, you need a special password that only you know. That's Bitcoin — a shared truth that nobody controls! 📝",
+  channel: 'analogies', channelName: 'Analogies' },
+
+{ keys: ['bitcoin like internet','bitcoin like email','bitcoin like early internet'],
+  answer: "Bitcoin today is like the internet in 1997, {name}! 🌐🦌 Most people don't understand it yet. The interfaces are clunky. Critics say it's just for nerds. But the people building on it can see where this is going — a global financial system accessible to everyone. In 1997, people asked 'Why would I need email?' Today, people ask 'Why would I need Bitcoin?' Give it time! ⏳",
+  channel: 'analogies', channelName: 'Analogies' },
+
+// --- cycles (0 entries → 3) ---
+{ keys: ['bitcoin cycle','4 year cycle','bitcoin cycles','halving cycle','bull bear cycle','market cycle bitcoin'],
+  answer: "Bitcoin has historically followed a 4-year cycle tied to the halving, {name}! 🔄🦌 The pattern: halving → supply shock → bull run → euphoria → crash → accumulation → repeat. Each cycle has set higher lows and higher highs. Whether this pattern continues as Bitcoin matures is debated, but so far: zoom out, and the trend is unmistakable! 📈",
+  channel: 'cyles', channelName: 'Cycles' },
+
+{ keys: ['gartner hype cycle','hype cycle bitcoin','bitcoin adoption curve','s-curve adoption'],
+  answer: "Bitcoin follows the classic technology adoption S-curve, {name}! 📊🦌 Each halving cycle looks like a Gartner Hype Cycle: trigger → peak of inflated expectations → trough of disillusionment → slope of enlightenment → plateau of productivity. We've done this 4 times now, each time bigger. We're still in the early majority phase — the steep part of the S-curve!",
+  channel: 'cyles', channelName: 'Cycles' },
+
+{ keys: ['bitcoin bear market','crypto winter','bitcoin crash','bitcoin drop','when will bitcoin recover'],
+  answer: "Bear markets are when fortunes are MADE, {name}! 🐻🦌 Every 'crypto winter' in Bitcoin's history ended higher than the previous peak. 2011: crashed to $2, recovered to $1,200. 2015: crashed to $150, recovered to $20,000. 2018: crashed to $3,200, recovered to $69,000. The pattern is: crash, FUD, quiet accumulation, then explosive new highs. Patience is the ultimate strategy!",
+  channel: 'cyles', channelName: 'Cycles' },
+
+// --- game_theory (0 entries → 3) ---
+{ keys: ['game theory bitcoin','nash equilibrium bitcoin','bitcoin prisoners dilemma','bitcoin incentives','bitcoin game theory'],
+  answer: "Bitcoin is a masterpiece of game theory, {name}! 🎯🦌 Miners are incentivized to be honest because cheating costs more than cooperating. Nodes verify everything because trust costs more than verification. HODLers hold because selling is the weakest strategy long-term. Every participant acting selfishly actually strengthens the whole network. Satoshi designed a system where greed serves the common good!",
+  channel: 'game_theory', channelName: 'Game Theory' },
+
+{ keys: ['nash equilibrium money','bitcoin equilibrium','bitcoin inevitable','game theory adoption'],
+  answer: "Bitcoin is the Nash Equilibrium for money, {name}! ⚖️🦌 In game theory, a Nash Equilibrium is the point where no player can improve their position by changing strategy alone. Once enough countries, companies, and individuals hold Bitcoin, NO rational actor benefits from leaving the network. We're approaching the point of inevitability — the tipping point where NOT having Bitcoin becomes the risky move!",
+  channel: 'game_theory', channelName: 'Game Theory' },
+
+{ keys: ['bitcoin incentive structure','why miners honest','why not cheat bitcoin'],
+  answer: "Bitcoin's incentive design is pure genius, {name}! 🏗️🦌 Miners invest millions in hardware and electricity. If they try to cheat, the network rejects their blocks and they lose their investment. If they play honest, they earn rewards. The cost of cheating always exceeds the reward. That's why Bitcoin has been unhackable for 16+ years — the incentives make honesty the only profitable strategy!",
+  channel: 'game_theory', channelName: 'Game Theory' },
+
+// --- geopolitics (0 entries → 3) ---
+{ keys: ['geopolitics bitcoin','bitcoin geopolitics','nations bitcoin','bitcoin world order','bitcoin global politics','reserve currency bitcoin'],
+  answer: "Bitcoin is reshaping geopolitics, {name}! 🌍🦌 El Salvador made it legal tender. The US approved spot Bitcoin ETFs. Russia and Iran use it for sanctions-resistant trade. Central banks are studying it as a reserve asset. Nations that accumulate Bitcoin early get a strategic advantage — it's the new space race, except the prize is monetary sovereignty!",
+  channel: 'geopolitics___macroeconomics', channelName: 'Geopolitics & Macroeconomics' },
+
+{ keys: ['bitcoin reserve asset','strategic bitcoin reserve','national bitcoin reserve','country buying bitcoin'],
+  answer: "More and more nations are exploring Bitcoin as a strategic reserve asset, {name}! 🏦🦌 El Salvador started buying in 2021. The US holds seized Bitcoin. Bhutan mines Bitcoin with hydropower. The game theory is clear: if your rival accumulates Bitcoin and you don't, you fall behind. It's a digital arms race — and the nations that move first win the most!",
+  channel: 'geopolitics___macroeconomics', channelName: 'Geopolitics & Macroeconomics' },
+
+{ keys: ['petrodollar','dollar hegemony','reserve currency','dollar collapse','de-dollarization','brics'],
+  answer: "The US dollar's dominance as the global reserve currency is weakening, {name}! 💵🦌 BRICS nations are actively de-dollarizing. Global debt is exploding. Trust in central banks is eroding. Bitcoin offers a neutral, non-sovereign alternative — money that no single nation controls. As the dollar's grip loosens, Bitcoin becomes the logical Schelling point for a new global monetary standard!",
+  channel: 'geopolitics___macroeconomics', channelName: 'Geopolitics & Macroeconomics' },
+
+// --- dlcs (0 entries → 2) ---
+{ keys: ['discrete log contract','dlc','dlcs','what are dlcs','bitcoin dlc','oracle contract'],
+  answer: "Discreet Log Contracts (DLCs) enable smart contracts on Bitcoin using oracles, {name}! 📝🦌 Two parties can create a contract that pays out based on external data (like a price feed or sports result). An oracle signs the outcome, and the contract settles automatically. The key innovation: the oracle doesn't even know a contract exists! Maximum privacy, minimal trust! 🔮",
+  channel: 'discrete_log_contracts__dlcs', channelName: 'Discreet Log Contracts' },
+
+{ keys: ['bitcoin oracle','what is an oracle','price oracle bitcoin','external data bitcoin'],
+  answer: "An oracle brings real-world data onto Bitcoin, {name}! 🔮🦌 Since Bitcoin can't know what happens outside its network (prices, weather, election results), oracles bridge that gap. In DLCs, the oracle signs a message about an outcome, and the contract resolves automatically. The beauty: the oracle publishes data openly and doesn't even need to know who's using it!",
+  channel: 'oracle', channelName: 'Oracle' },
+
+// --- dollar-bitcoin milkshake theory (0 entries → 2) ---
+{ keys: ['milkshake theory','dollar milkshake','brent johnson','dollar milkshake theory bitcoin'],
+  answer: "The Dollar-Bitcoin Milkshake Theory combines Brent Johnson's insight with Bitcoin, {name}! 🥤🦌 Johnson argues that the USD strengthens as global liquidity gets 'sucked' into dollar-denominated assets. But the final phase? The dollar itself gets absorbed into Bitcoin — the ultimate monetary black hole. All fiat liquidity eventually flows to the hardest asset: Bitcoin!",
+  channel: 'dollar-bitcoin_milkshake_theory', channelName: 'Dollar-Bitcoin Milkshake Theory' },
+
+// --- elevator pitches (0 entries → 3) ---
+{ keys: ['elevator pitch','quick bitcoin pitch','30 second bitcoin','explain bitcoin fast','bitcoin one sentence','bitcoin pitch'],
+  answer: "Here's your 30-second pitch, {name}! 🦌🎤 'Bitcoin is digital money that can't be printed, can't be seized, and can't be stopped. Only 21 million will ever exist. It works like email for money — anyone can send it to anyone, anywhere, instantly. No bank needed. It's been running flawlessly for 16 years and it's just getting started.' Boom! Orange-pilled! 🟠",
+  channel: 'elevator_pitches', channelName: 'Elevator Pitches' },
+
+{ keys: ['explain bitcoin to boss','bitcoin for business','why business needs bitcoin'],
+  answer: "For your boss, {name}: 🦌💼 'Bitcoin is a settlement network that processes $10+ billion daily with zero counterparty risk, no intermediaries, and final settlement in under an hour. It's an asset with a fixed supply that can't be debased. Companies like MicroStrategy, Tesla, and Block hold it on their balance sheets. It's not a question of IF your business will need a Bitcoin strategy — it's WHEN.'",
+  channel: 'elevator_pitches', channelName: 'Elevator Pitches' },
+
+{ keys: ['explain bitcoin to skeptic','bitcoin for skeptics','convince someone bitcoin'],
+  answer: "For a skeptic, {name}: 🦌🤔 'What if I told you there was an asset that nobody can print more of, that has gone up more than any other investment over 15 years, that runs 24/7 without any company behind it, and that can't be seized by any government? You'd want to at least understand it, right? All I'm asking is that you spend 10 hours learning before you form an opinion.' Curiosity is the key! 🔑",
+  channel: 'elevator_pitches', channelName: 'Elevator Pitches' },
+
+// --- faith_religion (0 entries → 2) ---
+{ keys: ['bitcoin religion','bitcoin faith','bitcoin christianity','bitcoin islam','bitcoin spiritual values','bitcoin moral','is bitcoin moral'],
+  answer: "Many people find deep moral alignment between Bitcoin and their faith, {name}! 🙏🦌 Honest weights and measures (Proverbs 11:1) — Bitcoin is perfectly auditable. Thou shalt not steal — fiat inflation steals from savers. Helping the poor — Bitcoin gives the unbanked access to the global economy. Sound money promotes honesty, low time preference, and long-term thinking — values shared across every major faith tradition!",
+  channel: 'faith___religion', channelName: 'Faith & Religion' },
+
+{ keys: ['bitcoin ethics','ethical money','moral money','honest money','bitcoin honesty'],
+  answer: "Bitcoin is the most ethical money ever created, {name}! ⚖️🦌 It can't be counterfeited. It can't be inflated to secretly tax the poor. It can't be weaponized to freeze dissidents' accounts. It enforces the same rules for everyone equally. When money is honest, society becomes more honest. Bitcoin doesn't just fix money — it fixes the incentive structure that corrupts human behavior!",
+  channel: 'faith___religion', channelName: 'Faith & Religion' },
+
+// --- feedback_loops (0 entries → 2) ---
+{ keys: ['feedback loop bitcoin','bitcoin feedback loops','self reinforcing','bitcoin virtuous cycle','bitcoin flywheel'],
+  answer: "Bitcoin has the most powerful feedback loops in economics, {name}! ➰🦌 Price rises → media attention → new buyers → price rises more. More users → more nodes → more security → more confidence → more users. More miners → more hashrate → more security → more trust → more adoption. These self-reinforcing loops create a gravitational pull that only gets stronger over time!",
+  channel: 'feedback_loops', channelName: 'Feedback Loops' },
+
+{ keys: ['bitcoin network effect','metcalfe law bitcoin','bitcoin adoption flywheel'],
+  answer: "Bitcoin's network effect follows Metcalfe's Law, {name}! 🌐🦌 The value of a network grows proportionally to the square of its users. Every new person who holds Bitcoin makes the network more valuable for everyone already in it. Every new merchant that accepts Bitcoin makes it more useful. Every new node makes it more secure. It's a flywheel that's been spinning for 16 years and accelerating!",
+  channel: 'network_effects', channelName: 'Network Effects' },
+
+// --- governance (0 entries → 3) ---
+{ keys: ['bitcoin governance','how is bitcoin governed','who decides bitcoin rules','bip process','bitcoin improvement proposal'],
+  answer: "Bitcoin is governed by rough consensus and running code, {name}! 🏛️🦌 Anyone can propose a change via a BIP (Bitcoin Improvement Proposal). Developers review it. Node operators choose whether to adopt it. Miners signal readiness. No single person or group can force a change — it requires overwhelming agreement from the entire ecosystem. This makes Bitcoin incredibly conservative and hard to corrupt!",
+  channel: 'governance', channelName: 'Governance' },
+
+{ keys: ['who can change bitcoin','bitcoin change rules','modify bitcoin','bitcoin upgrade process'],
+  answer: "Changing Bitcoin is deliberately hard, {name}! 🦌 A change needs: a developer to write the code, peer reviewers to verify it, node operators to run it, miners to signal for it, and users to accept it. If ANY major group disagrees, the change doesn't happen. This extreme conservatism is a FEATURE — it means your Bitcoin will follow the same rules tomorrow that it follows today. Predictability is priceless!",
+  channel: 'governance', channelName: 'Governance' },
+
+// --- ham_radio (0 entries → 2) ---
+{ keys: ['ham radio bitcoin','bitcoin radio','bitcoin without internet','mesh network bitcoin','offline bitcoin','satellite bitcoin'],
+  answer: "Bitcoin can work WITHOUT the internet, {name}! 📻🦌 Transactions can be broadcast via ham radio, satellite (Blockstream Satellite covers the entire planet!), mesh networks, and even SMS. This means Bitcoin is resilient against internet shutdowns — whether from natural disasters or authoritarian censorship. As long as radio waves exist, Bitcoin can't be stopped! 🛰️",
+  channel: 'ham_radio', channelName: 'Ham Radio' },
+
+{ keys: ['blockstream satellite','bitcoin satellite','bitcoin from space','goTenna bitcoin'],
+  answer: "Blockstream beams the entire Bitcoin blockchain from SPACE, {name}! 🛰️🦌 Their satellite network covers every square inch of Earth — so even if your country shuts off the internet, you can still receive blocks and verify transactions with a simple satellite dish. There are also goTenna mesh devices and ham radio setups that can relay transactions. Bitcoin is literally unstoppable!",
+  channel: 'ham_radio', channelName: 'Ham Radio' },
+
+// --- improved_incentive_structure (0 entries → 2) ---
+{ keys: ['bitcoin incentives civilization','bitcoin fixes incentives','bitcoin improves society','bitcoin better world','low time preference society'],
+  answer: "Bitcoin doesn't just fix money — it fixes civilization's incentive structure, {name}! 🌎🦌 When money can't be debased, people think long-term. Businesses invest in quality. Governments can't fund wars by printing money. Savers are rewarded instead of punished. Society shifts from consumption to creation, from debt to savings, from short-term exploitation to long-term building!",
+  channel: 'improved_incentive_structure', channelName: 'Improved Incentive Structure' },
+
+// --- mev (0 entries → 2) ---
+{ keys: ['mev bitcoin','miner extractable value','mev problem','transaction ordering','front running bitcoin'],
+  answer: "MEV (Miner Extractable Value) refers to profit miners can extract by reordering transactions, {name}! ⛏️🦌 In Ethereum, MEV is a massive problem — bots front-run trades and extract billions. In Bitcoin, MEV is minimal because Bitcoin's scripting is simple and there's no complex DeFi. This is actually a huge advantage: Bitcoin's simplicity protects users from hidden extraction!",
+  channel: 'mev', channelName: 'MEV' },
+
+// --- orange-pilling (0 entries → 3) ---
+{ keys: ['orange pill tips','how to orange pill','convince someone bitcoin','bitcoin persuasion','orange pill strategy'],
+  answer: "The art of orange-pilling is about planting seeds, not forcing fruit, {name}! 🟠🦌 My top tips: 1) Ask questions instead of lecturing ('What do you think about inflation?'). 2) Meet people where they are — a business owner cares about fees, a parent cares about savings. 3) Send them one great resource, not ten. 4) Be patient — everyone has their own timeline. 5) Live well — your results speak louder than your words!",
+  channel: 'orange-pilling', channelName: 'Orange-Pilling' },
+
+{ keys: ['explain bitcoin to my wife','explain bitcoin to husband','explain bitcoin to partner','explain bitcoin family'],
+  answer: "For family, focus on what THEY care about, {name}! 🦌❤️ 'Our savings lose 5-10% of their purchasing power every year to inflation. Bitcoin has averaged 50%+ annual returns over 15 years. I'm not suggesting we go all-in — just that we put a small percentage of our savings into the hardest asset ever created, as insurance against a broken financial system. Can we learn about it together?'",
+  channel: 'orange-pilling', channelName: 'Orange-Pilling' },
+
+{ keys: ['bitcoin conversation starter','talk about bitcoin','bring up bitcoin'],
+  answer: "Don't start with 'Bitcoin,' start with problems, {name}! 🦌🧡 Ask: 'Have you noticed how expensive everything has gotten?' or 'Did you know your bank savings lose purchasing power every year?' or 'What would you do if the government froze your bank account?' Let THEM discover that Bitcoin is the answer. The best orange pills don't even mention the word 'Bitcoin' until the person is ready!",
+  channel: 'orange-pilling', channelName: 'Orange-Pilling' },
+
+// --- politics (0 entries → 2) ---
+{ keys: ['bitcoin politics','bitcoin political','bitcoin left right','bitcoin democrat republican','bitcoin policy'],
+  answer: "Bitcoin transcends left-right politics, {name}! 🏛️🦌 Progressives love it for financial inclusion, human rights, and fighting corporate banking power. Conservatives love it for sound money, limited government, and property rights. Libertarians love it for freedom and sovereignty. Bitcoin is a mirror — people see their own values reflected in it. And that's because honest money serves EVERYONE!",
+  channel: 'politics', channelName: 'Politics' },
+
+{ keys: ['bitcoin regulation politics','bitcoin law','bitcoin legislation','bitcoin congress','bitcoin senator'],
+  answer: "Bitcoin policy is rapidly evolving, {name}! 📜🦌 Multiple countries have created Bitcoin-specific legislation. In the US, bipartisan bills are addressing custody, taxation, mining rights, and stablecoin regulation. The key insight: politicians who understand Bitcoin become advocates. The ones who fear it try to regulate it. But you can't regulate math — you can only regulate the on-ramps!",
+  channel: 'politics', channelName: 'Politics' },
+
+// --- predictions (0 entries → 2) ---
+{ keys: ['bitcoin prediction','bitcoin future price','bitcoin prediction history','famous bitcoin predictions'],
+  answer: "Bitcoin has a history of wild predictions, {name}! 🔮🦌 In 2011, people predicted $100 (it hit $1,200). In 2015, they predicted $10,000 (it hit $69,000). Hal Finney predicted $10M per coin in 2009. The common thread: the 'crazy' predictions kept coming true while the 'reasonable' ones were too conservative. Don't bet against an asset with a fixed supply and growing demand!",
+  channel: 'predictions', channelName: 'Predictions' },
+
+// --- rbf (0 entries → 3) ---
+{ keys: ['rbf','replace by fee','speed up transaction','stuck bitcoin transaction','my transaction is stuck','bump fee','how to unstick transaction'],
+  answer: "RBF (Replace-By-Fee) lets you speed up a stuck transaction, {name}! ↔️🦌 If your transaction is sitting in the mempool unconfirmed, you can rebroadcast it with a higher fee. Most modern wallets support RBF — look for a 'Bump Fee' or 'Speed Up' button. The higher fee incentivizes miners to include your transaction in the next block. Problem solved!",
+  channel: 'rbf', channelName: 'RBF' },
+
+{ keys: ['what fee should i use','bitcoin fee recommendation','how much fee bitcoin','fee too low'],
+  answer: "The right fee depends on urgency, {name}! 💰🦌 Check mempool.space for real-time fee estimates. If you need confirmation in the next block, use the 'High Priority' fee. If you can wait a few hours, use 'Low Priority' and save sats. For Lightning payments, fees are fractions of a penny regardless of speed. Pro tip: weekends usually have lower fees! ⚡",
+  channel: 'transaction_fees', channelName: 'Transaction Fees' },
+
+{ keys: ['cpfp','child pays for parent','fee bumping','accelerate transaction'],
+  answer: "CPFP (Child Pays For Parent) is another way to speed up transactions, {name}! 👶🦌 If a transaction is stuck, you spend one of its outputs in a NEW transaction with a high fee. Miners see the 'child' transaction's fee and include BOTH (parent + child) because the combined fee is worth it. It's like a kid paying the bill to get the whole family into the restaurant faster!",
+  channel: 'rbf', channelName: 'RBF' },
+
+// --- rollups (0 entries → 2) ---
+{ keys: ['bitcoin rollups','rollup bitcoin','what are rollups','validity rollups','sovereign rollups'],
+  answer: "Rollups are a hot scaling research area for Bitcoin, {name}! 🥐🦌 The idea: bundle thousands of transactions off-chain, compute them, then post a compact proof to the Bitcoin base layer. Validity rollups use cryptographic proofs (ZK-SNARKs/STARKs). Sovereign rollups let users verify everything themselves. This could dramatically increase Bitcoin's throughput while inheriting its security!",
+  channel: 'rollups', channelName: 'Rollups' },
+
+// --- submarine_swap (0 entries → 2) ---
+{ keys: ['submarine swap','what is a submarine swap','on-chain to lightning','lightning to on-chain','swap bitcoin lightning'],
+  answer: "A submarine swap lets you move Bitcoin between on-chain and Lightning trustlessly, {name}! ⛵🦌 Need Lightning balance? Send on-chain Bitcoin and receive it on Lightning (or vice versa) using atomic swaps with hash time-locked contracts. No trust in a third party needed! Services like Boltz Exchange make this easy. It's like a submarine — dipping below the surface (on-chain) and popping back up (Lightning)!",
+  channel: 'submarine_swap', channelName: 'Submarine Swap' },
+
+// --- ta_tips (0 entries → 2) ---
+{ keys: ['technical analysis bitcoin','bitcoin chart reading','support resistance bitcoin','bitcoin trading tips','rsi macd bitcoin'],
+  answer: "A quick TA overview, {name}! 📈🦌 Bitcoin's key indicators: the 200-week moving average has historically been the 'bottom' of bear markets. Stock-to-Flow models scarcity vs price. The MVRV Z-Score measures if Bitcoin is over/undervalued relative to its realized value. Support/resistance levels, RSI, and MACD are standard tools. But remember — TA tells you what MIGHT happen, not what WILL happen! 🎯",
+  channel: 'ta_tips', channelName: 'TA Tips' },
+
+{ keys: ['200 week moving average','200 wma','bitcoin bottom indicator','bear market bottom'],
+  answer: "The 200-week moving average is the holy grail for long-term Bitcoin investors, {name}! 📊🦌 Every time Bitcoin has touched or dipped below the 200 WMA, it has been a generational buying opportunity. It happened in 2015, 2019, 2020, and 2022 — and each time, Bitcoin went on to make massive new highs. It won't work forever, but historically: when everyone is terrified, that's the signal! 💎",
+  channel: 'ta_tips', channelName: 'TA Tips' },
+
+// --- unpopular_opinions (0 entries → 2) ---
+{ keys: ['unpopular opinion bitcoin','controversial bitcoin take','bitcoin hot take','bitcoin debate'],
+  answer: "Here's an unpopular opinion for you, {name}: Bitcoin's 'energy waste' is actually its greatest feature! 💡🦌 That energy creates an unforgeable, real-world cost to attack the network. It turns electricity into security. Without that energy expenditure, Bitcoin is just another database that powerful entities can manipulate. The energy IS the point! What's your unpopular Bitcoin take? 🤔",
+  channel: 'unpopular_opinions', channelName: 'Unpopular Opinions' },
+
+
+// =============================================
+// ADDITIONAL INFO — WEAK COVERAGE (beef up)
+// =============================================
+
+// --- consensus (1 indirect → +2) ---
+{ keys: ['nakamoto consensus','how bitcoin reaches consensus','consensus mechanism','agreement without leader'],
+  answer: "Nakamoto Consensus is Bitcoin's breakthrough, {name}! 🤝🦌 For the first time, thousands of computers reach agreement on a shared ledger WITHOUT a leader or vote. Miners compete by burning energy (proof of work), and the longest chain with the most accumulated work wins. It's the most elegant solution to the Byzantine Generals' Problem — and it's been running flawlessly since 2009!",
+  channel: 'consensus', channelName: 'Consensus' },
+
+// --- stablecoins (1 indirect → +2) ---
+{ keys: ['stablecoin','stablecoins','tether','usdt','usdc','stablecoin on bitcoin','dollar on lightning'],
+  answer: "Stablecoins are dollar-pegged tokens, and they're coming to Bitcoin, {name}! 🪙🦌 Taproot Assets (formerly Taro) enables stablecoins on the Lightning Network. This means dollar-denominated payments at Lightning speed and fees. For people in developing countries who need dollar stability but can't access banks, this is transformational. Bitcoin the network carries ALL kinds of value!",
+  channel: 'stablecoins', channelName: 'Stablecoins' },
+
+// --- burn_bitcoin (0 direct → +1) ---
+{ keys: ['burn bitcoin','bitcoin burn','unspendable bitcoin','op_return burn','provably destroyed'],
+  answer: "Yes, Bitcoin can be 'burned' — made permanently unspendable, {name}! 🔥🦌 Using OP_RETURN or sending to a provably unspendable address, coins are destroyed forever. This actually makes remaining Bitcoin MORE scarce and therefore more valuable. An estimated 3-4 million Bitcoin are already lost forever (including most of Satoshi's coins). Every lost coin is a gift to all other holders!",
+  channel: 'burn_bitcoin', channelName: 'Burn Bitcoin' },
+
+// --- dust (0 direct → +1) ---
+{ keys: ['bitcoin dust','dust utxo','tiny bitcoin amount','dust attack','uneconomical output'],
+  answer: "Dust is a tiny amount of Bitcoin that costs more in fees to spend than it's worth, {name}! ⏳🦌 If you have a UTXO worth 500 sats but the fee to spend it is 1,000 sats, it's economically 'dust.' Dust attacks send tiny amounts to thousands of addresses to track spending patterns. The fix: consolidate your UTXOs during low-fee periods, and use coin control in your wallet!",
+  channel: 'dust', channelName: 'Dust' },
+
+// --- derivation_path (0 direct → +1) ---
+{ keys: ['derivation path','bip 44','what is m/84','wallet path','hd wallet path'],
+  answer: "A derivation path tells your wallet HOW to generate addresses from your seed phrase, {name}! ↕️🦌 The format looks like m/84'/0'/0'/0/0. Each number specifies: the address type (84=native SegWit), the coin (0=Bitcoin), the account, and the address index. This is why the same 24 words can generate different addresses in different wallets — they might use different paths! Always note your derivation path for recovery!",
+  channel: 'derivation_path', channelName: 'Derivation Path' },
+
+// --- spv (0 direct → +1) ---
+{ keys: ['spv','simplified payment verification','light wallet','lightweight node','spv wallet'],
+  answer: "SPV (Simplified Payment Verification) lets you verify Bitcoin transactions without downloading the entire blockchain, {name}! ✔️🦌 An SPV wallet only downloads block headers (~60MB total) and uses Merkle proofs to verify specific transactions. Mobile wallets typically use SPV. The tradeoff: you trust that miners are honest about block contents. For maximum security, run a full node — but SPV is great for everyday use!",
+  channel: 'simplified_payment_verification__spv', channelName: 'SPV' },
+
+// --- tail_emission (0 direct → +1) ---
+{ keys: ['tail emission','perpetual emission','should bitcoin have inflation','bitcoin security budget','fee only security'],
+  answer: "Tail emission is the debate about whether Bitcoin should have a small, perpetual block reward, {name}! 🐈🦌 Critics worry that when the block reward approaches zero (~2140), transaction fees alone might not incentivize enough mining to secure the network. Advocates of tail emission suggest a tiny permanent reward. Most Bitcoiners strongly oppose this — changing the 21M cap would destroy Bitcoin's core value proposition. The market will figure out fee-based security!",
+  channel: 'tail_emission', channelName: 'Tail Emission' },
+
+// --- vbyte (0 direct → +1) ---
+{ keys: ['vbyte','virtual byte','transaction weight','weight units','segwit discount','transaction size'],
+  answer: "A virtual byte (vByte) is how Bitcoin measures transaction 'size' for fee purposes, {name}! 🏋️🦌 SegWit introduced a discount for witness data: 1 byte of witness data = 0.25 weight units, while 1 byte of other data = 1 weight unit. This is why SegWit transactions are cheaper! A block can hold 4 million weight units max (~1 MB base + ~3 MB witness). Use SegWit addresses (bc1...) to save on fees!",
+  channel: 'vbyte', channelName: 'vByte' },
+
+// --- sidechains (0 direct → +2) ---
+{ keys: ['sidechain','liquid network','what is liquid','bitcoin sidechain','federated sidechain'],
+  answer: "Sidechains are separate blockchains pegged to Bitcoin, {name}! ♻️🦌 Liquid Network (by Blockstream) is the most popular — it offers faster block times (1 minute), confidential transactions (amounts hidden), and the ability to issue tokens. You 'peg in' by locking BTC on the main chain and receiving L-BTC on Liquid. The tradeoff: security relies on a federation of known entities instead of proof-of-work!",
+  channel: 'sidechains', channelName: 'Sidechains' },
+
+// --- stratum_v2 (0 direct → +1) ---
+{ keys: ['stratum v2 protocol','stratum protocol','mining protocol','mining decentralization protocol','block template'],
+  answer: "Stratum V2 is the next-generation mining protocol, {name}! 🟩🦌 Currently, mining pools decide which transactions go into blocks. Stratum V2 flips this — individual miners construct their OWN block templates and submit them to the pool. This dramatically improves mining decentralization, reduces censorship risk, and gives power back to individual miners. It's a huge upgrade for Bitcoin's health!",
+  channel: 'stratum_v2', channelName: 'Stratum V2' },
+
+// --- the_future (0 direct → +1) ---
+{ keys: ['bitcoin future','hyperbitcoinization','what happens next bitcoin','bitcoin 2030','bitcoin 2050','bitcoin end game'],
+  answer: "The future of Bitcoin is hyperbitcoinization, {name}! 🔮🦌 Imagine: every phone has a Lightning wallet. Your salary arrives in sats. A coffee costs 500 sats. Houses are priced in Bitcoin. Governments hold Bitcoin reserves. The world runs on a sound money standard for the first time in 50+ years. It sounds radical now, but remember — so did email in 1995. The future is being built block by block! 🧱",
+  channel: 'the_future', channelName: 'The Future' },
+
+
+// =============================================
+// RESOURCES — MISSING CHANNELS
+// =============================================
+
+// --- apps-tools (0 entries → 3) ---
+{ keys: ['bitcoin apps','best bitcoin apps','bitcoin tools','bitcoin software','what apps for bitcoin'],
+  answer: "There are amazing Bitcoin apps for every need, {name}! 🍎🦌 Wallets: Sparrow (desktop), BlueWallet (mobile), Coldcard (hardware). Lightning: Phoenix, Breez, Zeus. Price tracking: Mempool.space, Clark Moody Dashboard. Privacy: Wasabi, Whirlpool. Node: Umbrel, RaspiBlitz. Stacking: River, Strike, Swan Bitcoin. Start simple and level up as you learn!",
+  channel: 'apps-tools', channelName: 'Apps & Tools' },
+
+{ keys: ['mempool space','block explorer','check transaction','verify transaction','track bitcoin','blockchain explorer'],
+  answer: "Mempool.space is the best block explorer, {name}! 🔍🦌 Enter any transaction ID, address, or block number to see full details. You can see real-time fee estimates, the mempool size, and even individual transaction breakdowns. Pro tip: run your OWN mempool.space instance on your node so you don't leak your addresses to anyone! Privacy matters!",
+  channel: 'apps-tools', channelName: 'Apps & Tools' },
+
+// --- curriculum (0 entries → 2) ---
+{ keys: ['bitcoin curriculum','teach bitcoin','bitcoin course','bitcoin class','bitcoin education program','bitcoin workshop'],
+  answer: "There are great Bitcoin education curricula out there, {name}! 🎓🦌 Mi Primer Bitcoin (El Salvador's school program) is open-source. The Bitcoin Standard Podcast has a structured course. Saylor Academy offers a free Bitcoin certification. Base58 teaches technical workshops. And of course, THIS archive has 146 channels that form a complete education! Start your students with the 'One Stop Shop' channel!",
+  channel: 'curriculum', channelName: 'Curriculum' },
+
+// --- games (0 entries → 2) ---
+{ keys: ['bitcoin games','learn bitcoin game','bitcoin gamification','play bitcoin','bitcoin trivia game'],
+  answer: "Learning Bitcoin through games is awesome, {name}! 🎮🦌 Bitcoin Bounty Hunt is a 3D shooter that pays sats. SaruTobi lets you earn while playing. The Bitcoin Halving Game is a fun simulator. Bitcoin Puzzle is a crypto challenge. And right here on the Archive, you can do Quests, earn badges, spin the daily wheel, and climb the leaderboard! Learning should be fun! ⚡",
+  channel: 'games', channelName: 'Games' },
+
+// --- giga-chad (0 entries → 3) ---
+{ keys: ['michael saylor','saylor','microstrategy','saylor bitcoin','microstrategy bitcoin','corporate bitcoin'],
+  answer: "Michael Saylor is the ultimate Bitcoin gigachad, {name}! 👑🦌 His company MicroStrategy has purchased hundreds of thousands of Bitcoin, making it the largest corporate holder in the world. Saylor's thesis: Bitcoin is digital property, superior to every other store of value. His interviews and presentations have orange-pilled more institutional investors than anyone else. 'There is no second best!' 🔥",
+  channel: 'giga-chad', channelName: 'Giga Chad' },
+
+{ keys: ['bitcoin etf','spot bitcoin etf','blackrock bitcoin','ibit','bitcoin fund','institutional bitcoin'],
+  answer: "Spot Bitcoin ETFs launched in January 2024 and changed the game, {name}! 📊🦌 BlackRock's iShares Bitcoin Trust (IBIT) became the fastest-growing ETF in history. Fidelity, ARK, and others followed. ETFs let institutional investors — pension funds, wealth managers, sovereign funds — buy Bitcoin through regulated channels. Billions are flowing in. The institutions have arrived!",
+  channel: 'giga-chad', channelName: 'Giga Chad' },
+
+{ keys: ['companies holding bitcoin','corporate bitcoin treasury','tesla bitcoin','block bitcoin','square bitcoin'],
+  answer: "More companies are adding Bitcoin to their treasuries, {name}! 🏢🦌 MicroStrategy leads with hundreds of thousands of BTC. Tesla holds Bitcoin. Block (formerly Square) allocates a portion of their balance sheet. Marathon, Riot, and other miners hold what they mine. The logic: why hold depreciating dollars when you can hold the hardest asset ever created? Corporate FOMO is just getting started!",
+  channel: 'giga-chad', channelName: 'Giga Chad' },
+
+// --- hardware (0 entries → 3) ---
+{ keys: ['bitcoin hardware','hardware wallet compare','coldcard vs trezor','best hardware wallet','ledger vs coldcard'],
+  answer: "Hardware wallets are essential for serious Bitcoiners, {name}! 💻🦌 My favorites: Coldcard (air-gapped, Bitcoin-only, NFC signing — the gold standard). Trezor (open-source, multi-coin). BitBox02 (Swiss design, Bitcoin-only edition). SeedSigner (DIY, air-gapped, stateless). Foundation Passport (open-source, premium build). The key: choose one that's Bitcoin-only and air-gapped if possible!",
+  channel: 'hardware', channelName: 'Hardware' },
+
+{ keys: ['bitaxe miner','home mining','mining at home','bitcoin miner hardware','antminer','usb miner'],
+  answer: "Home mining is making a comeback, {name}! ⛏️🦌 The Bitaxe is an open-source, USB-powered solo miner — you probably won't find a block, but it supports decentralization and you learn by doing! For serious home mining: Antminer S21s are efficient but loud and hot. Some people heat their homes with miners (dual-purpose!). Solo miners HAVE found blocks — it's like a Bitcoin lottery! 🎲",
+  channel: 'hardware', channelName: 'Hardware' },
+
+{ keys: ['bitcoin node hardware','node raspberry pi','umbrel hardware','start9 hardware','run a node hardware'],
+  answer: "Running a Bitcoin node is easier than ever, {name}! 🖥️🦌 Budget option: Raspberry Pi 4 + 2TB SSD (~$150). Plug-and-play: Umbrel or Start9 on any old computer. Premium: Nodl or MyNode dedicated devices. You need ~600GB for the full blockchain (or use pruned mode for less). A node gives you full verification — YOUR rules, YOUR validation, YOUR sovereignty!",
+  channel: 'hardware', channelName: 'Hardware' },
+
+// --- health (0 entries → 2) ---
+{ keys: ['bitcoin health','bitcoin lifestyle','bitcoin carnivore','bitcoin fitness','low time preference health','bitcoin diet'],
+  answer: "The Bitcoin health connection is real, {name}! 🥩🦌 When you adopt low time preference (thinking long-term), it doesn't stop at money. Bitcoiners tend to invest in their bodies too — eating whole foods, exercising, sleeping well, reducing processed junk. It's the same principle: delayed gratification leads to better outcomes. Fix the money, fix the world... fix the body too! 💪",
+  channel: 'health', channelName: 'Health' },
+
+// --- international (0 entries → 2) ---
+{ keys: ['bitcoin other languages','bitcoin spanish','bitcoin arabic','bitcoin global','bitcoin worldwide','bitcoin translation'],
+  answer: "Bitcoin education exists in every major language, {name}! 🌍🦌 The Whitepaper has been translated into 40+ languages. Mi Primer Bitcoin teaches in Spanish. There are Arabic, Mandarin, Hindi, Portuguese, and Swahili communities. Bitcoin Magazine publishes in multiple languages. The beauty of a global protocol: the community is global too! Check the International channel for resources in your language!",
+  channel: 'international', channelName: 'International' },
+
+// --- music (0 entries → 2) ---
+{ keys: ['bitcoin music','bitcoin songs','bitcoin anthem','bitcoin rap','bitcoin playlist'],
+  answer: "Bitcoin has an incredible music scene, {name}! 🎵🦌 Artists like Ainsley Costello, Mandrik, and others create Bitcoin-themed music. There are Bitcoin rap anthems, acoustic folk songs about sound money, and full albums dedicated to the movement. Music is one of the most powerful orange-pilling tools — it reaches people emotionally in ways that charts and data can't! Check the Music channel for the full playlist!",
+  channel: 'music', channelName: 'Music' },
+
+// --- poems-stories (0 entries → 1) ---
+{ keys: ['bitcoin poetry','bitcoin poem','bitcoin story','bitcoin creative writing','bitcoin fiction'],
+  answer: "The Bitcoin community produces incredible creative writing, {name}! 📒🦌 From Gigi's poetic essays to community-written haiku and short stories imagining a hyperbitcoinized future. There's something powerful about expressing monetary freedom through art and words. Check the Poems & Stories channel — some of these pieces will give you chills! 🧡",
+  channel: 'poems-stories', channelName: 'Poems & Stories' },
+
+// --- projects-diy (0 entries → 2) ---
+{ keys: ['diy bitcoin','bitcoin project','build bitcoin','bitcoin maker','bitcoin diy project','bitcoin tinkering'],
+  answer: "DIY Bitcoin projects are the best way to learn, {name}! 🔧🦌 Build a SeedSigner (DIY hardware wallet from a Raspberry Pi Zero). Set up a Lightning ATM. Build a Bitaxe miner. Run a full node on an old laptop. Create a steel seed backup. Build a Bitcoin-accepting point-of-sale system. Hands-on projects teach you more than any book! The Projects & DIY channel has tons of inspiration!",
+  channel: 'projects-diy', channelName: 'Projects & DIY' },
+
+// --- research-theses (0 entries → 1) ---
+{ keys: ['bitcoin research','bitcoin academic','bitcoin thesis','bitcoin academic paper','bitcoin study','academic bitcoin'],
+  answer: "Bitcoin has a growing body of academic research, {name}! ✍️🦌 From Satoshi's original whitepaper to modern papers on Lightning Network routing, privacy protocols, game theory of mining, and monetary economics. Universities are offering Bitcoin courses. Economists are publishing papers on fixed-supply monetary theory. The Research & Theses channel has curated the most important papers!",
+  channel: 'research-theses', channelName: 'Research & Theses' },
+
+// --- social-media (0 entries → 2) ---
+{ keys: ['bitcoin twitter','bitcoin accounts to follow','bitcoin influencer','bitcoin x accounts','who to follow bitcoin'],
+  answer: "Bitcoin Twitter (X) is where the community lives, {name}! 👍🦌 Must-follows: @saboreandonews, @DocumentingBTC, @BitcoinMagazine for news. @giacomozucco, @loaboron, @dergigi for philosophy. @LynAldenContact for macro analysis. @NVK, @odaboron for technical. And don't forget Nostr — the censorship-resistant alternative where many Bitcoiners are migrating! 💜",
+  channel: 'social-media', channelName: 'Social Media' },
+
+// --- swag-merch (0 entries → 2) ---
+{ keys: ['bitcoin merchandise','bitcoin clothing','bitcoin shirt','buy bitcoin merch','bitcoin swag','bitcoin store'],
+  answer: "Rep your Bitcoin conviction with style, {name}! 👕🦌 There are dozens of Bitcoin-only shops: Bitcoin Magazine Store, Coinkite merch, The Bitcoin Store, and more. You can find hardware wallets, clothing, stickers, books, and accessories — often payable in Lightning! Nothing says 'I'm orange-pilled' like a well-placed ₿ logo. Check the Swag & Merch channel for the full directory!",
+  channel: 'swag-merch', channelName: 'Swag & Merch' },
+
+// --- web5 (0 entries → 2) ---
+{ keys: ['web5','what is web5','web5 bitcoin','decentralized web bitcoin','tbd web5','decentralized identity'],
+  answer: "Web5 is a vision for a decentralized internet built on Bitcoin, {name}! 5️⃣🦌 Originally proposed by Jack Dorsey's TBD (part of Block), Web5 combines decentralized identifiers (DIDs), verifiable credentials, and decentralized web nodes to give users control of their data and identity. No more Big Tech owning your digital life — you own it, anchored to Bitcoin! It's the web we were promised!",
+  channel: 'web5', channelName: 'Web5' },
+
+// --- art-inspiration (0 entries → 1) ---
+{ keys: ['bitcoin art','bitcoin inspiration','bitcoin motivation','bitcoin artwork','bitcoin creative'],
+  answer: "Bitcoin art is a movement, {name}! 🤩🦌 From FractalEncrypt's mesmerizing animations to Lucho Poletti's illustrations, from community memes to gallery-worthy pieces — Bitcoin inspires incredible creativity. Art communicates the revolution in ways code and economics can't. Check the Art & Inspiration channel for hundreds of pieces that'll fuel your conviction! 🎨",
+  channel: 'art-inspiration', channelName: 'Art & Inspiration' },
+
+// --- graphics (0 entries → 1) ---
+{ keys: ['bitcoin infographic','bitcoin chart graphic','bitcoin visual','bitcoin diagram','bitcoin visual explanation'],
+  answer: "A good infographic is worth a thousand words, {name}! 🎨🦌 The Graphics channel has Bitcoin supply curves, inflation comparison charts, adoption S-curves, mining diagrams, Lightning Network maps, and more. These visuals are perfect for presentations, social media, or orange-pilling friends. A single well-designed chart can do what an hour of explaining can't!",
+  channel: 'graphics', channelName: 'Graphics' },
+
+// --- faq-glossary (0 entries → 1) ---
+{ keys: ['bitcoin glossary','bitcoin terms','bitcoin vocabulary','bitcoin definitions','bitcoin dictionary','bitcoin jargon'],
+  answer: "Bitcoin has A LOT of terminology, {name}! ❓🦌 UTXO, mempool, nonce, hashrate, SegWit, Taproot, PSBT, HTLC, DLC... it can feel overwhelming! The FAQ & Glossary channel has definitions for every term in plain English. Bookmark it and refer back whenever you encounter something new. Even the most experienced Bitcoiners looked these up at some point!",
+  channel: 'faq-glossary', channelName: 'FAQ & Glossary' },
+
+// --- informational-sites (0 entries → 1) ---
+{ keys: ['bitcoin websites','bitcoin resources','bitcoin dashboard','bitcoin learning sites','bitcoin courses online'],
+  answer: "There are incredible Bitcoin learning resources online, {name}! 📃🦌 Dashboards: Clark Moody, Mempool.space, Bitbo. Courses: Saylor Academy, Chaincode. Newsletters: Bitcoin Optech, The Bitcoin Way. Communities: Bitcoin Talk, Stacker News. Podcasts sites: Fountain App. This channel catalogs ALL of them so you never run out of material. Knowledge is the real wealth!",
+  channel: 'informational-sites', channelName: 'Informational Sites' },
+
+
+// =============================================
+// BEEF UP — EXISTING BUT THIN CHANNELS
+// =============================================
+
+// --- whitepaper (2 entries → +3) ---
+{ keys: ['whitepaper structure','what does the whitepaper cover','whitepaper sections','whitepaper contents'],
+  answer: "The Bitcoin Whitepaper covers 12 sections in just 8 pages, {name}! 📄🦌 Introduction → Transactions → Timestamp Server → Proof-of-Work → Network → Incentive → Reclaiming Disk Space → SPV → Combining/Splitting Value → Privacy → Calculations → Conclusion. Every section is a masterclass in elegant design. Satoshi wasted zero words!",
+  channel: 'whitepaper', channelName: 'Whitepaper' },
+
+{ keys: ['read the whitepaper','should i read whitepaper','understand whitepaper','whitepaper hard'],
+  answer: "Every Bitcoiner should read the whitepaper at least once, {name}! 📜🦌 It's only 8 pages of actual text — shorter than most blog posts! Don't worry if you don't understand every technical detail on the first read. Focus on the 'why' — the problems it solves and the elegance of the design. Read it once a year and you'll understand more each time. It's a living document that grows with you!",
+  channel: 'whitepaper', channelName: 'Whitepaper' },
+
+{ keys: ['whitepaper anniversary','october 31 2008','halloween whitepaper','whitepaper birthday'],
+  answer: "The Bitcoin Whitepaper was published on October 31, 2008 — Halloween! 🎃🦌 Satoshi sent it to the cryptography mailing list with the subject: 'Bitcoin: A Peer-to-Peer Electronic Cash System.' Just 3 months later, the Genesis Block was mined on January 3, 2009. From that one email, a global monetary revolution was born. Happy Whitepaper Day every Halloween, {name}! 📜🧡",
+  channel: 'whitepaper', channelName: 'Whitepaper' },
+
+// --- decentralized (1 entry → +3) ---
+{ keys: ['how decentralized is bitcoin','is bitcoin truly decentralized','decentralized enough','centralization risk'],
+  answer: "Bitcoin is the most decentralized monetary network ever created, {name}! 🌐🦌 Over 15,000 nodes in 100+ countries. Mining spread across dozens of nations after China's ban. No CEO, no headquarters, no company, no foundation that controls it. Could it be MORE decentralized? Always! But compared to literally everything else? Nothing comes close. And it gets more decentralized every year!",
+  channel: 'decentralized', channelName: 'Decentralized' },
+
+{ keys: ['bitcoin censorship resistant','censorship resistance','can bitcoin be censored','block transactions'],
+  answer: "Bitcoin's censorship resistance comes from its decentralization, {name}! 🛡️🦌 To censor a transaction, you'd need to control 51%+ of mining power AND convince 15,000+ nodes to accept your censored version. Even then, the transaction would still propagate to honest miners. WikiLeaks used Bitcoin when Visa and PayPal cut them off. Protesters use it when governments freeze bank accounts. It's freedom money!",
+  channel: 'decentralized', channelName: 'Decentralized' },
+
+{ keys: ['bitcoin single point failure','spof bitcoin','bitcoin resilience design','bitcoin robust'],
+  answer: "Bitcoin has ZERO single points of failure, {name}! 💪🦌 No server to hack. No CEO to arrest. No datacenter to raid. No company to sue. No bank to sanction. The protocol lives on thousands of nodes across the globe. If any 10% of nodes survive, the entire network can rebuild. It's like trying to kill an idea — once it spreads, it's indestructible!",
+  channel: 'decentralized', channelName: 'Decentralized' },
+
+// --- transaction_fees (1 entry → +2) ---
+{ keys: ['when all bitcoin mined','what happens 2140','no block reward','fee only bitcoin','security budget'],
+  answer: "When the last Bitcoin is mined around 2140, miners will be paid entirely through transaction fees, {name}! 💰🦌 Will fees be enough? Bitcoin's value will likely be enormously higher by then, making even small fees significant in real terms. Plus, demand for block space will grow as more of the world uses Bitcoin. The market will adapt — it always does! We have 115+ years to figure it out!",
+  channel: 'transaction_fees', channelName: 'Transaction Fees' },
+
+{ keys: ['why are bitcoin fees high','fees expensive','high fee bitcoin','fee spike'],
+  answer: "High fees mean high demand for block space, {name}! 📈🦌 Bitcoin blocks have limited capacity (~4MB). When lots of people want transactions confirmed quickly, they bid up fees. This is actually healthy — it means the network is being used! For everyday payments, use Lightning (fees are fractions of a penny). Think of Layer 1 as a settlement layer (like a wire transfer) and Lightning as your debit card! ⚡",
+  channel: 'transaction_fees', channelName: 'Transaction Fees' },
+
+// --- pow-vs-pos (2 entries → +2) ---
+{ keys: ['proof of stake problems','why not use proof of stake','pos centralized','staking centralization'],
+  answer: "Proof of Stake has fundamental problems, {name}! 🦌 The biggest: the rich get richer automatically (staking rewards compound), there's no physical cost to attack (just need tokens, not energy), and validators can be coerced or sanctioned. In PoS, the largest stakers control the network. In Bitcoin's PoW, you need real-world energy — that's a physical barrier no one can fake or confiscate!",
+  channel: 'pow-vs-pos', channelName: 'PoW vs PoS' },
+
+{ keys: ['proof of work not waste','pow worth it','energy not wasted','pow energy justified'],
+  answer: "Proof of Work energy isn't 'wasted' — it's DEPLOYED, {name}! ⚡🦌 That energy converts electricity into unforgeable security. It's the wall that protects $1 trillion+ of value. Consider: the global banking system uses 100x more energy than Bitcoin AND requires armies, courts, regulators, and prisons to enforce. Bitcoin replaces ALL of that with clean mathematics and electricity. Which is more efficient? 🤔",
+  channel: 'pow-vs-pos', channelName: 'PoW vs PoS' },
+
+// --- privacy-nonkyc (1 entry → +2) ---
+{ keys: ['kyc danger','why kyc bad','kyc risks','know your customer problem','kyc bitcoin risk'],
+  answer: "KYC (Know Your Customer) is a serious risk for Bitcoiners, {name}! 🔓🦌 When you buy through a KYC exchange, your identity is permanently linked to those coins. If the exchange gets hacked (Ledger leak affected 273,000 people), criminals know you own Bitcoin. Governments can easily track and tax your holdings. Some even confiscate. Non-KYC buying through P2P platforms preserves your financial privacy!",
+  channel: 'privacy-nonkyc', channelName: 'Privacy & Non-KYC' },
+
+{ keys: ['buy bitcoin no kyc','non kyc bitcoin','peer to peer bitcoin','p2p bitcoin','bisq','robosats','hodl hodl'],
+  answer: "There are several ways to acquire Bitcoin without KYC, {name}! 🤫🦌 Bisq is a decentralized exchange (no middleman). RoboSats works over Lightning + Tor. HodlHodl is peer-to-peer. You can also earn Bitcoin for work, accept it as payment, or buy from Bitcoin ATMs (some have higher limits without ID). Mining is also non-KYC! Financial privacy is a human right — exercise it responsibly!",
+  channel: 'privacy-nonkyc', channelName: 'Privacy & Non-KYC' },
+
+// --- scalability (1 entry → +2) ---
+{ keys: ['how many bitcoin transactions','bitcoin transactions per second','bitcoin throughput','bitcoin capacity'],
+  answer: "Bitcoin's base layer handles ~7 transactions per second, and that's by design, {name}! 🧱🦌 But Lightning can handle MILLIONS of transactions per second. Think of it like this: Visa processes 65,000 TPS, but the Federal Reserve settles only ~800,000 transactions per DAY. Bitcoin Layer 1 is like the Fed (final settlement), while Lightning is like Visa (instant payments). Different layers for different needs!",
+  channel: 'scalability', channelName: 'Scalability' },
+
+// --- utxos (1 entry → +2) ---
+{ keys: ['utxo management','consolidate utxos','utxo consolidation','too many utxos','utxo best practice'],
+  answer: "UTXO management is like organizing your cash, {name}! 🕳️🦌 If you have 100 tiny UTXOs, spending them costs a LOT in fees (each one adds to transaction size). Best practice: consolidate small UTXOs during low-fee periods into fewer, larger ones. Use coin control in your wallet (Sparrow is great for this). Label your UTXOs so you know their source. Good UTXO hygiene saves you sats!",
+  channel: 'utxos', channelName: 'UTXOs' },
+
+{ keys: ['psbt','partially signed','what is a psbt','psbt transaction','psbt explained'],
+  answer: "A PSBT (Partially Signed Bitcoin Transaction) is a format for passing unsigned or partially-signed transactions between devices, {name}! 📝🦌 This is crucial for air-gapped setups: create the transaction on a connected computer, export the PSBT to a USB or QR code, sign it on your offline hardware wallet, then broadcast the signed PSBT. It keeps your private keys completely offline!",
+  channel: 'utxos', channelName: 'UTXOs' },
+
+// --- nostr (2 entries → +2) ---
+{ keys: ['nostr how it works','nostr explained','nostr protocol','nostr relays','nostr keys'],
+  answer: "Nostr is beautifully simple, {name}! 💜🦌 You create a key pair (like Bitcoin!). Your private key signs your notes. Relays store and forward your notes. Anyone can run a relay. Your public key IS your identity — no one can censor you because if one relay bans you, your notes live on all the others. It's censorship-resistant social media, built on the same cryptographic principles as Bitcoin!",
+  channel: 'nostr', channelName: 'Nostr' },
+
+{ keys: ['nostr app','nostr client','damus','primal','snort','amethyst','nostr what app'],
+  answer: "Great Nostr clients, {name}! 💜🦌 Mobile: Primal (iOS/Android, beautiful UI), Damus (iOS), Amethyst (Android). Web: Snort, Coracle, or Nostrudel. Desktop: Gossip. The beauty of Nostr: your identity works across ALL clients because your keys are yours. You're never locked into one app. Just import your nsec (private key) into any client and your entire social graph comes with you!",
+  channel: 'nostr', channelName: 'Nostr' },
+
+// --- difficulty-adjustment (2 entries → +2) ---
+{ keys: ['difficulty adjustment explained','how difficulty changes','why difficulty adjusts','difficulty retarget'],
+  answer: "The difficulty adjustment is Bitcoin's thermostat, {name}! 🎯🦌 Every 2,016 blocks (~2 weeks), the protocol checks: are blocks coming too fast or too slow? If miners found blocks faster than 10 minutes, difficulty goes UP. If slower, it goes DOWN. This ensures that no matter how much mining power joins or leaves, blocks keep arriving roughly every 10 minutes. Self-regulating perfection!",
+  channel: 'difficulty-adjustment', channelName: 'Difficulty Adjustment' },
+
+{ keys: ['most elegant','bitcoin beautiful design','best part of bitcoin design','genius design'],
+  answer: "Many consider the difficulty adjustment Bitcoin's most elegant feature, {name}! ✨🦌 It creates a self-regulating system that adapts to ANY amount of computing power. When China banned mining and 50% of hashrate disappeared overnight, the difficulty simply adjusted down. Blocks kept coming. The network didn't skip a beat. No human intervention needed. It's the closest thing to a perpetual motion machine for money!",
+  channel: 'difficulty-adjustment', channelName: 'Difficulty Adjustment' },
+
+// --- one-stop-shop (3 entries → +2) ---
+{ keys: ['where do i start bitcoin','start learning bitcoin','new to bitcoin where to begin','bitcoin beginner guide','bitcoin roadmap learner'],
+  answer: "Welcome to the rabbit hole, {name}! 🕳️🦌 Here's your learning path: 1) Start with 'What is Bitcoin?' in our One Stop Shop channel. 2) Read the Whitepaper channel (it's only 8 pages!). 3) Explore the Properties channels to understand WHY Bitcoin matters. 4) Set up a wallet and buy your first sats. 5) Go deeper into technical topics as curiosity leads you. There's no rush — Bitcoin rewards patience!",
+  channel: 'one-stop-shop', channelName: 'One Stop Shop' },
+
+{ keys: ['bitcoin for beginners','absolute beginner bitcoin','never heard of bitcoin','brand new bitcoin'],
+  answer: "If you're brand new, here's all you need to know to start, {name}! 🦌🧡 Bitcoin is digital money with a fixed supply of 21 million. No company controls it. You can buy a tiny fraction (you don't need a whole coin!). Store it in a wallet you control. It's been going up in value for 16 years. Start by downloading a wallet app, buying $10 worth, and sending it to a friend. That first transaction will click like nothing else!",
+  channel: 'one-stop-shop', channelName: 'One Stop Shop' },
+
+
+// =============================================
+// CONCEPTUAL GAPS — NEW TOPIC ENTRIES
+// =============================================
+
+// --- Bitcoin ETF expanded ---
+{ keys: ['what is bitcoin etf','etf explained','spot etf','bitcoin etf how','should i buy etf'],
+  answer: "A Bitcoin ETF (Exchange-Traded Fund) lets you buy Bitcoin exposure through a traditional brokerage account, {name}! 📊🦌 Spot ETFs hold actual Bitcoin — when you buy shares, the fund buys real BTC. It's great for retirement accounts (IRAs, 401ks) that can't hold Bitcoin directly. BUT: you don't hold the keys. Remember, an ETF is an IOU for Bitcoin — for true sovereignty, buy real Bitcoin and self-custody!",
+  channel: 'investment-strategy', channelName: 'Investment Strategy' },
+
+// --- Inheritance ---
+{ keys: ['bitcoin inheritance','pass bitcoin to family','bitcoin death plan','bitcoin estate','what happens to bitcoin when i die','inheritance plan bitcoin'],
+  answer: "Inheritance planning is CRITICAL for Bitcoiners, {name}! 🏛️🦌 If you die without a plan, your Bitcoin dies with you. Options: 1) Multisig with a trusted family member holding one key. 2) A letter in a safe deposit box with seed phrase recovery instructions. 3) Services like Casa or Unchained that offer inheritance protocols. 4) Nunchuk wallet has built-in inheritance. Don't let your stack become part of the 'lost coins' statistic!",
+  channel: 'self-custody', channelName: 'Self-Custody' },
+
+// --- Exchange collapses ---
+{ keys: ['ftx collapse','celsius collapse','blockfi','exchange collapse','not your keys exchange','why exchanges fail'],
+  answer: "FTX, Celsius, BlockFi, Voyager, Mt. Gox — the list of collapsed exchanges keeps growing, {name}! 💥🦌 Every time, users who left coins on the exchange lost everything. The lesson is always the same: NOT YOUR KEYS, NOT YOUR COINS. Exchanges are just banks with crypto logos. They can freeze your funds, go bankrupt, or get hacked. Move your Bitcoin to self-custody and sleep well at night! 🔐",
+  channel: 'self-custody', channelName: 'Self-Custody' },
+
+// --- Passphrase / 25th word ---
+{ keys: ['passphrase','25th word','extra word seed','seed phrase passphrase','hidden wallet','plausible deniability'],
+  answer: "A passphrase (sometimes called the '25th word') adds an extra layer of security, {name}! 🔑🦌 It's an additional word or phrase you choose that creates a completely different wallet from the same seed phrase. Without it, an attacker who finds your 24 words gets nothing useful. You can even use different passphrases for different wallets — one for daily spending, one for long-term savings. It's also great for plausible deniability! 🛡️",
+  channel: 'self-custody', channelName: 'Self-Custody' },
+
+// --- Silent Payments ---
+{ keys: ['silent payments','what are silent payments','bitcoin silent payment','reusable address','bip 352'],
+  answer: "Silent Payments let you receive Bitcoin to a single public address without anyone being able to link those payments on-chain, {name}! 🤫🦌 Each sender creates a unique one-time address derived from YOUR public key and THEIR private key. From the outside, each payment looks completely unrelated. It's like having a single donation address that generates a new receiving address for every sender automatically. Major privacy upgrade! 🔐",
+  channel: 'privacy-nonkyc', channelName: 'Privacy & Non-KYC' },
+
+// --- Pricing in sats ---
+{ keys: ['price in sats','think in sats','sats standard','denominate in sats','sats not dollars','sat pricing'],
+  answer: "Thinking in sats changes everything, {name}! ⚡🦌 A coffee is 5,000 sats. A movie ticket is 15,000 sats. Instead of 'Bitcoin is $100,000' (sounds expensive), think '1 sat costs $0.001' (sounds cheap!). When you price in sats, you stop thinking 'Bitcoin is too expensive to buy' and start thinking 'How many sats can I stack today?' The denomination shift is an orange pill in itself! 🟠",
+  channel: 'sats__or__bits', channelName: 'Sats or Bits' },
+
+// --- OP_RETURN ---
+{ keys: ['op return','op_return','data on blockchain','embed data bitcoin','bitcoin data storage'],
+  answer: "OP_RETURN lets you embed a small amount of data (up to 80 bytes) directly into a Bitcoin transaction, {name}! 💾🦌 It's provably unspendable — the data is stored on-chain forever but doesn't create bloated UTXOs. People use it for timestamping documents, anchoring proofs, and recording messages. The Genesis Block itself contains a hidden message from Satoshi using a similar technique! 📜",
+  channel: 'blockchain-timechain', channelName: 'Blockchain / Timechain' },
+
+// --- Accept Bitcoin for business ---
+{ keys: ['accept bitcoin business','merchant bitcoin','bitcoin payment processing','btc pay server','bitcoin for merchants','accept bitcoin payments'],
+  answer: "Accepting Bitcoin for your business is easier than you think, {name}! 🏪🦌 BTCPay Server is free, open-source, and self-hosted — no third-party processor needed. For a simpler setup, use Strike, Breez, or Wallet of Satoshi to accept Lightning payments directly. Zero chargebacks, settlement in seconds, no credit card fees. Some businesses save 2-3% on every transaction by switching to Bitcoin! ⚡",
+  channel: 'use-cases', channelName: 'Use Cases' },
+
+// --- Bitcoin legal status ---
+{ keys: ['is bitcoin legal','bitcoin legal status','bitcoin legal my country','bitcoin banned where','where is bitcoin illegal'],
+  answer: "Bitcoin is legal in most countries, {name}! ⚖️🦌 It's legal tender in El Salvador and the Central African Republic. Fully legal in the US, EU, UK, Japan, Australia, and most of the world. Some countries restrict it (China banned exchanges but not holding). Very few outright ban it (and even bans don't stop usage). Bitcoin doesn't need permission — but it's nice when governments acknowledge reality!",
+  channel: 'regulation', channelName: 'Regulation' }
+,
+
+// =============================================
+// 🦌 FINAL BATCH — Complete 145-Channel Coverage
+// 30 entries covering all remaining channels
+// =============================================
+
+{ keys: ['mining hashing deep dive','sha-256 mining process','how hashing works mining','mining at bit level','nonce brute force'],
+  answer: "Mining at the bit level is fascinating, {name}! 0️⃣🦌 A miner takes the block header, adds a nonce, runs it through SHA-256 TWICE, and checks if the resulting 256-bit hash starts with enough leading zeros. If not, increment the nonce and try again — billions of times per second! Modern ASICs compute trillions of hashes per second. It's pure brute-force computation, and that's what makes it unforgeable. Energy converted into mathematical certainty!",
+  channel: '0_mining__hashing', channelName: 'Mining (Hashing)' },
+
+// --- 100_sats ---
+{ keys: ['100 sats','what can 100 sats buy','100 satoshis','micro transaction sats','smallest bitcoin amount'],
+  answer: "What can you do with 100 sats, {name}? More than you'd think! ⚡🦌 On Lightning, 100 sats can tip a content creator, pay for an API call, stream a song, boost a podcast episode, or zap someone on Nostr. It's about a fraction of a cent — but micro-payments at this scale were IMPOSSIBLE before Lightning. This is how value flows in the internet-native economy! 💯",
+  channel: '100_sats', channelName: '100 Sats' },
+
+// --- 2__solved_technical_problems ---
+{ keys: ['bitcoin solved problems','technical problems bitcoin solved','digital scarcity solved','double spending solved','three problems bitcoin solved'],
+  answer: "Bitcoin solved THREE 'impossible' computer science problems simultaneously, {name}! 2️⃣🦌 1) The double-spend problem — preventing digital money from being copied. 2) Digital scarcity — creating something provably limited in a world of infinite copies. 3) Byzantine fault tolerance — reaching agreement among strangers without trusting anyone. Each had stumped brilliant minds for decades. Satoshi solved all three at once in 8 pages! 🧠",
+  channel: '2__solved_technical_problems', channelName: 'Solved Technical Problems' },
+
+// --- austrian_school_of_economics ---
+{ keys: ['austrian economics bitcoin','austrian school','mises bitcoin','hayek bitcoin','sound money theory','praxeology','carl menger'],
+  answer: "Austrian Economics is Bitcoin's intellectual foundation, {name}! 🇦🇹🦌 Ludwig von Mises argued that sound money must emerge from the free market. Friedrich Hayek predicted the denationalization of money. Carl Menger defined how commodities become money through 'salability.' Bitcoin fulfills every prediction the Austrians made — market-chosen money with no central authority. As Saifedean Ammous wrote in The Bitcoin Standard, sound money lowers time preference and advances civilization itself!",
+  channel: 'austrian_school_of_economics', channelName: 'Austrian School' },
+
+// --- bip119 ---
+{ keys: ['bip 119 debate','ctv debate','checktemplateverify debate','covenant controversy','bip119 pros cons'],
+  answer: "BIP-119 (CheckTemplateVerify) is one of Bitcoin's most debated proposals, {name}! 🚧🦌 Supporters say CTV enables vaults (time-delayed withdrawals for theft protection), congestion control (batching transactions efficiently), and better Layer 2 protocols. Critics worry about unintended consequences and setting a precedent for adding powerful new opcodes. The debate highlights Bitcoin's radically conservative approach — every upgrade is scrutinized as if civilization depends on it. Because it might!",
+  channel: 'bip119', channelName: 'BIP119' },
+
+// --- bitcoin_exam ---
+{ keys: ['bitcoin exam questions','test bitcoin knowledge','bitcoin certification test','bitcoin quiz advanced','study bitcoin exam'],
+  answer: "Want to test your Bitcoin knowledge, {name}? 🎓🦌 This archive has everything from casual Quests to the full Scholar Certification exam! The Bitcoin Scholar track covers properties and economics (60+ questions), while the Protocol Expert track covers technical mechanics (60+ questions). Pass at 80%+ to earn your certificate. Even experienced Bitcoiners find them challenging. Try the Quest system first to warm up — then take on the Scholar exam when you're ready! ⚡",
+  channel: 'bitcoin_exam', channelName: 'Bitcoin Exam' },
+
+// --- bitcoin_vs_real_estate ---
+{ keys: ['bitcoin vs real estate','real estate vs bitcoin','house vs bitcoin','property vs bitcoin','real estate store of value'],
+  answer: "Bitcoin vs. real estate is one of the great debates, {name}! 🏠🦌 Real estate has property taxes (you never truly 'own' it), maintenance costs, illiquidity, and location risk. Bitcoin has zero carrying cost, perfect divisibility, instant transferability, and absolute scarcity — they're always building more houses, but nobody can build more Bitcoin. Real estate was the best store of value for centuries because fiat money was so bad. Bitcoin fixes that!",
+  channel: 'bitcoin_vs_real_estate', channelName: 'Bitcoin vs Real Estate' },
+
+// --- block_time-block-size ---
+{ keys: ['block time why 10 minutes','why 10 minute blocks','block time tradeoff','block size tradeoff','why not faster bitcoin blocks'],
+  answer: "Bitcoin's ~10-minute block time is a carefully chosen tradeoff, {name}! ⏰🦌 Too fast → orphaned blocks pile up and only miners with the fastest connections win (centralization). Too slow → poor user experience waiting for confirmations. 10 minutes gives enough time for blocks to propagate globally across thousands of nodes, keeps the chain secure, and hits the sweet spot between speed and decentralization. For instant payments, that's what Lightning is for! ⚡",
+  channel: 'block_time-block-size', channelName: 'Block Time / Block Size' },
+
+// --- chaumian_e-cash_and_blind_signatures ---
+{ keys: ['chaumian ecash history','blind signatures explained','david chaum inventor','ecash before bitcoin','blind signature privacy'],
+  answer: "David Chaum invented ecash and blind signatures in the 1980s — decades before Bitcoin, {name}! 💲🦌 A blind signature lets someone sign a message WITHOUT seeing its contents — like signing a sealed envelope. This enables truly private digital cash: a mint can verify tokens are legitimate without knowing who owns them or how they're spent. Today, Fedimints and Cashu bring Chaum's brilliant vision to life, backed by Bitcoin instead of banks!",
+  channel: 'chaumian_e-cash_and_blind_signatures', channelName: 'Chaumian E-cash' },
+
+// --- environment___energy ---
+{ keys: ['bitcoin environment facts','bitcoin green energy','bitcoin sustainability','bitcoin environmental impact','bitcoin carbon footprint facts'],
+  answer: "Let's talk real numbers about Bitcoin and energy, {name}! 🌳🦌 Bitcoin mining uses ~0.1% of global energy production. Over 50% comes from renewable/sustainable sources — a higher percentage than almost any other industry. Bitcoin actively monetizes stranded energy: flared methane, curtailed hydro/wind/solar, and waste heat. It stabilizes power grids through demand response. Meanwhile, the global banking system runs offices, ATMs, armored trucks, data centers, and military enforcement worldwide. Which is actually greener? 🤔",
+  channel: 'environment___energy', channelName: 'Environment & Energy' },
+
+// --- fedimints ---
+{ keys: ['fedimint how it works detailed','fedimint guardian setup','fedimint explained','federated mint community','fedimint vs exchange'],
+  answer: "A Fedimint is a community-operated Bitcoin bank with privacy built in, {name}! 💚🦌 Multiple trusted community members (guardians) hold keys in a multisig — say 3-of-5. The mint issues ecash tokens backed 1:1 by real Bitcoin. Users get: privacy (Chaumian blind signatures mean the mint can't track who spends what), Lightning access (built-in gateway), and community trust — without relying on any single entity. If you don't trust exchanges but aren't ready for full self-custody, Fedimints are the sweet spot!",
+  channel: 'fedimints', channelName: 'Fedimints' },
+
+// --- free_and_open_source_software__foss ---
+{ keys: ['bitcoin open source importance','foss bitcoin','free software bitcoin','why open source matters bitcoin','bitcoin code transparent'],
+  answer: "Bitcoin being free and open-source software (FOSS) isn't a nice-to-have — it's ESSENTIAL, {name}! 💿🦌 Anyone can read every line of code. Anyone can verify every rule. Anyone can propose improvements. No company controls it. No license restricts it. This means you don't have to trust ANYONE — you can verify everything yourself. Closed-source money requires blind trust. Bitcoin requires only math. That's the difference between faith-based money and evidence-based money! 🔍",
+  channel: 'free_and_open_source_software__foss', channelName: 'FOSS' },
+
+// --- human_rights__social_justice_and_freedo ---
+{ keys: ['bitcoin human rights tool','financial freedom tool','bitcoin protest donations','bitcoin activism','frozen bank account bitcoin'],
+  answer: "Bitcoin is the most powerful human rights tool ever created, {name}! 🗽🦌 In Nigeria, #EndSARS protesters used it when the government froze their bank accounts. In Belarus, dissidents received Bitcoin donations after Lukashenko's crackdown. In Afghanistan, women received Bitcoin when the Taliban banned them from banking. In Canada, truckers received Bitcoin when GoFundMe was shut down. When governments weaponize the financial system against their own people, Bitcoin is the escape hatch. Financial freedom IS human freedom!",
+  channel: 'human_rights__social_justice_and_freedo', channelName: 'Human Rights' },
+
+// --- laws_of_thermodynamics ---
+{ keys: ['laws of thermodynamics bitcoin','entropy bitcoin','energy conservation bitcoin','physics bitcoin mining','thermodynamics proof of work'],
+  answer: "Bitcoin obeys the laws of thermodynamics, {name}! 🔥🦌 First Law: energy is conserved — miners convert electricity into computational work that secures the ledger. Second Law: entropy always increases — Bitcoin's proof-of-work creates 'unforgeable costliness' by consuming real energy that can never be recovered. You cannot fake the energy expenditure, just as you cannot reverse entropy. This is why PoW is fundamentally different from PoS — physics itself enforces Bitcoin's security guarantees!",
+  channel: 'laws_of_thermodynamics', channelName: 'Laws of Thermodynamics' },
+
+// --- lightning_node ---
+{ keys: ['run lightning node','lightning node setup guide','lightning routing earn sats','lightning node benefits','start lightning node'],
+  answer: "Running a Lightning node lets you route payments and earn routing fees, {name}! ⚡🦌 You need: a Bitcoin full node + Lightning software (LND, CLN, or Eclair). Umbrel or Start9 make setup plug-and-play. Open channels to well-connected nodes, balance your inbound/outbound liquidity, and payments will flow through your node. You earn tiny fees on each routed payment. It's like being a mini payment processor for the world's hardest money! Plus you help decentralize the network. 🌐",
+  channel: 'lightning_node', channelName: 'Lightning Node' },
+
+// --- lindy_effect ---
+{ keys: ['lindy effect explained bitcoin','what is lindy effect','lindy bitcoin survival','lindy technology prediction','bitcoin gets stronger over time'],
+  answer: "The Lindy Effect states that every additional day a non-perishable thing survives, its expected remaining lifespan INCREASES, {name}! 👴🦌 A book in print for 100 years will likely last another 100. Bitcoin has survived 16+ years of nation-state bans, exchange collapses, 80% drawdowns, and relentless FUD — its expected lifespan grows every single day. As Nassim Taleb (before he changed his mind!) wrote: Bitcoin has demonstrated antifragility. At this point, betting AGAINST Bitcoin's survival means betting against the Lindy Effect itself!",
+  channel: 'lindy_effect', channelName: 'Lindy Effect' },
+
+// --- market_cap ---
+{ keys: ['bitcoin market cap potential','bitcoin total addressable market','how big can bitcoin get','bitcoin trillion dollar','bitcoin market cap comparison'],
+  answer: "Bitcoin's total addressable market is mind-boggling, {name}! 🧢🦌 Gold: ~$18T. Real estate as pure store of value: ~$30T+. Global M2 money supply: ~$100T. Bond market: ~$130T+. Derivatives: $600T+. If Bitcoin captures even a fraction of these markets, the price implications are staggering. At a $10T market cap, that's ~$500K per coin. At $100T, ~$5M per coin. And remember — each Bitcoin has 100 million sats. We're still incredibly early in this monetary transition!",
+  channel: 'market_cap', channelName: 'Market Cap' },
+
+// --- math ---
+{ keys: ['bitcoin math fundamentals','mathematics behind bitcoin','bitcoin mathematical security','numbers bitcoin relies on'],
+  answer: "Bitcoin is pure mathematics, {name}! ➕🦌 It relies on SHA-256 hashing, elliptic curve cryptography (secp256k1), Merkle trees, modular arithmetic, probability theory in mining, and information theory in data propagation. The security of your Bitcoin ultimately rests on the mathematical impossibility of certain computations — like the fact that there are more possible private keys (2^256) than atoms in the observable universe. In Bitcoin, math IS law, and no court can overrule it! 🧮",
+  channel: 'math', channelName: 'Math' },
+
+// --- mathematics (separate channel, similar topic) ---
+{ keys: ['bitcoin number theory','cryptographic math bitcoin','discrete math bitcoin','abstract math bitcoin','bitcoin and pure math'],
+  answer: "Bitcoin sits at the intersection of multiple mathematical fields, {name}! ➕🦌 Number theory (prime numbers, modular arithmetic for cryptographic keys). Probability theory (mining as a Poisson process, confirmation security). Graph theory (network topology, transaction graphs). Information theory (data compression, entropy in hashing). Abstract algebra (elliptic curves over finite fields). Bitcoin is arguably the most elegant real-world application of pure mathematics ever created!",
+  channel: 'mathematics', channelName: 'Mathematics' },
+
+// --- open_source ---
+{ keys: ['open source code bitcoin','code review bitcoin core','transparency bitcoin code','audit bitcoin code','bitcoin verifiable'],
+  answer: "Bitcoin's open-source nature is what makes 'Don't Trust, Verify' possible, {name}! ⭕🦌 Every line of Bitcoin Core is publicly available on GitHub. Hundreds of developers review every change. Anyone can compile it from source and run it. This radical transparency means no hidden backdoors, no secret rules, no 'trust me' moments. Compare that to your bank's software, which you've never seen and never will. Open source doesn't just mean free — it means trustworthy! 🔍",
+  channel: 'open_source', channelName: 'Open Source' },
+
+// --- peace_and_anti-war ---
+{ keys: ['bitcoin peace','bitcoin anti war','bitcoin prevents war','money printing funds wars','sound money peace','war and fiat money'],
+  answer: "Sound money is the greatest anti-war technology ever invented, {name}! ☮️🦌 Throughout history, governments funded wars by debasing currency and printing money — a hidden tax on citizens. If governments had to raise taxes honestly to fund wars, citizens would revolt much sooner. Bitcoin makes money printing impossible. A world on a Bitcoin standard would face far higher barriers to funding prolonged military conflict. As the saying goes: 'You can't have endless wars without endless money.'",
+  channel: 'peace_and_anti-war', channelName: 'Peace & Anti-War' },
+
+// --- philosophy ---
+{ keys: ['bitcoin philosophical depth','bitcoin philosophical','bitcoin changes thinking','rabbit hole philosophy','bitcoin worldview','what bitcoin teaches'],
+  answer: "Bitcoin is a philosophical rabbit hole as deep as it is technical, {name}! 🍎🦌 As Gigi wrote in '21 Lessons,' Bitcoin teaches you about the nature of money, time, trust, and human cooperation. It forces you to ask: What IS money? Who controls it? Why does it matter? What is time preference? What does it mean to truly own something? Many Bitcoiners say they fell in love with the technology but stayed for the philosophy. You won't change Bitcoin, but Bitcoin WILL change you! 🕳️",
+  channel: 'philosophy', channelName: 'Philosophy' },
+
+// --- risks__threats__attack_vectors__weaknes ---
+{ keys: ['bitcoin risks','bitcoin attack vectors','51 percent attack','bitcoin weaknesses','threats to bitcoin','can bitcoin be attacked','bitcoin vulnerabilities'],
+  answer: "Bitcoin has known attack vectors, and understanding them makes you smarter, {name}! ⚔️🦌 The main ones: 51% attack (controlling majority hashrate — would cost hundreds of millions per hour on Bitcoin). Sybil attacks (flooding with fake nodes — mitigated by PoW). Eclipse attacks (isolating a node — mitigated by diverse connections). Quantum computing (decades away from being a real threat). The key insight: Bitcoin has NEVER been successfully attacked at the protocol level in 16+ years. Every known weakness has defenses built in!",
+  channel: 'risks__threats__attack_vectors__weaknes', channelName: 'Risks & Attack Vectors' },
+
+{ keys: ['selfish mining','mining pool attack','eclipse attack bitcoin','sybil attack bitcoin','bitcoin network attack'],
+  answer: "Let's break down the lesser-known attacks, {name}! 🛡️🦌 Selfish mining: a miner withholds found blocks to get a head start — but this is only profitable above ~33% hashrate and gets detected quickly. Eclipse attacks: isolating your node from honest peers — mitigated by connecting to diverse nodes. Pool centralization: if one pool gets too big, miners historically leave voluntarily (happened with GHash.io in 2014). Bitcoin's decentralized design has organic antibodies for every known threat!",
+  channel: 'risks__threats__attack_vectors__weaknes', channelName: 'Risks & Attack Vectors' },
+
+// --- softwar ---
+{ keys: ['softwar thesis','jason lowery bitcoin','softwar book','bitcoin national security','bitcoin power projection','pow as warfare tool','bitcoin defense application'],
+  answer: "The Softwar thesis by Major Jason Lowery (MIT/US Space Force) proposes that Bitcoin isn't just money — it's a new form of digital-age power projection, {name}! 🎖️🦌 Lowery argues that proof-of-work lets nations impose real physical costs in cyberspace, creating a non-lethal form of 'warfare' to secure data. His thesis is controversial — critics say it overextends PoW's capabilities — but it reframes Bitcoin as a strategic national security asset. Whether you agree or not, it's thought-provoking! The DoD even pulled the thesis temporarily, which tells you something! 🤔",
+  channel: 'softwar', channelName: 'Softwar' },
+
+// --- swaps ---
+{ keys: ['atomic swap','atomic swaps bitcoin','cross chain swap','swap bitcoin altcoin','trustless swap','hash time locked contract swap'],
+  answer: "Atomic swaps let you trade Bitcoin for another cryptocurrency WITHOUT any intermediary, {name}! ↔️🦌 They use Hash Time-Locked Contracts (HTLCs) — the same tech that powers Lightning. Both parties lock funds in a smart contract. Either both sides complete the trade, or both get refunded. No exchange. No counterparty risk. No KYC. It's peer-to-peer trading the way Satoshi intended. The only catch: both chains need compatible scripting capabilities! 🔗",
+  channel: 'swaps', channelName: 'Swaps' },
+
+// --- taro (Taproot Assets) ---
+{ keys: ['taproot assets explained','taro protocol','assets on lightning','dollar tokens on lightning','issue tokens bitcoin'],
+  answer: "Taproot Assets (formerly Taro) lets you issue and transfer ANY asset on the Bitcoin network and Lightning, {name}! 🥕🦌 Stablecoins, tokenized securities, collectibles — all riding on Bitcoin's security and Lightning's speed. The data is stored off-chain (Universes) but anchored to Bitcoin via Taproot. This means dollar-denominated payments at Lightning speed for pennies. For billions of people in developing countries who need dollar stability but can't access banks, this is transformational! 🌍",
+  channel: 'taro', channelName: 'Taproot Assets / Taro' },
+
+// --- time ---
+{ keys: ['bitcoin and time','bitcoin represents time','proof of work and time','what block time means','bitcoin as a clock','bitcoin as timekeeper','decentralized timekeeping'],
+  answer: "Bitcoin IS time, {name} — and that's not just a metaphor! ⏰🦌 As Gigi brilliantly explained, Bitcoin created the first decentralized clock. Before Bitcoin, digital systems needed a trusted time authority. Bitcoin's proof-of-work chain establishes a causal ordering of events WITHOUT any central timekeeper. Each block is a 'tick' of Bitcoin's clock. The difficulty adjustment keeps it roughly regular. Bitcoin doesn't just record transactions — it creates a new form of time itself! 🕰️",
+  channel: 'time', channelName: 'Time' },
+
+// --- time_preference ---
+{ keys: ['time preference bitcoin','low time preference explained','high vs low time preference','delayed gratification bitcoin','marshmallow test bitcoin'],
+  answer: "Time preference is one of Bitcoin's most profound concepts, {name}! 🕑🦌 Low time preference means valuing the future over instant gratification — saving instead of spending, planting seeds instead of eating them. Sound money like Bitcoin ENCOURAGES low time preference because your savings gain purchasing power over time. Fiat money does the opposite — it punishes savers and rewards debtors. As Saifedean Ammous wrote: sound money protects value across time, which gives people bigger incentives to think about their future. Bitcoin doesn't just fix money — it fixes how we think about time itself!",
+  channel: 'time_preference', channelName: 'Time Preference' },
+
+// --- toxicity ---
+{ keys: ['bitcoin toxicity','toxic maximalism why','why bitcoiners seem mean','bitcoin community aggressive','toxicity debate purpose'],
+  answer: "Bitcoin toxicity is controversial but intentional, {name}! ☣️🦌 'Toxic maximalists' aggressively call out scams, defend the protocol, and ridicule altcoins. Why? Because Bitcoin's immune system NEEDS antibodies. Every altcoin scam that succeeds damages public trust in ALL of crypto. Every 'harmless' protocol change could introduce systemic risk. Toxicity is the social cost imposed on bad actors — like proof-of-work for ideas. Not everyone agrees with the approach, but the result is clear: Bitcoin's protocol remains the most conservative, secure, and unchanged in all of crypto! 🛡️",
+  channel: 'toxicity', channelName: 'Toxicity' }
 ];
 
 
