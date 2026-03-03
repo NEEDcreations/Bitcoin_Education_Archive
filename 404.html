@@ -826,7 +826,7 @@
 
                         <!-- Middle Home Apps Group -->
                         <button onclick="toggleSidebarMenu('homeAppsMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
-                        <div id="homeAppsMenu" style="display:none;width:100%;max-width:340px;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                        <div id="homeAppsMenu" style="display:none;width:100%;max-width:340px;grid-template-columns:1fr 1fr;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             <button onclick="enterNachoMode()" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🦌 Nacho Mode</button>
                             <button onclick="go('forum')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🗣️ Pleb Talk</button>
                             <button onclick="go('marketplace')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">⚡ Lightning Mart</button>
@@ -840,9 +840,9 @@
                     <h3 style="color:var(--heading);font-size:1rem;margin-bottom:8px;">💡 Suggest a Topic or Leave Feedback</h3>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:0;">Want to see something added to the archive? Let us know!</p>
                     <div id="suggestFields" style="display:none;margin-top:12px;">
-                        <input type="text" id="suggestName" placeholder="Your name (optional)" class="suggest-input" onclick="event.stopPropagation()">
-                        <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()"></textarea>
-                        <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()">Submit Suggestion</button>
+                        <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
+                        <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
+                        <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit Suggestion</button>
                         <div id="suggestStatus"></div>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 22:23 UTC
+// Generated: 2026-03-03 23:27 UTC
 
 
 // ===== channel_index.js =====
@@ -24019,17 +24019,17 @@ window.nachoQuizAnswer = function(btn, correct) {
     })();
 
     // Suggest a topic
-    function expandSuggest() {
+    window.expandSuggest = function() {
         const fields = document.getElementById('suggestFields');
         if (fields.style.display === 'none') {
             fields.style.display = 'block';
         } else {
             fields.style.display = 'none';
         }
-    }
+    };
 
     let lastSuggestionTime = 0;
-    async function submitSuggestion() {
+    window.submitSuggestion = async function() {
         // Rate limit suggestions to 1 per 30 seconds
         const now = Date.now();
         if (now - lastSuggestionTime < 30000) {
@@ -24037,8 +24037,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             return;
         }
         lastSuggestionTime = now;
-        const name = typeof sanitizeInput === 'function' ? sanitizeInput(document.getElementById('suggestName').value.trim()) : document.getElementById('suggestName').value.trim();
         const text = typeof sanitizeInput === 'function' ? sanitizeInput(document.getElementById('suggestText').value.trim()) : document.getElementById('suggestText').value.trim();
+        const emailEl = document.getElementById('suggestEmail');
+        const email = emailEl ? emailEl.value.trim() : '';
         const status = document.getElementById('suggestStatus');
         const btn = document.querySelector('.suggest-submit');
 
@@ -24048,15 +24049,18 @@ window.nachoQuizAnswer = function(btn, correct) {
         btn.textContent = 'Submitting...';
         try {
             if (typeof firebase !== 'undefined' && firebase.firestore) {
-                await firebase.firestore().collection('suggestions').add({
-                    name: name || 'Anonymous',
+                var data = {
                     suggestion: text,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    uid: (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null,
+                    username: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anonymous'
+                };
+                if (email) data.email = email;
+                await firebase.firestore().collection('suggestions').add(data);
             }
             status.innerHTML = '<span style="color:#22c55e;">✅ Thank you! Your suggestion has been submitted.</span>';
-            document.getElementById('suggestName').value = '';
             document.getElementById('suggestText').value = '';
+            if (emailEl) emailEl.value = '';
             btn.textContent = 'Submitted!';
             setTimeout(() => { btn.textContent = 'Submit Suggestion'; btn.disabled = false; }, 3000);
         } catch(e) {
@@ -24064,7 +24068,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             btn.textContent = 'Submit Suggestion';
             btn.disabled = false;
         }
-    }
+    };
 
     // Daily featured channel
     (function() {
