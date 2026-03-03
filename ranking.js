@@ -60,7 +60,7 @@ function initRanking() {
         // Unenforce in Firebase Console → App Check → Firestore → Unenforce
         if (typeof firebase.appCheck === 'function') {
             try {
-                firebase.appCheck().activate('6LcTlhYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
+                firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
             } catch(e) { console.warn('App Check init failed:', e); }
         }
 
