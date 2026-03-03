@@ -2335,9 +2335,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _masterTimer = setTimeout(function() {
             if (!_masterAnswered) {
                 _masterAnswered = true;
+                console.warn('[Nacho] Master timer fired — pipeline took >15s for:', q);
                 reply('That\'s a great question! I\'m having a little trouble with my brain right now 🦌 Try asking me again in a moment, or explore the channels on the left to learn about Bitcoin!', 'fallback');
             }
-        }, 8000);
+        }, 15000);
 
         function safeReply(result) {
             if (_masterAnswered) return;
@@ -2355,9 +2356,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Use unified pipeline (same logic as regular Nacho bubble)
         if (typeof nachoUnifiedAnswer === 'function') {
             try {
-                nachoUnifiedAnswer(q, safeReply);
+                console.log('[Nacho] Calling nachoUnifiedAnswer for:', q);
+                nachoUnifiedAnswer(q, function(result) {
+                    console.log('[Nacho] Pipeline returned:', result ? result.type : 'null');
+                    safeReply(result);
+                });
             } catch(e) {
-                console.warn('Nacho pipeline error:', e);
+                console.error('[Nacho] Pipeline CRASH:', e);
                 safeReply({ type: 'fallback', answer: 'Oops, my brain hit a bump! 🦌 Try asking again — I know a LOT about Bitcoin!' });
             }
             return;
