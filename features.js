@@ -8,9 +8,9 @@ const HIDDEN_BADGES = [
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', hint: 'The ultimate ticket badge!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 100) + '/100' : '0/100'; } },
     { id: 'nacho_10q', name: 'Inquisitive Buck', emoji: '🔍', pts: 200, desc: 'Ask Nacho 10 questions', hint: 'Keep asking Nacho!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 10; }, progress: function() { return Math.min(parseInt(localStorage.getItem('btc_nacho_questions') || '0'), 10) + '/10'; } },
     { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', hint: 'Star your favorite channels', hidden: false, check: function() { return safeJSON('btc_favs', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_favs', []).length, 10) + '/10'; } },
-    { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first forum post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
+    { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first Pleb Talk post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
     { id: 'first_reply', name: 'Conversationalist', emoji: '💬', pts: 75, desc: 'Reply to a forum post', hint: 'Join a discussion!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.forumReplies >= 1; } },
-    { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on the marketplace', hint: 'Sell something for sats!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
+    { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on Lightning Mart', hint: 'Sell something for sats on Lightning Mart!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
     { id: 'market_buyer', name: 'Shopper', emoji: '🛍️', pts: 150, desc: 'Contact a seller on the marketplace', hint: 'Find something to buy!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketMessages >= 1; } },
     // === TRUE HIDDEN (surprise discoveries) ===
     { id: 'night_owl', name: 'Night Owl', emoji: '🦉', pts: 50, desc: 'Visit the archive after midnight', hidden: true, check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
@@ -225,7 +225,7 @@ window.showNachoStory = function(chapterOverride) {
     // AND it's a new day (or first ever read)
     var isNewChapter = chIdx >= highestRead;
     var isNewDay = lastReadDate !== today;
-    if (isNewChapter && (isNewDay || highestRead === 0)) {
+    if (isNewChapter) {
         highestRead = chIdx + 1;
         localStorage.setItem('btc_nacho_story_highest', highestRead.toString());
         localStorage.setItem('btc_nacho_story_date', today);

@@ -558,7 +558,7 @@ function createNacho() {
             padding: 2px 4px;
         }
         .nacho-x:hover { opacity: 1; }
-        #nacho-text { word-wrap: break-word; }
+        #nacho-text { word-wrap: break-word; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
@@ -1489,7 +1489,7 @@ window.nachoOnPage = function(pageId) {
         tips = [
             { pose: 'wave', text: personalize("Welcome to PlebTalk, {name}! 🗣️ This is where Bitcoiners discuss ideas. Jump in!") },
             { pose: 'point', text: "💡 Post a new topic to earn +10 points, or reply to an existing one for +5. Quality content gets upvoted!" },
-            { pose: 'brain', text: "Remember — this is a Bitcoin-only forum. Stay respectful, stay on topic, and attack ideas, not people! 🤝" },
+            { pose: 'brain', text: "Remember — this is a Bitcoin-only space. Stay respectful, stay on topic, and attack ideas, not people! 🤝" },
             { pose: 'cheese', text: personalize("Psst {name}... earn the 📣 Town Crier badge by posting in PlebTalk! Your first post counts!") },
             { pose: 'fire', text: "🔥 Pro tip: Upvote posts you find valuable with ⚡ — it helps the best content rise to the top!" },
         ];

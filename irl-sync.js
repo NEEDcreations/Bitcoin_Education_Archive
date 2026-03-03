@@ -141,6 +141,11 @@
                         <input type="text" id="evLoc" placeholder="e.g. Austin, TX @ The Bitcoin Commons" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">
                     </div>
 
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Link (optional)</label>
+                        <input type="url" id="evLink" placeholder="e.g. https://meetup.com/your-event" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">
+                    </div>
+
                     <button onclick="submitEvent()" id="evSubmitBtn" style="width:100%;padding:15px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;transition:0.2s;">📡 Broadcast to Network</button>
                 </div>
             </div>
@@ -163,16 +168,21 @@
         btn.textContent = "Broadcasting...";
 
         try {
-            await db.collection('irl_events').add({
+            var evLink = document.getElementById('evLink');
+            var linkVal = evLink ? evLink.value.trim() : '';
+            var eventData = {
                 title: title,
                 date: new Date(date).toISOString(),
+                location: loc,
                 locationName: loc,
                 hostId: auth.currentUser.uid,
                 hostName: auth.currentUser.displayName || 'Anonymous Pleb',
                 attendeesCount: 1,
                 attendees: [auth.currentUser.uid],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+            if (linkVal) eventData.link = linkVal;
+            await db.collection('irl_events').add(eventData);
 
             document.getElementById('hostEventModal').remove();
             if (typeof showToast === 'function') showToast("✅ Event Synchronized!");

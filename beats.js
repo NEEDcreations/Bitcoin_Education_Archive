@@ -62,14 +62,12 @@ window.renderBitcoinBeats = function() {
             </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:20px;text-align:left;">
-            <div style="padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-                <h4 style="color:var(--accent);margin:0 0 10px;font-size:0.95rem;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">🦌 Nacho\'s Vibe</h4>
-                <p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin:0;font-weight:500;">"Bitcoin is the heartbeat of freedom. Kick back, stay humble, and enjoy the signal."</p>
-            </div>
-            <div style="padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-                <h4 style="color:var(--accent);margin:0 0 10px;font-size:0.95rem;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">🛠️ Stream Controls</h4>
-                <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;margin:0;">Use the X controls inside the window above to chat, like, or toggle volume on the live broadcast.</p>
+        <div style="margin-top:24px;padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.2);text-align:center;">
+            <h3 style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:16px;">Support our friends with great Bitcoin Lightning music platforms!</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+                <a href="https://noderunners.network" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;" onmouseover="this.style.background=\'rgba(247,147,26,0.25)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05))\'">📻 Node Runners Radio</a>
+                <a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;" onmouseover="this.style.background=\'rgba(139,92,246,0.25)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05))\'">🎵 Wavlake</a>
+                <a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(234,179,8,0.15),rgba(234,179,8,0.05));border:1px solid rgba(234,179,8,0.3);border-radius:12px;color:#eab308;font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.25)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(234,179,8,0.15),rgba(234,179,8,0.05))\'">⚡ LN Beats</a>
             </div>
         </div>
     </div>

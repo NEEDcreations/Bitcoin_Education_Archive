@@ -873,7 +873,7 @@
         }
         /* Scroll-to-top button */
         .scroll-top-btn {
-            position: fixed; bottom: 140px; right: 20px;
+            position: fixed; bottom: 230px; right: 20px;
             z-index: 150;
             width: 44px; height: 44px;
             border-radius: 50%;
@@ -1112,3 +1112,23 @@
 // DONE — All 24 tasks implemented!
 // =============================================
 console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
+
+// =============================================
+// CHANNEL CONTENT TEXT REPLACEMENT (Discord → App)
+// =============================================
+(function() {
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(node) {
+                if (node.nodeType !== 1) return;
+                var els = node.querySelectorAll ? [node].concat(Array.from(node.querySelectorAll('.msg-text, .msg-body, [class*="msg"]'))) : [node];
+                els.forEach(function(el) {
+                    if (el.innerHTML && el.innerHTML.indexOf('this Discord') !== -1) {
+                        el.innerHTML = el.innerHTML.replace(/this Discord/g, 'this App');
+                    }
+                });
+            });
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();

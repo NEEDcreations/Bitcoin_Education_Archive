@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 22:02 UTC
+// Generated: 2026-03-03 22:23 UTC
 
 
 // ===== channel_index.js =====
@@ -950,6 +950,7 @@ function updateAuthButton() {
 
     if (isSignedIn || hasUsername) {
         btn.innerHTML = '⚙️ <strong>' + (hasUsername ? hasUsername : 'My Account') + '</strong> — Settings';
+        btn.onclick = function() { showSettings(); };
         btn.style.borderColor = '#22c55e';
         btn.style.color = '#22c55e';
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
@@ -1892,7 +1893,7 @@ async function toggleLeaderboard() {
         // Level guide
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
-            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + l.min + '+ pts</span></div>';
+            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 pts' : l.min + '+ pts') + '</span></div>';
         }
         html += '</div>';
 
@@ -2723,6 +2724,7 @@ function showSettingsPage(tab) {
 
         // Nacho's Closet (collapsible)
         if (typeof renderNachoClosetUI === 'function') {
+            if (typeof window._expanded_closet === 'undefined') window._expanded_closet = true;
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div onclick="window._expanded_closet=!window._expanded_closet;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +
@@ -4739,7 +4741,7 @@ function createNacho() {
             padding: 2px 4px;
         }
         .nacho-x:hover { opacity: 1; }
-        #nacho-text { word-wrap: break-word; }
+        #nacho-text { word-wrap: break-word; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
@@ -5670,7 +5672,7 @@ window.nachoOnPage = function(pageId) {
         tips = [
             { pose: 'wave', text: personalize("Welcome to PlebTalk, {name}! 🗣️ This is where Bitcoiners discuss ideas. Jump in!") },
             { pose: 'point', text: "💡 Post a new topic to earn +10 points, or reply to an existing one for +5. Quality content gets upvoted!" },
-            { pose: 'brain', text: "Remember — this is a Bitcoin-only forum. Stay respectful, stay on topic, and attack ideas, not people! 🤝" },
+            { pose: 'brain', text: "Remember — this is a Bitcoin-only space. Stay respectful, stay on topic, and attack ideas, not people! 🤝" },
             { pose: 'cheese', text: personalize("Psst {name}... earn the 📣 Town Crier badge by posting in PlebTalk! Your first post counts!") },
             { pose: 'fire', text: "🔥 Pro tip: Upvote posts you find valuable with ⚡ — it helps the best content rise to the top!" },
         ];
@@ -8535,6 +8537,9 @@ function matchSiteNavigation(input) {
         { patterns: /where.*(setting|preference|profile|account|theme|dark mode|light mode)|how.*(change|edit|update).*(name|username|profile|theme|avatar)|setting|my account|my profile|change theme|dark mode|light mode|toggle theme/,
           answer: "Settings is where you manage your profile, theme, tickets, referral link, and more! 🎛️",
           action: "showSettings()", label: "⚙️ Open Settings" },
+        { patterns: /where.*(signal|weekly signal|newsletter|bitcoin news|weekly update)|signal.*article|weekly.*signal|newsletter/,
+          answer: "The Weekly Signal contains curated Bitcoin articles and insights — find it in Settings → Signal section! 📡",
+          action: "showSettings();setTimeout(function(){var t=document.querySelector('[data-signal]')||document.querySelector('[onclick*=signal]');if(t)t.click()},400)", label: "📡 Open Signal" },
         { patterns: /where.*(forum|community|discuss|chat|post)|how.*(post|discuss|talk)|community forum|where.*talk|where.*chat/,
           answer: "PlebTalk is where Bitcoiners discuss, share ideas, and help each other! 🗣️",
           action: "go('forum')", label: "🗣️ PlebTalk" },
@@ -19055,10 +19060,40 @@ window.showInbox = function() {
             if (!list) return;
             
             if (err.code === 'failed-precondition') {
-                list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">' +
-                    '⚙️ Setting up inbox database (index)...<br>Please refresh in 1 minute.<br><br>' +
-                    '<a href="https://console.firebase.google.com/project/bitcoin-education-archive/firestore/indexes" target="_blank" style="color:var(--accent);font-weight:700;">Click here to create the index manually if requested →</a>' +
-                    '</div>';
+                // Fallback: query without orderBy (no composite index needed)
+                db.collection('dm_conversations')
+                    .where('participants', 'array-contains', myUid)
+                    .limit(30)
+                    .get()
+                    .then(function(snap2) {
+                        var list2 = document.getElementById('dmInboxList');
+                        if (!list2) return;
+                        if (snap2.empty) {
+                            list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                            return;
+                        }
+                        list2.innerHTML = '';
+                        var convos = [];
+                        snap2.forEach(function(doc) { convos.push({id: doc.id, ...doc.data()}); });
+                        convos.sort(function(a,b) { return (b.lastMessageTime||0) - (a.lastMessageTime||0); });
+                        convos.forEach(function(c) {
+                            var otherUid = c.participants.find(function(p) { return p !== myUid; });
+                            var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+                            var unread = c['unread_' + myUid] || 0;
+                            var lastMsg = c.lastMessage || '';
+                            if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
+                            var isFromMe = c.lastSenderUid === myUid;
+                            list2.innerHTML += '<div onclick="document.getElementById(\'dmInbox\').remove();openDM(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/\'/g, "\\\'") + '\')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : 'none') + ';">' +
+                                '<div style="width:42px;height:42px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
+                                '<div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + '</div></div>' +
+                                '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div></div>' +
+                                (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
+                            '</div>';
+                        });
+                    }).catch(function(e2) {
+                        var list2 = document.getElementById('dmInboxList');
+                        if (list2) list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                    });
                 return;
             }
 
@@ -19203,14 +19238,12 @@ window.renderBitcoinBeats = function() {
             </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:20px;text-align:left;">
-            <div style="padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-                <h4 style="color:var(--accent);margin:0 0 10px;font-size:0.95rem;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">🦌 Nacho\'s Vibe</h4>
-                <p style="color:var(--text);font-size:0.9rem;line-height:1.6;margin:0;font-weight:500;">"Bitcoin is the heartbeat of freedom. Kick back, stay humble, and enjoy the signal."</p>
-            </div>
-            <div style="padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-                <h4 style="color:var(--accent);margin:0 0 10px;font-size:0.95rem;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">🛠️ Stream Controls</h4>
-                <p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;margin:0;">Use the X controls inside the window above to chat, like, or toggle volume on the live broadcast.</p>
+        <div style="margin-top:24px;padding:24px;background:var(--card-bg);border:1px solid var(--border);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.2);text-align:center;">
+            <h3 style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:16px;">Support our friends with great Bitcoin Lightning music platforms!</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+                <a href="https://noderunners.network" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;" onmouseover="this.style.background=\'rgba(247,147,26,0.25)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05))\'">📻 Node Runners Radio</a>
+                <a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;" onmouseover="this.style.background=\'rgba(139,92,246,0.25)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05))\'">🎵 Wavlake</a>
+                <a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(234,179,8,0.15),rgba(234,179,8,0.05));border:1px solid rgba(234,179,8,0.3);border-radius:12px;color:#eab308;font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.25)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(234,179,8,0.15),rgba(234,179,8,0.05))\'">⚡ LN Beats</a>
             </div>
         </div>
     </div>
@@ -19262,9 +19295,9 @@ const HIDDEN_BADGES = [
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', hint: 'The ultimate ticket badge!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 100) + '/100' : '0/100'; } },
     { id: 'nacho_10q', name: 'Inquisitive Buck', emoji: '🔍', pts: 200, desc: 'Ask Nacho 10 questions', hint: 'Keep asking Nacho!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 10; }, progress: function() { return Math.min(parseInt(localStorage.getItem('btc_nacho_questions') || '0'), 10) + '/10'; } },
     { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', hint: 'Star your favorite channels', hidden: false, check: function() { return safeJSON('btc_favs', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_favs', []).length, 10) + '/10'; } },
-    { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first forum post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
+    { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first Pleb Talk post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
     { id: 'first_reply', name: 'Conversationalist', emoji: '💬', pts: 75, desc: 'Reply to a forum post', hint: 'Join a discussion!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.forumReplies >= 1; } },
-    { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on the marketplace', hint: 'Sell something for sats!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
+    { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on Lightning Mart', hint: 'Sell something for sats on Lightning Mart!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
     { id: 'market_buyer', name: 'Shopper', emoji: '🛍️', pts: 150, desc: 'Contact a seller on the marketplace', hint: 'Find something to buy!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketMessages >= 1; } },
     // === TRUE HIDDEN (surprise discoveries) ===
     { id: 'night_owl', name: 'Night Owl', emoji: '🦉', pts: 50, desc: 'Visit the archive after midnight', hidden: true, check: function() { return new Date().getHours() >= 0 && new Date().getHours() < 5; } },
@@ -19479,7 +19512,7 @@ window.showNachoStory = function(chapterOverride) {
     // AND it's a new day (or first ever read)
     var isNewChapter = chIdx >= highestRead;
     var isNewDay = lastReadDate !== today;
-    if (isNewChapter && (isNewDay || highestRead === 0)) {
+    if (isNewChapter) {
         highestRead = chIdx + 1;
         localStorage.setItem('btc_nacho_story_highest', highestRead.toString());
         localStorage.setItem('btc_nacho_story_date', today);
@@ -20367,6 +20400,11 @@ if (document.readyState === 'loading') {
                         <input type="text" id="evLoc" placeholder="e.g. Austin, TX @ The Bitcoin Commons" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">
                     </div>
 
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Link (optional)</label>
+                        <input type="url" id="evLink" placeholder="e.g. https://meetup.com/your-event" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">
+                    </div>
+
                     <button onclick="submitEvent()" id="evSubmitBtn" style="width:100%;padding:15px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;transition:0.2s;">📡 Broadcast to Network</button>
                 </div>
             </div>
@@ -20389,16 +20427,21 @@ if (document.readyState === 'loading') {
         btn.textContent = "Broadcasting...";
 
         try {
-            await db.collection('irl_events').add({
+            var evLink = document.getElementById('evLink');
+            var linkVal = evLink ? evLink.value.trim() : '';
+            var eventData = {
                 title: title,
                 date: new Date(date).toISOString(),
+                location: loc,
                 locationName: loc,
                 hostId: auth.currentUser.uid,
                 hostName: auth.currentUser.displayName || 'Anonymous Pleb',
                 attendeesCount: 1,
                 attendees: [auth.currentUser.uid],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            };
+            if (linkVal) eventData.link = linkVal;
+            await db.collection('irl_events').add(eventData);
 
             document.getElementById('hostEventModal').remove();
             if (typeof showToast === 'function') showToast("✅ Event Synchronized!");
@@ -24248,6 +24291,55 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h) go(h);
     };
+// =============================================
+// DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
+// =============================================
+(function() {
+    function handleHash() {
+        var hash = window.location.hash.replace('#', '');
+        if (!hash) return;
+        
+        // Wait for app to be ready (up to 5 seconds)
+        var maxWait = 5000;
+        var waited = 0;
+        function tryRoute() {
+            if (waited > maxWait) return;
+            
+            switch(hash) {
+                case 'nacho':
+                    if (typeof enterNachoMode === 'function') { enterNachoMode(); return; }
+                    break;
+                case 'forum':
+                    if (typeof go === 'function') { go('forum'); return; }
+                    break;
+                case 'marketplace':
+                    if (typeof go === 'function') { go('marketplace'); return; }
+                    break;
+                case 'irl-sync':
+                    if (typeof go === 'function') { go('irl-sync'); return; }
+                    break;
+                case 'bitcoin-beats':
+                    if (typeof go === 'function') { go('bitcoin-beats'); return; }
+                    break;
+                case 'dms':
+                    if (typeof openDMInbox === 'function') { openDMInbox(); return; }
+                    if (typeof showInbox === 'function') { showInbox(); return; }
+                    break;
+            }
+            waited += 200;
+            setTimeout(tryRoute, 200);
+        }
+        // Small initial delay for app to load
+        setTimeout(tryRoute, 500);
+    }
+    
+    // Handle on page load
+    handleHash();
+    
+    // Handle hash changes while on the page
+    window.addEventListener('hashchange', handleHash);
+})();
+
 // ---- GLOBAL EXPORTS for HTML onclick handlers ----
 if (typeof toggleCat !== 'undefined') window.toggleCat = toggleCat;
 if (typeof toggleTheme !== 'undefined') window.toggleTheme = toggleTheme;
@@ -25192,7 +25284,7 @@ window.playSpinWin = function() {
         }
         /* Scroll-to-top button */
         .scroll-top-btn {
-            position: fixed; bottom: 140px; right: 20px;
+            position: fixed; bottom: 230px; right: 20px;
             z-index: 150;
             width: 44px; height: 44px;
             border-radius: 50%;
@@ -25431,5 +25523,25 @@ window.playSpinWin = function() {
 // DONE — All 24 tasks implemented!
 // =============================================
 console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
+
+// =============================================
+// CHANNEL CONTENT TEXT REPLACEMENT (Discord → App)
+// =============================================
+(function() {
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(node) {
+                if (node.nodeType !== 1) return;
+                var els = node.querySelectorAll ? [node].concat(Array.from(node.querySelectorAll('.msg-text, .msg-body, [class*="msg"]'))) : [node];
+                els.forEach(function(el) {
+                    if (el.innerHTML && el.innerHTML.indexOf('this Discord') !== -1) {
+                        el.innerHTML = el.innerHTML.replace(/this Discord/g, 'this App');
+                    }
+                });
+            });
+        });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
 
 

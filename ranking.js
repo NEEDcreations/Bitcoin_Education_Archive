@@ -859,6 +859,7 @@ function updateAuthButton() {
 
     if (isSignedIn || hasUsername) {
         btn.innerHTML = '⚙️ <strong>' + (hasUsername ? hasUsername : 'My Account') + '</strong> — Settings';
+        btn.onclick = function() { showSettings(); };
         btn.style.borderColor = '#22c55e';
         btn.style.color = '#22c55e';
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
@@ -1801,7 +1802,7 @@ async function toggleLeaderboard() {
         // Level guide
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
-            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + l.min + '+ pts</span></div>';
+            html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 pts' : l.min + '+ pts') + '</span></div>';
         }
         html += '</div>';
 
@@ -2632,6 +2633,7 @@ function showSettingsPage(tab) {
 
         // Nacho's Closet (collapsible)
         if (typeof renderNachoClosetUI === 'function') {
+            if (typeof window._expanded_closet === 'undefined') window._expanded_closet = true;
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div onclick="window._expanded_closet=!window._expanded_closet;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +

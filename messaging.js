@@ -730,10 +730,40 @@ window.showInbox = function() {
             if (!list) return;
             
             if (err.code === 'failed-precondition') {
-                list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">' +
-                    '⚙️ Setting up inbox database (index)...<br>Please refresh in 1 minute.<br><br>' +
-                    '<a href="https://console.firebase.google.com/project/bitcoin-education-archive/firestore/indexes" target="_blank" style="color:var(--accent);font-weight:700;">Click here to create the index manually if requested →</a>' +
-                    '</div>';
+                // Fallback: query without orderBy (no composite index needed)
+                db.collection('dm_conversations')
+                    .where('participants', 'array-contains', myUid)
+                    .limit(30)
+                    .get()
+                    .then(function(snap2) {
+                        var list2 = document.getElementById('dmInboxList');
+                        if (!list2) return;
+                        if (snap2.empty) {
+                            list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                            return;
+                        }
+                        list2.innerHTML = '';
+                        var convos = [];
+                        snap2.forEach(function(doc) { convos.push({id: doc.id, ...doc.data()}); });
+                        convos.sort(function(a,b) { return (b.lastMessageTime||0) - (a.lastMessageTime||0); });
+                        convos.forEach(function(c) {
+                            var otherUid = c.participants.find(function(p) { return p !== myUid; });
+                            var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+                            var unread = c['unread_' + myUid] || 0;
+                            var lastMsg = c.lastMessage || '';
+                            if (lastMsg.length > 50) lastMsg = lastMsg.substring(0, 50) + '...';
+                            var isFromMe = c.lastSenderUid === myUid;
+                            list2.innerHTML += '<div onclick="document.getElementById(\'dmInbox\').remove();openDM(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/\'/g, "\\\'") + '\')" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : 'none') + ';">' +
+                                '<div style="width:42px;height:42px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
+                                '<div style="flex:1;min-width:0;"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:' + (unread > 0 ? '800' : '600') + ';color:var(--heading);font-size:0.9rem;">' + escapeHtml(otherName) + '</div></div>' +
+                                '<div style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div></div>' +
+                                (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
+                            '</div>';
+                        });
+                    }).catch(function(e2) {
+                        var list2 = document.getElementById('dmInboxList');
+                        if (list2) list2.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div></div>';
+                    });
                 return;
             }
 

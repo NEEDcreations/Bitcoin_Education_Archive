@@ -3832,6 +3832,55 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h) go(h);
     };
+// =============================================
+// DIRECT HASH ROUTING (#nacho, #forum, #marketplace, etc.)
+// =============================================
+(function() {
+    function handleHash() {
+        var hash = window.location.hash.replace('#', '');
+        if (!hash) return;
+        
+        // Wait for app to be ready (up to 5 seconds)
+        var maxWait = 5000;
+        var waited = 0;
+        function tryRoute() {
+            if (waited > maxWait) return;
+            
+            switch(hash) {
+                case 'nacho':
+                    if (typeof enterNachoMode === 'function') { enterNachoMode(); return; }
+                    break;
+                case 'forum':
+                    if (typeof go === 'function') { go('forum'); return; }
+                    break;
+                case 'marketplace':
+                    if (typeof go === 'function') { go('marketplace'); return; }
+                    break;
+                case 'irl-sync':
+                    if (typeof go === 'function') { go('irl-sync'); return; }
+                    break;
+                case 'bitcoin-beats':
+                    if (typeof go === 'function') { go('bitcoin-beats'); return; }
+                    break;
+                case 'dms':
+                    if (typeof openDMInbox === 'function') { openDMInbox(); return; }
+                    if (typeof showInbox === 'function') { showInbox(); return; }
+                    break;
+            }
+            waited += 200;
+            setTimeout(tryRoute, 200);
+        }
+        // Small initial delay for app to load
+        setTimeout(tryRoute, 500);
+    }
+    
+    // Handle on page load
+    handleHash();
+    
+    // Handle hash changes while on the page
+    window.addEventListener('hashchange', handleHash);
+})();
+
 // ---- GLOBAL EXPORTS for HTML onclick handlers ----
 if (typeof toggleCat !== 'undefined') window.toggleCat = toggleCat;
 if (typeof toggleTheme !== 'undefined') window.toggleTheme = toggleTheme;
