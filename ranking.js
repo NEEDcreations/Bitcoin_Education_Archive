@@ -531,8 +531,28 @@ async function signInWithProvider(provider) {
         }
     }
 
+    // Mobile/touch devices: use redirect flow directly (popups are unreliable on mobile)
+    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent);
+
     try {
-        // Save anonymous user info BEFORE popup changes auth state
+        if (isMobileDevice) {
+            // MOBILE: Go straight to redirect — popups silently hang on many mobile browsers
+            showToast('⏳ Redirecting to sign in...');
+            const anonUser = auth.currentUser;
+            if (anonUser && anonUser.isAnonymous) {
+                localStorage.setItem('btc_anon_uid', anonUser.uid);
+                try {
+                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+                    if (anonDoc.exists) {
+                        localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+                    }
+                } catch(e2) {}
+            }
+            await auth.signInWithRedirect(provider);
+            return;
+        }
+
+        // DESKTOP: Try popup first (better UX — stays on page)
         const { anonUid, anonData } = await saveAnonData();
 
         const result = await auth.signInWithPopup(provider);
@@ -542,6 +562,7 @@ async function signInWithProvider(provider) {
 
         // Popup blocked or closed — fallback to redirect flow
         if (e.code === 'auth/popup-blocked' ||
+            e.code === 'auth/popup-closed-by-user' ||
             e.code === 'auth/cancelled-popup-request') {
             try {
                 showToast('⏳ Popup blocked — redirecting to sign in...');
