@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 16:41 UTC
+// Generated: 2026-03-03 19:42 UTC
 
 
 // ===== channel_index.js =====
@@ -8400,6 +8400,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
 }
 
 
+// Bubble Q&A — uses the same unified brain as Nacho Mode
 window.nachoAnswer = function() {
     var inp = document.getElementById('nachoInput');
     if (!inp) return;
@@ -8432,123 +8433,71 @@ window.nachoAnswer = function() {
     bubble.setAttribute('data-interactive', 'true');
     clearTimeout(window._nachoBubbleTimeout);
 
-    // ---- Step 0: Immediate Safety & Off-Topic Checks ----
-    if (isCrisis(q)) {
-        if (typeof setPose === 'function') setPose('love');
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(CRISIS_RESPONSE) : CRISIS_RESPONSE) + '</div>';
-        window._nachoBusy = false; return;
-    }
-    
-    // Check Harm/Finance/Inappropriate
-    for (var hi = 0; hi < HARM_PATTERNS.length; hi++) {
-        if (HARM_PATTERNS[hi].test(q)) {
-            textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(HARM_RESPONSE) : HARM_RESPONSE) + '</div>';
-            window._nachoBusy = false; return;
-        }
-    }
-    if (isFinancialAdvice(q)) {
-        var fa = pickRandom(FINANCIAL_ADVICE_RESPONSES);
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(fa) : fa) + '</div>' + FINANCIAL_DISCLAIMER;
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 1: Check Live Data First (Price, Height, Halving) ----
-    var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
-    if (liveMatch) {
-        if (typeof setPose === 'function') setPose('brain');
-        var answer = typeof personalize === 'function' ? personalize(liveMatch.answer) : liveMatch.answer;
-        renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + answer + '</div>', liveMatch);
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 2: Site Navigation ----
-    var siteMatch = matchSiteNavigation(q);
-    if (siteMatch) {
-        if (typeof setPose === 'function') setPose('brain');
-        renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + siteMatch.answer + '</div>', siteMatch);
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 3: Off-Topic Filter ----
-    var ot = checkOffTopic(q);
-    if (ot) {
-        if (typeof setPose === 'function') setPose('cheese');
-        textEl.innerHTML = '<div style="color:var(--text,#eee);line-height:1.6;">' + (typeof personalize === 'function' ? personalize(ot) : ot) + '</div>' +
-            '<button onclick="showNachoInput()" style="width:100%;margin-top:10px;padding:8px;background:var(--accent-bg);border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask a Bitcoin question instead 🦌</button>';
-        window._nachoBusy = false; return;
-    }
-
-    // ---- Step 4: Full Thinking & KB Search ----
+    // Show thinking animation
     showNachoThinking(textEl);
-    setTimeout(function() {
-        try {
-            stopNachoThinking();
-            var match = findAnswer(q);
-            
-            // Re-check live data priority even inside KB
-            if (match && (match.keys && match.keys.includes('current price') || match.keys && match.keys.includes('current block height'))) {
-                var live = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
-                if (live) match = live;
-            }
 
-            if (match) {
-                if (typeof setPose === 'function') setPose('brain');
-                var matchAnswer = match.answer || (match.answerHtml || '');
-                var finalAnswer = typeof personalize === 'function' ? personalize(matchAnswer) : matchAnswer;
-                renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + finalAnswer + '</div>', match);
-            } else {
-                // No KB match — try AI (Llama via Cloudflare Worker)
-                if (typeof nachoAIAnswer === 'function' && NACHO_SEARCH_PROXY && getAICount() < NACHO_AI_DAILY_LIMIT) {
-                    showNachoThinking(textEl);
-                    nachoAIAnswer(q, function(aiReply) {
-                        stopNachoThinking();
-                        if (aiReply) {
-                            if (typeof setPose === 'function') setPose('brain');
-                            var disclaimer = isFinancialAdvice(q) ? '<br><br>' + (typeof FINANCIAL_DISCLAIMER !== 'undefined' ? FINANCIAL_DISCLAIMER : '') : '';
-                            renderNachoAnswer(textEl, '<div style="color:var(--text,#eee);line-height:1.6;">' + aiReply + disclaimer + '</div>', { answer: aiReply });
-                        } else if (isCurrentEventQuestion(q)) {
-                            tryWebSearch(textEl, q);
-                        } else {
-                            showNachoFallback(textEl, q);
-                        }
-                    });
-                } else if (isCurrentEventQuestion(q)) {
-                    tryWebSearch(textEl, q);
-                } else {
-                    showNachoFallback(textEl, q);
-                }
+    // Use the unified brain (same as Nacho Mode)
+    if (typeof nachoUnifiedAnswer === 'function') {
+        var _bubbleAnswered = false;
+        // Safety timer: if pipeline takes >15s, show fallback
+        var _bubbleTimer = setTimeout(function() {
+            if (!_bubbleAnswered) {
+                _bubbleAnswered = true;
+                stopNachoThinking();
+                showNachoFallback(textEl, q);
             }
+        }, 15000);
+
+        try {
+            nachoUnifiedAnswer(q, function(result) {
+                if (_bubbleAnswered) return;
+                _bubbleAnswered = true;
+                clearTimeout(_bubbleTimer);
+                stopNachoThinking();
+
+                if (!result) { showNachoFallback(textEl, q); return; }
+
+                // Set pose based on response type
+                if (typeof setPose === 'function') {
+                    if (result.type === 'crisis') setPose('love');
+                    else if (result.type === 'offtopic' || result.type === 'profanity') setPose('cheese');
+                    else setPose('brain');
+                }
+
+                var html = '<div style="color:var(--text,#eee);line-height:1.6;">' + (result.answer || 'Hmm, try asking another way! 🦌') + '</div>';
+
+                // Add channel link if available
+                if (result.channel) {
+                    html += '<br><a href="#" onclick="event.preventDefault();hideBubble(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                }
+                // Add site action button if available
+                if (result.siteAction) {
+                    html += '<br><button onclick="event.preventDefault();hideBubble(true);' + result.siteAction + '" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
+                }
+
+                // "Ask another" button
+                html += '<button onclick="showNachoInput()" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+
+                textEl.innerHTML = html;
+                window._nachoBusy = false;
+
+                // Track interaction
+                if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+            });
         } catch(e) {
+            console.error('[Nacho Bubble] Pipeline error:', e);
+            _bubbleAnswered = true;
+            clearTimeout(_bubbleTimer);
             stopNachoThinking();
             showNachoFallback(textEl, q);
         }
-    }, 1000);
+    } else {
+        // nachoUnifiedAnswer not loaded yet — basic fallback
+        stopNachoThinking();
+        showNachoFallback(textEl, q);
+    }
 };
 
-function tryWebSearch(textEl, q) {
-    if (typeof nachoWebSearch !== 'function') { showNachoFallback(textEl, q); return; }
-    textEl.innerHTML = '<div style="color:var(--text,#eee);font-size:0.9rem;">🌐 Let me check the latest on that<span class="nacho-dots"></span></div>';
-    var dc2 = 0, dt2 = setInterval(function() { dc2 = (dc2+1)%4; var d = textEl.querySelector('.nacho-dots'); if(d) d.textContent = '.'.repeat(dc2); }, 400);
-
-    nachoWebSearch(q, function(results) {
-        clearInterval(dt2);
-        if (results && results.length > 0) {
-            if (typeof setPose === 'function') setPose('cool');
-            var html = '<div style="color:var(--text,#eee);line-height:1.6;"><div style="font-size:0.7rem;color:var(--text-faint,#666);margin-bottom:6px;">🌐 Here\'s what I found:</div>';
-            results.slice(0,3).forEach(r => {
-                html += '<div style="margin-bottom:8px;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
-                        '<div style="font-size:0.8rem;font-weight:600;color:var(--heading);">' + escapeHtml(r.title) + '</div>' +
-                        '<div style="font-size:0.75rem;color:var(--text-muted);">' + escapeHtml(r.snippet) + '</div>' +
-                        (r.url ? '<a href="' + sanitizeUrl(r.url) + '" target="_blank" style="font-size:0.7rem;color:#f7931a;">Read more →</a>' : '') +
-                        '</div>';
-            });
-            html += '</div><button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;">Ask another question</button>';
-            textEl.innerHTML = html;
-        } else {
-            showNachoFallback(textEl, q);
-        }
-    });
-}
 function showNachoFallback(textEl, q) {
     window._nachoBusy = false;
     if (typeof setPose === 'function') setPose('think');
