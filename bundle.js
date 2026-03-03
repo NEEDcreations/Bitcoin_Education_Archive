@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 03:03 UTC
+// Generated: 2026-03-03 03:53 UTC
 
 
 // ===== channel_index.js =====
@@ -528,20 +528,23 @@ async function signInWithProvider(provider) {
         return;
     }
 
-    try {
-        // Save anonymous user info BEFORE popup changes auth state
+    // Helper: save anonymous user data before auth state changes
+    async function saveAnonData() {
         const anonUser = auth.currentUser;
         let anonUid = null;
         let anonData = null;
         if (anonUser && anonUser.isAnonymous) {
             anonUid = anonUser.uid;
-            const anonDoc = await db.collection('users').doc(anonUid).get();
-            if (anonDoc.exists) anonData = anonDoc.data();
+            try {
+                const anonDoc = await db.collection('users').doc(anonUid).get();
+                if (anonDoc.exists) anonData = anonDoc.data();
+            } catch(e) { console.warn('Could not read anon doc:', e); }
         }
+        return { anonUid, anonData };
+    }
 
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-
+    // Helper: handle successful sign-in (shared by popup and redirect paths)
+    async function handleSignInResult(user, anonUid, anonData) {
         const existingDoc = await db.collection('users').doc(user.uid).get();
         if (!existingDoc.exists) {
             if (anonData) {
@@ -593,10 +596,56 @@ async function signInWithProvider(provider) {
             hideUsernamePrompt();
             showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
         }
+    }
+
+    try {
+        // Save anonymous user info BEFORE popup changes auth state
+        const { anonUid, anonData } = await saveAnonData();
+
+        const result = await auth.signInWithPopup(provider);
+        await handleSignInResult(result.user, anonUid, anonData);
     } catch(e) {
-        console.log('Provider sign-in error:', e);
-        if (e.code !== 'auth/popup-closed-by-user') {
-            showToast('Sign-in error. Please try again.');
+        console.error('Provider sign-in error:', e.code, e.message, e);
+
+        // Popup blocked or closed — fallback to redirect flow
+        if (e.code === 'auth/popup-blocked' ||
+            e.code === 'auth/cancelled-popup-request') {
+            try {
+                showToast('⏳ Popup blocked — redirecting to sign in...');
+                // Save anon data to localStorage so redirect return can recover it
+                const anonUser = auth.currentUser;
+                if (anonUser && anonUser.isAnonymous) {
+                    localStorage.setItem('btc_anon_uid', anonUser.uid);
+                    try {
+                        const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+                        if (anonDoc.exists) {
+                            localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+                        }
+                    } catch(e2) {}
+                }
+                await auth.signInWithRedirect(provider);
+                return;
+            } catch(redirectErr) {
+                console.error('Redirect fallback also failed:', redirectErr);
+                showToast('Sign-in failed. Please try a different browser.');
+            }
+            return;
+        }
+
+        // User intentionally closed popup — do nothing
+        if (e.code === 'auth/popup-closed-by-user') return;
+
+        // Actionable error messages
+        if (e.code === 'auth/unauthorized-domain') {
+            showToast('⚠️ This domain is not authorized for sign-in. Please contact support.');
+        } else if (e.code === 'auth/operation-not-allowed') {
+            showToast('⚠️ This sign-in method is not enabled. Try a different option.');
+        } else if (e.code === 'auth/account-exists-with-different-credential') {
+            showToast('⚠️ An account with this email exists using a different sign-in method. Try another option.');
+        } else if (e.code === 'auth/network-request-failed') {
+            showToast('⚠️ Network error. Check your connection and try again.');
+        } else {
+            showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
         }
     }
 }
