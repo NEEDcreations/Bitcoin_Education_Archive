@@ -118,7 +118,7 @@ window.forumBack = function() {
 
 // State
 var forumSort = 'recent';
-var forumCategory = 'all';
+var forumCategory = sessionStorage.getItem('btc_forum_category') || 'all';
 var forumPage = 'list'; // list | post | new
 var forumCurrentPost = null;
 var forumPostsCache = [];
@@ -299,7 +299,7 @@ function forumRenderPosts(posts, container) {
 
 // ---- Sort/Filter ----
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
-window.forumSetCategory = function(c) { forumCategory = c; renderForum(); };
+window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {

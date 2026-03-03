@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 01:28 UTC
+// Generated: 2026-03-03 01:51 UTC
 
 
 // ===== channel_index.js =====
@@ -5095,6 +5095,8 @@ function createNacho() {
     setInterval(function() {
         if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
         if (Math.random() > 0.2) return;
+        // Don't trigger within 30s of opening a channel
+        if (window._lastChannelOpenTime && Date.now() - window._lastChannelOpenTime < 30000) return;
         // Don't interrupt if bubble is showing interactive content
         var _b = document.getElementById('nacho-bubble');
         if (_b && _b.classList.contains('show') && _b.getAttribute('data-interactive') === 'true') return;
@@ -5239,6 +5241,27 @@ function _showBubble(text, pose) {
         document.addEventListener('keydown', window._nachoEscHandler);
     }, 100);
 }
+
+// Swipe-to-dismiss on Nacho bubble (mobile)
+(function() {
+    var _swipeStartX = 0, _swipeStartY = 0;
+    document.addEventListener('touchstart', function(e) {
+        var b = document.getElementById('nacho-bubble');
+        if (b && b.classList.contains('show') && b.contains(e.target)) {
+            _swipeStartX = e.touches[0].clientX;
+            _swipeStartY = e.touches[0].clientY;
+        }
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+        var b = document.getElementById('nacho-bubble');
+        if (!b || !b.classList.contains('show') || !e.changedTouches[0]) return;
+        var dx = e.changedTouches[0].clientX - _swipeStartX;
+        var dy = e.changedTouches[0].clientY - _swipeStartY;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+            hideBubble(true);
+        }
+    }, { passive: true });
+})();
 
 window.hideBubble = function(force) {
         var bubble = document.getElementById('nacho-bubble');
@@ -15461,7 +15484,7 @@ window.forumBack = function() {
 
 // State
 var forumSort = 'recent';
-var forumCategory = 'all';
+var forumCategory = sessionStorage.getItem('btc_forum_category') || 'all';
 var forumPage = 'list'; // list | post | new
 var forumCurrentPost = null;
 var forumPostsCache = [];
@@ -15642,7 +15665,7 @@ function forumRenderPosts(posts, container) {
 
 // ---- Sort/Filter ----
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
-window.forumSetCategory = function(c) { forumCategory = c; renderForum(); };
+window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
@@ -18598,7 +18621,7 @@ function initBottomNav() {
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
             '<button onclick="document.getElementById(\'searchOverlay\').style.display=\'flex\';document.getElementById(\'searchOverlayInput\').focus();" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
-            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧩</span><span class="bnav-label">Apps</span></button>' +
+            '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label">Explore</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">More</span></button>' +
         '</div>';
@@ -22577,6 +22600,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
         }
 
+        // Track channel open time for trivia delay
+        window._lastChannelOpenTime = Date.now();
         // Ranking: award points for opening channel
         if (typeof onChannelOpen === 'function') onChannelOpen(id);
     }
@@ -22922,7 +22947,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var menu = document.getElementById('appsMenu');
         if (!menu) {
             var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Bitcoin Apps</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                     '<button onclick="enterNachoMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
                         '<span style="font-size:1.8rem;">🦌</span>' +

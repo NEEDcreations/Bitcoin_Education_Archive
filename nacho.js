@@ -985,6 +985,8 @@ function createNacho() {
     setInterval(function() {
         if (!nachoVisible || sessionMsgCount >= MAX_SESSION_MSGS) return;
         if (Math.random() > 0.2) return;
+        // Don't trigger within 30s of opening a channel
+        if (window._lastChannelOpenTime && Date.now() - window._lastChannelOpenTime < 30000) return;
         // Don't interrupt if bubble is showing interactive content
         var _b = document.getElementById('nacho-bubble');
         if (_b && _b.classList.contains('show') && _b.getAttribute('data-interactive') === 'true') return;
@@ -1129,6 +1131,27 @@ function _showBubble(text, pose) {
         document.addEventListener('keydown', window._nachoEscHandler);
     }, 100);
 }
+
+// Swipe-to-dismiss on Nacho bubble (mobile)
+(function() {
+    var _swipeStartX = 0, _swipeStartY = 0;
+    document.addEventListener('touchstart', function(e) {
+        var b = document.getElementById('nacho-bubble');
+        if (b && b.classList.contains('show') && b.contains(e.target)) {
+            _swipeStartX = e.touches[0].clientX;
+            _swipeStartY = e.touches[0].clientY;
+        }
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+        var b = document.getElementById('nacho-bubble');
+        if (!b || !b.classList.contains('show') || !e.changedTouches[0]) return;
+        var dx = e.changedTouches[0].clientX - _swipeStartX;
+        var dy = e.changedTouches[0].clientY - _swipeStartY;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+            hideBubble(true);
+        }
+    }, { passive: true });
+})();
 
 window.hideBubble = function(force) {
         var bubble = document.getElementById('nacho-bubble');

@@ -3343,6 +3343,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
         }
 
+        // Track channel open time for trivia delay
+        window._lastChannelOpenTime = Date.now();
         // Ranking: award points for opening channel
         if (typeof onChannelOpen === 'function') onChannelOpen(id);
     }
@@ -3688,7 +3690,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var menu = document.getElementById('appsMenu');
         if (!menu) {
             var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Bitcoin Apps</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
                     '<button onclick="enterNachoMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
                         '<span style="font-size:1.8rem;">🦌</span>' +
