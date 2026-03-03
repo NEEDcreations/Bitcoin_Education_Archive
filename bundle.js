@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 01:24 UTC
+// Generated: 2026-03-03 01:28 UTC
 
 
 // ===== channel_index.js =====
@@ -2133,9 +2133,10 @@ function showSettingsPage(tab) {
             { date: 'Jan 29, 2026', title: 'The Halving: Scarcity You Can Verify', snippet: 'Every 210,000 blocks, the supply issuance gets cut in half. No vote. No committee. Just code.', channel: 'difficulty-adjustment' }
         ];
 
-        // Also load live news from ticker data
-        html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">📰 Latest News</div>';
-        html += '<div id="signalLiveNews" style="margin-bottom:20px;"><div style="color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading latest news...</div></div>';
+        // Live Signal headlines from ticker (newsletter-data.json)
+        html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">📡 Live Signals</div>';
+        html += '<div id="signalLiveNews" style="margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;"><div style="display:flex;gap:12px;padding:4px 0;min-width:min-content;"></div></div>';
+        html += '<style>#signalLiveNews::-webkit-scrollbar{display:none;}</style>';
 
         html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;margin-top:16px;font-weight:700;">📚 Featured Deep Dives</div>';
 
@@ -2148,42 +2149,40 @@ function showSettingsPage(tab) {
                 '</div>';
         });
 
-        // Fetch live Bitcoin-only news (try Worker first, fall back to static file)
+        // Fetch Signal headlines from curated ticker data
         setTimeout(function() {
-            var proxy = localStorage.getItem('btc_nacho_search_proxy') || 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
-            var badWords = /crypto|ethereum|eth |solana|cardano|altcoin|shitcoin|dogecoin|xrp|ripple|nft |defi |web3/i;
-            
-            function renderNews(container, items) {
-                var newsHtml = '';
-                items.forEach(function(n) {
-                    if (badWords.test(n.title || '') || badWords.test(n.snippet || '')) return;
-                    newsHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;text-align:left;">' +
-                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + (n.date || 'TODAY').toUpperCase() + '</div>' +
-                        '<div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:6px;">' + (n.title || '').replace(/<[^>]+>/g,'') + '</div>' +
-                        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:8px;">' + (n.snippet || '').replace(/<[^>]+>/g,'') + '</div>' +
-                        (n.link || n.url ? '<a href="' + (n.link || n.url) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.8rem;font-weight:700;text-decoration:none;">Read full article →</a>' : '') +
-                        '</div>';
-                });
-                container.innerHTML = newsHtml || '<div style="color:var(--text-faint);font-size:0.8rem;">No Bitcoin news available</div>';
-            }
-            
             var container = document.getElementById('signalLiveNews');
             if (!container) return;
             
-            // Try live search first
-            fetch(proxy + '?q=' + encodeURIComponent('Bitcoin news today'), { signal: AbortSignal.timeout(6000) })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data && data.results && data.results.length >= 2) {
-                        renderNews(container, data.results.slice(0, 5).map(function(r) { return { date: 'Today', title: r.title, snippet: r.snippet, link: r.url }; }));
-                    } else { throw new Error('no results'); }
-                })
-                .catch(function() {
-                    // Fall back to static file
-                    fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
-                        if (data && data.news) renderNews(container, data.news);
-                    }).catch(function() { container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load news</div>'; });
+            fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+                if (!data || !data.news || data.news.length === 0) {
+                    container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">No signals available</div>';
+                    return;
+                }
+                var inner = container.querySelector('div') || container;
+                var cardsHtml = '';
+                data.news.slice(0, 3).forEach(function(n, i) {
+                    var title = (n.title || '').replace(/<[^>]+>/g, '');
+                    var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
+                    var link = n.link || '';
+                    cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
+                        (link ? 'onclick="window.open(\'' + link.replace(/'/g, "\\'") + '\',\'_blank\')"' : '') +
+                        ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
+                            '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
+                            '<span style="font-size:0.65rem;color:var(--text-faint);">' + (n.date || '').toUpperCase() + '</span>' +
+                        '</div>' +
+                        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;line-height:1.4;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
+                        (snippet ? '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:8px;">' + snippet + '</div>' : '') +
+                        (link ? '<div style="color:var(--accent);font-size:0.75rem;font-weight:700;">Read full article →</div>' : '') +
+                    '</div>';
                 });
+                // Add swipe hint on mobile
+                cardsHtml += '<div style="min-width:40px;flex-shrink:0;display:flex;align-items:center;color:var(--text-faint);font-size:0.7rem;opacity:0.5;">→</div>';
+                inner.innerHTML = cardsHtml;
+            }).catch(function() {
+                container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load signals</div>';
+            });
         }, 100);
 
         var isOptedIn = (currentUser && currentUser.newsletterOptIn);
