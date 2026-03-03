@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 13:46 UTC
+// Generated: 2026-03-03 15:29 UTC
 
 
 // ===== channel_index.js =====
@@ -22303,26 +22303,35 @@ window.nachoQuizAnswer = function(btn, correct) {
         const isFull = isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         const isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
 
-        const labels = document.querySelectorAll('.cat-label');
-        const groups = document.querySelectorAll('.cat-group');
+        const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
         const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, #authBtn, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
 
-        // Properties Layer 1 & Referral (Always show)
-        // Experienced Topics (Explorer+) - index 1
-        if (labels[1] && groups[1]) {
-            labels[1].style.display = isExplorer ? '': 'none';
-            groups[1].style.display = (isExplorer && labels[1].getAttribute('data-expanded') === 'true') ? '': 'none';
-        }
-        // Resources (Explorer+) - index 2
-        if (labels[2] && groups[2]) {
-            labels[2].style.display = isExplorer ? '': 'none';
-            groups[2].style.display = (isExplorer && labels[2].getAttribute('data-expanded') === 'true') ? '': 'none';
-        }
-        // Additional Info (Full+) - index 3
-        if (labels[3] && groups[3]) {
-            labels[3].style.display = isFull ? '': 'none';
-            groups[3].style.display = (isFull && labels[3].getAttribute('data-expanded') === 'true') ? '': 'none';
-        }
+        // Match categories by text content instead of fragile index
+        toggleLabels.forEach(function(label) {
+            var text = label.textContent.trim().toLowerCase();
+            var group = label.nextElementSibling;
+            if (!group || !group.classList.contains('cat-group')) return;
+
+            // Properties Layer 1 & Referral Links — always visible
+            if (text.indexOf('properties') !== -1 || text.indexOf('referral') !== -1) {
+                label.style.display = '';
+                // Only show group if expanded
+                group.style.display = label.getAttribute('data-expanded') === 'true' ? '' : 'none';
+                return;
+            }
+            // Experienced Topics & Resources — Explorer+ (3 visits or 3 channels)
+            if (text.indexOf('experienced') !== -1 || text.indexOf('resources') !== -1) {
+                label.style.display = isExplorer ? '' : 'none';
+                group.style.display = (isExplorer && label.getAttribute('data-expanded') === 'true') ? '' : 'none';
+                return;
+            }
+            // Additional Info — Full (10 visits, 10 channels, or signed in)
+            if (text.indexOf('additional') !== -1) {
+                label.style.display = isFull ? '' : 'none';
+                group.style.display = (isFull && label.getAttribute('data-expanded') === 'true') ? '' : 'none';
+                return;
+            }
+        });
 
         // Sidebar Action Buttons
         sidebarButtons.forEach(btn => {

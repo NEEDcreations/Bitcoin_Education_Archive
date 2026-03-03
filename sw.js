@@ -1,5 +1,5 @@
 // Bitcoin Education Archive - Service Worker v14
-const CACHE_NAME = 'btc-archive-v17';
+const CACHE_NAME = 'btc-archive-v18';
 const IMG_CACHE = 'btc-images-v1';
 const MAX_IMG_CACHE = 200; 
 
