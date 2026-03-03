@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 21:41 UTC
+// Generated: 2026-03-03 22:02 UTC
 
 
 // ===== channel_index.js =====
@@ -9988,35 +9988,102 @@ if (typeof NACHO_KB !== 'undefined') {
     });
 }
 
-// ---- Auto-generate follow-up suggestions to guide users deeper ----
+// ---- Auto-generate follow-up suggestions to guide users deeper toward maximalism ----
+// This is the SINGLE follow-up engine used by both bubble and Nacho Mode.
+// Every topic funnels toward Bitcoin maximalism — scarcity, sovereignty, sound money.
 window.nachoFollowUps = function(answerText) {
     if (!answerText) return [];
     var a = answerText.toLowerCase();
     var suggestions = [];
 
     // Topic detection → suggest deeper maximalist questions
+    // Ordered from specific to broad so precise topics match first
     var topicMap = [
-        { keywords: ['halving','block reward','subsidy','supply'], suggestions: ['Why does the halving matter for price?','What happens when all 21 million are mined?','How does Bitcoin compare to gold scarcity?'] },
-        { keywords: ['lightning','layer 2','payment channel'], suggestions: ['Can Lightning handle millions of users?','What is a Lightning invoice?','Is Lightning Network centralized?'] },
-        { keywords: ['proof of work','mining','hash','nonce','sha-256'], suggestions: ['Why is Proof of Work better than Proof of Stake?','How much energy does Bitcoin actually use?','What is the difficulty adjustment?'] },
-        { keywords: ['self custody','hardware wallet','seed phrase','private key'], suggestions: ['What is a multisig wallet?','Why should I run my own node?','What is the best hardware wallet?'] },
-        { keywords: ['fiat','inflation','money printing','central bank','federal reserve'], suggestions: ['What is the Cantillon Effect?','How does Bitcoin fix inflation?','What is sound money?'] },
-        { keywords: ['decentraliz','censorship','permissionless','no single'], suggestions: ['Why can\'t governments shut down Bitcoin?','How many nodes run the Bitcoin network?','What happened during the Blocksize Wars?'] },
-        { keywords: ['altcoin','ethereum','crypto','shitcoin','token','defi','nft'], suggestions: ['Why do Bitcoiners reject altcoins?','What is Bitcoin maximalism?','Why is there no second best?'] },
-        { keywords: ['store of value','savings','hodl','long term'], suggestions: ['What is time preference?','How does Bitcoin compare to real estate?','What is the stock-to-flow model?'] },
-        { keywords: ['privacy','kyc','coinjoin','surveillance'], suggestions: ['How do I buy Bitcoin without KYC?','What is a CoinJoin?','Why does financial privacy matter?'] },
-        { keywords: ['satoshi','whitepaper','genesis block','2008','2009'], suggestions: ['Why did Satoshi disappear?','What is the message in the Genesis Block?','Who is Hal Finney?'] },
-        { keywords: ['node','full node','verify','trust'], suggestions: ['How do I run my own Bitcoin node?','What is BIP 324?','Why does "don\'t trust, verify" matter?'] },
-        { keywords: ['el salvador','legal tender','adoption','country'], suggestions: ['What is Bitcoin Beach?','Which other countries accept Bitcoin?','What are Bitcoin bonds?'] },
-        { keywords: ['energy','environment','renewable','methane'], suggestions: ['Does Bitcoin actually waste energy?','How does Bitcoin mining use stranded energy?','Is Proof of Work wasteful?'] },
-        { keywords: ['maximalism','maxi','only bitcoin','signal'], suggestions: ['What is the Orange Pill?','Why is there no second best?','What is hyperbitcoinization?'] },
+        // --- BASICS & ONBOARDING → push toward WHY Bitcoin matters ---
+        { keywords: ['what is bitcoin','beginner','getting started','new to bitcoin'], suggestions: ['Why is Bitcoin better than regular money?','What problem does Bitcoin actually solve?','What is a satoshi?','Why can only 21 million exist?'] },
+        { keywords: ['eli5','explain like'], suggestions: ['ELI5 how mining works','ELI5 why Bitcoin is scarce','ELI5 what a wallet does'] },
+        { keywords: ['satoshi','smallest unit','100 million'], suggestions: ['Why do people stack sats instead of buying whole Bitcoin?','What is the Lightning Network?','How many sats can you get for a dollar?'] },
+
+        // --- BUYING & INVESTING → push toward self-custody and long-term thinking ---
+        { keywords: ['buy bitcoin','purchase','exchange','how to buy','where to buy'], suggestions: ['Why is self-custody important?','What is dollar cost averaging?','Why should I avoid keeping Bitcoin on exchanges?'] },
+        { keywords: ['dca','dollar cost','investing','investment'], suggestions: ['What is time preference?','Why do Bitcoiners say "stay humble, stack sats"?','How does Bitcoin compare to real estate?'] },
+        { keywords: ['price','market cap','stock-to-flow','ath','all-time'], suggestions: ['Why does the halving affect price?','What would Bitcoin at $1M look like?','Why is the 4-year cycle important?'] },
+        { keywords: ['etf','blackrock','institution','wall street'], suggestions: ['Does institutional adoption change Bitcoin?','Why is self-custody still important with ETFs?','What is the difference between paper Bitcoin and real Bitcoin?'] },
+
+        // --- MINING & PROOF OF WORK → push toward energy truth and security ---
+        { keywords: ['proof of work','mining','miner','hashrate','hash rate'], suggestions: ['Why is Proof of Work better than Proof of Stake?','How much energy does Bitcoin actually use?','What is the difficulty adjustment?'] },
+        { keywords: ['sha-256','hash','nonce','brute force'], suggestions: ['How does the difficulty adjustment work?','Why can\'t quantum computers break Bitcoin?','What makes SHA-256 so secure?'] },
+        { keywords: ['difficulty adjustment','2016 blocks','retarget'], suggestions: ['Why is the difficulty adjustment the most elegant part of Bitcoin?','How does mining secure the network?','What is the relationship between hashrate and security?'] },
+        { keywords: ['energy','environment','renewable','methane','stranded','carbon'], suggestions: ['Is Bitcoin actually bad for the environment?','How does Bitcoin mining capture wasted methane?','Why does Proof of Work NEED to use energy?'] },
+        { keywords: ['proof of stake','pos ','staking'], suggestions: ['Why is Proof of Stake just fiat 2.0?','Why does energy expenditure matter for security?','What is the nothing-at-stake problem?'] },
+
+        // --- HALVING & SCARCITY → push toward monetary implications ---
+        { keywords: ['halving','halvening','block reward','subsidy','supply schedule'], suggestions: ['What happens when all 21 million are mined?','How does Bitcoin compare to gold?','Why is programmatic scarcity revolutionary?'] },
+        { keywords: ['21 million','scarce','scarcity','finite','limited supply'], suggestions: ['Why is 21 million important?','What is the stock-to-flow model?','How does hyperbitcoinization work?'] },
+        { keywords: ['inflation','money printing','debase','cantillon'], suggestions: ['What is the Cantillon Effect?','How does fiat money steal from the poor?','Why is Bitcoin the exit from inflation?'] },
+
+        // --- LIGHTNING & SCALING → push toward daily use and sovereignty ---
+        { keywords: ['lightning','layer 2','payment channel','bolt','lnurl'], suggestions: ['Can Lightning handle millions of users?','Where can I spend Bitcoin with Lightning?','What are Fedimints and Cashu?'] },
+        { keywords: ['layer 3','sidechain','liquid','fedimint','cashu','ecash'], suggestions: ['How does Bitcoin scale without sacrificing decentralization?','What is Chaumian ecash?','Why are layers better than bigger blocks?'] },
+        { keywords: ['spend bitcoin','pay with bitcoin','merchant','shop'], suggestions: ['What is the Lightning Network?','How fast are Lightning payments?','Why is Bitcoin better than credit cards?'] },
+
+        // --- WALLETS & SELF-CUSTODY → push toward sovereignty ---
+        { keywords: ['wallet','self custody','hardware wallet','cold storage'], suggestions: ['Why should I run my own node?','What is a multisig wallet?','What happens if I lose my seed phrase?'] },
+        { keywords: ['seed phrase','mnemonic','backup','recovery','12 words','24 words'], suggestions: ['What is a passphrase (25th word)?','Why is metal backup better than paper?','What is Shamir\'s Secret Sharing?'] },
+        { keywords: ['private key','public key','address','not your keys'], suggestions: ['Why "not your keys, not your coins"?','What is self-custody?','How do Bitcoin addresses work?'] },
+        { keywords: ['multisig','multi-sig','collaborative custody'], suggestions: ['Why is multisig more secure?','What is a hardware wallet?','What is a Glacier Protocol?'] },
+
+        // --- NODES & DECENTRALIZATION → push toward running your own ---
+        { keywords: ['node','full node','verify','consensus','decentraliz'], suggestions: ['How do I run my own Bitcoin node?','Why does "don\'t trust, verify" matter?','What happened during the Blocksize Wars?'] },
+        { keywords: ['blocksize','block size','big block','segwit'], suggestions: ['Why did small blockers win the Blocksize Wars?','What is SegWit?','Why is decentralization more important than throughput?'] },
+
+        // --- ALTCOINS & FUD → redirect toward Bitcoin maximalism ---
+        { keywords: ['altcoin','ethereum','crypto','shitcoin','token','defi','nft','solana','cardano','xrp'], suggestions: ['Why do Bitcoiners reject altcoins?','Why is there no second best?','What is Bitcoin maximalism?'] },
+        { keywords: ['cbdc','central bank digital','digital dollar','digital euro'], suggestions: ['How are CBDCs different from Bitcoin?','Why are CBDCs a surveillance tool?','Why is Bitcoin the opposite of a CBDC?'] },
+        { keywords: ['stablecoin','usdt','usdc','tether'], suggestions: ['Why are stablecoins not a threat to Bitcoin?','What is the difference between Bitcoin and a stablecoin?','Why is Bitcoin better than digital dollars?'] },
+        { keywords: ['scam','ponzi','bubble','tulip','too volatile'], suggestions: ['Is Bitcoin really a Ponzi scheme?','Why does volatility decrease over time?','How does the Lindy Effect apply to Bitcoin?'] },
+        { keywords: ['government','ban','regulate','illegal','shut down'], suggestions: ['Can governments actually ban Bitcoin?','Why has every Bitcoin ban failed?','What makes Bitcoin censorship-resistant?'] },
+        { keywords: ['quantum','quantum computer','break bitcoin'], suggestions: ['Can quantum computers break Bitcoin?','How would Bitcoin upgrade against quantum threats?','What is post-quantum cryptography?'] },
+        { keywords: ['hack','hacked','51% attack','attack vector'], suggestions: ['Why has Bitcoin never been hacked?','What would a 51% attack cost?','How does decentralization prevent attacks?'] },
+
+        // --- ECONOMICS & PHILOSOPHY → deepen understanding ---
+        { keywords: ['austrian','mises','hayek','sound money','hard money'], suggestions: ['What is time preference?','Why did gold fail as money?','What is the regression theorem?'] },
+        { keywords: ['fiat','dollar','euro','yen','currency'], suggestions: ['How does fiat money lose value over time?','What is the Cantillon Effect?','Why do all fiat currencies fail eventually?'] },
+        { keywords: ['store of value','savings','hodl','hodling'], suggestions: ['What is time preference?','Bitcoin vs real estate?','What is the stock-to-flow model?'] },
+        { keywords: ['time preference','low time preference','delayed gratification'], suggestions: ['How does sound money change behavior?','Why do Bitcoiners eat better and save more?','What is the connection between money and civilization?'] },
+        { keywords: ['game theory','nash equilibrium','prisoner'], suggestions: ['Why is Bitcoin adoption inevitable from game theory?','What are Bitcoin\'s feedback loops?','What is the Trojan Horse theory?'] },
+        { keywords: ['network effect','metcalfe','adoption curve'], suggestions: ['Why does the most adopted network win?','What is hyperbitcoinization?','How does Bitcoin\'s network effect compare to the internet?'] },
+
+        // --- PRIVACY & SOVEREIGNTY → push toward action ---
+        { keywords: ['privacy','kyc','coinjoin','surveillance','tracking'], suggestions: ['How do I buy Bitcoin without KYC?','What is a CoinJoin?','Why does financial privacy matter?'] },
+        { keywords: ['cypherpunk','cryptography','pgp','tor','encryption'], suggestions: ['Who were the cypherpunks?','What is the cypherpunk manifesto?','Why did Satoshi use cryptography instead of law?'] },
+
+        // --- HISTORY & CULTURE → deepen conviction ---
+        { keywords: ['satoshi nakamoto','whitepaper','genesis block','2008','2009'], suggestions: ['Why did Satoshi disappear?','What message is hidden in the Genesis Block?','Who is Hal Finney?'] },
+        { keywords: ['pizza day','laszlo','10000 bitcoin'], suggestions: ['What is the significance of Bitcoin Pizza Day?','What are the earliest Bitcoin transactions?','How much would those pizzas cost today?'] },
+        { keywords: ['el salvador','nayib bukele','legal tender','bitcoin beach'], suggestions: ['How is El Salvador doing with Bitcoin?','Which other countries accept Bitcoin?','What is the Bitcoin Bond?'] },
+        { keywords: ['human rights','freedom','unbanked','censorship'], suggestions: ['How does Bitcoin help the unbanked?','Why is Bitcoin a human rights tool?','How is Bitcoin used in authoritarian countries?'] },
+        { keywords: ['maximalism','maxi','only bitcoin','toxic'], suggestions: ['Why do people who study Bitcoin the most become maximalists?','Is Bitcoin toxicity actually integrity?','What is the Orange Pill?'] },
+        { keywords: ['hyperbitcoinization','bitcoin standard','world reserve'], suggestions: ['What would a Bitcoin standard look like?','How does hyperbitcoinization happen?','Why do Bitcoiners say "fix the money, fix the world"?'] },
+
+        // --- TECHNICAL DEEP DIVES → reward curiosity ---
+        { keywords: ['utxo','unspent transaction','coin control'], suggestions: ['What is dust in Bitcoin?','How do UTXOs affect privacy?','What is coin control?'] },
+        { keywords: ['taproot','schnorr','signature'], suggestions: ['What did Taproot upgrade enable?','What are Schnorr signatures?','What is MAST?'] },
+        { keywords: ['segwit','witness','transaction weight','vbyte'], suggestions: ['Why was SegWit important?','What is transaction weight?','What are vBytes?'] },
+        { keywords: ['mempool','unconfirmed','fee','transaction fee'], suggestions: ['How do Bitcoin fees work?','What is Replace-By-Fee?','How does the fee market work long-term?'] },
+        { keywords: ['fork','soft fork','hard fork','bip'], suggestions: ['What is the difference between soft and hard forks?','What are BIPs?','Why are soft forks preferred?'] },
+        { keywords: ['smart contract','script','opcode','op_cat'], suggestions: ['Can Bitcoin do smart contracts?','What is BitVM?','What are OP_CODES?'] },
+        { keywords: ['ordinal','inscription','nft on bitcoin'], suggestions: ['What are Bitcoin Ordinals?','How do inscriptions affect block space?','Why are some Bitcoiners against Ordinals?'] },
+        { keywords: ['nostr','decentralized social','zap'], suggestions: ['What is Nostr?','How does Nostr use Lightning?','Why are Bitcoiners building on Nostr?'] },
+
+        // --- SITE FEATURES → guide engagement ---
+        { keywords: ['nacho','this site','archive','channel','leaderboard'], suggestions: ['What channels should I start with?','How do I earn points?','What are Bitcoin Quests?'] },
     ];
 
     for (var i = 0; i < topicMap.length; i++) {
         var topic = topicMap[i];
         for (var k = 0; k < topic.keywords.length; k++) {
             if (a.indexOf(topic.keywords[k]) !== -1) {
-                // Add suggestions we haven't already suggested
                 for (var s = 0; s < topic.suggestions.length; s++) {
                     if (suggestions.indexOf(topic.suggestions[s]) === -1) {
                         suggestions.push(topic.suggestions[s]);
@@ -10025,17 +10092,37 @@ window.nachoFollowUps = function(answerText) {
                 break;
             }
         }
-        if (suggestions.length >= 4) break;
+        if (suggestions.length >= 6) break;
     }
 
-    // Shuffle and return 2
+    // Always try to inject one "rabbit hole" maximalist question
+    var rabbitHole = [
+        'Why is Bitcoin the most important invention of our lifetime?',
+        'Why do people who study Bitcoin the most become maximalists?',
+        'What would a world on a Bitcoin standard look like?',
+        'How does Bitcoin give power back to individuals?',
+        'Why do Bitcoiners say "fix the money, fix the world"?',
+        'How is fiat money a tool of control?',
+        'Why is self-custody the most radical act of sovereignty?',
+        'Why is there no second best cryptocurrency?',
+        'What is hyperbitcoinization?',
+        'Why is 21 million the most important number in economics?',
+        'How does Bitcoin protect human rights?',
+        'Why is proof of work essential for honest money?',
+        'What is the connection between energy and money?',
+        'Why did every fiat currency in history fail?',
+    ];
+    var rabbitPick = rabbitHole[Math.floor(Math.random() * rabbitHole.length)];
+    if (suggestions.indexOf(rabbitPick) === -1) suggestions.push(rabbitPick);
+
+    // Shuffle and return 3
     for (var j = suggestions.length - 1; j > 0; j--) {
         var r = Math.floor(Math.random() * (j + 1));
         var tmp = suggestions[j];
         suggestions[j] = suggestions[r];
         suggestions[r] = tmp;
     }
-    return suggestions.slice(0, 2);
+    return suggestions.slice(0, 3);
 };
 
 
@@ -21899,73 +21986,13 @@ if (document.readyState === 'loading') {
         ],
     };
 
+    // Nacho Mode follow-ups: delegate to the unified nachoFollowUps() engine in nacho-qa.js
+    // This ensures bubble and Nacho Mode always suggest the same quality follow-ups.
     function getFollowUps(question, answer) {
-        var text = (question + ' ' + (answer || '')).toLowerCase();
-        var suggestions = [];
-
-        // Match topic-specific follow-ups
-        for (var topic in NACHO_MODE_FOLLOWUPS) {
-            if (topic !== 'general' && text.indexOf(topic) !== -1) {
-                suggestions = suggestions.concat(NACHO_MODE_FOLLOWUPS[topic]);
-            }
+        if (typeof nachoFollowUps === 'function') {
+            return nachoFollowUps((question || '') + ' ' + (answer || ''));
         }
-
-        // If no topic matched, use general rabbit hole questions
-        if (suggestions.length === 0) {
-            suggestions = NACHO_MODE_FOLLOWUPS.general;
-        }
-
-        // Always try to include one "deeper" question to push the rabbit hole
-        var deepQuestions = [
-            'Why is Bitcoin the only cryptocurrency that matters?',
-            'What would a world on a Bitcoin standard look like?',
-            'Why do Bitcoiners say "fix the money, fix the world"?',
-            'How does Bitcoin give power back to individuals?',
-            'What does "Bitcoin is Time" mean?',
-            'Why do people wonder if Bitcoin is alien technology?',
-            'What is Satoshi\'s legendary treasure?',
-            'Is Bitcoin a living organism?',
-            'Are Bitcoin\'s rules enforced by physics?',
-            'What is the connection between zero and Bitcoin?',
-            'How is fiat money a tool of slavery?',
-            'Why is Bitcoin the most important thing in the world?',
-            'Why is self-custody the most important thing in Bitcoin?',
-            'Why do people who study Bitcoin the most become maximalists?',
-            'Why is 21 million important?',
-            'What is the double spend problem and how did Bitcoin solve it?',
-            'Why is proof of work important for security?',
-            'How does Bitcoin protect human rights?',
-        ];
-
-        // Dedupe, validate against KB, and limit to 3
-        var seen = {};
-        var unique = [];
-        var qLower = question.toLowerCase();
-        for (var i = 0; i < suggestions.length; i++) {
-            var s = suggestions[i];
-            if (!seen[s] && s.toLowerCase() !== qLower) {
-                // Only suggest questions Nacho can actually answer
-                if (typeof findAnswer === 'function' && !findAnswer(s)) continue;
-                seen[s] = true; unique.push(s);
-            }
-            if (unique.length >= 2) break;
-        }
-
-        // Add one deep rabbit hole question if we have room
-        if (unique.length < 3) {
-            // Shuffle deep questions so we don't always try the same one first
-            var shuffled = deepQuestions.slice().sort(function() { return Math.random() - 0.5; });
-            for (var d = 0; d < shuffled.length && unique.length < 3; d++) {
-                var deep = shuffled[d];
-                if (!seen[deep] && deep.toLowerCase() !== qLower) {
-                    if (typeof findAnswer === 'function' && !findAnswer(deep)) continue;
-                    unique.push(deep);
-                    break;
-                }
-            }
-        }
-
-        return unique;
+        return [];
     }
 
     function followUpChipsHtml(followUps) {

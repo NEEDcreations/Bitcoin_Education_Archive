@@ -1570,73 +1570,13 @@
         ],
     };
 
+    // Nacho Mode follow-ups: delegate to the unified nachoFollowUps() engine in nacho-qa.js
+    // This ensures bubble and Nacho Mode always suggest the same quality follow-ups.
     function getFollowUps(question, answer) {
-        var text = (question + ' ' + (answer || '')).toLowerCase();
-        var suggestions = [];
-
-        // Match topic-specific follow-ups
-        for (var topic in NACHO_MODE_FOLLOWUPS) {
-            if (topic !== 'general' && text.indexOf(topic) !== -1) {
-                suggestions = suggestions.concat(NACHO_MODE_FOLLOWUPS[topic]);
-            }
+        if (typeof nachoFollowUps === 'function') {
+            return nachoFollowUps((question || '') + ' ' + (answer || ''));
         }
-
-        // If no topic matched, use general rabbit hole questions
-        if (suggestions.length === 0) {
-            suggestions = NACHO_MODE_FOLLOWUPS.general;
-        }
-
-        // Always try to include one "deeper" question to push the rabbit hole
-        var deepQuestions = [
-            'Why is Bitcoin the only cryptocurrency that matters?',
-            'What would a world on a Bitcoin standard look like?',
-            'Why do Bitcoiners say "fix the money, fix the world"?',
-            'How does Bitcoin give power back to individuals?',
-            'What does "Bitcoin is Time" mean?',
-            'Why do people wonder if Bitcoin is alien technology?',
-            'What is Satoshi\'s legendary treasure?',
-            'Is Bitcoin a living organism?',
-            'Are Bitcoin\'s rules enforced by physics?',
-            'What is the connection between zero and Bitcoin?',
-            'How is fiat money a tool of slavery?',
-            'Why is Bitcoin the most important thing in the world?',
-            'Why is self-custody the most important thing in Bitcoin?',
-            'Why do people who study Bitcoin the most become maximalists?',
-            'Why is 21 million important?',
-            'What is the double spend problem and how did Bitcoin solve it?',
-            'Why is proof of work important for security?',
-            'How does Bitcoin protect human rights?',
-        ];
-
-        // Dedupe, validate against KB, and limit to 3
-        var seen = {};
-        var unique = [];
-        var qLower = question.toLowerCase();
-        for (var i = 0; i < suggestions.length; i++) {
-            var s = suggestions[i];
-            if (!seen[s] && s.toLowerCase() !== qLower) {
-                // Only suggest questions Nacho can actually answer
-                if (typeof findAnswer === 'function' && !findAnswer(s)) continue;
-                seen[s] = true; unique.push(s);
-            }
-            if (unique.length >= 2) break;
-        }
-
-        // Add one deep rabbit hole question if we have room
-        if (unique.length < 3) {
-            // Shuffle deep questions so we don't always try the same one first
-            var shuffled = deepQuestions.slice().sort(function() { return Math.random() - 0.5; });
-            for (var d = 0; d < shuffled.length && unique.length < 3; d++) {
-                var deep = shuffled[d];
-                if (!seen[deep] && deep.toLowerCase() !== qLower) {
-                    if (typeof findAnswer === 'function' && !findAnswer(deep)) continue;
-                    unique.push(deep);
-                    break;
-                }
-            }
-        }
-
-        return unique;
+        return [];
     }
 
     function followUpChipsHtml(followUps) {
