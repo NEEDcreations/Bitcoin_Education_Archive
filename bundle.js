@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 00:39 UTC
+// Generated: 2026-03-03 00:48 UTC
 
 
 // ===== channel_index.js =====
@@ -146,12 +146,12 @@ function initRanking() {
         firebase.initializeApp(FIREBASE_CONFIG);
 
         // Firebase App Check — temporarily disabled to fix Cloud Functions auth
-        // TODO: Re-enable after configuring Cloud Functions to accept App Check tokens
-        // if (typeof firebase.appCheck === 'function') {
-        //     try {
-        //         firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
-        //     } catch(e) {}
-        // }
+                // Firebase App Check — prevents unauthorized API access
+        if (typeof firebase.appCheck === 'function') {
+            try {
+                firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
+            } catch(e) { console.warn('App Check init failed:', e); }
+        }
 
         db = firebase.firestore();
         // Enable offline persistence — data survives connection loss
