@@ -70,3 +70,29 @@ test('SW precaches bundle.js', () => {
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
+
+// Direct link routes — ensure hash routes are handled in app.js
+test('direct link: #nacho route handled', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'bundle.js'), 'utf8');
+    assert(bundle.includes("h === 'nacho'"), '#nacho direct link not handled');
+});
+test('direct link: #forum route handled', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'bundle.js'), 'utf8');
+    assert(bundle.includes("h === 'forum'"), '#forum direct link not handled');
+});
+test('direct link: #marketplace route handled', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'bundle.js'), 'utf8');
+    assert(bundle.includes("h === 'marketplace'"), '#marketplace direct link not handled');
+});
+test('direct link: #irl-sync route handled', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'bundle.js'), 'utf8');
+    assert(bundle.includes("h === 'irl-sync'"), '#irl-sync direct link not handled');
+});
+test('direct link: #bitcoin-beats route handled', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'bundle.js'), 'utf8');
+    assert(bundle.includes("h === 'bitcoin-beats'"), '#bitcoin-beats direct link not handled');
+});
+test('direct link: #dms route handled', () => {
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'bundle.js'), 'utf8');
+    assert(bundle.includes("h === 'dms'"), '#dms direct link not handled');
+});

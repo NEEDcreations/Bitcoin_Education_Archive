@@ -3887,6 +3887,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h === 'irl-sync') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
+        else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
+        else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
+        else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h) go(h);
     };
 // ---- GLOBAL EXPORTS for HTML onclick handlers ----
