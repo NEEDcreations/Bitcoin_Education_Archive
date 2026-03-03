@@ -1153,6 +1153,167 @@ function _showBubble(text, pose) {
     }, { passive: true });
 })();
 
+// Drag-to-reposition Nacho (mobile + desktop)
+(function() {
+    var dragging = false, dragStartX = 0, dragStartY = 0;
+    var containerStartLeft = 0, containerStartTop = 0;
+    var dragThreshold = 8; // px — must move this far before it counts as drag (not tap)
+    var hasMoved = false;
+    var dragTarget = null;
+
+    function getContainer() { return document.getElementById('nacho-container'); }
+
+    function restoreSavedPosition() {
+        var saved = localStorage.getItem('btc_nacho_position');
+        if (!saved) return;
+        try {
+            var pos = JSON.parse(saved);
+            var c = getContainer();
+            if (!c) return;
+            // Validate position is on screen
+            var maxX = window.innerWidth - 40;
+            var maxY = window.innerHeight - 40;
+            if (pos.left >= 0 && pos.left <= maxX && pos.top >= 0 && pos.top <= maxY) {
+                c.style.left = pos.left + 'px';
+                c.style.bottom = 'auto';
+                c.style.top = pos.top + 'px';
+                c.style.right = 'auto';
+            }
+        } catch(e) {}
+    }
+
+    // Restore position on load and on resize (validate bounds)
+    setTimeout(restoreSavedPosition, 500);
+    window.addEventListener('resize', function() {
+        var saved = localStorage.getItem('btc_nacho_position');
+        if (!saved) return;
+        try {
+            var pos = JSON.parse(saved);
+            var c = getContainer();
+            if (!c) return;
+            // Clamp to viewport
+            pos.left = Math.max(0, Math.min(pos.left, window.innerWidth - 60));
+            pos.top = Math.max(0, Math.min(pos.top, window.innerHeight - 60));
+            c.style.left = pos.left + 'px';
+            c.style.top = pos.top + 'px';
+            localStorage.setItem('btc_nacho_position', JSON.stringify(pos));
+        } catch(e) {}
+    });
+
+    // Touch events (mobile)
+    document.addEventListener('touchstart', function(e) {
+        var avatar = document.getElementById('nacho-avatar');
+        if (!avatar || !avatar.contains(e.target)) return;
+        // Don't drag if touching closet button or name label
+        if (e.target.closest('.nacho-closet-btn') || e.target.closest('.nacho-name')) return;
+        var c = getContainer();
+        if (!c) return;
+        dragging = true;
+        hasMoved = false;
+        dragTarget = c;
+        dragStartX = e.touches[0].clientX;
+        dragStartY = e.touches[0].clientY;
+        var rect = c.getBoundingClientRect();
+        containerStartLeft = rect.left;
+        containerStartTop = rect.top;
+        // Disable transition during drag
+        c.style.transition = 'none';
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+        if (!dragging || !dragTarget) return;
+        var dx = e.touches[0].clientX - dragStartX;
+        var dy = e.touches[0].clientY - dragStartY;
+        if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
+        hasMoved = true;
+        e.preventDefault();
+        var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
+        var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
+        dragTarget.style.left = newLeft + 'px';
+        dragTarget.style.top = newTop + 'px';
+        dragTarget.style.bottom = 'auto';
+        dragTarget.style.right = 'auto';
+    }, { passive: false });
+
+    document.addEventListener('touchend', function(e) {
+        if (!dragging) return;
+        dragging = false;
+        if (dragTarget) {
+            dragTarget.style.transition = '';
+        }
+        if (hasMoved && dragTarget) {
+            // Save position
+            var rect = dragTarget.getBoundingClientRect();
+            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+            // Check if swiped off screen edge → dismiss
+            if (rect.left < -30 || rect.left > window.innerWidth - 20 ||
+                rect.top < -30 || rect.top > window.innerHeight - 20) {
+                hideNacho();
+                localStorage.removeItem('btc_nacho_position');
+            }
+            // Prevent the tap/click from firing after drag
+            e.preventDefault();
+        }
+        dragTarget = null;
+    }, { passive: false });
+
+    // Mouse events (desktop)
+    document.addEventListener('mousedown', function(e) {
+        var avatar = document.getElementById('nacho-avatar');
+        if (!avatar || !avatar.contains(e.target)) return;
+        if (e.target.closest('.nacho-closet-btn') || e.target.closest('.nacho-name')) return;
+        var c = getContainer();
+        if (!c) return;
+        dragging = true;
+        hasMoved = false;
+        dragTarget = c;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        var rect = c.getBoundingClientRect();
+        containerStartLeft = rect.left;
+        containerStartTop = rect.top;
+        c.style.transition = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!dragging || !dragTarget) return;
+        var dx = e.clientX - dragStartX;
+        var dy = e.clientY - dragStartY;
+        if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
+        hasMoved = true;
+        var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
+        var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
+        dragTarget.style.left = newLeft + 'px';
+        dragTarget.style.top = newTop + 'px';
+        dragTarget.style.bottom = 'auto';
+        dragTarget.style.right = 'auto';
+    });
+
+    document.addEventListener('mouseup', function(e) {
+        if (!dragging) return;
+        dragging = false;
+        if (dragTarget) dragTarget.style.transition = '';
+        if (hasMoved && dragTarget) {
+            var rect = dragTarget.getBoundingClientRect();
+            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+            if (rect.left < -30 || rect.left > window.innerWidth - 20 ||
+                rect.top < -30 || rect.top > window.innerHeight - 20) {
+                hideNacho();
+                localStorage.removeItem('btc_nacho_position');
+            }
+        }
+        dragTarget = null;
+    });
+
+    // Reset position when Nacho is shown again (after being hidden)
+    var _origShowNacho = window.showNacho;
+    window.showNacho = function() {
+        _origShowNacho.apply(this, arguments);
+        restoreSavedPosition();
+    };
+})();
+
 window.hideBubble = function(force) {
         var bubble = document.getElementById('nacho-bubble');
     // Don't auto-hide interactive content (Q&A, trivia) — only manual close or force
