@@ -32,16 +32,16 @@ test('forumContainer exists', () => assert(html.includes('id="forumContainer"'))
 test('questModal exists', () => assert(html.includes('id="questModal"')));
 
 // Critical script references
-test('ranking.js referenced', () => assert(html.match(/src="ranking\.js\?v=[\w]+"/)));
-test('app.js referenced', () => assert(html.match(/src="app\.js\?v=[\w]+"/)));
-test('nacho-qa.js referenced', () => assert(html.match(/src="nacho-qa\.js\?v=[\w]+"/)));
-test('nacho.js referenced', () => assert(html.match(/src="nacho\.js\?v=\d+"/)));
-test('channel_index.js referenced', () => assert(html.match(/src="channel_index\.js\?v=\d+/)));
-test('messaging.js referenced', () => assert(html.match(/src="messaging\.js\?v=\d+"/)));
-test('forum.js referenced', () => assert(html.match(/src="forum\.js\?v=\d+"/)));
-test('marketplace.js referenced', () => assert(html.match(/src="marketplace\.js\?v=\d+"/)));
-test('engagement.js referenced', () => assert(html.match(/src="engagement\.js\?v=\d+"/)));
-test('mobile-ux.js referenced', () => assert(html.match(/src="mobile-ux\.js\?v=[\w]+"/)));
+test('bundle.js referenced', () => assert(html.match(/src="bundle\.js\?v=[\w]+"/)));
+// app.js is now in bundle.js
+// nacho-qa.js is now in bundle.js
+// nacho.js is now in bundle.js
+// channel_index.js is now in bundle.js
+// messaging.js is now in bundle.js
+// forum.js is now in bundle.js
+// marketplace.js is now in bundle.js
+// engagement.js is now in bundle.js
+// mobile-ux.js is now in bundle.js
 
 // All scripts should be deferred (except inline)
 test('all external scripts are deferred', () => {
@@ -62,14 +62,11 @@ test('404.html matches index.html', () => {
 });
 
 // Service worker precaches critical files
-test('SW precaches app.js', () => {
+test('SW precaches bundle.js', () => {
     const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-    assert(sw.includes('/app.js'), 'app.js not in SW precache');
+    assert(sw.includes('bundle.js'), 'bundle.js not in SW precache');
 });
-test('SW precaches ranking.js', () => {
-    const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-    assert(sw.includes('/ranking.js'), 'ranking.js not in SW precache');
-});
+// ranking.js is now in bundle.js
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

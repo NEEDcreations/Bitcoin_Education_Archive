@@ -1,5 +1,5 @@
 // Bitcoin Education Archive - Service Worker v14
-const CACHE_NAME = 'btc-archive-v14';
+const CACHE_NAME = 'btc-archive-v15';
 const IMG_CACHE = 'btc-images-v1';
 const MAX_IMG_CACHE = 200; 
 
@@ -8,30 +8,9 @@ const MAX_IMG_CACHE = 200;
 const PRE_CACHE = [
   './',
   './index.html',
-  './app.js',
-  './ux-patches.js',
-  './ranking.js',
-  './features.js',
-  './quests.js',
-  './scholar.js',
-  './tickets.js',
-  './badges.js',
-  './utils.js',
-  './channel_index.js',
-  './nacho.js',
-  './nacho-qa.js',
-  './nacho-engage.js',
-  './nacho-closet.js',
-  './nacho-live.js',
-  './mobile-ux.js',
-  './forum.js',
-  './marketplace.js',
-  './messaging.js',
-  './engagement.js',
+  './bundle.js',
   './nacho-deer.svg',
-  './manifest.json',
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png'
+  './manifest.json'
 ];
 
 self.addEventListener('install', event => {
