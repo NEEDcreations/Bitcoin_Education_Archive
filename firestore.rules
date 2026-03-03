@@ -6,7 +6,8 @@ service cloud.firestore {
     // USERS COLLECTION
     // =============================================
     match /users/{userId} {
-      allow read: if true;
+      // [UX AUDIT] Restrict to authenticated users
+      allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.auth.uid == userId;
       allow update: if request.auth != null
@@ -229,8 +230,11 @@ service cloud.firestore {
     // =============================================
     match /channel_ratings/{ratingId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      // [UX AUDIT] Ownership check on create/update
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
     }
 
     // =============================================

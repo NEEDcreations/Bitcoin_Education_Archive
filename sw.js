@@ -9,6 +9,7 @@ const PRE_CACHE = [
   './',
   './index.html',
   './app.js',
+  './ux-patches.js',
   './ranking.js',
   './features.js',
   './quests.js',
