@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 01:10 UTC
+// Generated: 2026-03-03 01:14 UTC
 
 
 // ===== channel_index.js =====
@@ -21769,19 +21769,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         var msgs = document.getElementById('msgs');
         if (msgs) msgs.style.display = 'none';
         var hero = document.getElementById('hero');
-        // 🧱 RESTORED: Breadcrumbs logic
-        const meta = CHANNELS[id];
-        let breadcrumbs = '';
-        if (meta) {
-            breadcrumbs = '<div class="breadcrumbs" style="padding:16px 20px 0;font-size:0.75rem;color:var(--text-faint);display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' +
-                '<span onclick="goHome()" style="cursor:pointer;color:var(--accent);">ARCHIVE</span>' +
-                '<span>/</span>' +
-                '<span>' + (meta.cat || 'General') + '</span>' +
-                '<span>/</span>' +
-                '<span style="color:var(--heading);">' + meta.title + '</span>' +
-            '</div>';
-        }
-    
         if (hero) hero.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
