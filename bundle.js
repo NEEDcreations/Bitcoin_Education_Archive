@@ -23983,6 +23983,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Store channel data and render
         currentChannelData = d;
         currentChannelId = id;
+        window.currentChannelId = id; // Expose for inline onclick handlers
         galleryMode = false;
 
         renderContent(id);
