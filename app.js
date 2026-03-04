@@ -1848,15 +1848,16 @@ const GENERIC_NACHO_QUIZ = [
 
 window.nachoQuizMe = function(topic) {
     let pool = [];
-    if (typeof QUEST_QUESTIONS !== 'undefined' && typeof QUEST_QUESTIONS === 'object' && Object.keys(QUEST_QUESTIONS).length > 0) {
-        // Flatten QUEST_QUESTIONS categories into a single array of {question, options, answer}
-        Object.keys(QUEST_QUESTIONS).forEach(cat => {
-            var catQuestions = QUEST_QUESTIONS[cat];
+    var qBank = (typeof QUESTION_BANK !== 'undefined') ? QUESTION_BANK : (typeof QUEST_QUESTIONS !== 'undefined' ? QUEST_QUESTIONS : null);
+    if (qBank && typeof qBank === 'object' && Object.keys(qBank).length > 0) {
+        // Flatten question bank categories into a single array
+        Object.keys(qBank).forEach(cat => {
+            var catQuestions = qBank[cat];
             if (!Array.isArray(catQuestions)) return;
             catQuestions.forEach(q => {
                 pool.push({
                     question: q.q,
-                    options: fisherYates([q.a, ...q.wrong]),
+                    options: fisherYates([q.a, ...(q.wrong || q.w || [])]),
                     answer: q.a,
                     category: cat
                 });
@@ -2047,13 +2048,14 @@ window.nachoQuizAnswer = function(btn, correct) {
         var topics = window._nachoModeTopics || [];
         if (topics.length < 3) return;
 
-        // Build quiz from conversation history + QUEST_QUESTIONS
+        // Build quiz from conversation history + QUESTION_BANK
         var quizQuestions = [];
-        // Flatten QUEST_QUESTIONS (object keyed by category) into a flat array
+        // Flatten question bank (object keyed by category) into a flat array
         var flatQQ = [];
-        if (typeof QUEST_QUESTIONS !== 'undefined' && typeof QUEST_QUESTIONS === 'object') {
-            Object.keys(QUEST_QUESTIONS).forEach(function(cat) {
-                var catQ = QUEST_QUESTIONS[cat];
+        var _qBank = (typeof QUESTION_BANK !== 'undefined') ? QUESTION_BANK : (typeof QUEST_QUESTIONS !== 'undefined' ? QUEST_QUESTIONS : null);
+        if (_qBank && typeof _qBank === 'object') {
+            Object.keys(_qBank).forEach(function(cat) {
+                var catQ = _qBank[cat];
                 if (!Array.isArray(catQ)) return;
                 catQ.forEach(function(q) {
                     flatQQ.push({ question: q.q, options: [q.a].concat(q.wrong || []), answer: q.a, category: cat });
