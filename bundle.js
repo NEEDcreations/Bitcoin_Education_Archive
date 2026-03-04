@@ -23223,20 +23223,20 @@ window.nachoQuizAnswer = function(btn, correct) {
         // === Navigation ===
         // H = go home
         if (key === 'h') { goHome(); return; }
-        // S or / = focus search
-        if (key === 's' || key === '/') { e.preventDefault(); var si = document.getElementById('searchInput'); if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); } return; }
+        // / = focus search
+        if (key === '/') { e.preventDefault(); var si = document.getElementById('searchInput'); if (si) { si.focus(); if (isMobile()) document.getElementById('sidebar').classList.add('open'); } return; }
         // C = random channel
         if (key === 'c') { goRandom(); return; }
         // R = random art
         if (key === 'r') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
         // M = random meme
         if (key === 'm') { if (typeof goRandomMeme === 'function') goRandomMeme(); return; }
-        // A = ask Nacho
+        // A = ask Nacho (bubble)
         if (key === 'a') { if (typeof showNachoInput === 'function') showNachoInput(); return; }
-        // P = PlebTalk (Forum)
-        if (key === 'p') { go('forum'); return; }
-        // X = Marketplace (Mart)
-        if (key === 'x') { go('marketplace'); return; }
+        // T = PlebTalk (Forum)
+        if (key === 't') { go('forum'); return; }
+        // S = Lightning Mart
+        if (key === 's') { go('marketplace'); return; }
 
         // === Quick Actions ===
         // L = toggle leaderboard
@@ -23245,16 +23245,16 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'q') { var qb = document.getElementById('questBtn'); if (qb) qb.click(); return; }
         // F = favorite/save current channel
         if (key === 'f') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
-        // Z = also favorite (legacy)
-        if (key === 'z') { var fb2 = document.getElementById('favBtn'); if (fb2) fb2.click(); return; }
-        // N = talk to Nacho (open Q&A input)
+        // N = talk to Nacho (Nacho Mode)
         if (key === 'n') { if (typeof enterNachoMode === 'function') enterNachoMode(); return; }
-        // T = toggle theme (dark/light)
-        if (key === 't') { var tb = document.getElementById('themeToggle'); if (tb) tb.click(); return; }
+        // D = dark/light mode toggle
+        if (key === 'd') { if (typeof toggleTheme === 'function') toggleTheme(); return; }
         // V = gallery view (on supported channels)
         if (key === 'v') { var gb = document.getElementById('galleryBtn'); if (gb) gb.click(); return; }
         // G = random graphic
         if (key === 'g') { if (typeof goRandomGraphic === 'function') goRandomGraphic(); return; }
+        // P = donate
+        if (key === 'p') { showDonateModal(); return; }
 
         // === Scroll ===
         // J = scroll down
@@ -23269,11 +23269,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === '?' || (e.shiftKey && key === '/')) { showKeyboardHelp(); return; }
         // I = open settings
         if (key === 'i') { if (typeof showSettingsPage === 'function') showSettingsPage('account'); return; }
-        // D = donate — go home and scroll to donation section
-        if (key === 'd') {
-            showDonateModal();
-            return;
-        }
         // B = back to previous channel
         if (key === 'b') { var lc = localStorage.getItem('btc_last_channel'); if (lc) go(lc); return; }
 
@@ -23305,10 +23300,41 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // === Escape = close modals ===
         if (key === 'escape') {
-            if (document.getElementById('lb').classList.contains('open')) document.getElementById('lb').classList.remove('open');
-            if (document.getElementById('usernameModal').classList.contains('open')) hideUsernamePrompt();
-            if (document.getElementById('questModal').classList.contains('open')) document.getElementById('questModal').classList.remove('open');
-            if (isMobile() && document.getElementById('sidebar').classList.contains('open')) { document.getElementById('sidebar').classList.remove('open'); setFloatingElementsVisible(true); }
+            e.preventDefault();
+            // Close lightbox
+            var lb = document.getElementById('lb');
+            if (lb && lb.classList.contains('open')) { lb.classList.remove('open'); return; }
+            // Close settings/username modal
+            var um = document.getElementById('usernameModal');
+            if (um && um.classList.contains('open')) { if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt(); return; }
+            // Close quest modal
+            var qm = document.getElementById('questModal');
+            if (qm && qm.classList.contains('open')) { qm.classList.remove('open'); return; }
+            // Close search overlay
+            var so = document.getElementById('searchOverlay');
+            if (so && so.style.display !== 'none') { so.style.display = 'none'; return; }
+            // Close Nacho story overlay
+            var ns = document.getElementById('nachoStoryOverlay');
+            if (ns) { ns.remove(); return; }
+            // Close spin modal
+            var sm = document.getElementById('spinModal');
+            if (sm) { sm.remove(); return; }
+            // Close donate modal
+            var dm = document.getElementById('donateModal');
+            if (dm) { dm.remove(); return; }
+            // Close keyboard help
+            var kbm = document.getElementById('kbHelpModal');
+            if (kbm) { kbm.remove(); return; }
+            // Close apps menu
+            var am = document.getElementById('appsMenu');
+            if (am && am.style.display === 'block') { am.style.display = 'none'; return; }
+            // Close sidebar on mobile
+            if (isMobile()) {
+                var sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('open')) { sidebar.classList.remove('open'); if (typeof setFloatingElementsVisible === 'function') setFloatingElementsVisible(true); return; }
+            }
+            // Exit Nacho Mode
+            if (window._nachoMode && typeof exitNachoMode === 'function') { exitNachoMode(); return; }
         }
     });
 
@@ -23354,15 +23380,17 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">Press <kbd style="background:var(--card-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-family:monospace;">?</kbd> to toggle this menu</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
-                kbRow('H','Go home') + kbRow('S / /','Search') + kbRow('C','Random channel') +
+                kbRow('H','Go home') + kbRow('/','Search') + kbRow('C','Random channel') +
                 kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('G','Random Graphic') + kbRow('B','Back to last channel') +
-                kbRow('P','PlebTalk (Forum)') + kbRow('X','Marketplace (Mart)') +
+                kbRow('T','PlebTalk (Forum)') + kbRow('S','Lightning Mart') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
-                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('F','Favorite channel') +
-                kbRow('N','Talk to Nacho') + kbRow('T','Toggle theme') + kbRow('V','Gallery view') +
-                kbRow('I','Settings') + kbRow('D','Donate') +
+                kbRow('F','Favorite channel') + kbRow('A','Ask Nacho') + kbRow('N','Nacho Mode') +
+                kbRow('D','Dark / Light mode') + kbRow('L','Leaderboard') + kbRow('Q','Start quest') +
+                kbRow('V','Gallery view') + kbRow('P','Donate') + kbRow('I','Settings') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
                 kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
+                '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Mobile Gestures</div>' +
+                kbRow('2-finger','Nacho Mode') + kbRow('3-finger','Settings') + kbRow('Long-press','Explore Apps (on logo)') +
             '</div></div>';
         document.body.appendChild(modal);
     }
@@ -23467,7 +23495,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         }, { passive: true });
 
-        // Two-finger tap → PlebTalk
+        // Two-finger tap → Nacho Mode
         var twoFingerLast = 0;
         var twoFingerStart = 0;
         document.getElementById('main').addEventListener('touchstart', function(e) {
@@ -23481,19 +23509,20 @@ window.nachoQuizAnswer = function(btn, correct) {
                 var now = Date.now();
                 if (now - twoFingerLast < 3000) return; 
                 twoFingerLast = now;
-                go('forum');
+                if (typeof enterNachoMode === 'function') enterNachoMode();
             }
         }, { passive: true });
 
-        // Long-press on logo → Nacho Mode
+        // Long-press on logo → Explore Apps dropdown
         // Uses MutationObserver to also catch dynamically added channel logos
         function attachLogoGesture(logo) {
-            if (logo._nachoLongPress) return; // Already attached
-            logo._nachoLongPress = true;
+            if (logo._logoLongPress) return; // Already attached
+            logo._logoLongPress = true;
             var lp;
             logo.addEventListener('touchstart', function(e) {
                 lp = setTimeout(function() {
-                    if (typeof enterNachoMode === 'function') enterNachoMode();
+                    if (typeof toggleAppsMenu === 'function') toggleAppsMenu();
+                    if (typeof haptic === 'function') haptic('medium');
                 }, 800);
             }, { passive: true });
             logo.addEventListener('touchend', function() { clearTimeout(lp); });
@@ -23505,8 +23534,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             document.querySelectorAll('.channel-logos .channel-logo-img').forEach(attachLogoGesture);
         }).observe(document.getElementById('main'), { childList: true, subtree: true });
 
-        // Three-finger tap → LightningMart
-        // Must be a quick tap, not during scroll
+        // Three-finger tap → Settings
         var threeFingerLast = 0;
         var threeFingerStart = 0;
         document.getElementById('main').addEventListener('touchstart', function(e) {
@@ -23516,11 +23544,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (threeFingerStart && e.touches.length === 0) {
                 var dt = Date.now() - threeFingerStart;
                 threeFingerStart = 0;
-                if (dt > 400) return; // Not a tap
+                if (dt > 400) return;
                 var now = Date.now();
-                if (now - threeFingerLast < 3000) return; // 3s cooldown
+                if (now - threeFingerLast < 3000) return;
                 threeFingerLast = now;
-                go('marketplace');
+                if (typeof showSettings === 'function') showSettings();
             }
         }, { passive: true });
     })();
