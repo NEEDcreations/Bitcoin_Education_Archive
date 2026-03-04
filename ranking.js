@@ -38,6 +38,8 @@ const POINTS = {
 let db, auth, currentUser = null;
 let signInAttempts = 0;
 let signInLockout = 0;
+let redirectResultResolved = false; // Track whether getRedirectResult has resolved
+let redirectResultPromise = Promise.resolve(null); // Resolves when getRedirectResult completes
 // Session timeout removed — users stay signed in via Firebase LOCAL persistence
 let sessionChannels = new Set();
 let readTimer = null;
@@ -83,8 +85,11 @@ function initRanking() {
         }
 
         // Check if returning from provider redirect (in-app browser flow)
-        auth.getRedirectResult().then(async function(result) {
-            if (!result || !result.user) return;
+        // IMPORTANT: must resolve before we allow anonymous sign-in to avoid
+        // clobbering the redirect auth state on mobile
+        redirectResultPromise = auth.getRedirectResult().then(async function(result) {
+            redirectResultResolved = true;
+            if (!result || !result.user) return null;
             const user = result.user;
             const existingDoc = await db.collection('users').doc(user.uid).get();
 
@@ -127,11 +132,15 @@ function initRanking() {
             }
 
             loadUser(user.uid);
+            updateAuthButton();
             showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+            return user;
         }).catch(function(e) {
+            redirectResultResolved = true;
             if (e.code !== 'auth/popup-closed-by-user') {
                 console.log('Redirect result error:', e);
             }
+            return null;
         });
 
         // Wait for auth to fully resolve before doing anything
@@ -146,14 +155,23 @@ function initRanking() {
                 if (user && !user.isAnonymous) {
                     // Real user restored immediately — load them
                     loadUser(user.uid);
+                } else if (user && user.isAnonymous) {
+                    // Got anonymous on first event — load local immediately
+                    loadUserLocal(user.uid);
                 } else {
-                    // Got anonymous or null on first event — load immediately, don't wait
-                    // If a real user restores later, onAuthStateChanged fires again and swaps them in
-                    if (user && user.isAnonymous) {
-                        loadUserLocal(user.uid);
-                    } else {
-                        // null user — sign in anonymously right away
+                    // null user — WAIT for getRedirectResult before signing in anonymously
+                    // Otherwise we clobber the redirect auth state on mobile
+                    if (redirectResultResolved) {
+                        // Redirect already resolved (no redirect happened) — safe to go anonymous
                         auth.signInAnonymously().then(() => {});
+                    } else {
+                        // Wait for redirect result to resolve first
+                        redirectResultPromise.then(function(redirectUser) {
+                            // If redirect gave us a real user, onAuthStateChanged already fired for them
+                            if (!redirectUser && !auth.currentUser) {
+                                auth.signInAnonymously().then(() => {});
+                            }
+                        });
                     }
                 }
                 return;
@@ -171,7 +189,16 @@ function initRanking() {
                 }
             } else {
                 currentUser = null;
-                auth.signInAnonymously().then(() => {});
+                // Only sign in anonymously if redirect has already resolved
+                if (redirectResultResolved) {
+                    auth.signInAnonymously().then(() => {});
+                } else {
+                    redirectResultPromise.then(function(redirectUser) {
+                        if (!redirectUser && !auth.currentUser) {
+                            auth.signInAnonymously().then(() => {});
+                        }
+                    });
+                }
             }
         });
     } catch(e) {
@@ -1847,6 +1874,21 @@ function showUsernamePrompt() {
         }
         if (currentUser && currentUser.username) {
             showAccountInfo();
+            return;
+        }
+        // If redirect result hasn't resolved yet, wait briefly for it
+        // This prevents showing sign-up form while mobile redirect auth is still loading
+        if (!redirectResultResolved) {
+            showToast('⏳ Loading account...');
+            redirectResultPromise.then(function() {
+                if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    showAccountInfo();
+                } else if (currentUser && currentUser.username) {
+                    showAccountInfo();
+                } else {
+                    document.getElementById('usernameModal').classList.add('open');
+                }
+            });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
