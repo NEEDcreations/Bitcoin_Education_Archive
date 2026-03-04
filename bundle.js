@@ -1,5 +1,5 @@
 // Bitcoin Education Archive — Bundled JS
-// Generated: 2026-03-03 23:39 UTC
+// Generated: 2026-03-04 00:01 UTC
 
 
 // ===== channel_index.js =====
@@ -23333,31 +23333,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
         const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, #authBtn, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
 
-        // Match categories by text content instead of fragile index
+        // All categories always visible — no tier gating on channel access
+        // Users can explore everything; the "Next Goal" banner encourages progression
         toggleLabels.forEach(function(label) {
-            var text = label.textContent.trim().toLowerCase();
             var group = label.nextElementSibling;
             if (!group || !group.classList.contains('cat-group')) return;
-
-            // Properties Layer 1 & Referral Links — always visible
-            if (text.indexOf('properties') !== -1 || text.indexOf('referral') !== -1) {
-                label.style.display = '';
-                // Only show group if expanded
-                group.style.display = label.getAttribute('data-expanded') === 'true' ? '' : 'none';
-                return;
-            }
-            // Experienced Topics & Resources — Explorer+ (3 visits or 3 channels)
-            if (text.indexOf('experienced') !== -1 || text.indexOf('resources') !== -1) {
-                label.style.display = isExplorer ? '' : 'none';
-                group.style.display = (isExplorer && label.getAttribute('data-expanded') === 'true') ? '' : 'none';
-                return;
-            }
-            // Additional Info — Full (10 visits, 10 channels, or signed in)
-            if (text.indexOf('additional') !== -1) {
-                label.style.display = isFull ? '' : 'none';
-                group.style.display = (isFull && label.getAttribute('data-expanded') === 'true') ? '' : 'none';
-                return;
-            }
+            label.style.display = '';
+            group.style.display = label.getAttribute('data-expanded') === 'true' ? '' : 'none';
         });
 
         // Sidebar Action Buttons
