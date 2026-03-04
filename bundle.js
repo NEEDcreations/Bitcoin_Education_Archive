@@ -20910,8 +20910,10 @@ if (document.readyState === 'loading') {
         const PAGE_SIZE = 50;
         if (randomIdx >= PAGE_SIZE) {
             const loadBtn = document.getElementById('loadMoreBtn');
-            while (window._currentOffset <= randomIdx && loadBtn && document.contains(loadBtn)) {
+            var _loadGuard = 0;
+            while (window._currentOffset <= randomIdx && loadBtn && document.contains(loadBtn) && _loadGuard < 50) {
                 window.loadMoreMsgs();
+                _loadGuard++;
             }
         }
 
@@ -22271,7 +22273,11 @@ if (document.readyState === 'loading') {
         var progress = parseInt(localStorage.getItem('btc_nacho_path_step') || '0');
         var exploredCount = 0;
         try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
-        
+        var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+        var _a = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+        var isExplorer = (_a && !_a.isAnonymous) || visits >= 3 || exploredCount >= 3;
+        var isFull = (_a && !_a.isAnonymous) || visits >= 10 || exploredCount >= 10;
+
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
 
@@ -22342,10 +22348,12 @@ const GENERIC_NACHO_QUIZ = [
 
 window.nachoQuizMe = function(topic) {
     let pool = [];
-    if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+    if (typeof QUEST_QUESTIONS !== 'undefined' && typeof QUEST_QUESTIONS === 'object' && Object.keys(QUEST_QUESTIONS).length > 0) {
         // Flatten QUEST_QUESTIONS categories into a single array of {question, options, answer}
         Object.keys(QUEST_QUESTIONS).forEach(cat => {
-            QUEST_QUESTIONS[cat].forEach(q => {
+            var catQuestions = QUEST_QUESTIONS[cat];
+            if (!Array.isArray(catQuestions)) return;
+            catQuestions.forEach(q => {
                 pool.push({
                     question: q.q,
                     options: fisherYates([q.a, ...q.wrong]),
@@ -22381,7 +22389,7 @@ window.nachoQuizMe = function(topic) {
     var opts = q.options || [];
     for (var i = 0; i < opts.length; i++) {
         var isCorrect = opts[i] === q.answer;
-        html += '<button onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        html += '<button ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
     }
     html += '</div>';
     
@@ -22421,7 +22429,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         btn.style.borderColor = '#ef4444';
         btn.style.opacity = '1';
         buttons.forEach(function(b) {
-            if (b !== btn && b.onclick && b.onclick.toString().indexOf('true') !== -1) {
+            if (b !== btn && b.getAttribute('data-correct') === '1') {
                 b.style.borderColor = '#22c55e';
                 b.style.color = '#22c55e';
                 b.style.opacity = '1';
@@ -22541,12 +22549,23 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Build quiz from conversation history + QUEST_QUESTIONS
         var quizQuestions = [];
-        if (typeof QUEST_QUESTIONS !== 'undefined' && QUEST_QUESTIONS.length > 0) {
+        // Flatten QUEST_QUESTIONS (object keyed by category) into a flat array
+        var flatQQ = [];
+        if (typeof QUEST_QUESTIONS !== 'undefined' && typeof QUEST_QUESTIONS === 'object') {
+            Object.keys(QUEST_QUESTIONS).forEach(function(cat) {
+                var catQ = QUEST_QUESTIONS[cat];
+                if (!Array.isArray(catQ)) return;
+                catQ.forEach(function(q) {
+                    flatQQ.push({ question: q.q, options: [q.a].concat(q.wrong || []), answer: q.a, category: cat });
+                });
+            });
+        }
+        if (flatQQ.length > 0) {
             // Try to match questions to topics the user asked about
             for (var t = 0; t < topics.length && quizQuestions.length < 5; t++) {
                 var topicWords = topics[t].toLowerCase().split(/\s+/);
-                for (var qi = 0; qi < QUEST_QUESTIONS.length && quizQuestions.length < 5; qi++) {
-                    var qq = QUEST_QUESTIONS[qi];
+                for (var qi = 0; qi < flatQQ.length && quizQuestions.length < 5; qi++) {
+                    var qq = flatQQ[qi];
                     if (quizQuestions.indexOf(qq) !== -1) continue;
                     var qText = (qq.question + ' ' + (qq.category || '')).toLowerCase();
                     for (var w = 0; w < topicWords.length; w++) {
@@ -22558,8 +22577,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 }
             }
             // Fill remaining with random questions
-            while (quizQuestions.length < 3) {
-                var rq = QUEST_QUESTIONS[Math.floor(Math.random() * QUEST_QUESTIONS.length)];
+            while (quizQuestions.length < 3 && flatQQ.length > 0) {
+                var rq = flatQQ[Math.floor(Math.random() * flatQQ.length)];
                 if (quizQuestions.indexOf(rq) === -1) quizQuestions.push(rq);
             }
         }
@@ -22603,8 +22622,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="color:var(--text);font-size:0.85rem;margin-bottom:10px;font-weight:600;">' + escapeHtml(q.question) + '</div>';
         var opts = q.options || [];
         for (var i = 0; i < opts.length; i++) {
-            var isCorrect = i === q.answer;
-            html += '<button onclick="convoQuizAnswer(this,' + isCorrect + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+            var isCorrect = opts[i] === q.answer;
+            html += '<button ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="convoQuizAnswer(this,' + isCorrect + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
         }
         html += '</div>';
         nachoChatAppend('nacho', '', html);
@@ -22635,7 +22654,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             btn.style.borderColor = '#ef4444';
             btn.style.opacity = '1';
             buttons.forEach(function(b) {
-                if (b !== btn && b.getAttribute('onclick') && b.getAttribute('onclick').indexOf('true') !== -1) {
+                if (b !== btn && b.getAttribute('data-correct') === '1') {
                     b.style.background = '#22c55e'; b.style.color = '#fff'; b.style.borderColor = '#22c55e'; b.style.opacity = '1';
                 }
             });
@@ -23117,8 +23136,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Q = start quest on current channel
         if (key === 'q') { var qb = document.getElementById('questBtn'); if (qb) qb.click(); return; }
         // F = favorite/save current channel
-        if (key === 'f') { go('forum'); return; }
-        if (key === 'z') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
+        if (key === 'f') { var fb = document.getElementById('favBtn'); if (fb) fb.click(); return; }
+        // Z = also favorite (legacy)
+        if (key === 'z') { var fb2 = document.getElementById('favBtn'); if (fb2) fb2.click(); return; }
         // N = talk to Nacho (open Q&A input)
         if (key === 'n') { if (typeof enterNachoMode === 'function') enterNachoMode(); return; }
         // T = toggle theme (dark/light)
@@ -23163,8 +23183,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // 21 = Scarcity
         if (window._eggBuffer === '2' && key === '1') { speakEasterEgg("Twenty-one million. Final and absolute."); return; }
         
-        // P = "Stay humble, stack sats."
-        if (key === 'p') { if (typeof goRandomArt === 'function') goRandomArt(); return; }
+        // W = "Stay humble, stack sats."
         if (key === 'w') { speakEasterEgg("Stay humble. Stack sats."); return; }
         // Secret: type "btc" to unlock Bitcoin Eyes
         window._eggBuffer = (window._eggBuffer || '') + key;
@@ -23231,7 +23250,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('G','Random Graphic') + kbRow('B','Back to last channel') +
                 kbRow('P','PlebTalk (Forum)') + kbRow('X','Marketplace (Mart)') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
-                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('Z','Favorite channel') +
+                kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('F','Favorite channel') +
                 kbRow('N','Talk to Nacho') + kbRow('T','Toggle theme') + kbRow('V','Gallery view') +
                 kbRow('I','Settings') + kbRow('D','Donate') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
@@ -23686,7 +23705,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Hide floating random button when navigating to a different channel
         if (!window._keepFloatingBtn) {
             var fb = document.getElementById('floatingRandomBtn');
-            if (fb && fb.style.display !== 'none' && id !== 'memes-funny' && id !== 'art-inspiration') fb.style.display = 'none';
+            if (fb && fb.style.display !== 'none' && id !== 'memes-funny' && id !== 'art-inspiration' && id !== 'graphics') fb.style.display = 'none';
         }
 
         localStorage.setItem('btc_last_channel', id);
@@ -24231,20 +24250,6 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.onload = () => {
-        // DEBUG: Show diagnostic toast on load so we can verify app.js is running
-        setTimeout(function() {
-            var missing = [];
-            ['go','toggleMenu','enterNachoMode','showSpinWheel','startQuestManual'].forEach(function(fn) {
-                if (typeof window[fn] !== 'function') missing.push(fn);
-            });
-            if (missing.length > 0 && typeof showToast === 'function') {
-                showToast('⚠️ DEBUG: Missing functions: ' + missing.join(', '));
-            }
-            if (typeof CHANNELS === 'undefined' && typeof showToast === 'function') {
-                showToast('⚠️ DEBUG: CHANNELS not loaded!');
-            }
-        }, 3000);
-
         // Auto-launch Nacho Mode if user has it set as default
         if (localStorage.getItem('btc_nacho_mode_default') === 'true' && !window.location.hash) {
             setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(); }, 1500);
