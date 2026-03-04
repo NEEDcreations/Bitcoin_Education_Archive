@@ -4638,9 +4638,8 @@ function createNacho() {
         }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
         #nacho-avatar:active { transform: scale(0.93); }
-        #nacho-avatar .nacho-closet-btn {
+        #nacho-avatar .nacho-closet-btn, #nacho-avatar .nacho-story-btn {
             position: absolute;
-            top: -5px;
             right: -35px;
             font-size: 0.85rem;
             cursor: pointer;
@@ -4657,10 +4656,24 @@ function createNacho() {
             opacity: 0.5;
             z-index: 5;
         }
-        #nacho-avatar .nacho-closet-btn:hover {
+        #nacho-avatar .nacho-closet-btn { top: -5px; }
+        #nacho-avatar .nacho-story-btn { top: 24px; }
+        #nacho-avatar .nacho-closet-btn:hover, #nacho-avatar .nacho-story-btn:hover {
             opacity: 1;
             transform: scale(1.15);
             border-color: #f7931a;
+        }
+        .nacho-notif-dot {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            border: 1.5px solid var(--card-bg, #1a1a2e);
+            z-index: 6;
+            pointer-events: none;
         }
         #nacho-avatar .nacho-name {
             position: absolute;
@@ -4955,7 +4968,8 @@ function createNacho() {
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔</span>' +
+            '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!" style="position:relative;">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!" style="position:relative;">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
             '<div class="nacho-header">' +
@@ -4980,6 +4994,7 @@ function createNacho() {
                 window._expanded_closet = true;
                 window._pendingClosetScroll = true;
                 try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
+                if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
             }
         }, { passive: false });
         closetBtn.addEventListener('click', function(e) {
@@ -4988,10 +5003,51 @@ function createNacho() {
                 window._expanded_closet = true;
                 window._pendingClosetScroll = true;
                 try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
+                if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
             }
             closetTouched = false;
         }, false);
     }
+
+    // ===== NOTIFICATION DOTS =====
+    // Check if there's a new story chapter available or new closet item
+    window.updateNachoNotifs = function() {
+        // Story notification: show if a new chapter is available (new day since last read)
+        var storyDot = document.getElementById('nachoStoryNotif');
+        if (storyDot) {
+            var storyDays = safeJSON('btc_nacho_story_days', []);
+            var today = new Date().toISOString().split('T')[0];
+            var chaptersUnlocked = storyDays.length;
+            var hasNewChapter = storyDays.indexOf(today) === -1 && chaptersUnlocked < 7;
+            // Also show if user has never opened the story
+            var neverOpened = chaptersUnlocked === 0;
+            var storyDismissed = localStorage.getItem('btc_nacho_story_notif_dismissed') === today;
+            storyDot.style.display = (!storyDismissed && (hasNewChapter || neverOpened)) ? 'block' : 'none';
+        }
+        // Closet notification: show if there are unviewed closet items
+        var closetDot = document.getElementById('nachoClosetNotif');
+        if (closetDot) {
+            var ownedItems = safeJSON('btc_spin_closet_items', []);
+            var viewedItems = safeJSON('btc_closet_viewed', []);
+            var hasNew = ownedItems.some(function(item) { return viewedItems.indexOf(item) === -1; });
+            closetDot.style.display = hasNew ? 'block' : 'none';
+        }
+    };
+    window.nachoStoryNotifClear = function() {
+        var today = new Date().toISOString().split('T')[0];
+        localStorage.setItem('btc_nacho_story_notif_dismissed', today);
+        var dot = document.getElementById('nachoStoryNotif');
+        if (dot) dot.style.display = 'none';
+    };
+    window.nachoClosetNotifClear = function() {
+        var owned = safeJSON('btc_spin_closet_items', []);
+        localStorage.setItem('btc_closet_viewed', JSON.stringify(owned));
+        var dot = document.getElementById('nachoClosetNotif');
+        if (dot) dot.style.display = 'none';
+    };
+    // Check notifications on load and periodically
+    setTimeout(function() { if (typeof updateNachoNotifs === 'function') updateNachoNotifs(); }, 2000);
+    setInterval(function() { if (typeof updateNachoNotifs === 'function') updateNachoNotifs(); }, 60000);
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
