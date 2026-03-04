@@ -4640,7 +4640,7 @@ function createNacho() {
         #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-closet-btn, #nacho-avatar .nacho-story-btn {
             position: absolute;
-            right: -35px;
+            right: -32px;
             font-size: 0.85rem;
             cursor: pointer;
             pointer-events: auto;
@@ -4657,7 +4657,7 @@ function createNacho() {
             z-index: 5;
         }
         #nacho-avatar .nacho-closet-btn { top: -5px; }
-        #nacho-avatar .nacho-story-btn { top: 24px; }
+        #nacho-avatar .nacho-story-btn { top: 25px; right: -32px; }
         #nacho-avatar .nacho-closet-btn:hover, #nacho-avatar .nacho-story-btn:hover {
             opacity: 1;
             transform: scale(1.15);
@@ -4987,23 +4987,29 @@ function createNacho() {
         var closetTouched = false;
         closetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); }, false);
         closetBtn.addEventListener('touchstart', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); closetTouched = true; }, { passive: false });
+        function openNachoCloset() {
+            window._expanded_closet = true;
+            window._pendingClosetScroll = true;
+            // Open settings first (ensures modal is ready), then switch to data/closet tab
+            try {
+                if (typeof showSettings === 'function') showSettings();
+                setTimeout(function() {
+                    if (typeof showSettingsPage === 'function') showSettingsPage('data');
+                }, 150);
+            } catch(err) {}
+            if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
+        }
         closetBtn.addEventListener('touchend', function(e) {
             e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
             if (closetTouched) {
                 closetTouched = false;
-                window._expanded_closet = true;
-                window._pendingClosetScroll = true;
-                try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
-                if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
+                openNachoCloset();
             }
         }, { passive: false });
         closetBtn.addEventListener('click', function(e) {
             e.stopPropagation(); e.stopImmediatePropagation();
-            if (!closetTouched) { // Only fire on non-touch (mouse) clicks
-                window._expanded_closet = true;
-                window._pendingClosetScroll = true;
-                try { if (typeof showSettingsPage === 'function') showSettingsPage('data'); } catch(err) {}
-                if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
+            if (!closetTouched) {
+                openNachoCloset();
             }
             closetTouched = false;
         }, false);
