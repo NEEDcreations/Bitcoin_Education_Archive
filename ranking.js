@@ -534,28 +534,13 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Mobile/touch devices: use redirect flow directly (popups are unreliable on mobile)
-    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent);
+    // Strategy: Try popup FIRST on all platforms (including mobile).
+    // signInWithRedirect is broken on many mobile browsers (Safari ITP, storage partitioning).
+    // Popup works on Chrome Android, Samsung, Firefox, and most modern mobile browsers.
+    // Only use redirect as a last resort for true in-app browsers that block popups entirely.
 
     try {
-        if (isMobileDevice) {
-            // MOBILE: Go straight to redirect — popups silently hang on many mobile browsers
-            showToast('⏳ Redirecting to sign in...');
-            const anonUser = auth.currentUser;
-            if (anonUser && anonUser.isAnonymous) {
-                localStorage.setItem('btc_anon_uid', anonUser.uid);
-                try {
-                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                    if (anonDoc.exists) {
-                        localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                    }
-                } catch(e2) {}
-            }
-            await auth.signInWithRedirect(provider);
-            return;
-        }
-
-        // DESKTOP: Try popup first (better UX — stays on page)
+        // ALL PLATFORMS: Try popup first
         const { anonUid, anonData } = await saveAnonData();
 
         const result = await auth.signInWithPopup(provider);
@@ -563,11 +548,13 @@ async function signInWithProvider(provider) {
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
 
-        // Popup blocked or closed — fallback to redirect flow
+        // Popup blocked, closed, or failed — fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
-            e.code === 'auth/cancelled-popup-request') {
+            e.code === 'auth/cancelled-popup-request' ||
+            e.code === 'auth/popup-closed-by-user' ||
+            e.code === 'auth/internal-error') {
             try {
-                showToast('⏳ Popup blocked — redirecting to sign in...');
+                showToast('⏳ Opening sign-in page...');
                 // Save anon data to localStorage so redirect return can recover it
                 const anonUser = auth.currentUser;
                 if (anonUser && anonUser.isAnonymous) {
