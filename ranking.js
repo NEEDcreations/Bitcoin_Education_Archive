@@ -798,10 +798,18 @@ async function loadUser(uid, prefetchedDoc) {
                     localStorage.setItem('btc_prediction', JSON.stringify(currentUser.prediction));
                 }
             }
+            if (currentUser.nachoStoryDays && Array.isArray(currentUser.nachoStoryDays)) {
+                // Restore the days array (source of truth for chapter unlocks)
+                var localDays = safeJSON('btc_nacho_story_days', []);
+                // Merge: take the longer array (more days = more chapters unlocked)
+                if (currentUser.nachoStoryDays.length > localDays.length) {
+                    localStorage.setItem('btc_nacho_story_days', JSON.stringify(currentUser.nachoStoryDays));
+                }
+            }
             if (currentUser.nachoStoryProgress) {
-                var localStory = parseInt(localStorage.getItem('btc_nacho_story') || '0');
+                var localStory = parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');
                 if (currentUser.nachoStoryProgress > localStory) {
-                    localStorage.setItem('btc_nacho_story', currentUser.nachoStoryProgress.toString());
+                    localStorage.setItem('btc_nacho_story_highest', currentUser.nachoStoryProgress.toString());
                 }
             }
             if (currentUser.nachoStoryDate) {

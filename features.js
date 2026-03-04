@@ -298,6 +298,7 @@ const HIDDEN_BADGES = [
 })();
 
 // ---- Nacho Story (daily chapters) ----
+// Rule: 1 new chapter per calendar day. Day 1 = Chapter 1. Users can re-read unlocked chapters.
 window.showNachoStory = function(chapterOverride) {
     var CHAPTERS = [
         { title: "Chapter 1: The Genesis Block", text: "In the beginning, there was nothing but fiat. Nacho was just a young deer in the forest of traditional finance, nibbling on leaves of debt and drinking from streams of inflation. One cold January day in 2009, a mysterious message appeared carved into a tree: 'Chancellor on brink of second bailout for banks.' Nacho didn't understand it yet, but something had changed forever. A new kind of money had been born — one that no government could print, no bank could freeze, and no deer could counterfeit. It was called Bitcoin." },
@@ -309,39 +310,49 @@ window.showNachoStory = function(chapterOverride) {
         { title: "Chapter 7: Nacho's Mission", text: "Nacho looked around. So many deer — so many people — still didn't understand Bitcoin. They heard 'crypto' and thought of scams, memecoins, and celebrity tokens. But Bitcoin is different. It's the signal in the noise. So Nacho decided to dedicate his life to education. Not shilling. Not pumping. Teaching. Because the best way to orange-pill someone isn't to tell them to buy — it's to help them understand WHY. And that's why you're here. Welcome to the Archive. 🦌🟠" }
     ];
 
-    // Track user progress — new users always start at Chapter 1
-    var highestRead = parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');
-    var lastReadDate = localStorage.getItem('btc_nacho_story_date') || '';
     var today = new Date().toISOString().split('T')[0];
 
-    // Determine which chapter to show
-    var chIdx;
-    if (typeof chapterOverride === 'number') {
-        // User clicked a specific chapter (re-reading)
-        chIdx = chapterOverride;
-    } else if (highestRead === 0) {
-        // Brand new user — start at Chapter 1
-        chIdx = 0;
-    } else if (lastReadDate === today) {
-        // Already read today — show last read chapter (no advancement)
-        chIdx = Math.min(highestRead - 1, CHAPTERS.length - 1);
-    } else {
-        // New day — show next unread chapter
-        chIdx = Math.min(highestRead, CHAPTERS.length - 1);
+    // ===== PROGRESS SYSTEM =====
+    // unlockDays: array of dates (YYYY-MM-DD) when the user opened the story
+    // Each unique day in unlockDays unlocks 1 chapter (day 1 = ch1, day 2 = ch2, etc.)
+    var unlockDays = safeJSON('btc_nacho_story_days', []);
+
+    // If first ever visit, record today as day 1
+    if (unlockDays.length === 0) {
+        unlockDays.push(today);
+        localStorage.setItem('btc_nacho_story_days', JSON.stringify(unlockDays));
+    } else if (unlockDays.indexOf(today) === -1) {
+        // New calendar day — add it (unlocks next chapter)
+        unlockDays.push(today);
+        localStorage.setItem('btc_nacho_story_days', JSON.stringify(unlockDays));
     }
 
-    // Only advance progress if this is a NEW chapter being read for the first time
-    // AND it's a new day (or first ever read)
-    var isNewChapter = chIdx >= highestRead;
-    var isNewDay = lastReadDate !== today;
-    if (isNewChapter) {
-        highestRead = chIdx + 1;
-        localStorage.setItem('btc_nacho_story_highest', highestRead.toString());
-        localStorage.setItem('btc_nacho_story_date', today);
-        // Sync to Firebase
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            try { db.collection('users').doc(auth.currentUser.uid).update({ nachoStoryProgress: highestRead, nachoStoryDate: today }).catch(function(){}); } catch(e) {}
-        }
+    // Number of chapters unlocked = number of unique days visited (capped at total chapters)
+    var chaptersUnlocked = Math.min(unlockDays.length, CHAPTERS.length);
+
+    // Sync to Firebase
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        try { db.collection('users').doc(auth.currentUser.uid).update({
+            nachoStoryProgress: chaptersUnlocked,
+            nachoStoryDate: today,
+            nachoStoryDays: unlockDays
+        }).catch(function(){}); } catch(e) {}
+    }
+
+    // Also keep legacy key in sync for any code that reads it
+    localStorage.setItem('btc_nacho_story_highest', chaptersUnlocked.toString());
+    localStorage.setItem('btc_nacho_story_date', today);
+
+    // ===== DETERMINE WHICH CHAPTER TO SHOW =====
+    var chIdx;
+    if (typeof chapterOverride === 'number') {
+        // User clicked a specific chapter pill — only allow if unlocked
+        chIdx = Math.min(chapterOverride, chaptersUnlocked - 1);
+        if (chIdx < 0) chIdx = 0;
+    } else {
+        // Default: show the latest unlocked chapter
+        chIdx = chaptersUnlocked - 1;
+        if (chIdx < 0) chIdx = 0;
     }
 
     var ch = CHAPTERS[chIdx];
@@ -354,19 +365,27 @@ window.showNachoStory = function(chapterOverride) {
     // Build chapter selector pills
     var pillsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px;">';
     for (var i = 0; i < CHAPTERS.length; i++) {
-        var unlocked = i < highestRead;
+        var unlocked = i < chaptersUnlocked;
         var isCurrent = i === chIdx;
-        if (unlocked || i === highestRead) {
-            pillsHtml += '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + i + ')" style="width:32px;height:32px;border-radius:50%;border:' + (isCurrent ? '2px solid #f7931a' : '1px solid var(--border,#333)') + ';background:' + (isCurrent ? '#f7931a' : unlocked ? 'var(--card-bg,#1a1a2e)' : 'var(--bg-side,#0a0a1a)') + ';color:' + (isCurrent ? '#000' : unlocked ? 'var(--text,#e2e8f0)' : 'var(--text-faint,#475569)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + (i + 1) + '</button>';
+        if (unlocked) {
+            pillsHtml += '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + i + ')" style="width:32px;height:32px;border-radius:50%;border:' + (isCurrent ? '2px solid #f7931a' : '1px solid var(--border,#333)') + ';background:' + (isCurrent ? '#f7931a' : 'var(--card-bg,#1a1a2e)') + ';color:' + (isCurrent ? '#000' : 'var(--text,#e2e8f0)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + (i + 1) + '</button>';
         } else {
             pillsHtml += '<button disabled style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border,#222);background:var(--bg-side,#0a0a1a);color:var(--text-faint,#333);font-size:0.75rem;font-weight:700;cursor:not-allowed;display:flex;align-items:center;justify-content:center;opacity:0.4;">🔒</button>';
         }
     }
     pillsHtml += '</div>';
 
-    // Nav buttons
+    // Nav buttons — only navigate to unlocked chapters
     var prevBtn = chIdx > 0 ? '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx - 1) + ')" style="padding:8px 16px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#e2e8f0);font-size:0.85rem;cursor:pointer;font-weight:600;">← Prev</button>' : '<span></span>';
-    var nextBtn = (chIdx < highestRead && chIdx < CHAPTERS.length - 1) ? '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx + 1) + ')" style="padding:8px 16px;background:#f7931a;border:none;border-radius:8px;color:#000;font-size:0.85rem;cursor:pointer;font-weight:700;">Next →</button>' : (chIdx < CHAPTERS.length - 1 ? '<span style="color:var(--text-faint,#475569);font-size:0.8rem;">🔒 Come back tomorrow!</span>' : '<span style="color:#22c55e;font-size:0.8rem;">✅ Story Complete!</span>');
+    var nextBtn;
+    if (chIdx + 1 < chaptersUnlocked && chIdx < CHAPTERS.length - 1) {
+        // Next chapter is unlocked
+        nextBtn = '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx + 1) + ')" style="padding:8px 16px;background:#f7931a;border:none;border-radius:8px;color:#000;font-size:0.85rem;cursor:pointer;font-weight:700;">Next →</button>';
+    } else if (chIdx >= CHAPTERS.length - 1) {
+        nextBtn = '<span style="color:#22c55e;font-size:0.8rem;">✅ Story Complete!</span>';
+    } else {
+        nextBtn = '<span style="color:var(--text-faint,#475569);font-size:0.8rem;">🔒 Come back tomorrow!</span>';
+    }
 
     var card = document.createElement('div');
     card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;color:var(--text,#e2e8f0);font-family:inherit;';
@@ -374,14 +393,17 @@ window.showNachoStory = function(chapterOverride) {
         pillsHtml +
         '<h2 style="color:#f7931a;margin:0 0 12px;font-size:1.2rem;">' + ch.title + '</h2>' +
         '<p style="line-height:1.7;font-size:0.95rem;margin:0 0 16px;">' + ch.text + '</p>' +
-        '<div style="text-align:center;color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:16px;">📖 Chapter ' + (chIdx + 1) + ' of ' + CHAPTERS.length + ' · Progress: ' + Math.min(highestRead, CHAPTERS.length) + '/' + CHAPTERS.length + '</div>' +
+        '<div style="text-align:center;color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:16px;">📖 Chapter ' + (chIdx + 1) + ' of ' + CHAPTERS.length + ' · ' + chaptersUnlocked + ' unlocked (' + (CHAPTERS.length - chaptersUnlocked) + ' remaining)</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' + prevBtn + nextBtn + '</div>' +
         '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="display:block;width:100%;margin-top:8px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#94a3b8);padding:10px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Close</button>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Award points for first time reading each chapter
-    if (typeof awardPoints === 'function' && chIdx === highestRead - 1 && typeof chapterOverride === 'undefined') {
+    // Award points for reading the newest unlocked chapter (first time only)
+    var awardedChapters = safeJSON('btc_nacho_story_awarded', []);
+    if (typeof awardPoints === 'function' && awardedChapters.indexOf(chIdx) === -1 && typeof chapterOverride === 'undefined') {
+        awardedChapters.push(chIdx);
+        localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
         awardPoints(5, '📖 Read Chapter ' + (chIdx + 1));
     }
 };
