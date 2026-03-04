@@ -20695,6 +20695,7 @@ if (document.readyState === 'loading') {
         let navHtml = '<div style="display:flex;gap:12px;justify-content:center;align-items:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;flex-wrap:wrap;">';
         navHtml += '<button onclick="go(\''+ prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
         navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
+        navHtml += '<button onclick="goRandomGraphic()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Graphic">📊</button>';
         navHtml += '<button onclick="goRandomArt()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Art">🎨</button>';
         navHtml += '<button onclick="goRandomMeme()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Meme">😂</button>';
         navHtml += '<button onclick="go(\''+ nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
@@ -20830,6 +20831,7 @@ if (document.readyState === 'loading') {
 
     function goRandomMeme() { return goRandomFromChannel('memes-funny', '😂', 'Next Random Meme'); }
     function goRandomArt() { return goRandomFromChannel('art-inspiration', '🎨', 'Next Random Art'); }
+    function goRandomGraphic() { return goRandomFromChannel('graphics', '📊', 'Next Random Graphic'); }
 
     function showFloatingBtn(channelId, emoji, label) {
         var btn = document.getElementById('floatingRandomBtn');
@@ -20853,6 +20855,7 @@ if (document.readyState === 'loading') {
 
     window.goRandomMeme = goRandomMeme;
     window.goRandomArt = goRandomArt;
+    window.goRandomGraphic = goRandomGraphic;
 
     window.loadMoreGallery = function() {
         const imgs = window._galleryImgs;
@@ -23017,8 +23020,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'n') { if (typeof enterNachoMode === 'function') enterNachoMode(); return; }
         // T = toggle theme (dark/light)
         if (key === 't') { var tb = document.getElementById('themeToggle'); if (tb) tb.click(); return; }
-        // G = gallery view (on supported channels)
-        if (key === 'g') { var gb = document.getElementById('galleryBtn'); if (gb) gb.click(); return; }
+        // V = gallery view (on supported channels)
+        if (key === 'v') { var gb = document.getElementById('galleryBtn'); if (gb) gb.click(); return; }
+        // G = random graphic
+        if (key === 'g') { if (typeof goRandomGraphic === 'function') goRandomGraphic(); return; }
 
         // === Scroll ===
         // J = scroll down
@@ -23120,11 +23125,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
                 kbRow('H','Go home') + kbRow('S / /','Search') + kbRow('C','Random channel') +
-                kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('B','Back to last channel') +
+                kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('G','Random Graphic') + kbRow('B','Back to last channel') +
                 kbRow('P','PlebTalk (Forum)') + kbRow('X','Marketplace (Mart)') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
                 kbRow('L','Leaderboard') + kbRow('Q','Start quest') + kbRow('Z','Favorite channel') +
-                kbRow('N','Talk to Nacho') + kbRow('T','Toggle theme') + kbRow('G','Gallery view') +
+                kbRow('N','Talk to Nacho') + kbRow('T','Toggle theme') + kbRow('V','Gallery view') +
                 kbRow('I','Settings') + kbRow('D','Donate') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
                 kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
@@ -23761,6 +23766,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_random', title: '🎲 Random Channel', desc: 'Jump to a random Bitcoin channel', keywords: 'random channel surprise discover explore dice', action: 'goRandom()' },
         { id: '_meme', title: '😂 Random Meme', desc: 'See a random Bitcoin meme', keywords: 'meme funny joke random humor laugh memes', action: 'goRandomMeme()' },
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
+        { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
@@ -24315,6 +24321,7 @@ if (typeof goHome !== 'undefined') window.goHome = goHome;
 if (typeof goRandom !== 'undefined') window.goRandom = goRandom;
 if (typeof goRandomArt !== 'undefined') window.goRandomArt = goRandomArt;
 if (typeof goRandomMeme !== 'undefined') window.goRandomMeme = goRandomMeme;
+if (typeof goRandomGraphic !== 'undefined') window.goRandomGraphic = goRandomGraphic;
 if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
 if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
