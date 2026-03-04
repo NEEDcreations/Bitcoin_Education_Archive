@@ -77,8 +77,13 @@
         if (!favsList) return;
         
         var favs = getFavs();
-        if (favs.length === 0) { 
+        var bookmarks = safeJSON('btc_bookmarks', []);
+        var hasContent = favs.length > 0 || bookmarks.length > 0;
+
+        if (!hasContent) { 
             favsList.innerHTML = ''; 
+            var bmList = document.getElementById('bookmarksList');
+            if (bmList) bmList.innerHTML = '';
             if (favsSection) favsSection.style.display = 'none';
             return; 
         }
@@ -91,6 +96,22 @@
             html += '<div onclick="go(\''+ id + '\')" style="margin-bottom:2px;padding:8px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' + label + '</div>';
         });
         favsList.innerHTML = html;
+
+        // Render bookmarked messages below saved channels
+        var bmList = document.getElementById('bookmarksList');
+        if (bmList) {
+            if (bookmarks.length === 0) {
+                bmList.innerHTML = '';
+            } else {
+                var bmHtml = '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;font-weight:700;padding:6px 12px 2px;">🔖 Bookmarked Messages</div>';
+                bookmarks.slice(0, 15).forEach(function(b) {
+                    var ch = (typeof CHANNELS !== 'undefined' && CHANNELS[b.channel]) ? CHANNELS[b.channel] : null;
+                    var chLabel = ch ? (ch.emoji || '') + ' ' + (ch.name || b.channel) : b.channel;
+                    bmHtml += '<div onclick="go(\'' + b.channel + '\');setTimeout(function(){var el=document.getElementById(\'msg-' + b.idx + '\');if(el){el.scrollIntoView({behavior:\'smooth\',block:\'center\'});el.style.boxShadow=\'0 0 20px rgba(247,147,26,0.4)\';el.style.borderColor=\'#f7931a\';setTimeout(function(){el.style.boxShadow=\'\';el.style.borderColor=\'\';},2000);}},500)" style="margin-bottom:2px;padding:6px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">🔖 ' + chLabel + '</div>';
+                });
+                bmList.innerHTML = bmHtml;
+            }
+        }
     }
     function setFavs(f) { localStorage.setItem('btc_favs', JSON.stringify(f)); renderFavs(); }
 
@@ -435,9 +456,10 @@
         } else {
             bookmarks.push({ channel: channelId, idx: msgIdx, ts: Date.now() });
             if (btn) { btn.style.opacity = '1'; btn.innerHTML = '🔖'; }
-            if (typeof showToast === 'function') showToast('🔖 Bookmarked! View in Settings');
+            if (typeof showToast === 'function') showToast('🔖 Saved to sidebar');
         }
         localStorage.setItem('btc_bookmarks', JSON.stringify(bookmarks));
+        renderFavs();
     };
 
     window.loadMoreGallery = function() {
