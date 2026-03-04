@@ -2022,9 +2022,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'bookmarks', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', bookmarks: '🔖', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', bookmarks: 'Saved', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -2165,6 +2165,34 @@ function showSettingsPage(tab) {
             '</div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'bookmarks') {
+        // Bookmarks — saved messages
+        var bookmarks = typeof safeJSON === 'function' ? safeJSON('btc_bookmarks', []) : [];
+        html += '<div style="margin-bottom:20px;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🔖</div>' +
+            '<div style="font-size:1.3rem;font-weight:800;color:var(--heading);margin-bottom:4px;">My Bookmarks</div>' +
+            '<div style="font-size:0.85rem;color:var(--text-muted);">' + bookmarks.length + ' saved</div>' +
+        '</div>';
+        if (bookmarks.length === 0) {
+            html += '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px dashed var(--border);border-radius:16px;">' +
+                '<div style="font-size:3rem;margin-bottom:12px;">🔖</div>' +
+                '<div style="color:var(--text-muted);font-size:0.9rem;">Bookmark messages to save them here.<br>Click the 🔖 icon on any message!</div>' +
+            '</div>';
+        } else {
+            html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+            bookmarks.slice(0, 20).forEach(function(b) {
+                var chName = (typeof CHANNELS !== 'undefined' && CHANNELS[b.channel]) ? CHANNELS[b.channel].name : b.channel;
+                html += '<div onclick="hideUsernamePrompt();go(\'' + b.channel + '\');setTimeout(function(){var el=document.getElementById(\'msg-' + b.idx + '\');if(el){el.scrollIntoView({behavior:\'smooth\',block:\'center\'});el.style.background=\'var(--accent-bg)\';setTimeout(function(){el.style.background=\'\'},2000);}},300)" style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:0.2s;touch-action:manipulation;">' +
+                    '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">' + chName + '</div>' +
+                    '<div style="color:var(--text);font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Message #' + (b.idx + 1) + '</div>' +
+                '</div>';
+            });
+            html += '</div>';
+            if (bookmarks.length > 20) {
+                html += '<div style="text-align:center;margin-top:12px;color:var(--text-muted);font-size:0.8rem;">Showing 20 of ' + bookmarks.length + ' bookmarks</div>';
+            }
+        }
 
     } else if (settingsTab === 'scholar') {
         // Scholar — Quests, Certifications, Flashcards
@@ -19291,6 +19319,12 @@ const HIDDEN_BADGES = [
     { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', pts: 100, desc: 'Visit 15+ channels in one session', hidden: true, check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 15; } },
     { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', pts: 300, desc: 'Pass the Scholar Certification', hidden: true, check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
     { id: 'nacho_20q', name: '20 Questions', emoji: '🏅', pts: 500, desc: 'Ask Nacho 20 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 20; } },
+    // === CHANNEL EXPLORATION MILESTONES ===
+    { id: 'explorer_10', name: 'Curious Pleb', emoji: '🗺️', pts: 100, desc: 'Explore 10 channels', hint: 'Keep exploring!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 10) + '/10'; } },
+    { id: 'explorer_25', name: 'Rabbit Holer', emoji: '🐇', pts: 250, desc: 'Explore 25 channels', hint: 'Dive deeper!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 25; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 25) + '/25'; } },
+    { id: 'explorer_50', name: 'Half Stack', emoji: '📚', pts: 500, desc: 'Explore 50 channels', hint: 'Halfway there!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 50; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 50) + '/50'; } },
+    { id: 'explorer_100', name: 'Century Club', emoji: '💯', pts: 1000, desc: 'Explore 100 channels', hint: 'Almost all of them!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 100; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 100) + '/100'; } },
+    { id: 'explorer_all', name: 'Archive Master', emoji: '👑', pts: 2000, desc: 'Explore every single channel', hint: 'Visit them all!', hidden: true, check: function() { return typeof CHANNELS !== 'undefined' && safeJSON('btc_visited_channels', []).length >= Object.keys(CHANNELS).length; } },
 ];
 
 
@@ -20439,8 +20473,8 @@ if (document.readyState === 'loading') {
                                 📍 ${ev.locationName || 'TBD'}
                             </div>
                             <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid var(--border);">
-                                <div style="font-size:0.8rem;color:var(--text-muted);">${ev.attendeesCount || 0} attending</div>
-                                <button style="background:var(--bg-side);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;">Join</button>
+                                <div id="rsvp-count-${doc.id}" style="font-size:0.8rem;color:var(--text-muted);">${(ev.attendees || []).length || ev.attendeesCount || 0} attending</div>
+                                <button id="rsvp-btn-${doc.id}" onclick="event.stopPropagation();toggleRSVP('${doc.id}')" style="background:${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? 'var(--accent)' : 'var(--bg-side)'};color:${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? '#fff' : 'var(--text)'};border:1px solid ${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? 'var(--accent)' : 'var(--border)'};padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;touch-action:manipulation;">${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? "✅ I'm Going" : "I'm Going!"}</button>
                             </div>
                         </div>
                     </div>
@@ -20452,6 +20486,38 @@ if (document.readyState === 'loading') {
             grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--text-muted);">Error frequency interference. Try a hard refresh.</div>`;
         }
     }
+
+    window.toggleRSVP = async function(eventId) {
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showToast === 'function') showToast('Sign in to RSVP!');
+            return;
+        }
+        var uid = auth.currentUser.uid;
+        var btn = document.getElementById('rsvp-btn-' + eventId);
+        var countEl = document.getElementById('rsvp-count-' + eventId);
+        try {
+            var ref = db.collection('irl_events').doc(eventId);
+            var doc = await ref.get();
+            if (!doc.exists) return;
+            var attendees = doc.data().attendees || [];
+            var isGoing = attendees.indexOf(uid) !== -1;
+            if (isGoing) {
+                await ref.update({ attendees: firebase.firestore.FieldValue.arrayRemove(uid) });
+                if (btn) { btn.textContent = "I'm Going!"; btn.style.background = 'var(--bg-side)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--border)'; }
+                if (countEl) countEl.textContent = Math.max(0, attendees.length - 1) + ' attending';
+                if (typeof showToast === 'function') showToast('👋 RSVP removed');
+            } else {
+                await ref.update({ attendees: firebase.firestore.FieldValue.arrayUnion(uid) });
+                if (btn) { btn.textContent = "✅ I'm Going"; btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--accent)'; }
+                if (countEl) countEl.textContent = (attendees.length + 1) + ' attending';
+                if (typeof showToast === 'function') showToast("🤝 You're going! See you there!");
+            }
+        } catch(e) {
+            console.error('RSVP error:', e);
+            if (typeof showToast === 'function') showToast('Could not update RSVP. Try again.');
+        }
+    };
 
     window.showHostEventModal = function() {
         if (!auth.currentUser) {
@@ -20765,6 +20831,9 @@ if (document.readyState === 'loading') {
                             html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
                         }
                     });
+                    var msgIdx = startIdx + bi;
+                    var isBookmarked = safeJSON('btc_bookmarks', []).some(function(b) { return b.channel === id && b.idx === msgIdx; });
+                    html += '<button onclick="toggleBookmark(\'' + id + '\',' + msgIdx + ',this)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:' + (isBookmarked ? '1' : '0.3') + ';padding:4px;margin-top:4px;transition:0.2s;touch-action:manipulation;" title="Bookmark">' + (isBookmarked ? '🔖' : '🔖') + '</button>';
                     html += '</div>';
                 });
                 return html;
@@ -20961,6 +21030,21 @@ if (document.readyState === 'loading') {
     window.goRandomMeme = goRandomMeme;
     window.goRandomArt = goRandomArt;
     window.goRandomGraphic = goRandomGraphic;
+
+    window.toggleBookmark = function(channelId, msgIdx, btn) {
+        var bookmarks = safeJSON('btc_bookmarks', []);
+        var existing = bookmarks.findIndex(function(b) { return b.channel === channelId && b.idx === msgIdx; });
+        if (existing !== -1) {
+            bookmarks.splice(existing, 1);
+            if (btn) { btn.style.opacity = '0.3'; btn.innerHTML = '🔖'; }
+            if (typeof showToast === 'function') showToast('🔖 Bookmark removed');
+        } else {
+            bookmarks.push({ channel: channelId, idx: msgIdx, ts: Date.now() });
+            if (btn) { btn.style.opacity = '1'; btn.innerHTML = '🔖'; }
+            if (typeof showToast === 'function') showToast('🔖 Bookmarked! View in Settings');
+        }
+        localStorage.setItem('btc_bookmarks', JSON.stringify(bookmarks));
+    };
 
     window.loadMoreGallery = function() {
         const imgs = window._galleryImgs;
@@ -23519,7 +23603,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Call updates
     updateSidebarTiers();
-    setInterval(updateSidebarTiers, 10000);
+    window._sidebarTierInterval = setInterval(updateSidebarTiers, 10000);
 
     // Audio system
     window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';
@@ -23796,7 +23880,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Setup load-more for list view
         window._currentMsgs = d.msgs;
         window._currentOffset = 50;
+        window._currentLoadChannel = id;
         window.loadMoreMsgs = function() {
+            // Guard against stale closure from rapid channel navigation
+            if (window._currentLoadChannel !== currentChannelId) return;
             const offset = window._currentOffset;
             const msgs = window._currentMsgs;
             const btn = document.getElementById('loadMoreBtn');
@@ -23926,8 +24013,25 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
 
         if (!q || q.length < 2) {
-            sr.classList.remove('active');
-            sr.innerHTML = '';
+            // Show recent searches + trending when empty
+            var recentSearches = safeJSON('btc_recent_searches', []);
+            if (recentSearches.length > 0 && sr) {
+                var recentHtml = '<div style="padding:16px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;font-weight:700;">🕐 Recent Searches</div>' +
+                        '<button onclick="localStorage.removeItem(\'btc_recent_searches\');doSearch(\'\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">Clear</button>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+                recentSearches.forEach(function(s) {
+                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/'/g, "\\'") + '\';doSearch(\'' + s.replace(/'/g, "\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
+                });
+                recentHtml += '</div></div>';
+                sr.innerHTML = recentHtml;
+                sr.classList.add('active');
+            } else {
+                sr.classList.remove('active');
+                sr.innerHTML = '';
+            }
             if (cl) cl.style.display = '';
             return;
         }
@@ -24026,9 +24130,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         }).join('');
     }
 
+    function saveRecentSearch(q) {
+        if (!q || q.length < 2) return;
+        var recent = safeJSON('btc_recent_searches', []);
+        // Remove if already exists (move to front)
+        recent = recent.filter(function(s) { return s.toLowerCase() !== q.toLowerCase(); });
+        recent.unshift(q.length > 40 ? q.substring(0, 40) : q);
+        if (recent.length > 10) recent = recent.slice(0, 10);
+        localStorage.setItem('btc_recent_searches', JSON.stringify(recent));
+    }
+
     function selectResult(key) {
-        document.getElementById('searchInput').value = '';
-        if (document.getElementById('searchOverlayInput')) document.getElementById('searchOverlayInput').value = '';
+        // Save the current search query to recent searches
+        var overlayInput = document.getElementById('searchOverlayInput');
+        var sideInput = document.getElementById('searchInput');
+        var query = (overlayInput && overlayInput.value) || (sideInput && sideInput.value) || '';
+        saveRecentSearch(query);
+        if (sideInput) sideInput.value = '';
+        if (overlayInput) overlayInput.value = '';
         document.getElementById('searchOverlay').style.display = 'none';
         doSearch('');
         go(key);

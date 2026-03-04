@@ -225,6 +225,9 @@
                             html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy">';
                         }
                     });
+                    var msgIdx = startIdx + bi;
+                    var isBookmarked = safeJSON('btc_bookmarks', []).some(function(b) { return b.channel === id && b.idx === msgIdx; });
+                    html += '<button onclick="toggleBookmark(\'' + id + '\',' + msgIdx + ',this)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:' + (isBookmarked ? '1' : '0.3') + ';padding:4px;margin-top:4px;transition:0.2s;touch-action:manipulation;" title="Bookmark">' + (isBookmarked ? '🔖' : '🔖') + '</button>';
                     html += '</div>';
                 });
                 return html;
@@ -421,6 +424,21 @@
     window.goRandomMeme = goRandomMeme;
     window.goRandomArt = goRandomArt;
     window.goRandomGraphic = goRandomGraphic;
+
+    window.toggleBookmark = function(channelId, msgIdx, btn) {
+        var bookmarks = safeJSON('btc_bookmarks', []);
+        var existing = bookmarks.findIndex(function(b) { return b.channel === channelId && b.idx === msgIdx; });
+        if (existing !== -1) {
+            bookmarks.splice(existing, 1);
+            if (btn) { btn.style.opacity = '0.3'; btn.innerHTML = '🔖'; }
+            if (typeof showToast === 'function') showToast('🔖 Bookmark removed');
+        } else {
+            bookmarks.push({ channel: channelId, idx: msgIdx, ts: Date.now() });
+            if (btn) { btn.style.opacity = '1'; btn.innerHTML = '🔖'; }
+            if (typeof showToast === 'function') showToast('🔖 Bookmarked! View in Settings');
+        }
+        localStorage.setItem('btc_bookmarks', JSON.stringify(bookmarks));
+    };
 
     window.loadMoreGallery = function() {
         const imgs = window._galleryImgs;
@@ -2979,7 +2997,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Call updates
     updateSidebarTiers();
-    setInterval(updateSidebarTiers, 10000);
+    window._sidebarTierInterval = setInterval(updateSidebarTiers, 10000);
 
     // Audio system
     window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';
@@ -3256,7 +3274,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Setup load-more for list view
         window._currentMsgs = d.msgs;
         window._currentOffset = 50;
+        window._currentLoadChannel = id;
         window.loadMoreMsgs = function() {
+            // Guard against stale closure from rapid channel navigation
+            if (window._currentLoadChannel !== currentChannelId) return;
             const offset = window._currentOffset;
             const msgs = window._currentMsgs;
             const btn = document.getElementById('loadMoreBtn');
@@ -3386,8 +3407,25 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
 
         if (!q || q.length < 2) {
-            sr.classList.remove('active');
-            sr.innerHTML = '';
+            // Show recent searches + trending when empty
+            var recentSearches = safeJSON('btc_recent_searches', []);
+            if (recentSearches.length > 0 && sr) {
+                var recentHtml = '<div style="padding:16px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;font-weight:700;">🕐 Recent Searches</div>' +
+                        '<button onclick="localStorage.removeItem(\'btc_recent_searches\');doSearch(\'\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">Clear</button>' +
+                    '</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+                recentSearches.forEach(function(s) {
+                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/'/g, "\\'") + '\';doSearch(\'' + s.replace(/'/g, "\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
+                });
+                recentHtml += '</div></div>';
+                sr.innerHTML = recentHtml;
+                sr.classList.add('active');
+            } else {
+                sr.classList.remove('active');
+                sr.innerHTML = '';
+            }
             if (cl) cl.style.display = '';
             return;
         }
@@ -3486,9 +3524,24 @@ window.nachoQuizAnswer = function(btn, correct) {
         }).join('');
     }
 
+    function saveRecentSearch(q) {
+        if (!q || q.length < 2) return;
+        var recent = safeJSON('btc_recent_searches', []);
+        // Remove if already exists (move to front)
+        recent = recent.filter(function(s) { return s.toLowerCase() !== q.toLowerCase(); });
+        recent.unshift(q.length > 40 ? q.substring(0, 40) : q);
+        if (recent.length > 10) recent = recent.slice(0, 10);
+        localStorage.setItem('btc_recent_searches', JSON.stringify(recent));
+    }
+
     function selectResult(key) {
-        document.getElementById('searchInput').value = '';
-        if (document.getElementById('searchOverlayInput')) document.getElementById('searchOverlayInput').value = '';
+        // Save the current search query to recent searches
+        var overlayInput = document.getElementById('searchOverlayInput');
+        var sideInput = document.getElementById('searchInput');
+        var query = (overlayInput && overlayInput.value) || (sideInput && sideInput.value) || '';
+        saveRecentSearch(query);
+        if (sideInput) sideInput.value = '';
+        if (overlayInput) overlayInput.value = '';
         document.getElementById('searchOverlay').style.display = 'none';
         doSearch('');
         go(key);

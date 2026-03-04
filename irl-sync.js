@@ -96,8 +96,8 @@
                                 📍 ${ev.locationName || 'TBD'}
                             </div>
                             <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid var(--border);">
-                                <div style="font-size:0.8rem;color:var(--text-muted);">${ev.attendeesCount || 0} attending</div>
-                                <button style="background:var(--bg-side);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;">Join</button>
+                                <div id="rsvp-count-${doc.id}" style="font-size:0.8rem;color:var(--text-muted);">${(ev.attendees || []).length || ev.attendeesCount || 0} attending</div>
+                                <button id="rsvp-btn-${doc.id}" onclick="event.stopPropagation();toggleRSVP('${doc.id}')" style="background:${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? 'var(--accent)' : 'var(--bg-side)'};color:${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? '#fff' : 'var(--text)'};border:1px solid ${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? 'var(--accent)' : 'var(--border)'};padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;touch-action:manipulation;">${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? "✅ I'm Going" : "I'm Going!"}</button>
                             </div>
                         </div>
                     </div>
@@ -109,6 +109,38 @@
             grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--text-muted);">Error frequency interference. Try a hard refresh.</div>`;
         }
     }
+
+    window.toggleRSVP = async function(eventId) {
+        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (typeof showSignInPrompt === 'function') showSignInPrompt();
+            else if (typeof showToast === 'function') showToast('Sign in to RSVP!');
+            return;
+        }
+        var uid = auth.currentUser.uid;
+        var btn = document.getElementById('rsvp-btn-' + eventId);
+        var countEl = document.getElementById('rsvp-count-' + eventId);
+        try {
+            var ref = db.collection('irl_events').doc(eventId);
+            var doc = await ref.get();
+            if (!doc.exists) return;
+            var attendees = doc.data().attendees || [];
+            var isGoing = attendees.indexOf(uid) !== -1;
+            if (isGoing) {
+                await ref.update({ attendees: firebase.firestore.FieldValue.arrayRemove(uid) });
+                if (btn) { btn.textContent = "I'm Going!"; btn.style.background = 'var(--bg-side)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--border)'; }
+                if (countEl) countEl.textContent = Math.max(0, attendees.length - 1) + ' attending';
+                if (typeof showToast === 'function') showToast('👋 RSVP removed');
+            } else {
+                await ref.update({ attendees: firebase.firestore.FieldValue.arrayUnion(uid) });
+                if (btn) { btn.textContent = "✅ I'm Going"; btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--accent)'; }
+                if (countEl) countEl.textContent = (attendees.length + 1) + ' attending';
+                if (typeof showToast === 'function') showToast("🤝 You're going! See you there!");
+            }
+        } catch(e) {
+            console.error('RSVP error:', e);
+            if (typeof showToast === 'function') showToast('Could not update RSVP. Try again.');
+        }
+    };
 
     window.showHostEventModal = function() {
         if (!auth.currentUser) {

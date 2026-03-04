@@ -217,9 +217,11 @@ service cloud.firestore {
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 3
                     && request.resource.data.title.size() <= 200;
+      // Host or admin can update any field; any auth user can RSVP (attendees only)
       allow update: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || request.auth.token.email == 'needcreations@gmail.com'
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees']));
       allow delete: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
                         || request.auth.token.email == 'needcreations@gmail.com');

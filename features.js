@@ -17,6 +17,12 @@ const HIDDEN_BADGES = [
     { id: 'speed_runner', name: 'Speed Runner', emoji: '⚡', pts: 100, desc: 'Visit 15+ channels in one session', hidden: true, check: function() { return typeof sessionChannels !== 'undefined' && sessionChannels.size >= 15; } },
     { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', pts: 300, desc: 'Pass the Scholar Certification', hidden: true, check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
     { id: 'nacho_20q', name: '20 Questions', emoji: '🏅', pts: 500, desc: 'Ask Nacho 20 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 20; } },
+    // === CHANNEL EXPLORATION MILESTONES ===
+    { id: 'explorer_10', name: 'Curious Pleb', emoji: '🗺️', pts: 100, desc: 'Explore 10 channels', hint: 'Keep exploring!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 10) + '/10'; } },
+    { id: 'explorer_25', name: 'Rabbit Holer', emoji: '🐇', pts: 250, desc: 'Explore 25 channels', hint: 'Dive deeper!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 25; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 25) + '/25'; } },
+    { id: 'explorer_50', name: 'Half Stack', emoji: '📚', pts: 500, desc: 'Explore 50 channels', hint: 'Halfway there!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 50; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 50) + '/50'; } },
+    { id: 'explorer_100', name: 'Century Club', emoji: '💯', pts: 1000, desc: 'Explore 100 channels', hint: 'Almost all of them!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 100; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 100) + '/100'; } },
+    { id: 'explorer_all', name: 'Archive Master', emoji: '👑', pts: 2000, desc: 'Explore every single channel', hint: 'Visit them all!', hidden: true, check: function() { return typeof CHANNELS !== 'undefined' && safeJSON('btc_visited_channels', []).length >= Object.keys(CHANNELS).length; } },
 ];
 
 

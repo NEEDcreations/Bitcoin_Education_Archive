@@ -1942,9 +1942,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'bookmarks', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', bookmarks: '🔖', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', bookmarks: 'Saved', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -2085,6 +2085,34 @@ function showSettingsPage(tab) {
             '</div>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'bookmarks') {
+        // Bookmarks — saved messages
+        var bookmarks = typeof safeJSON === 'function' ? safeJSON('btc_bookmarks', []) : [];
+        html += '<div style="margin-bottom:20px;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🔖</div>' +
+            '<div style="font-size:1.3rem;font-weight:800;color:var(--heading);margin-bottom:4px;">My Bookmarks</div>' +
+            '<div style="font-size:0.85rem;color:var(--text-muted);">' + bookmarks.length + ' saved</div>' +
+        '</div>';
+        if (bookmarks.length === 0) {
+            html += '<div style="text-align:center;padding:40px 20px;background:var(--card-bg);border:1px dashed var(--border);border-radius:16px;">' +
+                '<div style="font-size:3rem;margin-bottom:12px;">🔖</div>' +
+                '<div style="color:var(--text-muted);font-size:0.9rem;">Bookmark messages to save them here.<br>Click the 🔖 icon on any message!</div>' +
+            '</div>';
+        } else {
+            html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+            bookmarks.slice(0, 20).forEach(function(b) {
+                var chName = (typeof CHANNELS !== 'undefined' && CHANNELS[b.channel]) ? CHANNELS[b.channel].name : b.channel;
+                html += '<div onclick="hideUsernamePrompt();go(\'' + b.channel + '\');setTimeout(function(){var el=document.getElementById(\'msg-' + b.idx + '\');if(el){el.scrollIntoView({behavior:\'smooth\',block:\'center\'});el.style.background=\'var(--accent-bg)\';setTimeout(function(){el.style.background=\'\'},2000);}},300)" style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:0.2s;touch-action:manipulation;">' +
+                    '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">' + chName + '</div>' +
+                    '<div style="color:var(--text);font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Message #' + (b.idx + 1) + '</div>' +
+                '</div>';
+            });
+            html += '</div>';
+            if (bookmarks.length > 20) {
+                html += '<div style="text-align:center;margin-top:12px;color:var(--text-muted);font-size:0.8rem;">Showing 20 of ' + bookmarks.length + ' bookmarks</div>';
+            }
+        }
 
     } else if (settingsTab === 'scholar') {
         // Scholar — Quests, Certifications, Flashcards
