@@ -444,9 +444,16 @@ function createNacho() {
         }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
         #nacho-avatar:active { transform: scale(0.93); }
-        #nacho-avatar .nacho-closet-btn, #nacho-avatar .nacho-story-btn {
+        #nacho-avatar .nacho-btn-stack {
             position: absolute;
+            top: -5px;
             right: -32px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 5;
+        }
+        #nacho-avatar .nacho-closet-btn, #nacho-avatar .nacho-story-btn {
             font-size: 0.85rem;
             cursor: pointer;
             pointer-events: auto;
@@ -460,10 +467,8 @@ function createNacho() {
             justify-content: center;
             transition: 0.2s;
             opacity: 0.5;
-            z-index: 5;
+            position: relative;
         }
-        #nacho-avatar .nacho-closet-btn { top: -5px; }
-        #nacho-avatar .nacho-story-btn { top: 25px; right: -32px; }
         #nacho-avatar .nacho-closet-btn:hover, #nacho-avatar .nacho-story-btn:hover {
             opacity: 1;
             transform: scale(1.15);
@@ -774,8 +779,10 @@ function createNacho() {
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!" style="position:relative;">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!" style="position:relative;">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '<div class="nacho-btn-stack">' +
+                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '</div>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
             '<div class="nacho-header">' +
@@ -1267,7 +1274,7 @@ function _showBubble(text, pose) {
         var avatar = document.getElementById('nacho-avatar');
         if (!avatar || !avatar.contains(e.target)) return;
         // Don't drag if touching closet button or name label
-        if (e.target.closest('.nacho-closet-btn') || e.target.closest('.nacho-name')) return;
+        if (e.target.closest('.nacho-btn-stack') || e.target.closest('.nacho-name')) return;
         var c = getContainer();
         if (!c) return;
         dragging = true;
@@ -1323,7 +1330,7 @@ function _showBubble(text, pose) {
     document.addEventListener('mousedown', function(e) {
         var avatar = document.getElementById('nacho-avatar');
         if (!avatar || !avatar.contains(e.target)) return;
-        if (e.target.closest('.nacho-closet-btn') || e.target.closest('.nacho-name')) return;
+        if (e.target.closest('.nacho-btn-stack') || e.target.closest('.nacho-name')) return;
         var c = getContainer();
         if (!c) return;
         dragging = true;
