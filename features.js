@@ -158,6 +158,18 @@ const HIDDEN_BADGES = [
                     TICKER_ITEMS.push("Market: " + data.title + " for " + (data.priceSats || data.price) + " sats! 🛒");
                 });
             } catch(mktErr) { /* index not ready yet — skip marketplace ticker items */ }
+
+            // IRL Sync events
+            try {
+                const irlSnap = await db.collection('irl_events').where('date', '>=', new Date().toISOString()).orderBy('date', 'asc').limit(5).get();
+                irlSnap.forEach(doc => {
+                    const ev = doc.data();
+                    const d = new Date(ev.date);
+                    const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                    const loc = ev.locationName || 'TBD';
+                    TICKER_ITEMS.push("🤝 IRL Meetup: " + (ev.title || 'Bitcoin Meetup').substring(0, 35) + " — " + dateStr + " 📍 " + loc);
+                });
+            } catch(irlErr) { /* index not ready — skip IRL ticker items */ }
         } catch(e) { console.log("Ticker live data skipped:", e); }
 
         ticker.style.display = 'flex';
