@@ -21260,22 +21260,48 @@ if (document.readyState === 'loading') {
         joinLobby();
     };
 
-    window.exitPVPMode = function() {
+    window.exitPVPMode = function(skipForfeit) {
+        var wasInMatch = pvpState.inMatch;
+        var wasInLobby = pvpState.inLobby;
+        var matchId = pvpState.matchId;
+        var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
+        var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
+
+        // FORFEIT LOGIC — only if manually leaving (not after match result or disconnect)
+        if (wasInMatch && matchId && !skipForfeit) {
+            var db = getDb();
+            if (db) {
+                // Mark self as forfeited in the match doc
+                var update = {};
+                update['status'] = 'forfeit';
+                update['forfeitedBy'] = getMyUid();
+                update['forfeitReason'] = 'manual_leave';
+                db.collection('pvp_matches').doc(matchId).update(update).catch(function(){});
+
+                // Give leaver a loss
+                var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0') + 1;
+                localStorage.setItem('btc_pvp_losses', losses.toString());
+                savePVPStats(parseInt(localStorage.getItem('btc_pvp_wins') || '0'), losses);
+                if (typeof showToast === 'function') showToast('💀 You forfeited — counted as a loss');
+            }
+        } else if (wasInLobby && !wasInMatch) {
+            // Left lobby before match started — no penalty
+            if (typeof showToast === 'function') showToast('⚔️ Left PVP lobby');
+        } else if (!wasInMatch && !wasInLobby) {
+            if (typeof showToast === 'function') showToast('⚔️ Left PVP Mode');
+        }
+
         cleanupPVP();
         pvpState.active = false;
         pvpState.inLobby = false;
         pvpState.inMatch = false;
 
-        // Remove PVP overlay
         var overlay = document.getElementById('pvpOverlay');
         if (overlay) overlay.remove();
 
-        // Clean up hash
         if (window.location.hash === '#pvp') {
             history.pushState({ home: true }, '', window.location.pathname);
         }
-
-        if (typeof showToast === 'function') showToast('⚔️ Left PVP Mode');
     };
 
     // =============================================
@@ -21283,6 +21309,7 @@ if (document.readyState === 'loading') {
     // =============================================
     function cleanupPVP() {
         if (pvpState._matchPoll) { clearInterval(pvpState._matchPoll); pvpState._matchPoll = null; }
+        if (pvpState._heartbeat) { clearInterval(pvpState._heartbeat); pvpState._heartbeat = null; }
         if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
         if (pvpState.lobbyUnsub) { pvpState.lobbyUnsub(); pvpState.lobbyUnsub = null; }
 
@@ -21561,70 +21588,140 @@ if (document.readyState === 'loading') {
     }
 
     // =============================================
-    // MATCH FOUND — COUNTDOWN
+    // HELPER: Get player badge/level info
+    // =============================================
+    function getPlayerBadgeInfo(name, uid) {
+        var lvlEmoji = '🌱';
+        var lvlName = 'Newbie';
+        var pvpBadge = '';
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid) {
+            if (typeof getLevel === 'function') {
+                var lvl = getLevel(currentUser.points || 0);
+                lvlEmoji = lvl.emoji || '🌱';
+                lvlName = lvl.name || 'Newbie';
+            }
+            var w = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
+            if (w >= 100) pvpBadge = '👑';
+            else if (w >= 50) pvpBadge = '🏆';
+            else if (w >= 25) pvpBadge = '🏟️';
+            else if (w >= 5) pvpBadge = '🥊';
+            else if (w >= 1) pvpBadge = '⚔️';
+        }
+        return { emoji: lvlEmoji, name: lvlName, pvpBadge: pvpBadge };
+    }
+
+    // =============================================
+    // MATCH FOUND — BATTLE INTRO ANIMATION + COUNTDOWN
     // =============================================
     function showMatchFound() {
         var overlay = document.getElementById('pvpOverlay');
         if (!overlay) return;
 
+        var myName = getMyDisplayName();
+        var oppName = pvpState.opponentName;
+        var myInfo = getPlayerBadgeInfo(myName, getMyUid());
+
+        // Phase 1: Battle intro animation — names orbit and collide
         overlay.innerHTML =
+            '<style>' +
+                '@keyframes pvpOrbitLeft { ' +
+                    '0% { transform: translateX(-200px) translateY(0) scale(0.5); opacity: 0; }' +
+                    '30% { transform: translateX(-80px) translateY(-40px) scale(0.8); opacity: 1; }' +
+                    '60% { transform: translateX(20px) translateY(20px) scale(0.9); opacity: 1; }' +
+                    '100% { transform: translateX(0) translateY(0) scale(1); opacity: 1; }' +
+                '}' +
+                '@keyframes pvpOrbitRight { ' +
+                    '0% { transform: translateX(200px) translateY(0) scale(0.5); opacity: 0; }' +
+                    '30% { transform: translateX(80px) translateY(40px) scale(0.8); opacity: 1; }' +
+                    '60% { transform: translateX(-20px) translateY(-20px) scale(0.9); opacity: 1; }' +
+                    '100% { transform: translateX(0) translateY(0) scale(1); opacity: 1; }' +
+                '}' +
+                '@keyframes pvpVsSlam { ' +
+                    '0% { transform: scale(0); opacity: 0; }' +
+                    '60% { transform: scale(1.5); opacity: 1; }' +
+                    '100% { transform: scale(1); opacity: 1; }' +
+                '}' +
+                '@keyframes pvpShake { ' +
+                    '0%,100% { transform: translateX(0); }' +
+                    '25% { transform: translateX(-4px); }' +
+                    '75% { transform: translateX(4px); }' +
+                '}' +
+            '</style>' +
             '<div style="width:92%;max-width:480px;text-align:center;padding:20px;">' +
-                '<div style="font-size:2.5rem;margin-bottom:16px;animation:pvpSlideIn 0.5s ease;">⚔️</div>' +
-                '<h2 style="color:var(--accent);font-size:1.4rem;margin:0 0 8px;">MATCH FOUND!</h2>' +
-                '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:32px;">You vs <span style="color:var(--text);font-weight:700;">' + escHtml(pvpState.opponentName) + '</span></div>' +
-                // VS display
-                '<div style="display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:32px;">' +
-                    '<div style="text-align:center;">' +
-                        '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#e8720c);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 8px;">🟠</div>' +
-                        '<div style="color:var(--text);font-weight:700;font-size:0.85rem;">' + escHtml(getMyDisplayName()) + '</div>' +
+                '<div style="font-size:1.8rem;margin-bottom:8px;color:var(--accent);font-weight:900;letter-spacing:3px;animation:pvpSlideIn 0.4s ease;">MATCH FOUND</div>' +
+                '<div style="color:var(--text-faint);font-size:0.8rem;margin-bottom:32px;">Prepare for battle!</div>' +
+                // Battle intro — players orbit in
+                '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;min-height:120px;">' +
+                    // Player 1 (me)
+                    '<div id="pvpPlayer1Card" style="text-align:center;animation:pvpOrbitLeft 1.5s ease forwards;">' +
+                        '<div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#e8720c);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 8px;box-shadow:0 0 20px rgba(247,147,26,0.4);">' + myInfo.emoji + '</div>' +
+                        '<div style="color:var(--text);font-weight:800;font-size:0.9rem;">' + escHtml(myName) + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;">' + myInfo.name + (myInfo.pvpBadge ? ' ' + myInfo.pvpBadge : '') + '</div>' +
                     '</div>' +
-                    '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">VS</div>' +
-                    '<div style="text-align:center;">' +
-                        '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 8px;">🟣</div>' +
-                        '<div style="color:var(--text);font-weight:700;font-size:0.85rem;">' + escHtml(pvpState.opponentName) + '</div>' +
+                    // VS (slams in)
+                    '<div id="pvpVsText" style="font-size:2rem;font-weight:900;color:#ef4444;text-shadow:0 0 20px rgba(239,68,68,0.5);animation:pvpVsSlam 0.6s ease 1s forwards;opacity:0;">VS</div>' +
+                    // Player 2 (opponent)
+                    '<div id="pvpPlayer2Card" style="text-align:center;animation:pvpOrbitRight 1.5s ease forwards;">' +
+                        '<div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 8px;box-shadow:0 0 20px rgba(99,102,241,0.4);">🟣</div>' +
+                        '<div style="color:var(--text);font-weight:800;font-size:0.9rem;">' + escHtml(oppName) + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;">Loading...</div>' +
                     '</div>' +
                 '</div>' +
-                // Countdown
-                '<div id="pvpCountdown" style="font-size:4rem;font-weight:900;color:var(--accent);animation:pvpCountdown 0.5s ease;">3</div>' +
-                '<div style="color:var(--text-faint);font-size:0.8rem;margin-top:8px;">Get ready...</div>' +
+                // Countdown (appears after intro)
+                '<div id="pvpCountdown" style="font-size:4rem;font-weight:900;color:var(--accent);opacity:0;min-height:80px;"></div>' +
+                '<div id="pvpCountdownLabel" style="color:var(--text-faint);font-size:0.8rem;margin-top:8px;opacity:0;">Get ready...</div>' +
             '</div>';
 
-        // 3-2-1-BATTLE countdown
-        var countEl = document.getElementById('pvpCountdown');
-        var sequence = [3, 2, 1, 'BATTLE!'];
-        var step = 0;
-        var countInterval = setInterval(function() {
-            step++;
-            if (step >= sequence.length) {
-                clearInterval(countInterval);
-                // Show "BATTLE!" in big orange then start
+        if (typeof haptic === 'function') haptic('medium');
+
+        // Phase 2: After orbit animation (1.8s), shake the screen then start countdown
+        setTimeout(function() {
+            var overlay = document.getElementById('pvpOverlay');
+            if (overlay) overlay.style.animation = 'pvpShake 0.3s ease 2';
+            if (typeof haptic === 'function') haptic('heavy');
+        }, 1800);
+
+        // Phase 3: Start 3-2-1-BATTLE countdown at 2.5s
+        setTimeout(function() {
+            var countEl = document.getElementById('pvpCountdown');
+            var labelEl = document.getElementById('pvpCountdownLabel');
+            if (!countEl) return;
+            countEl.style.opacity = '1';
+            if (labelEl) labelEl.style.opacity = '1';
+            countEl.textContent = '3';
+            countEl.style.animation = 'pvpCountdown 0.5s ease';
+
+            var sequence = [2, 1, 'BATTLE!'];
+            var step = 0;
+            var countInterval = setInterval(function() {
+                if (step >= sequence.length) {
+                    clearInterval(countInterval);
+                    if (countEl) {
+                        countEl.textContent = '⚔️ BATTLE! ⚔️';
+                        countEl.style.color = '#f7931a';
+                        countEl.style.fontSize = '3rem';
+                        countEl.style.animation = 'none';
+                        countEl.offsetHeight;
+                        countEl.style.animation = 'pvpCountdown 0.5s ease';
+                    }
+                    if (typeof haptic === 'function') haptic('heavy');
+                    setTimeout(function() {
+                        if (!pvpState.isPlayer1) startNextQuestion();
+                    }, 1000);
+                    return;
+                }
                 if (countEl) {
-                    countEl.textContent = '⚔️ BATTLE! ⚔️';
-                    countEl.style.color = '#f7931a';
-                    countEl.style.fontSize = '3rem';
+                    countEl.textContent = sequence[step];
                     countEl.style.animation = 'none';
                     countEl.offsetHeight;
                     countEl.style.animation = 'pvpCountdown 0.5s ease';
+                    if (sequence[step] === 1) countEl.style.color = '#ef4444';
+                    else if (sequence[step] === 2) countEl.style.color = '#fbbf24';
                 }
-                if (typeof haptic === 'function') haptic('heavy');
-                // Wait a beat then show first question
-                setTimeout(function() {
-                    if (!pvpState.isPlayer1) {
-                        startNextQuestion();
-                    }
-                }, 1000);
-                return;
-            }
-            if (countEl) {
-                countEl.textContent = sequence[step];
-                countEl.style.animation = 'none';
-                countEl.offsetHeight;
-                countEl.style.animation = 'pvpCountdown 0.5s ease';
-                if (sequence[step] === 1) countEl.style.color = '#ef4444';
-                else if (sequence[step] === 2) countEl.style.color = '#fbbf24';
-            }
-            if (typeof haptic === 'function') haptic('light');
-        }, 1000);
+                if (typeof haptic === 'function') haptic('light');
+                step++;
+            }, 1000);
+        }, 2500);
     }
 
     // =============================================
@@ -21635,6 +21732,20 @@ if (document.readyState === 'loading') {
         if (!db) return;
 
         if (pvpState.listenerUnsub) pvpState.listenerUnsub();
+
+        // Start heartbeat — write presence every 5s so opponent can detect disconnects
+        if (pvpState._heartbeat) clearInterval(pvpState._heartbeat);
+        var myPresenceKey = pvpState.isPlayer1 ? 'player1LastSeen' : 'player2LastSeen';
+        pvpState._heartbeat = setInterval(function() {
+            if (!pvpState.inMatch || !pvpState.matchId) { clearInterval(pvpState._heartbeat); return; }
+            var upd = {};
+            upd[myPresenceKey] = Date.now();
+            db.collection('pvp_matches').doc(matchId).update(upd).catch(function(){});
+        }, 5000);
+        // Write first heartbeat immediately
+        var firstBeat = {};
+        firstBeat[myPresenceKey] = Date.now();
+        db.collection('pvp_matches').doc(matchId).update(firstBeat).catch(function(){});
 
         pvpState.listenerUnsub = db.collection('pvp_matches').doc(matchId)
             .onSnapshot(function(doc) {
@@ -21675,6 +21786,38 @@ if (document.readyState === 'loading') {
 
                 if (data.status === 'finished') {
                     renderMatchResult(data);
+                }
+
+                // Opponent forfeited
+                if (data.status === 'forfeit' && data.forfeitedBy !== getMyUid()) {
+                    var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
+                    var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
+                    var myQWins = 0, oppQWins = 0;
+                    var myA = data[myKey].answers || [];
+                    var opA = data[oppKey].answers || [];
+                    for (var fi = 0; fi < 5; fi++) {
+                        if (myA[fi] && myA[fi].won) myQWins++;
+                        if (opA[fi] && opA[fi].won) oppQWins++;
+                    }
+
+                    if (data.forfeitReason === 'manual_leave') {
+                        // Opponent manually left
+                        if (myQWins > oppQWins) {
+                            // I was winning — count as my win
+                            var w = parseInt(localStorage.getItem('btc_pvp_wins') || '0') + 1;
+                            localStorage.setItem('btc_pvp_wins', w.toString());
+                            savePVPStats(w, parseInt(localStorage.getItem('btc_pvp_losses') || '0'));
+                            if (typeof awardPoints === 'function') awardPoints(data[myKey].score || 10, '⚔️ PVP Victory (opponent forfeited)');
+                            renderForfeitScreen(true, 'Your opponent left the match. You win! 🏆');
+                        } else {
+                            // I was losing or tied — no win, no loss
+                            renderForfeitScreen(false, 'Your opponent left the match. No win or loss recorded.');
+                        }
+                    } else {
+                        // Disconnect — no penalty for either
+                        renderForfeitScreen(false, 'Your opponent disconnected. No win or loss recorded.');
+                    }
+                    if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
                 }
 
             }, function(err) {
@@ -22047,35 +22190,43 @@ if (document.readyState === 'loading') {
         var resultEmoji = iWon ? '🏆' : (isDraw ? '🤝' : '💀');
         var resultText = iWon ? 'VICTORY!' : (isDraw ? 'DRAW!' : 'DEFEAT');
         var resultColor = iWon ? '#22c55e' : (isDraw ? '#eab308' : '#ef4444');
+        var resultSubtext = iWon ? 'You dominated! ' + myQWins + ' rounds won.' : (isDraw ? 'Evenly matched! ' + myQWins + '–' + oppQWins + ' tie.' : 'Better luck next time. ' + oppQWins + ' rounds to ' + myQWins + '.');
+
+        // Toast notification
+        if (typeof showToast === 'function') {
+            if (iWon) showToast('🏆 PVP Victory! ' + myQWins + '–' + oppQWins + ' vs ' + escHtml(pvpState.opponentName));
+            else if (isDraw) showToast('🤝 PVP Draw! ' + myQWins + '–' + oppQWins + ' vs ' + escHtml(pvpState.opponentName));
+            else showToast('💀 PVP Defeat. ' + oppQWins + '–' + myQWins + ' vs ' + escHtml(pvpState.opponentName));
+        }
 
         overlay.innerHTML =
-            '<div style="width:92%;max-width:480px;text-align:center;padding:20px;">' +
-                '<div style="font-size:4rem;margin-bottom:12px;animation:pvpSlideIn 0.5s ease;">' + resultEmoji + '</div>' +
-                '<h1 style="color:' + resultColor + ';font-size:2rem;margin:0 0 8px;letter-spacing:2px;">' + resultText + '</h1>' +
-                '<div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:28px;">' +
-                    escHtml(getMyDisplayName()) + ' vs ' + escHtml(pvpState.opponentName) +
-                '</div>' +
-                // Final scores
-                '<div style="display:flex;justify-content:center;gap:40px;margin-bottom:24px;">' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:2.5rem;font-weight:900;color:' + (iWon ? '#22c55e' : 'var(--text)') + ';">' + myData.score + '</div>' +
-                        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Your Score</div>' +
-                        '<div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">' + myQWins + '/5 rounds won</div>' +
+            '<div style="width:92%;max-width:480px;text-align:center;padding:20px;animation:pvpSlideIn 0.5s ease;">' +
+                '<div style="font-size:4rem;margin-bottom:12px;">' + resultEmoji + '</div>' +
+                '<h1 style="color:' + resultColor + ';font-size:2.2rem;margin:0 0 4px;letter-spacing:3px;">' + resultText + '</h1>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">' + resultSubtext + '</div>' +
+                // Player cards with result labels
+                '<div style="display:flex;justify-content:center;gap:24px;margin-bottom:24px;">' +
+                    '<div style="text-align:center;padding:16px;background:' + (iWon ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:2px solid ' + (iWon ? '#22c55e' : 'var(--border)') + ';border-radius:16px;flex:1;max-width:160px;">' +
+                        '<div style="font-size:0.65rem;color:' + (iWon ? '#22c55e' : 'var(--text-faint)') + ';text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:8px;">' + (iWon ? '🏆 WINNER' : (isDraw ? '🤝 DRAW' : 'LOST')) + '</div>' +
+                        '<div style="font-size:2rem;font-weight:900;color:' + (iWon ? '#22c55e' : 'var(--text)') + ';">' + myData.score + '</div>' +
+                        '<div style="color:var(--text);font-weight:700;font-size:0.85rem;margin-top:4px;">' + escHtml(getMyDisplayName()) + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.75rem;">' + myQWins + '/5 rounds won</div>' +
                     '</div>' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:2.5rem;font-weight:900;color:' + (!iWon && !isDraw ? '#ef4444' : 'var(--text)') + ';">' + oppData.score + '</div>' +
-                        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Opponent</div>' +
-                        '<div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">' + oppQWins + '/5 rounds won</div>' +
+                    '<div style="text-align:center;padding:16px;background:' + (!iWon && !isDraw ? 'rgba(239,68,68,0.1)' : 'var(--card-bg)') + ';border:2px solid ' + (!iWon && !isDraw ? '#ef4444' : 'var(--border)') + ';border-radius:16px;flex:1;max-width:160px;">' +
+                        '<div style="font-size:0.65rem;color:' + (!iWon && !isDraw ? '#ef4444' : 'var(--text-faint)') + ';text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:8px;">' + (!iWon && !isDraw ? '💀 LOST' : (isDraw ? '🤝 DRAW' : '🏆 WINNER')) + '</div>' +
+                        '<div style="font-size:2rem;font-weight:900;color:' + (!iWon && !isDraw ? '#ef4444' : 'var(--text)') + ';">' + oppData.score + '</div>' +
+                        '<div style="color:var(--text);font-weight:700;font-size:0.85rem;margin-top:4px;">' + escHtml(pvpState.opponentName) + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.75rem;">' + oppQWins + '/5 rounds won</div>' +
                     '</div>' +
                 '</div>' +
-                // Round breakdown
+                // Round breakdown dots
                 '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:28px;">' +
                     buildFinalRoundDots(myAnswers, oppAnswers) +
                 '</div>' +
                 // Buttons
                 '<div style="display:flex;gap:12px;justify-content:center;">' +
-                    '<button onclick="exitPVPMode();enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Play Again ⚔️</button>' +
-                    '<button onclick="exitPVPMode()" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
+                    '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Play Again ⚔️</button>' +
+                    '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
                 '</div>' +
             '</div>';
 
@@ -22089,6 +22240,25 @@ if (document.readyState === 'loading') {
             db.collection('pvp_lobby').doc(pvpState.lobbyDocId).delete().catch(function(){});
             pvpState.lobbyDocId = null;
         }
+    }
+
+    function renderForfeitScreen(iWin, message) {
+        var overlay = document.getElementById('pvpOverlay');
+        if (!overlay) return;
+        var emoji = iWin ? '🏆' : '🚪';
+        var color = iWin ? '#22c55e' : '#eab308';
+        var title = iWin ? 'VICTORY!' : 'MATCH ENDED';
+        overlay.innerHTML =
+            '<div style="width:92%;max-width:480px;text-align:center;padding:20px;animation:pvpSlideIn 0.5s ease;">' +
+                '<div style="font-size:4rem;margin-bottom:16px;">' + emoji + '</div>' +
+                '<h1 style="color:' + color + ';font-size:1.8rem;margin:0 0 12px;letter-spacing:2px;">' + title + '</h1>' +
+                '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:32px;line-height:1.6;">' + message + '</div>' +
+                '<div style="display:flex;gap:12px;justify-content:center;">' +
+                    '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Play Again ⚔️</button>' +
+                    '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
+                '</div>' +
+            '</div>';
+        if (typeof showToast === 'function') showToast(iWin ? '🏆 You win — opponent forfeited!' : '🚪 Opponent left — match voided');
     }
 
     function buildFinalRoundDots(myAnswers, oppAnswers) {
