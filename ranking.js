@@ -2282,7 +2282,11 @@ function showSettingsPage(tab) {
 
         // Live Signal headlines from ticker (newsletter-data.json)
         html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">📡 Live Signals</div>';
-        html += '<div id="signalLiveNews" style="margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;"><div style="display:flex;gap:12px;padding:4px 0;min-width:min-content;"></div></div>';
+        html += '<div style="position:relative;margin-bottom:20px;">' +
+            '<button id="signalArrowL" onclick="var s=document.getElementById(\'signalLiveNews\');if(s)s.scrollBy({left:-280,behavior:\'smooth\'})" style="display:none;position:absolute;left:-6px;top:50%;transform:translateY(-50%);z-index:2;background:var(--card-bg);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--text);font-size:1rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);align-items:center;justify-content:center;">‹</button>' +
+            '<div id="signalLiveNews" style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;"><div style="display:flex;gap:12px;padding:4px 0;min-width:min-content;"></div></div>' +
+            '<button id="signalArrowR" onclick="var s=document.getElementById(\'signalLiveNews\');if(s)s.scrollBy({left:280,behavior:\'smooth\'})" style="display:none;position:absolute;right:-6px;top:50%;transform:translateY(-50%);z-index:2;background:var(--card-bg);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;color:var(--text);font-size:1rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);align-items:center;justify-content:center;">›</button>' +
+        '</div>';
         html += '<style>#signalLiveNews::-webkit-scrollbar{display:none;}</style>';
 
         html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;margin-top:16px;font-weight:700;">📚 Featured Deep Dives</div>';
@@ -2324,9 +2328,24 @@ function showSettingsPage(tab) {
                         (link ? '<div style="color:var(--accent);font-size:0.75rem;font-weight:700;">Read full article →</div>' : '') +
                     '</div>';
                 });
-                // Add swipe hint on mobile
-                cardsHtml += '<div style="min-width:40px;flex-shrink:0;display:flex;align-items:center;color:var(--text-faint);font-size:0.7rem;opacity:0.5;">→</div>';
                 inner.innerHTML = cardsHtml;
+
+                // Show arrow buttons on desktop if content overflows
+                var updateSignalArrows = function() {
+                    var lBtn = document.getElementById('signalArrowL');
+                    var rBtn = document.getElementById('signalArrowR');
+                    if (!lBtn || !rBtn) return;
+                    var canScroll = container.scrollWidth > container.clientWidth + 10;
+                    if (canScroll) {
+                        lBtn.style.display = container.scrollLeft > 10 ? 'flex' : 'none';
+                        rBtn.style.display = container.scrollLeft + container.clientWidth < container.scrollWidth - 10 ? 'flex' : 'none';
+                    } else {
+                        lBtn.style.display = 'none';
+                        rBtn.style.display = 'none';
+                    }
+                };
+                container.addEventListener('scroll', updateSignalArrows);
+                setTimeout(updateSignalArrows, 200);
             }).catch(function() {
                 container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load signals</div>';
             });
