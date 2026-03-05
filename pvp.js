@@ -64,6 +64,13 @@
         lobbyUnsub: null,
         tickerUnsub: null,
         isPlayer1: false,
+        // Practice mode state
+        practicing: false,
+        practiceQ: null,
+        practiceAnswered: false,
+        practiceCorrect: 0,
+        practiceCount: 0,      // how many practiced this session
+        _practicePromptTimer: null,
     };
 
     // =============================================
@@ -158,6 +165,9 @@
                 if (waitingOthers.length > 0 && !pvpState.active) {
                     injectTickerPVP(true);
                     showNachoPVPBubble();
+                } else if (waitingOthers.length > 0 && pvpState.inLobby && pvpState.practicing) {
+                    // Opponent found while user is practicing — interrupt with match prompt
+                    showOpponentFoundDuringPractice();
                 } else {
                     injectTickerPVP(false);
                 }
@@ -211,6 +221,279 @@
         bubble.classList.add('show');
         if (typeof clearNachoBubbleTimeout === 'function') clearNachoBubbleTimeout();
         if (typeof setPose === 'function') setPose('think');
+    }
+
+    // =============================================
+    // PRACTICE MODE — while waiting in lobby
+    // =============================================
+    var PRACTICE_DAILY_MAX = 10;
+    var PRACTICE_PTS_PER_CORRECT = 10;
+
+    function getPracticeDateKey() {
+        var d = new Date();
+        return 'btc_pvp_practice_' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    function getDailyPracticeCount() {
+        return parseInt(localStorage.getItem(getPracticeDateKey()) || '0');
+    }
+
+    function incrementDailyPractice() {
+        var key = getPracticeDateKey();
+        var count = parseInt(localStorage.getItem(key) || '0') + 1;
+        localStorage.setItem(key, count.toString());
+        return count;
+    }
+
+    function startPracticePromptTimer() {
+        if (pvpState._practicePromptTimer) clearTimeout(pvpState._practicePromptTimer);
+        pvpState._practicePromptTimer = setTimeout(function() {
+            pvpState._practicePromptTimer = null;
+            if (!pvpState.inLobby || pvpState.inMatch || pvpState.practicing) return;
+            showPracticePrompt();
+        }, 10000);
+    }
+
+    function showPracticePrompt() {
+        var lobbyStatus = document.getElementById('pvpLobbyStatus');
+        if (!lobbyStatus) return;
+
+        var dailyCount = getDailyPracticeCount();
+        if (dailyCount >= PRACTICE_DAILY_MAX) {
+            // Already maxed out today — show a lighter message
+            lobbyStatus.insertAdjacentHTML('afterend',
+                '<div id="pvpPracticePrompt" style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center;animation:pvpSlideIn 0.4s ease;">' +
+                    '<div style="font-size:1.5rem;margin-bottom:8px;">📚</div>' +
+                    '<div style="color:var(--text);font-weight:700;font-size:0.9rem;margin-bottom:6px;">Daily Practice Complete!</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;">You\'ve finished your ' + PRACTICE_DAILY_MAX + ' practice questions for today.<br>Come back tomorrow for more! 🔥</div>' +
+                '</div>');
+            return;
+        }
+
+        var remaining = PRACTICE_DAILY_MAX - dailyCount;
+        lobbyStatus.insertAdjacentHTML('afterend',
+            '<div id="pvpPracticePrompt" style="background:var(--card-bg,#1a1a2e);border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center;animation:pvpSlideIn 0.4s ease;">' +
+                '<div style="font-size:1.5rem;margin-bottom:8px;">🧠</div>' +
+                '<div style="color:var(--accent);font-weight:800;font-size:0.9rem;margin-bottom:6px;">Warm Up While You Wait?</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:14px;">Practice Bitcoin trivia and earn ' + PRACTICE_PTS_PER_CORRECT + ' pts per correct answer!<br><span style="color:var(--text-faint);">' + remaining + ' practice question' + (remaining !== 1 ? 's' : '') + ' left today</span></div>' +
+                '<div style="display:flex;gap:10px;justify-content:center;">' +
+                    '<button onclick="pvpStartPractice()" class="pvp-btn" style="padding:10px 24px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Let\'s Go! 🚀</button>' +
+                    '<button onclick="pvpDismissPractice()" class="pvp-btn" style="padding:10px 24px;background:none;border:2px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">No Thanks</button>' +
+                '</div>' +
+            '</div>');
+    }
+
+    window.pvpDismissPractice = function() {
+        var prompt = document.getElementById('pvpPracticePrompt');
+        if (prompt) prompt.remove();
+    };
+
+    window.pvpStartPractice = function() {
+        var prompt = document.getElementById('pvpPracticePrompt');
+        if (prompt) prompt.remove();
+
+        var dailyCount = getDailyPracticeCount();
+        if (dailyCount >= PRACTICE_DAILY_MAX) {
+            if (typeof showToast === 'function') showToast('📚 You\'ve used all ' + PRACTICE_DAILY_MAX + ' practice questions today!');
+            return;
+        }
+
+        pvpState.practicing = true;
+        pvpState.practiceCorrect = 0;
+        pvpState.practiceCount = 0;
+        showNextPracticeQuestion();
+    };
+
+    function showNextPracticeQuestion() {
+        if (!pvpState.practicing || !pvpState.inLobby) return;
+
+        var dailyCount = getDailyPracticeCount();
+        if (dailyCount >= PRACTICE_DAILY_MAX) {
+            showPracticeDailyLimit();
+            return;
+        }
+
+        var questions = pickRandomQuestions(1);
+        if (questions.length === 0) return;
+
+        var q = questions[0];
+        // Shuffle options
+        var options = q.wrong.slice();
+        var correctIdx = Math.floor(Math.random() * (options.length + 1));
+        options.splice(correctIdx, 0, q.a);
+
+        pvpState.practiceQ = { q: q.q, options: options, correct: correctIdx };
+        pvpState.practiceAnswered = false;
+
+        var remaining = PRACTICE_DAILY_MAX - dailyCount;
+
+        // Render into the practice area below lobby status
+        var existing = document.getElementById('pvpPracticeArea');
+        if (existing) existing.remove();
+
+        var lobbyStatus = document.getElementById('pvpLobbyStatus');
+        if (!lobbyStatus) return;
+
+        var html =
+            '<div id="pvpPracticeArea" style="margin-bottom:20px;animation:pvpSlideIn 0.3s ease;">' +
+                // Practice header
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 4px;">' +
+                    '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">🧠 Practice Mode</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);">' + remaining + ' left today · ' + pvpState.practiceCorrect + ' correct</div>' +
+                '</div>' +
+                // Question card
+                '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:10px;">' +
+                    '<div style="color:var(--text);font-size:0.95rem;font-weight:700;line-height:1.6;text-align:center;">' + escHtml(pvpState.practiceQ.q) + '</div>' +
+                '</div>' +
+                // Options
+                '<div id="pvpPracticeOptions" style="display:flex;flex-direction:column;gap:8px;">' +
+                    options.map(function(opt, idx) {
+                        return '<button class="pvp-btn" onclick="pvpPracticeAnswer(' + idx + ',this)" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+                            '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + idx) + '</span>' +
+                            escHtml(opt) +
+                        '</button>';
+                    }).join('') +
+                '</div>' +
+            '</div>';
+
+        lobbyStatus.insertAdjacentHTML('afterend', html);
+    }
+
+    window.pvpPracticeAnswer = function(selected, btn) {
+        if (pvpState.practiceAnswered || !pvpState.practiceQ) return;
+        pvpState.practiceAnswered = true;
+
+        var q = pvpState.practiceQ;
+        var isCorrect = selected === q.correct;
+
+        // Disable all buttons + highlight
+        var opts = document.getElementById('pvpPracticeOptions');
+        if (opts) {
+            var btns = opts.querySelectorAll('button');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].disabled = true;
+                btns[i].style.cursor = 'default';
+                btns[i].style.opacity = '0.6';
+            }
+            if (btns[q.correct]) {
+                btns[q.correct].style.borderColor = '#22c55e';
+                btns[q.correct].style.background = 'rgba(34,197,94,0.15)';
+                btns[q.correct].style.opacity = '1';
+            }
+            if (selected !== q.correct && btns[selected]) {
+                btns[selected].style.borderColor = '#ef4444';
+                btns[selected].style.background = 'rgba(239,68,68,0.15)';
+            }
+        }
+
+        var dailyTotal = incrementDailyPractice();
+        pvpState.practiceCount++;
+
+        if (isCorrect) {
+            pvpState.practiceCorrect++;
+            if (typeof awardPoints === 'function') awardPoints(PRACTICE_PTS_PER_CORRECT, '🧠 PVP Practice');
+            if (typeof showToast === 'function') showToast('✅ +' + PRACTICE_PTS_PER_CORRECT + ' pts!');
+        }
+
+        // Show result + next button
+        var resultHtml =
+            '<div style="text-align:center;margin-top:12px;">' +
+                '<div style="color:' + (isCorrect ? '#22c55e' : '#ef4444') + ';font-weight:700;font-size:0.85rem;margin-bottom:10px;">' +
+                    (isCorrect ? '✅ Correct! +' + PRACTICE_PTS_PER_CORRECT + ' pts' : '❌ Wrong — the answer was ' + String.fromCharCode(65 + q.correct)) +
+                '</div>';
+
+        if (dailyTotal >= PRACTICE_DAILY_MAX) {
+            resultHtml += '<button onclick="showPracticeDailyLimit()" class="pvp-btn" style="padding:10px 20px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Done for Today 📚</button>';
+        } else {
+            resultHtml += '<button onclick="showNextPracticeQuestion()" class="pvp-btn" style="padding:10px 20px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Next Question →</button>';
+        }
+        resultHtml += '</div>';
+
+        if (opts) opts.insertAdjacentHTML('afterend', resultHtml);
+    };
+
+    // Expose for onclick
+    window.showNextPracticeQuestion = function() { showNextPracticeQuestion(); };
+
+    function showPracticeDailyLimit() {
+        pvpState.practicing = false;
+        var area = document.getElementById('pvpPracticeArea');
+        if (area) area.remove();
+
+        var lobbyStatus = document.getElementById('pvpLobbyStatus');
+        if (!lobbyStatus) return;
+
+        lobbyStatus.insertAdjacentHTML('afterend',
+            '<div id="pvpPracticeArea" style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center;animation:pvpSlideIn 0.4s ease;">' +
+                '<div style="font-size:2rem;margin-bottom:8px;">🏁</div>' +
+                '<div style="color:var(--accent);font-weight:800;font-size:1rem;margin-bottom:4px;">Practice Complete!</div>' +
+                '<div style="color:var(--text);font-size:0.9rem;font-weight:700;margin-bottom:6px;">' + pvpState.practiceCorrect + '/' + pvpState.practiceCount + ' correct this session</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;">You\'ve used all ' + PRACTICE_DAILY_MAX + ' practice questions for today.<br>Come back tomorrow for more! 🔥</div>' +
+            '</div>');
+    }
+    window.showPracticeDailyLimit = function() { showPracticeDailyLimit(); };
+
+    function showOpponentFoundDuringPractice() {
+        // Interrupt practice with an opponent notification
+        pvpState.practicing = false;
+        var area = document.getElementById('pvpPracticeArea');
+        if (area) area.remove();
+        var prompt = document.getElementById('pvpPracticePrompt');
+        if (prompt) prompt.remove();
+
+        var lobbyStatus = document.getElementById('pvpLobbyStatus');
+        if (!lobbyStatus) return;
+
+        lobbyStatus.insertAdjacentHTML('afterend',
+            '<div id="pvpPracticeArea" style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(239,68,68,0.05));border:2px solid var(--accent);border-radius:16px;padding:24px;margin-bottom:20px;text-align:center;animation:pvpSlideIn 0.4s ease;">' +
+                '<div style="font-size:2.5rem;margin-bottom:10px;">⚔️</div>' +
+                '<div style="color:var(--accent);font-weight:900;font-size:1.1rem;margin-bottom:6px;letter-spacing:1px;">OPPONENT FOUND!</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:16px;">Someone just entered the PVP lobby.<br>Ready to battle for real?</div>' +
+                '<div style="display:flex;gap:10px;justify-content:center;">' +
+                    '<button onclick="pvpAcceptMatch()" class="pvp-btn" style="padding:12px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Battle Now! ⚔️</button>' +
+                    '<button onclick="pvpDeclineMatchContinuePractice()" class="pvp-btn" style="padding:12px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Keep Practicing</button>' +
+                '</div>' +
+            '</div>');
+
+        if (typeof haptic === 'function') haptic('medium');
+    }
+
+    window.pvpAcceptMatch = function() {
+        // Remove the prompt — the matchmaking poll or listener will handle the actual match creation
+        var area = document.getElementById('pvpPracticeArea');
+        if (area) area.remove();
+        // The lobby ticker already detected an opponent. The matchmaking poll (startMatchmakingPoll)
+        // is still running and will create the match on its next cycle.
+        // Just update lobby status text
+        var lobbyStatus = document.getElementById('pvpLobbyStatus');
+        if (lobbyStatus) {
+            var statusText = lobbyStatus.querySelector('div[style*="font-weight:700"]');
+            if (statusText) statusText.textContent = 'Connecting to opponent...';
+        }
+    };
+
+    window.pvpDeclineMatchContinuePractice = function() {
+        var area = document.getElementById('pvpPracticeArea');
+        if (area) area.remove();
+
+        var dailyCount = getDailyPracticeCount();
+        if (dailyCount >= PRACTICE_DAILY_MAX) {
+            showPracticeDailyLimit();
+        } else {
+            pvpState.practicing = true;
+            showNextPracticeQuestion();
+        }
+    };
+
+    function stopPractice() {
+        pvpState.practicing = false;
+        pvpState.practiceQ = null;
+        pvpState.practiceAnswered = false;
+        if (pvpState._practicePromptTimer) { clearTimeout(pvpState._practicePromptTimer); pvpState._practicePromptTimer = null; }
+        var area = document.getElementById('pvpPracticeArea');
+        if (area) area.remove();
+        var prompt = document.getElementById('pvpPracticePrompt');
+        if (prompt) prompt.remove();
     }
 
     // =============================================
@@ -304,6 +587,7 @@
         if (pvpState._heartbeat) { clearInterval(pvpState._heartbeat); pvpState._heartbeat = null; }
         if (pvpState._lobbyHeartbeat) { clearInterval(pvpState._lobbyHeartbeat); pvpState._lobbyHeartbeat = null; }
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
+        stopPractice();
         pvpState._resultShown = false;
         pvpState._matchResultShown = false;
         if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
@@ -494,6 +778,8 @@
                 }, 5000);
                 // Also start polling for opponents (catches cases where real-time listener misses)
                 startMatchmakingPoll(docRef.id, uid);
+                // Start practice prompt timer (10s wait before offering practice)
+                startPracticePromptTimer();
             }).catch(function(err) {
                 console.error('PVP lobby join error:', err);
                 if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
