@@ -139,7 +139,7 @@ window.beatsSetMediaSession = function(track) {
             artist: track.artist || track.authorName || 'Bitcoin Beats',
             album: 'Bitcoin Beats',
             artwork: [
-                { src: 'images/bitcoin-beats-logo.jpg', sizes: '120x120', type: 'image/jpeg' }
+                { src: track.coverUrl || track.coverArt || 'images/bitcoin-beats-logo.jpg', sizes: '120x120', type: 'image/jpeg' }
             ]
         });
         navigator.mediaSession.playbackState = 'playing';
@@ -224,7 +224,7 @@ window.beatsLoadTracks = function(tab) {
             var duration = t.duration ? beatsFormatTime(t.duration) : '--:--';
             html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'' + (isPlaying ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + '\'">' +
                 '<div style="width:36px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.8rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
-                '<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + (t.coverArt ? '<img src="' + t.coverArt + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
+                '<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + (t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
                     '<div style="color:var(--text-faint);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
@@ -245,7 +245,7 @@ window.beatsLoadTracks = function(tab) {
 // ---- Play track ----
 window.beatsPlayTrack = function(idx) {
     var track = window._beatsQueue[idx];
-    if (!track || !track.audioData) { if (typeof showToast === 'function') showToast('Track not available'); return; }
+    if (!track || (!track.audioData && !track.audioUrl)) { if (typeof showToast === 'function') showToast('Track not available'); return; }
 
     window._beatsQueueIdx = idx;
 
@@ -254,7 +254,7 @@ window.beatsPlayTrack = function(idx) {
     clearInterval(window._beatsUpdateInterval);
 
     // Create audio element
-    window._beatsAudio = new Audio(track.audioData);
+    window._beatsAudio = new Audio(track.audioUrl || track.audioData);
     window._beatsAudio.volume = (document.getElementById('beatsVolume') ? document.getElementById('beatsVolume').value : 80) / 100;
     window._beatsAudio.play().catch(function(e) { console.log('Play error:', e); });
 
@@ -422,6 +422,16 @@ window.beatsShowUpload = function() {
             '</select>' +
             '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
             '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Cover Art (JPG, PNG, WebP — max 2MB)</label>' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+                '<div id="beatsCoverPreview" style="width:64px;height:64px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:var(--card-bg);cursor:pointer;" onclick="document.getElementById(\'beatsUpCover\').click()">' +
+                    '<span style="font-size:1.5rem;color:var(--text-faint);">🎨</span>' +
+                '</div>' +
+                '<div style="flex:1;">' +
+                    '<input type="file" id="beatsUpCover" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;box-sizing:border-box;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById(\'beatsCoverPreview\');if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">Optional — displayed on your track card</div>' +
+                '</div>' +
+            '</div>' +
             '<div id="beatsUpProgress" style="display:none;margin-bottom:12px;">' +
                 '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div></div>' +
                 '<div id="beatsUpStatus" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">Processing...</div>' +
@@ -442,6 +452,7 @@ window.beatsDoUpload = function() {
     var artist = (document.getElementById('beatsUpArtist').value || '').trim();
     var genre = document.getElementById('beatsUpGenre').value;
     var fileInput = document.getElementById('beatsUpFile');
+    var coverInput = document.getElementById('beatsUpCover');
     var copyrightCheck = document.getElementById('beatsUpCopyright');
 
     if (!title) { showToast('Please enter a track title'); return; }
@@ -452,94 +463,210 @@ window.beatsDoUpload = function() {
     if (file.size > 25 * 1024 * 1024) { showToast('File too large. Max 25MB.'); return; }
     if (!file.type.match(/audio\/(mpeg|mp3|wav|wave|x-wav|flac|ogg|aac|mp4|x-m4a)/)) { showToast('Unsupported format. Use MP3, WAV, FLAC, OGG, or AAC.'); return; }
 
+    // Check cover art if provided
+    var coverFile = coverInput && coverInput.files && coverInput.files[0] ? coverInput.files[0] : null;
+    if (coverFile) {
+        if (coverFile.size > 2 * 1024 * 1024) { showToast('Cover art too large. Max 2MB.'); return; }
+        if (!coverFile.type.match(/image\/(jpeg|jpg|png|webp|gif)/)) { showToast('Cover art must be JPG, PNG, WebP, or GIF.'); return; }
+    }
+
     var btn = document.getElementById('beatsUpBtn');
     btn.disabled = true;
     btn.textContent = 'Uploading...';
     document.getElementById('beatsUpProgress').style.display = 'block';
-    document.getElementById('beatsUpBar').style.width = '30%';
+    document.getElementById('beatsUpBar').style.width = '10%';
     document.getElementById('beatsUpStatus').textContent = 'Reading file...';
 
+    // Check if Firebase Storage is available
+    var storage = null;
+    try { storage = firebase.storage(); } catch(e) { /* not available */ }
+
+    if (storage) {
+        // === FIREBASE STORAGE PATH ===
+        _uploadViaStorage(storage, file, coverFile, title, artist, genre, btn);
+    } else {
+        // === FIRESTORE-ONLY FALLBACK (base64, limited to ~700KB files) ===
+        if (file.size > 700 * 1024) {
+            showToast('⚠️ File too large for current storage. Use MP3 under 700KB, or contact admin to enable cloud storage.');
+            btn.disabled = false;
+            btn.textContent = 'Upload Track';
+            document.getElementById('beatsUpProgress').style.display = 'none';
+            return;
+        }
+        _uploadViaFirestore(file, coverFile, title, artist, genre, btn);
+    }
+};
+
+// Upload via Firebase Storage (supports large files + cover art)
+function _uploadViaStorage(storage, file, coverFile, title, artist, genre, btn) {
+    var uid = auth.currentUser.uid;
+    var timestamp = Date.now();
+    var audioRef = storage.ref('beats/' + uid + '/' + timestamp + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+
+    document.getElementById('beatsUpBar').style.width = '20%';
+    document.getElementById('beatsUpStatus').textContent = 'Uploading audio...';
+
+    var uploadTask = audioRef.put(file);
+    uploadTask.on('state_changed',
+        function(snapshot) {
+            var pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 60) + 20;
+            document.getElementById('beatsUpBar').style.width = pct + '%';
+            document.getElementById('beatsUpStatus').textContent = 'Uploading audio... ' + Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) + '%';
+        },
+        function(err) {
+            console.error('Storage upload error:', err);
+            showToast('Upload failed: ' + (err.message || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Upload Track';
+        },
+        function() {
+            // Audio uploaded — get URL
+            uploadTask.snapshot.ref.getDownloadURL().then(function(audioUrl) {
+                document.getElementById('beatsUpBar').style.width = '80%';
+
+                // Upload cover art if provided
+                if (coverFile) {
+                    document.getElementById('beatsUpStatus').textContent = 'Uploading cover art...';
+                    var coverRef = storage.ref('beats-covers/' + uid + '/' + timestamp + '_cover.' + coverFile.name.split('.').pop());
+                    coverRef.put(coverFile).then(function(snap) {
+                        return snap.ref.getDownloadURL();
+                    }).then(function(coverUrl) {
+                        _saveTrackToFirestore(title, artist, genre, audioUrl, coverUrl, btn);
+                    }).catch(function() {
+                        // Cover failed but audio is fine — save without cover
+                        _saveTrackToFirestore(title, artist, genre, audioUrl, '', btn);
+                    });
+                } else {
+                    _saveTrackToFirestore(title, artist, genre, audioUrl, '', btn);
+                }
+            });
+        }
+    );
+}
+
+// Firestore-only fallback for small files
+function _uploadViaFirestore(file, coverFile, title, artist, genre, btn) {
     var reader = new FileReader();
     reader.onload = function(e) {
-        var audioData = e.target.result; // data:audio/mpeg;base64,...
-        document.getElementById('beatsUpBar').style.width = '60%';
+        var audioData = e.target.result;
+        document.getElementById('beatsUpBar').style.width = '50%';
         document.getElementById('beatsUpStatus').textContent = 'Getting audio duration...';
 
-        // Get duration
-        var tempAudio = new Audio(audioData);
-        tempAudio.onloadedmetadata = function() {
-            var duration = tempAudio.duration || 0;
-            document.getElementById('beatsUpBar').style.width = '80%';
-            document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
-
-            var trackData = {
-                title: title.substring(0, 100),
-                artist: artist.substring(0, 60) || (currentUser ? currentUser.username : 'Anonymous'),
-                genre: genre,
-                audioData: audioData,
-                duration: Math.round(duration),
-                authorId: auth.currentUser.uid,
-                authorName: currentUser ? currentUser.username : 'Anonymous',
-                plays: 0,
-                likes: 0,
-                copyrightConfirmed: true,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        // Read cover art if provided
+        var coverData = '';
+        function finishUpload() {
+            var tempAudio = new Audio(audioData);
+            var gotMeta = false;
+            tempAudio.onloadedmetadata = function() {
+                if (gotMeta) return;
+                gotMeta = true;
+                _saveTrackDoc(title, artist, genre, audioData, coverData, Math.round(tempAudio.duration || 0), btn);
             };
-
-            db.collection('beats_tracks').add(trackData).then(function() {
-                document.getElementById('beatsUpBar').style.width = '100%';
-                document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
-                showToast('🎵 Track uploaded!');
-                sessionStorage.setItem('_ch_beats_upload', '1');
-                if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
-                setTimeout(function() {
-                    var overlay = document.getElementById('beatsUploadOverlay');
-                    if (overlay) overlay.remove();
-                    beatsLoadTracks(window._beatsCurrentTab);
-                }, 1000);
-            }).catch(function(err) {
-                console.error('Upload error:', err);
-                showToast('Upload failed: ' + (err.message || 'Unknown error'));
-                btn.disabled = false;
-                btn.textContent = 'Upload Track';
-            });
-        };
-        tempAudio.onerror = function() {
-            // Can't get duration, upload anyway
-            document.getElementById('beatsUpBar').style.width = '80%';
-            document.getElementById('beatsUpStatus').textContent = 'Saving...';
-            var trackData = {
-                title: title.substring(0, 100),
-                artist: artist.substring(0, 60) || (currentUser ? currentUser.username : 'Anonymous'),
-                genre: genre,
-                audioData: audioData,
-                duration: 0,
-                authorId: auth.currentUser.uid,
-                authorName: currentUser ? currentUser.username : 'Anonymous',
-                plays: 0,
-                likes: 0,
-                copyrightConfirmed: true,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            tempAudio.onerror = function() {
+                if (gotMeta) return;
+                gotMeta = true;
+                _saveTrackDoc(title, artist, genre, audioData, coverData, 0, btn);
             };
-            db.collection('beats_tracks').add(trackData).then(function() {
-                document.getElementById('beatsUpBar').style.width = '100%';
-                showToast('🎵 Track uploaded!');
-                if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track!');
-                setTimeout(function() {
-                    var overlay = document.getElementById('beatsUploadOverlay');
-                    if (overlay) overlay.remove();
-                    beatsLoadTracks(window._beatsCurrentTab);
-                }, 1000);
-            }).catch(function(err) {
-                showToast('Upload failed: ' + (err.message || 'Unknown error'));
-                btn.disabled = false;
-                btn.textContent = 'Upload Track';
-            });
-        };
+            setTimeout(function() { if (!gotMeta) { gotMeta = true; _saveTrackDoc(title, artist, genre, audioData, coverData, 0, btn); } }, 5000);
+        }
+
+        if (coverFile && coverFile.size < 200 * 1024) {
+            var coverReader = new FileReader();
+            coverReader.onload = function(ce) { coverData = ce.target.result; finishUpload(); };
+            coverReader.onerror = function() { finishUpload(); };
+            coverReader.readAsDataURL(coverFile);
+        } else {
+            finishUpload();
+        }
     };
     reader.onerror = function() { showToast('Error reading file'); btn.disabled = false; btn.textContent = 'Upload Track'; };
     reader.readAsDataURL(file);
-};
+}
+
+// Save track doc (Firestore-only path, with base64 data)
+function _saveTrackDoc(title, artist, genre, audioData, coverData, duration, btn) {
+    document.getElementById('beatsUpBar').style.width = '80%';
+    document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
+
+    var trackData = {
+        title: title.substring(0, 100),
+        artist: artist.substring(0, 60) || (typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous'),
+        genre: genre,
+        audioData: audioData,
+        duration: duration,
+        authorId: auth.currentUser.uid,
+        authorName: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous',
+        plays: 0,
+        likes: 0,
+        copyrightConfirmed: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (coverData) trackData.coverArt = coverData;
+
+    db.collection('beats_tracks').add(trackData).then(function() {
+        _onUploadSuccess(btn);
+    }).catch(function(err) {
+        console.error('Upload error:', err);
+        if (err.message && err.message.indexOf('too large') !== -1) {
+            showToast('⚠️ File too large for storage. Try a smaller MP3.');
+        } else {
+            showToast('Upload failed: ' + (err.message || 'Unknown error'));
+        }
+        btn.disabled = false;
+        btn.textContent = 'Upload Track';
+    });
+}
+
+// Save track doc (Storage path, with URLs)
+function _saveTrackToFirestore(title, artist, genre, audioUrl, coverUrl, btn) {
+    document.getElementById('beatsUpBar').style.width = '90%';
+    document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
+
+    // Get duration from the URL
+    var tempAudio = new Audio(audioUrl);
+    var gotMeta = false;
+    function saveDoc(duration) {
+        var trackData = {
+            title: title.substring(0, 100),
+            artist: artist.substring(0, 60) || (typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous'),
+            genre: genre,
+            audioUrl: audioUrl,
+            duration: duration,
+            authorId: auth.currentUser.uid,
+            authorName: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous',
+            plays: 0,
+            likes: 0,
+            copyrightConfirmed: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (coverUrl) trackData.coverUrl = coverUrl;
+
+        db.collection('beats_tracks').add(trackData).then(function() {
+            _onUploadSuccess(btn);
+        }).catch(function(err) {
+            console.error('Upload error:', err);
+            showToast('Upload failed: ' + (err.message || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Upload Track';
+        });
+    }
+    tempAudio.onloadedmetadata = function() { if (!gotMeta) { gotMeta = true; saveDoc(Math.round(tempAudio.duration || 0)); } };
+    tempAudio.onerror = function() { if (!gotMeta) { gotMeta = true; saveDoc(0); } };
+    setTimeout(function() { if (!gotMeta) { gotMeta = true; saveDoc(0); } }, 5000);
+}
+
+function _onUploadSuccess(btn) {
+    document.getElementById('beatsUpBar').style.width = '100%';
+    document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
+    showToast('🎵 Track uploaded!');
+    sessionStorage.setItem('_ch_beats_upload', '1');
+    if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
+    setTimeout(function() {
+        var overlay = document.getElementById('beatsUploadOverlay');
+        if (overlay) overlay.remove();
+        beatsLoadTracks(window._beatsCurrentTab);
+    }, 1000);
+}
 
 // ---- Track menu (report/delete) ----
 window.beatsTrackMenu = function(trackId, idx) {
@@ -651,8 +778,18 @@ window.beatsRenderUpload = function() {
                 '</select>' +
                 '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
                 '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Cover Art (JPG, PNG, WebP — max 2MB)</label>' +
+                '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+                    '<div id="beatsCoverPreview" style="width:64px;height:64px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:var(--card-bg);cursor:pointer;" onclick="document.getElementById(\'beatsUpCover\').click()">' +
+                        '<span style="font-size:1.5rem;color:var(--text-faint);">🎨</span>' +
+                    '</div>' +
+                    '<div style="flex:1;">' +
+                        '<input type="file" id="beatsUpCover" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;box-sizing:border-box;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById(\'beatsCoverPreview\');if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">' +
+                        '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">Optional — displayed on your track card</div>' +
+                    '</div>' +
+                '</div>' +
                 '<div id="beatsUpProgress" style="display:none;margin-bottom:12px;">' +
-                    '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width:0.3s;"></div></div>' +
+                    '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div></div>' +
                     '<div id="beatsUpStatus" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">Processing...</div>' +
                 '</div>' +
                 '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +

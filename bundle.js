@@ -25181,9 +25181,6 @@ window.renderBitcoinBeats = function() {
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
             </div>
-            <button onclick="beatsShowUpload()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
-                <span style="font-size:1rem;">+</span> Upload
-            </button>
         </div>
 
         <!-- Copyright Disclaimer (collapsible) -->
@@ -25305,7 +25302,7 @@ window.beatsSetMediaSession = function(track) {
             artist: track.artist || track.authorName || 'Bitcoin Beats',
             album: 'Bitcoin Beats',
             artwork: [
-                { src: 'images/bitcoin-beats-logo.jpg', sizes: '120x120', type: 'image/jpeg' }
+                { src: track.coverUrl || track.coverArt || 'images/bitcoin-beats-logo.jpg', sizes: '120x120', type: 'image/jpeg' }
             ]
         });
         navigator.mediaSession.playbackState = 'playing';
@@ -25390,7 +25387,7 @@ window.beatsLoadTracks = function(tab) {
             var duration = t.duration ? beatsFormatTime(t.duration) : '--:--';
             html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'' + (isPlaying ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + '\'">' +
                 '<div style="width:36px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.8rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
-                '<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + (t.coverArt ? '<img src="' + t.coverArt + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
+                '<div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + (t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
                 '<div style="flex:1;min-width:0;">' +
                     '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
                     '<div style="color:var(--text-faint);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
@@ -25411,7 +25408,7 @@ window.beatsLoadTracks = function(tab) {
 // ---- Play track ----
 window.beatsPlayTrack = function(idx) {
     var track = window._beatsQueue[idx];
-    if (!track || !track.audioData) { if (typeof showToast === 'function') showToast('Track not available'); return; }
+    if (!track || (!track.audioData && !track.audioUrl)) { if (typeof showToast === 'function') showToast('Track not available'); return; }
 
     window._beatsQueueIdx = idx;
 
@@ -25420,7 +25417,7 @@ window.beatsPlayTrack = function(idx) {
     clearInterval(window._beatsUpdateInterval);
 
     // Create audio element
-    window._beatsAudio = new Audio(track.audioData);
+    window._beatsAudio = new Audio(track.audioUrl || track.audioData);
     window._beatsAudio.volume = (document.getElementById('beatsVolume') ? document.getElementById('beatsVolume').value : 80) / 100;
     window._beatsAudio.play().catch(function(e) { console.log('Play error:', e); });
 
@@ -25588,6 +25585,16 @@ window.beatsShowUpload = function() {
             '</select>' +
             '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
             '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Cover Art (JPG, PNG, WebP — max 2MB)</label>' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+                '<div id="beatsCoverPreview" style="width:64px;height:64px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:var(--card-bg);cursor:pointer;" onclick="document.getElementById(\'beatsUpCover\').click()">' +
+                    '<span style="font-size:1.5rem;color:var(--text-faint);">🎨</span>' +
+                '</div>' +
+                '<div style="flex:1;">' +
+                    '<input type="file" id="beatsUpCover" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;box-sizing:border-box;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById(\'beatsCoverPreview\');if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">Optional — displayed on your track card</div>' +
+                '</div>' +
+            '</div>' +
             '<div id="beatsUpProgress" style="display:none;margin-bottom:12px;">' +
                 '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div></div>' +
                 '<div id="beatsUpStatus" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">Processing...</div>' +
@@ -25608,6 +25615,7 @@ window.beatsDoUpload = function() {
     var artist = (document.getElementById('beatsUpArtist').value || '').trim();
     var genre = document.getElementById('beatsUpGenre').value;
     var fileInput = document.getElementById('beatsUpFile');
+    var coverInput = document.getElementById('beatsUpCover');
     var copyrightCheck = document.getElementById('beatsUpCopyright');
 
     if (!title) { showToast('Please enter a track title'); return; }
@@ -25618,94 +25626,210 @@ window.beatsDoUpload = function() {
     if (file.size > 25 * 1024 * 1024) { showToast('File too large. Max 25MB.'); return; }
     if (!file.type.match(/audio\/(mpeg|mp3|wav|wave|x-wav|flac|ogg|aac|mp4|x-m4a)/)) { showToast('Unsupported format. Use MP3, WAV, FLAC, OGG, or AAC.'); return; }
 
+    // Check cover art if provided
+    var coverFile = coverInput && coverInput.files && coverInput.files[0] ? coverInput.files[0] : null;
+    if (coverFile) {
+        if (coverFile.size > 2 * 1024 * 1024) { showToast('Cover art too large. Max 2MB.'); return; }
+        if (!coverFile.type.match(/image\/(jpeg|jpg|png|webp|gif)/)) { showToast('Cover art must be JPG, PNG, WebP, or GIF.'); return; }
+    }
+
     var btn = document.getElementById('beatsUpBtn');
     btn.disabled = true;
     btn.textContent = 'Uploading...';
     document.getElementById('beatsUpProgress').style.display = 'block';
-    document.getElementById('beatsUpBar').style.width = '30%';
+    document.getElementById('beatsUpBar').style.width = '10%';
     document.getElementById('beatsUpStatus').textContent = 'Reading file...';
 
+    // Check if Firebase Storage is available
+    var storage = null;
+    try { storage = firebase.storage(); } catch(e) { /* not available */ }
+
+    if (storage) {
+        // === FIREBASE STORAGE PATH ===
+        _uploadViaStorage(storage, file, coverFile, title, artist, genre, btn);
+    } else {
+        // === FIRESTORE-ONLY FALLBACK (base64, limited to ~700KB files) ===
+        if (file.size > 700 * 1024) {
+            showToast('⚠️ File too large for current storage. Use MP3 under 700KB, or contact admin to enable cloud storage.');
+            btn.disabled = false;
+            btn.textContent = 'Upload Track';
+            document.getElementById('beatsUpProgress').style.display = 'none';
+            return;
+        }
+        _uploadViaFirestore(file, coverFile, title, artist, genre, btn);
+    }
+};
+
+// Upload via Firebase Storage (supports large files + cover art)
+function _uploadViaStorage(storage, file, coverFile, title, artist, genre, btn) {
+    var uid = auth.currentUser.uid;
+    var timestamp = Date.now();
+    var audioRef = storage.ref('beats/' + uid + '/' + timestamp + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+
+    document.getElementById('beatsUpBar').style.width = '20%';
+    document.getElementById('beatsUpStatus').textContent = 'Uploading audio...';
+
+    var uploadTask = audioRef.put(file);
+    uploadTask.on('state_changed',
+        function(snapshot) {
+            var pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 60) + 20;
+            document.getElementById('beatsUpBar').style.width = pct + '%';
+            document.getElementById('beatsUpStatus').textContent = 'Uploading audio... ' + Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) + '%';
+        },
+        function(err) {
+            console.error('Storage upload error:', err);
+            showToast('Upload failed: ' + (err.message || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Upload Track';
+        },
+        function() {
+            // Audio uploaded — get URL
+            uploadTask.snapshot.ref.getDownloadURL().then(function(audioUrl) {
+                document.getElementById('beatsUpBar').style.width = '80%';
+
+                // Upload cover art if provided
+                if (coverFile) {
+                    document.getElementById('beatsUpStatus').textContent = 'Uploading cover art...';
+                    var coverRef = storage.ref('beats-covers/' + uid + '/' + timestamp + '_cover.' + coverFile.name.split('.').pop());
+                    coverRef.put(coverFile).then(function(snap) {
+                        return snap.ref.getDownloadURL();
+                    }).then(function(coverUrl) {
+                        _saveTrackToFirestore(title, artist, genre, audioUrl, coverUrl, btn);
+                    }).catch(function() {
+                        // Cover failed but audio is fine — save without cover
+                        _saveTrackToFirestore(title, artist, genre, audioUrl, '', btn);
+                    });
+                } else {
+                    _saveTrackToFirestore(title, artist, genre, audioUrl, '', btn);
+                }
+            });
+        }
+    );
+}
+
+// Firestore-only fallback for small files
+function _uploadViaFirestore(file, coverFile, title, artist, genre, btn) {
     var reader = new FileReader();
     reader.onload = function(e) {
-        var audioData = e.target.result; // data:audio/mpeg;base64,...
-        document.getElementById('beatsUpBar').style.width = '60%';
+        var audioData = e.target.result;
+        document.getElementById('beatsUpBar').style.width = '50%';
         document.getElementById('beatsUpStatus').textContent = 'Getting audio duration...';
 
-        // Get duration
-        var tempAudio = new Audio(audioData);
-        tempAudio.onloadedmetadata = function() {
-            var duration = tempAudio.duration || 0;
-            document.getElementById('beatsUpBar').style.width = '80%';
-            document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
-
-            var trackData = {
-                title: title.substring(0, 100),
-                artist: artist.substring(0, 60) || (currentUser ? currentUser.username : 'Anonymous'),
-                genre: genre,
-                audioData: audioData,
-                duration: Math.round(duration),
-                authorId: auth.currentUser.uid,
-                authorName: currentUser ? currentUser.username : 'Anonymous',
-                plays: 0,
-                likes: 0,
-                copyrightConfirmed: true,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        // Read cover art if provided
+        var coverData = '';
+        function finishUpload() {
+            var tempAudio = new Audio(audioData);
+            var gotMeta = false;
+            tempAudio.onloadedmetadata = function() {
+                if (gotMeta) return;
+                gotMeta = true;
+                _saveTrackDoc(title, artist, genre, audioData, coverData, Math.round(tempAudio.duration || 0), btn);
             };
-
-            db.collection('beats_tracks').add(trackData).then(function() {
-                document.getElementById('beatsUpBar').style.width = '100%';
-                document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
-                showToast('🎵 Track uploaded!');
-                sessionStorage.setItem('_ch_beats_upload', '1');
-                if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
-                setTimeout(function() {
-                    var overlay = document.getElementById('beatsUploadOverlay');
-                    if (overlay) overlay.remove();
-                    beatsLoadTracks(window._beatsCurrentTab);
-                }, 1000);
-            }).catch(function(err) {
-                console.error('Upload error:', err);
-                showToast('Upload failed: ' + (err.message || 'Unknown error'));
-                btn.disabled = false;
-                btn.textContent = 'Upload Track';
-            });
-        };
-        tempAudio.onerror = function() {
-            // Can't get duration, upload anyway
-            document.getElementById('beatsUpBar').style.width = '80%';
-            document.getElementById('beatsUpStatus').textContent = 'Saving...';
-            var trackData = {
-                title: title.substring(0, 100),
-                artist: artist.substring(0, 60) || (currentUser ? currentUser.username : 'Anonymous'),
-                genre: genre,
-                audioData: audioData,
-                duration: 0,
-                authorId: auth.currentUser.uid,
-                authorName: currentUser ? currentUser.username : 'Anonymous',
-                plays: 0,
-                likes: 0,
-                copyrightConfirmed: true,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            tempAudio.onerror = function() {
+                if (gotMeta) return;
+                gotMeta = true;
+                _saveTrackDoc(title, artist, genre, audioData, coverData, 0, btn);
             };
-            db.collection('beats_tracks').add(trackData).then(function() {
-                document.getElementById('beatsUpBar').style.width = '100%';
-                showToast('🎵 Track uploaded!');
-                if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track!');
-                setTimeout(function() {
-                    var overlay = document.getElementById('beatsUploadOverlay');
-                    if (overlay) overlay.remove();
-                    beatsLoadTracks(window._beatsCurrentTab);
-                }, 1000);
-            }).catch(function(err) {
-                showToast('Upload failed: ' + (err.message || 'Unknown error'));
-                btn.disabled = false;
-                btn.textContent = 'Upload Track';
-            });
-        };
+            setTimeout(function() { if (!gotMeta) { gotMeta = true; _saveTrackDoc(title, artist, genre, audioData, coverData, 0, btn); } }, 5000);
+        }
+
+        if (coverFile && coverFile.size < 200 * 1024) {
+            var coverReader = new FileReader();
+            coverReader.onload = function(ce) { coverData = ce.target.result; finishUpload(); };
+            coverReader.onerror = function() { finishUpload(); };
+            coverReader.readAsDataURL(coverFile);
+        } else {
+            finishUpload();
+        }
     };
     reader.onerror = function() { showToast('Error reading file'); btn.disabled = false; btn.textContent = 'Upload Track'; };
     reader.readAsDataURL(file);
-};
+}
+
+// Save track doc (Firestore-only path, with base64 data)
+function _saveTrackDoc(title, artist, genre, audioData, coverData, duration, btn) {
+    document.getElementById('beatsUpBar').style.width = '80%';
+    document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
+
+    var trackData = {
+        title: title.substring(0, 100),
+        artist: artist.substring(0, 60) || (typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous'),
+        genre: genre,
+        audioData: audioData,
+        duration: duration,
+        authorId: auth.currentUser.uid,
+        authorName: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous',
+        plays: 0,
+        likes: 0,
+        copyrightConfirmed: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (coverData) trackData.coverArt = coverData;
+
+    db.collection('beats_tracks').add(trackData).then(function() {
+        _onUploadSuccess(btn);
+    }).catch(function(err) {
+        console.error('Upload error:', err);
+        if (err.message && err.message.indexOf('too large') !== -1) {
+            showToast('⚠️ File too large for storage. Try a smaller MP3.');
+        } else {
+            showToast('Upload failed: ' + (err.message || 'Unknown error'));
+        }
+        btn.disabled = false;
+        btn.textContent = 'Upload Track';
+    });
+}
+
+// Save track doc (Storage path, with URLs)
+function _saveTrackToFirestore(title, artist, genre, audioUrl, coverUrl, btn) {
+    document.getElementById('beatsUpBar').style.width = '90%';
+    document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
+
+    // Get duration from the URL
+    var tempAudio = new Audio(audioUrl);
+    var gotMeta = false;
+    function saveDoc(duration) {
+        var trackData = {
+            title: title.substring(0, 100),
+            artist: artist.substring(0, 60) || (typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous'),
+            genre: genre,
+            audioUrl: audioUrl,
+            duration: duration,
+            authorId: auth.currentUser.uid,
+            authorName: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous',
+            plays: 0,
+            likes: 0,
+            copyrightConfirmed: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (coverUrl) trackData.coverUrl = coverUrl;
+
+        db.collection('beats_tracks').add(trackData).then(function() {
+            _onUploadSuccess(btn);
+        }).catch(function(err) {
+            console.error('Upload error:', err);
+            showToast('Upload failed: ' + (err.message || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Upload Track';
+        });
+    }
+    tempAudio.onloadedmetadata = function() { if (!gotMeta) { gotMeta = true; saveDoc(Math.round(tempAudio.duration || 0)); } };
+    tempAudio.onerror = function() { if (!gotMeta) { gotMeta = true; saveDoc(0); } };
+    setTimeout(function() { if (!gotMeta) { gotMeta = true; saveDoc(0); } }, 5000);
+}
+
+function _onUploadSuccess(btn) {
+    document.getElementById('beatsUpBar').style.width = '100%';
+    document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
+    showToast('🎵 Track uploaded!');
+    sessionStorage.setItem('_ch_beats_upload', '1');
+    if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
+    setTimeout(function() {
+        var overlay = document.getElementById('beatsUploadOverlay');
+        if (overlay) overlay.remove();
+        beatsLoadTracks(window._beatsCurrentTab);
+    }, 1000);
+}
 
 // ---- Track menu (report/delete) ----
 window.beatsTrackMenu = function(trackId, idx) {
@@ -25785,8 +25909,106 @@ window.beatsShowDMCA = function() {
     document.body.appendChild(overlay);
 };
 
-// ---- Livestream Tab ----
-window.beatsRenderLivestream = function() {
+// ---- Upload Tab ----
+window.beatsRenderUpload = function() {
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) return;
+
+    listEl.innerHTML =
+        '<div style="text-align:center;animation:fadeSlideIn 0.4s ease-out;padding:40px 20px;">' +
+            '<div style="margin-bottom:20px;">' +
+                '<div style="font-size:3.5rem;margin-bottom:16px;animation:beatsPulse 2s infinite;filter:drop-shadow(0 0 12px var(--accent));">🎸</div>' +
+                '<div style="color:var(--heading);font-weight:800;font-size:1.5rem;margin-bottom:8px;">Upload a Track</div>' +
+                '<div style="color:var(--text-faint);font-size:0.9rem;margin-bottom:24px;">Share your music with the Bitcoin community.</div>' +
+            '</div>' +
+
+            // Upload form
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:480px;margin:0 auto;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Track Title *</label>' +
+                '<input type="text" id="beatsUpTitle" maxlength="100" placeholder="My Bitcoin Song" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Artist Name</label>' +
+                '<input type="text" id="beatsUpArtist" maxlength="60" placeholder="Your name or alias" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Genre</label>' +
+                '<select id="beatsUpGenre" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+                    '<option value="bitcoin">Bitcoin / Orange-Pilled</option>' +
+                    '<option value="hip-hop">Hip Hop</option>' +
+                    '<option value="rock">Rock</option>' +
+                    '<option value="electronic">Electronic</option>' +
+                    '<option value="folk">Folk / Acoustic</option>' +
+                    '<option value="podcast">Podcast / Talk</option>' +
+                    '<option value="ambient">Ambient / Lo-fi</option>' +
+                    '<option value="other">Other</option>' +
+                '</select>' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
+                '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Cover Art (JPG, PNG, WebP — max 2MB)</label>' +
+                '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+                    '<div id="beatsCoverPreview" style="width:64px;height:64px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:var(--card-bg);cursor:pointer;" onclick="document.getElementById(\'beatsUpCover\').click()">' +
+                        '<span style="font-size:1.5rem;color:var(--text-faint);">🎨</span>' +
+                    '</div>' +
+                    '<div style="flex:1;">' +
+                        '<input type="file" id="beatsUpCover" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;box-sizing:border-box;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById(\'beatsCoverPreview\');if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">' +
+                        '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">Optional — displayed on your track card</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="beatsUpProgress" style="display:none;margin-bottom:12px;">' +
+                    '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div></div>' +
+                    '<div id="beatsUpStatus" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">Processing...</div>' +
+                '</div>' +
+                '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +
+                    '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">' +
+                        '<input type="checkbox" id="beatsUpCopyright" style="width:18px;height:18px;accent-color:var(--accent);margin-top:2px;flex-shrink:0;">' +
+                        '<span style="color:var(--text-muted);font-size:0.78rem;line-height:1.4;">I confirm that I own the rights to this music or have explicit permission from the copyright holder to upload it. I understand that copyrighted material uploaded without authorization will be removed and my account may be suspended.</span>' +
+                    '</label>' +
+                '</div>' +
+                '<button onclick="beatsDoUpload()" id="beatsUpBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Upload Track</button>' +
+            '</div>' +
+
+            // Info
+            '<div style="margin-top:24px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
+                '<h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:12px;">Tips for Uploading</h3>' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;line-height:1.5;">' +
+                    '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 25MB)</p>' +
+                    '<p><strong>✅ Rewards:</strong> +25 points for each approved track</p>' +
+                    '<p><strong>✅ Visibility:</strong> Your track will be publicly available to all users</p>' +
+                    '<p><strong>⚠️ Copyright:</strong> Only upload music you own or have permission to share</p>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+
+        // Animations
+        '<style>' +
+            '@keyframes beatsPulse { 0% { opacity: 0.3; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.3; transform: scale(0.95); } }' +
+            '@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }' +
+        '</style>';
+
+    // Clear upload form fields
+    var title = document.getElementById('beatsUpTitle');
+    var artist = document.getElementById('beatsUpArtist');
+    var genre = document.getElementById('beatsUpGenre');
+    var file = document.getElementById('beatsUpFile');
+    var copyright = document.getElementById('beatsUpCopyright');
+    if (title) title.value = '';
+    if (artist) artist.value = '';
+    if (genre) genre.value = 'bitcoin';
+    if (file) file.value = '';
+    if (copyright) copyright.checked = false;
+
+    var btn = document.getElementById('beatsUpBtn');
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Upload Track';
+    }
+    var progress = document.getElementById('beatsUpProgress');
+    if (progress) progress.style.display = 'none';
+    var bar = document.getElementById('beatsUpBar');
+    if (bar) bar.style.width = '0%';
+    var status = document.getElementById('beatsUpStatus');
+    if (status) status.textContent = 'Processing...';
+};
+
+// ---- Upload Tab ----
+window.beatsRenderUpload = function() {
     var listEl = document.getElementById('beatsTrackList');
     if (!listEl) return;
 
@@ -26041,458 +26263,6 @@ window.beatsFormatTime = function(secs) {
     var s = Math.floor(secs % 60);
     return m + ':' + (s < 10 ? '0' : '') + s;
 };
-// =============================================
-// TASK 16: Add listing expiration and renewal
-// =============================================
-(function() {
-    var EXPIRY_DAYS = 30;
-    var EXPIRY_MS = EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-
-    // Check if a listing is expired
-    window.isListingExpired = function(listing) {
-        if (!listing || !listing.createdAt) return false;
-        var created = listing.createdAt.toDate ? listing.createdAt.toDate() : new Date(listing.createdAt);
-        return (Date.now() - created.getTime()) > EXPIRY_MS;
-    };
-
-    // Renew a listing (resets createdAt)
-    window.renewListing = function(listingId) {
-        if (!auth || !auth.currentUser || typeof db === 'undefined') return;
-        db.collection('marketplace').doc(listingId).update({
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            renewed: true,
-            renewedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(function() {
-            if (typeof showToast === 'function') showToast('✅ Listing renewed for 30 more days!');
-            if (typeof renderMarketplace === 'function') renderMarketplace({ listingId: listingId });
-        }).catch(function(e) {
-            if (typeof showToast === 'function') showToast('Error: ' + (e.message || 'Unknown'));
-        });
-    };
-
-    // Show expiry warning on listing detail
-    window.getExpiryStatus = function(listing) {
-        if (!listing || !listing.createdAt) return null;
-        var created = listing.createdAt.toDate ? listing.createdAt.toDate() : new Date(listing.createdAt);
-        var age = Date.now() - created.getTime();
-        var daysLeft = Math.max(0, Math.ceil((EXPIRY_MS - age) / (24 * 60 * 60 * 1000)));
-
-        if (daysLeft <= 0) return { status: 'expired', text: 'This listing has expired', color: '#ef4444' };
-        if (daysLeft <= 5) return { status: 'expiring', text: 'Expires in ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : ''), color: '#eab308' };
-        return null;
-    };
-})();
-
-// =============================================
-// TASK 17: Add seller reputation/history display
-// =============================================
-(function() {
-    window.renderSellerReputation = function(sellerUid, containerEl) {
-        if (!sellerUid || !containerEl || typeof db === 'undefined') return;
-
-        db.collection('users').doc(sellerUid).get().then(function(doc) {
-            if (!doc.exists) return;
-            var u = doc.data();
-            var createdAt = u.createdAt ? (u.createdAt.toDate ? u.createdAt.toDate() : new Date(u.createdAt)) : null;
-            var memberSince = createdAt ? createdAt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown';
-            var level = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🟢', name: 'Normie' };
-
-            var html =
-                '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">' +
-                    '<span style="padding:3px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);border-radius:6px;font-size:0.7rem;color:var(--accent);">' + level.emoji + ' ' + level.name + '</span>' +
-                    '<span style="padding:3px 8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;font-size:0.7rem;color:var(--text-faint);">📅 Member since ' + memberSince + '</span>' +
-                    (u.forumPosts ? '<span style="padding:3px 8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;font-size:0.7rem;color:var(--text-faint);">💬 ' + u.forumPosts + ' posts</span>' : '') +
-                    (u.marketListings ? '<span style="padding:3px 8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;font-size:0.7rem;color:var(--text-faint);">🛒 ' + u.marketListings + ' listings</span>' : '') +
-                '</div>';
-            containerEl.innerHTML += html;
-        }).catch(function() {});
-    };
-})();
-
-// =============================================
-// TASK 18: Add forum draft auto-save
-// =============================================
-(function() {
-    var DRAFT_KEY = 'btc_forum_draft';
-    var REPLY_DRAFT_PREFIX = 'btc_forum_reply_';
-    var saveTimer = null;
-
-    // Save post draft
-    window.saveForumDraft = function() {
-        var title = document.getElementById('forumNewTitle');
-        var body = document.getElementById('forumNewBody');
-        var cat = document.getElementById('forumNewCategory');
-        if (!title && !body) return;
-
-        var draft = {
-            title: title ? title.value : '',
-            body: body ? body.value : '',
-            category: cat ? cat.value : 'general',
-            savedAt: Date.now()
-        };
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    };
-
-    // Restore post draft
-    window.restoreForumDraft = function() {
-        try {
-            var draft = JSON.parse(localStorage.getItem(DRAFT_KEY));
-            if (!draft || Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) return null; // Expire after 24h
-            return draft;
-        } catch (e) { return null; }
-    };
-
-    // Clear post draft
-    window.clearForumDraft = function() {
-        localStorage.removeItem(DRAFT_KEY);
-    };
-
-    // Save reply draft
-    window.saveReplyDraft = function(postId) {
-        var input = document.getElementById('forumReplyInput');
-        if (!input || !input.value.trim()) {
-            localStorage.removeItem(REPLY_DRAFT_PREFIX + postId);
-            return;
-        }
-        localStorage.setItem(REPLY_DRAFT_PREFIX + postId, input.value);
-    };
-
-    // Restore reply draft
-    window.restoreReplyDraft = function(postId) {
-        return localStorage.getItem(REPLY_DRAFT_PREFIX + postId) || '';
-    };
-
-    // Clear reply draft
-    window.clearReplyDraft = function(postId) {
-        localStorage.removeItem(REPLY_DRAFT_PREFIX + postId);
-    };
-
-    // Auto-save on input (attach to forum elements when they exist)
-    var observer = new MutationObserver(function() {
-        // Post drafts
-        var titleEl = document.getElementById('forumNewTitle');
-        var bodyEl = document.getElementById('forumNewBody');
-        if (titleEl && !titleEl._draftBound) {
-            titleEl._draftBound = true;
-            titleEl.addEventListener('input', function() { clearTimeout(saveTimer); saveTimer = setTimeout(saveForumDraft, 3000); });
-            // Restore draft
-            var draft = restoreForumDraft();
-            if (draft && (draft.title || draft.body)) {
-                titleEl.value = draft.title || '';
-                if (bodyEl) bodyEl.value = draft.body || '';
-                if (typeof showToast === 'function') showToast('📝 Draft restored');
-            }
-        }
-        if (bodyEl && !bodyEl._draftBound) {
-            bodyEl._draftBound = true;
-            bodyEl.addEventListener('input', function() { clearTimeout(saveTimer); saveTimer = setTimeout(saveForumDraft, 3000); });
-        }
-
-        // Reply drafts
-        var replyEl = document.getElementById('forumReplyInput');
-        if (replyEl && !replyEl._draftBound && typeof forumCurrentPost !== 'undefined' && forumCurrentPost) {
-            replyEl._draftBound = true;
-            var postId = forumCurrentPost.id;
-            var saved = restoreReplyDraft(postId);
-            if (saved) replyEl.value = saved;
-            replyEl.addEventListener('input', function() { clearTimeout(saveTimer); saveTimer = setTimeout(function() { saveReplyDraft(postId); }, 3000); });
-        }
-    });
-
-    if (document.body) {
-        observer.observe(document.body, { childList: true, subtree: true });
-    } else {
-        document.addEventListener('DOMContentLoaded', function() {
-            observer.observe(document.body, { childList: true, subtree: true });
-        });
-    }
-})();
-
-// =============================================
-// TASK 19: Improved profanity filter (normalize before checking)
-// =============================================
-(function() {
-    // Enhanced profanity check that normalizes text before matching
-    window.isCleanTextV2 = function(text) {
-        if (!text) return true;
-        // Normalize: lowercase, strip numbers/special chars that substitute letters
-        var normalized = text.toLowerCase()
-            .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
-            .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't')
-            .replace(/\$/g, 's').replace(/@/g, 'a').replace(/!/g, 'i')
-            .replace(/\*/g, '').replace(/_/g, '').replace(/-/g, '')
-            .replace(/[^a-z\s]/g, '');
-
-        var BLOCKED = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo'];
-        var words = normalized.split(/\s+/);
-        for (var i = 0; i < words.length; i++) {
-            for (var j = 0; j < BLOCKED.length; j++) {
-                if (words[i] === BLOCKED[j]) return false;
-                if (BLOCKED[j].length >= 4 && words[i].indexOf(BLOCKED[j]) !== -1) return false;
-            }
-        }
-        return true;
-    };
-
-    // Override the original if it exists
-    if (typeof window.isCleanText !== 'undefined') {
-        window._origIsCleanText = window.isCleanText;
-        window.isCleanText = window.isCleanTextV2;
-    }
-})();
-
-// =============================================
-// TASK 20: Common CSS classes for inline style reduction
-// =============================================
-(function() {
-    var style = document.createElement('style');
-    style.id = 'ux-patch-styles';
-    style.textContent = `
-        /* Modal overlay */
-        .modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            z-index: 9999;
-            display: flex; align-items: center; justify-content: center;
-            padding: 16px;
-        }
-        /* Modal card */
-        .modal-card {
-            background: var(--bg-side, #1a1a2e);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 24px;
-            padding: 24px;
-            max-width: 480px; width: 100%;
-            max-height: 85vh; overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-            animation: fadeSlideIn 0.3s;
-            -webkit-overflow-scrolling: touch;
-        }
-        /* Pill button */
-        .pill-btn {
-            padding: 6px 14px;
-            border-radius: 20px;
-            border: 1px solid var(--border);
-            background: var(--card-bg);
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            cursor: pointer;
-            font-family: inherit;
-            white-space: nowrap;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-        .pill-btn.active {
-            border-color: var(--accent);
-            background: var(--accent);
-            color: #fff;
-        }
-        /* scroll-top-btn removed — using #backToTop in index.html */
-        /* Badge progress bar */
-        .badge-progress {
-            width: 100%; height: 4px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-            margin-top: 4px;
-            overflow: hidden;
-        }
-        .badge-progress-fill {
-            height: 100%;
-            background: var(--accent);
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
-    `;
-    document.head.appendChild(style);
-})();
-
-// =============================================
-// TASK 21: Server-side point awards + rate limiting (Cloud Function)
-// =============================================
-// ** DEPLOY THIS AS A CLOUD FUNCTION in functions/index.js **
-//
-// Add to functions/index.js:
-//
-// exports.awardPoints = functions.https.onCall(async (data, context) => {
-//     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-//     const uid = context.auth.uid;
-//     const action = data.action; // 'visit', 'openChannel', 'readTime', 'quest'
-//     const channelId = data.channelId || null;
-//
-//     // Rate limit: max 100 point events per hour
-//     const hourAgo = admin.firestore.Timestamp.fromDate(new Date(Date.now() - 3600000));
-//     const recentEvents = await admin.firestore().collection('point_events')
-//         .where('uid', '==', uid).where('timestamp', '>', hourAgo).get();
-//     if (recentEvents.size >= 100) {
-//         throw new functions.https.HttpsError('resource-exhausted', 'Rate limited');
-//     }
-//
-//     const POINTS = { visit: 5, openChannel: 10, readTime: 15, quest: 50 };
-//     const pts = POINTS[action] || 0;
-//     if (pts <= 0) throw new functions.https.HttpsError('invalid-argument', 'Invalid action');
-//
-//     // Log event
-//     await admin.firestore().collection('point_events').add({
-//         uid, action, channelId, points: pts,
-//         timestamp: admin.firestore.FieldValue.serverTimestamp()
-//     });
-//
-//     // Update user points
-//     await admin.firestore().collection('users').doc(uid).update({
-//         points: admin.firestore.FieldValue.increment(pts)
-//     });
-//
-//     return { awarded: pts };
-// });
-
-// =============================================
-// TASK 22: Quest progress dashboard
-// =============================================
-(function() {
-    window.renderQuestDashboard = function() {
-        if (typeof QUESTION_BANK === 'undefined') return '';
-
-        var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
-        var completedQuests = parseInt(localStorage.getItem('btc_quests_completed') || '0');
-        var availableChannels = Object.keys(QUESTION_BANK).filter(function(ch) { return visited.indexOf(ch) !== -1; });
-        var totalChannels = Object.keys(QUESTION_BANK).length;
-
-        var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px;margin:16px 0;">' +
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
-                '<span style="font-size:1.5rem;">⚔️</span>' +
-                '<div>' +
-                    '<div style="font-weight:800;color:var(--heading);font-size:1rem;">Quest Progress</div>' +
-                    '<div style="font-size:0.75rem;color:var(--text-faint);">' + completedQuests + ' quests completed</div>' +
-                '</div>' +
-            '</div>' +
-            '<div style="margin-bottom:8px;">' +
-                '<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">' +
-                    '<span>Channels with questions unlocked</span>' +
-                    '<span>' + availableChannels.length + '/' + totalChannels + '</span>' +
-                '</div>' +
-                '<div class="badge-progress" style="height:6px;">' +
-                    '<div class="badge-progress-fill" style="width:' + Math.round((availableChannels.length / totalChannels) * 100) + '%;"></div>' +
-                '</div>' +
-            '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);line-height:1.5;">Visit more channels to unlock new quests! Each channel you read adds its questions to your quest pool.</div>' +
-        '</div>';
-
-        return html;
-    };
-})();
-
-// =============================================
-// TASK 23: Visual progress bars for badge grid
-// =============================================
-(function() {
-    // Enhance badge rendering with progress bars
-    window.renderBadgeWithProgress = function(badge, isEarned) {
-        var progressHtml = '';
-        if (!isEarned && badge.progress && typeof badge.progress === 'function') {
-            var progressText = badge.progress();
-            var match = progressText.match(/(\d+)\/(\d+)/);
-            if (match) {
-                var current = parseInt(match[1]);
-                var total = parseInt(match[2]);
-                var pct = Math.round((current / total) * 100);
-                progressHtml = '<div class="badge-progress"><div class="badge-progress-fill" style="width:' + pct + '%"></div></div>' +
-                    '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:2px;">' + progressText + '</div>';
-            }
-        }
-
-        return '<div style="text-align:center;padding:12px 8px;background:var(--card-bg);border:1px solid ' + (isEarned ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;opacity:' + (isEarned ? '1' : '0.5') + ';">' +
-            '<div style="font-size:1.8rem;margin-bottom:4px;' + (isEarned ? '' : 'filter:grayscale(1);') + '">' + badge.emoji + '</div>' +
-            '<div style="font-size:0.7rem;font-weight:700;color:var(--heading);">' + badge.name + '</div>' +
-            '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:2px;">' + badge.desc + '</div>' +
-            (isEarned ? '<div style="font-size:0.6rem;color:var(--accent);margin-top:4px;">✅ Earned!</div>' : '') +
-            progressHtml +
-        '</div>';
-    };
-})();
-
-// =============================================
-// TASK 24: Fuzzy search matching for channel search
-// =============================================
-(function() {
-    // Enhanced search that handles typos and partial matches
-    window.fuzzyChannelSearch = function(query, channels) {
-        if (!query || !channels) return [];
-        var q = query.toLowerCase().trim();
-        var terms = q.split(/\s+/);
-        var results = [];
-
-        for (var id in channels) {
-            var ch = channels[id];
-            var name = (ch.name || ch.title || id).toLowerCase();
-            var desc = (ch.desc || '').toLowerCase();
-            var allText = name + ' ' + desc + ' ' + id.replace(/-/g, ' ');
-
-            var score = 0;
-            var matched = 0;
-
-            terms.forEach(function(term) {
-                // Exact match in name
-                if (name.indexOf(term) !== -1) { score += 10; matched++; }
-                // Exact match in desc/id
-                else if (allText.indexOf(term) !== -1) { score += 5; matched++; }
-                // Levenshtein fuzzy match for words > 3 chars
-                else if (term.length > 3) {
-                    var words = allText.split(/\s+/);
-                    for (var i = 0; i < words.length; i++) {
-                        if (levenshtein(term, words[i]) <= 2) {
-                            score += 3;
-                            matched++;
-                            break;
-                        }
-                    }
-                }
-            });
-
-            // Only include if all terms matched something
-            if (matched === terms.length && score > 0) {
-                results.push({ id: id, channel: ch, score: score });
-            }
-        }
-
-        // Sort by score descending
-        results.sort(function(a, b) { return b.score - a.score; });
-        return results;
-    };
-
-    // Simple Levenshtein distance
-    function levenshtein(a, b) {
-        if (a.length === 0) return b.length;
-        if (b.length === 0) return a.length;
-        var matrix = [];
-        for (var i = 0; i <= b.length; i++) matrix[i] = [i];
-        for (var j = 0; j <= a.length; j++) matrix[0][j] = j;
-        for (i = 1; i <= b.length; i++) {
-            for (j = 1; j <= a.length; j++) {
-                if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(
-                        matrix[i - 1][j - 1] + 1,
-                        matrix[i][j - 1] + 1,
-                        matrix[i - 1][j] + 1
-                    );
-                }
-            }
-        }
-        return matrix[b.length][a.length];
-    }
-})();
-
-// Scroll-to-top button removed — handled by #backToTop in index.html + app.js
-
-// =============================================
-// DONE — All 24 tasks implemented!
-// =============================================
-console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
-
-// =============================================
-// CHANNEL CONTENT TEXT REPLACEMENT (Discord → App)
 // =============================================
 (function() {
     var observer = new MutationObserver(function(mutations) {
