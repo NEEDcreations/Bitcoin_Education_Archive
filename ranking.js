@@ -347,79 +347,12 @@ window.signInWithFacebook = async function() {
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
 }
 
+// Nostr sign-in — see bundle.js for full implementation
+// (signInWithNostr, nostrSignInWithExtension, nostrSignInWithNsec, nostrSignInWithNpub, nostrCompleteAuth)
 window.signInWithNostr = async function() {
+    // Full implementation in bundle.js — shows modal with extension/nsec/npub options
     if (!checkRateLimit()) return;
-
-    // Check for NIP-07 browser extension (Alby, nos2x, etc.)
-    if (!window.nostr) {
-        if (typeof showToast === 'function') showToast('No Nostr extension found! Install Alby or nos2x first.');
-        window.open('https://getalby.com', '_blank');
-        return;
-    }
-
-    try {
-        // Get public key from extension
-        var pubkey = await window.nostr.getPublicKey();
-        if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) {
-            if (typeof showToast === 'function') showToast('Could not get Nostr public key');
-            return;
-        }
-
-        // Create auth event for signing
-        var nostrEvent = {
-            kind: 22242,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [['challenge', 'btc-edu-' + Date.now()]],
-            content: 'Sign in to Bitcoin Education Archive',
-            pubkey: pubkey,
-        };
-
-        // Sign with extension
-        var signed = await window.nostr.signEvent(nostrEvent);
-        if (!signed || !signed.sig) {
-            if (typeof showToast === 'function') showToast('Signing cancelled');
-            return;
-        }
-
-        if (typeof showToast === 'function') showToast('🟣 Verifying Nostr signature...');
-
-        // Send to Cloud Function
-        var nostrAuth = firebase.functions().httpsCallable('nostrAuth');
-        var result = await nostrAuth({
-            pubkey: pubkey,
-            sig: signed.sig,
-            event: signed,
-        });
-
-        if (result.data && result.data.token) {
-            // Sign in with custom token
-            await auth.signInWithCustomToken(result.data.token);
-
-            // Set up user doc if needed
-            var uid = result.data.uid;
-            var userDoc = await db.collection('users').doc(uid).get();
-            if (!userDoc.exists || !userDoc.data().username) {
-                var npubShort = 'npub...' + pubkey.substring(0, 8);
-                await db.collection('users').doc(uid).set({
-                    username: npubShort,
-                    nostr: pubkey,
-                    points: 0,
-                    channelsVisited: 0,
-                    totalVisits: 1,
-                    streak: 1,
-                    lastVisit: new Date().toISOString().split('T')[0],
-                    created: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            }
-
-            loadUser(uid);
-            hideUsernamePrompt();
-            if (typeof showToast === 'function') showToast('🟣 Signed in with Nostr!');
-        }
-    } catch(e) {
-        console.error('Nostr auth error:', e);
-        if (typeof showToast === 'function') showToast('Nostr sign-in failed. Try again.');
-    }
+    if (typeof showToast === 'function') showToast('Nostr sign-in loading...');
 }
 
 // Apple Sign-In removed
