@@ -2651,7 +2651,7 @@ function showSettingsPage(tab) {
         var _pvpT = _pvpW + _pvpL;
         var _pvpPct = _pvpT > 0 ? Math.round((_pvpW / _pvpT) * 100) : 0;
         if (_pvpT > 0) {
-            html += statRow('PVP Record', _pvpW + 'W – ' + _pvpL + 'L (' + _pvpT + ' rounds)', '⚔️');
+            html += statRow('PVP Record', _pvpW + 'W – ' + _pvpL + 'L', '⚔️');
             html += statRow('PVP Win Rate', _pvpPct + '%', '📊');
         } else {
             html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
