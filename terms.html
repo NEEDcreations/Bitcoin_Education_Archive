@@ -26,7 +26,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: February 26, 2026</p>
+    <p class="subtitle">Last updated: March 5, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -44,11 +44,16 @@
         <li><strong>LightningMart</strong> — a peer-to-peer marketplace for buying and selling with Bitcoin</li>
         <li><strong>Direct Messaging (DMs)</strong> — private messages between registered users</li>
         <li>User profiles with online status</li>
+        <li><strong>Bitcoin Beats</strong> — a community music player where users can upload and listen to music</li>
+        <li><strong>PVP Mode</strong> — competitive Bitcoin knowledge quiz battles</li>
+        <li><strong>IRL Sync</strong> — in-person meetup coordination</li>
+        <li>Profile pictures and public user profiles</li>
+        <li>Two-factor authentication (TOTP)</li>
         <li>A Progressive Web App (PWA) for mobile and desktop</li>
     </ul>
 
     <h2>3. Accounts</h2>
-    <p>You may create an account using a username, email, or third-party sign-in (Google, Twitter/X, GitHub, Facebook). You agree to:</p>
+    <p>You may create an account using a username, email, or third-party sign-in (Google, Twitter/X, GitHub, Facebook, Nostr, or Lightning wallet). You agree to:</p>
     <ul>
         <li>Provide accurate information</li>
         <li>Not impersonate others or use offensive usernames</li>
@@ -56,7 +61,7 @@
         <li>Not create multiple accounts to exploit the points, tickets, referral, or badge systems</li>
         <li>Not use your account to harass, scam, or deceive other users</li>
     </ul>
-    <p>If you register with an email address, you must verify your email by clicking a magic link sent to your inbox before your account is activated. Accounts that violate these terms may be suspended or deleted.</p>
+    <p>If you register with an email address, a verification magic link will be sent to your inbox. Nostr sign-in requires a NIP-07 compatible browser extension (Alby, nos2x). Lightning sign-in uses LNURL-auth — scan a QR code with a compatible Lightning wallet. Accounts that violate these terms may be suspended or deleted.</p>
 
     <h2>4. Orange Tickets & Referral Program</h2>
     <ul>
@@ -156,10 +161,65 @@
         <li>Reports are reviewed by site administrators and may result in account suspension or permanent ban</li>
     </ul>
 
-    <h2>9. User Profiles & Online Status</h2>
+    <h2 id="bitcoin-beats">9. Bitcoin Beats (Community Music)</h2>
+    <ul>
+        <li>Bitcoin Beats allows registered users to upload audio tracks (MP3, max 10MB) for other users to listen to</li>
+        <li>You must be signed in (non-anonymous) to upload tracks</li>
+        <li>Uploaded tracks are <strong>publicly accessible</strong> — all users can browse, play, and like them</li>
+        <li>Audio files are stored as base64 data in Firebase Firestore</li>
+    </ul>
+
+    <h3>Copyright & Intellectual Property</h3>
+    <div class="warn">
+        <strong>⚠️ COPYRIGHT NOTICE:</strong> By uploading music to Bitcoin Beats, you represent and warrant that:
+        <ul style="margin-top:8px;margin-bottom:0;">
+            <li>You are the <strong>original creator</strong> of the music, OR</li>
+            <li>You have obtained <strong>explicit written permission</strong> from the copyright holder to upload and distribute the music, OR</li>
+            <li>The music is in the <strong>public domain</strong> or licensed under a <strong>Creative Commons</strong> or similar open license that permits redistribution</li>
+        </ul>
+    </div>
+    <ul>
+        <li><strong>Uploading copyrighted music without authorization is strictly prohibited</strong> and constitutes a violation of these Terms</li>
+        <li>This includes but is not limited to: commercially released songs, remixes of copyrighted material without a license, cover versions where mechanical licenses have not been obtained, and samples of copyrighted recordings</li>
+        <li>Bitcoin Education Archive does not pre-screen uploads and <strong>is not responsible for user-uploaded content</strong></li>
+        <li>Bitcoin Education Archive acts as a hosting platform and does not claim ownership of user-uploaded tracks</li>
+        <li>By uploading, you grant Bitcoin Education Archive a non-exclusive, royalty-free license to host, display, stream, and distribute your track on the platform</li>
+        <li>You retain all ownership rights to your original content</li>
+    </ul>
+
+    <h3>Takedown Policy</h3>
+    <ul>
+        <li>If you are a copyright holder and believe a track on Bitcoin Beats infringes your rights, submit a takedown request to <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a></li>
+        <li>Your request must include: (1) a description of the copyrighted work, (2) the track title or URL, (3) your contact information, (4) a statement that you are the copyright owner or authorized agent, and (5) a statement under penalty of perjury that the information is accurate</li>
+        <li>We will review and remove infringing content within <strong>48 hours</strong> of receiving a valid takedown notice</li>
+        <li>If you believe your content was removed in error, you may submit a counter-notice with evidence of your rights to the same email</li>
+        <li><strong>Repeat infringers</strong> will have their accounts permanently suspended</li>
+    </ul>
+
+    <h3>Prohibited Audio Content</h3>
+    <ul>
+        <li>Copyrighted music uploaded without authorization</li>
+        <li>Hate speech, threats, or incitement to violence</li>
+        <li>Sexually explicit or pornographic audio</li>
+        <li>Spam, advertisements, or promotional content disguised as music</li>
+        <li>Malicious audio files or files containing embedded exploits</li>
+        <li>Audio impersonating other artists or creators</li>
+    </ul>
+
+    <h2>10. PVP Mode (Competitive Quizzes)</h2>
+    <ul>
+        <li>PVP Mode allows users to challenge each other in real-time Bitcoin knowledge quiz battles</li>
+        <li>Battle results, scores, and rankings may be publicly displayed</li>
+        <li>Users must be signed in to participate</li>
+        <li>Cheating, using external tools during battles, or exploiting bugs is prohibited</li>
+    </ul>
+
+    <h2>11. User Profiles & Online Status</h2>
     <ul>
         <li>Signed-in users have a public profile visible to other signed-in users</li>
-        <li>Profiles display: username, level, points, badges, tickets, streak, channels visited, forum posts, and join date</li>
+        <li>Profiles display: username, profile picture, level, points, badges, tickets, streak, channels visited, forum posts, and join date</li>
+        <li>Profile pictures are optional (resized to 128px JPEG, stored in Firestore)</li>
+        <li>You may enable <strong>two-factor authentication (TOTP)</strong> in Settings → Security for additional account security</li>
         <li>Online status is tracked by default: green (active in last 5 min), yellow (15 min), or offline</li>
         <li>Online status updates every 60 seconds while you're on the Site</li>
         <li>You can <strong>disable online status</strong> in Settings → Prefs → Online Status (you will appear offline to all users)</li>
@@ -167,7 +227,7 @@
         <li>You cannot opt out of having a public profile — if you do not want a profile, do not create an account</li>
     </ul>
 
-    <h2>10. Blocking & Reporting</h2>
+    <h2>12. Blocking & Reporting</h2>
     <ul>
         <li>You can block any user from their profile or from a DM conversation</li>
         <li>Blocked users cannot message you and you cannot message them</li>
@@ -178,7 +238,7 @@
         <li>We reserve the right to take any action we deem appropriate in response to reports, including removing content, suspending accounts, or permanent bans</li>
     </ul>
 
-    <h2>11. Nacho (AI Mascot)</h2>
+    <h2>13. Nacho (AI Mascot)</h2>
     <ul>
         <li>Nacho is an AI-powered mascot that provides Bitcoin education, tips, trivia, and entertainment</li>
         <li>Nacho's Q&A system provides general educational information and is <strong>not financial, investment, or legal advice</strong></li>
@@ -188,16 +248,16 @@
         <li>Nacho's friendship levels, trivia scores, and collectible accessories (Nacho's Closet) are for entertainment purposes only</li>
     </ul>
 
-    <h2>12. Giveaways</h2>
+    <h2>14. Giveaways</h2>
     <p>Giveaways are conducted at our discretion. Winners are selected based on Orange Ticket holdings and/or other criteria we determine. We reserve the right to cancel, modify, or suspend any giveaway. Giveaway prizes are distributed via the Bitcoin Lightning Network. You must have a valid Lightning address to receive prizes.</p>
 
-    <h2>13. Content & Intellectual Property</h2>
+    <h2>15. Content & Intellectual Property</h2>
     <p>The Site curates and links to third-party content. We do not claim ownership of linked articles, tweets, videos, or images — they belong to their respective creators.</p>
     <p>The name "Bitcoin Education Archive," the Nacho character and all associated artwork, the Site design, code, branding, logos, and all original content are © 2026 603BTC LLC. All rights reserved. "Bitcoin Education Archive" is a trademark (™) of 603BTC LLC.</p>
     <p>You may not use, reproduce, or distribute our trademarks, branding, or original content without prior written permission from 603BTC LLC.</p>
-    <p>By posting content on PlebTalk or LightningMart, you grant us a non-exclusive, royalty-free license to display, distribute, and moderate that content on the Site. You retain ownership of your content.</p>
+    <p>By posting content on PlebTalk, LightningMart, or Bitcoin Beats, you grant us a non-exclusive, royalty-free license to display, distribute, stream, and moderate that content on the Site. You retain ownership of your content. For music uploaded to Bitcoin Beats, see the specific <a href="#bitcoin-beats">Copyright & Takedown Policy</a> in Section 9.</p>
 
-    <h2>14. User Conduct</h2>
+    <h2>16. User Conduct</h2>
     <p>You agree not to:</p>
     <ul>
         <li>Abuse, exploit, or manipulate the points, tickets, badges, or ranking system</li>
@@ -214,7 +274,7 @@
         <li>Circumvent block lists, bans, or other safety measures</li>
     </ul>
 
-    <h2>15. Enforcement & Penalties</h2>
+    <h2>17. Enforcement & Penalties</h2>
     <p>Violations of these Terms may result in:</p>
     <ul>
         <li>Content removal (posts, listings, messages)</li>
@@ -225,24 +285,26 @@
     </ul>
     <p>We reserve sole discretion in determining violations and appropriate penalties.</p>
 
-    <h2>16. Progressive Web App (PWA)</h2>
+    <h2>18. Progressive Web App (PWA)</h2>
     <p>The Site is available as a Progressive Web App that can be installed on mobile and desktop devices. The PWA caches content for offline access. By installing the PWA, you agree that cached data is stored locally on your device and is subject to your device's storage policies.</p>
 
-    <h2>17. Third-Party Services & APIs</h2>
+    <h2>19. Third-Party Services & APIs</h2>
     <p>The Site integrates with third-party services including:</p>
     <ul>
         <li>Firebase (authentication, data storage, messaging)</li>
         <li>Google, Twitter/X, GitHub, Facebook (sign-in providers)</li>
+        <li>Nostr protocol (NIP-07 authentication via browser extensions)</li>
+        <li>LNURL-auth protocol (Lightning wallet authentication)</li>
         <li>Cloudflare Workers (Nacho AI proxy)</li>
         <li>mempool.space API (live Bitcoin price, block height, fee data)</li>
         <li>GitHub Pages (hosting)</li>
     </ul>
     <p>We are not responsible for the availability, accuracy, or policies of third-party services.</p>
 
-    <h2>18. Disclaimer</h2>
+    <h2>20. Disclaimer</h2>
     <p>The Site is provided "as is" without warranties of any kind. Content on the Site is for <strong>educational purposes only</strong> and does not constitute financial, investment, tax, or legal advice. Live price data, fee estimates, and market information are for informational purposes only. LightningMart transactions are between users — we provide no warranties regarding listed items. Always do your own research before making any financial decisions.</p>
 
-    <h2>19. Limitation of Liability</h2>
+    <h2>21. Limitation of Liability</h2>
     <p>Bitcoin Education Archive and its operators shall not be liable for any damages arising from your use of the Site, including but not limited to:</p>
     <ul>
         <li>Loss of data or account information</li>
@@ -252,16 +314,16 @@
         <li>Any decisions made based on information presented on the Site</li>
     </ul>
 
-    <h2>20. Privacy</h2>
+    <h2>22. Privacy</h2>
     <p>We collect minimal data to power your experience. We do <strong>not</strong> sell, share, or monetize your data. For full details, see our <a href="/privacy.html">Privacy Policy</a>.</p>
 
-    <h2>21. Third-Party Links</h2>
+    <h2>23. Third-Party Links</h2>
     <p>The Site contains links to third-party websites. We are not responsible for the content, accuracy, or practices of external sites. Visiting linked sites is at your own risk.</p>
 
-    <h2>22. Changes to Terms</h2>
+    <h2>24. Changes to Terms</h2>
     <p>We may update these Terms at any time. Continued use of the Site after changes constitutes acceptance of the updated Terms. We will note the "Last updated" date at the top of this page.</p>
 
-    <h2>23. Contact</h2>
+    <h2>25. Contact</h2>
     <p>Questions about these Terms? Reach out via the Support button on the Site or email <a href="mailto:needcreations@gmail.com">needcreations@gmail.com</a>.</p>
 
     <hr class="divider">

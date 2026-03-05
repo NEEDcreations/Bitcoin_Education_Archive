@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: February 26, 2026</p>
+    <p class="subtitle">Last updated: March 5, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -47,7 +47,9 @@
         <tr><th>Data</th><th>Purpose</th></tr>
         <tr><td>Username</td><td>Display on leaderboard, PlebTalk forum, LightningMart, and direct messages</td></tr>
         <tr><td>Email (if provided)</td><td>Account verification via magic link sign-in</td></tr>
-        <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, or Facebook authentication</td></tr>
+        <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), or Lightning (LNURL-auth) authentication</td></tr>
+        <tr><td>Profile picture</td><td>Optional avatar upload (resized to 128px JPEG, stored in Firestore)</td></tr>
+        <tr><td>TOTP 2FA secret</td><td>Encrypted TOTP secret for two-factor authentication (if enabled)</td></tr>
         <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
         <tr><td>Streak & visit count</td><td>Daily streak tracking and visit bonus</td></tr>
         <tr><td>Channels visited</td><td>Progress tracking and exploration map</td></tr>
@@ -92,6 +94,27 @@
         <tr><td>Uploaded images</td><td>Stored as base64 in Firestore (max 5MB, resized to 800px)</td></tr>
     </table>
 
+    <h3>Bitcoin Beats (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Audio file (base64 MP3)</td><td>Store and play user-uploaded music tracks (max 10MB)</td></tr>
+        <tr><td>Track metadata (title, artist, genre)</td><td>Display track information in the music player</td></tr>
+        <tr><td>Play count</td><td>Track popularity and display play statistics</td></tr>
+        <tr><td>Likes</td><td>Track popularity and user preferences</td></tr>
+        <tr><td>Author ID & username</td><td>Attribution and track ownership</td></tr>
+        <tr><td>Copyright confirmation</td><td>Record that uploader confirmed rights ownership</td></tr>
+    </table>
+    <div class="warn">
+        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats is visible and playable by all users. You must own the copyright or have permission to upload. See our <a href="/terms.html#bitcoin-beats" style="color:#eab308;">Terms of Service</a> for copyright and takedown policies.
+    </div>
+
+    <h3>PVP Battles (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Battle results & scores</td><td>Track PVP battle history and rankings</td></tr>
+        <tr><td>Opponent pairing</td><td>Match players for competitive quizzes</td></tr>
+    </table>
+
     <h3>Reports (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
@@ -117,6 +140,7 @@
         <tr><td>Pending signup data</td><td>Temporarily stores username/email during email verification</td></tr>
         <tr><td>Visited channels</td><td>Checkmarks and exploration map (also synced to Firebase if signed in)</td></tr>
         <tr><td>BTC price cache</td><td>Cached price for marketplace USD conversion</td></tr>
+        <tr><td>Liked tracks (Bitcoin Beats)</td><td>Remember which tracks you hearted</td></tr>
     </table>
 
     <p>We do <strong>not</strong> collect your real name, physical location, IP address, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway).</p>
@@ -138,6 +162,10 @@
         <li>Enforce block lists to prevent unwanted communication</li>
         <li>Power the PlebTalk community forum (posts, replies, upvotes)</li>
         <li>Power the LightningMart marketplace (listings, buyer-seller communication)</li>
+        <li>Host and stream user-uploaded music on Bitcoin Beats</li>
+        <li>Facilitate PVP quiz battles between users</li>
+        <li>Enable two-factor authentication (TOTP) for account security</li>
+        <li>Verify Nostr and Lightning wallet signatures for authentication</li>
     </ul>
 
     <h2>3. User Profiles</h2>
@@ -167,6 +195,9 @@
         <tr><td>Twitter/X OAuth</td><td>Twitter sign-in</td><td>Twitter account info</td></tr>
         <tr><td>GitHub OAuth</td><td>GitHub sign-in</td><td>GitHub account email</td></tr>
         <tr><td>Facebook OAuth</td><td>Facebook sign-in</td><td>Facebook account info</td></tr>
+        <tr><td>Nostr (NIP-07)</td><td>Nostr sign-in via browser extension</td><td>Public key, signed auth event</td></tr>
+        <tr><td>LNURL-auth</td><td>Lightning wallet sign-in</td><td>Linking key, signed challenge</td></tr>
+        <tr><td>QR Server API</td><td>Generate QR codes for Lightning auth</td><td>LNURL string (no user identity)</td></tr>
         <tr><td>Cloudflare Workers</td><td>Nacho AI proxy (question answering)</td><td>Question text (no user identity)</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
@@ -180,6 +211,9 @@
         <li>Your <strong>posts and replies</strong> in the PlebTalk forum</li>
         <li>Your <strong>marketplace listings</strong> and seller name on LightningMart</li>
         <li>Your <strong>direct messages</strong> are visible only to you and the recipient</li>
+        <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
+        <li>Your <strong>uploaded music tracks</strong> on Bitcoin Beats are publicly playable by all users</li>
+        <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
     </ul>
 
     <h2>7. Cookies & Local Storage</h2>
