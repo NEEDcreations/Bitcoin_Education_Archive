@@ -161,13 +161,13 @@
         .msg-img:hover { border-color: var(--accent); box-shadow: 0 8px 30px var(--accent-glow); }
         .msg-link { color: var(--link); text-decoration: none; word-break: break-all; }
         /* Floating UI Stack (Right-aligned) */
-        .back-to-top { position: fixed; bottom: 220px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.3rem; cursor: pointer; z-index: 150; opacity: 0; transform: translateY(10px); transition: 0.3s; pointer-events: none; box-shadow: 0 4px 15px var(--accent-glow); display: flex; align-items: center; justify-content: center; }
+        .back-to-top { position: fixed; bottom: 180px; right: 16px; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.1rem; cursor: pointer; z-index: 150; opacity: 0; transform: translateY(10px); transition: 0.3s; pointer-events: none; box-shadow: 0 4px 15px var(--accent-glow); display: flex; align-items: center; justify-content: center; }
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--accent-glow); }
-        .scroll-to-bottom { bottom: 165px; right: 20px; }
+        .scroll-to-bottom { bottom: 130px; right: 16px; }
         #desktopSearchBtn { position: fixed; bottom: 110px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.3rem; cursor: pointer; z-index: 150; box-shadow: 0 4px 15px var(--accent-glow); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        .scroll-to-bottom { bottom: 165px !important; }
-        .back-to-top { bottom: 220px !important; }
+        .scroll-to-bottom { bottom: 130px !important; }
+        .back-to-top { bottom: 180px !important; }
         #desktopSearchBtn:hover { transform: translateY(-3px); }
         @media (max-width: 900px) { #desktopSearchBtn { display: none !important; } }
 
@@ -413,8 +413,8 @@
             .msg-link { font-size: 0.85rem; }
             .share-bar { gap: 6px; }
             .share-btn { padding: 6px 10px; font-size: 0.75rem; }
-            .back-to-top { bottom: 220px; right: 16px; width: 40px; height: 40px; font-size: 1.1rem; }
-            .scroll-to-bottom { bottom: 170px; right: 16px; }
+            .back-to-top { bottom: 140px; right: 12px; width: 36px; height: 36px; font-size: 1rem; }
+            .scroll-to-bottom { bottom: 90px; right: 12px; width: 36px; height: 36px; font-size: 1rem; }
             .home-page { padding: 30px 16px; min-height: auto; }
             .home-title { font-size: 2rem; letter-spacing: -1px; }
             .home-subtitle { font-size: 1rem; margin-bottom: 24px; }
@@ -928,7 +928,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="bundle.js?v=20260304u" defer></script>
+    <script src="bundle.js?v=20260304v" defer></script>
 <div id="recaptcha-container"></div>
 <script>
 if ('serviceWorker' in navigator) {
