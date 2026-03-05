@@ -16075,6 +16075,7 @@ function startScholarQuest(type) {
     };
     sessionStorage.setItem('btc_scholar_session_' + keyPrefix, JSON.stringify(sessionData));
 
+    window._scholarExamActive = true;
     renderScholarQuestion(0);
     modal.classList.add('open');
     startScholarTimer();
@@ -16162,6 +16163,7 @@ function selectScholarAnswer(idx, val) {
 }
 
 async function submitScholarQuest() {
+    window._scholarExamActive = false;
     if (scholarTimer) clearInterval(scholarTimer);
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     sessionStorage.removeItem('btc_scholar_session_' + keyPrefix);
@@ -16210,6 +16212,7 @@ function cancelScholar() {
     const confirmed = confirm("Are you sure you want to exit? This will count as your attempt for the day and you will be locked out until tomorrow.");
     if (!confirmed) return;
 
+    window._scholarExamActive = false;
     if (scholarTimer) clearInterval(scholarTimer);
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     const today = new Date().toISOString().split('T')[0];
