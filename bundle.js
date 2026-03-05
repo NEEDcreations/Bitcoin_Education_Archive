@@ -25636,22 +25636,7 @@ window.playSpinWin = function() {
             background: var(--accent);
             color: #fff;
         }
-        /* Scroll-to-top button */
-        .scroll-top-btn {
-            position: fixed; bottom: 230px; right: 20px;
-            z-index: 150;
-            width: 44px; height: 44px;
-            border-radius: 50%;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: none;
-            align-items: center; justify-content: center;
-            transition: 0.2s;
-        }
+        /* scroll-top-btn removed — using #backToTop in index.html */
         /* Badge progress bar */
         .badge-progress {
             width: 100%; height: 4px;
@@ -25847,31 +25832,7 @@ window.playSpinWin = function() {
     }
 })();
 
-// =============================================
-// BONUS: Scroll-to-top button (from Task 5 area — nav improvement)
-// =============================================
-(function() {
-    function initScrollTop() {
-        var main = document.getElementById('main');
-        if (!main) return;
-
-        var btn = document.createElement('button');
-        btn.className = 'scroll-top-btn';
-        btn.innerHTML = '↑';
-        btn.onclick = function() { main.scrollTo({ top: 0, behavior: 'smooth' }); };
-        document.body.appendChild(btn);
-
-        main.addEventListener('scroll', function() {
-            btn.style.display = main.scrollTop > 500 ? 'flex' : 'none';
-        }, { passive: true });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initScrollTop);
-    } else {
-        initScrollTop();
-    }
-})();
+// Scroll-to-top button removed — handled by #backToTop in index.html + app.js
 
 // =============================================
 // DONE — All 24 tasks implemented!
