@@ -811,67 +811,28 @@
                         pvpState._resultShown = false;
                         renderQuestion(data);
                     }
-                    // Safety: if both answered but status is still 'active', force-resolve
+                    // Safety: if both answered but status is still 'active', force-resolve via transaction
                     var myAns = data[myKey].answers || [];
                     var oppAns = data[oppKey].answers || [];
                     if (myAns.length > data.currentQ && oppAns.length > data.currentQ && pvpState.answered) {
                         if (!pvpState._forceResultTimer) {
                             pvpState._forceResultTimer = setTimeout(function() {
                                 pvpState._forceResultTimer = null;
-                                // Fresh read to get current state
-                                db.collection('pvp_matches').doc(matchId).get().then(function(freshDoc) {
-                                    if (!freshDoc.exists) return;
-                                    var fd = freshDoc.data();
-                                    if (fd.status !== 'active') return; // already resolved
-                                    var qIdx = fd.currentQ;
-                                    var fMyAns = (fd[myKey].answers || [])[qIdx];
-                                    var fOppAns = (fd[oppKey].answers || [])[qIdx];
-                                    if (!fMyAns || !fOppAns) return; // not both answered yet
-                                    var winner = 'reroll';
-                                    if (fMyAns.correct && !fOppAns.correct) winner = myKey;
-                                    else if (!fMyAns.correct && fOppAns.correct) winner = oppKey;
-                                    else if (fMyAns.correct && fOppAns.correct) winner = oppKey;
-                                    // Both wrong = reroll
-                                    if (winner === 'reroll') {
-                                        var newQ = pickRandomQuestions(1);
-                                        var fixUpdate = { questionWinner: 'reroll', status: 'question_result' };
-                                        if (newQ.length > 0) {
-                                            var qs = fd.questions.slice();
-                                            qs[qIdx] = formatQuestionForFirestore(newQ[0]);
-                                            fixUpdate['questions'] = qs;
-                                        }
-                                        // Clear answers for this question
-                                        var clearedMy = (fd[myKey].answers || []).slice(0, qIdx);
-                                        var clearedOpp = (fd[oppKey].answers || []).slice(0, qIdx);
-                                        fixUpdate[myKey + '.answers'] = clearedMy;
-                                        fixUpdate[oppKey + '.answers'] = clearedOpp;
-                                        db.collection('pvp_matches').doc(matchId).update(fixUpdate).catch(function(){});
-                                    } else {
-                                        // Count decided questions
-                                        var decided = 1; // this question
-                                        for (var i = 0; i < qIdx; i++) {
-                                            var a1 = (fd[myKey].answers || [])[i];
-                                            var a2 = (fd[oppKey].answers || [])[i];
-                                            if ((a1 && a1.won) || (a2 && a2.won)) decided++;
-                                        }
-                                        var fixUpdate = { questionWinner: winner, status: decided >= 5 ? 'finished' : 'question_result' };
-                                        // Set won flags
-                                        if (winner === myKey) {
-                                            var myAFixed = (fd[myKey].answers || []).slice();
-                                            if (myAFixed[qIdx]) myAFixed[qIdx] = Object.assign({}, myAFixed[qIdx], { won: true });
-                                            fixUpdate[myKey + '.answers'] = myAFixed;
-                                            fixUpdate[myKey + '.score'] = (fd[myKey].score || 0) + 10;
-                                            fixUpdate[myKey + '.correct'] = (fd[myKey].correct || 0) + 1;
-                                        } else {
-                                            var oppAFixed = (fd[oppKey].answers || []).slice();
-                                            if (oppAFixed[qIdx]) oppAFixed[qIdx] = Object.assign({}, oppAFixed[qIdx], { won: true });
-                                            fixUpdate[oppKey + '.answers'] = oppAFixed;
-                                            fixUpdate[oppKey + '.score'] = (fd[oppKey].score || 0) + 10;
-                                            fixUpdate[oppKey + '.correct'] = (fd[oppKey].correct || 0) + 1;
-                                        }
-                                        db.collection('pvp_matches').doc(matchId).update(fixUpdate).catch(function(){});
-                                    }
-                                }).catch(function(){});
+                                var matchRef = db.collection('pvp_matches').doc(matchId);
+                                db.runTransaction(function(tx) {
+                                    return tx.get(matchRef).then(function(freshDoc) {
+                                        if (!freshDoc.exists) return;
+                                        var fd = freshDoc.data();
+                                        if (fd.status !== 'active') return; // already resolved
+                                        var qIdx = fd.currentQ;
+                                        var fMyAns = fd[myKey].answers || [];
+                                        var fOppAns = fd[oppKey].answers || [];
+                                        if (fMyAns.length <= qIdx || fOppAns.length <= qIdx) return;
+                                        var update = {};
+                                        resolveRound(update, fd, fMyAns.slice(), fOppAns.slice(), qIdx, myKey, oppKey, fd[myKey], fd[oppKey], fMyAns[qIdx].correct);
+                                        tx.update(matchRef, update);
+                                    });
+                                }).catch(function(e) { console.error('Force-resolve tx error:', e); });
                             }, 2000);
                         }
                     }
@@ -1034,6 +995,76 @@
     }
 
     // =============================================
+    // RESOLVE ROUND — shared logic for determining winner
+    // Used by both the answer transaction and the force-resolve fallback
+    // =============================================
+    function resolveRound(update, data, myAnswers, oppAnswers, qIdx, myKey, oppKey, myPlayerData, oppPlayerData, myIsCorrect) {
+        var oppAnswer = oppAnswers[qIdx];
+        var myAnswer = myAnswers[qIdx];
+        var oppIsCorrect = oppAnswer && oppAnswer.correct;
+        var iWon = false;
+        var oppWon = false;
+
+        if (myIsCorrect && !oppIsCorrect) {
+            iWon = true;
+        } else if (!myIsCorrect && oppIsCorrect) {
+            oppWon = true;
+        } else if (myIsCorrect && oppIsCorrect) {
+            // Both correct — first to commit wins (opponent was already in DB)
+            oppWon = true;
+        } else {
+            // Both wrong — REROLL
+            var newQ = pickRandomQuestions(1);
+            if (newQ.length > 0) {
+                var formatted = formatQuestionForFirestore(newQ[0]);
+                var questions = data.questions.slice();
+                questions[qIdx] = formatted;
+                update['questions'] = questions;
+            }
+            // Clear both players' answers for this question
+            update[myKey + '.answers'] = myAnswers.slice(0, qIdx);
+            update[oppKey + '.answers'] = oppAnswers.slice(0, qIdx);
+            update['questionWinner'] = 'reroll';
+            update['status'] = 'question_result';
+            return;
+        }
+
+        // Set won flags
+        if (iWon) {
+            myAnswers[qIdx] = Object.assign({}, myAnswer, { won: true });
+            update[myKey + '.answers'] = myAnswers;
+        }
+        if (oppWon) {
+            var oppFixed = oppAnswers.slice();
+            oppFixed[qIdx] = Object.assign({}, oppAnswer, { won: true });
+            update[oppKey + '.answers'] = oppFixed;
+        }
+
+        // Award points to winner
+        var winnerKey = iWon ? myKey : oppKey;
+        var winnerData = iWon ? myPlayerData : oppPlayerData;
+        var winnerAnswers = iWon ? myAnswers : oppAnswers;
+
+        var winStreak = 0;
+        for (var s = winnerAnswers.length - 1; s >= 0; s--) {
+            if (winnerAnswers[s] && winnerAnswers[s].won) winStreak++;
+            else break;
+        }
+        var pts = 10 + (winStreak > 1 ? (winStreak - 1) * 5 : 0);
+        update[winnerKey + '.score'] = (winnerData.score || 0) + pts;
+        update[winnerKey + '.correct'] = (winnerData.correct || 0) + 1;
+        update['questionWinner'] = winnerKey;
+
+        // Count total decided questions (including this one)
+        var decidedCount = 1;
+        for (var dc = 0; dc < qIdx; dc++) {
+            if ((myAnswers[dc] && myAnswers[dc].won) || (oppAnswers[dc] && oppAnswers[dc].won)) decidedCount++;
+        }
+
+        update['status'] = decidedCount >= 5 ? 'finished' : 'question_result';
+    }
+
+    // =============================================
     // ANSWER SUBMISSION
     // =============================================
     window.pvpAnswer = function(qIdx, selected, btn) {
@@ -1115,97 +1146,10 @@
                 // Check if opponent already answered this question
                 var oppAnswers = oppPlayerData.answers || [];
                 if (oppAnswers.length > qIdx) {
-                    // Both have answered — determine winner
-                    var oppAnswer = oppAnswers[qIdx];
-                    var iWon = false;
-                    var oppWon = false;
-
-                    if (isCorrect && !oppAnswer.correct) {
-                        // Only I got it right
-                        iWon = true;
-                    } else if (!isCorrect && oppAnswer.correct) {
-                        // Only opponent got it right
-                        oppWon = true;
-                    } else if (isCorrect && oppAnswer.correct) {
-                        // Both correct — first to answer wins
-                        // The player already in the DB answered first (their transaction committed first)
-                        oppWon = true;
-                    } else {
-                        // Both wrong — REROLL: pick a new question and reset this round
-                        // Set status to 'reroll' so both clients show "Both wrong! New question..."
-                        var newQ = pickRandomQuestions(1);
-                        if (newQ.length > 0) {
-                            var formatted = formatQuestionForFirestore(newQ[0]);
-                            var questions = data.questions.slice();
-                            questions[qIdx] = formatted;
-                            update['questions'] = questions;
-                        }
-                        // Clear both players' answers for this question index
-                        newAnswers.pop(); // remove the answer we just pushed
-                        update[myKey + '.answers'] = newAnswers;
-                        var oppCleared = oppAnswers.slice(0, qIdx); // remove opp's answer for this q
-                        update[oppKey + '.answers'] = oppCleared;
-                        update['questionWinner'] = 'reroll';
-                        update['status'] = 'question_result'; // briefly show reroll screen
-                        transaction.update(matchRef, update);
-                        return;
-                    }
-
-                    // Update won flags
-                    newAnswers[qIdx].won = iWon;
-                    update[myKey + '.answers'] = newAnswers;
-
-                    if (oppWon && !oppAnswer.won) {
-                        var oppNewAnswers = oppAnswers.slice();
-                        oppNewAnswers[qIdx] = Object.assign({}, oppAnswer, { won: true });
-                        update[oppKey + '.answers'] = oppNewAnswers;
-                    }
-
-                    // Award points
-                    if (iWon) {
-                        var myWinStreak = 0;
-                        for (var s = newAnswers.length - 1; s >= 0; s--) {
-                            if (newAnswers[s].won) myWinStreak++;
-                            else break;
-                        }
-                        var pts = 10 + (myWinStreak > 1 ? (myWinStreak - 1) * 5 : 0);
-                        update[myKey + '.score'] = (myPlayerData.score || 0) + pts;
-                        update[myKey + '.correct'] = (myPlayerData.correct || 0) + 1;
-                        update['questionWinner'] = myKey;
-                    } else if (oppWon) {
-                        var oppWinStreak = 0;
-                        var oppAns = oppAnswers.slice();
-                        oppAns[qIdx] = Object.assign({}, oppAnswer, { won: true });
-                        for (var s = oppAns.length - 1; s >= 0; s--) {
-                            if (oppAns[s].won) oppWinStreak++;
-                            else break;
-                        }
-                        var pts = 10 + (oppWinStreak > 1 ? (oppWinStreak - 1) * 5 : 0);
-                        update[oppKey + '.score'] = (oppPlayerData.score || 0) + pts;
-                        update[oppKey + '.correct'] = (oppPlayerData.correct || 0) + 1;
-                        update['questionWinner'] = oppKey;
-                    }
-
-                    // This question was decided (someone won) — count total decided
-                    // Simply: every question where iWon or oppWon is decided
-                    // This current question IS decided since we're in the iWon/oppWon branch
-                    var decidedCount = iWon || oppWon ? 1 : 0;
-                    // Count previously decided questions from answers arrays
-                    for (var dc = 0; dc < qIdx; dc++) {
-                        if ((newAnswers[dc] && newAnswers[dc].won) || (oppAnswers[dc] && oppAnswers[dc].won)) decidedCount++;
-                    }
-
-                    if (decidedCount >= 5) {
-                        update['status'] = 'finished';
-                    } else {
-                        update['status'] = 'question_result';
-                    }
+                    // Both have answered — resolve the round
+                    resolveRound(update, data, newAnswers, oppAnswers, qIdx, myKey, oppKey, myPlayerData, oppPlayerData, isCorrect);
                 }
-
-                if (isCorrect) {
-                    update[myKey + '.correct'] = (myPlayerData.correct || 0) + (oppAnswers.length <= qIdx ? 0 : (isCorrect ? 0 : 0));
-                    // Correct count handled above when both answered
-                }
+                // If opponent hasn't answered yet, just write our answer (status stays 'active')
 
                 transaction.update(matchRef, update);
             });
