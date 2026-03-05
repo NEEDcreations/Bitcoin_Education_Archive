@@ -21782,27 +21782,68 @@ if (document.readyState === 'loading') {
                         pvpState._resultShown = false;
                         renderQuestion(data);
                     }
-                    // Safety: if both answered but status is still 'active', force transition
+                    // Safety: if both answered but status is still 'active', force-resolve
                     var myAns = data[myKey].answers || [];
                     var oppAns = data[oppKey].answers || [];
                     if (myAns.length > data.currentQ && oppAns.length > data.currentQ && pvpState.answered) {
-                        // Both answered but status didn't transition — fix it
                         if (!pvpState._forceResultTimer) {
                             pvpState._forceResultTimer = setTimeout(function() {
                                 pvpState._forceResultTimer = null;
-                                if (!pvpState.isPlayer1) {
-                                    // Player2 resolves: determine winner and set status
-                                    var qIdx = data.currentQ;
-                                    var myA = myAns[qIdx];
-                                    var oppA = oppAns[qIdx];
-                                    var winner = 'tie';
-                                    if (myA.correct && !oppA.correct) winner = myKey;
-                                    else if (!myA.correct && oppA.correct) winner = oppKey;
-                                    else if (myA.correct && oppA.correct) winner = oppKey; // first answerer (already in DB)
-                                    var fixUpdate = { status: qIdx >= 4 ? 'finished' : 'question_result', questionWinner: winner };
-                                    db.collection('pvp_matches').doc(matchId).update(fixUpdate).catch(function(){});
-                                }
-                            }, 3000);
+                                // Fresh read to get current state
+                                db.collection('pvp_matches').doc(matchId).get().then(function(freshDoc) {
+                                    if (!freshDoc.exists) return;
+                                    var fd = freshDoc.data();
+                                    if (fd.status !== 'active') return; // already resolved
+                                    var qIdx = fd.currentQ;
+                                    var fMyAns = (fd[myKey].answers || [])[qIdx];
+                                    var fOppAns = (fd[oppKey].answers || [])[qIdx];
+                                    if (!fMyAns || !fOppAns) return; // not both answered yet
+                                    var winner = 'reroll';
+                                    if (fMyAns.correct && !fOppAns.correct) winner = myKey;
+                                    else if (!fMyAns.correct && fOppAns.correct) winner = oppKey;
+                                    else if (fMyAns.correct && fOppAns.correct) winner = oppKey;
+                                    // Both wrong = reroll
+                                    if (winner === 'reroll') {
+                                        var newQ = pickRandomQuestions(1);
+                                        var fixUpdate = { questionWinner: 'reroll', status: 'question_result' };
+                                        if (newQ.length > 0) {
+                                            var qs = fd.questions.slice();
+                                            qs[qIdx] = formatQuestionForFirestore(newQ[0]);
+                                            fixUpdate['questions'] = qs;
+                                        }
+                                        // Clear answers for this question
+                                        var clearedMy = (fd[myKey].answers || []).slice(0, qIdx);
+                                        var clearedOpp = (fd[oppKey].answers || []).slice(0, qIdx);
+                                        fixUpdate[myKey + '.answers'] = clearedMy;
+                                        fixUpdate[oppKey + '.answers'] = clearedOpp;
+                                        db.collection('pvp_matches').doc(matchId).update(fixUpdate).catch(function(){});
+                                    } else {
+                                        // Count decided questions
+                                        var decided = 1; // this question
+                                        for (var i = 0; i < qIdx; i++) {
+                                            var a1 = (fd[myKey].answers || [])[i];
+                                            var a2 = (fd[oppKey].answers || [])[i];
+                                            if ((a1 && a1.won) || (a2 && a2.won)) decided++;
+                                        }
+                                        var fixUpdate = { questionWinner: winner, status: decided >= 5 ? 'finished' : 'question_result' };
+                                        // Set won flags
+                                        if (winner === myKey) {
+                                            var myAFixed = (fd[myKey].answers || []).slice();
+                                            if (myAFixed[qIdx]) myAFixed[qIdx] = Object.assign({}, myAFixed[qIdx], { won: true });
+                                            fixUpdate[myKey + '.answers'] = myAFixed;
+                                            fixUpdate[myKey + '.score'] = (fd[myKey].score || 0) + 10;
+                                            fixUpdate[myKey + '.correct'] = (fd[myKey].correct || 0) + 1;
+                                        } else {
+                                            var oppAFixed = (fd[oppKey].answers || []).slice();
+                                            if (oppAFixed[qIdx]) oppAFixed[qIdx] = Object.assign({}, oppAFixed[qIdx], { won: true });
+                                            fixUpdate[oppKey + '.answers'] = oppAFixed;
+                                            fixUpdate[oppKey + '.score'] = (fd[oppKey].score || 0) + 10;
+                                            fixUpdate[oppKey + '.correct'] = (fd[oppKey].correct || 0) + 1;
+                                        }
+                                        db.collection('pvp_matches').doc(matchId).update(fixUpdate).catch(function(){});
+                                    }
+                                }).catch(function(){});
+                            }, 2000);
                         }
                     }
                 }
@@ -22116,19 +22157,17 @@ if (document.readyState === 'loading') {
                         update['questionWinner'] = oppKey;
                     }
 
-                    // Check if match is done (5 DECIDED questions — not counting rerolls)
-                    var decidedCount = 0;
-                    var allMyAns = newAnswers;
-                    for (var dc = 0; dc < allMyAns.length; dc++) {
-                        if (allMyAns[dc].won || (oppAnswers[dc] && oppAnswers[dc].won)) decidedCount++;
+                    // This question was decided (someone won) — count total decided
+                    // Simply: every question where iWon or oppWon is decided
+                    // This current question IS decided since we're in the iWon/oppWon branch
+                    var decidedCount = iWon || oppWon ? 1 : 0;
+                    // Count previously decided questions from answers arrays
+                    for (var dc = 0; dc < qIdx; dc++) {
+                        if ((newAnswers[dc] && newAnswers[dc].won) || (oppAnswers[dc] && oppAnswers[dc].won)) decidedCount++;
                     }
-                    // Also count this question if someone won
-                    if (iWon || oppWon) {
-                        if (decidedCount >= 5) {
-                            update['status'] = 'finished';
-                        } else {
-                            update['status'] = 'question_result';
-                        }
+
+                    if (decidedCount >= 5) {
+                        update['status'] = 'finished';
                     } else {
                         update['status'] = 'question_result';
                     }
