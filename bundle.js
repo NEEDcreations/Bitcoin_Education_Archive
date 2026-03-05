@@ -25181,6 +25181,7 @@ window.renderBitcoinBeats = function() {
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
             </div>
+            <span class="donate-circle" onclick="showDonateModal()" style="width:44px;height:44px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);flex-shrink:0;" title="Donate"><svg viewBox="0 0 64 64" width="24" height="24"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
         </div>
 
         <!-- Copyright Disclaimer (collapsible) -->
@@ -26263,7 +26264,6 @@ window.beatsFormatTime = function(secs) {
     var s = Math.floor(secs % 60);
     return m + ':' + (s < 10 ? '0' : '') + s;
 };
-// =============================================
 (function() {
     var observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(m) {
