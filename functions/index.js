@@ -463,16 +463,27 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     try {
         await admin.auth().getUser(lnUid);
     } catch(e) {
-        await admin.auth().createUser({
-            uid: lnUid,
-            displayName: '⚡anon-' + key.substring(0, 12),
-        });
+        try {
+            await admin.auth().createUser({
+                uid: lnUid,
+                displayName: '⚡anon-' + key.substring(0, 12),
+            });
+        } catch(createErr) {
+            console.error('Create user error:', createErr);
+            return res.json({ status: 'ERROR', reason: 'Failed to create user account' });
+        }
     }
 
     // Create custom token
-    const customToken = await admin.auth().createCustomToken(lnUid, {
-        lnPubkey: key,
-    });
+    let customToken;
+    try {
+        customToken = await admin.auth().createCustomToken(lnUid, {
+            lnPubkey: key,
+        });
+    } catch(tokenErr) {
+        console.error('Custom token error:', tokenErr);
+        return res.json({ status: 'ERROR', reason: 'Failed to generate auth token. Please try again.' });
+    }
 
     // Update challenge doc with auth result
     await db.collection('lnauth_challenges').doc(k1).update({

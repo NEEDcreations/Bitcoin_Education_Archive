@@ -18,9 +18,6 @@ window.renderBitcoinBeats = function() {
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
             </div>
-            <button onclick="beatsShowUpload()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
-                <span style="font-size:1rem;">+</span> Upload
-            </button>
         </div>
 
         <!-- Copyright Disclaimer (collapsible) -->
@@ -622,8 +619,96 @@ window.beatsShowDMCA = function() {
     document.body.appendChild(overlay);
 };
 
-// ---- Livestream Tab ----
-window.beatsRenderLivestream = function() {
+// ---- Upload Tab ----
+window.beatsRenderUpload = function() {
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) return;
+
+    listEl.innerHTML =
+        '<div style="text-align:center;animation:fadeSlideIn 0.4s ease-out;padding:40px 20px;">' +
+            '<div style="margin-bottom:20px;">' +
+                '<div style="font-size:3.5rem;margin-bottom:16px;animation:beatsPulse 2s infinite;filter:drop-shadow(0 0 12px var(--accent));">🎸</div>' +
+                '<div style="color:var(--heading);font-weight:800;font-size:1.5rem;margin-bottom:8px;">Upload a Track</div>' +
+                '<div style="color:var(--text-faint);font-size:0.9rem;margin-bottom:24px;">Share your music with the Bitcoin community.</div>' +
+            '</div>' +
+
+            // Upload form
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:480px;margin:0 auto;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Track Title *</label>' +
+                '<input type="text" id="beatsUpTitle" maxlength="100" placeholder="My Bitcoin Song" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Artist Name</label>' +
+                '<input type="text" id="beatsUpArtist" maxlength="60" placeholder="Your name or alias" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Genre</label>' +
+                '<select id="beatsUpGenre" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;">' +
+                    '<option value="bitcoin">Bitcoin / Orange-Pilled</option>' +
+                    '<option value="hip-hop">Hip Hop</option>' +
+                    '<option value="rock">Rock</option>' +
+                    '<option value="electronic">Electronic</option>' +
+                    '<option value="folk">Folk / Acoustic</option>' +
+                    '<option value="podcast">Podcast / Talk</option>' +
+                    '<option value="ambient">Ambient / Lo-fi</option>' +
+                    '<option value="other">Other</option>' +
+                '</select>' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
+                '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
+                '<div id="beatsUpProgress" style="display:none;margin-bottom:12px;">' +
+                    '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width:0.3s;"></div></div>' +
+                    '<div id="beatsUpStatus" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">Processing...</div>' +
+                '</div>' +
+                '<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">' +
+                    '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">' +
+                        '<input type="checkbox" id="beatsUpCopyright" style="width:18px;height:18px;accent-color:var(--accent);margin-top:2px;flex-shrink:0;">' +
+                        '<span style="color:var(--text-muted);font-size:0.78rem;line-height:1.4;">I confirm that I own the rights to this music or have explicit permission from the copyright holder to upload it. I understand that copyrighted material uploaded without authorization will be removed and my account may be suspended.</span>' +
+                    '</label>' +
+                '</div>' +
+                '<button onclick="beatsDoUpload()" id="beatsUpBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Upload Track</button>' +
+            '</div>' +
+
+            // Info
+            '<div style="margin-top:24px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
+                '<h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:12px;">Tips for Uploading</h3>' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;line-height:1.5;">' +
+                    '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 25MB)</p>' +
+                    '<p><strong>✅ Rewards:</strong> +25 points for each approved track</p>' +
+                    '<p><strong>✅ Visibility:</strong> Your track will be publicly available to all users</p>' +
+                    '<p><strong>⚠️ Copyright:</strong> Only upload music you own or have permission to share</p>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+
+        // Animations
+        '<style>' +
+            '@keyframes beatsPulse { 0% { opacity: 0.3; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.3; transform: scale(0.95); } }' +
+            '@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }' +
+        '</style>';
+
+    // Clear upload form fields
+    var title = document.getElementById('beatsUpTitle');
+    var artist = document.getElementById('beatsUpArtist');
+    var genre = document.getElementById('beatsUpGenre');
+    var file = document.getElementById('beatsUpFile');
+    var copyright = document.getElementById('beatsUpCopyright');
+    if (title) title.value = '';
+    if (artist) artist.value = '';
+    if (genre) genre.value = 'bitcoin';
+    if (file) file.value = '';
+    if (copyright) copyright.checked = false;
+
+    var btn = document.getElementById('beatsUpBtn');
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Upload Track';
+    }
+    var progress = document.getElementById('beatsUpProgress');
+    if (progress) progress.style.display = 'none';
+    var bar = document.getElementById('beatsUpBar');
+    if (bar) bar.style.width = '0%';
+    var status = document.getElementById('beatsUpStatus');
+    if (status) status.textContent = 'Processing...';
+};
+
+// ---- Upload Tab ----
+window.beatsRenderUpload = function() {
     var listEl = document.getElementById('beatsTrackList');
     if (!listEl) return;
 
