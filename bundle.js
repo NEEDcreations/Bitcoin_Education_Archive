@@ -21310,6 +21310,9 @@ if (document.readyState === 'loading') {
     function cleanupPVP() {
         if (pvpState._matchPoll) { clearInterval(pvpState._matchPoll); pvpState._matchPoll = null; }
         if (pvpState._heartbeat) { clearInterval(pvpState._heartbeat); pvpState._heartbeat = null; }
+        if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
+        pvpState._resultShown = false;
+        pvpState._matchResultShown = false;
         if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
         if (pvpState.lobbyUnsub) { pvpState.lobbyUnsub(); pvpState.lobbyUnsub = null; }
 
@@ -21776,16 +21779,47 @@ if (document.readyState === 'loading') {
                     if (data.currentQ !== pvpState.currentQ || !document.getElementById('pvpQuestion')) {
                         pvpState.currentQ = data.currentQ;
                         pvpState.answered = false;
+                        pvpState._resultShown = false;
                         renderQuestion(data);
+                    }
+                    // Safety: if both answered but status is still 'active', force transition
+                    var myAns = data[myKey].answers || [];
+                    var oppAns = data[oppKey].answers || [];
+                    if (myAns.length > data.currentQ && oppAns.length > data.currentQ && pvpState.answered) {
+                        // Both answered but status didn't transition — fix it
+                        if (!pvpState._forceResultTimer) {
+                            pvpState._forceResultTimer = setTimeout(function() {
+                                pvpState._forceResultTimer = null;
+                                if (!pvpState.isPlayer1) {
+                                    // Player2 resolves: determine winner and set status
+                                    var qIdx = data.currentQ;
+                                    var myA = myAns[qIdx];
+                                    var oppA = oppAns[qIdx];
+                                    var winner = 'tie';
+                                    if (myA.correct && !oppA.correct) winner = myKey;
+                                    else if (!myA.correct && oppA.correct) winner = oppKey;
+                                    else if (myA.correct && oppA.correct) winner = oppKey; // first answerer (already in DB)
+                                    var fixUpdate = { status: qIdx >= 4 ? 'finished' : 'question_result', questionWinner: winner };
+                                    db.collection('pvp_matches').doc(matchId).update(fixUpdate).catch(function(){});
+                                }
+                            }, 3000);
+                        }
                     }
                 }
 
                 if (data.status === 'question_result') {
-                    renderQuestionResult(data);
+                    // Guard: only render result once per question
+                    if (!pvpState._resultShown) {
+                        pvpState._resultShown = true;
+                        renderQuestionResult(data);
+                    }
                 }
 
                 if (data.status === 'finished') {
-                    renderMatchResult(data);
+                    if (!pvpState._matchResultShown) {
+                        pvpState._matchResultShown = true;
+                        renderMatchResult(data);
+                    }
                 }
 
                 // Opponent forfeited
