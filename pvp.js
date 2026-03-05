@@ -267,6 +267,7 @@
     // CLEANUP
     // =============================================
     function cleanupPVP() {
+        if (pvpState._matchPoll) { clearInterval(pvpState._matchPoll); pvpState._matchPoll = null; }
         if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
         if (pvpState.lobbyUnsub) { pvpState.lobbyUnsub(); pvpState.lobbyUnsub = null; }
 
@@ -369,63 +370,98 @@
     }
 
     // =============================================
-    // LOBBY — JOIN & MATCHMAKING
+    // LOBBY — JOIN & MATCHMAKING (real-time)
     // =============================================
     function joinLobby() {
         var db = getDb();
         var uid = getMyUid();
         if (!db || !uid) return;
 
-        // First check if anyone is waiting
+        // Step 1: Try to find and match with an existing waiting player
         db.collection('pvp_lobby')
             .where('status', '==', 'waiting')
-            .orderBy('createdAt', 'asc')
-            .limit(1)
+            .limit(5)
             .get()
             .then(function(snap) {
-                if (!snap.empty) {
-                    var waitingDoc = snap.docs[0];
-                    var waitingData = waitingDoc.data();
+                var matched = false;
+                snap.forEach(function(doc) {
+                    if (matched) return;
+                    var data = doc.data();
+                    if (data.uid === uid) return; // skip self
+                    matched = true;
+                    createMatch(doc.id, data);
+                });
 
-                    // Don't match with yourself
-                    if (waitingData.uid === uid) {
-                        // Already waiting — just listen for match
-                        pvpState.lobbyDocId = waitingDoc.id;
-                        listenForMatch(waitingDoc.id);
-                        return;
-                    }
-
-                    // Match found! Create the match
-                    createMatch(waitingDoc.id, waitingData);
-                } else {
-                    // No one waiting — add ourselves to lobby
-                    db.collection('pvp_lobby').add({
-                        uid: uid,
-                        name: getMyDisplayName(),
-                        status: 'waiting',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }).then(function(docRef) {
-                        pvpState.lobbyDocId = docRef.id;
-                        listenForMatch(docRef.id);
-                    }).catch(function(err) {
-                        console.error('PVP lobby join error:', err);
-                        if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
-                    });
+                if (!matched) {
+                    // No valid opponent found — add ourselves and listen
+                    addToLobbyAndListen(uid);
                 }
             })
             .catch(function(err) {
                 console.error('PVP lobby query error:', err);
-                // Fallback — just add to lobby
-                db.collection('pvp_lobby').add({
-                    uid: uid,
-                    name: getMyDisplayName(),
-                    status: 'waiting',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(function(docRef) {
-                    pvpState.lobbyDocId = docRef.id;
-                    listenForMatch(docRef.id);
-                });
+                // Index might not be ready — add to lobby and use polling fallback
+                addToLobbyAndListen(uid);
             });
+    }
+
+    function addToLobbyAndListen(uid) {
+        var db = getDb();
+        if (!db) return;
+
+        // Clean up any stale entries for this user first
+        db.collection('pvp_lobby').where('uid', '==', uid).get().then(function(snap) {
+            snap.forEach(function(doc) { doc.ref.delete(); });
+        }).catch(function(){});
+
+        // Add fresh lobby entry
+        setTimeout(function() {
+            db.collection('pvp_lobby').add({
+                uid: uid,
+                name: getMyDisplayName(),
+                status: 'waiting',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(function(docRef) {
+                pvpState.lobbyDocId = docRef.id;
+                listenForMatch(docRef.id);
+                // Also start polling for opponents (catches cases where real-time listener misses)
+                startMatchmakingPoll(docRef.id, uid);
+            }).catch(function(err) {
+                console.error('PVP lobby join error:', err);
+                if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
+            });
+        }, 500);
+    }
+
+    // Poll for opponents every 3 seconds as a fallback
+    function startMatchmakingPoll(myLobbyDocId, myUid) {
+        if (pvpState._matchPoll) clearInterval(pvpState._matchPoll);
+        pvpState._matchPoll = setInterval(function() {
+            if (pvpState.inMatch || !pvpState.inLobby) {
+                clearInterval(pvpState._matchPoll);
+                pvpState._matchPoll = null;
+                return;
+            }
+            var db = getDb();
+            if (!db) return;
+
+            db.collection('pvp_lobby')
+                .where('status', '==', 'waiting')
+                .limit(5)
+                .get()
+                .then(function(snap) {
+                    if (pvpState.inMatch) return; // already matched
+                    snap.forEach(function(doc) {
+                        if (pvpState.inMatch) return;
+                        var data = doc.data();
+                        if (data.uid === myUid) return;
+                        // Found an opponent — match them!
+                        clearInterval(pvpState._matchPoll);
+                        pvpState._matchPoll = null;
+                        createMatch(doc.id, data);
+                    });
+                })
+                .catch(function(){});
+        }, 3000);
     }
 
     function listenForMatch(lobbyDocId) {
@@ -538,28 +574,41 @@
                 '<div style="color:var(--text-faint);font-size:0.8rem;margin-top:8px;">Get ready...</div>' +
             '</div>';
 
-        // Countdown
+        // 3-2-1-BATTLE countdown
         var countEl = document.getElementById('pvpCountdown');
-        var count = 3;
+        var sequence = [3, 2, 1, 'BATTLE!'];
+        var step = 0;
         var countInterval = setInterval(function() {
-            count--;
-            if (countEl) {
-                countEl.textContent = count > 0 ? count : 'GO!';
-                countEl.style.animation = 'none';
-                countEl.offsetHeight; // reflow
-                countEl.style.animation = 'pvpCountdown 0.5s ease';
-                if (count === 0) countEl.style.color = '#22c55e';
-            }
-            if (count <= 0) {
+            step++;
+            if (step >= sequence.length) {
                 clearInterval(countInterval);
+                // Show "BATTLE!" in big orange then start
+                if (countEl) {
+                    countEl.textContent = '⚔️ BATTLE! ⚔️';
+                    countEl.style.color = '#f7931a';
+                    countEl.style.fontSize = '3rem';
+                    countEl.style.animation = 'none';
+                    countEl.offsetHeight;
+                    countEl.style.animation = 'pvpCountdown 0.5s ease';
+                }
+                if (typeof haptic === 'function') haptic('heavy');
                 // Wait a beat then show first question
                 setTimeout(function() {
-                    // Player2 (match creator) kicks off the first question
                     if (!pvpState.isPlayer1) {
                         startNextQuestion();
                     }
-                }, 800);
+                }, 1000);
+                return;
             }
+            if (countEl) {
+                countEl.textContent = sequence[step];
+                countEl.style.animation = 'none';
+                countEl.offsetHeight;
+                countEl.style.animation = 'pvpCountdown 0.5s ease';
+                if (sequence[step] === 1) countEl.style.color = '#ef4444';
+                else if (sequence[step] === 2) countEl.style.color = '#fbbf24';
+            }
+            if (typeof haptic === 'function') haptic('light');
         }, 1000);
     }
 
