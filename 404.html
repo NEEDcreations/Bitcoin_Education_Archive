@@ -737,7 +737,7 @@
                 <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:10px;font-weight:700;" onclick="toggleSidebarMenu('sidebarAppsMenu')">🧭 Explore Apps ▼</button>
                 <div id="sidebarAppsMenu" style="display:none;padding:10px;background:rgba(255,255,255,0.03);border-radius:12px;margin-top:4px;border:1px solid var(--border);">
                     <button class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;font-weight:700;border:none;font-size:0.8rem;" onclick="enterNachoMode()">🦌 Nacho Mode</button>
-                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="if(typeof enterPVPMode==='function')enterPVPMode()">⚔️ PVP Mode</button>
+                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="if(typeof enterPVPMode==='function')enterPVPMode()">⚔️ PVP Battle</button>
                     <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('forum')">🗣️ Pleb Talk</button>
                     <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('marketplace')">⚡ Lightning Mart</button>
                     <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('irl-sync')">🤝 IRL Sync</button>
@@ -942,6 +942,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
     <script src="bundle.js?v=20260305v" defer></script>
     <script src="pvp.js?v=20260305p" defer></script>
+    <script src="irl-sync.js?v=20260305v" defer></script>
 <div id="recaptcha-container"></div>
 <script>
 if ('serviceWorker' in navigator) {
