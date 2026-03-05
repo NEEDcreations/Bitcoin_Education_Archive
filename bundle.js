@@ -12270,6 +12270,225 @@ for(const cat in NEW_BANK_QUESTIONS) {
 }
 
 
+// =============================================
+// EXPANSION PACK — 120+ new questions (March 2026)
+// Covers missing channels + deeper content for existing ones
+// =============================================
+const NEW_BANK_QUESTIONS_2 = {
+    'supranational': [
+        { q: 'What does "supranational" mean in the context of Bitcoin?', a: 'It transcends national borders and governments', wrong: ['It is backed by the United Nations', 'It requires international approval to use', 'It can only be used between countries'] },
+        { q: 'The Lindy Effect suggests that Bitcoin:', a: 'The longer it survives, the longer it is expected to survive', wrong: ['Will eventually be replaced by newer technology', 'Has a fixed expiration date coded into its protocol', 'Must be upgraded every 10 years to remain relevant'] },
+        { q: 'Bitcoin settlement finality means:', a: 'Once confirmed, transactions cannot be reversed', wrong: ['Transactions can be disputed within 30 days', 'A central authority must approve each transaction', 'Only miners can verify if a transaction is final'] },
+    ],
+    'organic': [
+        { q: 'Bitcoin grew organically because:', a: 'It had no pre-mine, no ICO, and no marketing budget', wrong: ['A major corporation funded its development', 'Governments agreed to adopt it simultaneously', 'Social media algorithms promoted it automatically'] },
+        { q: 'What makes Bitcoin\'s distribution unique among cryptocurrencies?', a: 'Fair launch — no coins were pre-allocated to founders', wrong: ['Satoshi kept 50% of all coins before launch', 'Venture capitalists funded the initial distribution', 'Coins were distributed based on national GDP'] },
+    ],
+    'programmable': [
+        { q: 'Bitcoin Script is intentionally limited because:', a: 'Simplicity reduces attack surface and increases security', wrong: ['Satoshi was not a skilled programmer', 'The blockchain cannot process complex instructions', 'It was a temporary design meant to be upgraded'] },
+        { q: 'What does "Turing-incomplete" mean for Bitcoin Script?', a: 'It cannot run arbitrary programs or infinite loops', wrong: ['It cannot process any transactions at all', 'It requires a separate computer to verify', 'It can only handle one transaction per block'] },
+    ],
+    'difficulty-adjustment': [
+        { q: 'Bitcoin\'s difficulty adjusts every:', a: '2,016 blocks (roughly every 2 weeks)', wrong: ['Every single block', 'Once per year', 'Every 210,000 blocks (at each halving)'] },
+        { q: 'If miners leave the network, difficulty adjustment:', a: 'Lowers the difficulty so blocks are found at the target rate', wrong: ['Increases difficulty to punish remaining miners', 'Has no effect — blocks just take longer forever', 'Automatically doubles the block reward'] },
+        { q: 'The target time between Bitcoin blocks is approximately:', a: '10 minutes', wrong: ['1 minute', '1 hour', '30 seconds'] },
+    ],
+    'nostr': [
+        { q: 'Nostr is best described as:', a: 'A decentralized social protocol that cannot be censored', wrong: ['A Bitcoin wallet application', 'A new cryptocurrency competing with Bitcoin', 'An encrypted messaging app owned by a company'] },
+        { q: 'Nostr uses cryptographic keys to:', a: 'Allow users to own their identity without a central authority', wrong: ['Mine new coins on the Nostr blockchain', 'Encrypt all messages so no one can read them', 'Create smart contracts between users'] },
+        { q: 'How is Nostr connected to Bitcoin?', a: 'Many clients integrate Lightning for tips and payments', wrong: ['Nostr runs on the Bitcoin blockchain directly', 'You must own Bitcoin to create a Nostr account', 'Nostr mining validates Bitcoin transactions'] },
+    ],
+    'network_effects': [
+        { q: 'Bitcoin\'s network effect means:', a: 'The more people who use it, the more valuable and useful it becomes', wrong: ['Mining becomes easier with more users', 'Transaction fees decrease as adoption grows', 'New coins are created when users join'] },
+        { q: 'Metcalfe\'s Law applied to Bitcoin suggests:', a: 'Its value grows proportionally to the square of its users', wrong: ['The price will always increase linearly', 'Only the first users receive any benefit', 'Network effects only apply to social media'] },
+    ],
+    'ordinals': [
+        { q: 'Bitcoin Ordinals allow:', a: 'Inscribing data (images, text) directly on individual satoshis', wrong: ['Creating new tokens on the Bitcoin network', 'Speeding up transaction confirmation times', 'Reducing the total supply of Bitcoin'] },
+        { q: 'Why are Ordinals controversial in the Bitcoin community?', a: 'They increase block space demand and fees for financial transactions', wrong: ['They change the 21 million supply cap', 'They require a hard fork to implement', 'They give miners control over which transactions are valid'] },
+    ],
+    'geopolitics___macroeconomics': [
+        { q: 'Why is Bitcoin relevant to geopolitics?', a: 'It provides a neutral monetary system outside any nation\'s control', wrong: ['Major governments collectively control Bitcoin\'s code', 'Bitcoin mining is only legal in 5 countries', 'The UN regulates Bitcoin\'s international transfers'] },
+        { q: 'What is the "petrodollar" system?', a: 'Oil is priced in US dollars, forcing global demand for the dollar', wrong: ['A cryptocurrency backed by oil reserves', 'A Bitcoin mining technique using petroleum', 'A tax imposed on Bitcoin by oil-producing nations'] },
+    ],
+    'human_rights__social_justice_and_freedo': [
+        { q: 'How does Bitcoin help people under authoritarian regimes?', a: 'It provides censorship-resistant money that governments cannot freeze', wrong: ['It automatically reports suspicious activity to authorities', 'It requires government ID to transact', 'It only works in democratic countries'] },
+        { q: 'Alex Gladstein of the Human Rights Foundation argues that:', a: 'Bitcoin is the most important tool for financial freedom globally', wrong: ['Only wealthy nations benefit from Bitcoin', 'Bitcoin should be controlled by human rights organizations', 'Proof of Stake is better for human rights than Proof of Work'] },
+    ],
+    'maximalism': [
+        { q: 'Bitcoin maximalism is the belief that:', a: 'Bitcoin is the only cryptocurrency that truly matters', wrong: ['Every cryptocurrency is equally valuable', 'Bitcoin should be controlled by a single organization', 'Multiple blockchains should merge into Bitcoin'] },
+        { q: 'Why do deep Bitcoin researchers tend to become maximalists?', a: 'They realize no other project achieves true decentralization and immutability', wrong: ['They are paid by Bitcoin companies to promote it', 'They lack knowledge of other technologies', 'It is required to participate in the Bitcoin community'] },
+    ],
+    'austrian_school_of_economics': [
+        { q: 'The Austrian School of Economics emphasizes:', a: 'Sound money, free markets, and the dangers of central banking', wrong: ['Government control of all monetary systems', 'That inflation is beneficial for economic growth', 'That central banks should print unlimited money'] },
+        { q: 'Who wrote "The Theory of Money and Credit"?', a: 'Ludwig von Mises', wrong: ['John Maynard Keynes', 'Paul Krugman', 'Adam Smith'] },
+        { q: 'Bitcoin aligns with Austrian economics because:', a: 'It has a fixed supply and cannot be debased by any authority', wrong: ['It was invented by an Austrian economist', 'The Austrian government officially endorses it', 'It uses the Austrian Schilling as its base currency'] },
+    ],
+    'softwar': [
+        { q: 'Jason Lowery\'s "Softwar" thesis argues that:', a: 'Proof of Work is a form of power projection in cyberspace, analogous to physical warfare', wrong: ['Bitcoin should be used to fund military operations', 'Proof of Stake is militarily superior to Proof of Work', 'Software companies should replace national armies'] },
+    ],
+    'time_preference': [
+        { q: 'What is "low time preference" in Bitcoin culture?', a: 'Prioritizing long-term saving over short-term spending', wrong: ['Trading Bitcoin frequently for quick profits', 'Spending all your Bitcoin before the next halving', 'Checking the price every 5 minutes'] },
+        { q: 'A Bitcoin standard encourages low time preference because:', a: 'Saving is rewarded since the money appreciates over time', wrong: ['Bitcoin transactions are extremely slow', 'The government mandates holding periods', 'You can only sell Bitcoin once per year'] },
+    ],
+    'evidence-against-alts': [
+        { q: 'Why do Bitcoiners say "there is no second best"?', a: 'No other crypto achieves Bitcoin\'s decentralization, security, and immutability', wrong: ['Bitcoin was the first, so it automatically wins', 'The SEC has declared all other cryptos illegal', 'Satoshi patented the blockchain concept'] },
+        { q: 'What is a "pre-mine" and why is it concerning?', a: 'Founders allocate coins to themselves before public launch — unfair distribution', wrong: ['A technique to speed up transaction processing', 'A security measure that protects the network', 'A method of testing the blockchain before launch'] },
+        { q: 'Most altcoins are considered securities because:', a: 'They have identifiable teams profiting from token sales with promises of returns', wrong: ['They use the same code as Bitcoin', 'The SEC approves them as securities automatically', 'They are traded on stock exchanges'] },
+    ],
+    'fedimints': [
+        { q: 'A Fedimint (Federated Mint) provides:', a: 'Community-custodial privacy through Chaumian ecash on Bitcoin', wrong: ['A new type of Bitcoin mining pool', 'A government-approved Bitcoin exchange', 'A way to increase Bitcoin\'s supply above 21 million'] },
+        { q: 'Fedimints improve Bitcoin privacy by:', a: 'Using blinded signatures so the mint cannot link deposits to withdrawals', wrong: ['Deleting transaction data from the blockchain', 'Requiring all users to share their identity', 'Converting Bitcoin into a different cryptocurrency'] },
+    ],
+    'chaumian-mints': [
+        { q: 'Cashu is:', a: 'An ecash protocol built on Bitcoin using Chaumian blind signatures', wrong: ['A competing cryptocurrency to Bitcoin', 'A hardware wallet manufacturer', 'A type of Bitcoin mining software'] },
+        { q: 'What are "blind signatures" in ecash?', a: 'The mint signs tokens without knowing which user they belong to', wrong: ['Signatures that expire after 24 hours', 'A way to sign transactions without a private key', 'Signatures that can only be verified by the government'] },
+    ],
+    'op-codes': [
+        { q: 'Bitcoin OP_CODES are:', a: 'Instructions in Bitcoin\'s scripting language that define spending conditions', wrong: ['Error codes returned when a transaction fails', 'Codes used to communicate between mining pools', 'Secret backdoor commands for Bitcoin developers'] },
+        { q: 'OP_RETURN allows:', a: 'Embedding small amounts of arbitrary data in the blockchain', wrong: ['Reversing a confirmed transaction', 'Returning stolen Bitcoin to its owner', 'Increasing the block size limit'] },
+    ],
+    'consensus': [
+        { q: 'Nakamoto Consensus achieves agreement by:', a: 'Having nodes follow the longest valid proof-of-work chain', wrong: ['Requiring all nodes to vote on each transaction', 'Letting the wealthiest node decide which blocks are valid', 'Using a central server to broadcast the correct chain'] },
+        { q: 'What happens if two miners find a valid block at nearly the same time?', a: 'A temporary fork occurs and resolves when the next block is found', wrong: ['Both blocks are permanently added to the chain', 'The network shuts down until the conflict is resolved', 'The older miner\'s block always wins'] },
+    ],
+    'governance': [
+        { q: 'How is Bitcoin governed?', a: 'Through rough consensus among users, developers, miners, and node operators', wrong: ['By a board of directors at the Bitcoin Foundation', 'Through shareholder voting like a corporation', 'By whoever owns the most Bitcoin'] },
+        { q: 'A BIP (Bitcoin Improvement Proposal) is:', a: 'A formal document proposing changes to Bitcoin\'s protocol or processes', wrong: ['A mandatory update that all nodes must accept', 'A financial investment in Bitcoin development', 'A bug report filed to the Bitcoin support team'] },
+    ],
+    'open_source': [
+        { q: 'Bitcoin\'s code being open source means:', a: 'Anyone can read, audit, copy, and propose changes to the code', wrong: ['Anyone can change the live network\'s rules', 'The code has no copyright protection', 'Only open-source developers can own Bitcoin'] },
+    ],
+    'submarine_swap': [
+        { q: 'A submarine swap allows:', a: 'Trustlessly exchanging on-chain Bitcoin for Lightning Bitcoin', wrong: ['Mining Bitcoin underwater for cooling efficiency', 'Sending Bitcoin without an internet connection', 'Converting Bitcoin into a different cryptocurrency'] },
+    ],
+    'market_cap': [
+        { q: 'Bitcoin\'s market capitalization represents:', a: 'The total value of all existing Bitcoin at the current price', wrong: ['The maximum number of coins that can ever exist', 'The amount of money invested in Bitcoin mining', 'The total transaction volume over the past year'] },
+        { q: 'If Bitcoin captured gold\'s market cap, each coin would be worth approximately:', a: 'Over $500,000', wrong: ['$100,000', '$50,000', '$10,000'] },
+    ],
+    'orange-pilling': [
+        { q: '"Orange-pilling" someone means:', a: 'Helping them understand why Bitcoin matters', wrong: ['Forcing them to buy Bitcoin immediately', 'Sending them unsolicited Bitcoin transactions', 'Signing them up for a Bitcoin exchange without consent'] },
+        { q: 'The most effective orange-pilling strategy is:', a: 'Meeting people where they are and addressing their specific concerns', wrong: ['Posting price predictions on social media', 'Telling people they are stupid for not buying', 'Promising guaranteed financial returns'] },
+    ],
+    'the_future': [
+        { q: 'Hyperbitcoinization refers to:', a: 'The theoretical tipping point where Bitcoin becomes the dominant global money', wrong: ['A Bitcoin price crash of over 90%', 'The moment when all 21 million coins are mined', 'A software bug that causes infinite Bitcoin creation'] },
+        { q: 'What happens when the last Bitcoin is mined (~2140)?', a: 'Miners will be compensated solely through transaction fees', wrong: ['The network will shut down permanently', 'A new supply of 21 million coins will be created', 'Mining will become free with no reward'] },
+    ],
+    'public_key_vs_private_key': [
+        { q: 'Your Bitcoin public key is like:', a: 'Your email address — you share it so people can send you Bitcoin', wrong: ['Your password — never share it with anyone', 'Your bank PIN number — used to authorize spending', 'Your social security number — it proves your identity'] },
+        { q: 'If someone has your private key, they can:', a: 'Spend all the Bitcoin controlled by that key', wrong: ['Only view your transaction history', 'Reset your password and lock you out', 'Create new Bitcoin out of thin air'] },
+    ],
+    'transaction_fees': [
+        { q: 'Bitcoin transaction fees are determined by:', a: 'The size of the transaction in bytes and current network demand', wrong: ['A fixed percentage of the transaction amount', 'The number of Bitcoin being sent', 'The geographic distance between sender and receiver'] },
+        { q: 'When the mempool is full:', a: 'Transactions with higher fees get confirmed first', wrong: ['All transactions are rejected until it clears', 'The block size automatically increases', 'Transaction fees are refunded to senders'] },
+    ],
+    'philosophy': [
+        { q: '"Don\'t trust, verify" means:', a: 'Run your own node to independently verify all Bitcoin rules', wrong: ['Never use Bitcoin because it cannot be trusted', 'Only trust exchanges that are government-regulated', 'Verify your identity before making transactions'] },
+        { q: 'The concept "Bitcoin is Time" by Gigi suggests:', a: 'Bitcoin creates a decentralized clock through proof of work', wrong: ['Bitcoin transactions can travel back in time', 'Bitcoin was invented to save people time', 'Bitcoin mining uses atomic clocks'] },
+    ],
+    'halving': [
+        { q: 'The Bitcoin halving occurs every:', a: '210,000 blocks (approximately every 4 years)', wrong: ['Every calendar year on January 3', 'Every 100,000 blocks', 'Whenever the price doubles'] },
+        { q: 'After the 2024 halving, the block reward is:', a: '3.125 BTC per block', wrong: ['6.25 BTC per block', '1.5625 BTC per block', '50 BTC per block'] },
+        { q: 'The halving is significant because it:', a: 'Mathematically enforces Bitcoin\'s decreasing supply issuance', wrong: ['Doubles the total supply of Bitcoin', 'Reduces the number of active miners by half', 'Changes Bitcoin\'s consensus mechanism'] },
+    ],
+    'books': [
+        { q: '"The Bitcoin Standard" by Saifedean Ammous primarily argues:', a: 'Bitcoin is the hardest money ever invented and will replace fiat', wrong: ['Bitcoin is a useful technology but too volatile to be money', 'Gold is still superior to Bitcoin as a store of value', 'Central banks should adopt Bitcoin as a reserve currency'] },
+        { q: 'Gigi\'s "21 Lessons" is structured around:', a: '21 philosophical, economic, and technical lessons learned from Bitcoin', wrong: ['A 21-day guide to becoming a Bitcoin trader', 'The 21 richest Bitcoin holders and their strategies', 'The history of 21 failed cryptocurrencies'] },
+    ],
+    'satoshi-nakamoto': [
+        { q: 'Why is it important that Satoshi Nakamoto disappeared?', a: 'Bitcoin has no leader who can be arrested, corrupted, or pressured', wrong: ['Because they were wanted by law enforcement', 'So they could secretly accumulate more Bitcoin', 'Because the code was finished and needed no more work'] },
+        { q: 'Satoshi\'s estimated Bitcoin holdings are approximately:', a: '~1 million BTC, which have never been moved', wrong: ['50,000 BTC, all of which were donated', 'Zero — Satoshi gave away all their coins', '10 million BTC stored in a special wallet'] },
+    ],
+    'stablecoins': [
+        { q: 'Stablecoins are NOT a threat to Bitcoin because:', a: 'They are centralized IOUs that can be frozen, while Bitcoin is permissionless', wrong: ['Stablecoins use the same technology as Bitcoin', 'Bitcoin automatically converts to stablecoins during crashes', 'Stablecoins have a higher market cap than Bitcoin'] },
+    ],
+    'risks__threats__attack_vectors__weaknes': [
+        { q: 'A 51% attack would require:', a: 'Controlling more than half of Bitcoin\'s total mining hash rate', wrong: ['Owning 51% of all existing Bitcoin', 'Having 51% of all Bitcoin nodes vote together', 'Hacking 51% of Bitcoin wallets simultaneously'] },
+        { q: 'Why is a 51% attack impractical against Bitcoin?', a: 'The hash rate is so massive it would cost billions and be unprofitable', wrong: ['Because Bitcoin automatically detects and blocks attacks', 'Because Satoshi built in a secret defense mechanism', 'Because only 21 mining pools exist worldwide'] },
+        { q: 'Quantum computing threatens Bitcoin by potentially:', a: 'Breaking ECDSA signatures used to authorize spending', wrong: ['Mining all remaining Bitcoin in seconds', 'Deleting the entire blockchain', 'Creating unlimited new Bitcoin addresses'] },
+    ],
+    'coin_mixing_coinjoin_coin_control_utxo': [
+        { q: 'A CoinJoin transaction improves privacy by:', a: 'Combining multiple users\' inputs and outputs so links between them are broken', wrong: ['Encrypting the Bitcoin blockchain so nobody can read it', 'Sending Bitcoin through a centralized mixing server', 'Converting Bitcoin to a different cryptocurrency and back'] },
+    ],
+    'whitepaper': [
+        { q: 'The Bitcoin whitepaper solved what previously unsolvable problem?', a: 'Digital scarcity without a trusted third party', wrong: ['Faster internet speeds', 'Quantum-proof encryption', 'Free worldwide communication'] },
+        { q: 'What did Satoshi embed in the Genesis Block\'s coinbase transaction?', a: 'A newspaper headline about bank bailouts', wrong: ['Their real name', 'A mathematical formula', 'Instructions for miners'] },
+    ],
+    'mining': [
+        { q: 'Bitcoin mining is best described as:', a: 'A brute-force lottery of guessing nonces until a valid hash is found', wrong: ['Solving complex mathematical equations', 'Running an algorithm that factors large prime numbers', 'Decrypting encrypted transaction data'] },
+        { q: 'What is the "nonce" in Bitcoin mining?', a: 'A number miners change each guess to find a hash below the target', wrong: ['The name for a new block', 'A fee paid to the network', 'A type of mining hardware'] },
+        { q: 'Why does Bitcoin mining use so much energy?', a: 'Energy expenditure is what gives Bitcoin its security — it makes attacks prohibitively expensive', wrong: ['The code is poorly optimized', 'Miners are required to run 24/7 by law', 'Each transaction requires its own mining operation'] },
+        { q: 'What is a mining pool?', a: 'A group of miners who combine hash power and share rewards proportionally', wrong: ['A physical pool where mining hardware is cooled', 'A government-regulated mining operation', 'A savings account for miners'] },
+    ],
+    'self-custody': [
+        { q: 'A hardware wallet provides security by:', a: 'Keeping private keys on a dedicated device that never exposes them to the internet', wrong: ['Storing Bitcoin inside the physical device', 'Encrypting the blockchain so only you can read it', 'Requiring government approval for each transaction'] },
+        { q: 'If you lose your hardware wallet but have your seed phrase, you can:', a: 'Recover all your Bitcoin on a new wallet using the seed phrase', wrong: ['Nothing — the Bitcoin is permanently lost', 'Contact the wallet manufacturer for a replacement', 'File a claim with Bitcoin insurance'] },
+        { q: 'Multisig (multi-signature) wallets require:', a: 'Multiple keys to authorize a transaction (e.g., 2-of-3)', wrong: ['Multiple Bitcoin addresses to send from', 'Multiple confirmations from the same key', 'Multiple mining pools to verify'] },
+    ],
+    'layer-2-lightning': [
+        { q: 'Lightning Network payment channels work by:', a: 'Opening a channel with an on-chain transaction, then transacting off-chain instantly', wrong: ['Creating a separate blockchain for each payment', 'Sending Bitcoin through email servers', 'Using proof of stake instead of proof of work'] },
+        { q: 'Why is Lightning considered a Layer 2 solution?', a: 'It builds on top of Bitcoin\'s base layer without changing the protocol', wrong: ['Because it is the second cryptocurrency ever created', 'Because it requires two confirmations per transaction', 'Because only two people can use it at a time'] },
+        { q: 'A Lightning invoice is:', a: 'A payment request containing the amount, destination, and expiry time', wrong: ['A monthly bill for using the Lightning Network', 'A receipt showing your mining rewards', 'A document required by tax authorities'] },
+    ],
+    'privacy-nonkyc': [
+        { q: 'KYC (Know Your Customer) in Bitcoin refers to:', a: 'Identity verification required by regulated exchanges', wrong: ['A type of encryption algorithm', 'A consensus mechanism used by altcoins', 'The name of a Bitcoin wallet'] },
+        { q: 'Why do some Bitcoiners prefer non-KYC acquisition?', a: 'To protect financial privacy and avoid linking identity to Bitcoin holdings', wrong: ['Because it is cheaper than using exchanges', 'Because KYC Bitcoin is worth less', 'Because non-KYC Bitcoin mines faster'] },
+    ],
+    'blockchain-timechain': [
+        { q: 'Satoshi originally called the blockchain the:', a: 'Timechain', wrong: ['Hashchain', 'Blockweb', 'Cryptoledger'] },
+        { q: 'Each Bitcoin block contains a reference to:', a: 'The hash of the previous block, creating an unbreakable chain', wrong: ['The next block that will be mined', 'All future transactions that will occur', 'A backup of the entire blockchain'] },
+        { q: 'The mempool is:', a: 'A waiting area where unconfirmed transactions sit until miners include them in a block', wrong: ['A type of Bitcoin storage device', 'The total amount of memory used by Bitcoin nodes', 'A pool of memory shared between mining hardware'] },
+    ],
+    'scalability': [
+        { q: 'Bitcoin\'s block size is limited to approximately:', a: '1-4 MB (with SegWit)', wrong: ['100 MB', 'Unlimited — it grows with demand', '1 KB'] },
+        { q: 'Bitcoin scales primarily through:', a: 'Layered solutions like Lightning rather than increasing block size', wrong: ['Simply making blocks bigger indefinitely', 'Reducing the number of nodes', 'Using faster internet connections'] },
+    ],
+    'taproot': [
+        { q: 'Taproot was activated on Bitcoin in:', a: 'November 2021', wrong: ['January 2009', 'August 2017', 'April 2024'] },
+        { q: 'Taproot improves Bitcoin by:', a: 'Enhancing privacy, efficiency, and smart contract capabilities using Schnorr signatures', wrong: ['Increasing the total supply above 21 million', 'Removing the need for mining', 'Making all transactions completely anonymous'] },
+    ],
+    'soft_vs_hard_forks': [
+        { q: 'The key difference between a soft fork and a hard fork is:', a: 'Soft forks are backwards-compatible; hard forks are not', wrong: ['Soft forks are temporary; hard forks are permanent', 'Soft forks require less code; hard forks need more', 'Soft forks are approved by vote; hard forks by mining'] },
+        { q: 'The Blocksize Wars resulted in:', a: 'Bitcoin Cash splitting off as a hard fork while Bitcoin kept small blocks + SegWit', wrong: ['Bitcoin doubling its block size to 2 MB', 'All miners switching to Bitcoin Cash', 'The creation of Ethereum'] },
+    ],
+    'regulation': [
+        { q: 'Can a government effectively ban Bitcoin?', a: 'They can restrict fiat on-ramps but cannot stop peer-to-peer transactions', wrong: ['Yes — turning off the internet kills Bitcoin permanently', 'Yes — all nodes can be identified and shut down simultaneously', 'No bans have ever been attempted by any country'] },
+        { q: 'China has banned Bitcoin mining multiple times, yet:', a: 'Miners relocated and the network hash rate recovered within months', wrong: ['Bitcoin permanently lost 50% of its value', 'All Chinese Bitcoin was confiscated', 'The Bitcoin network was offline for weeks'] },
+    ],
+    'energy': [
+        { q: 'Bitcoin mining primarily uses which type of energy?', a: 'Over 50% renewable — often stranded or wasted energy', wrong: ['100% coal and natural gas', 'Nuclear power exclusively', 'Solar panels attached to mining rigs'] },
+        { q: 'Bitcoin mining can actually help the environment by:', a: 'Monetizing flared methane that would otherwise be released into the atmosphere', wrong: ['Reducing the total electricity consumed worldwide', 'Creating new renewable energy out of thin air', 'Cooling the planet through heat dissipation'] },
+    ],
+    'investment-strategy': [
+        { q: 'Dollar Cost Averaging (DCA) means:', a: 'Buying a fixed amount of Bitcoin at regular intervals regardless of price', wrong: ['Only buying when the price drops below a target', 'Investing your entire savings at once', 'Selling Bitcoin every time it rises 10%'] },
+        { q: 'The Bitcoin phrase "zoom out" means:', a: 'Look at the long-term price trend instead of daily volatility', wrong: ['Reduce your Bitcoin position size', 'Use a magnifying glass to read the whitepaper', 'Exit the market during a downturn'] },
+    ],
+    'problems-of-money': [
+        { q: 'The Cantillon Effect describes how:', a: 'Those closest to newly created money benefit most, widening inequality', wrong: ['Bitcoin mining becomes more difficult over time', 'Interest rates affect mortgage payments', 'Tax policy reduces the wealth gap'] },
+        { q: 'What happened in 1971?', a: 'Nixon ended the gold standard, allowing unlimited fiat money printing', wrong: ['Bitcoin was invented', 'The first digital computer was built', 'The Euro was introduced'] },
+        { q: 'Inflation is often called a "hidden tax" because:', a: 'It silently erodes the purchasing power of your savings', wrong: ['The IRS taxes Bitcoin gains at a hidden rate', 'Banks charge fees that are not disclosed', 'Governments print money in secret locations'] },
+    ],
+    '_general': [
+        { q: 'What is the total number of satoshis that will ever exist?', a: '2.1 quadrillion (2,100,000,000,000,000)', wrong: ['21 million', '100 billion', '21 quadrillion'] },
+        { q: 'Bitcoin Pizza Day is celebrated on:', a: 'May 22', wrong: ['January 3', 'October 31', 'April 15'] },
+        { q: 'The first Bitcoin exchange rate was established at approximately:', a: '$0.00099 per BTC (less than one penny)', wrong: ['$1.00 per BTC', '$0.10 per BTC', '$100 per BTC'] },
+        { q: 'HODL originated from:', a: 'A misspelled Bitcoin forum post from 2013 ("I AM HODLING")', wrong: ['An acronym created by a Bitcoin company', 'A Japanese word meaning "to hold"', 'A technical term in Bitcoin\'s source code'] },
+        { q: 'The phrase "Not your keys, not your coins" warns against:', a: 'Keeping Bitcoin on exchanges where you don\'t control the private keys', wrong: ['Using physical Bitcoin coins instead of digital', 'Sharing your public key with other people', 'Using hardware wallets instead of software'] },
+    ],
+};
+
+// Merge expansion pack into QUESTION_BANK
+for(const cat in NEW_BANK_QUESTIONS_2) {
+    if(QUESTION_BANK[cat]) {
+        NEW_BANK_QUESTIONS_2[cat].forEach(q => {
+            if(!QUESTION_BANK[cat].some(p => p.q === q.q)) {
+                QUESTION_BANK[cat].push(q);
+            }
+        });
+    } else {
+        QUESTION_BANK[cat] = NEW_BANK_QUESTIONS_2[cat];
+    }
+}
+
 // ---- OPENCLAW EXPORTS ----
 if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;// © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
