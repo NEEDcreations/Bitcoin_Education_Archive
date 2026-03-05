@@ -70,7 +70,7 @@ function initBottomNav() {
             '<button onclick="document.getElementById(\'searchOverlay\').style.display=\'flex\';document.getElementById(\'searchOverlayInput\').focus();" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
             '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
-            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">More</span></button>' +
+            '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
         '</div>';
 
     // Add styles
