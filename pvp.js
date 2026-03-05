@@ -145,7 +145,14 @@
                 var waitingOthers = [];
                 snap.forEach(function(doc) {
                     var d = doc.data();
-                    if (d.uid !== myUid) waitingOthers.push(d);
+                    if (d.uid === myUid) return;
+                    // Only count players with a fresh heartbeat
+                    if (!isLobbyEntryAlive(d)) {
+                        // Clean up stale entry silently
+                        doc.ref.delete().catch(function(){});
+                        return;
+                    }
+                    waitingOthers.push(d);
                 });
 
                 if (waitingOthers.length > 0 && !pvpState.active) {
@@ -295,6 +302,7 @@
     function cleanupPVP() {
         if (pvpState._matchPoll) { clearInterval(pvpState._matchPoll); pvpState._matchPoll = null; }
         if (pvpState._heartbeat) { clearInterval(pvpState._heartbeat); pvpState._heartbeat = null; }
+        if (pvpState._lobbyHeartbeat) { clearInterval(pvpState._lobbyHeartbeat); pvpState._lobbyHeartbeat = null; }
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
         pvpState._resultShown = false;
         pvpState._matchResultShown = false;
@@ -402,6 +410,14 @@
     // =============================================
     // LOBBY — JOIN & MATCHMAKING (real-time)
     // =============================================
+    // How long (ms) before a lobby entry without a heartbeat is considered stale
+    var LOBBY_STALE_MS = 30000; // 30 seconds
+
+    function isLobbyEntryAlive(data) {
+        if (!data.lastSeen) return false; // legacy entry with no heartbeat — stale
+        return (Date.now() - data.lastSeen) < LOBBY_STALE_MS;
+    }
+
     function joinLobby() {
         var db = getDb();
         var uid = getMyUid();
@@ -410,14 +426,24 @@
         // Step 1: Try to find and match with an existing waiting player
         db.collection('pvp_lobby')
             .where('status', '==', 'waiting')
-            .limit(5)
+            .limit(10)
             .get()
             .then(function(snap) {
                 var matched = false;
                 snap.forEach(function(doc) {
                     if (matched) return;
                     var data = doc.data();
-                    if (data.uid === uid) return; // skip self
+                    if (data.uid === uid) {
+                        // Clean up our own stale entry from a previous session
+                        doc.ref.delete().catch(function(){});
+                        return;
+                    }
+                    // Only match with players who have a fresh heartbeat
+                    if (!isLobbyEntryAlive(data)) {
+                        // Stale entry — clean it up
+                        doc.ref.delete().catch(function(){});
+                        return;
+                    }
                     matched = true;
                     createMatch(doc.id, data);
                 });
@@ -443,16 +469,29 @@
             snap.forEach(function(doc) { doc.ref.delete(); });
         }).catch(function(){});
 
-        // Add fresh lobby entry
+        // Add fresh lobby entry with lastSeen for presence detection
         setTimeout(function() {
             db.collection('pvp_lobby').add({
                 uid: uid,
                 name: getMyDisplayName(),
                 status: 'waiting',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastSeen: Date.now()
             }).then(function(docRef) {
                 pvpState.lobbyDocId = docRef.id;
                 listenForMatch(docRef.id);
+                // Heartbeat: update lastSeen every 5s so others know we're alive
+                if (pvpState._lobbyHeartbeat) clearInterval(pvpState._lobbyHeartbeat);
+                pvpState._lobbyHeartbeat = setInterval(function() {
+                    if (!pvpState.inLobby || pvpState.inMatch || !pvpState.lobbyDocId) {
+                        clearInterval(pvpState._lobbyHeartbeat);
+                        pvpState._lobbyHeartbeat = null;
+                        return;
+                    }
+                    db.collection('pvp_lobby').doc(pvpState.lobbyDocId).update({
+                        lastSeen: Date.now()
+                    }).catch(function(){});
+                }, 5000);
                 // Also start polling for opponents (catches cases where real-time listener misses)
                 startMatchmakingPoll(docRef.id, uid);
             }).catch(function(err) {
@@ -476,7 +515,7 @@
 
             db.collection('pvp_lobby')
                 .where('status', '==', 'waiting')
-                .limit(5)
+                .limit(10)
                 .get()
                 .then(function(snap) {
                     if (pvpState.inMatch) return; // already matched
@@ -484,7 +523,12 @@
                         if (pvpState.inMatch) return;
                         var data = doc.data();
                         if (data.uid === myUid) return;
-                        // Found an opponent — match them!
+                        // Only match with alive players
+                        if (!isLobbyEntryAlive(data)) {
+                            doc.ref.delete().catch(function(){}); // clean up stale
+                            return;
+                        }
+                        // Found a live opponent — match them!
                         clearInterval(pvpState._matchPoll);
                         pvpState._matchPoll = null;
                         createMatch(doc.id, data);
@@ -1443,21 +1487,37 @@
             });
         }
 
-        // Clean up stale lobby entries (older than 5 minutes)
+        // Clean up stale lobby entries on init — delete any without a fresh heartbeat
         setTimeout(function() {
             var db = getDb();
             if (!db) return;
-            var fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
             db.collection('pvp_lobby')
                 .where('status', '==', 'waiting')
-                .where('createdAt', '<', fiveMinAgo)
                 .get()
                 .then(function(snap) {
-                    snap.forEach(function(doc) { doc.ref.delete(); });
+                    snap.forEach(function(doc) {
+                        var d = doc.data();
+                        if (!isLobbyEntryAlive(d)) {
+                            doc.ref.delete().catch(function(){});
+                        }
+                    });
                 })
                 .catch(function(){});
         }, 10000);
     }
+
+    // Clean up lobby entry when user closes/navigates away
+    window.addEventListener('pagehide', function() {
+        if (pvpState.lobbyDocId) {
+            var db = getDb();
+            if (db) {
+                // Use non-async delete — best effort on tab close
+                db.collection('pvp_lobby').doc(pvpState.lobbyDocId).delete().catch(function(){});
+            }
+        }
+    });
+    // Also handle visibilitychange as a backup: if hidden for >30s the heartbeat
+    // will naturally expire and other clients will treat us as stale
 
     // Auto-init when DOM is ready
     if (document.readyState === 'loading') {
