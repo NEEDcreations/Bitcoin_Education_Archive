@@ -24964,6 +24964,7 @@ window.renderBitcoinBeats = function() {
             <button onclick="beatsTab('discover')" id="beatsTabDiscover" class="beats-tab active" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔥 Discover</button>
             <button onclick="beatsTab('mymusic')" id="beatsTabMymusic" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">📚 My Music</button>
             <button onclick="beatsTab('likes')" id="beatsTabLikes" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">❤️ Liked</button>
+            <button onclick="beatsTab('livestream')" id="beatsTabLivestream" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">📡 Livestream</button>
         </div>
 
         <!-- Track List -->
@@ -24971,15 +24972,6 @@ window.renderBitcoinBeats = function() {
             <div style="text-align:center;padding:40px;color:var(--text-faint);">Loading tracks...</div>
         </div>
 
-        <!-- Links to external platforms -->
-        <div style="margin-top:24px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">
-            <h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:12px;">More Bitcoin Music Platforms</h3>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">
-                <a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;color:#8b5cf6;font-weight:700;font-size:0.8rem;text-decoration:none;">🎵 Wavlake</a>
-                <a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:10px;color:#eab308;font-weight:700;font-size:0.8rem;text-decoration:none;">⚡ LN Beats</a>
-                <a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;text-decoration:none;">📻 Noderunners Radio</a>
-            </div>
-        </div>
     </div>`;
 
     container.innerHTML = html;
@@ -25088,14 +25080,18 @@ window.beatsSetMediaSession = function(track) {
 // ---- Tab switching ----
 window.beatsTab = function(tab) {
     window._beatsCurrentTab = tab;
-    ['discover','mymusic','likes'].forEach(function(t) {
+    ['discover','mymusic','likes','livestream'].forEach(function(t) {
         var btn = document.getElementById('beatsTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) {
             btn.style.borderBottomColor = (t === tab) ? 'var(--accent)' : 'transparent';
             btn.style.color = (t === tab) ? 'var(--accent)' : 'var(--text-muted)';
         }
     });
-    beatsLoadTracks(tab);
+    if (tab === 'livestream') {
+        beatsRenderLivestream();
+    } else {
+        beatsLoadTracks(tab);
+    }
 };
 
 // ---- Load tracks from Firestore ----
@@ -25528,6 +25524,113 @@ window.beatsShowDMCA = function() {
             '<button onclick="document.getElementById(\'beatsDMCAOverlay\').remove()" style="width:100%;margin-top:16px;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Got It</button>' +
         '</div>';
     document.body.appendChild(overlay);
+};
+
+// ---- Livestream Tab ----
+window.beatsRenderLivestream = function() {
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) return;
+
+    var tweetUrl = 'https://x.com/Bitcoin_Beats_/status/2009432279760711788?s=20';
+
+    listEl.innerHTML =
+        '<div style="text-align:center;animation:fadeSlideIn 0.4s ease-out;">' +
+            '<div style="margin-bottom:24px;">' +
+                '<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;">' +
+                    '<span style="padding:4px 12px;background:rgba(239,68,68,0.2);color:#ff4444;border-radius:20px;font-size:0.7rem;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;border:1px solid rgba(239,68,68,0.3);box-shadow:0 0 15px rgba(239,68,68,0.2);">' +
+                        '<span style="display:inline-block;width:8px;height:8px;background:#ff4444;border-radius:50%;margin-right:6px;animation:beatsBlink 1s infinite;box-shadow:0 0 8px #ff4444;"></span>' +
+                        'LIVE SIGNAL' +
+                    '</span>' +
+                    '<span style="color:var(--text-muted);font-size:0.9rem;font-weight:500;">Broadcasts & Community Streams</span>' +
+                '</div>' +
+            '</div>' +
+
+            // Stream embed container
+            '<div id="beatsStreamBox" style="background:#020617;border:4px solid transparent;background-image:linear-gradient(#020617, #020617), linear-gradient(135deg, var(--accent) 0%, #ea580c 100%);background-origin:border-box;background-clip:padding-box, border-box;border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7), 0 0 30px rgba(247,147,26,0.15);position:relative;margin-bottom:28px;">' +
+                // Window dots
+                '<div style="position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:10;">' +
+                    '<div style="width:9px;height:9px;border-radius:50%;background:#ff5f57;"></div>' +
+                    '<div style="width:9px;height:9px;border-radius:50%;background:#ffbd2e;"></div>' +
+                    '<div style="width:9px;height:9px;border-radius:50%;background:#27c93f;"></div>' +
+                '</div>' +
+
+                // Embed area
+                '<div id="beatsLiveEmbed" style="min-height:450px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at center, #0f172a 0%, #020617 100%);padding:20px 0;">' +
+                    '<div style="color:var(--text-faint);text-align:center;">' +
+                        '<div style="font-size:3.5rem;margin-bottom:16px;animation:beatsPulse 2s infinite;filter:drop-shadow(0 0 12px var(--accent));">🎸</div>' +
+                        '<div style="font-weight:800;letter-spacing:2px;font-size:0.95rem;color:var(--text);">CONNECTING TO THE TIMECHAIN...</div>' +
+                        '<div style="font-size:0.7rem;margin-top:6px;opacity:0.5;">Est. Sync in 21 blocks</div>' +
+                    '</div>' +
+                '</div>' +
+
+                // Bottom bar
+                '<div style="background:rgba(15,23,42,0.9);backdrop-filter:blur(10px);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(247,147,26,0.2);">' +
+                    '<div style="color:var(--heading);font-weight:800;font-size:0.85rem;display:flex;align-items:center;gap:8px;">' +
+                        '<span style="font-size:1.1rem;">🎧</span> NOW PLAYING' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:16px;">' +
+                        '<div style="color:var(--accent);font-size:0.75rem;font-weight:800;letter-spacing:1px;display:flex;align-items:center;gap:5px;">' +
+                            '<span style="display:flex;gap:2px;align-items:flex-end;height:12px;">' +
+                                '<div style="width:2px;height:60%;background:currentColor;animation:beatsEqualizer 0.8s infinite alternate;"></div>' +
+                                '<div style="width:2px;height:100%;background:currentColor;animation:beatsEqualizer 1.1s infinite alternate;"></div>' +
+                                '<div style="width:2px;height:40%;background:currentColor;animation:beatsEqualizer 0.9s infinite alternate;"></div>' +
+                            '</span>' +
+                            'SYNC: 100%' +
+                        '</div>' +
+                        '<button onclick="window.open(\'https://x.com/Bitcoin_Beats_\',\'_blank\')" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;padding:7px 16px;border-radius:10px;font-size:0.75rem;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.3);">Follow for Lives</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+
+            // Music platform links
+            '<div style="padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
+                '<h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:14px;">Support our friends with great Bitcoin Lightning music platforms!</h3>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">' +
+                    '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;">📻 Noderunners Radio</a>' +
+                    '<a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;">🎵 Wavlake</a>' +
+                    '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:12px 20px;background:linear-gradient(135deg,rgba(234,179,8,0.15),rgba(234,179,8,0.05));border:1px solid rgba(234,179,8,0.3);border-radius:12px;color:#eab308;font-weight:700;font-size:0.9rem;text-decoration:none;transition:0.2s;">⚡ LN Beats</a>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+
+        // Animations
+        '<style>' +
+            '@keyframes beatsPulse { 0% { opacity: 0.3; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0.3; transform: scale(0.95); } }' +
+            '@keyframes beatsBlink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }' +
+            '@keyframes beatsEqualizer { 0% { height: 20%; } 100% { height: 100%; } }' +
+        '</style>';
+
+    // Load the X/Twitter embed after a short delay
+    setTimeout(function() {
+        var embedArea = document.getElementById('beatsLiveEmbed');
+        if (!embedArea) return;
+
+        embedArea.innerHTML = '<blockquote class="twitter-tweet" data-theme="dark" data-align="center" data-width="500"><a href="' + tweetUrl + '"></a></blockquote>';
+
+        if (!window.twttr) {
+            var script = document.createElement('script');
+            script.id = 'twitter-wjs';
+            script.src = 'https://platform.twitter.com/widgets.js';
+            script.charset = 'utf-8';
+            script.async = true;
+            document.head.appendChild(script);
+        } else {
+            window.twttr.widgets.load(embedArea);
+        }
+
+        // Fallback if embed doesn't load after 10s
+        setTimeout(function() {
+            var embed = document.getElementById('beatsLiveEmbed');
+            if (embed && embed.querySelector('.twitter-tweet') && !embed.querySelector('iframe')) {
+                embed.innerHTML =
+                    '<div style="padding:40px;text-align:center;">' +
+                        '<div style="font-size:2rem;margin-bottom:12px;">📡</div>' +
+                        '<div style="color:var(--text);font-weight:700;margin-bottom:8px;">Stream loading...</div>' +
+                        '<a href="' + tweetUrl + '" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;text-decoration:none;">Open on 𝕏 →</a>' +
+                    '</div>';
+            }
+        }, 10000);
+    }, 300);
 };
 
 // ---- Helpers ----
