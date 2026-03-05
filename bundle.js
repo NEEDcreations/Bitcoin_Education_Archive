@@ -3736,7 +3736,7 @@ function showSignInPrompt() {
             favs.push(id);
             if (btn) btn.innerHTML = '⭐ Saved';
             // Track in session for daily progress
-            sessionStorage.setItem('btc_fav_added', 'true');
+            sessionStorage.setItem('btc_fav_added', 'true'); sessionStorage.setItem('_ch_fav_added', '1');
         }
         setFavs(favs);
         // Sync to Firebase
@@ -4388,6 +4388,7 @@ function showSignInPrompt() {
                     
                     // Mark as spun today
                     localStorage.setItem('btc_last_spin_date', today);
+                    sessionStorage.setItem('_ch_spin_done', '1');
                     if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
                         try {
                             db.collection('users').doc(auth.currentUser.uid).update({
@@ -5517,7 +5518,7 @@ window.nachoQuizMe = function(topic) {
 };
 
 window.nachoQuizAnswer = function(btn, correct) {
-    sessionStorage.setItem('btc_quiz_done', 'true');
+    sessionStorage.setItem('btc_quiz_done', 'true'); sessionStorage.setItem('_ch_quiz_done', '1');
     var parent = btn.parentElement;
     var buttons = parent.querySelectorAll('button');
     buttons.forEach(function(b) {
@@ -6640,29 +6641,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         });
         
-        // Add "Next Milestone" Info
-        let milestoneEl = document.getElementById('sidebarMilestone');
-        if (!milestoneEl) {
-            milestoneEl = document.createElement('div');
-            milestoneEl.id = 'sidebarMilestone';
-            milestoneEl.style.cssText = 'padding:15px;margin:10px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;font-size:0.75rem;color:var(--text-muted);';
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar) sidebar.insertBefore(milestoneEl, document.querySelector('.sidebar-promo'));
-        }
-        
-        if (!isExplorer) {
-            const vLeft = 3 - visits;
-            const cLeft = 3 - exploredCount;
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channels OR visit the app ' + vLeft + ' more times to unlock 🗣️ PlebTalk! 🦌';
-            milestoneEl.style.display = '';
-        } else if (!isFull) {
-            const vLeft = 10 - visits;
-            const cLeft = 10 - exploredCount;
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' channels OR visit the app ' + vLeft + ' more times to unlock ⚡ Marketplace! 🚀';
-            milestoneEl.style.display = '';
-        } else {
-            milestoneEl.style.display = 'none';
-        }
+        // Sidebar milestone removed — all apps unlocked for all users
     }
 
     // Call updates
@@ -10905,7 +10884,7 @@ window.nachoAnswer = function() {
 
     // Daily challenge tracking
     if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('btc_nacho_asked', '1');
+        sessionStorage.setItem('btc_nacho_asked', '1'); sessionStorage.setItem('_ch_asked_nacho', '1');
         if (typeof checkDailyChallenge === 'function') checkDailyChallenge();
     }
 
@@ -13368,7 +13347,7 @@ window.nachoOnChannel = function(channelId) {
 // ---- Bubble Quiz Answer Handler ----
 window.nachoBubbleQuizAnswer = function(btn, correct) {
     // Track for daily challenge
-    sessionStorage.setItem('btc_quiz_done', 'true');
+    sessionStorage.setItem('btc_quiz_done', 'true'); sessionStorage.setItem('_ch_quiz_done', '1');
 
     // Disable all quiz buttons in the bubble
     var container = btn.parentElement;
@@ -15177,15 +15156,24 @@ function showStreakBanner() {
     }, 5000);
 }
 
-// ---- #11: Daily Challenge ----
+// ---- #11: Daily Challenges ----
+// Challenges use sessionStorage flags that are ONLY set when the real action happens.
+// No auto-complete, no false positives.
 var DAILY_CHALLENGES = [
-    { id: 'read', text: '📖 Read a new channel', check: function() { return sessionStorage.getItem('btc_new_channel_read') === 'true'; } },
-    { id: 'nacho', text: '🦌 Ask Nacho a question', check: function() { return parseInt(sessionStorage.getItem('btc_nacho_asked') || '0') > 0; } },
-    { id: 'quiz', text: '🎮 Complete a quiz question', check: function() { return sessionStorage.getItem('btc_quiz_done') === 'true'; } },
-    { id: 'explore', text: '🗺️ Visit 3 different channels', check: function() { return parseInt(sessionStorage.getItem('btc_channels_today') || '0') >= 3; } },
-    { id: 'forum', text: '🗣️ Visit the PlebTalk', check: function() { return sessionStorage.getItem('btc_forum_visited') === 'true'; } },
-    { id: 'streak', text: '🔥 Log in to keep your streak', check: function() { return true; } }, // Always completable
-    { id: 'favorite', text: '⭐ Save a channel to favorites', check: function() { return sessionStorage.getItem('btc_fav_added') === 'true'; } },
+    { id: 'read_new', text: '📖 Open a channel you haven\'t read before', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_read_new') === '1'; } },
+    { id: 'ask_nacho', text: '🦌 Ask Nacho a Bitcoin question', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_asked_nacho') === '1'; } },
+    { id: 'quiz', text: '⚡ Answer a quest or trivia question', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_quiz_done') === '1'; } },
+    { id: 'explore3', text: '🗺️ Read 3 different channels', pts: 20,
+      check: function() { return parseInt(sessionStorage.getItem('_ch_channels_count') || '0') >= 3; } },
+    { id: 'spin', text: '🎡 Try the Daily Spin', pts: 10,
+      check: function() { return sessionStorage.getItem('_ch_spin_done') === '1'; } },
+    { id: 'favorite', text: '⭐ Save a channel to favorites', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_fav_added') === '1'; } },
+    { id: 'listen', text: '🎵 Listen to a track on Bitcoin Beats', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_beats_listen') === '1'; } },
 ];
 
 function getDailyChallenge() {
@@ -15206,15 +15194,15 @@ function renderDailyChallenge() {
         el.style.borderColor = '#22c55e';
         el.style.background = 'rgba(34,197,94,0.05)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<span style="font-size:1.5rem;">✅</span>' +
-            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +15 pts 🎉</div>' +
-            '<div style="color:var(--text-faint);font-size:0.7rem;">' + challenge.text + ' — Done! Come back tomorrow.</div></div></div>';
+            '<span style="font-size:1.3rem;">✅</span>' +
+            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Challenge Complete! +' + challenge.pts + ' pts 🎉</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;">' + challenge.text + '</div></div></div>';
     } else {
         el.style.borderColor = 'var(--border)';
         el.style.background = 'var(--card-bg)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.3rem;">🎯</span>' +
-            '<div><div style="color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Today\'s Challenge</div>' +
+            '<div><div style="color:var(--accent);font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Daily Challenge</div>' +
             '<div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + challenge.text + '</div></div></div>';
     }
 }
@@ -15227,26 +15215,26 @@ window.checkDailyChallenge = function() {
     var challenge = getDailyChallenge();
     if (challenge.check()) {
         localStorage.setItem('btc_challenge_done', today);
-        if (typeof awardPoints === 'function') awardPoints(15, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +15 pts');
-        haptic('success');
+        if (typeof awardPoints === 'function') awardPoints(challenge.pts, '🎯 Daily challenge!');
+        if (typeof showToast === 'function') showToast('🎯 Challenge complete! +' + challenge.pts + ' pts');
+        if (typeof haptic === 'function') haptic('success');
         renderDailyChallenge();
     }
-}
+};
 setInterval(window.checkDailyChallenge, 5000);
 
-// Track channel visits for challenge
+// Track channel visits for challenge — wrap go()
 var _origGoForChallenge = window.go;
 if (_origGoForChallenge) {
-    // Wrap to track
     var _realGo = window.go;
     window.go = async function(id) {
         var result = await _realGo.apply(this, arguments);
-        if (id && id !== 'forum') {
-            var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
-            sessionStorage.setItem('btc_channels_today', count);
+        // Only count real channel navigations (not app routes)
+        if (id && typeof CHANNELS !== 'undefined' && CHANNELS[id]) {
+            var count = parseInt(sessionStorage.getItem('_ch_channels_count') || '0') + 1;
+            sessionStorage.setItem('_ch_channels_count', String(count));
             var visited = safeJSON('btc_visited_channels', []);
-            if (visited.indexOf(id) === -1) sessionStorage.setItem('btc_new_channel_read', 'true');
+            if (visited.indexOf(id) === -1) sessionStorage.setItem('_ch_read_new', '1');
         }
         if (id === 'forum') sessionStorage.setItem('btc_forum_visited', 'true');
         return result;
@@ -15257,7 +15245,7 @@ if (_origGoForChallenge) {
 var _origNachoUnified = window.nachoUnifiedAnswer;
 if (_origNachoUnified) {
     window.nachoUnifiedAnswer = function(q, cb) {
-        sessionStorage.setItem('btc_nacho_asked', '1');
+        sessionStorage.setItem('btc_nacho_asked', '1'); sessionStorage.setItem('_ch_asked_nacho', '1');
         return _origNachoUnified.apply(this, arguments);
     };
 }
@@ -25389,6 +25377,7 @@ window.beatsPlayTrack = function(idx) {
 
     // MediaSession for lock screen / background / minimized controls
     beatsSetMediaSession(track);
+    sessionStorage.setItem('_ch_beats_listen', '1');
 
     // Progress updates
     window._beatsUpdateInterval = setInterval(function() {

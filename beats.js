@@ -277,6 +277,7 @@ window.beatsPlayTrack = function(idx) {
 
     // MediaSession for lock screen / background / minimized controls
     beatsSetMediaSession(track);
+    sessionStorage.setItem('_ch_beats_listen', '1');
 
     // Progress updates
     window._beatsUpdateInterval = setInterval(function() {
