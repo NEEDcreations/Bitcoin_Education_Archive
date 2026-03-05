@@ -25228,6 +25228,13 @@ window._beatsCurrentTab = 'discover';
 window._beatsUpdateInterval = null;
 window._beatsNowPlaying = null; // { title, artist, genre, coverArt }
 
+// ---- Format play count ----
+function _formatPlays(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+}
+
 // ---- Global Persistent Player (lives in document.body, survives navigation) ----
 window.beatsEnsureGlobalPlayer = function() {
     if (document.getElementById('beatsGlobalPlayer')) return;
@@ -25397,6 +25404,7 @@ window.beatsLoadTracks = function(tab) {
                     '<div style="color:var(--text-faint);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
                 '</div>' +
                 '<div style="color:var(--text-faint);font-size:0.7rem;flex-shrink:0;">' + duration + '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.65rem;flex-shrink:0;display:flex;align-items:center;gap:2px;min-width:28px;" title="' + (t.plays || 0) + ' plays">▶ ' + _formatPlays(t.plays || 0) + '</div>' +
                 '<button onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:4px;color:var(--text-faint);display:flex;align-items:center;gap:2px;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                 '<button onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
                 '<button onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.9rem;cursor:pointer;padding:4px;color:var(--text-faint);" title="More">⋮</button>' +
@@ -25419,6 +25427,7 @@ window.beatsPlayTrack = function(idx) {
     // Stop existing
     if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
     clearInterval(window._beatsUpdateInterval);
+    if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }
 
     // Create audio element
     window._beatsAudio = new Audio(track.audioUrl || track.audioData);
@@ -25432,6 +25441,20 @@ window.beatsPlayTrack = function(idx) {
         genre: track.genre || '',
         coverArt: track.coverArt || ''
     };
+
+    // Play count: increment after 30s of listening
+    if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }
+    window._beatsPlayCounted = false;
+    window._beatsPlayCountTimer = setTimeout(function() {
+        if (window._beatsPlayCounted) return;
+        if (!window._beatsAudio || window._beatsAudio.paused) return;
+        window._beatsPlayCounted = true;
+        if (typeof db !== 'undefined' && track.id) {
+            db.collection('beats_tracks').doc(track.id).update({
+                plays: firebase.firestore.FieldValue.increment(1)
+            }).catch(function() {});
+        }
+    }, 30000);
 
     // Show & update global player
     beatsShowGlobalPlayer();
