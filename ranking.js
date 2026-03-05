@@ -1822,6 +1822,18 @@ async function toggleLeaderboard() {
         }
 
         // Level guide
+        // PVP LEADERBOARD
+        html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4>' +
+            '<button onclick="event.stopPropagation();enterPVPMode();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
+            '</div>' +
+            '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
+        '</div>';
+
+        // Load PVP leaderboard data asynchronously
+        _loadPVPLeaderboard();
+
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
             html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 pts' : l.min + '+ pts') + '</span></div>';
@@ -1831,6 +1843,53 @@ async function toggleLeaderboard() {
         lb.innerHTML = html;
     } catch(e) {
         lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard</div>';
+    }
+}
+
+// PVP Leaderboard — loaded after main leaderboard renders
+async function _loadPVPLeaderboard() {
+    var container = document.getElementById('pvpLeaderboardList');
+    if (!container) return;
+    try {
+        var snap = await db.collection('users')
+            .where('pvpWins', '>', 0)
+            .orderBy('pvpWins', 'desc')
+            .limit(50)
+            .get();
+        if (snap.empty) {
+            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
+            return;
+        }
+        var pvpHtml = '';
+        var idx = 0;
+        var myUid = auth.currentUser ? auth.currentUser.uid : null;
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (d.ghostMode && doc.id !== myUid) return;
+            idx++;
+            var rank = idx;
+            var isMe = doc.id === myUid;
+            var wins = d.pvpWins || 0;
+            var losses = d.pvpLosses || 0;
+            var total = wins + losses;
+            var winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : wins >= 1 ? '⚔️' : '';
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            pvpHtml += '<div' + hidden + '>' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                '<span class="lb-name">' + pvpIcon + ' ' + (d.username || 'Anon') + '</span>' +
+                '<span class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">' +
+                    '<span>' + wins + 'W – ' + losses + 'L</span>' +
+                    '<span style="font-size:0.65rem;color:var(--text-faint);font-weight:500;">' + winRate + '% win rate</span>' +
+                '</span></div>';
+        });
+        if (idx > 10) {
+            pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + idx + ' PVP players ▼</button>';
+        }
+        container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
     }
 }
 
@@ -2404,7 +2463,7 @@ function showSettingsPage(tab) {
             '</div>' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Features</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
-            shortcutRow('N','Nacho Mode') + shortcutRow('A','Ask Nacho') +
+            shortcutRow('N','Nacho Mode') + shortcutRow('X','PVP Mode') + shortcutRow('A','Ask Nacho') +
             shortcutRow('Q','Start quest') + shortcutRow('L','Leaderboard') + shortcutRow('V','Gallery view') +
             '</div>' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Actions</div>' +

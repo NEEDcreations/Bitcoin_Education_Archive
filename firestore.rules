@@ -241,6 +241,28 @@ service cloud.firestore {
     }
 
     // =============================================
+    // PVP LOBBY
+    // =============================================
+    match /pvp_lobby/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // =============================================
+    // PVP MATCHES
+    // =============================================
+    match /pvp_matches/{matchId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && (resource.data.player1.uid == request.auth.uid
+                        || resource.data.player2.uid == request.auth.uid);
+    }
+
+    // =============================================
     // DEFAULT: deny everything else
     // =============================================
     match /{document=**} {
