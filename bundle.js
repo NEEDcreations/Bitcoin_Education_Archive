@@ -2180,9 +2180,6 @@ async function toggleLeaderboard() {
             '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
         '</div>';
 
-        // Load PVP leaderboard data asynchronously
-        _loadPVPLeaderboard();
-
         html += '<div class="lb-levels"><h4>Levels</h4>';
         for (const l of LEVELS) {
             html += '<div class="lb-level-row"><span>' + l.emoji + ' ' + l.name + '</span><span>' + (l.min === 0 ? '0 pts' : l.min + '+ pts') + '</span></div>';
@@ -2190,6 +2187,9 @@ async function toggleLeaderboard() {
         html += '</div>';
 
         lb.innerHTML = html;
+
+        // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
+        _loadPVPLeaderboard();
     } catch(e) {
         lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard</div>';
     }
@@ -2242,6 +2242,7 @@ async function _loadPVPLeaderboard() {
         }
         container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
     } catch(e) {
+        console.error('[PVP Leaderboard] Load error:', e);
         container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
     }
 }
