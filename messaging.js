@@ -368,6 +368,12 @@ window.showUserProfile = function(uid) {
                 profileStat('🔥', u.streak || 0, 'Streak') +
                 profileStat('📅', joinDate, 'Joined') +
             '</div>' +
+            // PVP Stats (only show if they've played)
+            ((u.pvpWins || u.pvpLosses) ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                profileStat('⚔️', (u.pvpWins || 0) + 'W', 'PVP Wins') +
+                profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
+                profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
+            '</div>' : '') +
             // Message button
             (canMessage ?
                 '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'

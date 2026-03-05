@@ -1926,7 +1926,7 @@ async function toggleLeaderboard() {
     }
 }
 
-// PVP Leaderboard — loaded after main leaderboard renders
+// PVP Leaderboard — loaded after main leaderboard renders, sorted by win %
 async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
@@ -1934,38 +1934,42 @@ async function _loadPVPLeaderboard() {
         var snap = await db.collection('users')
             .where('pvpWins', '>', 0)
             .orderBy('pvpWins', 'desc')
-            .limit(50)
+            .limit(100)
             .get();
         if (snap.empty) {
             container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
             return;
         }
-        var pvpHtml = '';
-        var idx = 0;
+        // Collect all players, then sort by win percentage (ties broken by total wins)
+        var players = [];
         var myUid = auth.currentUser ? auth.currentUser.uid : null;
         snap.forEach(function(doc) {
             var d = doc.data();
             if (d.ghostMode && doc.id !== myUid) return;
-            idx++;
-            var rank = idx;
-            var isMe = doc.id === myUid;
             var wins = d.pvpWins || 0;
             var losses = d.pvpLosses || 0;
             var total = wins + losses;
-            var winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+            var winRate = total > 0 ? (wins / total) * 100 : 0;
+            players.push({ id: doc.id, username: d.username || 'Anon', wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid });
+        });
+        players.sort(function(a, b) { return b.winRate - a.winRate || b.wins - a.wins; });
+
+        var pvpHtml = '';
+        players.forEach(function(p, idx) {
+            var rank = idx + 1;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : wins >= 1 ? '⚔️' : '';
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
             pvpHtml += '<div' + hidden + '>' +
                 '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-name">' + pvpIcon + ' ' + (d.username || 'Anon') + '</span>' +
+                '<span class="lb-name">' + pvpIcon + ' ' + p.username + '</span>' +
                 '<span class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">' +
-                    '<span>' + wins + 'W – ' + losses + 'L</span>' +
-                    '<span style="font-size:0.65rem;color:var(--text-faint);font-weight:500;">' + winRate + '% win rate</span>' +
+                    '<span>' + p.wins + 'W – ' + p.losses + 'L (' + p.total + ' rounds)</span>' +
+                    '<span style="font-size:0.65rem;color:var(--text-faint);font-weight:500;">' + Math.round(p.winRate) + '% win rate</span>' +
                 '</span></div>';
         });
-        if (idx > 10) {
-            pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + idx + ' PVP players ▼</button>';
+        if (players.length > 10) {
+            pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + players.length + ' PVP players ▼</button>';
         }
         container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
     } catch(e) {
@@ -2721,6 +2725,17 @@ function showSettingsPage(tab) {
         html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
         html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
         html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>');
+        // PVP Stats
+        var _pvpW = currentUser ? (currentUser.pvpWins || 0) : 0;
+        var _pvpL = currentUser ? (currentUser.pvpLosses || 0) : 0;
+        var _pvpT = _pvpW + _pvpL;
+        var _pvpPct = _pvpT > 0 ? Math.round((_pvpW / _pvpT) * 100) : 0;
+        if (_pvpT > 0) {
+            html += statRow('PVP Record', _pvpW + 'W – ' + _pvpL + 'L (' + _pvpT + ' rounds)', '⚔️');
+            html += statRow('PVP Win Rate', _pvpPct + '%', '📊');
+        } else {
+            html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
+        }
         if (typeof getNachoFriendship === 'function') {
             var f = getNachoFriendship();
             var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
@@ -18865,6 +18880,12 @@ window.showUserProfile = function(uid) {
                 profileStat('🔥', u.streak || 0, 'Streak') +
                 profileStat('📅', joinDate, 'Joined') +
             '</div>' +
+            // PVP Stats (only show if they've played)
+            ((u.pvpWins || u.pvpLosses) ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                profileStat('⚔️', (u.pvpWins || 0) + 'W', 'PVP Wins') +
+                profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
+                profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
+            '</div>' : '') +
             // Message button
             (canMessage ?
                 '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
