@@ -6285,6 +6285,19 @@ const NACHO_KB = [
       channel: 'history', channelName: 'History',
       followUp: "🤔 Ask me: 'What is the Genesis Block?' or 'Who is Hal Finney?'" },
 
+    { keys: ['how old is bitcoin','bitcoin age','when was bitcoin born','when did bitcoin start','when was bitcoin invented','when bitcoin created','how long has bitcoin existed','how long bitcoin been around','bitcoin birthday','age of bitcoin'],
+      answer: function(name) {
+          var genesis = new Date('2009-01-03T00:00:00Z');
+          var now = new Date();
+          var years = now.getFullYear() - genesis.getFullYear();
+          var months = now.getMonth() - genesis.getMonth();
+          if (months < 0 || (months === 0 && now.getDate() < genesis.getDate())) years--;
+          if (months < 0) months += 12;
+          return "Great question, " + (name || "friend") + "! 🎂🦌 Bitcoin is exactly " + years + " years old (and counting). The whitepaper was published on October 31, 2008, and the network went live on January 3, 2009, when Satoshi mined the Genesis Block. That makes the protocol " + years + " years and " + months + " months old as of today! Bitcoin has been running non-stop ever since — 99.98% uptime, no CEO, no off switch. And it's still just getting started. ⏰🧡";
+      },
+      channel: 'history', channelName: 'History',
+      followUp: "🤔 Ask me: 'What is the Genesis Block?' or 'Who is Satoshi Nakamoto?'" },
+
     { keys: ['how was bitcoin created','how did bitcoin start','how bitcoin began','bitcoin origin','bitcoin history','how was bitcoin developed','how did bitcoin develop','bitcoin development','how bitcoin works technically','how was bitcoin built'],
       answer: "Bitcoin's development is fascinating! 🧠 It started with a 9-page whitepaper titled 'Bitcoin: A Peer-to-Peer Electronic Cash System' published in 2008. Satoshi built on decades of prior work: David Chaum's DigiCash (1989), Adam Back's Hashcash (1997), Wei Dai's b-money (1998), and Hal Finney's Reusable Proof of Work. What made Bitcoin different? It solved the 'double-spend problem' without needing a trusted third party — using proof-of-work mining and a distributed blockchain. The code was open-source from day one, and the network has been running non-stop since January 3, 2009. Over time, the community has added improvements like SegWit (2017) and Taproot (2021), all through consensus — no single person controls it! 🦌",
       channel: 'history', channelName: 'History' },
@@ -8984,12 +8997,30 @@ window.showNachoInput = function() {
     bubble.setAttribute('data-interactive', 'true');
     bubble.classList.add('show');
     clearTimeout(window._nachoBubbleTimeout);
+    // Remove dismiss handlers temporarily so they don't fire during the transition
+    if (window._nachoDismissHandler) {
+        document.removeEventListener('mousedown', window._nachoDismissHandler);
+        document.removeEventListener('touchstart', window._nachoDismissHandler);
+    }
 
-    // Focus the input after a tiny delay
+    // Focus the input and re-ensure bubble stays visible after any pending events
     setTimeout(function() {
         var inp = document.getElementById('nachoInput');
         if (inp) inp.focus();
-    }, 100);
+        // Re-ensure bubble is still showing (catches race conditions with dismiss handlers)
+        var b = document.getElementById('nacho-bubble');
+        if (b) {
+            b.classList.add('show');
+            b.setAttribute('data-interactive', 'true');
+        }
+        // Re-attach dismiss handlers after the dust settles
+        setTimeout(function() {
+            if (window._nachoDismissHandler) {
+                document.addEventListener('mousedown', window._nachoDismissHandler);
+                document.addEventListener('touchstart', window._nachoDismissHandler, { passive: true });
+            }
+        }, 200);
+    }, 150);
 };
 
 // ---- Process user question ----
@@ -9897,6 +9928,12 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var kbMatch = null;
     var liveMatch = typeof nachoLiveAnswer === 'function' ? nachoLiveAnswer(q) : null;
     kbMatch = liveMatch || findAnswer(q);
+
+    // Resolve function-based answers (for dynamic content like Bitcoin's age)
+    if (kbMatch && typeof kbMatch.answer === 'function') {
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+        kbMatch = Object.assign({}, kbMatch, { answer: kbMatch.answer(userName) });
+    }
 
     // ---- STEP 3b: Site navigation (always takes priority) ----
     if (kbMatch && kbMatch.isSiteNav) {
