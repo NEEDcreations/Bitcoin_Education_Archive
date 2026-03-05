@@ -424,6 +424,115 @@ window.signInWithNostr = async function() {
 
 // Apple Sign-In removed
 
+// Lightning (LNURL-auth) Sign-In
+window.signInWithLightning = async function() {
+    if (!checkRateLimit()) return;
+
+    try {
+        if (typeof showToast === 'function') showToast('⚡ Generating Lightning login...');
+
+        // Request challenge from Cloud Function
+        var lnAuthChallenge = firebase.functions().httpsCallable('lnAuthChallenge');
+        var challengeResult = await lnAuthChallenge();
+
+        if (!challengeResult.data || !challengeResult.data.k1 || !challengeResult.data.lnurl) {
+            if (typeof showToast === 'function') showToast('Failed to generate login challenge');
+            return;
+        }
+
+        var k1 = challengeResult.data.k1;
+        var lnurlEncoded = challengeResult.data.lnurl;
+
+        // Show QR code modal for scanning with Lightning wallet
+        var qrModal = document.createElement('div');
+        qrModal.id = 'lnAuthModal';
+        qrModal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
+        qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
+        qrModal.innerHTML =
+            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
+                '<div style="font-size:2rem;margin-bottom:10px;">⚡</div>' +
+                '<h3 style="color:var(--heading);margin-bottom:6px;">Lightning Login</h3>' +
+                '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Scan this QR code with your Lightning wallet (Alby, Zeus, Phoenix, BlueWallet, etc.)</p>' +
+                '<div id="lnAuthQR" style="background:#fff;padding:16px;border-radius:12px;display:inline-block;margin-bottom:16px;"></div>' +
+                '<div style="margin-bottom:12px;">' +
+                    '<button onclick="navigator.clipboard.writeText(\'' + lnurlEncoded + '\').then(function(){showToast(\'Copied!\');})" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;">📋 Copy LNURL</button>' +
+                '</div>' +
+                '<p id="lnAuthStatus" style="color:var(--accent);font-size:0.85rem;font-weight:600;">Waiting for wallet...</p>' +
+                '<button onclick="document.getElementById(\'lnAuthModal\').remove()" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        document.body.appendChild(qrModal);
+
+        // Generate QR code
+        var qrContainer = document.getElementById('lnAuthQR');
+        if (qrContainer) {
+            // Use a simple QR code approach — create img with QR API
+            var qrImg = document.createElement('img');
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent('lightning:' + lnurlEncoded);
+            qrImg.width = 220;
+            qrImg.height = 220;
+            qrImg.alt = 'Lightning Auth QR';
+            qrImg.style.cssText = 'border-radius:8px;';
+            qrContainer.appendChild(qrImg);
+        }
+
+        // Poll for completion
+        var lnAuthVerify = firebase.functions().httpsCallable('lnAuthVerify');
+        var pollCount = 0;
+        var maxPolls = 60; // 2 minutes at 2-second intervals
+        var pollInterval = setInterval(async function() {
+            pollCount++;
+            if (pollCount > maxPolls || !document.getElementById('lnAuthModal')) {
+                clearInterval(pollInterval);
+                return;
+            }
+            try {
+                var verifyResult = await lnAuthVerify({ k1: k1 });
+                if (verifyResult.data && verifyResult.data.token) {
+                    clearInterval(pollInterval);
+                    var statusEl = document.getElementById('lnAuthStatus');
+                    if (statusEl) statusEl.textContent = '✅ Authenticated!';
+
+                    await auth.signInWithCustomToken(verifyResult.data.token);
+
+                    // Set up user doc if needed
+                    var uid = verifyResult.data.uid;
+                    var userDoc = await db.collection('users').doc(uid).get();
+                    if (!userDoc.exists || !userDoc.data().username) {
+                        var lnName = '⚡anon-' + k1.substring(0, 8);
+                        await db.collection('users').doc(uid).set({
+                            username: lnName,
+                            authMethod: 'lightning',
+                            points: 0,
+                            channelsVisited: 0,
+                            totalVisits: 1,
+                            streak: 1,
+                            lastVisit: new Date().toISOString().split('T')[0],
+                            created: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    }
+
+                    loadUser(uid);
+                    hideUsernamePrompt();
+                    setTimeout(function() {
+                        var modal = document.getElementById('lnAuthModal');
+                        if (modal) modal.remove();
+                    }, 1000);
+                    if (typeof showToast === 'function') showToast('⚡ Signed in with Lightning!');
+                }
+            } catch(e) {
+                // Not ready yet, keep polling
+                if (e.code !== 'not-found') console.log('LN auth poll:', e.message);
+            }
+        }, 2000);
+
+    } catch(e) {
+        console.error('Lightning auth error:', e);
+        if (typeof showToast === 'function') showToast('Lightning sign-in failed. Try again.');
+        var modal = document.getElementById('lnAuthModal');
+        if (modal) modal.remove();
+    }
+};
+
 // Rate limiting check
 function checkRateLimit() {
     const now = Date.now();
@@ -3087,8 +3196,8 @@ window.submitUsername = async function() {
         var enteredGiveaway = giveawayCheckbox && giveawayCheckbox.checked;
         var lnAddress = giveawayLn ? giveawayLn.value.trim() : '';
 
-        if (email && enteredGiveaway) {
-            // Email signup with giveaway — send magic link for verification
+        if (email) {
+            // Email provided — send magic link for verification
             var sent = await sendMagicLink(email);
             if (sent) {
                 localStorage.setItem('btc_pending_username', name);
@@ -3098,11 +3207,13 @@ window.submitUsername = async function() {
                 }
                 showToast('📧 Check your email for a verification link!');
                 hideUsernamePrompt();
+                // Also create the anonymous user immediately so they can start using the site
+                await createUser(name, email, enteredGiveaway, lnAddress);
                 return;
             }
         }
 
-        // No email or giveaway — create user directly
+        // No email — create user directly (anonymous)
         await createUser(name, email, enteredGiveaway, lnAddress);
         return;
     }

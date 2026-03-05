@@ -378,6 +378,229 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 });
 
 // =============================================
+// LNURL-auth — Lightning Login
+// =============================================
+
+// Step 1: Generate a challenge (k1) and return LNURL
+exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
+    const crypto = require('crypto');
+    const k1 = crypto.randomBytes(32).toString('hex');
+
+    // Store challenge in Firestore with 5-minute TTL
+    await db.collection('lnauth_challenges').doc(k1).set({
+        created: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        status: 'pending',
+    });
+
+    // Build the LNURL-auth URL
+    // This points to our HTTP callback endpoint
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'bitcoin-education-archive';
+    const region = 'us-central1';
+    const callbackUrl = `https://${region}-${projectId}.cloudfunctions.net/lnAuthCallback?tag=login&k1=${k1}&action=login`;
+
+    // Bech32-encode the URL as LNURL
+    const lnurlEncoded = bech32Encode(callbackUrl);
+
+    return { k1, lnurl: lnurlEncoded, callbackUrl };
+});
+
+// Step 2: HTTP callback endpoint — wallet calls this with sig + key
+exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
+    // CORS headers
+    res.set('Access-Control-Allow-Origin', '*');
+
+    const { k1, sig, key, tag } = req.query;
+
+    if (!k1 || !sig || !key) {
+        return res.json({ status: 'ERROR', reason: 'Missing k1, sig, or key' });
+    }
+
+    // Validate k1 exists and is pending
+    const challengeDoc = await db.collection('lnauth_challenges').doc(k1).get();
+    if (!challengeDoc.exists) {
+        return res.json({ status: 'ERROR', reason: 'Unknown or expired challenge' });
+    }
+    const challenge = challengeDoc.data();
+    if (challenge.status !== 'pending') {
+        return res.json({ status: 'ERROR', reason: 'Challenge already used' });
+    }
+    // Check expiry
+    if (challenge.expiresAt && challenge.expiresAt.toDate() < new Date()) {
+        await db.collection('lnauth_challenges').doc(k1).delete();
+        return res.json({ status: 'ERROR', reason: 'Challenge expired' });
+    }
+
+    // Verify the ECDSA signature
+    try {
+        const secp = require('@noble/secp256k1');
+        const k1Bytes = Buffer.from(k1, 'hex');
+        const sigBytes = Buffer.from(sig, 'hex');
+        const keyBytes = Buffer.from(key, 'hex');
+
+        // DER-decode the signature to get r,s
+        const parsed = parseDERSignature(sigBytes);
+        if (!parsed) {
+            return res.json({ status: 'ERROR', reason: 'Invalid signature format' });
+        }
+
+        // Verify using secp256k1
+        const sigObj = new secp.Signature(parsed.r, parsed.s);
+        const valid = secp.verify(sigObj, k1Bytes, keyBytes);
+
+        if (!valid) {
+            return res.json({ status: 'ERROR', reason: 'Invalid signature' });
+        }
+    } catch(e) {
+        console.error('LNURL-auth sig verify error:', e);
+        return res.json({ status: 'ERROR', reason: 'Signature verification failed' });
+    }
+
+    // Signature valid — mark challenge as completed with the linking key
+    const lnUid = 'ln:' + key;
+
+    // Create Firebase auth user if needed
+    try {
+        await admin.auth().getUser(lnUid);
+    } catch(e) {
+        await admin.auth().createUser({
+            uid: lnUid,
+            displayName: '⚡anon-' + key.substring(0, 12),
+        });
+    }
+
+    // Create custom token
+    const customToken = await admin.auth().createCustomToken(lnUid, {
+        lnPubkey: key,
+    });
+
+    // Update challenge doc with auth result
+    await db.collection('lnauth_challenges').doc(k1).update({
+        status: 'completed',
+        linkingKey: key,
+        uid: lnUid,
+        token: customToken,
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Update/create user doc
+    await db.collection('users').doc(lnUid).set({
+        lnPubkey: key,
+        authMethod: 'lightning',
+        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return res.json({ status: 'OK' });
+});
+
+// Step 3: Client polls this to check if wallet completed auth
+exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
+    const { k1 } = data;
+    if (!k1) throw new functions.https.HttpsError('invalid-argument', 'Missing k1');
+
+    const doc = await db.collection('lnauth_challenges').doc(k1).get();
+    if (!doc.exists) {
+        throw new functions.https.HttpsError('not-found', 'Challenge not found');
+    }
+
+    const challenge = doc.data();
+    if (challenge.status !== 'completed') {
+        throw new functions.https.HttpsError('not-found', 'Not yet authenticated');
+    }
+
+    // Clean up the challenge doc (one-time use)
+    await db.collection('lnauth_challenges').doc(k1).delete();
+
+    return { token: challenge.token, uid: challenge.uid };
+});
+
+// Helper: Parse DER-encoded ECDSA signature into r, s BigInts
+function parseDERSignature(buf) {
+    try {
+        if (buf[0] !== 0x30) return null;
+        let offset = 2;
+        // r
+        if (buf[offset] !== 0x02) return null;
+        offset++;
+        const rLen = buf[offset]; offset++;
+        const rBytes = buf.slice(offset, offset + rLen); offset += rLen;
+        // s
+        if (buf[offset] !== 0x02) return null;
+        offset++;
+        const sLen = buf[offset]; offset++;
+        const sBytes = buf.slice(offset, offset + sLen);
+
+        const r = BigInt('0x' + Buffer.from(rBytes).toString('hex'));
+        const s = BigInt('0x' + Buffer.from(sBytes).toString('hex'));
+        return { r, s };
+    } catch(e) {
+        return null;
+    }
+}
+
+// Helper: Bech32 encode URL to LNURL format
+function bech32Encode(url) {
+    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    const hrp = 'lnurl';
+
+    function polymod(values) {
+        let chk = 1;
+        for (let p = 0; p < values.length; ++p) {
+            let top = chk >> 25;
+            chk = ((chk & 0x1ffffff) << 5) ^ values[p];
+            for (let i = 0; i < 5; ++i) {
+                if ((top >> i) & 1) {
+                    chk ^= [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3][i];
+                }
+            }
+        }
+        return chk;
+    }
+
+    function hrpExpand(hrp) {
+        let ret = [];
+        for (let p = 0; p < hrp.length; ++p) ret.push(hrp.charCodeAt(p) >> 5);
+        ret.push(0);
+        for (let p = 0; p < hrp.length; ++p) ret.push(hrp.charCodeAt(p) & 31);
+        return ret;
+    }
+
+    function createChecksum(hrp, data) {
+        let values = hrpExpand(hrp).concat(data).concat([0, 0, 0, 0, 0, 0]);
+        let pm = polymod(values) ^ 1;
+        let ret = [];
+        for (let p = 0; p < 6; ++p) ret.push((pm >> (5 * (5 - p))) & 31);
+        return ret;
+    }
+
+    function convertBits(data, fromBits, toBits, pad) {
+        let acc = 0, bits = 0, ret = [], maxv = (1 << toBits) - 1;
+        for (let p = 0; p < data.length; ++p) {
+            let value = data[p];
+            acc = (acc << fromBits) | value;
+            bits += fromBits;
+            while (bits >= toBits) {
+                bits -= toBits;
+                ret.push((acc >> bits) & maxv);
+            }
+        }
+        if (pad) {
+            if (bits > 0) ret.push((acc << (toBits - bits)) & maxv);
+        }
+        return ret;
+    }
+
+    const urlBytes = Buffer.from(url, 'utf-8');
+    const data5bit = convertBits(Array.from(urlBytes), 8, 5, true);
+    const checksum = createChecksum(hrp, data5bit);
+    const combined = data5bit.concat(checksum);
+
+    let result = hrp + '1';
+    for (let p = 0; p < combined.length; ++p) result += CHARSET.charAt(combined[p]);
+    return result.toUpperCase();
+}
+
+// =============================================
 // Forum Post Notification — email admin on new post
 // =============================================
 exports.onForumPost = functions.firestore
