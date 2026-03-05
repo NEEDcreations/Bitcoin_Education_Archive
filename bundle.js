@@ -25205,6 +25205,7 @@ window.beatsEnsureGlobalPlayer = function() {
             '<button id="beatsPlayBtn" onclick="beatsTogglePlay()" style="background:var(--accent);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>' +
             '<button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>' +
             '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:60px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
+            '<button onclick="beatsShowComments()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:0.9rem;cursor:pointer;padding:4px;" title="Comments">💬</button>' +
             '<button onclick="beatsClosePlayer()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.9rem;cursor:pointer;padding:4px;" title="Close">✕</button>' +
         '</div>';
     document.body.appendChild(gp);
@@ -25221,6 +25222,8 @@ window.beatsClosePlayer = function() {
     clearInterval(window._beatsUpdateInterval);
     var gp = document.getElementById('beatsGlobalPlayer');
     if (gp) gp.style.display = 'none';
+    var cp = document.getElementById('beatsCommentsPanel');
+    if (cp) cp.remove();
     window._beatsNowPlaying = null;
     window._beatsQueueIdx = -1;
     // Clear MediaSession
@@ -25341,6 +25344,7 @@ window.beatsLoadTracks = function(tab) {
                     '<div style="color:var(--text-faint);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
                 '</div>' +
                 '<div style="color:var(--text-faint);font-size:0.7rem;flex-shrink:0;">' + duration + '</div>' +
+                '<button onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:4px;color:var(--text-faint);display:flex;align-items:center;gap:2px;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                 '<button onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
                 '<button onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.9rem;cursor:pointer;padding:4px;color:var(--text-faint);" title="More">⋮</button>' +
             '</div>';
@@ -25405,8 +25409,20 @@ window.beatsPlayTrack = function(idx) {
         }
     }, 500);
 
-    // Auto-next
-    window._beatsAudio.onended = function() { beatsNextTrack(); };
+    // Auto-next + award points for full listen
+    window._beatsAudio.onended = function() {
+        // Award +10 points for listening to a full track
+        var trackId = window._beatsQueue[window._beatsQueueIdx] ? window._beatsQueue[window._beatsQueueIdx].id : null;
+        if (trackId && typeof awardPoints === 'function' && auth && auth.currentUser) {
+            // Prevent farming: track which songs were rewarded this session
+            if (!window._beatsListenedIds) window._beatsListenedIds = {};
+            if (!window._beatsListenedIds[trackId]) {
+                window._beatsListenedIds[trackId] = true;
+                awardPoints(10, 'Listened to a full track on Bitcoin Beats 🎵');
+            }
+        }
+        beatsNextTrack();
+    };
 
     // Increment play count
     if (track.id && typeof db !== 'undefined') {
@@ -25517,8 +25533,8 @@ window.beatsShowUpload = function() {
                 '<option value="ambient">Ambient / Lo-fi</option>' +
                 '<option value="other">Other</option>' +
             '</select>' +
-            '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, max 10MB)</label>' +
-            '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
+            '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
             '<div id="beatsUpProgress" style="display:none;margin-bottom:12px;">' +
                 '<div style="background:var(--border);border-radius:8px;height:6px;overflow:hidden;"><div id="beatsUpBar" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s;"></div></div>' +
                 '<div id="beatsUpStatus" style="font-size:0.75rem;color:var(--text-faint);margin-top:4px;">Processing...</div>' +
@@ -25546,8 +25562,8 @@ window.beatsDoUpload = function() {
     if (!copyrightCheck.checked) { showToast('You must confirm copyright ownership'); return; }
 
     var file = fileInput.files[0];
-    if (file.size > 10 * 1024 * 1024) { showToast('File too large. Max 10MB.'); return; }
-    if (!file.type.match(/audio\/(mpeg|mp3)/)) { showToast('Only MP3 files are supported'); return; }
+    if (file.size > 25 * 1024 * 1024) { showToast('File too large. Max 25MB.'); return; }
+    if (!file.type.match(/audio\/(mpeg|mp3|wav|wave|x-wav|flac|ogg|aac|mp4|x-m4a)/)) { showToast('Unsupported format. Use MP3, WAV, FLAC, OGG, or AAC.'); return; }
 
     var btn = document.getElementById('beatsUpBtn');
     btn.disabled = true;
@@ -25820,6 +25836,147 @@ window.beatsRenderLivestream = function() {
             }
         }, 10000);
     }, 300);
+};
+
+// ---- Comments System ----
+window.beatsShowComments = function(trackId) {
+    if (!trackId) {
+        // Use currently playing track
+        var current = window._beatsQueue[window._beatsQueueIdx];
+        if (!current) { showToast('No track selected'); return; }
+        trackId = current.id;
+    }
+
+    // Remove existing comments panel
+    var existing = document.getElementById('beatsCommentsPanel');
+    if (existing) { existing.remove(); return; } // Toggle off
+
+    var track = null;
+    for (var i = 0; i < window._beatsQueue.length; i++) {
+        if (window._beatsQueue[i].id === trackId) { track = window._beatsQueue[i]; break; }
+    }
+
+    var panel = document.createElement('div');
+    panel.id = 'beatsCommentsPanel';
+    panel.style.cssText = 'position:fixed;bottom:112px;left:0;right:0;z-index:199;max-height:50vh;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(247,147,26,0.15);display:flex;flex-direction:column;animation:beatsSlideUp 0.25s ease-out;';
+
+    panel.innerHTML =
+        '<style>@keyframes beatsSlideUp{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}</style>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);flex-shrink:0;">' +
+            '<div style="font-weight:700;font-size:0.85rem;color:var(--heading);">💬 Comments' + (track ? ' — ' + '<span style="color:var(--accent);font-weight:600;">' + escapeHtml((track.title || 'Untitled').substring(0, 30)) + '</span>' : '') + '</div>' +
+            '<button onclick="document.getElementById(\'beatsCommentsPanel\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1rem;cursor:pointer;padding:4px;">✕</button>' +
+        '</div>' +
+        '<div id="beatsCommentsList" style="flex:1;overflow-y:auto;padding:12px 16px;min-height:80px;">' +
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Loading comments...</div>' +
+        '</div>' +
+        '<div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;flex-shrink:0;">' +
+            '<input type="text" id="beatsCommentInput" maxlength="280" placeholder="Leave a comment..." style="flex:1;padding:10px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')beatsPostComment(\'' + trackId + '\')" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'rgba(255,255,255,0.1)\'">' +
+            '<button onclick="beatsPostComment(\'' + trackId + '\')" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Send</button>' +
+        '</div>';
+
+    document.body.appendChild(panel);
+
+    // Adjust position based on screen — on desktop no bottom nav
+    var mq = window.matchMedia('(min-width:901px)');
+    if (mq.matches) panel.style.bottom = '56px'; // just above player
+
+    // Load comments
+    beatsLoadComments(trackId);
+};
+
+window.beatsLoadComments = function(trackId) {
+    var listEl = document.getElementById('beatsCommentsList');
+    if (!listEl || typeof db === 'undefined') return;
+
+    db.collection('beats_tracks').doc(trackId).collection('comments')
+        .orderBy('createdAt', 'desc').limit(50).get()
+        .then(function(snap) {
+            if (snap.empty) {
+                listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No comments yet. Be the first! 🎵</div>';
+                return;
+            }
+            var html = '';
+            snap.forEach(function(doc) {
+                var c = doc.data();
+                var timeStr = c.createdAt ? timeAgo(c.createdAt) : '';
+                html += '<div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;">' +
+                    '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1e293b,#334155);display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0;color:var(--accent);font-weight:700;">' + (c.authorName ? c.authorName.charAt(0).toUpperCase() : '?') + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;">' +
+                            '<span style="color:var(--heading);font-weight:700;font-size:0.8rem;">' + escapeHtml(c.authorName || 'Anonymous') + '</span>' +
+                            '<span style="color:var(--text-faint);font-size:0.65rem;">' + timeStr + '</span>' +
+                        '</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;word-break:break-word;">' + escapeHtml(c.text || '') + '</div>' +
+                    '</div>' +
+                '</div>';
+            });
+            listEl.innerHTML = html;
+        })
+        .catch(function(e) {
+            console.error('Load comments error:', e);
+            listEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Error loading comments</div>';
+        });
+};
+
+window.beatsPostComment = function(trackId) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        showToast('Sign in to comment');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+
+    var input = document.getElementById('beatsCommentInput');
+    if (!input) return;
+    var text = input.value.trim();
+    if (!text) { showToast('Type a comment first'); return; }
+    if (text.length > 280) { showToast('Comment too long (280 char max)'); return; }
+
+    // Moderation: profanity filter
+    if (typeof containsProfanity === 'function' && containsProfanity(text)) {
+        showToast('⚠️ Comment contains inappropriate language');
+        return;
+    }
+
+    // Rate limit: max 10 comments per minute
+    if (!window._beatsCommentTimes) window._beatsCommentTimes = [];
+    var now = Date.now();
+    window._beatsCommentTimes = window._beatsCommentTimes.filter(function(t) { return now - t < 60000; });
+    if (window._beatsCommentTimes.length >= 10) {
+        showToast('Slow down — max 10 comments per minute');
+        return;
+    }
+    window._beatsCommentTimes.push(now);
+
+    input.disabled = true;
+    var authorName = currentUser ? currentUser.username : 'Anonymous';
+
+    db.collection('beats_tracks').doc(trackId).collection('comments').add({
+        text: text.substring(0, 280),
+        authorId: auth.currentUser.uid,
+        authorName: authorName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+        input.value = '';
+        input.disabled = false;
+        beatsLoadComments(trackId);
+        // Award points for commenting
+        if (typeof awardPoints === 'function') {
+            if (!window._beatsCommentPointsCount) window._beatsCommentPointsCount = 0;
+            // Cap at 5 comment rewards per session to prevent farming
+            if (window._beatsCommentPointsCount < 5) {
+                window._beatsCommentPointsCount++;
+                awardPoints(10, 'Left a comment on Bitcoin Beats 💬');
+            }
+        }
+        // Increment comment count on track
+        db.collection('beats_tracks').doc(trackId).update({
+            commentCount: firebase.firestore.FieldValue.increment(1)
+        }).catch(function() {});
+    }).catch(function(e) {
+        console.error('Post comment error:', e);
+        showToast('Error posting comment');
+        input.disabled = false;
+    });
 };
 
 // ---- Helpers ----

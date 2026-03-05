@@ -276,6 +276,18 @@ service cloud.firestore {
                         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes']));
       allow delete: if request.auth != null
                     && resource.data.authorId == request.auth.uid;
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.resource.data.authorId == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 280;
+        allow delete: if request.auth != null
+                      && resource.data.authorId == request.auth.uid;
+      }
     }
 
     // =============================================
