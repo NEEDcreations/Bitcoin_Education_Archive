@@ -2200,27 +2200,32 @@ async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
     try {
-        var snap = await db.collection('users')
-            .where('pvpWins', '>', 0)
-            .orderBy('pvpWins', 'desc')
-            .limit(100)
-            .get();
-        if (snap.empty) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
-            return;
-        }
-        // Collect all players, then sort by win percentage (ties broken by total wins)
-        var players = [];
+        // Fetch users with wins AND users with losses (two queries merged)
+        var [winsSnap, lossSnap] = await Promise.all([
+            db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(100).get(),
+            db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(100).get()
+        ]);
+        // Merge into a map to deduplicate
+        var playerMap = {};
         var myUid = auth.currentUser ? auth.currentUser.uid : null;
-        snap.forEach(function(doc) {
+        function addPlayer(doc) {
+            if (playerMap[doc.id]) return;
             var d = doc.data();
             if (d.ghostMode && doc.id !== myUid) return;
             var wins = d.pvpWins || 0;
             var losses = d.pvpLosses || 0;
             var total = wins + losses;
+            if (total === 0) return;
             var winRate = total > 0 ? (wins / total) * 100 : 0;
-            players.push({ id: doc.id, username: d.username || 'Anon', wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid });
-        });
+            playerMap[doc.id] = { id: doc.id, username: d.username || 'Anon', wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid };
+        }
+        winsSnap.forEach(addPlayer);
+        lossSnap.forEach(addPlayer);
+        var players = Object.values(playerMap);
+        if (players.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet — be the first to compete!</div>';
+            return;
+        }
         players.sort(function(a, b) { return b.winRate - a.winRate || b.wins - a.wins; });
 
         var pvpHtml = '';

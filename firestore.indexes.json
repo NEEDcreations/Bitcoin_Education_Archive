@@ -181,6 +181,16 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "pvpLosses",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
