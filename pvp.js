@@ -399,6 +399,7 @@
             if (typeof awardPoints === 'function') awardPoints(PRACTICE_PTS_PER_CORRECT, '🧠 PVP Practice');
             if (typeof showToast === 'function') showToast('✅ +' + PRACTICE_PTS_PER_CORRECT + ' pts!');
         }
+        sessionStorage.setItem('_ch_pvp_answer', '1');
 
         // Show result + next button
         var resultHtml =

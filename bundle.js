@@ -2071,6 +2071,7 @@ async function toggleLeaderboard() {
     lb.classList.remove('minimized');
     lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
     lb.classList.add('open');
+    sessionStorage.setItem('_ch_leaderboard', '1');
     if (fab) fab.style.display = 'none';
 
     // Leaderboard open sound — dramatic reveal
@@ -12685,6 +12686,7 @@ function createNacho() {
     const _origEnterNacho = window.enterNachoMode;
     window.enterNachoMode = function(pop) {
         if (typeof _origEnterNacho === 'function') _origEnterNacho(pop);
+        sessionStorage.setItem('_ch_nacho_mode', '1');
         setTimeout(updateOverlayZIndexes, 100);
     };
 
@@ -15160,20 +15162,51 @@ function showStreakBanner() {
 // Challenges use sessionStorage flags that are ONLY set when the real action happens.
 // No auto-complete, no false positives.
 var DAILY_CHALLENGES = [
+    // === Education ===
     { id: 'read_new', text: '📖 Open a channel you haven\'t read before', pts: 15,
       check: function() { return sessionStorage.getItem('_ch_read_new') === '1'; } },
-    { id: 'ask_nacho', text: '🦌 Ask Nacho a Bitcoin question', pts: 15,
-      check: function() { return sessionStorage.getItem('_ch_asked_nacho') === '1'; } },
-    { id: 'quiz', text: '⚡ Answer a quest or trivia question', pts: 15,
-      check: function() { return sessionStorage.getItem('_ch_quiz_done') === '1'; } },
     { id: 'explore3', text: '🗺️ Read 3 different channels', pts: 20,
       check: function() { return parseInt(sessionStorage.getItem('_ch_channels_count') || '0') >= 3; } },
+    { id: 'explore5', text: '🏆 Read 5 different channels', pts: 30,
+      check: function() { return parseInt(sessionStorage.getItem('_ch_channels_count') || '0') >= 5; } },
+    { id: 'quiz', text: '⚡ Answer a quest or trivia question', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_quiz_done') === '1'; } },
+    { id: 'flashcard', text: '📚 Complete a flashcard deck', pts: 20,
+      check: function() { return sessionStorage.getItem('_ch_flashcard') === '1'; } },
+    // === Nacho ===
+    { id: 'ask_nacho', text: '🦌 Ask Nacho a Bitcoin question', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_asked_nacho') === '1'; } },
+    { id: 'nacho_mode', text: '🧠 Enter Nacho Mode for a chat', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_nacho_mode') === '1'; } },
+    { id: 'nacho_story', text: '📖 Read today\'s Nacho Story chapter', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_nacho_story') === '1'; } },
+    // === Games & Rewards ===
     { id: 'spin', text: '🎡 Try the Daily Spin', pts: 10,
       check: function() { return sessionStorage.getItem('_ch_spin_done') === '1'; } },
-    { id: 'favorite', text: '⭐ Save a channel to favorites', pts: 15,
-      check: function() { return sessionStorage.getItem('_ch_fav_added') === '1'; } },
+    { id: 'prediction', text: '📈 Make a Bitcoin price prediction', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_prediction') === '1'; } },
+    { id: 'pvp', text: '⚔️ Answer a PVP trivia question', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_pvp_answer') === '1'; } },
+    // === Community ===
+    { id: 'forum_post', text: '🗣️ Post or reply in PlebTalk', pts: 20,
+      check: function() { return sessionStorage.getItem('_ch_forum_post') === '1'; } },
+    { id: 'dm_sent', text: '💬 Send a direct message', pts: 10,
+      check: function() { return sessionStorage.getItem('_ch_dm_sent') === '1'; } },
+    { id: 'leaderboard', text: '🏆 Check the Leaderboard', pts: 10,
+      check: function() { return sessionStorage.getItem('_ch_leaderboard') === '1'; } },
+    // === Marketplace ===
+    { id: 'market_list', text: '🛒 Post a listing on LightningMart', pts: 20,
+      check: function() { return sessionStorage.getItem('_ch_market_list') === '1'; } },
+    // === Bitcoin Beats ===
     { id: 'listen', text: '🎵 Listen to a track on Bitcoin Beats', pts: 15,
       check: function() { return sessionStorage.getItem('_ch_beats_listen') === '1'; } },
+    { id: 'beats_upload', text: '🎸 Upload a track to Bitcoin Beats', pts: 25,
+      check: function() { return sessionStorage.getItem('_ch_beats_upload') === '1'; } },
+    { id: 'beats_comment', text: '💬 Leave a comment on a track', pts: 10,
+      check: function() { return sessionStorage.getItem('_ch_beats_comment') === '1'; } },
+    // === Personalization ===
+    { id: 'favorite', text: '⭐ Save a channel to favorites', pts: 15,
+      check: function() { return sessionStorage.getItem('_ch_fav_added') === '1'; } },
 ];
 
 function getDailyChallenge() {
@@ -15979,6 +16012,7 @@ window.forumSubmitPost = async function() {
 
         localStorage.setItem('btc_forum_post_count', (postCount + 1).toString());
         localStorage.setItem('btc_forum_post_date', today);
+        sessionStorage.setItem('_ch_forum_post', '1');
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
         // Track for badge
@@ -16798,6 +16832,7 @@ window.submitListing = function() {
         window._mktUploadedImage = null;
         var overlay = document.getElementById('createListingOverlay');
         if (overlay) overlay.remove();
+        sessionStorage.setItem('_ch_market_list', '1');
         if (typeof showToast === 'function') showToast('🛒 Listing posted!');
         if (typeof awardPoints === 'function') awardPoints(15, '🛒 Marketplace listing!');
         // Track for badge
@@ -17845,6 +17880,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
 
     // Update conversation metadata + add message
     convoRef.set(convoData, { merge: true }).then(function() {
+        sessionStorage.setItem('_ch_dm_sent', '1');
         return convoRef.collection('messages').add(msgData);
     }).catch(function(err) {
         console.error('DM send error:', err);
@@ -19164,6 +19200,7 @@ window.showNachoStory = function(chapterOverride) {
         // New calendar day — add it (unlocks next chapter)
         unlockDays.push(today);
         localStorage.setItem('btc_nacho_story_days', JSON.stringify(unlockDays));
+        sessionStorage.setItem('_ch_nacho_story', '1');
     }
 
     // Number of chapters unlocked = number of unique days visited (capped at total chapters)
@@ -19294,6 +19331,7 @@ window.showPricePrediction = function() {
 window._savePrediction = function(direction) {
     var price = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     localStorage.setItem('btc_price_prediction', JSON.stringify({ direction: direction, price: price, time: Date.now() }));
+    sessionStorage.setItem('_ch_prediction', '1');
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
     // Award points
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
@@ -25593,6 +25631,7 @@ window.beatsDoUpload = function() {
                 document.getElementById('beatsUpBar').style.width = '100%';
                 document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
                 showToast('🎵 Track uploaded!');
+                sessionStorage.setItem('_ch_beats_upload', '1');
                 if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
                 setTimeout(function() {
                     var overlay = document.getElementById('beatsUploadOverlay');
@@ -25956,6 +25995,7 @@ window.beatsPostComment = function(trackId) {
             if (window._beatsCommentPointsCount < 5) {
                 window._beatsCommentPointsCount++;
                 awardPoints(10, 'Left a comment on Bitcoin Beats 💬');
+                sessionStorage.setItem('_ch_beats_comment', '1');
             }
         }
         // Increment comment count on track

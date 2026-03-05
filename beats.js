@@ -493,6 +493,7 @@ window.beatsDoUpload = function() {
                 document.getElementById('beatsUpBar').style.width = '100%';
                 document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
                 showToast('🎵 Track uploaded!');
+                sessionStorage.setItem('_ch_beats_upload', '1');
                 if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
                 setTimeout(function() {
                     var overlay = document.getElementById('beatsUploadOverlay');
@@ -856,6 +857,7 @@ window.beatsPostComment = function(trackId) {
             if (window._beatsCommentPointsCount < 5) {
                 window._beatsCommentPointsCount++;
                 awardPoints(10, 'Left a comment on Bitcoin Beats 💬');
+                sessionStorage.setItem('_ch_beats_comment', '1');
             }
         }
         // Increment comment count on track

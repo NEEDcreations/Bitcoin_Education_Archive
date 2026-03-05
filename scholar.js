@@ -4417,7 +4417,8 @@ window.startFlashcards = function(topic) {
                     <button id="finishDeck" style="padding:16px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(247,147,26,0.3);">Back to Scholar Tab</button>
                 </div>`;
                 document.getElementById('finishDeck').onclick = () => { 
-                    if (typeof awardPoints === 'function') awardPoints(10, '📚 Completed ' + topic + ' deck'); 
+                    if (typeof awardPoints === 'function') awardPoints(10, '📚 Completed ' + topic + ' deck');
+                    sessionStorage.setItem('_ch_flashcard', '1');
                     closeQuest(); 
                     if (typeof showSettingsPage === 'function') showSettingsPage('scholar'); 
                 };
