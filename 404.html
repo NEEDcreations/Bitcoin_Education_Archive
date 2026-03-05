@@ -939,33 +939,38 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="bundle.js?v=20260305h" defer></script>
+    <script src="bundle.js?v=20260305i" defer></script>
     <script src="pvp.js?v=20260306l" defer></script>
 <div id="recaptcha-container"></div>
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
+        // Remember if a SW was already controlling this page (= not first visit)
+        var hadController = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.register('sw.js').then(function(reg) {
-            // Check for updates every 5 minutes
-            setInterval(function() { reg.update(); }, 300000);
+            // Check for updates every 30 minutes (reduced from 5 min)
+            setInterval(function() { reg.update(); }, 1800000);
 
             reg.addEventListener('updatefound', function() {
                 var newWorker = reg.installing;
                 if (!newWorker) return;
                 newWorker.addEventListener('statechange', function() {
-                    if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-                        // New version installed — show update banner
+                    // Only show update banner if this is a genuine update (user had a previous SW)
+                    // Skip on first visit — there's nothing to "update" from
+                    if (newWorker.state === 'activated' && hadController) {
                         var banner = document.createElement('div');
                         banner.id = 'updateBanner';
                         banner.style.cssText = 'position:fixed;bottom:70px;left:16px;right:16px;z-index:9999;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);animation:slideInUp 0.3s;font-family:inherit;';
                         banner.innerHTML =
                             '<div style="flex:1;">' +
-                                '<div style="font-weight:700;font-size:0.9rem;">🆕 Update Available!</div>' +
-                                '<div style="font-size:0.75rem;opacity:0.9;">New features and improvements are ready.</div>' +
+                                '<div style="font-weight:700;font-size:0.85rem;">🆕 Update ready</div>' +
+                                '<div style="font-size:0.7rem;opacity:0.85;">Refresh for the latest version.</div>' +
                             '</div>' +
-                            '<button onclick="location.reload()" style="padding:8px 16px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Refresh</button>' +
-                            '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>';
+                            '<button onclick="location.reload()" style="padding:7px 14px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Refresh</button>' +
+                            '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>';
                         document.body.appendChild(banner);
+                        // Auto-dismiss after 15 seconds
+                        setTimeout(function() { var b = document.getElementById('updateBanner'); if (b) b.remove(); }, 15000);
                     }
                 });
             });
