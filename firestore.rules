@@ -263,6 +263,37 @@ service cloud.firestore {
     }
 
     // =============================================
+    // BITCOIN BEATS — TRACKS
+    // =============================================
+    match /beats_tracks/{trackId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.copyrightConfirmed == true;
+      allow update: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes']));
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+    }
+
+    // =============================================
+    // BITCOIN BEATS — REPORTS
+    // =============================================
+    match /beats_reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if false;
+    }
+
+    // =============================================
+    // LNURL-AUTH CHALLENGES
+    // =============================================
+    match /lnauth_challenges/{k1} {
+      allow read, write: if false;  // Server-only via Cloud Functions
+    }
+
+    // =============================================
     // DEFAULT: deny everything else
     // =============================================
     match /{document=**} {

@@ -24971,31 +24971,6 @@ window.renderBitcoinBeats = function() {
             <div style="text-align:center;padding:40px;color:var(--text-faint);">Loading tracks...</div>
         </div>
 
-        <!-- Now Playing Bar (fixed bottom) -->
-        <div id="beatsPlayer" style="display:none;position:fixed;bottom:56px;left:0;right:0;z-index:200;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(247,147,26,0.2);padding:0;">
-            <!-- Progress bar -->
-            <div id="beatsProgressWrap" onclick="beatsSeek(event)" style="height:4px;background:rgba(255,255,255,0.1);cursor:pointer;position:relative;">
-                <div id="beatsProgressBar" style="height:100%;background:linear-gradient(90deg,var(--accent),#ea580c);width:0%;transition:width 0.3s linear;border-radius:0 2px 2px 0;"></div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;">
-                <!-- Album art -->
-                <div id="beatsNowArt" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;">🎵</div>
-                <!-- Track info -->
-                <div style="flex:1;min-width:0;">
-                    <div id="beatsNowTitle" style="color:#fff;font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not Playing</div>
-                    <div id="beatsNowArtist" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Bitcoin Beats</div>
-                </div>
-                <!-- Time -->
-                <div id="beatsTime" style="color:rgba(255,255,255,0.4);font-size:0.65rem;white-space:nowrap;">0:00 / 0:00</div>
-                <!-- Controls -->
-                <button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>
-                <button id="beatsPlayBtn" onclick="beatsTogglePlay()" style="background:var(--accent);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>
-                <button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>
-                <!-- Volume -->
-                <input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:60px;accent-color:var(--accent);cursor:pointer;" title="Volume">
-            </div>
-        </div>
-
         <!-- Links to external platforms -->
         <div style="margin-top:24px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">
             <h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:12px;">More Bitcoin Music Platforms</h3>
@@ -25019,6 +24994,96 @@ window._beatsQueue = [];
 window._beatsQueueIdx = -1;
 window._beatsCurrentTab = 'discover';
 window._beatsUpdateInterval = null;
+window._beatsNowPlaying = null; // { title, artist, genre, coverArt }
+
+// ---- Global Persistent Player (lives in document.body, survives navigation) ----
+window.beatsEnsureGlobalPlayer = function() {
+    if (document.getElementById('beatsGlobalPlayer')) return;
+    var gp = document.createElement('div');
+    gp.id = 'beatsGlobalPlayer';
+    gp.style.cssText = 'display:none;position:fixed;bottom:56px;left:0;right:0;z-index:200;background:rgba(10,10,15,0.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid rgba(247,147,26,0.2);padding:0;';
+    // On desktop, bottom nav is hidden so player sits at bottom:0
+    if (!document.getElementById('beatsPlayerCSS')) {
+        var css = document.createElement('style');
+        css.id = 'beatsPlayerCSS';
+        css.textContent = '@media(min-width:901px){#beatsGlobalPlayer{bottom:0!important;}}';
+        document.head.appendChild(css);
+    }
+    gp.innerHTML =
+        '<div id="beatsProgressWrap" onclick="beatsSeek(event)" style="height:4px;background:rgba(255,255,255,0.1);cursor:pointer;position:relative;">' +
+            '<div id="beatsProgressBar" style="height:100%;background:linear-gradient(90deg,var(--accent),#ea580c);width:0%;transition:width 0.3s linear;border-radius:0 2px 2px 0;"></div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;">' +
+            '<div id="beatsNowArt" onclick="if(typeof go===\'function\')go(\'bitcoin-beats\')" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;cursor:pointer;">🎵</div>' +
+            '<div onclick="if(typeof go===\'function\')go(\'bitcoin-beats\')" style="flex:1;min-width:0;cursor:pointer;">' +
+                '<div id="beatsNowTitle" style="color:#fff;font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not Playing</div>' +
+                '<div id="beatsNowArtist" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Bitcoin Beats</div>' +
+            '</div>' +
+            '<div id="beatsTime" style="color:rgba(255,255,255,0.4);font-size:0.65rem;white-space:nowrap;">0:00 / 0:00</div>' +
+            '<button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>' +
+            '<button id="beatsPlayBtn" onclick="beatsTogglePlay()" style="background:var(--accent);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>' +
+            '<button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>' +
+            '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:60px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
+            '<button onclick="beatsClosePlayer()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.9rem;cursor:pointer;padding:4px;" title="Close">✕</button>' +
+        '</div>';
+    document.body.appendChild(gp);
+};
+
+window.beatsShowGlobalPlayer = function() {
+    beatsEnsureGlobalPlayer();
+    var gp = document.getElementById('beatsGlobalPlayer');
+    if (gp) gp.style.display = 'block';
+};
+
+window.beatsClosePlayer = function() {
+    if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
+    clearInterval(window._beatsUpdateInterval);
+    var gp = document.getElementById('beatsGlobalPlayer');
+    if (gp) gp.style.display = 'none';
+    window._beatsNowPlaying = null;
+    window._beatsQueueIdx = -1;
+    // Clear MediaSession
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.playbackState = 'none';
+    }
+};
+
+window.beatsUpdatePlayerUI = function() {
+    var np = window._beatsNowPlaying;
+    if (!np) return;
+    var titleEl = document.getElementById('beatsNowTitle');
+    var artistEl = document.getElementById('beatsNowArtist');
+    var artEl = document.getElementById('beatsNowArt');
+    if (titleEl) titleEl.textContent = np.title || 'Untitled';
+    if (artistEl) artistEl.textContent = np.artist || 'Unknown';
+    if (artEl) artEl.innerHTML = np.coverArt ? '<img src="' + np.coverArt + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵';
+};
+
+// ---- MediaSession API for lock screen / background controls ----
+window.beatsSetMediaSession = function(track) {
+    if (!('mediaSession' in navigator)) return;
+    try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: track.title || 'Untitled',
+            artist: track.artist || track.authorName || 'Bitcoin Beats',
+            album: 'Bitcoin Beats',
+            artwork: [
+                { src: 'images/bitcoin-beats-logo.jpg', sizes: '120x120', type: 'image/jpeg' }
+            ]
+        });
+        navigator.mediaSession.playbackState = 'playing';
+        navigator.mediaSession.setActionHandler('play', function() { beatsTogglePlay(); });
+        navigator.mediaSession.setActionHandler('pause', function() { beatsTogglePlay(); });
+        navigator.mediaSession.setActionHandler('previoustrack', function() { beatsPrevTrack(); });
+        navigator.mediaSession.setActionHandler('nexttrack', function() { beatsNextTrack(); });
+        navigator.mediaSession.setActionHandler('seekto', function(details) {
+            if (window._beatsAudio && details.seekTime != null) {
+                window._beatsAudio.currentTime = details.seekTime;
+            }
+        });
+    } catch(e) { console.log('MediaSession error:', e); }
+};
 
 // ---- Tab switching ----
 window.beatsTab = function(tab) {
@@ -25109,28 +25174,31 @@ window.beatsPlayTrack = function(idx) {
 
     window._beatsQueueIdx = idx;
 
-    // Show player
-    var player = document.getElementById('beatsPlayer');
-    if (player) player.style.display = 'block';
-
     // Stop existing
     if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
     clearInterval(window._beatsUpdateInterval);
 
-    // Create audio
+    // Create audio element
     window._beatsAudio = new Audio(track.audioData);
     window._beatsAudio.volume = (document.getElementById('beatsVolume') ? document.getElementById('beatsVolume').value : 80) / 100;
     window._beatsAudio.play().catch(function(e) { console.log('Play error:', e); });
 
-    // Update UI
-    var titleEl = document.getElementById('beatsNowTitle');
-    var artistEl = document.getElementById('beatsNowArtist');
-    var artEl = document.getElementById('beatsNowArt');
+    // Store now-playing info (survives navigation)
+    window._beatsNowPlaying = {
+        title: track.title || 'Untitled',
+        artist: track.artist || track.authorName || 'Unknown',
+        genre: track.genre || '',
+        coverArt: track.coverArt || ''
+    };
+
+    // Show & update global player
+    beatsShowGlobalPlayer();
+    beatsUpdatePlayerUI();
     var playBtn = document.getElementById('beatsPlayBtn');
-    if (titleEl) titleEl.textContent = track.title || 'Untitled';
-    if (artistEl) artistEl.textContent = track.artist || track.authorName || 'Unknown';
-    if (artEl) artEl.innerHTML = track.coverArt ? '<img src="' + track.coverArt + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵';
     if (playBtn) playBtn.textContent = '⏸';
+
+    // MediaSession for lock screen / background / minimized controls
+    beatsSetMediaSession(track);
 
     // Progress updates
     window._beatsUpdateInterval = setInterval(function() {
@@ -25140,6 +25208,16 @@ window.beatsPlayTrack = function(idx) {
         if (bar) bar.style.width = pct + '%';
         var timeEl = document.getElementById('beatsTime');
         if (timeEl) timeEl.textContent = beatsFormatTime(window._beatsAudio.currentTime) + ' / ' + beatsFormatTime(window._beatsAudio.duration || 0);
+        // Update MediaSession position
+        if ('mediaSession' in navigator && window._beatsAudio.duration) {
+            try {
+                navigator.mediaSession.setPositionState({
+                    duration: window._beatsAudio.duration,
+                    position: window._beatsAudio.currentTime,
+                    playbackRate: 1
+                });
+            } catch(e) {}
+        }
     }, 500);
 
     // Auto-next
@@ -25163,9 +25241,11 @@ window.beatsTogglePlay = function() {
     if (window._beatsAudio.paused) {
         window._beatsAudio.play();
         if (btn) btn.textContent = '⏸';
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     } else {
         window._beatsAudio.pause();
         if (btn) btn.textContent = '▶';
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     }
 };
 
@@ -25457,7 +25537,6 @@ window.beatsFormatTime = function(secs) {
     var s = Math.floor(secs % 60);
     return m + ':' + (s < 10 ? '0' : '') + s;
 };
-
 // =============================================
 // TASK 16: Add listing expiration and renewal
 // =============================================
