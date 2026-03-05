@@ -25174,14 +25174,14 @@ window.renderBitcoinBeats = function() {
     <div id="beatsApp" style="max-width:900px;margin:20px auto;padding:0 16px;animation:fadeSlideIn 0.4s ease-out;">
         <!-- Header -->
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
-            <div class="channel-logos" style="display:flex;gap:12px;">
+            <div class="channel-logos" style="display:flex;gap:12px;align-items:center;">
                 <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:44px;height:44px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
+                <span class="donate-circle" onclick="showDonateModal()" style="width:44px;height:44px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);flex-shrink:0;" title="Donate"><svg viewBox="0 0 64 64" width="24" height="24"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
             </div>
             <div style="flex:1;">
                 <h2 style="color:var(--heading);font-weight:900;font-size:1.6rem;margin:0;letter-spacing:-0.5px;">🎸 Bitcoin Beats</h2>
                 <div style="color:var(--text-muted);font-size:0.75rem;">Community Music · Powered by Lightning</div>
             </div>
-            <span class="donate-circle" onclick="showDonateModal()" style="width:44px;height:44px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);flex-shrink:0;" title="Donate"><svg viewBox="0 0 64 64" width="24" height="24"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
         </div>
 
         <!-- Copyright Disclaimer (collapsible) -->
@@ -25201,6 +25201,7 @@ window.renderBitcoinBeats = function() {
         <!-- Tab Bar -->
         <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;">
             <button onclick="beatsTab('discover')" id="beatsTabDiscover" class="beats-tab active" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔥 Discover</button>
+            <button onclick="beatsTab('upload')" id="beatsTabUpload" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🎸 Upload</button>
             <button onclick="beatsTab('mymusic')" id="beatsTabMymusic" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">📚 My Music</button>
             <button onclick="beatsTab('likes')" id="beatsTabLikes" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">❤️ Liked</button>
             <button onclick="beatsTab('livestream')" id="beatsTabLivestream" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">📡 Livestream</button>
@@ -25322,14 +25323,16 @@ window.beatsSetMediaSession = function(track) {
 // ---- Tab switching ----
 window.beatsTab = function(tab) {
     window._beatsCurrentTab = tab;
-    ['discover','mymusic','likes','livestream'].forEach(function(t) {
+    ['discover','upload','mymusic','likes','livestream'].forEach(function(t) {
         var btn = document.getElementById('beatsTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) {
             btn.style.borderBottomColor = (t === tab) ? 'var(--accent)' : 'transparent';
             btn.style.color = (t === tab) ? 'var(--accent)' : 'var(--text-muted)';
         }
     });
-    if (tab === 'livestream') {
+    if (tab === 'upload') {
+        beatsRenderUpload();
+    } else if (tab === 'livestream') {
         beatsRenderLivestream();
     } else {
         beatsLoadTracks(tab);
@@ -26008,8 +26011,8 @@ window.beatsRenderUpload = function() {
     if (status) status.textContent = 'Processing...';
 };
 
-// ---- Upload Tab ----
-window.beatsRenderUpload = function() {
+// ---- Livestream Tab ----
+window.beatsRenderLivestream = function() {
     var listEl = document.getElementById('beatsTrackList');
     if (!listEl) return;
 
