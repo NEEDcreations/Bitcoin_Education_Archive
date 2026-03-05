@@ -1804,9 +1804,12 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
+            var _rowPfp = d.profilePic
+                ? '<img src="' + d.profilePic + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px;border:1px solid var(--border);">'
+                : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-name">' + lv.emoji + ' ' + (d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-name">' + _rowPfp + lv.emoji + ' ' + (d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
             '</div>';
         });
@@ -2011,11 +2014,32 @@ function showSettingsPage(tab) {
     if (settingsTab === 'account') {
         var isAnon = user.isAnonymous;
         var settingsEmoji = getUserDisplayEmoji(lvl);
+        var _pfpUrl = currentUser ? currentUser.profilePic || '' : '';
+        var _pfpHtml = _pfpUrl
+            ? '<img src="' + escapeHtml(_pfpUrl) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);cursor:pointer;" onclick="document.getElementById(\'pfpFileInput\').click()" title="Change profile picture">'
+            : '<div style="font-size:2.5rem;margin-bottom:0;">' + settingsEmoji + '</div>';
         html += '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div style="font-size:2.5rem;margin-bottom:8px;">' + settingsEmoji + '</div>' +
+            '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' pts</div>' +
             '</div>';
+
+        // Profile Picture upload
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📷 Profile Picture</div>' +
+            '<input type="file" id="pfpFileInput" accept="image/*" style="display:none;" onchange="handleProfilePicUpload(this)">' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+                (_pfpUrl
+                    ? '<img src="' + escapeHtml(_pfpUrl) + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;">'
+                    : '<div style="width:48px;height:48px;border-radius:50%;background:var(--bg);border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">👤</div>') +
+                '<div style="flex:1;">' +
+                    '<button onclick="document.getElementById(\'pfpFileInput\').click()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_pfpUrl ? 'Change Photo' : 'Upload Photo') + '</button>' +
+                    (_pfpUrl ? ' <button onclick="removeProfilePic()" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Remove</button>' : '') +
+                    '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:4px;">Square image recommended · Max 2MB</div>' +
+                '</div>' +
+            '</div>' +
+            '<div id="pfpUploadStatus" style="margin-top:8px;font-size:0.8rem;"></div>' +
+        '</div>';
 
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Account Details</div>';
@@ -2914,6 +2938,77 @@ window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
     // Focus the new input
     var input = document.getElementById('profile_' + key);
     if (input) input.focus();
+};
+
+// =============================================
+// PROFILE PICTURE — upload, resize, store as base64 in Firestore
+// =============================================
+window.handleProfilePicUpload = function(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var status = document.getElementById('pfpUploadStatus');
+
+    // Validate
+    if (!file.type.match(/^image\//)) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Please select an image file</span>';
+        return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Image too large (max 2MB)</span>';
+        return;
+    }
+
+    if (status) status.innerHTML = '<span style="color:var(--accent);">Processing...</span>';
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+            // Resize to 128x128 JPEG for small Firestore footprint (~5-15KB)
+            var size = 128;
+            var canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            var ctx = canvas.getContext('2d');
+            // Center-crop: use the smaller dimension as the square
+            var sx = 0, sy = 0, sSize = Math.min(img.width, img.height);
+            sx = (img.width - sSize) / 2;
+            sy = (img.height - sSize) / 2;
+            ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, size, size);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+            // Save to Firestore
+            if (!auth || !auth.currentUser) {
+                if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Not signed in</span>';
+                return;
+            }
+            db.collection('users').doc(auth.currentUser.uid).update({ profilePic: dataUrl }).then(function() {
+                if (currentUser) currentUser.profilePic = dataUrl;
+                // Bust leaderboard cache so pic shows immediately
+                window._lbCache = null;
+                if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile picture saved!</span>';
+                if (typeof showToast === 'function') showToast('📷 Profile picture updated!');
+                setTimeout(function() { showSettingsPage('account'); }, 1000);
+            }).catch(function(err) {
+                if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Save failed: ' + err.message + '</span>';
+            });
+        };
+        img.onerror = function() {
+            if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Could not load image</span>';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removeProfilePic = function() {
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).update({ profilePic: '' }).then(function() {
+        if (currentUser) currentUser.profilePic = '';
+        window._lbCache = null;
+        if (typeof showToast === 'function') showToast('📷 Profile picture removed');
+        showSettingsPage('account');
+    }).catch(function() {});
 };
 
 async function saveProfile() {

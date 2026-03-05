@@ -134,6 +134,11 @@
         return 'Anonymous Pleb';
     }
 
+    function getMyProfilePic() {
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.profilePic) return currentUser.profilePic;
+        return '';
+    }
+
     // =============================================
     // LOBBY TICKER LISTENER
     // Watches for users waiting in PVP lobby
@@ -897,6 +902,7 @@
             db.collection('pvp_lobby').add({
                 uid: uid,
                 name: getMyDisplayName(),
+                profilePic: getMyProfilePic(),
                 status: 'waiting',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 lastSeen: Date.now()
@@ -979,6 +985,7 @@
                     pvpState.isPlayer1 = true;
                     pvpState.opponentName = data.opponentName || 'Opponent';
                     pvpState.opponentUid = data.opponentUid || '';
+                    pvpState.opponentProfilePic = data.opponentProfilePic || '';
                     pvpState.inLobby = false;
                     pvpState.inMatch = true;
 
@@ -1002,8 +1009,8 @@
 
         // Create match document
         var matchData = {
-            player1: { uid: waitingData.uid, name: waitingData.name, score: 0, correct: 0, answers: [] },
-            player2: { uid: uid, name: getMyDisplayName(), score: 0, correct: 0, answers: [] },
+            player1: { uid: waitingData.uid, name: waitingData.name, profilePic: waitingData.profilePic || '', score: 0, correct: 0, answers: [] },
+            player2: { uid: uid, name: getMyDisplayName(), profilePic: getMyProfilePic(), score: 0, correct: 0, answers: [] },
             questions: questions,
             currentQ: 0,
             status: 'countdown',  // countdown -> active -> question_result -> finished
@@ -1020,7 +1027,8 @@
                 status: 'matched',
                 matchId: matchId,
                 opponentName: getMyDisplayName(),
-                opponentUid: uid
+                opponentUid: uid,
+                opponentProfilePic: getMyProfilePic()
             });
 
             // Remove our own lobby entry if we had one
@@ -1032,6 +1040,7 @@
             pvpState.isPlayer1 = false;
             pvpState.opponentName = waitingData.name;
             pvpState.opponentUid = waitingData.uid;
+            pvpState.opponentProfilePic = waitingData.profilePic || '';
             pvpState.inLobby = false;
             pvpState.inMatch = true;
 
@@ -1077,6 +1086,23 @@
         var myName = getMyDisplayName();
         var oppName = pvpState.opponentName;
         var myInfo = getPlayerBadgeInfo(myName, getMyUid());
+        var myPfp = getMyProfilePic();
+        var oppPfp = pvpState.opponentProfilePic || '';
+
+        // Build avatar HTML — use profile pic if available, otherwise emoji/gradient
+        var myAvatarInner = myPfp
+            ? '<img src="' + escHtml(myPfp) + '" style="width:70px;height:70px;border-radius:50%;object-fit:cover;">'
+            : myInfo.emoji;
+        var myAvatarStyle = myPfp
+            ? 'width:70px;height:70px;border-radius:50%;border:3px solid #f7931a;margin:0 auto 8px;box-shadow:0 0 20px rgba(247,147,26,0.4);overflow:hidden;'
+            : 'width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#e8720c);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 8px;box-shadow:0 0 20px rgba(247,147,26,0.4);';
+
+        var oppAvatarInner = oppPfp
+            ? '<img src="' + escHtml(oppPfp) + '" style="width:70px;height:70px;border-radius:50%;object-fit:cover;">'
+            : '🟣';
+        var oppAvatarStyle = oppPfp
+            ? 'width:70px;height:70px;border-radius:50%;border:3px solid #6366f1;margin:0 auto 8px;box-shadow:0 0 20px rgba(99,102,241,0.4);overflow:hidden;'
+            : 'width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 8px;box-shadow:0 0 20px rgba(99,102,241,0.4);';
 
         // Phase 1: Battle intro animation — names orbit and collide
         overlay.innerHTML =
@@ -1111,7 +1137,7 @@
                 '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:32px;min-height:120px;">' +
                     // Player 1 (me)
                     '<div id="pvpPlayer1Card" style="text-align:center;animation:pvpOrbitLeft 1.5s ease forwards;">' +
-                        '<div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#e8720c);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 8px;box-shadow:0 0 20px rgba(247,147,26,0.4);">' + myInfo.emoji + '</div>' +
+                        '<div style="' + myAvatarStyle + '">' + myAvatarInner + '</div>' +
                         '<div style="color:var(--text);font-weight:800;font-size:0.9rem;">' + escHtml(myName) + '</div>' +
                         '<div style="color:var(--text-faint);font-size:0.7rem;">' + myInfo.name + (myInfo.pvpBadge ? ' ' + myInfo.pvpBadge : '') + '</div>' +
                     '</div>' +
@@ -1119,9 +1145,9 @@
                     '<div id="pvpVsText" style="font-size:2rem;font-weight:900;color:#ef4444;text-shadow:0 0 20px rgba(239,68,68,0.5);animation:pvpVsSlam 0.6s ease 1s forwards;opacity:0;">VS</div>' +
                     // Player 2 (opponent)
                     '<div id="pvpPlayer2Card" style="text-align:center;animation:pvpOrbitRight 1.5s ease forwards;">' +
-                        '<div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 8px;box-shadow:0 0 20px rgba(99,102,241,0.4);">🟣</div>' +
+                        '<div style="' + oppAvatarStyle + '">' + oppAvatarInner + '</div>' +
                         '<div style="color:var(--text);font-weight:800;font-size:0.9rem;">' + escHtml(oppName) + '</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.7rem;">Loading...</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;">Challenger</div>' +
                     '</div>' +
                 '</div>' +
                 // Countdown (appears after intro)
