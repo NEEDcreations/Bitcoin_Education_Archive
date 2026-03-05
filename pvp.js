@@ -485,6 +485,26 @@
         }
     };
 
+    // =============================================
+    // PVP LOBBY TICKER UPDATES (price/height refresh)
+    // =============================================
+    var _pvpTickerInterval = null;
+
+    function startPvpTickerUpdates() {
+        if (_pvpTickerInterval) clearInterval(_pvpTickerInterval);
+        _pvpTickerInterval = setInterval(function() {
+            var td = buildTickerInfo();
+            var pe = document.getElementById('pvpTickerPrice');
+            var he = document.getElementById('pvpTickerHeight');
+            if (pe) pe.textContent = td.price;
+            if (he) he.textContent = td.height;
+        }, 30000); // update every 30s
+    }
+
+    function stopPvpTickerUpdates() {
+        if (_pvpTickerInterval) { clearInterval(_pvpTickerInterval); _pvpTickerInterval = null; }
+    }
+
     function stopPractice() {
         pvpState.practicing = false;
         pvpState.practiceQ = null;
@@ -588,6 +608,8 @@
         if (pvpState._lobbyHeartbeat) { clearInterval(pvpState._lobbyHeartbeat); pvpState._lobbyHeartbeat = null; }
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
         stopPractice();
+        stopFunFactRotation();
+        stopPvpTickerUpdates();
         pvpState._resultShown = false;
         pvpState._matchResultShown = false;
         if (pvpState.listenerUnsub) { pvpState.listenerUnsub(); pvpState.listenerUnsub = null; }
@@ -616,66 +638,179 @@
     // =============================================
     // RENDER — LOBBY
     // =============================================
+    // =============================================
+    // FUN FACTS — loaded from knowledge base
+    // =============================================
+    var _funFacts = [];
+    var _funFactsLoaded = false;
+
+    function loadFunFacts() {
+        if (_funFactsLoaded) return;
+        _funFactsLoaded = true;
+        fetch('data/R_fun-facts.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+            if (data && data.msgs) {
+                _funFacts = data.msgs.map(function(m) {
+                    // Clean: strip links/images, take first 280 chars, trim leading "- "
+                    var t = (m.text || '').replace(/https?:\/\/\S+/g, '').replace(/\n+/g, ' ').trim();
+                    if (t.charAt(0) === '-') t = t.substring(1).trim();
+                    // Truncate to a sentence boundary near 280 chars
+                    if (t.length > 280) {
+                        var cut = t.lastIndexOf('.', 280);
+                        t = t.substring(0, cut > 100 ? cut + 1 : 280) + '…';
+                    }
+                    return t;
+                }).filter(function(t) { return t.length > 20; });
+                // Shuffle
+                for (var i = _funFacts.length - 1; i > 0; i--) {
+                    var j = Math.floor(Math.random() * (i + 1));
+                    var tmp = _funFacts[i]; _funFacts[i] = _funFacts[j]; _funFacts[j] = tmp;
+                }
+            }
+        }).catch(function() {});
+    }
+
+    var _funFactIdx = 0;
+    var _funFactInterval = null;
+
+    function getNextFunFact() {
+        if (_funFacts.length === 0) return 'Bitcoin has been running non-stop since January 3, 2009 — over 99.98% uptime!';
+        var fact = _funFacts[_funFactIdx % _funFacts.length];
+        _funFactIdx++;
+        return fact;
+    }
+
+    function startFunFactRotation() {
+        if (_funFactInterval) clearInterval(_funFactInterval);
+        showFunFact();
+        _funFactInterval = setInterval(showFunFact, 12000); // rotate every 12s
+    }
+
+    function stopFunFactRotation() {
+        if (_funFactInterval) { clearInterval(_funFactInterval); _funFactInterval = null; }
+    }
+
+    function showFunFact() {
+        var el = document.getElementById('pvpFunFact');
+        if (!el) return;
+        var fact = getNextFunFact();
+        el.style.opacity = '0';
+        setTimeout(function() {
+            el.textContent = fact;
+            el.style.opacity = '1';
+        }, 300);
+    }
+
+    function buildTickerInfo() {
+        // Pull price and block height from nacho-live data or localStorage fallback
+        var price = '--';
+        var height = '--';
+        if (typeof getNachoLiveData === 'function') {
+            var ld = getNachoLiveData();
+            if (ld.price) price = '$' + Math.round(ld.price).toLocaleString();
+            if (ld.blockHeight) height = ld.blockHeight.toLocaleString();
+        }
+        if (price === '--') {
+            var lp = localStorage.getItem('btc_last_price');
+            if (lp) price = '$' + Math.round(parseFloat(lp)).toLocaleString();
+        }
+        if (height === '--') {
+            var lh = localStorage.getItem('btc_last_height');
+            if (lh) height = parseInt(lh).toLocaleString();
+        }
+        return { price: price, height: height };
+    }
+
     function renderPVPLobby() {
         var existing = document.getElementById('pvpOverlay');
         if (existing) existing.remove();
 
+        loadFunFacts();
+
         var overlay = document.createElement('div');
         overlay.id = 'pvpOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0a0a1a);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto;';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0a0a1a);display:flex;flex-direction:column;overflow-y:auto;';
 
         var wins = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
         var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0');
+        var td = buildTickerInfo();
 
         overlay.innerHTML =
-            '<div style="width:92%;max-width:480px;text-align:center;padding:20px;">' +
-                // Header
-                '<div style="margin-bottom:24px;">' +
-                    '<div style="font-size:3rem;margin-bottom:8px;">⚔️</div>' +
-                    '<h1 style="color:var(--accent,#f7931a);font-size:1.6rem;margin:0 0 4px;">PVP MODE</h1>' +
-                    '<div style="color:var(--text-muted);font-size:0.8rem;">Bitcoin Trivia Battles — 1v1</div>' +
+            // ---- TOP BAR: Back, Logo, Ticker, Donate ----
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#030712;border-bottom:1px solid rgba(247,147,26,0.3);flex-shrink:0;">' +
+                // Left: Back button
+                '<button onclick="exitPVPMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;display:flex;align-items:center;touch-action:manipulation;" title="Leave Lobby">←</button>' +
+                // Center: Logo + Ticker info
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                    '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:28px;height:28px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);" onclick="exitPVPMode();goHome();">' +
+                    '<div style="display:flex;align-items:center;gap:10px;font-size:0.7rem;">' +
+                        '<span style="color:#f7931a;font-weight:900;">₿</span>' +
+                        '<span id="pvpTickerPrice" style="color:#fff;font-weight:800;">' + td.price + '</span>' +
+                        '<span style="color:rgba(255,255,255,0.2);">|</span>' +
+                        '<span style="color:#f7931a;font-size:0.65rem;">⛏️</span>' +
+                        '<span id="pvpTickerHeight" style="color:#fff;font-weight:700;">' + td.height + '</span>' +
+                    '</div>' +
                 '</div>' +
-                // Stats
-                '<div style="display:flex;justify-content:center;gap:24px;margin-bottom:28px;">' +
+                // Right: Donate button
+                '<span onclick="showDonateModal()" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:#f7931a;border-radius:50%;touch-action:manipulation;" title="Donate"><svg viewBox="0 0 64 64" width="16" height="16"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+            '</div>' +
+            // ---- MAIN CONTENT ----
+            '<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 16px 24px;overflow-y:auto;">' +
+                '<div style="width:100%;max-width:480px;">' +
+                    // PVP Header + Stats row
+                    '<div style="text-align:center;margin-bottom:20px;">' +
+                        '<div style="font-size:2.2rem;margin-bottom:4px;">⚔️</div>' +
+                        '<h1 style="color:var(--accent,#f7931a);font-size:1.4rem;margin:0 0 4px;">PVP MODE</h1>' +
+                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:14px;">Bitcoin Trivia Battles — 1v1</div>' +
+                        '<div style="display:flex;justify-content:center;gap:20px;">' +
+                            '<div style="text-align:center;">' +
+                                '<div style="font-size:1.5rem;font-weight:800;color:#22c55e;">' + wins + '</div>' +
+                                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Wins</div>' +
+                            '</div>' +
+                            '<div style="text-align:center;">' +
+                                '<div style="font-size:1.5rem;font-weight:800;color:#ef4444;">' + losses + '</div>' +
+                                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Losses</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    // Searching animation
+                    '<div id="pvpLobbyStatus" style="margin-bottom:20px;text-align:center;">' +
+                        '<div class="pvp-pulse" style="width:64px;height:64px;border-radius:50%;background:rgba(247,147,26,0.15);border:3px solid var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;animation:pvpPulse 2s ease-in-out infinite;">' +
+                            '<span style="font-size:1.6rem;">🔍</span>' +
+                        '</div>' +
+                        '<div style="color:var(--text);font-weight:700;font-size:0.95rem;">Searching for opponent...</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">First come, first served matchmaking</div>' +
+                    '</div>' +
+                    // Fun Fact card (rotates)
+                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;text-align:left;">' +
+                        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
+                            '<span style="font-size:0.9rem;">🎉</span>' +
+                            '<span style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Did You Know?</span>' +
+                        '</div>' +
+                        '<div id="pvpFunFact" style="color:var(--text-muted);font-size:0.8rem;line-height:1.6;min-height:40px;transition:opacity 0.3s ease;">Loading fun facts...</div>' +
+                    '</div>' +
+                    // Rules (compact)
+                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;text-align:left;">' +
+                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">How It Works</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.6;">' +
+                            '5 questions per round · First correct answer wins · Streaks = bonus pts · Win 3 of 5 for victory!' +
+                        '</div>' +
+                    '</div>' +
+                    // Badges preview
+                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:20px;text-align:left;">' +
+                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">PVP Badges</div>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+                            PVP_BADGE_DEFS.map(function(b) {
+                                var earned = parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= b.threshold;
+                                return '<div style="padding:5px 9px;border-radius:8px;font-size:0.7rem;border:1px solid ' + (earned ? 'var(--accent)' : 'var(--border)') + ';background:' + (earned ? 'rgba(247,147,26,0.15)' : 'transparent') + ';color:' + (earned ? 'var(--accent)' : 'var(--text-faint)') + ';font-weight:' + (earned ? '700' : '500') + ';">' +
+                                    b.emoji + ' ' + b.name + ' (' + b.threshold + 'W)</div>';
+                            }).join('') +
+                        '</div>' +
+                    '</div>' +
+                    // Exit button (prominent)
                     '<div style="text-align:center;">' +
-                        '<div style="font-size:1.8rem;font-weight:800;color:#22c55e;">' + wins + '</div>' +
-                        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Wins</div>' +
-                    '</div>' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:1.8rem;font-weight:800;color:#ef4444;">' + losses + '</div>' +
-                        '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Losses</div>' +
+                        '<button onclick="exitPVPMode()" style="padding:12px 32px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">← Leave Lobby</button>' +
                     '</div>' +
                 '</div>' +
-                // Searching animation
-                '<div id="pvpLobbyStatus" style="margin-bottom:28px;">' +
-                    '<div class="pvp-pulse" style="width:80px;height:80px;border-radius:50%;background:rgba(247,147,26,0.15);border:3px solid var(--accent);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;animation:pvpPulse 2s ease-in-out infinite;">' +
-                        '<span style="font-size:2rem;">🔍</span>' +
-                    '</div>' +
-                    '<div style="color:var(--text);font-weight:700;font-size:1rem;">Searching for opponent...</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">First come, first served matchmaking</div>' +
-                '</div>' +
-                // Rules
-                '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:20px;text-align:left;">' +
-                    '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">How It Works</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.7;">' +
-                        '5 questions per round. First to answer correctly wins 10 pts. ' +
-                        'Answer streaks award bonus points. ' +
-                        'Win 3 out of 5 to earn the victory and collect PVP badges!' +
-                    '</div>' +
-                '</div>' +
-                // Badges preview
-                '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:24px;text-align:left;">' +
-                    '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">PVP Badges</div>' +
-                    '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-                        PVP_BADGE_DEFS.map(function(b) {
-                            var earned = parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= b.threshold;
-                            return '<div style="padding:6px 10px;border-radius:8px;font-size:0.75rem;border:1px solid ' + (earned ? 'var(--accent)' : 'var(--border)') + ';background:' + (earned ? 'rgba(247,147,26,0.15)' : 'transparent') + ';color:' + (earned ? 'var(--accent)' : 'var(--text-faint)') + ';font-weight:' + (earned ? '700' : '500') + ';">' +
-                                b.emoji + ' ' + b.name + ' (' + b.threshold + 'W)</div>';
-                        }).join('') +
-                    '</div>' +
-                '</div>' +
-                // Exit button
-                '<button onclick="exitPVPMode()" style="padding:12px 32px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave Lobby</button>' +
             '</div>' +
             // PVP styles
             '<style>' +
@@ -689,6 +824,10 @@
             '</style>';
 
         document.body.appendChild(overlay);
+
+        // Start fun fact rotation + ticker updates
+        startFunFactRotation();
+        startPvpTickerUpdates();
     }
 
     // =============================================
