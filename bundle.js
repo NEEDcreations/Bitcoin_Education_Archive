@@ -1679,14 +1679,11 @@ function updateGuestPointsBanner() {
     }
     var lv = getLevel(pts);
     banner.innerHTML =
-        '<div style="display:flex;flex-direction:column;gap:2px;">' +
-            '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
-                '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
-            '</div>' +
-            '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & get on the leaderboard!</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
+            '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
         '</div>' +
-        '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
+        '<div style="background:#f7931a;color:#000;padding:8px 16px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up to Save Progress →</div>';
     banner.style.display = 'flex';
 }
 
@@ -1791,15 +1788,12 @@ function updateUserDisplay(lv) {
         el.style.cssText = 'position:fixed;top:44px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:380px;';
         el.onclick = function() { showSettingsPage('account'); };
         el.innerHTML =
-            '<div style="display:flex;flex-direction:column;gap:2px;">' +
-                '<div style="display:flex;align-items:center;gap:6px;">' +
-                    '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
-                    '<span style="color:var(--text);font-weight:600;">Anonymous</span>' +
-                    '<span style="color:#f7931a;font-weight:800;font-size:0.9rem;">' + pts.toLocaleString() + ' pts</span>' +
-                '</div>' +
-                '<div style="color:#aaa;font-size:0.7rem;">Sign in to keep your points & enter the leaderboard!</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;">' +
+                '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
+                '<span style="color:var(--text);font-weight:600;">Anonymous</span>' +
+                '<span style="color:#f7931a;font-weight:800;font-size:0.9rem;">' + pts.toLocaleString() + ' pts</span>' +
             '</div>' +
-            '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
+            '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:8px 16px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up to Save Progress →</div>';
     } else {
         // Signed in user (with username or real account) — clean display
         el.style.cssText = 'position:fixed;top:44px;right:20px;z-index:130;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;';
@@ -25141,11 +25135,18 @@ window.renderBitcoinBeats = function() {
             </button>
         </div>
 
-        <!-- Copyright Disclaimer Banner -->
-        <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.75rem;color:#eab308;line-height:1.5;">
-            <strong>⚠️ Copyright Notice:</strong> By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content. 
-            <a href="/terms.html#bitcoin-beats" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
-            <a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>
+        <!-- Copyright Disclaimer (collapsible) -->
+        <div style="margin-bottom:20px;">
+            <button onclick="var d=document.getElementById('beatsCopyrightDetails');d.style.display=d.style.display==='none'?'block':'none';this.querySelector('span').textContent=d.style.display==='none'?'▸':'▾'" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;text-align:left;">
+                ⚠️ Copyright Notice <span style="margin-left:auto;">▸</span>
+            </button>
+            <div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">
+                By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.
+                <div style="margin-top:6px;">
+                    <a href="/terms.html#bitcoin-beats" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
+                    <a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>
+                </div>
+            </div>
         </div>
 
         <!-- Tab Bar -->

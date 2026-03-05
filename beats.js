@@ -23,11 +23,18 @@ window.renderBitcoinBeats = function() {
             </button>
         </div>
 
-        <!-- Copyright Disclaimer Banner -->
-        <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.75rem;color:#eab308;line-height:1.5;">
-            <strong>⚠️ Copyright Notice:</strong> By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content. 
-            <a href="/terms.html#bitcoin-beats" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
-            <a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>
+        <!-- Copyright Disclaimer (collapsible) -->
+        <div style="margin-bottom:20px;">
+            <button onclick="var d=document.getElementById('beatsCopyrightDetails');d.style.display=d.style.display==='none'?'block':'none';this.querySelector('span').textContent=d.style.display==='none'?'▸':'▾'" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;text-align:left;">
+                ⚠️ Copyright Notice <span style="margin-left:auto;">▸</span>
+            </button>
+            <div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">
+                By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.
+                <div style="margin-top:6px;">
+                    <a href="/terms.html#bitcoin-beats" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
+                    <a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>
+                </div>
+            </div>
         </div>
 
         <!-- Tab Bar -->
