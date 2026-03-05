@@ -22051,14 +22051,35 @@ if (document.readyState === 'loading') {
                     var oppWon = false;
 
                     if (isCorrect && !oppAnswer.correct) {
+                        // Only I got it right
                         iWon = true;
                     } else if (!isCorrect && oppAnswer.correct) {
+                        // Only opponent got it right
                         oppWon = true;
                     } else if (isCorrect && oppAnswer.correct) {
-                        // Both correct — first to answer wins (the one in the DB answered first)
-                        oppWon = true; // opponent was first (already in DB)
+                        // Both correct — first to answer wins
+                        // The player already in the DB answered first (their transaction committed first)
+                        oppWon = true;
+                    } else {
+                        // Both wrong — REROLL: pick a new question and reset this round
+                        // Set status to 'reroll' so both clients show "Both wrong! New question..."
+                        var newQ = pickRandomQuestions(1);
+                        if (newQ.length > 0) {
+                            var formatted = formatQuestionForFirestore(newQ[0]);
+                            var questions = data.questions.slice();
+                            questions[qIdx] = formatted;
+                            update['questions'] = questions;
+                        }
+                        // Clear both players' answers for this question index
+                        newAnswers.pop(); // remove the answer we just pushed
+                        update[myKey + '.answers'] = newAnswers;
+                        var oppCleared = oppAnswers.slice(0, qIdx); // remove opp's answer for this q
+                        update[oppKey + '.answers'] = oppCleared;
+                        update['questionWinner'] = 'reroll';
+                        update['status'] = 'question_result'; // briefly show reroll screen
+                        transaction.update(matchRef, update);
+                        return;
                     }
-                    // If both wrong — no winner
 
                     // Update won flags
                     newAnswers[qIdx].won = iWon;
@@ -22072,7 +22093,6 @@ if (document.readyState === 'loading') {
 
                     // Award points
                     if (iWon) {
-                        // Check opponent's streak to determine if opponent had a streak that breaks
                         var myWinStreak = 0;
                         for (var s = newAnswers.length - 1; s >= 0; s--) {
                             if (newAnswers[s].won) myWinStreak++;
@@ -22094,13 +22114,21 @@ if (document.readyState === 'loading') {
                         update[oppKey + '.score'] = (oppPlayerData.score || 0) + pts;
                         update[oppKey + '.correct'] = (oppPlayerData.correct || 0) + 1;
                         update['questionWinner'] = oppKey;
-                    } else {
-                        update['questionWinner'] = 'tie';
                     }
 
-                    // Check if match is done
-                    if (qIdx >= 4) {
-                        update['status'] = 'finished';
+                    // Check if match is done (5 DECIDED questions — not counting rerolls)
+                    var decidedCount = 0;
+                    var allMyAns = newAnswers;
+                    for (var dc = 0; dc < allMyAns.length; dc++) {
+                        if (allMyAns[dc].won || (oppAnswers[dc] && oppAnswers[dc].won)) decidedCount++;
+                    }
+                    // Also count this question if someone won
+                    if (iWon || oppWon) {
+                        if (decidedCount >= 5) {
+                            update['status'] = 'finished';
+                        } else {
+                            update['status'] = 'question_result';
+                        }
                     } else {
                         update['status'] = 'question_result';
                     }
@@ -22130,11 +22158,11 @@ if (document.readyState === 'loading') {
         var myKey = pvpState.isPlayer1 ? 'player1' : 'player2';
 
         var iWon = winner === myKey;
-        var tie = winner === 'tie';
+        var isReroll = winner === 'reroll';
 
-        var resultEmoji = iWon ? '✅' : (tie ? '🤝' : '❌');
-        var resultText = iWon ? 'You won this round!' : (tie ? 'No one got it!' : escHtml(pvpState.opponentName) + ' got it first!');
-        var resultColor = iWon ? '#22c55e' : (tie ? '#eab308' : '#ef4444');
+        var resultEmoji = isReroll ? '🔄' : (iWon ? '✅' : '❌');
+        var resultText = isReroll ? 'Both wrong! New question incoming...' : (iWon ? 'You won this round!' : escHtml(pvpState.opponentName) + ' got it first!');
+        var resultColor = isReroll ? '#eab308' : (iWon ? '#22c55e' : '#ef4444');
 
         // Update streak
         if (iWon) { pvpState.streak++; } else { pvpState.streak = 0; }
@@ -22158,18 +22186,22 @@ if (document.readyState === 'loading') {
                 '<div style="color:var(--text-faint);font-size:0.8rem;">Next question in <span id="pvpNextTimer">3</span>s...</div>' +
             '</div>';
 
-        // Auto-advance
-        var nextCount = 3;
+        // Auto-advance — rerolls are faster (2s) and reuse the same question slot
+        var nextCount = isReroll ? 2 : 3;
         var nextInterval = setInterval(function() {
             nextCount--;
             var el = document.getElementById('pvpNextTimer');
             if (el) el.textContent = nextCount;
             if (nextCount <= 0) {
                 clearInterval(nextInterval);
-                // Player2 advances to next question
                 if (!pvpState.isPlayer1) {
-                    pvpState.currentQ = qIdx + 1;
-                    startNextQuestion();
+                    if (isReroll) {
+                        // Same question index — the question was replaced in Firestore
+                        startNextQuestion();
+                    } else {
+                        pvpState.currentQ = qIdx + 1;
+                        startNextQuestion();
+                    }
                 }
             }
         }, 1000);
@@ -22188,17 +22220,20 @@ if (document.readyState === 'loading') {
         var myData = matchData[myKey];
         var oppData = matchData[oppKey];
 
-        // Count question wins
+        // Count question wins (across all answers, including rerolled slots)
         var myQWins = 0, oppQWins = 0;
         var myAnswers = myData.answers || [];
         var oppAnswers = oppData.answers || [];
-        for (var i = 0; i < 5; i++) {
+        for (var i = 0; i < myAnswers.length; i++) {
             if (myAnswers[i] && myAnswers[i].won) myQWins++;
+        }
+        for (var i = 0; i < oppAnswers.length; i++) {
             if (oppAnswers[i] && oppAnswers[i].won) oppQWins++;
         }
+        var totalDecided = myQWins + oppQWins;
 
-        var iWon = myQWins >= 3;
-        var isDraw = myQWins === oppQWins;
+        var iWon = myQWins > oppQWins;
+        var isDraw = myQWins === oppQWins; // should not happen with rerolls, but just in case
 
         // Save result
         if (iWon) {
