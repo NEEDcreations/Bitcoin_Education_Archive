@@ -1,5 +1,5 @@
 // Bitcoin Education Archive - Service Worker v14
-const CACHE_NAME = 'btc-archive-v81';
+const CACHE_NAME = 'btc-archive-v82';
 const IMG_CACHE = 'btc-images-v1';
 const MAX_IMG_CACHE = 200; 
 
@@ -38,23 +38,32 @@ self.addEventListener('fetch', event => {
   // For PWA reliability, we should treat requests with query params (versioning) 
   // as the same as the base file in the cache if possible.
   
+  // Images: cache-first (immutable assets)
+  if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i)) {
+    event.respondWith(
+      caches.match(event.request, { ignoreSearch: true }).then(cached => {
+        return cached || fetch(event.request).then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
+
+  // JS/HTML/CSS: network-first, cache fallback (always get fresh versions)
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then(cached => {
-      const networkFetch = fetch(event.request).then(response => {
-        if (response.ok) {
-          const cacheCopy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, cacheCopy));
-        }
-        return response;
-      }).catch(() => cached);
-      
-      // If it's an image, return cached version immediately (cache-first)
-      if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i)) {
-        return cached || networkFetch;
+    fetch(event.request).then(response => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
       }
-      
-      // For everything else, go to network first but fallback to cache
-      return networkFetch || cached;
+      return response;
+    }).catch(() => {
+      return caches.match(event.request, { ignoreSearch: true });
     })
   );
 });
