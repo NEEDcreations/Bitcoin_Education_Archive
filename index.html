@@ -737,6 +737,7 @@
                 <button class="quest-start-btn" style="background:none;border:2px solid var(--accent);color:var(--accent);margin-top:10px;font-weight:700;" onclick="toggleSidebarMenu('sidebarAppsMenu')">🧭 Explore Apps ▼</button>
                 <div id="sidebarAppsMenu" style="display:none;padding:10px;background:rgba(255,255,255,0.03);border-radius:12px;margin-top:4px;border:1px solid var(--border);">
                     <button class="quest-start-btn" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;font-weight:700;border:none;font-size:0.8rem;" onclick="enterNachoMode()">🦌 Nacho Mode</button>
+                    <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="if(typeof enterPVPMode==='function')enterPVPMode()">⚔️ PVP Mode</button>
                     <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('forum')">🗣️ Pleb Talk</button>
                     <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('marketplace')">⚡ Lightning Mart</button>
                     <button class="quest-start-btn" style="background:none;border:1px solid var(--border);color:var(--text);margin-top:8px;font-size:0.8rem;" onclick="go('irl-sync')">🤝 IRL Sync</button>
@@ -830,10 +831,11 @@
                         <button onclick="toggleSidebarMenu('homeAppsMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='none';this.style.color='var(--accent)'">🧭 Explore Apps ▼</button>
                         <div id="homeAppsMenu" style="display:none;width:100%;max-width:340px;grid-template-columns:1fr 1fr;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
                             <button onclick="enterNachoMode()" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🦌 Nacho Mode</button>
+                            <button onclick="if(typeof enterPVPMode==='function')enterPVPMode()" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">⚔️ PVP Mode</button>
                             <button onclick="go('forum')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🗣️ Pleb Talk</button>
                             <button onclick="go('marketplace')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">⚡ Lightning Mart</button>
                             <button onclick="go('irl-sync')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🤝 IRL Sync</button>
-                            <button onclick="go('bitcoin-beats')" style="grid-column:1/-1;padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🎵 Bitcoin Beats</button>
+                            <button onclick="go('bitcoin-beats')" style="padding:15px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">🎵 Bitcoin Beats</button>
                         </div>
                 </div>
                 <!-- Middle Home Learn Group -->
@@ -928,7 +930,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="bundle.js?v=20260306e" defer></script>
+    <script src="bundle.js?v=20260306f" defer></script>
     <script src="pvp.js?v=20260306d" defer></script>
 <div id="recaptcha-container"></div>
 <script>
