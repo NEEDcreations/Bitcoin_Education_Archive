@@ -1269,25 +1269,31 @@
                     // Safety: if both answered but status is still 'active', force-resolve via transaction
                     var myAns = data[myKey].answers || [];
                     var oppAns = data[oppKey].answers || [];
+                    console.log('[PVP] Snapshot: status=active, currentQ=' + data.currentQ + ', myAns=' + myAns.length + ', oppAns=' + oppAns.length + ', answered=' + pvpState.answered);
                     if (myAns.length > data.currentQ && oppAns.length > data.currentQ && pvpState.answered) {
                         if (!pvpState._forceResultTimer) {
+                            console.log('[PVP] Both answered! Starting force-resolve timer (2s)');
                             pvpState._forceResultTimer = setTimeout(function() {
                                 pvpState._forceResultTimer = null;
+                                console.log('[PVP] Force-resolve timer fired, running transaction...');
                                 var matchRef = db.collection('pvp_matches').doc(matchId);
                                 db.runTransaction(function(tx) {
                                     return tx.get(matchRef).then(function(freshDoc) {
-                                        if (!freshDoc.exists) return;
+                                        if (!freshDoc.exists) { console.log('[PVP] Force-resolve: doc missing'); return; }
                                         var fd = freshDoc.data();
-                                        if (fd.status !== 'active') return; // already resolved
+                                        if (fd.status !== 'active') { console.log('[PVP] Force-resolve: status=' + fd.status + ', already resolved'); return; }
                                         var qIdx = fd.currentQ;
                                         var fMyAns = fd[myKey].answers || [];
                                         var fOppAns = fd[oppKey].answers || [];
-                                        if (fMyAns.length <= qIdx || fOppAns.length <= qIdx) return;
+                                        if (fMyAns.length <= qIdx || fOppAns.length <= qIdx) { console.log('[PVP] Force-resolve: answers not ready, myAns=' + fMyAns.length + ', oppAns=' + fOppAns.length); return; }
                                         var update = {};
                                         resolveRound(update, fd, fMyAns.slice(), fOppAns.slice(), qIdx, myKey, oppKey, fd[myKey], fd[oppKey], fMyAns[qIdx].correct);
+                                        console.log('[PVP] Force-resolve: writing update, new status=' + update.status);
                                         tx.update(matchRef, update);
                                     });
-                                }).catch(function(e) { console.error('Force-resolve tx error:', e); });
+                                }).then(function() {
+                                    console.log('[PVP] Force-resolve transaction committed');
+                                }).catch(function(e) { console.error('[PVP] Force-resolve tx error:', e); });
                             }, 2000);
                         }
                     }
@@ -1607,38 +1613,36 @@
         // Use a transaction to resolve who answered first
         var matchRef = db.collection('pvp_matches').doc(pvpState.matchId);
 
-        db.runTransaction(function(transaction) {
-            return transaction.get(matchRef).then(function(doc) {
-                if (!doc.exists) throw new Error('Match not found');
-                var data = doc.data();
+        console.log('[PVP] Submitting answer for Q' + qIdx + ', myKey=' + myKey + ', correct=' + isCorrect);
 
-                var myPlayerData = data[myKey];
-                var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
-                var oppPlayerData = data[oppKey];
+        // Use simple update instead of transaction — snapshot listener handles resolution
+        var update = {};
+        var newAnswers = [];
 
-                // Check if we already answered this question
-                if (myPlayerData.answers && myPlayerData.answers.length > qIdx) {
-                    return; // already submitted
-                }
+        // First, read current state
+        matchRef.get().then(function(doc) {
+            if (!doc.exists) { console.error('[PVP] Match doc not found'); return; }
+            var data = doc.data();
+            var myPlayerData = data[myKey];
+            var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
 
-                var newAnswers = (myPlayerData.answers || []).slice();
-                newAnswers.push(answerData);
+            // Already answered?
+            if (myPlayerData.answers && myPlayerData.answers.length > qIdx) {
+                console.log('[PVP] Already answered Q' + qIdx + ', skipping');
+                return;
+            }
 
-                var update = {};
-                update[myKey + '.answers'] = newAnswers;
+            newAnswers = (myPlayerData.answers || []).slice();
+            newAnswers.push(answerData);
+            update[myKey + '.answers'] = newAnswers;
 
-                // Check if opponent already answered this question
-                var oppAnswers = oppPlayerData.answers || [];
-                if (oppAnswers.length > qIdx) {
-                    // Both have answered — resolve the round
-                    resolveRound(update, data, newAnswers, oppAnswers, qIdx, myKey, oppKey, myPlayerData, oppPlayerData, isCorrect);
-                }
-                // If opponent hasn't answered yet, just write our answer (status stays 'active')
-
-                transaction.update(matchRef, update);
-            });
+            console.log('[PVP] Writing my answer, oppAnswers.length=' + (data[oppKey].answers || []).length + ', qIdx=' + qIdx);
+            return matchRef.update(update);
+        }).then(function() {
+            console.log('[PVP] Answer written successfully');
         }).catch(function(err) {
-            console.error('PVP answer transaction error:', err);
+            console.error('[PVP] Answer write FAILED:', err);
+            if (typeof showToast === 'function') showToast('⚠️ Failed to submit answer — check connection');
         });
     };
 
