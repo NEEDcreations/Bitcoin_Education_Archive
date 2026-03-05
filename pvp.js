@@ -219,7 +219,7 @@
 
         var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--accent);font-size:0.9rem;">⚔️ PVP Challenge!</div>' +
             '<div style="color:var(--text);margin-bottom:10px;line-height:1.5;font-size:0.85rem;">Someone is waiting in the PVP arena! Think you know Bitcoin better?</div>' +
-            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();enterPVPMode();" style="display:block;width:100%;padding:10px 16px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Enter PVP Mode ⚔️</button>';
+            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();enterPVPMode();" style="display:block;width:100%;padding:10px 16px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Enter PVP Battle ⚔️</button>';
 
         textEl.innerHTML = html;
         bubble.setAttribute('data-interactive', 'true');
@@ -529,7 +529,7 @@
         var auth = getAuth();
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
             // Show the sign-in modal with a message
-            if (typeof showToast === 'function') showToast('⚔️ Sign in to play PVP Mode!');
+            if (typeof showToast === 'function') showToast('⚔️ Sign in to play PVP Battle!');
             // Try to open the sign-in modal
             var modal = document.getElementById('usernameModal');
             if (modal) {
@@ -589,7 +589,7 @@
             // Left lobby before match started — no penalty
             if (typeof showToast === 'function') showToast('⚔️ Left PVP lobby');
         } else if (!wasInMatch && !wasInLobby) {
-            if (typeof showToast === 'function') showToast('⚔️ Left PVP Mode');
+            if (typeof showToast === 'function') showToast('⚔️ Left PVP Battle');
         }
 
         cleanupPVP();
@@ -613,6 +613,7 @@
         if (pvpState._heartbeat) { clearInterval(pvpState._heartbeat); pvpState._heartbeat = null; }
         if (pvpState._lobbyHeartbeat) { clearInterval(pvpState._lobbyHeartbeat); pvpState._lobbyHeartbeat = null; }
         if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
+        if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
         stopPractice();
         stopFunFactRotation();
         stopPvpTickerUpdates();
@@ -1261,6 +1262,8 @@
                         pvpState.currentQ = data.currentQ;
                         pvpState.answered = false;
                         pvpState._resultShown = false;
+                        if (pvpState._oppTimeoutTimer) { clearTimeout(pvpState._oppTimeoutTimer); pvpState._oppTimeoutTimer = null; }
+                        if (pvpState._forceResultTimer) { clearTimeout(pvpState._forceResultTimer); pvpState._forceResultTimer = null; }
                         renderQuestion(data);
                     }
                     // Safety: if both answered but status is still 'active', force-resolve via transaction
@@ -1286,6 +1289,35 @@
                                     });
                                 }).catch(function(e) { console.error('Force-resolve tx error:', e); });
                             }, 2000);
+                        }
+                    }
+
+                    // Opponent AFK: if we answered but opponent hasn't after 18s, submit timeout for them
+                    if (pvpState.answered && myAns.length > data.currentQ && oppAns.length <= data.currentQ) {
+                        if (!pvpState._oppTimeoutTimer) {
+                            pvpState._oppTimeoutTimer = setTimeout(function() {
+                                pvpState._oppTimeoutTimer = null;
+                                var matchRef = db.collection('pvp_matches').doc(matchId);
+                                db.runTransaction(function(tx) {
+                                    return tx.get(matchRef).then(function(freshDoc) {
+                                        if (!freshDoc.exists) return;
+                                        var fd = freshDoc.data();
+                                        if (fd.status !== 'active') return;
+                                        var qIdx = fd.currentQ;
+                                        var fOppAns = fd[oppKey].answers || [];
+                                        if (fOppAns.length > qIdx) return; // opponent answered in the meantime
+                                        // Submit a timeout answer for the opponent
+                                        var timeoutAnswer = { selected: -1, correct: false, answeredAt: firebase.firestore.FieldValue.serverTimestamp(), won: false };
+                                        var newOppAns = fOppAns.slice();
+                                        newOppAns.push(timeoutAnswer);
+                                        var fMyAns = fd[myKey].answers || [];
+                                        var update = {};
+                                        update[oppKey + '.answers'] = newOppAns;
+                                        resolveRound(update, fd, fMyAns.slice(), newOppAns, qIdx, myKey, oppKey, fd[myKey], fd[oppKey], fMyAns[qIdx].correct);
+                                        tx.update(matchRef, update);
+                                    });
+                                }).catch(function(e) { console.error('Opp timeout tx error:', e); });
+                            }, 18000);
                         }
                     }
                 }
@@ -1651,6 +1683,7 @@
             '</div>';
 
         // Auto-advance — rerolls are faster (2s) and reuse the same question slot
+        // Player2 drives the advance; Player1 gets a fallback in case player2 is slow/offline
         var nextCount = isReroll ? 2 : 3;
         var nextInterval = setInterval(function() {
             nextCount--;
@@ -1659,13 +1692,25 @@
             if (nextCount <= 0) {
                 clearInterval(nextInterval);
                 if (!pvpState.isPlayer1) {
+                    // Player2 drives the advance
                     if (isReroll) {
-                        // Same question index — the question was replaced in Firestore
                         startNextQuestion();
                     } else {
                         pvpState.currentQ = qIdx + 1;
                         startNextQuestion();
                     }
+                } else {
+                    // Player1: wait 3 extra seconds, then advance if player2 hasn't
+                    pvpState._p1AdvanceTimer = setTimeout(function() {
+                        pvpState._p1AdvanceTimer = null;
+                        // Check if we're still on the result screen (player2 didn't advance)
+                        if (pvpState._resultShown && pvpState.inMatch) {
+                            if (!isReroll) {
+                                pvpState.currentQ = qIdx + 1;
+                            }
+                            startNextQuestion();
+                        }
+                    }, 3000);
                 }
             }
         }, 1000);

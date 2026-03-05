@@ -2837,7 +2837,7 @@ function showSettingsPage(tab) {
             '</div>' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Features</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
-            shortcutRow('N','Nacho Mode') + shortcutRow('X','PVP Mode') + shortcutRow('A','Ask Nacho') +
+            shortcutRow('N','Nacho Mode') + shortcutRow('X','PVP Battle') + shortcutRow('A','Ask Nacho') +
             shortcutRow('Q','Start quest') + shortcutRow('L','Leaderboard') + shortcutRow('V','Gallery view') +
             '</div>' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Actions</div>' +
@@ -6263,7 +6263,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (key === 'g') { if (typeof goRandomGraphic === 'function') goRandomGraphic(); return; }
         // P = donate
         if (key === 'p') { showDonateModal(); return; }
-        // X = PVP Mode
+        // X = PVP Battle
         if (key === 'x') { if (typeof enterPVPMode === 'function') enterPVPMode(); return; }
 
         // === Scroll ===
@@ -6399,7 +6399,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
                 kbRow('F','Favorite channel') + kbRow('A','Ask Nacho') + kbRow('N','Nacho Mode') +
                 kbRow('D','Dark / Light mode') + kbRow('L','Leaderboard') + kbRow('Q','Start quest') +
-                kbRow('V','Gallery view') + kbRow('X','PVP Mode') + kbRow('P','Donate') + kbRow('I','Settings') +
+                kbRow('V','Gallery view') + kbRow('X','PVP Battle') + kbRow('P','Donate') + kbRow('I','Settings') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Scrolling</div>' +
                 kbRow('J','Scroll down') + kbRow('K','Scroll up') + kbRow('Space','Page down') + kbRow('Esc','Close modals') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Mobile Gestures</div>' +
@@ -7022,7 +7022,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
-        { id: '_pvp', title: '⚔️ PVP Mode', desc: 'Battle other players in Bitcoin trivia', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel', action: 'enterPVPMode()' },
+        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Battle other players in Bitcoin trivia', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel', action: 'enterPVPMode()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
@@ -7363,7 +7363,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     '</button>' +
                     '<button onclick="if(typeof enterPVPMode===\'function\')enterPVPMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
                         '<span style="font-size:1.8rem;">⚔️</span>' +
-                        '<span>PVP Mode</span>' +
+                        '<span>PVP Battle</span>' +
                     '</button>' +
                     '<button onclick="go(\'forum\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
                         '<span style="font-size:1.8rem;">🗣️</span>' +
@@ -7473,7 +7473,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
-            // PVP Mode
+            // PVP Battle
             if (hash === 'pvp' || state.channel === 'pvp') {
                 if (typeof enterPVPMode === 'function') enterPVPMode();
                 return;
