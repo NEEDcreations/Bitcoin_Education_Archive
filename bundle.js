@@ -22367,8 +22367,14 @@ if (document.readyState === 'loading') {
         });
     }
 
-    // Save PVP stats to Firebase
+    // Save PVP stats to Firebase + update in-memory currentUser for instant display
     function savePVPStats(wins, losses) {
+        // Update in-memory user object so Settings/Profile show immediately
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.pvpWins = wins;
+            currentUser.pvpLosses = losses;
+        }
+
         var db = getDb();
         var uid = getMyUid();
         if (!db || !uid) return;
@@ -22377,7 +22383,6 @@ if (document.readyState === 'loading') {
             pvpWins: wins,
             pvpLosses: losses
         }).catch(function() {
-            // Field might not exist yet, use set with merge
             db.collection('users').doc(uid).set({
                 pvpWins: wins,
                 pvpLosses: losses
