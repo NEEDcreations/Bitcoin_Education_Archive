@@ -1313,7 +1313,7 @@
                                         var fOppAns = fd[oppKey].answers || [];
                                         if (fOppAns.length > qIdx) return; // opponent answered in the meantime
                                         // Submit a timeout answer for the opponent
-                                        var timeoutAnswer = { selected: -1, correct: false, answeredAt: firebase.firestore.FieldValue.serverTimestamp(), won: false };
+                                        var timeoutAnswer = { selected: -1, correct: false, answeredAt: new Date().toISOString(), won: false };
                                         var newOppAns = fOppAns.slice();
                                         newOppAns.push(timeoutAnswer);
                                         var fMyAns = fd[myKey].answers || [];
@@ -1606,7 +1606,7 @@
         var answerData = {
             selected: selected,
             correct: isCorrect,
-            answeredAt: firebase.firestore.FieldValue.serverTimestamp(),
+            answeredAt: new Date().toISOString(),
             won: false // will be determined by comparison
         };
 
