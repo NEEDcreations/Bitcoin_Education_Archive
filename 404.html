@@ -739,17 +739,12 @@
                 </div>
                 <div id="dailySpinBanner" style="display:none;margin-bottom:16px;"></div>
                 <div id="progressRings" style="margin-bottom:16px;"></div>
-                <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;"></div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
                     <button onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
                     <button onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price</button>
                     <button onclick="if(typeof showNachoStory==='function')showNachoStory()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📖</span>Nacho Story</button>
                 </div>
                 <div id="continueReading" style="display:none;margin-bottom:16px;"></div>
-                <div class="daily-channel" id="dailyChannel"></div>
-                <div id="quoteOfDay" style="margin-top:16px;"></div>
-                <div id="explorationMap" style="margin-top:16px;"></div>
-                
                 <div id="welcomeBanner" style="display:none;margin-bottom:16px;padding:12px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;cursor:pointer;" onclick="showUsernamePrompt()"></div>
                 <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:16px;margin-bottom:10px;">
                         <!-- Create Account / Sign In -->
@@ -807,6 +802,10 @@
                             </div>
                         </div>
                 </div>
+                <div id="dailyChallengeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-top:16px;margin-bottom:16px;"></div>
+                <div class="daily-channel" id="dailyChannel"></div>
+                <div id="quoteOfDay" style="margin-top:16px;"></div>
+                <div id="explorationMap" style="margin-top:16px;"></div>
                 <div style="margin-top:20px;padding:20px;background:linear-gradient(135deg,rgba(247,147,26,0.05),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.3);border-radius:12px;text-align:center;">
                     <div style="font-size:1.3rem;margin-bottom:6px;">📣</div>
                     <div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:4px;">Sponsor This Space</div>
@@ -897,7 +896,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="bundle.js?v=20260305y" defer></script>
+    <script src="bundle.js?v=20260305z" defer></script>
     <script src="pvp.js?v=20260305p" defer></script>
     <script src="irl-sync.js?v=20260305v" defer></script>
 <div id="recaptcha-container"></div>

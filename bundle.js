@@ -19439,12 +19439,13 @@ function renderExplorationMap() {
             '">' + (isVisited ? icon : '?') + '</div>';
     });
 
+    var mapExpanded = localStorage.getItem('btc_map_expanded') === '1';
     el.innerHTML = '<div style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">🗺️ Exploration Map</div>' +
+        '<div onclick="var g=document.getElementById(\'mapGrid\');var a=g.style.display===\'none\';g.style.display=a?\'flex\':\'none\';localStorage.setItem(\'btc_map_expanded\',a?\'1\':\'0\');this.querySelector(\'.map-arrow\').textContent=a?\'▼\':\'▶\'" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:' + (mapExpanded ? '12' : '0') + 'px;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px;">🗺️ Exploration Map <span class="map-arrow" style="font-size:0.6rem;">' + (mapExpanded ? '▼' : '▶') + '</span></div>' +
         '<div style="color:var(--accent);font-weight:700;font-size:0.9rem;">' + count + '/' + total + ' (' + pct + '%)</div></div>' +
         '<div class="rank-progress" style="margin-bottom:12px;"><div class="rank-progress-fill" style="width:' + pct + '%;"></div></div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:4px;">' + grid + '</div></div>';
+        '<div id="mapGrid" style="display:' + (mapExpanded ? 'flex' : 'none') + ';flex-wrap:wrap;gap:4px;">' + grid + '</div></div>';
 }
 window.renderExplorationMap = renderExplorationMap;
 
