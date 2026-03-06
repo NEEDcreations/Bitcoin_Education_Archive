@@ -7396,7 +7396,7 @@ const NACHO_KB = [
       channel: 'maximalism', channelName: 'Maximalism' },
 
     // --- El Salvador ---
-    { keys: ['el salvador','nayib bukele','bukele','bitcoin country','bitcoin nation','legal tender','first country'],
+    { keys: ['el salvador','nayib bukele','bukele','bitcoin country','bitcoin nation','legal tender','first country','bitcoin legal tender el salvador','when did bitcoin become legal tender','is bitcoin still legal tender'],
       answer: "In June 2021, El Salvador became the FIRST country in history to make Bitcoin legal tender! 🇸🇻🦌 President Nayib Bukele didn't just talk the talk — he instructed the state-owned power company to mine Bitcoin using volcanic geothermal energy! Salvadorans don't pay capital gains tax on Bitcoin since it's legal tender. The country has been stacking sats and building Bitcoin infrastructure. Other countries are watching closely. This is what nation-state adoption looks like, {name} — and it's just the beginning. 🌋⚡",
       channel: 'regulation', channelName: 'Regulation' },
 
@@ -9032,6 +9032,7 @@ function findAnswer(input) {
         { pattern: /time is money|money is time|bitcoin.*time|time.*bitcoin/, key: 'bitcoin is time' },
         { pattern: /gold standard era|golden age|nineteenth century|19th century.*gold|gold.*prosper/, key: 'gold standard era' },
         { pattern: /gold.*fail|gold.*problem|why not gold|gold.*flaw|gold.*transport|shipping gold|moving gold/, key: 'gold spatial salability' },
+        { pattern: /el salvador|legal tender|bukele|bitcoin.*country|first country.*bitcoin/, key: 'nayib bukele' },
         { pattern: /boom.*bust|business cycle|why.*recession|credit cycle|financial crisis.*cause/, key: 'business cycle' },
         { pattern: /fiat.*distort|fiat.*broke|fiat.*destroy|fiat.*food|fiat.*housing|fiat.*family|everything.*broken/, key: 'fiat distortion' },
         { pattern: /salability|salable|marketability|properties of money|what makes good money/, key: 'salability' },
@@ -9503,7 +9504,8 @@ function nachoAIAnswer(question, callback) {
     if (typeof findAnswer === 'function') {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
-            kbContext = kbMatch.answer.substring(0, 300);
+            var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
+            kbContext = (kbAnswerText || '').substring(0, 300);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
     }
