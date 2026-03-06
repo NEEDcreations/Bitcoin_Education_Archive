@@ -7400,10 +7400,9 @@ window.nachoQuizAnswer = function(btn, correct) {
     });
 
     function _appBtn(icon, name, desc, onclick) {
-        return '<button onclick="' + onclick + ';toggleAppsMenu()" title="' + desc + '" style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:0.2s;text-align:center;" class="app-menu-item">' +
-            '<span style="font-size:1.5rem;">' + icon + '</span>' +
+        return '<button onclick="' + onclick + ';toggleAppsMenu()" title="' + desc + '" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
+            '<span style="font-size:1.8rem;">' + icon + '</span>' +
             '<span>' + name + '</span>' +
-            '<span style="font-size:0.6rem;color:var(--text-faint);font-weight:400;line-height:1.3;">' + desc + '</span>' +
         '</button>';
     }
 
