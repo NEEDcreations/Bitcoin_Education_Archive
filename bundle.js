@@ -1677,13 +1677,19 @@ function updateGuestPointsBanner() {
         banner.onclick = function() { showSignInPrompt(); };
         document.body.appendChild(banner);
     }
+    // Don't show if user previously dismissed
+    if (localStorage.getItem('btc_signup_dismissed') === '1') {
+        banner.style.display = 'none';
+        return;
+    }
     var lv = getLevel(pts);
     banner.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px;">' +
             '<span style="font-size:1.2rem;">' + lv.emoji + '</span>' +
             '<span style="color:#f7931a;font-weight:800;font-size:1rem;">' + pts.toLocaleString() + ' pts</span>' +
         '</div>' +
-        '<div style="background:#f7931a;color:#000;padding:8px 16px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up to Save Progress →</div>';
+        '<div style="background:#f7931a;color:#000;padding:8px 16px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up to Save Progress →</div>' +
+        '<button onclick="event.stopPropagation();localStorage.setItem(\'btc_signup_dismissed\',\'1\');this.parentElement.style.display=\'none\';" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0 0 0 4px;line-height:1;">✕</button>';
     banner.style.display = 'flex';
 }
 
@@ -1784,6 +1790,11 @@ function updateUserDisplay(lv) {
     }
 
     if (isAnon || (auth.currentUser && auth.currentUser.isAnonymous && !hasUsername)) {
+        // Don't show if user previously dismissed
+        if (localStorage.getItem('btc_signup_dismissed') === '1') {
+            el.style.display = 'none';
+            return;
+        }
         // Anonymous user — eye-catching banner with points + sign up nudge
         el.style.cssText = 'position:fixed;top:44px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:380px;';
         el.onclick = function() { showSettingsPage('account'); };
@@ -1793,7 +1804,8 @@ function updateUserDisplay(lv) {
                 '<span style="color:var(--text);font-weight:600;">Anonymous</span>' +
                 '<span style="color:#f7931a;font-weight:800;font-size:0.9rem;">' + pts.toLocaleString() + ' pts</span>' +
             '</div>' +
-            '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:8px 16px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up to Save Progress →</div>';
+            '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:8px 16px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up to Save Progress →</div>' +
+            '<button onclick="event.stopPropagation();localStorage.setItem(\'btc_signup_dismissed\',\'1\');this.parentElement.style.display=\'none\';" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0 0 0 4px;line-height:1;">✕</button>';
     } else {
         // Signed in user (with username or real account) — clean display
         el.style.cssText = 'position:fixed;top:44px;right:20px;z-index:130;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;';
@@ -2726,6 +2738,20 @@ function showSettingsPage(tab) {
             html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
         });
         html += '</div></div>';
+
+        // Mobile Ticker
+        var tickerOn = localStorage.getItem('btc_show_mobile_ticker') === '1';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📰 Live News Ticker</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;">Show scrolling ticker on mobile</div>' +
+                '<label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">' +
+                    '<input type="checkbox" ' + (tickerOn ? 'checked' : '') + ' onchange="toggleMobileTicker(this.checked)" style="opacity:0;width:0;height:0;">' +
+                    '<span style="position:absolute;inset:0;background:' + (tickerOn ? 'var(--accent)' : 'var(--border)') + ';border-radius:24px;transition:0.3s;"></span>' +
+                    '<span style="position:absolute;top:2px;left:' + (tickerOn ? '22px' : '2px') + ';width:20px;height:20px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>' +
+                '</label>' +
+            '</div>' +
+        '</div>';
 
         // Language
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -14768,6 +14794,28 @@ function initTicker() {
     ticker.innerHTML = '';
     ticker.appendChild(scroller);
 
+    // Hide ticker on mobile unless user opted in
+    if (window.innerWidth <= 900 && localStorage.getItem('btc_show_mobile_ticker') !== '1') {
+        ticker.style.display = 'none';
+        ticker.classList.add('ticker-hidden');
+        document.body.classList.add('ticker-off');
+    }
+
+    // Global toggle function for settings
+    window.toggleMobileTicker = function(enabled) {
+        localStorage.setItem('btc_show_mobile_ticker', enabled ? '1' : '0');
+        var t = document.getElementById('btcTicker');
+        if (window.innerWidth <= 900) {
+            if (enabled) {
+                if (t) { t.style.display = 'flex'; t.classList.remove('ticker-hidden'); }
+                document.body.classList.remove('ticker-off');
+            } else {
+                if (t) { t.style.display = 'none'; t.classList.add('ticker-hidden'); }
+                document.body.classList.add('ticker-off');
+            }
+        }
+    };
+
     var style = document.getElementById('btcTickerStyle');
     if (!style) {
         style = document.createElement('style');
@@ -14782,7 +14830,13 @@ function initTicker() {
             main { padding-top: 130px !important; }
             aside { top: 130px !important; z-index: 10006; }
             #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
-            #btcTicker { font-size: 0.65rem; height: 32px; visibility: visible !important; display: flex !important; }
+            #btcTicker { font-size: 0.65rem; height: 32px; }
+            #btcTicker.ticker-hidden { display: none !important; }
+            #btcTicker.ticker-hidden ~ .mobile-bar { top: 0 !important; }
+            body.ticker-off main { padding-top: 98px !important; }
+            body.ticker-off aside { top: 98px !important; }
+            body.ticker-off .mobile-bar { top: 0 !important; }
+            body.ticker-off .progress-bar { top: 86px !important; }
             .progress-bar { top: 118px !important; }
         }
         @media(min-width:901px) { 
