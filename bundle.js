@@ -1045,6 +1045,7 @@ function loadUserLocal(uid) {
     updateRankUI();
     updateAuthButton();
     if (typeof renderProgressRings === 'function') renderProgressRings();
+    if (typeof renderQuoteOfTheDay === 'function') renderQuoteOfTheDay();
     if (typeof renderExplorationMap === 'function') renderExplorationMap();
     startReadTimer();
 }
@@ -19412,6 +19413,54 @@ window._savePrediction = function(direction) {
     // Award points
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
 };
+
+// ---- BITCOIN QUOTE OF THE DAY ----
+var BTC_QUOTES = [
+    { q: "Bitcoin is a technological tour de force.", a: "Bill Gates", ch: "one-stop-shop" },
+    { q: "Bitcoin is a remarkable cryptographic achievement and the ability to create something that is not duplicable in the digital world has enormous value.", a: "Eric Schmidt", ch: "one-stop-shop" },
+    { q: "The Times Jan/03/2009 Chancellor on brink of second bailout for banks.", a: "Satoshi Nakamoto (Genesis Block)", ch: "history" },
+    { q: "If you don't believe it or don't get it, I don't have the time to try to convince you, sorry.", a: "Satoshi Nakamoto", ch: "satoshi-nakamoto" },
+    { q: "I think the internet is going to be one of the major forces for reducing the role of government. The one thing that's missing but will soon be developed, is a reliable e-cash.", a: "Milton Friedman (1999)", ch: "history" },
+    { q: "We have elected to put our money and faith in a mathematical framework that is free of politics and human error.", a: "Tyler Winklevoss", ch: "money" },
+    { q: "Bitcoin will do to banks what email did to the postal industry.", a: "Rick Falkvinge", ch: "layer-2-lightning" },
+    { q: "Bitcoin is a way to have programmable scarcity. The blockchain is the data structure that records the transfer of scarce objects.", a: "Balaji Srinivasan", ch: "scarce" },
+    { q: "Bitcoin is the beginning of something great: a currency without a government, something necessary and imperative.", a: "Nassim Taleb", ch: "decentralized" },
+    { q: "Running Bitcoin.", a: "Hal Finney (Jan 10, 2009)", ch: "history" },
+    { q: "The root problem with conventional currency is all the trust that's required to make it work.", a: "Satoshi Nakamoto", ch: "satoshi-nakamoto" },
+    { q: "Not your keys, not your coins.", a: "Bitcoin Proverb", ch: "self-custody" },
+    { q: "Stay humble, stack sats.", a: "Bitcoin Proverb", ch: "investment-strategy" },
+    { q: "There is no second best.", a: "Michael Saylor", ch: "giga-chad" },
+    { q: "Bitcoin is hope.", a: "Michael Saylor", ch: "giga-chad" },
+    { q: "Fix the money, fix the world.", a: "Bitcoin Proverb", ch: "problems-of-money" },
+    { q: "Bitcoin is the currency of resistance.", a: "Max Keiser", ch: "human_rights__social_justice_and_freedo" },
+    { q: "One does not simply understand Bitcoin. It's a rabbit hole.", a: "Bitcoin Community", ch: "one-stop-shop" },
+    { q: "Tick tock, next block.", a: "Bitcoin Proverb", ch: "blockchain-timechain" },
+    { q: "1 BTC = 1 BTC.", a: "Bitcoin Truth", ch: "money" },
+    { q: "Bitcoin is a swarm of cyber hornets serving the goddess of wisdom, feeding on the fire of truth, exponentially growing ever smarter, faster, and stronger behind a wall of encrypted energy.", a: "Michael Saylor", ch: "giga-chad" },
+    { q: "Gradually, then suddenly.", a: "Ernest Hemingway / Bitcoin Adoption", ch: "one-stop-shop" },
+    { q: "The only way to stop Bitcoin is to stop the internet.", a: "Bitcoin Community", ch: "decentralized" },
+    { q: "Money is the most important invention since the wheel.", a: "Saifedean Ammous", ch: "money" },
+    { q: "Bitcoin is the exit.", a: "Bitcoin Community", ch: "one-stop-shop" },
+    { q: "In a world of infinite money printing, Bitcoin is the finite protest.", a: "Bitcoin Community", ch: "problems-of-money" },
+    { q: "Give me control of a nation's money supply, and I care not who makes its laws.", a: "Mayer Amschel Rothschild", ch: "problems-of-money" },
+    { q: "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.", a: "Bitcoin Genesis Block", ch: "whitepaper" },
+    { q: "Proof of work is the only way to create unforgeable digital scarcity.", a: "Bitcoin Ethos", ch: "pow-vs-pos" },
+    { q: "Bitcoin is the only money humans have ever had that is not controlled by someone else.", a: "Lyn Alden", ch: "decentralized" },
+];
+
+function renderQuoteOfTheDay() {
+    var el = document.getElementById('quoteOfDay');
+    if (!el) return;
+    var dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    var quote = BTC_QUOTES[dayOfYear % BTC_QUOTES.length];
+    el.innerHTML = '<div onclick="go(\'' + quote.ch + '\')" style="cursor:pointer;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💬 Bitcoin Quote of the Day</div>' +
+        '<div style="color:var(--text);font-size:1rem;font-style:italic;line-height:1.5;margin-bottom:8px;">\u201C' + quote.q + '\u201D</div>' +
+        '<div style="color:var(--accent);font-size:0.85rem;font-weight:600;">\u2014 ' + quote.a + '</div>' +
+        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Click to explore this topic \u2192</div>' +
+        '</div>';
+}
+window.renderQuoteOfTheDay = renderQuoteOfTheDay;
 
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
