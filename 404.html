@@ -536,8 +536,8 @@
                     All YouTube links are embedded for you and contain videos that supplement the information in each channel. Additionally, channels are filled with tweets that were posted on Twitter over the last few years, and you can expand these tweets to view them in the channel.
                 </div>
             </div>
-            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="true">Properties Layer 1 <span class="cat-arrow">▼</span></div>
-            <div class="cat-group">
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Properties Layer 1 <span class="cat-arrow">▶</span></div>
+            <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('whitepaper',this)">📄 whitepaper</button>
             <button class="ch-btn" onclick="go('decentralized',this)">👪 decentralized-censorship-resistant</button>
             <button class="ch-btn" onclick="go('scarce',this)">🍀 scarce-unforgeable</button>
@@ -698,8 +698,8 @@
             <button class="ch-btn" onclick="go('vbyte',this)">🏋 vByte</button>
 
             </div>
-            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="true">Referral Links <span class="cat-arrow">▼</span></div>
-            <div class="cat-group">
+            <div class="cat-label cat-toggle" onclick="toggleCat(this)" data-expanded="false">Referral Links <span class="cat-arrow">▶</span></div>
+            <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
             </div>
             <div style="padding:4px 0 12px;">
@@ -764,7 +764,8 @@
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
                 <p class="home-subtitle">A curated library of Bitcoin education — complete with Quests to test your knowledge. Start your Quest today!</p>
-                <div class="home-stats">
+                <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▶':'▼'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px;">📊 App Stats <span>▶</span></button>
+                <div id="appStatsPanel" class="home-stats" style="display:none;">
                     <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
                     <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
                     <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
