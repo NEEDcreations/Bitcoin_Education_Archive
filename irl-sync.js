@@ -86,8 +86,8 @@
 
                 return `
                     <div class="event-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:0.3s;display:flex;flex-direction:column;height:100%;" onmouseover="this.style.transform='translateY(-5px)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='none';this.style.borderColor='var(--border)'">
-                        <div style="height:140px;background:linear-gradient(45deg, #1a1a2e, #16213e);display:flex;align-items:center;justify-content:center;font-size:3rem;">
-                            ${ev.emoji || '🧡'}
+                        <div style="height:160px;${ev.coverUrl ? 'background:url(' + ev.coverUrl + ') center/cover no-repeat;' : 'background:linear-gradient(45deg, #1a1a2e, #16213e);display:flex;align-items:center;justify-content:center;font-size:3rem;'}">
+                            ${ev.coverUrl ? '' : (ev.emoji || '🧡')}
                         </div>
                         <div style="padding:15px;flex:1;display:flex;flex-direction:column;">
                             <div style="color:var(--accent);font-size:0.75rem;font-weight:800;text-transform:uppercase;margin-bottom:8px;">${dateStr} @ ${timeStr}</div>
@@ -178,6 +178,19 @@
                         <input type="url" id="evLink" placeholder="e.g. https://meetup.com/your-event" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">
                     </div>
 
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Photo (optional)</label>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div id="evCoverPreview" onclick="document.getElementById('evCoverFile').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;">
+                                <span style="font-size:2rem;color:var(--text-faint);">📷</span>
+                            </div>
+                            <div style="flex:1;">
+                                <input type="file" id="evCoverFile" accept="image/jpeg,image/jpg,image/png,image/webp" style="width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById('evCoverPreview');if(p)p.innerHTML='<img src=&quot;'+e.target.result+'&quot; style=&quot;width:100%;height:100%;object-fit:cover;&quot;>';};r.readAsDataURL(f);}">
+                                <div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">JPG, PNG, or WebP — max 3MB</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button onclick="submitEvent()" id="evSubmitBtn" style="width:100%;padding:15px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;transition:0.2s;">📡 Broadcast to Network</button>
                 </div>
             </div>
@@ -202,6 +215,41 @@
         try {
             var evLink = document.getElementById('evLink');
             var linkVal = evLink ? evLink.value.trim() : '';
+            var coverFileInput = document.getElementById('evCoverFile');
+            var coverFile = coverFileInput && coverFileInput.files && coverFileInput.files[0] ? coverFileInput.files[0] : null;
+
+            // Validate cover image
+            if (coverFile) {
+                if (coverFile.size > 3 * 1024 * 1024) { alert('Image too large. Max 3MB.'); btn.disabled = false; btn.textContent = '📡 Broadcast to Network'; return; }
+                if (!coverFile.type.match(/image\/(jpeg|jpg|png|webp)/)) { alert('Use JPG, PNG, or WebP.'); btn.disabled = false; btn.textContent = '📡 Broadcast to Network'; return; }
+            }
+
+            var coverUrl = '';
+
+            // Upload cover image to Firebase Storage if available
+            if (coverFile) {
+                var storage = null;
+                try { storage = firebase.storage(); } catch(e) {}
+
+                if (storage) {
+                    btn.textContent = "Uploading photo...";
+                    var ts = Date.now();
+                    var ref = storage.ref('irl-events/' + auth.currentUser.uid + '/' + ts + '_' + coverFile.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+                    var snap = await ref.put(coverFile);
+                    coverUrl = await snap.ref.getDownloadURL();
+                } else {
+                    // Fallback: small base64 (only if under 200KB)
+                    if (coverFile.size < 200 * 1024) {
+                        coverUrl = await new Promise(function(resolve) {
+                            var reader = new FileReader();
+                            reader.onload = function(e) { resolve(e.target.result); };
+                            reader.readAsDataURL(coverFile);
+                        });
+                    }
+                }
+                btn.textContent = "Broadcasting...";
+            }
+
             var eventData = {
                 title: title,
                 date: new Date(date).toISOString(),
@@ -214,6 +262,7 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (linkVal) eventData.link = linkVal;
+            if (coverUrl) eventData.coverUrl = coverUrl;
             await db.collection('irl_events').add(eventData);
 
             document.getElementById('hostEventModal').remove();
