@@ -779,6 +779,13 @@
                             '</div>' +
                         '</div>' +
                     '</div>' +
+                    // Rules (compact) — shown first
+                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;text-align:left;">' +
+                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">How It Works</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.6;">' +
+                            '5 questions per round · First correct answer wins · Streaks = bonus pts · Win 3 of 5 for victory!' +
+                        '</div>' +
+                    '</div>' +
                     // Searching animation
                     '<div id="pvpLobbyStatus" style="margin-bottom:20px;text-align:center;">' +
                         '<div class="pvp-pulse" style="width:64px;height:64px;border-radius:50%;background:rgba(247,147,26,0.15);border:3px solid var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;animation:pvpPulse 2s ease-in-out infinite;">' +
@@ -794,13 +801,6 @@
                             '<span style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">Did You Know?</span>' +
                         '</div>' +
                         '<div id="pvpFunFact" style="color:var(--text-muted);font-size:0.8rem;line-height:1.6;min-height:40px;transition:opacity 0.3s ease;">Loading fun facts...</div>' +
-                    '</div>' +
-                    // Rules (compact)
-                    '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;text-align:left;">' +
-                        '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">How It Works</div>' +
-                        '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.6;">' +
-                            '5 questions per round · First correct answer wins · Streaks = bonus pts · Win 3 of 5 for victory!' +
-                        '</div>' +
                     '</div>' +
                     // Badges preview
                     '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:20px;text-align:left;">' +
