@@ -6487,7 +6487,7 @@ const NACHO_KB = [
       channel: 'sats__or__bits', channelName: 'Sats or Bits' },
 
     { keys: ['what is bitcoin','explain bitcoin','bitcoin basics','new to bitcoin','beginner','getting started','what\'s bitcoin'],
-      answer: "Great question, {name}! Bitcoin is digital money that no one controls — no banks, no governments. It's scarce (only 21 million), decentralized, and can be sent to anyone on Earth instantly.",
+      answer: "Bitcoin is digital money that no one controls — no banks, no governments, {name}. It's scarce (only 21 million), decentralized, and can be sent to anyone on Earth instantly.",
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
 
     { keys: ['how does bitcoin work','how bitcoin works','how it works'],
@@ -6549,7 +6549,7 @@ const NACHO_KB = [
 
     // === BUYING & INVESTING ===
     { keys: ['how to buy','where to buy','buy bitcoin','purchase bitcoin','get bitcoin','acquire','best place to buy','good place to buy','where can i buy','where do i buy','where should i buy','my first bitcoin','first bitcoin'],
-      answer: "Great question, {name}! The best places to buy Bitcoin are:\\n\\n⚡ <strong>Strike</strong> — zero-fee Bitcoin buying + Lightning\\n🏔️ <strong>River</strong> — auto-DCA, great for stacking sats\\n💵 <strong>Cash App</strong> — easy for beginners, auto-invest option\\n\\nCheck our Referral Links channel for links! Start small — you can buy a fraction of a Bitcoin. DCA (buying a little regularly) is the most popular strategy.\\n\\nOnce you have sats, you can spend them on our ⚡ LightningMart too! 🦌",
+      answer: "The best places to buy Bitcoin are:\\n\\n⚡ <strong>Strike</strong> — zero-fee Bitcoin buying + Lightning\\n🏔️ <strong>River</strong> — auto-DCA, great for stacking sats\\n💵 <strong>Cash App</strong> — easy for beginners, auto-invest option\\n\\nCheck our Referral Links channel for links! Start small — you can buy a fraction of a Bitcoin. DCA (buying a little regularly) is the most popular strategy.\\n\\nOnce you have sats, you can spend them on our ⚡ LightningMart too! 🦌",
       channel: 'referral-links', channelName: 'Referral Links',
       followUp: "🤔 Ask me: 'What is DCA?' or 'What is a Lightning wallet?' or 'Where can I spend Bitcoin?'" },
 
@@ -6622,7 +6622,7 @@ const NACHO_KB = [
       channel: 'self-custody', channelName: 'Self Custody' },
 
     { keys: ['wallet','bitcoin wallet','best wallet','which wallet','where to store','cold storage','hardware wallet','ledger','trezor','coldcard'],
-      answer: "Great question! The most important thing to learn about is SELF-CUSTODY — holding your own Bitcoin keys instead of trusting someone else with them. 'Not your keys, not your coins!' 🔑 Your wallet doesn't actually store Bitcoin — it stores your private keys that control your Bitcoin on the blockchain. There are different types: software wallets (apps on your phone), hardware wallets (dedicated devices), and even multisig setups. Check out our Self Custody channel to learn how to evaluate and choose what's right for you. Nacho keys, nacho cheese! 🧀🦌",
+      answer: "The most important thing to learn about is SELF-CUSTODY — holding your own Bitcoin keys instead of trusting someone else with them. 'Not your keys, not your coins!' 🔑 Your wallet doesn't actually store Bitcoin — it stores your private keys that control your Bitcoin on the blockchain. There are different types: software wallets (apps on your phone), hardware wallets (dedicated devices), and even multisig setups. Check out our Self Custody channel to learn how to evaluate and choose what's right for you. Nacho keys, nacho cheese! 🧀🦌",
       channel: 'self-custody', channelName: 'Self Custody' },
 
     { keys: ['metamask','trust wallet','phantom wallet','exodus','coinbase wallet','crypto.com wallet'],
@@ -6875,7 +6875,7 @@ const NACHO_KB = [
 
     // === SITE SPECIFIC ===
     { keys: ['how to use','how does this site','help','navigate','where do i start','tutorial','guide me'],
-      answer: "Great question, {name}! Start with the 'One Stop Shop' channel for beginners! Use the sidebar to browse channels by category. Earn points by reading, take quests to test knowledge, and collect badges!",
+      answer: "Start with the 'One Stop Shop' channel for beginners, {name}! Use the sidebar to browse channels by category. Earn points by reading, take quests to test knowledge, and collect badges!",
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
 
     { keys: ['quest','quests','test','quiz','certification','exam','scholar'],
@@ -9521,7 +9521,7 @@ function nachoAIAnswer(question, callback) {
             history: history,
             kbContext: kbContext,
             maxi: true,
-            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters." 
+            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight." 
         })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
@@ -10076,56 +10076,8 @@ window.nachoUnifiedAnswer = function(question, callback) {
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
 
-    // ---- SMART MEMORY: Reference previous topics ----
-    var memoryPrefix = '';
-    var recentTopics = [];
-    if (typeof window._nachoModeTopics !== 'undefined' && window._nachoModeTopics && window._nachoModeTopics.length > 0) {
-        recentTopics = window._nachoModeTopics.slice(-3);
-        var isFollowUp = false;
-        var referencedTopic = '';
-        
-        for (var ti = recentTopics.length - 1; ti >= 0; ti--) {
-            var prevTopic = recentTopics[ti].toLowerCase();
-            var currentQ = q.toLowerCase();
-            var keyTerms = prevTopic.replace(/what is|how to|why|the|a|an|in|on|at/g, '').trim().split(' ').filter(function(w) { return w.length > 3; });
-            
-            for (var ki = 0; ki < keyTerms.length; ki++) {
-                if (currentQ.indexOf(keyTerms[ki]) !== -1) {
-                    isFollowUp = true;
-                    referencedTopic = recentTopics[ti];
-                    break;
-                }
-            }
-            if (isFollowUp) break;
-        }
-        
-        if (!isFollowUp && (q.match(/^(tell me more|explain more|why|how|what about|and|so)/i) || q.length < 15)) {
-            if (recentTopics.length > 0) {
-                referencedTopic = recentTopics[recentTopics.length - 1];
-                isFollowUp = true;
-            }
-        }
-        
-        if (isFollowUp && referencedTopic) {
-            var memoryIntros = [
-                "Building on what you asked about '{topic}' — ",
-                "Great follow-up to your question about '{topic}'! ",
-                "Connecting this to '{topic}' — ",
-                "Since you were curious about '{topic}', ",
-                "To expand on '{topic}': "
-            ];
-            memoryPrefix = memoryIntros[Math.floor(Math.random() * memoryIntros.length)].replace('{topic}', referencedTopic.substring(0, 40) + (referencedTopic.length > 40 ? '...' : ''));
-        }
-    }
-    
-    // Wrap callback to inject memory prefix
-    var originalCallback = callback;
-    callback = function(result) {
-        if (memoryPrefix && result && result.answer && result.type !== 'crisis' && result.type !== 'harm' && result.type !== 'profanity') {
-            result.answer = memoryPrefix + result.answer;
-        }
-        originalCallback(result);
-    };
+    // Note: conversation history is passed to AI for context continuity,
+    // but we don't prepend memory prefixes — answers should be direct and conversational.
 
     // ---- STEP 1: Safety (instant, hardcoded) ----
     if (isCrisis(q)) {
