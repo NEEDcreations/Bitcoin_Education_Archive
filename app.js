@@ -2803,18 +2803,14 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Shake to hear a random Bitcoin quote (easter egg)
         // High threshold so walking/normal movement doesn't trigger it
-        var shakeThreshold = 50; // High threshold — requires obvious deliberate shake
-        var shakeCount = 0; // Require multiple hits to confirm real shake
+        var shakeThreshold = 25; // Requires strong deliberate shake (without gravity component)
+        var shakeCount = 0;
         var lastShake = 0;
-        var lastAccel = { x: 0, y: 0, z: 0 };
         window.addEventListener('devicemotion', function(e) {
-            var a = e.accelerationIncludingGravity;
+            var a = e.acceleration && (e.acceleration.x !== null) ? e.acceleration : null;
             if (!a) return;
-            var dx = Math.abs(a.x - lastAccel.x);
-            var dy = Math.abs(a.y - lastAccel.y);
-            var dz = Math.abs(a.z - lastAccel.z);
-            lastAccel = { x: a.x, y: a.y, z: a.z };
-            if (dx + dy + dz > shakeThreshold) {
+            var total = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
+            if (total > shakeThreshold) {
                 shakeCount++;
                 // Reset count if movements are too far apart
                 clearTimeout(window._shakeResetTimer);
