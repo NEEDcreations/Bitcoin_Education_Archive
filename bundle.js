@@ -7415,8 +7415,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
                     _appBtn('🦌', 'Nacho Mode', 'Chat with our AI Bitcoin tutor', 'enterNachoMode()') +
                     _appBtn('⚔️', 'PVP Battle', '1v1 Bitcoin trivia battles', "if(typeof enterPVPMode==='function')enterPVPMode()") +
-                    _appBtn('🗣️', 'Pleb Talk', 'Community forum for Bitcoiners', "go('forum')") +
-                    _appBtn('⚡', 'Lightning Mart', 'Buy & sell with Lightning', "go('marketplace')") +
+                    _appBtn('🗣️', 'Pleb Talk', 'Forum', "go('forum')") +
+                    _appBtn('⚡', 'Lightning Mart', 'Marketplace', "go('marketplace')") +
                     _appBtn('🤝', 'IRL Sync', 'Find local Bitcoin meetups', "go('irl-sync')") +
                     _appBtn('🎵', 'Bitcoin Beats', 'Community music player', "go('bitcoin-beats')") +
                 '</div>' +
