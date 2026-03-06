@@ -3399,8 +3399,8 @@ window.nachoQuizAnswer = function(btn, correct) {
     let searchTimeout = null;
     // Internal app pages searchable by keyword
     const APP_PAGES = [
-        { id: '_irl', title: '🤝 IRL Sync', desc: 'Find local Bitcoin meetups and events', keywords: 'irl meetup events sync meeting community local map', action: "go('irl-sync')" },
-        { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Livestreams and community broadcasts', keywords: 'beats music livestream live video radio stream audio', action: "go('bitcoin-beats')" },
+        { id: '_irl', title: '🤝 IRL Sync', desc: 'Find and create local Bitcoin meetups and events', keywords: 'irl meetup events sync meeting community local map gather conference meetup event rsvp', action: "go('irl-sync')" },
+        { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Community music — discover, upload, and listen to Bitcoin tracks', keywords: 'beats music livestream live video radio stream audio upload song track listen discover artist genre community', action: "go('bitcoin-beats')" },
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
         { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
@@ -3422,13 +3422,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
-        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Battle other players in Bitcoin trivia', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel', action: 'enterPVPMode()' },
+        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
-        { id: '_messages', title: '💬 Messages', desc: 'Direct messages inbox', keywords: 'messages dm direct message inbox chat private', action: 'showInbox()' },
+        { id: '_messages', title: '💬 Messages / DMs', desc: 'Direct messages — chat privately with other users', keywords: 'messages dm direct message inbox chat private conversation contact send receive talk', action: 'showInbox()' },
         { id: '_signin', title: '🔐 Sign In', desc: 'Sign in or create an account', keywords: 'sign in login register create account google twitter github facebook email', action: 'showUsernamePrompt()' },
         { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
     ];

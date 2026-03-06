@@ -4600,6 +4600,25 @@ const TIPS = [
     { pose: 'love', text: "💡 Tip: Press D to open the donation page — support the archive with Lightning! Every sat counts! ⚡🧡" },
     // Language
     { pose: 'point', text: "💡 Tip: The site supports 15+ languages! Change it in Settings → Prefs. I can even answer in your language! 🌍" },
+    // DMs
+    { pose: 'point', text: "💡 Tip: You can DM any user! Tap their name on the leaderboard → 💬 Message. Your inbox is in the DMs tab! 📬" },
+    { pose: 'eyes', text: "💡 Tip: DMs are protected — you need 50 points and a 24h-old account to message. No scammers allowed! 🛡️" },
+    { pose: 'point', text: "💡 Tip: Never share your seed phrase, private keys, or send Bitcoin to strangers in DMs! Stay safe! 🔒" },
+    // PVP
+    { pose: 'fire', text: "💡 Tip: Challenge other Bitcoiners to PVP trivia battles! Press P or find ⚔️ PVP in the sidebar! Who knows more? 🏆" },
+    { pose: 'celebrate', text: "💡 Tip: Win PVP battles to climb the PVP leaderboard! Your wins and losses show on your profile! ⚔️" },
+    // Bitcoin Beats
+    { pose: 'fire', text: "💡 Tip: Bitcoin Beats is our community music platform! Listen, upload, and discover tracks made by Bitcoiners! 🎸🦌" },
+    { pose: 'point', text: "💡 Tip: Tap a song title on Bitcoin Beats to see full track details — artist, genre, play count, and more! 🎵" },
+    { pose: 'celebrate', text: "💡 Tip: Upload your own music on Bitcoin Beats! Hit the Upload tab and share your sound with the community! 🎤" },
+    { pose: 'point', text: "💡 Tip: Like tracks on Bitcoin Beats with ❤️ and leave comments! Support Bitcoin musicians! 🎶" },
+    // IRL Sync
+    { pose: 'fire', text: "💡 Tip: IRL Sync helps you find Bitcoin meetups near you! Create events, RSVP, and meet Bitcoiners in person! 🤝" },
+    { pose: 'point', text: "💡 Tip: Can't find a meetup near you? Create one on IRL Sync! Be the node that connects your local community! 🌐" },
+    // Price Prediction
+    { pose: 'point', text: "💡 Tip: Try the Price Prediction game! Guess if Bitcoin goes up or down in 24h and track your accuracy! 📈📉" },
+    // Nacho Story
+    { pose: 'celebrate', text: "💡 Tip: I have a story to tell! Tap the 📖 next to me for a new chapter every day. It's an adventure! 🦌✨" },
 ];
 
 // ---- Motivational ----
@@ -6899,6 +6918,23 @@ const NACHO_KB = [
       answer: "Nostr is a decentralized social media protocol that pairs beautifully with Bitcoin and Lightning. No censorship, no corporate control. The future of social media!",
       channel: 'nostr', channelName: 'Nostr' },
 
+    // === SITE FEATURES ===
+    { keys: ['dm','direct message','message','inbox','where to message','how to message','dm someone','message someone','private message','chat'],
+      answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 points and a 24-hour-old account to send DMs (keeps scammers out). 🛡️",
+      channel: null, channelName: null },
+    { keys: ['pvp','battle','fight','duel','versus','arena','trivia battle','bitcoin battle','1v1','pvppvp'],
+      answer: "PVP Battle lets you challenge other players to real-time Bitcoin trivia duels! Match up, answer fast, and climb the PVP leaderboard. ⚔️",
+      channel: null, channelName: null },
+    { keys: ['beats','bitcoin beats','music','listen','upload song','audio','livestream','upload music','upload track'],
+      answer: "Bitcoin Beats is our community music platform! Discover tracks, upload your own music, listen to what other Bitcoiners are creating, and show love with likes and comments. Tap a song title to see full details! 🎸",
+      channel: null, channelName: null },
+    { keys: ['irl','meetup','event','gathering','local','irl sync','bitcoin meetup','local event','find meetup','find event'],
+      answer: "IRL Sync helps you find and create local Bitcoin meetups and events! See what's happening near you, RSVP, and connect with Bitcoiners in real life. 🤝",
+      channel: null, channelName: null },
+    { keys: ['price prediction','predict','prediction','forecast','bitcoin price up down','price goes up','price goes down'],
+      answer: "Price Prediction lets you guess if Bitcoin goes up or down in 24 hours! Track your accuracy, see how you rank, and test your market instincts. 📈📉📄",
+      channel: null, channelName: null },
+
     { keys: ['el salvador','legal tender','country','nation','adoption'],
       answer: "El Salvador became the first country to make Bitcoin legal tender in 2021! Other countries are following. Bitcoin adoption is accelerating at the nation-state level!",
       channel: 'news-adoption', channelName: 'News & Adoption' },
@@ -8930,8 +8966,20 @@ function matchSiteNavigation(input) {
           answer: "Press ? or K on your keyboard to see all shortcuts! ⌨️",
           action: "showKeyboardHelp()", label: "⌨️ View Shortcuts" },
         { patterns: /how.*(use|navigate|work).*site|how.*this.*work|what.*can.*do.*here|site.*guide|help.*navigate|tutorial/,
-          answer: "Welcome! Here's what you can do: 📚 Read 145+ Bitcoin channels, ⚡ Take quests, 🗣️ Chat in PlebTalk, ⚡ Trade on LightningMart, 🎡 Spin for tickets, 💬 DM other users, and of course — talk to me! Start by exploring channels or ask me anything about Bitcoin. 🦌",
+          answer: "Welcome! Here's what you can do: 📚 Read 146+ Bitcoin channels, ⚡ Take quests, 🗣️ Chat in PlebTalk, ⚡ Trade on LightningMart, 🎸 Listen on Bitcoin Beats, 🤝 Find meetups on IRL Sync, ⚔️ PVP trivia battles, 💬 DM other users, and of course — talk to me! 🦌",
           action: "goHome()", label: "🏠 Explore the Archive" },
+        { patterns: /where.*(dm|direct.*message|message|inbox|chat.*someone)|how.*(message|dm|send.*message|contact)|dm\b|direct message|inbox|message.*user|message.*someone/,
+          answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 points and a 24-hour-old account to send DMs (keeps scammers out). 🛡️",
+          action: "showInbox()", label: "💬 Open Messages" },
+        { patterns: /where.*(pvp|battle|fight|duel|versus|arena)|how.*(pvp|battle|fight|duel)|pvp|trivia.*battle|bitcoin.*battle|1v1/,
+          answer: "PVP Battle lets you challenge other players to real-time Bitcoin trivia duels! Match up, answer fast, and climb the PVP leaderboard. ⚔️",
+          action: "enterPVPMode()", label: "⚔️ Enter PVP" },
+        { patterns: /where.*(beats|music|listen|upload.*song|audio|livestream)|how.*(upload.*music|listen|stream)|bitcoin.*beats|music.*channel|upload.*track/,
+          answer: "Bitcoin Beats is our community music platform! Discover tracks, upload your own music, listen to what other Bitcoiners are creating, and show love with likes and comments. Tap a song title to see full details! 🎸",
+          action: "go('bitcoin-beats')", label: "🎸 Bitcoin Beats" },
+        { patterns: /where.*(irl|meetup|event|gathering|local)|how.*(find.*meetup|find.*event|meet.*bitcoiner)|irl.*sync|bitcoin.*meetup|local.*event/,
+          answer: "IRL Sync helps you find and create local Bitcoin meetups and events! See what's happening near you, RSVP, and connect with Bitcoiners in real life. 🤝",
+          action: "go('irl-sync')", label: "🤝 IRL Sync" },
     ];
 
     for (var i = 0; i < SITE_NAV.length; i++) {
@@ -25775,8 +25823,8 @@ window.nachoQuizAnswer = function(btn, correct) {
     let searchTimeout = null;
     // Internal app pages searchable by keyword
     const APP_PAGES = [
-        { id: '_irl', title: '🤝 IRL Sync', desc: 'Find local Bitcoin meetups and events', keywords: 'irl meetup events sync meeting community local map', action: "go('irl-sync')" },
-        { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Livestreams and community broadcasts', keywords: 'beats music livestream live video radio stream audio', action: "go('bitcoin-beats')" },
+        { id: '_irl', title: '🤝 IRL Sync', desc: 'Find and create local Bitcoin meetups and events', keywords: 'irl meetup events sync meeting community local map gather conference meetup event rsvp', action: "go('irl-sync')" },
+        { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Community music — discover, upload, and listen to Bitcoin tracks', keywords: 'beats music livestream live video radio stream audio upload song track listen discover artist genre community', action: "go('bitcoin-beats')" },
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
         { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
@@ -25798,13 +25846,13 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
-        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Battle other players in Bitcoin trivia', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel', action: 'enterPVPMode()' },
+        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
-        { id: '_messages', title: '💬 Messages', desc: 'Direct messages inbox', keywords: 'messages dm direct message inbox chat private', action: 'showInbox()' },
+        { id: '_messages', title: '💬 Messages / DMs', desc: 'Direct messages — chat privately with other users', keywords: 'messages dm direct message inbox chat private conversation contact send receive talk', action: 'showInbox()' },
         { id: '_signin', title: '🔐 Sign In', desc: 'Sign in or create an account', keywords: 'sign in login register create account google twitter github facebook email', action: 'showUsernamePrompt()' },
         { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
     ];

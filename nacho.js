@@ -169,6 +169,25 @@ const TIPS = [
     { pose: 'love', text: "💡 Tip: Press D to open the donation page — support the archive with Lightning! Every sat counts! ⚡🧡" },
     // Language
     { pose: 'point', text: "💡 Tip: The site supports 15+ languages! Change it in Settings → Prefs. I can even answer in your language! 🌍" },
+    // DMs
+    { pose: 'point', text: "💡 Tip: You can DM any user! Tap their name on the leaderboard → 💬 Message. Your inbox is in the DMs tab! 📬" },
+    { pose: 'eyes', text: "💡 Tip: DMs are protected — you need 50 points and a 24h-old account to message. No scammers allowed! 🛡️" },
+    { pose: 'point', text: "💡 Tip: Never share your seed phrase, private keys, or send Bitcoin to strangers in DMs! Stay safe! 🔒" },
+    // PVP
+    { pose: 'fire', text: "💡 Tip: Challenge other Bitcoiners to PVP trivia battles! Press P or find ⚔️ PVP in the sidebar! Who knows more? 🏆" },
+    { pose: 'celebrate', text: "💡 Tip: Win PVP battles to climb the PVP leaderboard! Your wins and losses show on your profile! ⚔️" },
+    // Bitcoin Beats
+    { pose: 'fire', text: "💡 Tip: Bitcoin Beats is our community music platform! Listen, upload, and discover tracks made by Bitcoiners! 🎸🦌" },
+    { pose: 'point', text: "💡 Tip: Tap a song title on Bitcoin Beats to see full track details — artist, genre, play count, and more! 🎵" },
+    { pose: 'celebrate', text: "💡 Tip: Upload your own music on Bitcoin Beats! Hit the Upload tab and share your sound with the community! 🎤" },
+    { pose: 'point', text: "💡 Tip: Like tracks on Bitcoin Beats with ❤️ and leave comments! Support Bitcoin musicians! 🎶" },
+    // IRL Sync
+    { pose: 'fire', text: "💡 Tip: IRL Sync helps you find Bitcoin meetups near you! Create events, RSVP, and meet Bitcoiners in person! 🤝" },
+    { pose: 'point', text: "💡 Tip: Can't find a meetup near you? Create one on IRL Sync! Be the node that connects your local community! 🌐" },
+    // Price Prediction
+    { pose: 'point', text: "💡 Tip: Try the Price Prediction game! Guess if Bitcoin goes up or down in 24h and track your accuracy! 📈📉" },
+    // Nacho Story
+    { pose: 'celebrate', text: "💡 Tip: I have a story to tell! Tap the 📖 next to me for a new chapter every day. It's an adventure! 🦌✨" },
 ];
 
 // ---- Motivational ----
