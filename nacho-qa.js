@@ -3705,8 +3705,18 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 _kbCallbackFired = true;
                 clearTimeout(_kbSafetyTimer);
                 if (aiAnswer) {
-                    nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                    // Relevance check: AI answer should share key terms with the question
+                    var qWords = q.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+                    var aiLower = aiAnswer.toLowerCase();
+                    var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
+                    // If AI answer shares fewer than half the key question words, it's probably off-topic — use KB
+                    if (qWords.length > 2 && relevantWords.length < qWords.length * 0.3) {
+                        nachoRemember(q, kbMatch.answer);
+                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+                    } else {
+                        nachoRemember(q, aiAnswer);
+                        callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                    }
                 } else {
                     nachoRemember(q, kbMatch.answer);
                     callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });

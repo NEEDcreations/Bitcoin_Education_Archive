@@ -10154,8 +10154,18 @@ window.nachoUnifiedAnswer = function(question, callback) {
                 _kbCallbackFired = true;
                 clearTimeout(_kbSafetyTimer);
                 if (aiAnswer) {
-                    nachoRemember(q, aiAnswer);
-                    callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                    // Relevance check: AI answer should share key terms with the question
+                    var qWords = q.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 3; });
+                    var aiLower = aiAnswer.toLowerCase();
+                    var relevantWords = qWords.filter(function(w) { return aiLower.indexOf(w) !== -1; });
+                    // If AI answer shares fewer than half the key question words, it's probably off-topic — use KB
+                    if (qWords.length > 2 && relevantWords.length < qWords.length * 0.3) {
+                        nachoRemember(q, kbMatch.answer);
+                        callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
+                    } else {
+                        nachoRemember(q, aiAnswer);
+                        callback({ type: 'ai+kb', answer: aiAnswer + disclaimer, channel: ch, channelName: chName });
+                    }
                 } else {
                     nachoRemember(q, kbMatch.answer);
                     callback({ type: 'kb', answer: kbAnswer + disclaimer, channel: ch, channelName: chName });
@@ -23348,35 +23358,31 @@ if (document.readyState === 'loading') {
                 '.nm-time { font-size:0.65rem;color:var(--text-faint);margin-top:2px; }' +
                 '.nm-nacho .nm-time { text-align:left; }' +
                 '.nm-user .nm-time { text-align:right; }' +
-                '@media(max-width:768px){.nm-hero-avatar{width:120px!important;height:120px!important;}.nm-hero-avatar img{width:120px!important;height:120px!important;}.nm-hero-cape{width:50px!important;height:65px!important;right:-10px!important;top:25px!important;}.nm-hero-title{font-size:1.8rem!important;letter-spacing:4px!important;}.nm-hero-bar{flex-wrap:wrap;gap:6px!important;}}' +
+                '@media(max-width:768px){.nm-hero-avatar{width:36px!important;height:36px!important;}.nm-hero-avatar img{width:36px!important;height:36px!important;}.nm-hero-title{font-size:0.9rem!important;letter-spacing:2px!important;}.nm-hero-bar{gap:4px!important;}}' +
             '</style>' +
-            /* ===== HERO SECTION ===== */
-            '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.08) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:16px 16px 12px;text-align:center;position:relative;">' +
-                /* Top bar: back + tools (sticky) */
-                '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;position:sticky;top:0;z-index:10;background:var(--bg,#0f0f1c);">' +
-                    '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
-                    '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:12px;">' +
-                        '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:0;width:34px;height:34px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;" title="ELI5 Mode"><span style="font-size:1.4rem;">🧒</span><span style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">ELI5</span></button>' +
-                        '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:0;width:34px;height:34px;touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;" title="Save chat"><span style="font-size:1.4rem;">💾</span><span style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">SAVE</span></button>' +
-                        '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:0;width:34px;height:34px;touch-action:manipulation;transition:0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;" title="Clear chat"><span style="font-size:1.4rem;">🗑️</span><span style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">CLEAR</span></button>' +
-                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:34px;height:34px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
-                        '<span class="donate-circle" onclick="showDonateModal()" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--accent);border-radius:50%;cursor:pointer;" title="Donate"><svg viewBox="0 0 64 64" width="22" height="22"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+            /* ===== COMPACT HEADER ===== */
+            '<div style="flex-shrink:0;background:linear-gradient(180deg,rgba(247,147,26,0.06) 0%,transparent 100%);border-bottom:1px solid var(--border);padding:8px 12px;position:relative;">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                    /* Left: back + avatar + title */
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
+                        '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:40px;height:40px;" onclick="nachoModeAvatarTap()">' +
+                            '<img src="nacho-deer.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
+                            '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
+                        '</div>' +
+                        '<div>' +
+                            '<div class="nm-hero-title" style="font-size:1rem;font-weight:900;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">' + ((typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho').toUpperCase()) + ' MODE</div>' +
+                            '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.65rem;"></div>' +
+                        '</div>' +
+                    '</div>' +
+                    /* Right: tools */
+                    '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:6px;">' +
+                        '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:28px;height:28px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:1.1rem;" title="ELI5 Mode">🧒</button>' +
+                        '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:28px;height:28px;touch-action:manipulation;font-size:1.1rem;" title="Save chat">💾</button>' +
+                        '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:28px;height:28px;touch-action:manipulation;font-size:1.1rem;" title="Clear chat">🗑️</button>' +
+                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:28px;height:28px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
                     '</div>' +
                 '</div>' +
-                /* Avatar with cape */
-                '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:160px;height:160px;margin:0 auto 8px;" onclick="nachoModeAvatarTap()">' +
-                    '<img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;position:relative;z-index:2;">' +
-                    /* Orange cape SVG */
-                    '<svg class="nm-hero-cape" viewBox="0 0 80 100" style="position:absolute;right:-15px;top:30px;width:65px;height:80px;z-index:1;animation:nachoCapeBlow 3s ease-in-out infinite;" xmlns="http://www.w3.org/2000/svg">' +
-                        '<defs><linearGradient id="capeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#f7931a;stop-opacity:1"/><stop offset="100%" style="stop-color:#e67e00;stop-opacity:0.9"/></linearGradient></defs>' +
-                        '<path d="M10,5 Q15,0 25,3 L70,15 Q80,18 78,30 L72,85 Q70,95 60,92 L15,75 Q5,72 8,60 Z" fill="url(#capeGrad)" opacity="0.9"/>' +
-                        '<path d="M15,10 Q20,6 28,8 L65,20 Q72,22 70,32 L66,78 Q64,86 56,84 L20,70 Q12,68 14,58 Z" fill="url(#capeGrad)" opacity="0.3"/>' +
-                    '</svg>' +
-                    '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
-                '</div>' +
-                /* Title */
-                '<div class="nm-hero-title" style="font-size:2.2rem;font-weight:900;letter-spacing:6px;color:var(--accent);text-transform:uppercase;animation:nmTitleGlow 4s ease-in-out infinite;margin-bottom:4px;">' + ((typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho').toUpperCase()) + ' MODE</div>' +
-                '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.75rem;"></div>' +
             '</div>' +
             /* ===== CHAT AREA ===== */
             '<div id="nachoModeChat" style="flex:1;"></div>' +
