@@ -425,6 +425,34 @@ function createNacho() {
         }
         #nacho-container.hidden { opacity: 0; transform: translateY(30px); pointer-events: none; }
 
+        .nacho-close-x {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 20px;
+            height: 20px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: auto;
+            line-height: 1;
+        }
+        #nacho-container:hover .nacho-close-x,
+        #nacho-container:active .nacho-close-x {
+            opacity: 1;
+        }
+        @media (hover: none) {
+            .nacho-close-x { opacity: 0.7; }
+        }
         #nacho-avatar {
             width: 110px;
             height: 110px;
@@ -777,6 +805,7 @@ function createNacho() {
     if (!nachoVisible) container.classList.add('hidden');
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
+            '<span class="nacho-close-x" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();hideNacho();" title="Hide Nacho">✕</span>' +
             NACHO_SVG +
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
             '<div class="nacho-btn-stack">' +
@@ -784,7 +813,7 @@ function createNacho() {
                 '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
             '</div>' +
         '</div>' +
-        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
+        '<div id="nacho-bubble">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> <span id="nacho-bubble-name">' + ((typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho') + '</span> says</span>' +
                 '<span class="nacho-x" onclick="event.stopPropagation();hideBubble(true)">✕</span>' +
@@ -1168,59 +1197,10 @@ function _showBubble(text, pose) {
 
     clearTimeout(bubbleTimeout);
     bubble.setAttribute('data-interactive', isInteractive ? 'true' : 'false');
-    // Don't auto-hide interactive content (quizzes, etc.) — user needs time to respond
-    if (!isInteractive) {
-        bubbleTimeout = setTimeout(hideBubble, BUBBLE_DURATION);
-    }
-
-    // Click-outside & Escape dismissal
-    if (window._nachoDismissHandler) {
-        document.removeEventListener('mousedown', window._nachoDismissHandler);
-        document.removeEventListener('touchstart', window._nachoDismissHandler);
-        document.removeEventListener('keydown', window._nachoEscHandler);
-    }
-    window._nachoDismissHandler = function(e) {
-        var b = document.getElementById('nacho-bubble');
-        var c = document.getElementById('nacho-container');
-        if (!b || !b.classList.contains('show')) return;
-        if (b.contains(e.target)) return;
-        if (c && c.contains(e.target)) return;
-        // Don't dismiss if clicking settings modal or its backdrop
-        var modal = document.getElementById('usernameModal');
-        if (modal && modal.contains(e.target)) return;
-        hideBubble(true);
-    };
-    window._nachoEscHandler = function(e) {
-        if (e.key === 'Escape') hideBubble(true);
-    };
-    // Small delay so the current click doesn't immediately dismiss
-    setTimeout(function() {
-        document.addEventListener('mousedown', window._nachoDismissHandler);
-        document.addEventListener('touchstart', window._nachoDismissHandler, { passive: true });
-        document.addEventListener('keydown', window._nachoEscHandler);
-    }, 100);
+    // No auto-hide — user dismisses via X button on bubble or Nacho
 }
 
-// Swipe-to-dismiss on Nacho bubble (mobile)
-(function() {
-    var _swipeStartX = 0, _swipeStartY = 0;
-    document.addEventListener('touchstart', function(e) {
-        var b = document.getElementById('nacho-bubble');
-        if (b && b.classList.contains('show') && b.contains(e.target)) {
-            _swipeStartX = e.touches[0].clientX;
-            _swipeStartY = e.touches[0].clientY;
-        }
-    }, { passive: true });
-    document.addEventListener('touchend', function(e) {
-        var b = document.getElementById('nacho-bubble');
-        if (!b || !b.classList.contains('show') || !e.changedTouches[0]) return;
-        var dx = e.changedTouches[0].clientX - _swipeStartX;
-        var dy = e.changedTouches[0].clientY - _swipeStartY;
-        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
-            hideBubble(true);
-        }
-    }, { passive: true });
-})();
+// Swipe-to-dismiss removed — user uses X button instead
 
 // Drag-to-reposition Nacho (mobile + desktop)
 (function() {
@@ -1314,12 +1294,6 @@ function _showBubble(text, pose) {
             // Save position
             var rect = dragTarget.getBoundingClientRect();
             localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
-            // Check if swiped off screen edge → dismiss
-            if (rect.left < -30 || rect.left > window.innerWidth - 20 ||
-                rect.top < -30 || rect.top > window.innerHeight - 20) {
-                hideNacho();
-                localStorage.removeItem('btc_nacho_position');
-            }
             // Prevent the tap/click from firing after drag
             e.preventDefault();
         }
@@ -1366,11 +1340,6 @@ function _showBubble(text, pose) {
         if (hasMoved && dragTarget) {
             var rect = dragTarget.getBoundingClientRect();
             localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
-            if (rect.left < -30 || rect.left > window.innerWidth - 20 ||
-                rect.top < -30 || rect.top > window.innerHeight - 20) {
-                hideNacho();
-                localStorage.removeItem('btc_nacho_position');
-            }
         }
         dragTarget = null;
     });

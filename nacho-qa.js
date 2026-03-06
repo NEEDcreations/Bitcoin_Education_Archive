@@ -2782,33 +2782,15 @@ window.showNachoInput = function() {
         '</div>' +
         '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoAnswer()" style="width:100%;margin-top:6px;padding:8px;background:#f7931a;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Ask Nacho 🦌</button>';
 
-    // Mark as interactive — prevents auto-hide timer from closing it
+    // Mark as interactive — prevents auto-hide
     bubble.setAttribute('data-interactive', 'true');
     bubble.classList.add('show');
     clearTimeout(window._nachoBubbleTimeout);
-    // Remove dismiss handlers temporarily so they don't fire during the transition
-    if (window._nachoDismissHandler) {
-        document.removeEventListener('mousedown', window._nachoDismissHandler);
-        document.removeEventListener('touchstart', window._nachoDismissHandler);
-    }
 
-    // Focus the input and re-ensure bubble stays visible after any pending events
+    // Focus the input
     setTimeout(function() {
         var inp = document.getElementById('nachoInput');
         if (inp) inp.focus();
-        // Re-ensure bubble is still showing (catches race conditions with dismiss handlers)
-        var b = document.getElementById('nacho-bubble');
-        if (b) {
-            b.classList.add('show');
-            b.setAttribute('data-interactive', 'true');
-        }
-        // Re-attach dismiss handlers after the dust settles
-        setTimeout(function() {
-            if (window._nachoDismissHandler) {
-                document.addEventListener('mousedown', window._nachoDismissHandler);
-                document.addEventListener('touchstart', window._nachoDismissHandler, { passive: true });
-            }
-        }, 200);
     }, 150);
 };
 
