@@ -750,9 +750,10 @@
                             <!-- Learn -->
                             <button onclick="toggleSidebarMenu('homeLearnMenu')" style="padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-weight:800;font-size:0.85rem;cursor:pointer;">🎓 Learn ▼</button>
                             <div id="homeLearnMenu" style="display:none;flex-direction:column;gap:8px;padding:8px 0 8px 10px;border-left:2px solid var(--accent);margin-left:10px;">
-                                <button onclick="startQuestManual()" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">⚡ Start a Quest</button>
-                                <button onclick="startScholarQuest('properties')" style="padding:8px 12px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">🎓 Properties Cert</button>
-                                <button onclick="startScholarQuest('technical')" style="padding:8px 12px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">🛠️ Technical Cert</button>
+                                <button onclick="document.getElementById('homeNewbieMsg').style.display='block';this.style.display='none';" style="padding:8px 12px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">🟢 New to Bitcoin?</button>
+                                <div id="homeNewbieMsg" style="display:none;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;line-height:1.4;">
+                                    Start with <a href="#one-stop-shop" onclick="go('one-stop-shop');return false;" style="color:var(--accent);font-weight:700;text-decoration:underline;">one-stop-shop</a> — it covers the highlights!
+                                </div>
                                 <button onclick="toggleSidebarMenu('homeFlashMenu')" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">📚 Flashcards ▶</button>
                                 <div id="homeFlashMenu" style="display:none;flex-wrap:wrap;gap:6px;padding:8px;">
                                     <button onclick="startFlashcards('Bitcoin Basics')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>
@@ -760,11 +761,21 @@
                                     <button onclick="startFlashcards('Lightning Network')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>
                                     <button onclick="startFlashcards('Mining & Energy')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>
                                     <button onclick="startFlashcards('Economics & Money')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>
+                                    <div id="homeMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;margin-top:4px;">
+                                        <button onclick="startFlashcards('Privacy & Sovereignty')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>
+                                        <button onclick="startFlashcards('Nodes & P2P')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📡 Nodes</button>
+                                        <button onclick="startFlashcards('Wallets & Tools')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💼 Wallets</button>
+                                        <button onclick="startFlashcards('History & Culture')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>
+                                        <button onclick="startFlashcards('Common Myths')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>
+                                        <button onclick="startFlashcards('Technical Deep Dives')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔬 Tech</button>
+                                        <button onclick="startFlashcards('Satoshi Nakamoto')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🦸 Satoshi</button>
+                                        <button onclick="startFlashcards('Global Impact')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🌍 Global</button>
+                                    </div>
+                                    <button onclick="var m=document.getElementById('homeMoreFlash');m.style.display=m.style.display==='none'?'flex':'none';this.textContent=m.style.display==='none'?'▼ More Topics':'▲ Less'" style="width:100%;margin-top:6px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:700;">▼ More Topics</button>
                                 </div>
-                                <button onclick="document.getElementById('homeNewbieMsg').style.display='block';this.style.display='none';" style="padding:8px 12px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">🟢 New to Bitcoin?</button>
-                                <div id="homeNewbieMsg" style="display:none;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;line-height:1.4;">
-                                    Start with <a href="#one-stop-shop" onclick="go('one-stop-shop');return false;" style="color:var(--accent);font-weight:700;text-decoration:underline;">one-stop-shop</a> — it covers the highlights!
-                                </div>
+                                <button onclick="startQuestManual()" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">⚡ Start a Quest</button>
+                                <button onclick="startScholarQuest('properties')" style="padding:8px 12px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">🎓 Properties Certification</button>
+                                <button onclick="startScholarQuest('technical')" style="padding:8px 12px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.8rem;text-align:left;">🛠️ Technical Certification</button>
                             </div>
                             <!-- Apps grid -->
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
