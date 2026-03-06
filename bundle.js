@@ -6677,7 +6677,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.style.opacity = '1';
                 btn.style.filter = 'none';
                 btn.style.cursor = 'pointer';
-                btn.title = "";
+                if (!btn.getAttribute('data-tooltip')) btn.title = "";
+                else btn.title = btn.getAttribute('data-tooltip');
                 var action = btn.getAttribute('data-onclick');
                 if (action) {
                     // Re-bind onclick as an actual function, not just an attribute

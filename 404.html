@@ -779,12 +779,12 @@
                             </div>
                             <!-- Apps grid -->
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                <button onclick="enterNachoMode()" title="Chat with our AI Bitcoin tutor" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🦌 Nacho Mode</button>
-                                <button onclick="if(typeof enterPVPMode==='function')enterPVPMode()" title="1v1 Bitcoin trivia battles" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">⚔️ PVP Battle</button>
-                                <button onclick="go('forum')" title="Forum" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🗣️ Pleb Talk</button>
-                                <button onclick="go('marketplace')" title="Marketplace" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">⚡ Lightning Mart</button>
-                                <button onclick="go('irl-sync')" title="Find local Bitcoin meetups" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🤝 IRL Sync</button>
-                                <button onclick="go('bitcoin-beats')" title="Community music player" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🎵 Bitcoin Beats</button>
+                                <button onclick="enterNachoMode()" title="Chat with our AI Bitcoin tutor" data-tooltip="Chat with our AI Bitcoin tutor" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🦌 Nacho Mode</button>
+                                <button onclick="if(typeof enterPVPMode==='function')enterPVPMode()" title="1v1 Bitcoin trivia battles" data-tooltip="1v1 Bitcoin trivia battles" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">⚔️ PVP Battle</button>
+                                <button onclick="go('forum')" title="Forum" data-tooltip="Forum" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🗣️ Pleb Talk</button>
+                                <button onclick="go('marketplace')" title="Marketplace" data-tooltip="Marketplace" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">⚡ Lightning Mart</button>
+                                <button onclick="go('irl-sync')" title="Find local Bitcoin meetups" data-tooltip="Find local Bitcoin meetups" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🤝 IRL Sync</button>
+                                <button onclick="go('bitcoin-beats')" title="Community music player" data-tooltip="Community music player" style="padding:12px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">🎵 Bitcoin Beats</button>
                             </div>
                         </div>
 
@@ -906,7 +906,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script>
-    <script src="bundle.js?v=20260306e" defer></script>
+    <script src="bundle.js?v=20260306f" defer></script>
     <script src="pvp.js?v=20260306a" defer></script>
     <script src="irl-sync.js?v=20260306a" defer></script>
     <script src="nacho-closet.js?v=20260306a" defer></script>
