@@ -7412,24 +7412,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var menu = document.getElementById('appsMenu');
         if (!menu) {
             var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:400px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);max-height:70vh;overflow-y:auto;">' +
-                // Learn section
-                '<div style="margin-bottom:12px;">' +
-                    '<button onclick="event.stopPropagation();var s=document.getElementById(\'appsLearnSub\');s.style.display=s.style.display===\'none\'?\'flex\':\'none\'" style="width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:12px;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;">🎓 Learn ▼</button>' +
-                    '<div id="appsLearnSub" style="display:none;flex-direction:column;gap:6px;padding:8px 0 0 10px;border-left:2px solid var(--accent);margin:8px 0 0 10px;">' +
-                        '<button onclick="startQuestManual();toggleAppsMenu()" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">⚡ Start a Quest</button>' +
-                        '<button onclick="startScholarQuest(\'properties\');toggleAppsMenu()" style="padding:8px 12px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">🎓 Properties Certification</button>' +
-                        '<button onclick="startScholarQuest(\'technical\');toggleAppsMenu()" style="padding:8px 12px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">🛠️ Technical Certification</button>' +
-                        '<button onclick="event.stopPropagation();var f=document.getElementById(\'appsFlashSub\');f.style.display=f.style.display===\'none\'?\'flex\':\'none\'" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">📚 Flashcards ▶</button>' +
-                        '<div id="appsFlashSub" style="display:none;flex-wrap:wrap;gap:5px;padding:6px;">' +
-                            '<button onclick="startFlashcards(\'Bitcoin Basics\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">₿ Basics</button>' +
-                            '<button onclick="startFlashcards(\'Security & Storage\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">🔑 Security</button>' +
-                            '<button onclick="startFlashcards(\'Lightning Network\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">⚡ Lightning</button>' +
-                            '<button onclick="startFlashcards(\'Mining & Energy\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">⛏️ Mining</button>' +
-                            '<button onclick="startFlashcards(\'Economics & Money\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">💰 Economics</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:8px;text-align:center;">Apps</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:8px;text-align:center;">Explore Apps</div>' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
                     _appBtn('🦌', 'Nacho Mode', 'Chat with our AI Bitcoin tutor', 'enterNachoMode()') +
                     _appBtn('⚔️', 'PVP Battle', '1v1 Bitcoin trivia battles', "if(typeof enterPVPMode==='function')enterPVPMode()") +
@@ -7447,6 +7430,59 @@ window.nachoQuizAnswer = function(btn, correct) {
                 }
             });
         }
+        // Close learn menu if open
+        var learnMenu = document.getElementById('learnMenu');
+        if (learnMenu) learnMenu.style.display = 'none';
+        var isOpen = (menu.style.display === 'block');
+        menu.style.display = isOpen ? 'none' : 'block';
+        if (!isOpen && typeof playSound === 'function') playSound('pop');
+    };
+
+    // Learn menu (mobile bottom nav)
+    window.toggleLearnMenu = function(e) {
+        if (e) e.stopPropagation();
+        var menu = document.getElementById('learnMenu');
+        if (!menu) {
+            var html = '<div id="learnMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">🎓 Learn</div>' +
+                '<div style="display:flex;flex-direction:column;gap:8px;">' +
+                    '<button onclick="document.getElementById(\'learnNewbieMsg\').style.display=\'block\';this.style.display=\'none\'" style="padding:10px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;">🟢 New to Bitcoin?</button>' +
+                    '<div id="learnNewbieMsg" style="display:none;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;line-height:1.4;">Start with <a href=\'#one-stop-shop\' onclick=\'go(\"one-stop-shop\");toggleLearnMenu();return false;\' style=\'color:var(--accent);font-weight:700;text-decoration:underline;\'>one-stop-shop</a> — it covers the highlights!</div>' +
+                    '<button onclick="event.stopPropagation();var f=document.getElementById(\'learnFlashSub\');f.style.display=f.style.display===\'none\'?\'flex\':\'none\'" style="padding:10px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;">📚 Flashcards ▶</button>' +
+                    '<div id="learnFlashSub" style="display:none;flex-wrap:wrap;gap:6px;padding:8px;">' +
+                        '<button onclick="startFlashcards(\'Bitcoin Basics\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>' +
+                        '<button onclick="startFlashcards(\'Security & Storage\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>' +
+                        '<button onclick="startFlashcards(\'Lightning Network\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>' +
+                        '<button onclick="startFlashcards(\'Mining & Energy\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>' +
+                        '<button onclick="startFlashcards(\'Economics & Money\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>' +
+                        '<div id="learnMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;margin-top:4px;">' +
+                            '<button onclick="startFlashcards(\'Privacy & Sovereignty\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>' +
+                            '<button onclick="startFlashcards(\'Nodes & P2P\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📡 Nodes</button>' +
+                            '<button onclick="startFlashcards(\'Wallets & Tools\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💼 Wallets</button>' +
+                            '<button onclick="startFlashcards(\'History & Culture\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>' +
+                            '<button onclick="startFlashcards(\'Common Myths\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>' +
+                            '<button onclick="startFlashcards(\'Technical Deep Dives\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔬 Tech</button>' +
+                            '<button onclick="startFlashcards(\'Satoshi Nakamoto\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🦸 Satoshi</button>' +
+                            '<button onclick="startFlashcards(\'Global Impact\');toggleLearnMenu()" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🌍 Global</button>' +
+                        '</div>' +
+                        '<button onclick="var m=document.getElementById(\'learnMoreFlash\');m.style.display=m.style.display===\'none\'?\'flex\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ More Topics\':\'▲ Less\'" style="width:100%;margin-top:6px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:700;">▼ More Topics</button>' +
+                    '</div>' +
+                    '<button onclick="startQuestManual();toggleLearnMenu()" style="padding:10px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;">⚡ Start a Quest</button>' +
+                    '<button onclick="startScholarQuest(\'properties\');toggleLearnMenu()" style="padding:10px 14px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;">🎓 Properties Certification</button>' +
+                    '<button onclick="startScholarQuest(\'technical\');toggleLearnMenu()" style="padding:10px 14px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;">🛠️ Technical Certification</button>' +
+                '</div>' +
+            '</div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+            menu = document.getElementById('learnMenu');
+            document.addEventListener('click', function(clickEv) {
+                if (menu.style.display === 'block' && !menu.contains(clickEv.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+        }
+        // Close apps menu if open
+        var appsMenu = document.getElementById('appsMenu');
+        if (appsMenu) appsMenu.style.display = 'none';
         var isOpen = (menu.style.display === 'block');
         menu.style.display = isOpen ? 'none' : 'block';
         if (!isOpen && typeof playSound === 'function') playSound('pop');
@@ -15038,8 +15074,8 @@ function initBottomNav() {
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
-            '<button onclick="document.getElementById(\'searchOverlay\').style.display=\'flex\';document.getElementById(\'searchOverlayInput\').focus();" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
             '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
+            '<button onclick="window.toggleLearnMenu(event)" class="bnav-btn" id="bnavLearn"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
         '</div>';
