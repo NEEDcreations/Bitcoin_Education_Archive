@@ -7399,37 +7399,44 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);
     });
 
+    function _appBtn(icon, name, desc, onclick) {
+        return '<button onclick="' + onclick + ';toggleAppsMenu()" title="' + desc + '" style="padding:12px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:0.2s;text-align:center;" class="app-menu-item">' +
+            '<span style="font-size:1.5rem;">' + icon + '</span>' +
+            '<span>' + name + '</span>' +
+            '<span style="font-size:0.6rem;color:var(--text-faint);font-weight:400;line-height:1.3;">' + desc + '</span>' +
+        '</button>';
+    }
+
     window.toggleAppsMenu = function(e) {
         if (e) e.stopPropagation();
         var menu = document.getElementById('appsMenu');
         if (!menu) {
-            var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
-                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                    '<button onclick="enterNachoMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🦌</span>' +
-                        '<span>Nacho Mode</span>' +
-                    '</button>' +
-                    '<button onclick="if(typeof enterPVPMode===\'function\')enterPVPMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">⚔️</span>' +
-                        '<span>PVP Battle</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'forum\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🗣️</span>' +
-                        '<span>Pleb Talk</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'marketplace\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">⚡</span>' +
-                        '<span>Lightning Mart</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'irl-sync\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🤝</span>' +
-                        '<span>IRL Sync</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'bitcoin-beats\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🎵</span>' +
-                        '<span>Bitcoin Beats</span>' +
-                    '</button>' +
+            var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:400px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);max-height:70vh;overflow-y:auto;">' +
+                // Learn section
+                '<div style="margin-bottom:12px;">' +
+                    '<button onclick="event.stopPropagation();var s=document.getElementById(\'appsLearnSub\');s.style.display=s.style.display===\'none\'?\'flex\':\'none\'" style="width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:12px;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;">🎓 Learn ▼</button>' +
+                    '<div id="appsLearnSub" style="display:none;flex-direction:column;gap:6px;padding:8px 0 0 10px;border-left:2px solid var(--accent);margin:8px 0 0 10px;">' +
+                        '<button onclick="startQuestManual();toggleAppsMenu()" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">⚡ Start a Quest</button>' +
+                        '<button onclick="startScholarQuest(\'properties\');toggleAppsMenu()" style="padding:8px 12px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">🎓 Properties Certification</button>' +
+                        '<button onclick="startScholarQuest(\'technical\');toggleAppsMenu()" style="padding:8px 12px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">🛠️ Technical Certification</button>' +
+                        '<button onclick="event.stopPropagation();var f=document.getElementById(\'appsFlashSub\');f.style.display=f.style.display===\'none\'?\'flex\':\'none\'" style="padding:8px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.78rem;text-align:left;">📚 Flashcards ▶</button>' +
+                        '<div id="appsFlashSub" style="display:none;flex-wrap:wrap;gap:5px;padding:6px;">' +
+                            '<button onclick="startFlashcards(\'Bitcoin Basics\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">₿ Basics</button>' +
+                            '<button onclick="startFlashcards(\'Security & Storage\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">🔑 Security</button>' +
+                            '<button onclick="startFlashcards(\'Lightning Network\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">⚡ Lightning</button>' +
+                            '<button onclick="startFlashcards(\'Mining & Energy\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">⛏️ Mining</button>' +
+                            '<button onclick="startFlashcards(\'Economics & Money\');toggleAppsMenu()" class="flash-btn" style="font-size:0.7rem;padding:5px 8px;">💰 Economics</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:8px;text-align:center;">Apps</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+                    _appBtn('🦌', 'Nacho Mode', 'Chat with our AI Bitcoin tutor', 'enterNachoMode()') +
+                    _appBtn('⚔️', 'PVP Battle', '1v1 Bitcoin trivia battles', "if(typeof enterPVPMode==='function')enterPVPMode()") +
+                    _appBtn('🗣️', 'Pleb Talk', 'Community forum for Bitcoiners', "go('forum')") +
+                    _appBtn('⚡', 'Lightning Mart', 'Buy & sell with Lightning', "go('marketplace')") +
+                    _appBtn('🤝', 'IRL Sync', 'Find local Bitcoin meetups', "go('irl-sync')") +
+                    _appBtn('🎵', 'Bitcoin Beats', 'Community music player', "go('bitcoin-beats')") +
                 '</div>' +
             '</div>';
             document.body.insertAdjacentHTML('beforeend', html);
