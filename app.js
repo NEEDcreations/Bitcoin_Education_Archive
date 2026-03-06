@@ -2582,8 +2582,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         // Show continue reading
         showContinueReading();
-        // Refresh exploration map to reflect newly visited channels
+        // Refresh exploration map and daily quote
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
+        if (typeof renderDailyQuote === 'function') renderDailyQuote();
     }
 
     function showContinueReading() {
@@ -3739,6 +3740,12 @@ window.nachoQuizAnswer = function(btn, correct) {
             el.onclick = () => go(dailyKey);
         }
     })();
+
+    // Daily Bitcoin quote
+    if (typeof renderDailyQuote === 'function') renderDailyQuote();
+
+    // Exploration map (initial render)
+    if (typeof renderExplorationMap === 'function') renderExplorationMap();
 
     // Reading progress bar + back to top
     document.getElementById('main').addEventListener('scroll', function() {
