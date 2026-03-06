@@ -16,6 +16,10 @@ var MSG_CONFIG = {
     maxMsgsPerHour: 30,                 // Rate limit
     maxConvoHistory: 100,               // Max messages loaded per conversation
     unreadPollInterval: 30 * 1000,      // Check unread every 30s
+    maxNewConvosPerDay: 5,              // Max NEW unique recipients per day (anti-blast)
+    newAccountCooldownMs: 24 * 60 * 60 * 1000, // 24h before new accounts can DM
+    minPointsToDM: 50,                  // Minimum points to unlock DMs (prevents zero-effort accounts)
+    duplicateWindowMs: 5000,            // Block identical messages within 5s
 };
 
 // ---- SECURITY & SAFETY ----
@@ -48,6 +52,18 @@ var BLOCKED_CONTENT = [
     /(?:child|minor|underage).*(?:porn|nude|nsfw)/i,
     /(?:kill|murder|attack|bomb|shoot).*(?:yourself|someone|them|people|school)/i,
     /\b(?:doxx|doxing|swat)\b/i,
+];
+
+// PII solicitation patterns (asking for or sharing personal info)
+var PII_PATTERNS = [
+    // Asking for personal info
+    /(?:what(?:'s| is)|send|share|give|tell)\s*(?:me\s+)?(?:your|ur)\s*(?:phone|number|address|email|ssn|social|zip|location|real name|full name|home|where.*live)/i,
+    /(?:what(?:'s| is)|send|share|give|tell)\s*(?:me\s+)?(?:your|ur)\s*(?:id|passport|driver.?s?\s*license|bank|routing|account\s*number|credit\s*card|debit\s*card)/i,
+    /(?:dm|message|text|call|contact)\s*(?:me\s+)?(?:on|at|@)\s*(?:whatsapp|telegram|signal|insta|instagram|snap|snapchat|facebook|messenger|wechat|line)\b/i,
+    // Sharing patterns (someone posting their own PII)
+    /(?:my|here(?:'s| is))\s*(?:phone|number|cell|whatsapp|telegram|signal)\s*(?:is|:|\s)\s*[\+\d\(\)\-\s]{7,}/i,
+    /(?:my|here(?:'s| is))\s*(?:email|e-mail)\s*(?:is|:|\s)\s*\S+@\S+\.\S+/i,
+    /(?:my|here(?:'s| is))\s*(?:address|location)\s*(?:is|:)/i,
 ];
 
 // "Friends in distress" scam warning popup
@@ -120,6 +136,84 @@ function sanitizeMessage(text) {
     // Enforce max length
     if (text.length > MSG_CONFIG.maxMsgLength) text = text.substring(0, MSG_CONFIG.maxMsgLength);
     return text;
+}
+
+// ---- PII DETECTION ----
+function containsPII(text) {
+    for (var i = 0; i < PII_PATTERNS.length; i++) {
+        if (PII_PATTERNS[i].test(text)) return true;
+    }
+    return false;
+}
+
+// ---- ANTI-BLAST: Track unique recipients per day ----
+function _getDailyConvoLog() {
+    try {
+        var raw = localStorage.getItem('btc_dm_daily_log');
+        if (!raw) return { date: '', recipients: [] };
+        var log = JSON.parse(raw);
+        // Reset if it's a new day
+        var today = new Date().toISOString().slice(0, 10);
+        if (log.date !== today) return { date: today, recipients: [] };
+        return log;
+    } catch(e) { return { date: new Date().toISOString().slice(0, 10), recipients: [] }; }
+}
+
+function _logNewConvo(recipientUid) {
+    var log = _getDailyConvoLog();
+    log.date = new Date().toISOString().slice(0, 10);
+    if (log.recipients.indexOf(recipientUid) === -1) {
+        log.recipients.push(recipientUid);
+    }
+    localStorage.setItem('btc_dm_daily_log', JSON.stringify(log));
+}
+
+function _canStartNewConvo(recipientUid) {
+    var log = _getDailyConvoLog();
+    // Already talked to this person today — always allow
+    if (log.recipients.indexOf(recipientUid) !== -1) return true;
+    // Check if under the daily limit for NEW recipients
+    return log.recipients.length < MSG_CONFIG.maxNewConvosPerDay;
+}
+
+// ---- ACCOUNT AGE & POINTS CHECK ----
+function _canAccountDM() {
+    if (!auth || !auth.currentUser) return { ok: false, reason: 'Sign in to send messages' };
+    if (auth.currentUser.isAnonymous) return { ok: false, reason: 'Sign in with an account to send messages' };
+
+    // Check points requirement
+    var pts = 0;
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.points) {
+        pts = currentUser.points;
+    }
+    if (pts < MSG_CONFIG.minPointsToDM) {
+        return { ok: false, reason: '🔒 Earn at least ' + MSG_CONFIG.minPointsToDM + ' points to unlock DMs. Explore the site, read channels, and learn!' };
+    }
+
+    // Check account age (using Firebase metadata)
+    var meta = auth.currentUser.metadata;
+    if (meta && meta.creationTime) {
+        var created = new Date(meta.creationTime).getTime();
+        var age = Date.now() - created;
+        if (age < MSG_CONFIG.newAccountCooldownMs) {
+            var hoursLeft = Math.ceil((MSG_CONFIG.newAccountCooldownMs - age) / 3600000);
+            return { ok: false, reason: '🕐 New accounts can send DMs after 24 hours. ' + hoursLeft + 'h remaining. Explore the site in the meantime!' };
+        }
+    }
+
+    return { ok: true };
+}
+
+// ---- DUPLICATE MESSAGE DETECTION ----
+var _lastSentMsg = { text: '', time: 0 };
+
+function _isDuplicateMessage(text) {
+    var now = Date.now();
+    if (text === _lastSentMsg.text && (now - _lastSentMsg.time) < MSG_CONFIG.duplicateWindowMs) {
+        return true;
+    }
+    _lastSentMsg = { text: text, time: now };
+    return false;
 }
 
 // ---- BLOCK/UNBLOCK USERS ----
@@ -343,6 +437,7 @@ window.showUserProfile = function(uid) {
         }
 
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
+        var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
 
         var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;">' +
@@ -375,11 +470,13 @@ window.showUserProfile = function(uid) {
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
             // Message button
-            (canMessage ?
+            (canMessage && dmEligibility.ok ?
                 '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
+                : (canMessage && !dmEligibility.ok ?
+                    '<div style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;color:var(--text-muted);text-align:center;">' + escapeHtml(dmEligibility.reason) + '</div>'
                 : (!auth || !auth.currentUser || auth.currentUser.isAnonymous ?
                     '<button onclick="document.getElementById(\'userProfileModal\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:12px;font-size:0.9rem;cursor:pointer;font-family:inherit;">🔒 Sign in to message</button>'
-                    : '')) +
+                    : ''))) +
             // Block & Report buttons
             (canMessage ?
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
@@ -439,9 +536,22 @@ window.openDM = function(recipientUid, recipientName) {
         return;
     }
 
+    // Account eligibility check (age + points)
+    var eligibility = _canAccountDM();
+    if (!eligibility.ok) {
+        if (typeof showToast === 'function') showToast(eligibility.reason);
+        return;
+    }
+
     // Block check
     if (isUserBlocked(recipientUid)) {
         if (typeof showToast === 'function') showToast('🚫 This user is blocked. Unblock them to message.');
+        return;
+    }
+
+    // Anti-blast: check daily new conversation limit
+    if (!_canStartNewConvo(recipientUid)) {
+        if (typeof showToast === 'function') showToast('⏳ You can only message ' + MSG_CONFIG.maxNewConvosPerDay + ' new people per day. This helps keep the community safe.');
         return;
     }
 
@@ -555,9 +665,11 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 // Scam warning on incoming messages
                 var scamWarn = (!isMe && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
                     '<div style="font-size:0.65rem;color:#ef4444;margin-top:4px;padding:3px 6px;background:rgba(239,68,68,0.1);border-radius:4px;">⚠️ This message may contain a scam. Never send money to strangers.</div>' : '';
+                var piiWarn = (!isMe && containsPII(m.text)) ?
+                    '<div style="font-size:0.65rem;color:#eab308;margin-top:4px;padding:3px 6px;background:rgba(234,179,8,0.1);border-radius:4px;">⚠️ This person is asking for personal info. Only share details for Lightning Mart transactions.</div>' : '';
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:80%;padding:10px 14px;border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + (isMe ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isMe ? '#fff' : 'var(--text)') + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
-                        escapeHtml(m.text) + scamWarn +
+                        escapeHtml(m.text) + scamWarn + piiWarn +
                         '<div style="font-size:0.6rem;color:' + (isMe ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
                     '</div></div>';
             });
@@ -586,6 +698,12 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         return;
     }
 
+    // Duplicate message detection (rapid-fire same message)
+    if (_isDuplicateMessage(text)) {
+        if (typeof showToast === 'function') showToast('⏳ Message already sent');
+        return;
+    }
+
     // Block check
     if (isUserBlocked(recipientUid)) {
         if (typeof showToast === 'function') showToast('🚫 You have blocked this user');
@@ -596,6 +714,12 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     if (containsBlockedContent(text)) {
         if (typeof showToast === 'function') showToast('⛔ Message contains prohibited content');
         return;
+    }
+
+    // PII detection — warn about personal info sharing/requesting
+    if (containsPII(text)) {
+        var piiOk = confirm('⚠️ This message appears to contain or request personal information (phone numbers, addresses, emails, etc.).\n\nSharing personal info with strangers is risky. Only share contact details for Lightning Mart transactions.\n\nSend anyway?');
+        if (!piiOk) return;
     }
 
     // [AUDIT FIX] Scam detection — require confirmation before sending
@@ -622,6 +746,9 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
 
     inp.value = '';
     _msgSentTimestamps.push(Date.now());
+
+    // Log this recipient for daily anti-blast tracking
+    _logNewConvo(recipientUid);
 
     // Ensure conversation document exists
     var convoRef = db.collection('dm_conversations').doc(convoId);

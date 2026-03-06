@@ -181,7 +181,8 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
-                    && request.auth.uid in request.resource.data.participants;
+                    && request.auth.uid in request.resource.data.participants
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
       allow update: if request.auth != null
                     && request.auth.uid in resource.data.participants;
 
@@ -189,8 +190,13 @@ service cloud.firestore {
         // [AUDIT FIX] Only conversation participants can read messages
         allow read: if request.auth != null
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+        // Server-side enforcement: sender must be auth'd, non-anonymous, message must have text ≤ 500 chars
         allow create: if request.auth != null
-                      && request.resource.data.senderUid == request.auth.uid;
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.resource.data.senderUid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() >= 1
+                      && request.resource.data.text.size() <= 500;
       }
     }
 
