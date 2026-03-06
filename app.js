@@ -3836,6 +3836,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         renderFavs();
         showContinueReading();
 
+        // Check if user's price prediction resolved
+        if (typeof checkPredictionResult === 'function') {
+            setTimeout(checkPredictionResult, 4000);
+        }
+
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
         // This prevents iOS swipe-back from exiting the app

@@ -21476,12 +21476,14 @@ window.showPricePrediction = function() {
         var diff = currentPrice - saved.price;
         var pct = ((diff / saved.price) * 100).toFixed(2);
         var correct = (saved.direction === 'up' && diff > 0) || (saved.direction === 'down' && diff < 0);
+        var streak = parseInt(localStorage.getItem('btc_predict_streak') || '0');
         card.innerHTML = '<span style="font-size:2.5rem;">' + (correct ? '🎉' : '😅') + '</span>' +
             '<h2 style="color:#f7931a;margin:12px 0 8px;">Your Prediction</h2>' +
             '<p>You predicted <b style="color:' + (saved.direction === 'up' ? '#22c55e' : '#ef4444') + '">' + (saved.direction === 'up' ? '📈 UP' : '📉 DOWN') + '</b></p>' +
             '<p>Price when predicted: <b>$' + Math.round(saved.price).toLocaleString() + '</b></p>' +
             '<p>Current price: <b>$' + Math.round(currentPrice).toLocaleString() + '</b> (' + (diff >= 0 ? '+' : '') + pct + '%)</p>' +
-            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT!' : '❌ Not this time!') + '</p>' +
+            '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 points' : '❌ Not this time!') + '</p>' +
+            (correct && streak >= 2 ? '<p style="font-size:0.9rem;color:#f7931a;">🔥 ' + streak + ' correct in a row!</p>' : '') +
             '<div style="margin-top:16px;font-size:0.8rem;color:var(--text-muted,#94a3b8);">Come back tomorrow for a new prediction!</div>' +
             '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:12px;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;">Close</button>';
     } else {
@@ -21503,10 +21505,51 @@ window.showPricePrediction = function() {
 
 window._savePrediction = function(direction) {
     var price = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-    localStorage.setItem('btc_price_prediction', JSON.stringify({ direction: direction, price: price, time: Date.now() }));
+    localStorage.setItem('btc_price_prediction', JSON.stringify({ direction: direction, price: price, time: Date.now(), resolved: false }));
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
-    // Award points
+    // Award points for making a prediction
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
+};
+
+// ---- Check prediction result on login/load ----
+window.checkPredictionResult = function() {
+    var saved = safeJSON('btc_price_prediction', null);
+    if (!saved || saved.resolved) return;
+    // Only check if at least 12 hours have passed (give the market time to move)
+    if (Date.now() - saved.time < 12 * 60 * 60 * 1000) return;
+    var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+    if (!currentPrice || !saved.price) return;
+
+    var diff = currentPrice - saved.price;
+    var pct = ((diff / saved.price) * 100).toFixed(2);
+    var correct = (saved.direction === 'up' && diff > 0) || (saved.direction === 'down' && diff < 0);
+
+    // Mark as resolved so we don't check again
+    saved.resolved = true;
+    saved.result = correct ? 'correct' : 'wrong';
+    saved.finalPrice = currentPrice;
+    localStorage.setItem('btc_price_prediction', JSON.stringify(saved));
+
+    // Award bonus points for correct prediction
+    if (correct) {
+        if (typeof awardPoints === 'function') awardPoints(25, '🎯 Correct price prediction!');
+        // Track streak
+        var streak = parseInt(localStorage.getItem('btc_predict_streak') || '0') + 1;
+        localStorage.setItem('btc_predict_streak', streak.toString());
+        setTimeout(function() {
+            if (typeof showToast === 'function') {
+                showToast('🎉 Your prediction was RIGHT! Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '% — +25 points!' + (streak >= 3 ? ' 🔥 ' + streak + ' correct in a row!' : ''));
+            }
+        }, 2000);
+    } else {
+        // Reset streak
+        localStorage.setItem('btc_predict_streak', '0');
+        setTimeout(function() {
+            if (typeof showToast === 'function') {
+                showToast('📉 Your prediction was wrong — Bitcoin went ' + (diff > 0 ? 'UP' : 'DOWN') + ' ' + (diff > 0 ? '+' : '') + pct + '%. Try again tomorrow!');
+            }
+        }, 2000);
+    }
 };
 
 // ---- EXPLORATION MAP ----
@@ -26259,6 +26302,11 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         renderFavs();
         showContinueReading();
+
+        // Check if user's price prediction resolved
+        if (typeof checkPredictionResult === 'function') {
+            setTimeout(checkPredictionResult, 4000);
+        }
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
