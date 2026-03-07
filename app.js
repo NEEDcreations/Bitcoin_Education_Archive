@@ -870,7 +870,7 @@
             btn.style.background = 'var(--accent)';
             btn.style.color = '#fff';
             btn.style.borderColor = 'var(--accent)';
-            btn.innerHTML = 'info.603btc.com@gmail.com <span style="font-size:0.7rem;opacity:0.8;margin-left:4px;">tap to copy</span>';
+            btn.innerHTML = 'info.603btc@gmail.com <span style="font-size:0.7rem;opacity:0.8;margin-left:4px;">tap to copy</span>';
             setTimeout(function() {
                 btn.style.background = 'var(--card-bg)';
                 btn.style.color = 'var(--text)';
@@ -878,15 +878,15 @@
             }, 400);
         } else {
             // Second click: copy email and open mailto
-            navigator.clipboard.writeText('info.603btc.com@gmail.com').then(function() {
+            navigator.clipboard.writeText('info.603btc@gmail.com').then(function() {
                 btn.innerHTML = '✅ Copied!';
                 btn.style.color = '#22c55e';
                 setTimeout(function() {
-                    btn.innerHTML = 'info.603btc.com@gmail.com <span style="font-size:0.7rem;opacity:0.8;margin-left:4px;">tap to copy</span>';
+                    btn.innerHTML = 'info.603btc@gmail.com <span style="font-size:0.7rem;opacity:0.8;margin-left:4px;">tap to copy</span>';
                     btn.style.color = 'var(--text)';
                 }, 1500);
             }).catch(function() {});
-            window.location.href = 'mailto:info.603btc.com@gmail.com?subject=Support%20-%20Bitcoin%20Education%20Archive';
+            window.location.href = 'mailto:info.603btc@gmail.com?subject=Support%20-%20Bitcoin%20Education%20Archive';
         }
     }
 

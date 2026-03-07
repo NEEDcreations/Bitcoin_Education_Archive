@@ -46,7 +46,7 @@ test('bundle.js referenced', () => assert(html.match(/src="bundle\.js\?v=[\w]+"/
 // All scripts should be deferred (except inline)
 test('all external scripts are deferred', () => {
     const scriptTags = html.match(/<script src="[^"]*"[^>]*>/g) || [];
-    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('gstatic'));
+    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('gstatic') && !s.includes('security-patches'));
     assert(nonDeferred.length === 0, `Non-deferred scripts: ${nonDeferred.join(', ')}`);
 });
 

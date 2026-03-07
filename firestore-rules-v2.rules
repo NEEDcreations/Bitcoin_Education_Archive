@@ -1,0 +1,325 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =============================================
+    // USERS COLLECTION
+    // =============================================
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && (!('points' in request.resource.data) 
+                        || request.resource.data.points <= resource.data.points + 2200
+                        || request.resource.data.points is int);
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
+
+    // =============================================
+    // VISITS COLLECTION
+    // =============================================
+    match /visits/{visitorId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
+                    && request.resource.data.lastVisit is string
+                    && request.resource.data.lastVisit.size() == 10;
+      allow update: if request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
+                    && request.resource.data.lastVisit is string
+                    && request.resource.data.lastVisit.size() == 10
+                    && request.resource.data.lastVisit != resource.data.lastVisit;
+    }
+
+    // =============================================
+    // STATS COLLECTION
+    // [AUDIT FIX S6] nacho-analytics now requires auth
+    // =============================================
+    match /stats/{statId} {
+      allow read: if true;
+      allow update: if statId == 'visits'
+                    && request.resource.data.total == resource.data.total + 1;
+      allow create: if statId == 'visits'
+                    && request.resource.data.total == 1;
+      // [AUDIT FIX] Require auth for analytics writes
+      allow create, update: if statId == 'nacho-analytics'
+                            && request.auth != null;
+    }
+
+    // =============================================
+    // SUGGESTIONS COLLECTION
+    // =============================================
+    match /suggestions/{suggestionId} {
+      allow read: if false;
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAny(['text', 'suggestion'])
+                    && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
+                       || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000));
+    }
+
+    // =============================================
+    // REFERRALS COLLECTION
+    // =============================================
+    match /referrals/{referralId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == referralId;
+      allow update: if request.auth != null
+                    && (request.auth.uid == referralId
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // GIVEAWAY ENTRIES
+    // =============================================
+    match /giveaway_entries/{entryId} {
+      allow read: if false;
+      allow create: if request.auth != null
+                    && (request.auth.uid == entryId 
+                        || request.resource.data.uid == request.auth.uid);
+      allow update: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // =============================================
+    // PUSH TOKENS
+    // =============================================
+    match /push_tokens/{tokenId} {
+      allow read: if false;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == tokenId;
+    }
+
+    // =============================================
+    // TOTP SECRETS (Cloud Functions only)
+    // =============================================
+    match /totp_pending/{userId} {
+      allow read, write: if false;
+    }
+    match /totp_secrets/{userId} {
+      allow read, write: if false;
+    }
+
+    // =============================================
+    // FORUM POSTS
+    // [AUDIT FIX S5] Upvote tracking with voter deduplication
+    // =============================================
+    match /forum_posts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 5
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null
+                    && (
+                      // Upvote: only if user hasn't voted yet
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount'])
+                       && (!(request.auth.uid in resource.data.get('voters', [])))
+                      )
+                      || resource.data.authorId == request.auth.uid
+                      || request.auth.token.email == 'needcreations@gmail.com'
+                    );
+      allow delete: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // FORUM REPLIES
+    // =============================================
+    match /forum_replies/{replyId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
+                    && request.resource.data.body is string
+                    && request.resource.data.body.size() >= 2
+                    && request.resource.data.body.size() <= 1000
+                    && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null
+                    && (
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                      || resource.data.authorId == request.auth.uid
+                      || request.auth.token.email == 'needcreations@gmail.com'
+                    );
+      allow delete: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // MARKETPLACE LISTINGS
+    // =============================================
+    match /marketplace/{listingId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.sellerUid == request.auth.uid;
+      allow update: if request.auth != null
+                    && (resource.data.sellerUid == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+      allow delete: if request.auth != null
+                    && (resource.data.sellerUid == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // MARKETPLACE MESSAGES
+    // =============================================
+    match /marketplace_messages/{msgId} {
+      allow read: if request.auth != null
+                  && (resource.data.buyerUid == request.auth.uid
+                      || resource.data.sellerUid == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.buyerUid == request.auth.uid
+                    && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']);
+    }
+
+    // =============================================
+    // DIRECT MESSAGES
+    // =============================================
+    match /dm_conversations/{convoId} {
+      allow read: if request.auth != null
+                  && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null
+                    && request.auth.uid in request.resource.data.participants
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      allow update: if request.auth != null
+                    && request.auth.uid in resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read: if request.auth != null
+                    && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
+        allow create: if request.auth != null
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.resource.data.senderUid == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() >= 1
+                      && request.resource.data.text.size() <= 500;
+      }
+    }
+
+    // =============================================
+    // REPORTS
+    // =============================================
+    match /reports/{reportId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email == 'needcreations@gmail.com';
+      allow create: if request.auth != null
+                    && request.resource.data.reporterUid == request.auth.uid;
+    }
+
+    // =============================================
+    // IRL EVENTS
+    // =============================================
+    match /irl_events/{eventId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.hostId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['title', 'hostId', 'date'])
+                    && (request.resource.data.keys().hasAny(['location', 'locationName']))
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 3
+                    && request.resource.data.title.size() <= 200;
+      allow update: if request.auth != null
+                    && (resource.data.hostId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com'
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees']));
+      allow delete: if request.auth != null
+                    && (resource.data.hostId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // CHANNEL RATINGS
+    // =============================================
+    match /channel_ratings/{ratingId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+    }
+
+    // =============================================
+    // PVP LOBBY
+    // [AUDIT FIX S3] Restrict updates/deletes to document owner
+    // =============================================
+    match /pvp_lobby/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      // [AUDIT FIX] Only lobby owner or opponent can update
+      allow update: if request.auth != null
+                    && (resource.data.uid == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'status']));
+      // [AUDIT FIX] Only lobby owner can delete their entry
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+
+    // =============================================
+    // PVP MATCHES
+    // [AUDIT FIX S4] Validate player1 is the creator
+    // =============================================
+    match /pvp_matches/{matchId} {
+      allow read: if request.auth != null;
+      // [AUDIT FIX] Creator must be player1
+      allow create: if request.auth != null
+                    && request.resource.data.player1.uid == request.auth.uid;
+      allow update: if request.auth != null
+                    && (resource.data.player1.uid == request.auth.uid
+                        || resource.data.player2.uid == request.auth.uid);
+    }
+
+    // =============================================
+    // BITCOIN BEATS — TRACKS
+    // =============================================
+    match /beats_tracks/{trackId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.copyrightConfirmed == true;
+      allow update: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes']));
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.resource.data.authorId == request.auth.uid
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() <= 280;
+        allow delete: if request.auth != null
+                      && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    // =============================================
+    // BITCOIN BEATS — REPORTS
+    // =============================================
+    match /beats_reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if false;
+    }
+
+    // =============================================
+    // LNURL-AUTH CHALLENGES
+    // =============================================
+    match /lnauth_challenges/{k1} {
+      allow read, write: if false;
+    }
+
+    // =============================================
+    // DEFAULT: deny everything else
+    // =============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
