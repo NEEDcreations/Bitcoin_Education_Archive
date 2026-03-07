@@ -520,9 +520,17 @@ window.toggleMobileLearnMenu = function() {
                 '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Lightning Network\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>' +
                 '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Mining & Energy\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>' +
                 '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Economics & Money\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Privacy & Sovereignty\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'History & Culture\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Common Myths\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>' +
+                '<div id="mLearnMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;">' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Privacy & Sovereignty\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Nodes & P2P\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📡 Nodes</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Wallets & Tools\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💼 Wallets</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'History & Culture\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Common Myths\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Technical Deep Dives\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔬 Tech</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Satoshi Nakamoto\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🦸 Satoshi</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Global Impact\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🌍 Global</button>' +
+                '</div>' +
+                '<button onclick="var m=document.getElementById(\'mLearnMoreFlash\');m.style.display=m.style.display===\'none\'?\'flex\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ More Topics\':\'▲ Less\'" style="width:100%;margin-top:4px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:700;font-family:inherit;padding:4px;">▼ More Topics</button>' +
             '</div>' +
             // Quest
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">⚡ Start a Quest</button>' +
