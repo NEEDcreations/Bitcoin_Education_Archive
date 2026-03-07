@@ -68,16 +68,6 @@ function renderSetup() {
             '<div id="wcStatus" style="text-align:center;margin-top:8px;font-size:0.82rem;"></div>' +
         '</div>' +
 
-        // Import
-        '<div style="padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;">' +
-            '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:700;margin:0 0 6px;">Import Existing Wallet</h3>' +
-            '<p style="color:var(--text-muted);font-size:0.82rem;margin:0 0 14px;">Restore from a 12 or 24-word BIP39 seed phrase.</p>' +
-            '<textarea id="wiSeed" placeholder="Enter your seed phrase…" rows="3" style="width:100%;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.92rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>' +
-            '<input type="password" id="wiPwd" placeholder="Set an encryption password…" style="width:100%;padding:11px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.92rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px;">' +
-            '<button onclick="walletImport()" style="width:100%;padding:13px;background:none;color:var(--accent);border:2px solid var(--accent);border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Import Wallet</button>' +
-            '<div id="wiStatus" style="text-align:center;margin-top:8px;font-size:0.82rem;"></div>' +
-        '</div>' +
-
         '<p style="text-align:center;margin-top:14px;color:var(--text-faint);font-size:0.72rem;line-height:1.5;">⚠️ This is an educational wallet. For significant amounts, use a hardware wallet (Coldcard, Trezor, BitKey).</p>' +
     '</div>';
 }
