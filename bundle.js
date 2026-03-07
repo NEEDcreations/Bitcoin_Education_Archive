@@ -427,13 +427,114 @@ window.signInWithFacebook = async function() {
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
 }
 
-// Nostr sign-in — see bundle.js for full implementation
+// Nostr sign-in — full implementation with extension/nsec/npub options
 // (signInWithNostr, nostrSignInWithExtension, nostrSignInWithNsec, nostrSignInWithNpub, nostrCompleteAuth)
 window.signInWithNostr = async function() {
-    // Full implementation in bundle.js — shows modal with extension/nsec/npub options
     if (!checkRateLimit()) return;
-    if (typeof showToast === 'function') showToast('Nostr sign-in loading...');
-}
+    var hasExtension = !!window.nostr;
+    var overlay = document.createElement('div');
+    overlay.id = 'nostrAuthOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #7B2DE4;border-radius:20px;padding:28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+                '<h3 style="color:#7B2DE4;font-weight:800;margin:0;">🟣 Sign in with Nostr</h3>' +
+                '<button onclick="document.getElementById(\'nostrAuthOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>' +
+            '</div>' +
+            (hasExtension ?
+                '<button onclick="nostrSignInWithExtension()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(123,45,228,0.2),rgba(123,45,228,0.05));border:2px solid rgba(123,45,228,0.4);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;gap:12px;text-align:left;"><span style="font-size:1.5rem;">🔌</span><div><div style="color:#7B2DE4;">Use Browser Extension</div><div style="color:var(--text-faint);font-size:0.7rem;font-weight:400;margin-top:2px;">Alby, nos2x, or Nostr Connect detected</div></div></button>'
+            : '<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5rem;opacity:0.4;">🔌</span><div><div style="color:var(--text-faint);">No Extension Detected</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#7B2DE4;">Alby</a> or <a href="https://github.com/nicholasmcconnell/nos2x" target="_blank" rel="noopener" style="color:#7B2DE4;">nos2x</a> for one-click login</div></div></div>') +
+            '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
+            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
+            '<button onclick="nostrSignInWithNsec()" id="nostrNsecBtn" style="width:100%;padding:14px;background:#7B2DE4;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In with nsec</button>' +
+            '<div id="nostrAuthStatus" style="margin-top:8px;font-size:0.8rem;text-align:center;min-height:20px;"></div>' +
+            '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
+            '<div><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your npub (public key only)</label><input type="text" id="nostrNpubInput" placeholder="npub1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"></div>' +
+            '<button onclick="nostrSignInWithNpub()" style="width:100%;margin-top:8px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Link npub</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
+window.nostrSignInWithExtension = async function() {
+    if (!window.nostr) { showToast('Extension not found'); return; }
+    var statusEl = document.getElementById('nostrAuthStatus');
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Requesting key from extension...</span>';
+    try {
+        var pubkey = await window.nostr.getPublicKey();
+        if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Could not get public key</span>'; return; }
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Signing auth event...</span>';
+        var signed = await window.nostr.signEvent({ kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey });
+        if (!signed || !signed.sig) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Signing cancelled</span>'; return; }
+        await nostrCompleteAuth(pubkey, signed.sig, signed);
+    } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + (e.message || 'Unknown') + '</span>'; }
+};
+window.nostrSignInWithNsec = async function() {
+    var nsec = (document.getElementById('nostrNsecInput').value || '').trim();
+    var statusEl = document.getElementById('nostrAuthStatus');
+    var btn = document.getElementById('nostrNsecBtn');
+    if (!nsec) { showToast('Please paste your nsec'); return; }
+    if (!nsec.startsWith('nsec1')) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec format. Must start with nsec1</span>'; return; }
+    btn.disabled = true; btn.textContent = 'Loading crypto library...';
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Loading...</span>';
+    try {
+        if (!window.NostrTools) { await new Promise(function(resolve, reject) { var script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js'; script.onload = resolve; script.onerror = function() { reject(new Error('Failed to load nostr-tools')); }; document.head.appendChild(script); }); }
+        var NT = window.NostrTools;
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Decoding nsec...</span>';
+        btn.textContent = 'Signing...';
+        var decoded = NT.nip19.decode(nsec);
+        if (!decoded || decoded.type !== 'nsec') { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec</span>'; btn.disabled = false; btn.textContent = 'Sign In with nsec'; return; }
+        var privkeyHex = decoded.data;
+        if (typeof privkeyHex !== 'string') { privkeyHex = Array.from(new Uint8Array(privkeyHex)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }
+        var pubkey = NT.getPublicKey(privkeyHex);
+        var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey };
+        event.id = NT.getEventHash(event); event.sig = NT.signEvent(event, privkeyHex);
+        document.getElementById('nostrNsecInput').value = '';
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Verifying signature...</span>';
+        await nostrCompleteAuth(pubkey, event.sig, event);
+    } catch(e) { console.error('Nostr nsec error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>'; btn.disabled = false; btn.textContent = 'Sign In with nsec'; }
+};
+window.nostrSignInWithNpub = async function() {
+    var npub = (document.getElementById('nostrNpubInput').value || '').trim();
+    var statusEl = document.getElementById('nostrAuthStatus');
+    if (!npub) { showToast('Please paste your npub'); return; }
+    var pubkey = npub;
+    if (npub.startsWith('npub1')) {
+        try {
+            if (!window.NostrTools) { await new Promise(function(resolve, reject) { var script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js'; script.onload = resolve; script.onerror = function() { reject(new Error('Failed to load nostr-tools')); }; document.head.appendChild(script); }); }
+            var decoded = window.NostrTools.nip19.decode(npub);
+            if (decoded && decoded.type === 'npub') { pubkey = decoded.data; if (typeof pubkey !== 'string') { pubkey = Array.from(new Uint8Array(pubkey)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); } }
+        } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid npub format</span>'; return; }
+    }
+    if (!/^[a-f0-9]{64}$/.test(pubkey)) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid public key</span>'; return; }
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Linking Nostr identity...</span>';
+    try {
+        if (!auth.currentUser) await auth.signInAnonymously();
+        var uid = auth.currentUser.uid;
+        await db.collection('users').doc(uid).set({ nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        if (currentUser) currentUser.nostr = pubkey;
+        var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
+        showToast('🟣 Nostr identity linked! (npub)');
+    } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Unknown') + '</span>'; }
+};
+window.nostrCompleteAuth = async function(pubkey, sig, event) {
+    var statusEl = document.getElementById('nostrAuthStatus');
+    try {
+        var nostrAuth = firebase.functions().httpsCallable('nostrAuth');
+        var result = await nostrAuth({ pubkey: pubkey, sig: sig, event: event });
+        if (result.data && result.data.token) {
+            await auth.signInWithCustomToken(result.data.token);
+            var uid = result.data.uid;
+            var userDoc = await db.collection('users').doc(uid).get();
+            if (!userDoc.exists || !userDoc.data().username) {
+                var npubShort = 'npub...' + pubkey.substring(0, 8);
+                await db.collection('users').doc(uid).set({ username: npubShort, nostr: pubkey, points: 0, channelsVisited: 0, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0], created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }
+            loadUser(uid); hideUsernamePrompt();
+            var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
+            showToast('🟣 Signed in with Nostr!');
+        } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed — no token received</span>'; }
+    } catch(e) { console.error('Nostr auth error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>'; }
+};
 
 // Apple Sign-In removed
 
