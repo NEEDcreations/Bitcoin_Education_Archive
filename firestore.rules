@@ -6,7 +6,6 @@ service cloud.firestore {
     // USERS COLLECTION
     // =============================================
     match /users/{userId} {
-      // [UX AUDIT] Restrict to authenticated users
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.auth.uid == userId;
@@ -35,6 +34,7 @@ service cloud.firestore {
 
     // =============================================
     // STATS COLLECTION
+    // [AUDIT FIX S6] nacho-analytics now requires auth
     // =============================================
     match /stats/{statId} {
       allow read: if true;
@@ -42,7 +42,9 @@ service cloud.firestore {
                     && request.resource.data.total == resource.data.total + 1;
       allow create: if statId == 'visits'
                     && request.resource.data.total == 1;
-      allow create, update: if statId == 'nacho-analytics';
+      // [AUDIT FIX] Require auth for analytics writes
+      allow create, update: if statId == 'nacho-analytics'
+                            && request.auth != null;
     }
 
     // =============================================
@@ -58,13 +60,11 @@ service cloud.firestore {
 
     // =============================================
     // REFERRALS COLLECTION
-    // [AUDIT FIX] Added admin write for verification
     // =============================================
     match /referrals/{referralId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.auth.uid == referralId;
-      // [AUDIT FIX] Admin can update any referral (for verification payouts)
       allow update: if request.auth != null
                     && (request.auth.uid == referralId
                         || request.auth.token.email == 'needcreations@gmail.com');
@@ -103,6 +103,7 @@ service cloud.firestore {
 
     // =============================================
     // FORUM POSTS
+    // [AUDIT FIX S5] Upvote tracking with voter deduplication
     // =============================================
     match /forum_posts/{postId} {
       allow read: if true;
@@ -114,7 +115,10 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid;
       allow update: if request.auth != null
                     && (
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount']))
+                      // Upvote: only if user hasn't voted yet
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount'])
+                       && (!(request.auth.uid in resource.data.get('voters', [])))
+                      )
                       || resource.data.authorId == request.auth.uid
                       || request.auth.token.email == 'needcreations@gmail.com'
                     );
@@ -162,7 +166,6 @@ service cloud.firestore {
 
     // =============================================
     // MARKETPLACE MESSAGES
-    // [AUDIT FIX] Restricted reads to buyer or seller only
     // =============================================
     match /marketplace_messages/{msgId} {
       allow read: if request.auth != null
@@ -175,7 +178,6 @@ service cloud.firestore {
 
     // =============================================
     // DIRECT MESSAGES
-    // [AUDIT FIX] Messages subcollection now checks participants
     // =============================================
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
@@ -187,10 +189,8 @@ service cloud.firestore {
                     && request.auth.uid in resource.data.participants;
 
       match /messages/{messageId} {
-        // [AUDIT FIX] Only conversation participants can read messages
         allow read: if request.auth != null
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
-        // Server-side enforcement: sender must be auth'd, non-anonymous, message must have text ≤ 500 chars
         allow create: if request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.resource.data.senderUid == request.auth.uid
@@ -212,7 +212,6 @@ service cloud.firestore {
 
     // =============================================
     // IRL EVENTS
-    // [AUDIT FIX] New — was completely missing
     // =============================================
     match /irl_events/{eventId} {
       allow read: if true;
@@ -223,7 +222,6 @@ service cloud.firestore {
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 3
                     && request.resource.data.title.size() <= 200;
-      // Host or admin can update any field; any auth user can RSVP (attendees only)
       allow update: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
                         || request.auth.token.email == 'needcreations@gmail.com'
@@ -235,11 +233,9 @@ service cloud.firestore {
 
     // =============================================
     // CHANNEL RATINGS
-    // [AUDIT FIX] New — was completely missing
     // =============================================
     match /channel_ratings/{ratingId} {
       allow read: if true;
-      // [UX AUDIT] Ownership check on create/update
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
       allow update: if request.auth != null
@@ -248,21 +244,30 @@ service cloud.firestore {
 
     // =============================================
     // PVP LOBBY
+    // [AUDIT FIX S3] Restrict updates/deletes to document owner
     // =============================================
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      // [AUDIT FIX] Only lobby owner or opponent can update
+      allow update: if request.auth != null
+                    && (resource.data.uid == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'status']));
+      // [AUDIT FIX] Only lobby owner can delete their entry
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
     }
 
     // =============================================
     // PVP MATCHES
+    // [AUDIT FIX S4] Validate player1 is the creator
     // =============================================
     match /pvp_matches/{matchId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      // [AUDIT FIX] Creator must be player1
+      allow create: if request.auth != null
+                    && request.resource.data.player1.uid == request.auth.uid;
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid);
@@ -283,7 +288,6 @@ service cloud.firestore {
       allow delete: if request.auth != null
                     && resource.data.authorId == request.auth.uid;
 
-      // Comments subcollection
       match /comments/{commentId} {
         allow read: if true;
         allow create: if request.auth != null
@@ -308,7 +312,7 @@ service cloud.firestore {
     // LNURL-AUTH CHALLENGES
     // =============================================
     match /lnauth_challenges/{k1} {
-      allow read, write: if false;  // Server-only via Cloud Functions
+      allow read, write: if false;
     }
 
     // =============================================
