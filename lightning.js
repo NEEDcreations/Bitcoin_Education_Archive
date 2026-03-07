@@ -344,7 +344,7 @@ window.renderLightning = function() {
     '</div>';
 
     // Link to on-chain wallet
-    h += '<button onclick="go(\'wallet\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;">₿ On-Chain Self-Custody Wallet</button>';
+    // On-chain wallet removed — Lightning only
 
     h += '</div>';
     fc.innerHTML = h;
