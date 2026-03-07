@@ -21831,8 +21831,8 @@ function initBottomNav() {
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
-            '<button onclick="document.getElementById(\'searchOverlay\').style.display=\'flex\';document.getElementById(\'searchOverlayInput\').focus();" class="bnav-btn" id="bnavSearch"><span class="bnav-icon">🔍</span><span class="bnav-label">Search</span></button>' +
             '<button onclick="window.toggleAppsMenu(event)" class="bnav-btn" id="bnavApps"><span class="bnav-icon">🧭</span><span class="bnav-label" style="line-height:1.1;font-size:0.55rem;">Explore<br>Apps</span></button>' +
+            '<button onclick="toggleMobileLearnMenu()" class="bnav-btn" id="bnavLearn" style="position:relative;"><span class="bnav-icon">🎓</span><span class="bnav-label">Learn</span></button>' +
             '<button onclick="if(typeof showInbox===\'function\')showInbox()" class="bnav-btn" id="bnavMsg" style="position:relative;"><span class="bnav-icon">💬</span><span class="bnav-label">DMs</span><span id="bnavMsgBadge" style="display:none;position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;"></span></button>' +
             '<button onclick="if(typeof showSettings===\'function\')showSettings()" class="bnav-btn" id="bnavSettings"><span class="bnav-icon">⚙️</span><span class="bnav-label">Settings</span></button>' +
         '</div>';
@@ -21850,6 +21850,50 @@ function initBottomNav() {
     document.head.appendChild(style);
     document.body.appendChild(nav);
 }
+
+// ---- Mobile Learn Menu ----
+window.toggleMobileLearnMenu = function() {
+    var existing = document.getElementById('mobileLearnMenu');
+    if (existing) { existing.remove(); return; }
+    var appsMenu = document.getElementById('appsMenu');
+    if (appsMenu) appsMenu.remove();
+    var menu = document.createElement('div');
+    menu.id = 'mobileLearnMenu';
+    menu.style.cssText = 'position:fixed;bottom:70px;left:8px;right:8px;z-index:250;max-width:400px;margin:0 auto;background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);animation:fadeSlideIn 0.25s ease-out;';
+    menu.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0;">🎓 Learn</h3><button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button></div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:12px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🟢 New to Bitcoin?</button>' +
+            '<button onclick="toggleMobileFlashcards()" id="mLearnFlashBtn" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">📚 Flashcards ▶</button>' +
+            '<div id="mLearnFlashGrid" style="display:none;flex-wrap:wrap;gap:6px;padding:4px 0 4px 8px;">' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Bitcoin Basics\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Security & Storage\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Lightning Network\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Mining & Energy\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Economics & Money\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Privacy & Sovereignty\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'History & Culture\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Common Myths\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>' +
+            '</div>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">⚡ Start a Quest</button>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startScholarQuest===\'function\')startScholarQuest(\'properties\')" style="padding:12px 14px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">🎓 Properties Certification</button>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startScholarQuest===\'function\')startScholarQuest(\'technical\')" style="padding:12px 14px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">🛠️ Technical Certification</button>' +
+        '</div>';
+    document.body.appendChild(menu);
+    setTimeout(function() {
+        document.addEventListener('click', function closeMLearn(e) {
+            var m = document.getElementById('mobileLearnMenu');
+            if (m && !m.contains(e.target) && !e.target.closest('#bnavLearn')) { m.remove(); document.removeEventListener('click', closeMLearn); }
+        });
+    }, 100);
+};
+window.toggleMobileFlashcards = function() {
+    var grid = document.getElementById('mLearnFlashGrid');
+    var btn = document.getElementById('mLearnFlashBtn');
+    if (!grid) return;
+    if (grid.style.display === 'none') { grid.style.display = 'flex'; if (btn) btn.textContent = '📚 Flashcards ▼'; }
+    else { grid.style.display = 'none'; if (btn) btn.textContent = '📚 Flashcards ▶'; }
+};
 
 // ---- #4: Reading Progress Indicator ----
 function initReadingProgress() {
