@@ -106,6 +106,13 @@
             window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true });
             return false;
         }
+        // Don't show if user arrived via a direct link to an app/channel
+        var hash = window.location.hash.replace('#', '');
+        if (hash && hash.length > 0) {
+            // They came for something specific — skip wizard, set intermediate
+            window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true, directLink: hash });
+            return false;
+        }
 
         _buildWizardUI();
         return true;
