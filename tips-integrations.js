@@ -133,7 +133,12 @@ function injectBeatsTips() {
         tipEl.style.cssText = 'background:none;border:none;font-size:0.82rem;cursor:pointer;padding:4px;color:#eab308;flex-shrink:0;touch-action:manipulation;';
         tipEl.textContent = '⚡';
         tipEl.title = 'Tip artist';
-        tipEl.onclick = function(e) { e.stopPropagation(); };
+        (function(opts) {
+            tipEl.onclick = function(e) {
+                e.stopPropagation();
+                if (typeof showTipOverlay === 'function') showTipOverlay(opts);
+            };
+        })(tipOpts);
 
         if (insertBefore) {
             row.insertBefore(tipEl, insertBefore);
@@ -160,7 +165,7 @@ function injectBeatsTips() {
                 tb.setAttribute('data-tip-action', JSON.stringify(opts));
                 tb.style.cssText = 'padding:14px 18px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:#eab308;';
                 tb.textContent = '⚡ Tip';
-                tb.onclick = function(e) { e.stopPropagation(); };
+                (function(o) { tb.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(opts);
                 actionArea.appendChild(tb);
             }
         }
@@ -226,7 +231,7 @@ function injectMarketplaceTips() {
         payBtn.setAttribute('data-tip-action', JSON.stringify(tipOpts));
         payBtn.style.cssText = 'flex:1;padding:14px;background:rgba(234,179,8,0.1);border:1px solid #eab308;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:#eab308;touch-action:manipulation;';
         payBtn.textContent = '⚡ Pay ' + (price ? (price >= 1000 ? Math.round(price / 1000) + 'K' : price) + ' sats' : 'with Lightning');
-        payBtn.onclick = function(e) { e.stopPropagation(); };
+        (function(o) { payBtn.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(tipOpts);
 
         btn.parentElement.insertBefore(payBtn, btn);
     });
@@ -286,7 +291,7 @@ function injectIRLTips() {
         ticketBtn.setAttribute('data-tip-action', JSON.stringify(tipOpts));
         ticketBtn.style.cssText = 'background:rgba(234,179,8,0.08);color:#eab308;border:1px solid rgba(234,179,8,0.25);padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;margin-left:6px;';
         ticketBtn.textContent = '⚡ Buy Ticket';
-        ticketBtn.onclick = function(e) { e.stopPropagation(); };
+        (function(o) { ticketBtn.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(tipOpts);
 
         btn.parentElement.appendChild(ticketBtn);
     });
@@ -333,9 +338,7 @@ function injectLeaderboardTips() {
         tipEl.style.cssText = 'cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;transition:0.15s;flex-shrink:0;';
         tipEl.textContent = '⚡';
         tipEl.title = 'Tip ' + userName;
-        tipEl.onclick = function(e) {
-            e.stopPropagation();
-        };
+        (function(o) { tipEl.onclick = function(e) { e.stopPropagation(); if (typeof showTipOverlay === 'function') showTipOverlay(o); }; })(tipOpts);
 
         // Insert after the score
         if (scoreEl) {
