@@ -265,9 +265,10 @@ service cloud.firestore {
     // =============================================
     match /pvp_matches/{matchId} {
       allow read: if request.auth != null;
-      // [AUDIT FIX] Creator must be player1
+      // [AUDIT FIX] Creator must be one of the players
       allow create: if request.auth != null
-                    && request.resource.data.player1.uid == request.auth.uid;
+                    && (request.resource.data.player1.uid == request.auth.uid
+                        || request.resource.data.player2.uid == request.auth.uid);
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid);
