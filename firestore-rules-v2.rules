@@ -250,10 +250,10 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid;
-      // [AUDIT FIX] Only lobby owner or opponent can update
+      // [AUDIT FIX] Owner can update anything; opponent can only set match fields
       allow update: if request.auth != null
                     && (resource.data.uid == request.auth.uid
-                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'status']));
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'opponentName', 'opponentProfilePic', 'matchId', 'status']));
       // [AUDIT FIX] Only lobby owner can delete their entry
       allow delete: if request.auth != null
                     && resource.data.uid == request.auth.uid;
