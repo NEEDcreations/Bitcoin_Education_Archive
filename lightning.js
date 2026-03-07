@@ -558,5 +558,10 @@ window.lnPayInvoice = async function() {
     }
 };
 
+// ─── Expose unified payment function for tips ───────────
+window.lnSendPaymentDirect = async function(bolt11) {
+    return lnSendPayment(bolt11);
+};
+
 console.log('[LIGHTNING] Non-custodial WebLN + NWC module loaded');
 })();

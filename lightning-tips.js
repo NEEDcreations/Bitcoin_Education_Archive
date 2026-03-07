@@ -179,13 +179,12 @@ window.executeTip = async function() {
     try {
         // If we have a pre-made invoice, pay it directly
         if (opts.bolt11) {
-            if (method === 'webln' && window.webln) {
-                await window.webln.enable();
-                await window.webln.sendPayment(opts.bolt11);
+            if (method && typeof window.lnSendPaymentDirect === 'function') {
+                await window.lnSendPaymentDirect(opts.bolt11);
                 showTipSuccess(amount, opts);
                 return;
             }
-            // No WebLN — show invoice to copy
+            // No wallet connected — show invoice to copy
             showInvoiceCopy(opts.bolt11, amount, opts);
             return;
         }
@@ -218,9 +217,8 @@ window.executeTip = async function() {
                             var cbResp = await fetch(cbUrl);
                             var cbData = await cbResp.json();
                             if (cbData.pr) {
-                                if (method === 'webln' && window.webln) {
-                                    await window.webln.enable();
-                                    await window.webln.sendPayment(cbData.pr);
+                                if (method && typeof window.lnSendPaymentDirect === 'function') {
+                                    await window.lnSendPaymentDirect(cbData.pr);
                                     showTipSuccess(amount, opts);
                                     return;
                                 }
