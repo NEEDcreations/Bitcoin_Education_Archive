@@ -2537,7 +2537,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (hero) hero.style.display = 'none';
 
         // --- NEW: Beginner Focus Mode (Progressive Disclosure) ---
-        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.displayName || "").toLowerCase().includes("needcreations")) || (_a && (_a.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.email || "") === "needcreations@gmail.com");
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var exploredCount = 0;
         try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
@@ -2957,7 +2957,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Admin Bypass Logic — safely handle auth not being ready yet
         var _auth = (typeof auth !== 'undefined') ? auth : null;
         var _cu = _auth && _auth.currentUser;
-        const isAdmin = (_cu && (_cu.displayName || "").toLowerCase().includes("needcreations")) || (_cu && (_cu.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== 'undefined' && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== 'undefined' && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        const isAdmin = (_cu && (_cu.email || "") === "needcreations@gmail.com");
 
         // Tier Logic (Sign-in or threshold met)
         const isFull = isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
@@ -3189,7 +3189,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         
         // Admin Bypass Logic
-        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.displayName || "").toLowerCase().includes("needcreations")) || (_a && (_a.displayName || "").toLowerCase().includes("admin")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("needcreations")) || (typeof currentUser !== "undefined" && currentUser && (currentUser.username || "").toLowerCase().includes("admin"));
+        var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.email || "") === "needcreations@gmail.com");
 
         var isFull = isAdmin || (_a && !_a.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         var isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
