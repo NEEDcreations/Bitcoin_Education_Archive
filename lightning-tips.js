@@ -190,6 +190,19 @@ window.executeTip = async function() {
             return;
         }
 
+        // If no Lightning Address provided, try to look it up from Firestore
+        if (!opts.lightningAddress && opts.recipientUid && typeof db !== 'undefined') {
+            try {
+                var userDoc = await db.collection('users').doc(opts.recipientUid).get();
+                if (userDoc.exists) {
+                    var userData = userDoc.data();
+                    if (userData.lightning && userData.lightning.includes('@')) {
+                        opts.lightningAddress = userData.lightning;
+                    }
+                }
+            } catch(e) { /* user doc not accessible or doesn't exist */ }
+        }
+
         // If recipient has a Lightning Address, construct LNURL-pay flow
         if (opts.lightningAddress) {
             // Parse LN address → LNURL-pay endpoint
@@ -228,8 +241,8 @@ window.executeTip = async function() {
             // We can't create an invoice FOR the recipient via WebLN
             // Show a "request invoice" message
             res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-align:left;margin-top:8px;">' +
-                '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">📋 How to tip ' + escapeHtml(opts.recipientName || 'this user') + ':</div>' +
-                '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;">Ask them to share their Lightning Address or a BOLT11 invoice for <strong>' + amount.toLocaleString() + ' sats</strong>. You can reach them via DMs.</div>' +
+                '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">⚡ No Lightning Address found</div>' +
+                '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;"><strong>' + escapeHtml(opts.recipientName || 'This user') + '</strong> hasn\'t set up a Lightning Address yet. Ask them to add one in <strong>Settings → Profile → Lightning</strong>, or send them an invoice via DMs.</div>' +
                 (opts.recipientUid ? '<button onclick="this.closest(\'[id=tipOverlay]\').remove();if(typeof openDMConversation===\'function\')openDMConversation(\'' + opts.recipientUid + '\',\'' + escapeHtml(opts.recipientName || '') + '\',\'⚡ Tip: ' + amount + ' sats\');else go(\'dms\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">💬 DM to request invoice</button>' : '') +
             '</div>';
             btn.textContent = '⚡ ' + (opts.label || 'Send Tip');
@@ -237,8 +250,12 @@ window.executeTip = async function() {
             return;
         }
 
-        // No wallet connected, no LN address, no invoice — direct to Lightning setup
-        res.innerHTML = '<div style="color:var(--text-muted);font-size:0.82rem;">Connect a Lightning wallet first, or ask <strong>' + escapeHtml(opts.recipientName || 'this user') + '</strong> for their Lightning Address.</div>';
+        // No wallet connected, no LN address, no invoice
+        res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;text-align:left;margin-top:4px;">' +
+            '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:4px;">⚡ Can\'t tip yet</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;margin-bottom:8px;"><strong>' + escapeHtml(opts.recipientName || 'This user') + '</strong> hasn\'t added a Lightning Address to their profile yet. Ask them to add one in Settings → Profile.</div>' +
+            '<button onclick="this.closest(\'[id=tipOverlay]\').remove();go(\'lightning\')" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Connect Your Wallet</button>' +
+        '</div>';
         btn.textContent = '⚡ ' + (opts.label || 'Send Tip');
         btn.disabled = false;
 
