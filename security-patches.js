@@ -7,7 +7,10 @@
     'use strict';
 
     // ─── S1: Content Security Policy ─────────────────────────
-    // Restricts script sources to prevent XSS injection attacks
+    // DISABLED: CSP blocks Firebase Auth flows (popup + redirect)
+    // Google sign-in requires too many dynamic origins to whitelist reliably
+    // Re-enable when moving to a CF Worker-based CSP header with proper testing
+    /*
     if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
         const csp = document.createElement('meta');
         csp.setAttribute('http-equiv', 'Content-Security-Policy');
@@ -25,6 +28,7 @@
         ].join('; '));
         document.head.insertBefore(csp, document.head.firstChild);
     }
+    */
 
     // ─── S8: Enforce rel="noopener noreferrer" on all external links ───
     // Runs on click to catch dynamically generated links
