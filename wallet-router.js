@@ -120,5 +120,10 @@ function injectButtons() {
 setTimeout(injectButtons, 1200);
 document.addEventListener('DOMContentLoaded', function() { setTimeout(injectButtons, 800); });
 
+// ─── Lightning Tips: also add search entries ─────────────
+window._searchableApps.push(
+    { id: '_tips', title: '⚡ Lightning Tips', desc: 'Tip users, pay for listings, buy event tickets with sats', keywords: 'tip sats lightning pay zap send money reward tipping tips', action: "go('lightning')" }
+);
+
 console.log('[ROUTER] Wallet + Lightning routes registered');
 })();
