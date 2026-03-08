@@ -2810,9 +2810,9 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏷️ Name Your Buck</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Currently: <strong style="color:var(--accent);">' + escapeHtml(nickname) + '</strong></div>' +
-            '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Type a new name..." style="flex:1;padding:12px 14px;background:rgba(30,41,59,1);border:2px solid #475569;border-radius:10px;color:#f8fafc;font-size:18px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;min-width:0;" onfocus="this.style.borderColor=\'#f7931a\';this.select()" onblur="this.style.borderColor=\'var(--border)\'">' +
-            '<button onclick="var n=document.getElementById(\'nachoNicknameInput\').value.trim();if(n)setNachoNickname(n)" style="padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">Save</button>' +
+            '<div>' +
+            '<input type="text" id="nachoNicknameInput" value="' + escapeHtml(nickname) + '" maxlength="20" placeholder="Type a new name..." style="width:100%;padding:12px 14px;background:rgba(30,41,59,1);border:2px solid #475569;border-radius:10px;color:#f8fafc;font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;margin-bottom:8px;" onfocus="this.style.borderColor=\'#f7931a\';this.select()" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="var n=document.getElementById(\'nachoNicknameInput\').value.trim();if(n)setNachoNickname(n)" style="width:100%;padding:12px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>' +
             '</div></div>';
 
         // Nacho Story (highlighted — right under name)
