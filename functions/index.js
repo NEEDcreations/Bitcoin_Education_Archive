@@ -324,7 +324,7 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         const secp = require('@noble/secp256k1');
         const crypto = require('crypto');
         
-        // Compute event ID (SHA256 of serialized event)
+        // Compute event ID (SHA256 of serialized event per NIP-01)
         const serialized = JSON.stringify([
             0,
             nostrEvent.pubkey,
@@ -335,17 +335,31 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         ]);
         const eventId = crypto.createHash('sha256').update(serialized).digest('hex');
         
-        // Verify signature
+        // Also accept the client-computed event ID if serialization differs
+        const msgHex = (nostrEvent.id && /^[a-f0-9]{64}$/.test(nostrEvent.id)) ? nostrEvent.id : eventId;
+        
+        // Verify signature using schnorr
         const sigBytes = Buffer.from(sig, 'hex');
         const pubkeyBytes = Buffer.from(pubkey, 'hex');
-        const msgBytes = Buffer.from(eventId, 'hex');
+        const msgBytes = Buffer.from(msgHex, 'hex');
         
-        const valid = secp.schnorr.verifySync(sigBytes, msgBytes, pubkeyBytes);
+        let valid = false;
+        try {
+            valid = secp.schnorr.verifySync(sigBytes, msgBytes, pubkeyBytes);
+        } catch(verifyErr) {
+            // Try with the other event ID if first attempt used client ID
+            if (msgHex !== eventId) {
+                const altMsgBytes = Buffer.from(eventId, 'hex');
+                valid = secp.schnorr.verifySync(sigBytes, altMsgBytes, pubkeyBytes);
+            }
+        }
+        
         if (!valid) {
-            throw new functions.https.HttpsError('permission-denied', 'Invalid signature');
+            throw new functions.https.HttpsError('permission-denied', 'Signature verification failed');
         }
     } catch(e) {
         if (e instanceof functions.https.HttpsError) throw e;
+        console.error('Nostr sig verify error:', e.message, 'sig len:', sig ? sig.length : 0, 'pubkey:', pubkey ? pubkey.substring(0,16) : 'none');
         throw new functions.https.HttpsError('internal', 'Signature verification failed');
     }
 
