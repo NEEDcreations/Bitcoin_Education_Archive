@@ -289,11 +289,14 @@ function showInvoiceCopy(bolt11, amount, opts) {
     var res = document.getElementById('tipResult');
     btn.style.display = 'none';
 
+    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=1a1a2e&color=ffffff&data=' + encodeURIComponent('lightning:' + bolt11);
+
     res.innerHTML = '<div style="padding:14px;background:var(--card-bg);border:1px solid var(--accent);border-radius:12px;margin-top:8px;">' +
-        '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:4px;">Invoice for ' + amount.toLocaleString() + ' sats</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">Invoice for ' + amount.toLocaleString() + ' sats</div>' +
+        '<div style="text-align:center;margin-bottom:10px;"><img src="' + qrUrl + '" alt="Lightning Invoice QR" style="width:180px;height:180px;border-radius:10px;display:inline-block;"></div>' +
         '<div style="padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;" onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')">' + bolt11.substr(0, 120) + '…</div>' +
         '<button onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 Copy Invoice</button>' +
-        '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">Paste this invoice into your Lightning wallet to pay</div>' +
+        '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">Scan QR or paste invoice into your Lightning wallet</div>' +
     '</div>';
 }
 

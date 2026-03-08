@@ -332,6 +332,13 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
                 return Uint8Array.from(h.digest());
             };
         }
+        if (!secp.utils.hmacSha256Sync) {
+            secp.utils.hmacSha256Sync = (key, ...msgs) => {
+                const h = crypto.createHmac('sha256', key);
+                msgs.forEach(m => h.update(m));
+                return Uint8Array.from(h.digest());
+            };
+        }
         
         // Compute event ID (SHA256 of serialized event per NIP-01)
         const serialized = JSON.stringify([
@@ -457,6 +464,24 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     // Verify the ECDSA signature
     try {
         const secp = require('@noble/secp256k1');
+        const crypto2 = require('crypto');
+        
+        // Required for @noble/secp256k1 v1.x on Node 22+
+        if (!secp.utils.sha256Sync) {
+            secp.utils.sha256Sync = (...msgs) => {
+                const h = crypto2.createHash('sha256');
+                msgs.forEach(m => h.update(m));
+                return Uint8Array.from(h.digest());
+            };
+        }
+        if (!secp.utils.hmacSha256Sync) {
+            secp.utils.hmacSha256Sync = (key, ...msgs) => {
+                const h = crypto2.createHmac('sha256', key);
+                msgs.forEach(m => h.update(m));
+                return Uint8Array.from(h.digest());
+            };
+        }
+        
         const k1Bytes = Buffer.from(k1, 'hex');
         const sigBytes = Buffer.from(sig, 'hex');
         const keyBytes = Buffer.from(key, 'hex');

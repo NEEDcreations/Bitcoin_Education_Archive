@@ -528,8 +528,10 @@ window.lnCreateInvoice = async function() {
     btn.disabled = true; btn.textContent = '⏳ Creating…';
     try {
         var invoice = await lnMakeInvoice(amt, memo);
+        var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=1a1a2e&color=ffffff&data=' + encodeURIComponent('lightning:' + invoice);
         res.innerHTML = '<div style="padding:10px;background:var(--input-bg);border:1px solid var(--accent);border-radius:10px;margin-top:6px;">' +
-            '<div style="font-size:0.68rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:3px;">BOLT11 Invoice</div>' +
+            '<div style="font-size:0.68rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:6px;">BOLT11 Invoice</div>' +
+            '<div style="text-align:center;margin-bottom:8px;"><img src="' + qrUrl + '" alt="Lightning Invoice QR" style="width:180px;height:180px;border-radius:10px;display:inline-block;"></div>' +
             '<div onclick="navigator.clipboard.writeText(\'' + invoice + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="font-family:monospace;font-size:0.62rem;color:var(--text);word-break:break-all;line-height:1.4;cursor:pointer;max-height:80px;overflow-y:auto;">' + escapeHtml(invoice) + '</div>' +
             '<button onclick="navigator.clipboard.writeText(\'' + invoice + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px;">📋 Copy Invoice</button>' +
         '</div>';
