@@ -324,6 +324,15 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         const secp = require('@noble/secp256k1');
         const crypto = require('crypto');
         
+        // Required for @noble/secp256k1 v1.x on Node 22+
+        if (!secp.utils.sha256Sync) {
+            secp.utils.sha256Sync = (...msgs) => {
+                const h = crypto.createHash('sha256');
+                msgs.forEach(m => h.update(m));
+                return Uint8Array.from(h.digest());
+            };
+        }
+        
         // Compute event ID (SHA256 of serialized event per NIP-01)
         const serialized = JSON.stringify([
             0,
