@@ -205,10 +205,18 @@
     }
 
     // Show Nacho bubble popup linking to PVP mode
+    var _lastPVPBubbleTime = 0;
+    var PVP_BUBBLE_COOLDOWN = 3600000; // 1 hour between notifications
+
     function showNachoPVPBubble() {
         if (pvpState.active || pvpState.inLobby || pvpState.inMatch) return;
         if (window._nachoBusy) return;
         if (window._nachoMode) return;
+
+        // Throttle: only show once per hour
+        var now = Date.now();
+        if (now - _lastPVPBubbleTime < PVP_BUBBLE_COOLDOWN) return;
+        _lastPVPBubbleTime = now;
 
         var bubble = document.getElementById('nacho-bubble');
         var textEl = document.getElementById('nacho-text');
