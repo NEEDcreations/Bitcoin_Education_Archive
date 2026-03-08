@@ -924,16 +924,18 @@ function updateAuthButton() {
     if (isSignedIn || hasUsername) {
         btn.innerHTML = '⚙️ <strong>' + (hasUsername ? hasUsername : 'My Account') + '</strong> — Settings';
         btn.onclick = function() { showSettings(); };
-        btn.style.borderColor = '#22c55e';
+        btn.style.background = 'none';
+        btn.style.border = '2px solid #22c55e';
         btn.style.color = '#22c55e';
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
         btn.onmouseout = function() { this.style.background='none'; this.style.color='#22c55e'; };
     } else {
         btn.textContent = 'Create Free Account / Sign In';
-        btn.style.borderColor = 'var(--accent)';
-        btn.style.color = 'var(--accent)';
-        btn.onmouseover = function() { this.style.background='var(--accent)'; this.style.color='#fff'; };
-        btn.onmouseout = function() { this.style.background='none'; this.style.color='var(--accent)'; };
+        btn.style.background = 'var(--accent)';
+        btn.style.border = 'none';
+        btn.style.color = '#000';
+        btn.onmouseover = function() { this.style.transform='scale(1.02)'; };
+        btn.onmouseout = function() { this.style.transform='scale(1)'; };
     }
 }
 
