@@ -25636,42 +25636,77 @@ window.nachoQuizAnswer = function(btn, correct) {
             const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
             if (!btn.getAttribute('data-onclick')) btn.setAttribute('data-onclick', origOnclick);
 
-            let locked = false;
-            let reqMsg = "";
-            const lowerTxt = txt.toLowerCase();
-            
-            // All sidebar buttons are always accessible — no more locking
-            // Users can view everything; actions require sign-in
-
-            if (locked) {
-                btn.innerHTML = '🔒 ' + txt;
-                btn.style.opacity = '0.5';
-                btn.style.filter = 'grayscale(1)';
-                btn.style.cursor = 'help';
-                btn.onclick = function(e) { 
-                    e.preventDefault(); 
-                    e.stopPropagation(); 
-                    if (typeof showToast === 'function') showToast(reqMsg); 
-                };
-                btn.title = reqMsg;
-            } else {
-                btn.innerHTML = txt;
-                btn.style.opacity = '1';
-                btn.style.filter = 'none';
-                btn.style.cursor = 'pointer';
-                btn.title = "";
-                var action = btn.getAttribute('data-onclick');
-                if (action) {
-                    // Re-bind onclick as an actual function, not just an attribute
-                    try {
-                        btn.onclick = new Function(action);
-                    } catch(e) {
-                        btn.setAttribute('onclick', action);
-                        btn.onclick = null;
-                    }
+            btn.innerHTML = txt;
+            btn.style.opacity = '1';
+            btn.style.filter = 'none';
+            btn.style.cursor = 'pointer';
+            btn.title = "";
+            var action = btn.getAttribute('data-onclick');
+            if (action) {
+                try {
+                    btn.onclick = new Function(action);
+                } catch(e) {
+                    btn.setAttribute('onclick', action);
+                    btn.onclick = null;
                 }
             }
         });
+
+        // Gate tiered app buttons on home page
+        const tieredBtns = document.querySelectorAll('[data-tier]');
+        tieredBtns.forEach(btn => {
+            const tier = btn.getAttribute('data-tier');
+            const name = btn.getAttribute('data-unlock-name') || btn.textContent.trim();
+            const origOnclick = btn.getAttribute('data-onclick') || btn.getAttribute('onclick');
+            if (!btn.getAttribute('data-onclick') && origOnclick) btn.setAttribute('data-onclick', typeof origOnclick === 'string' ? origOnclick : origOnclick.toString());
+
+            let unlocked = false;
+            let reqMsg = '';
+            if (tier === 'explorer') {
+                unlocked = isExplorer;
+                reqMsg = '🔒 Visit ' + Math.max(0, 3 - exploredCount) + ' more channels to unlock ' + name + '!';
+            } else if (tier === 'full') {
+                unlocked = isFull;
+                reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channels to unlock ' + name + '!';
+            }
+
+            if (!unlocked) {
+                btn.innerHTML = '🔒 ' + name;
+                btn.style.opacity = '0.45';
+                btn.style.filter = 'grayscale(0.8)';
+                btn.style.cursor = 'help';
+                btn.title = reqMsg;
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof showToast === 'function') showToast(reqMsg);
+                };
+            } else {
+                btn.innerHTML = name;
+                btn.style.opacity = '1';
+                btn.style.filter = 'none';
+                btn.style.cursor = 'pointer';
+                btn.title = '';
+                var action = btn.getAttribute('data-onclick');
+                if (action) {
+                    try { btn.onclick = new Function(action); } catch(e) { btn.setAttribute('onclick', action); btn.onclick = null; }
+                }
+            }
+        });
+
+        // Unlock celebrations — fire once per tier
+        var prevTier = localStorage.getItem('btc_unlocked_tier') || 'none';
+        if (isExplorer && prevTier === 'none') {
+            localStorage.setItem('btc_unlocked_tier', 'explorer');
+            if (typeof showToast === 'function') showToast('🎉 🗣️ PlebTalk & 🎵 Bitcoin Beats unlocked! Check Explore Apps!');
+        } else if (isFull && prevTier === 'explorer') {
+            localStorage.setItem('btc_unlocked_tier', 'full');
+            if (typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
+        } else if (isFull && prevTier === 'none') {
+            localStorage.setItem('btc_unlocked_tier', 'full');
+        } else if (isExplorer && prevTier !== 'explorer' && prevTier !== 'full') {
+            localStorage.setItem('btc_unlocked_tier', 'explorer');
+        }
         
         // Add "Next Milestone" Info
         let milestoneEl = document.getElementById('sidebarMilestone');
@@ -26411,48 +26446,59 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     window.toggleAppsMenu = function(e) {
         if (e) e.stopPropagation();
-        var menu = document.getElementById('appsMenu');
-        if (!menu) {
-            var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
-                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                    '<button onclick="enterNachoMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🦌</span>' +
-                        '<span>Nacho Mode</span>' +
-                    '</button>' +
-                    '<button onclick="if(typeof enterPVPMode===\'function\')enterPVPMode();toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">⚔️</span>' +
-                        '<span>PVP Battle</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'forum\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🗣️</span>' +
-                        '<span>Pleb Talk</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'marketplace\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">⚡</span>' +
-                        '<span>Lightning Mart</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'irl-sync\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🤝</span>' +
-                        '<span>IRL Sync</span>' +
-                    '</button>' +
-                    '<button onclick="go(\'bitcoin-beats\');toggleAppsMenu()" style="padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;" class="app-menu-item">' +
-                        '<span style="font-size:1.8rem;">🎵</span>' +
-                        '<span>Bitcoin Beats</span>' +
-                    '</button>' +
-                '</div>' +
-            '</div>';
-            document.body.insertAdjacentHTML('beforeend', html);
-            menu = document.getElementById('appsMenu');
-            document.addEventListener('click', function(clickEv) {
-                if (menu.style.display === 'block' && !menu.contains(clickEv.target)) {
-                    menu.style.display = 'none';
-                }
-            });
+        // Remove existing menu so it rebuilds with current tier state
+        var oldMenu = document.getElementById('appsMenu');
+        if (oldMenu && oldMenu.style.display === 'block') { oldMenu.style.display = 'none'; return; }
+        if (oldMenu) oldMenu.remove();
+
+        // Check tier status
+        var _explored = safeJSON('btc_visited_channels', []);
+        var _exploredN = _explored.length;
+        var _vis = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
+        var _aAuth = (typeof auth !== 'undefined') ? auth : null;
+        var _aCu = _aAuth && _aAuth.currentUser;
+        var _isAdmin = (_aCu && (_aCu.email || '') === 'needcreations@gmail.com');
+        var _isFull = _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);
+        var _isExplorer = _isFull || (_vis >= 3 || _exploredN >= 3);
+
+        var btnBase = 'padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;';
+        var btnLocked = btnBase + 'opacity:0.45;filter:grayscale(0.8);cursor:help;';
+
+        function appBtn(emoji, label, action, locked, lockMsg) {
+            if (locked) {
+                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/'/g, "\\'") + '\')" style="' + btnLocked + '" class="app-menu-item">' +
+                    '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
+            }
+            return '<button onclick="' + action + ';toggleAppsMenu()" style="' + btnBase + '" class="app-menu-item">' +
+                '<span style="font-size:1.8rem;">' + emoji + '</span><span>' + label + '</span></button>';
         }
-        var isOpen = (menu.style.display === 'block');
-        menu.style.display = isOpen ? 'none' : 'block';
-        if (!isOpen && typeof playSound === 'function') playSound('pop');
+
+        var forumLock = !_isExplorer;
+        var beatsLock = !_isExplorer;
+        var marketLock = !_isFull;
+        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Pleb Talk!';
+        var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Bitcoin Beats!';
+        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more channels to unlock Lightning Mart!';
+
+        var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+                appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false) +
+                appBtn('⚔️', 'PVP Battle', "if(typeof enterPVPMode==='function')enterPVPMode()", false) +
+                appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
+                appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
+                appBtn('🤝', 'IRL Sync', "go('irl-sync')", false) +
+                appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
+            '</div></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+        var menu = document.getElementById('appsMenu');
+        document.addEventListener('click', function closeApps(clickEv) {
+            if (menu.style.display === 'block' && !menu.contains(clickEv.target)) {
+                menu.style.display = 'none';
+            }
+        });
+        menu.style.display = 'block';
+        if (typeof playSound === 'function') playSound('pop');
     };
 
     window.toggleSidebarMenu = function(id) {
