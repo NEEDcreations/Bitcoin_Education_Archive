@@ -38,6 +38,24 @@
         }
     }
 
+    function toggleSidebarCollapse() {
+        var sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+        // Persist preference
+        try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch(e) {}
+    }
+
+    // Restore sidebar collapse state on desktop
+    (function() {
+        try {
+            if (window.innerWidth > 900 && localStorage.getItem('sidebar-collapsed') === '1') {
+                var sb = document.getElementById('sidebar');
+                if (sb) sb.classList.add('sidebar-collapsed');
+            }
+        } catch(e) {}
+    })();
+
     function toggleCat(label) {
         var group = label.nextElementSibling;
         if (!group) return;
@@ -4023,6 +4041,7 @@ if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
 if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
+if (typeof toggleSidebarCollapse !== 'undefined') window.toggleSidebarCollapse = toggleSidebarCollapse;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;

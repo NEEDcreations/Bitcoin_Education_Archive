@@ -427,114 +427,13 @@ window.signInWithFacebook = async function() {
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
 }
 
-// Nostr sign-in — full implementation with extension/nsec/npub options
+// Nostr sign-in — see bundle.js for full implementation
 // (signInWithNostr, nostrSignInWithExtension, nostrSignInWithNsec, nostrSignInWithNpub, nostrCompleteAuth)
 window.signInWithNostr = async function() {
+    // Full implementation in bundle.js — shows modal with extension/nsec/npub options
     if (!checkRateLimit()) return;
-    var hasExtension = !!window.nostr;
-    var overlay = document.createElement('div');
-    overlay.id = 'nostrAuthOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-    overlay.innerHTML =
-        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #7B2DE4;border-radius:20px;padding:28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
-                '<h3 style="color:#7B2DE4;font-weight:800;margin:0;">🟣 Sign in with Nostr</h3>' +
-                '<button onclick="document.getElementById(\'nostrAuthOverlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;">✕</button>' +
-            '</div>' +
-            (hasExtension ?
-                '<button onclick="nostrSignInWithExtension()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(123,45,228,0.2),rgba(123,45,228,0.05));border:2px solid rgba(123,45,228,0.4);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;gap:12px;text-align:left;"><span style="font-size:1.5rem;">🔌</span><div><div style="color:#7B2DE4;">Use Browser Extension</div><div style="color:var(--text-faint);font-size:0.7rem;font-weight:400;margin-top:2px;">Alby, nos2x, or Nostr Connect detected</div></div></button>'
-            : '<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5rem;opacity:0.4;">🔌</span><div><div style="color:var(--text-faint);">No Extension Detected</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#7B2DE4;">Alby</a> or <a href="https://github.com/nicholasmcconnell/nos2x" target="_blank" rel="noopener" style="color:#7B2DE4;">nos2x</a> for one-click login</div></div></div>') +
-            '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
-            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
-            '<button onclick="nostrSignInWithNsec()" id="nostrNsecBtn" style="width:100%;padding:14px;background:#7B2DE4;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In with nsec</button>' +
-            '<div id="nostrAuthStatus" style="margin-top:8px;font-size:0.8rem;text-align:center;min-height:20px;"></div>' +
-            '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
-            '<div><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your npub (public key only)</label><input type="text" id="nostrNpubInput" placeholder="npub1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"></div>' +
-            '<button onclick="nostrSignInWithNpub()" style="width:100%;margin-top:8px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Link npub</button>' +
-        '</div>';
-    document.body.appendChild(overlay);
-};
-window.nostrSignInWithExtension = async function() {
-    if (!window.nostr) { showToast('Extension not found'); return; }
-    var statusEl = document.getElementById('nostrAuthStatus');
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Requesting key from extension...</span>';
-    try {
-        var pubkey = await window.nostr.getPublicKey();
-        if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Could not get public key</span>'; return; }
-        if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Signing auth event...</span>';
-        var signed = await window.nostr.signEvent({ kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey });
-        if (!signed || !signed.sig) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Signing cancelled</span>'; return; }
-        await nostrCompleteAuth(pubkey, signed.sig, signed);
-    } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + (e.message || 'Unknown') + '</span>'; }
-};
-window.nostrSignInWithNsec = async function() {
-    var nsec = (document.getElementById('nostrNsecInput').value || '').trim();
-    var statusEl = document.getElementById('nostrAuthStatus');
-    var btn = document.getElementById('nostrNsecBtn');
-    if (!nsec) { showToast('Please paste your nsec'); return; }
-    if (!nsec.startsWith('nsec1')) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec format. Must start with nsec1</span>'; return; }
-    btn.disabled = true; btn.textContent = 'Loading crypto library...';
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Loading...</span>';
-    try {
-        if (!window.NostrTools) { await new Promise(function(resolve, reject) { var script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js'; script.onload = resolve; script.onerror = function() { reject(new Error('Failed to load nostr-tools')); }; document.head.appendChild(script); }); }
-        var NT = window.NostrTools;
-        if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Decoding nsec...</span>';
-        btn.textContent = 'Signing...';
-        var decoded = NT.nip19.decode(nsec);
-        if (!decoded || decoded.type !== 'nsec') { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec</span>'; btn.disabled = false; btn.textContent = 'Sign In with nsec'; return; }
-        var privkeyHex = decoded.data;
-        if (typeof privkeyHex !== 'string') { privkeyHex = Array.from(new Uint8Array(privkeyHex)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }
-        var pubkey = NT.getPublicKey(privkeyHex);
-        var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey };
-        event.id = NT.getEventHash(event); event.sig = NT.signEvent(event, privkeyHex);
-        document.getElementById('nostrNsecInput').value = '';
-        if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Verifying signature...</span>';
-        await nostrCompleteAuth(pubkey, event.sig, event);
-    } catch(e) { console.error('Nostr nsec error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>'; btn.disabled = false; btn.textContent = 'Sign In with nsec'; }
-};
-window.nostrSignInWithNpub = async function() {
-    var npub = (document.getElementById('nostrNpubInput').value || '').trim();
-    var statusEl = document.getElementById('nostrAuthStatus');
-    if (!npub) { showToast('Please paste your npub'); return; }
-    var pubkey = npub;
-    if (npub.startsWith('npub1')) {
-        try {
-            if (!window.NostrTools) { await new Promise(function(resolve, reject) { var script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js'; script.onload = resolve; script.onerror = function() { reject(new Error('Failed to load nostr-tools')); }; document.head.appendChild(script); }); }
-            var decoded = window.NostrTools.nip19.decode(npub);
-            if (decoded && decoded.type === 'npub') { pubkey = decoded.data; if (typeof pubkey !== 'string') { pubkey = Array.from(new Uint8Array(pubkey)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); } }
-        } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid npub format</span>'; return; }
-    }
-    if (!/^[a-f0-9]{64}$/.test(pubkey)) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid public key</span>'; return; }
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Linking Nostr identity...</span>';
-    try {
-        if (!auth.currentUser) await auth.signInAnonymously();
-        var uid = auth.currentUser.uid;
-        await db.collection('users').doc(uid).set({ nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-        if (currentUser) currentUser.nostr = pubkey;
-        var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
-        showToast('🟣 Nostr identity linked! (npub)');
-    } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Unknown') + '</span>'; }
-};
-window.nostrCompleteAuth = async function(pubkey, sig, event) {
-    var statusEl = document.getElementById('nostrAuthStatus');
-    try {
-        var nostrAuth = firebase.functions().httpsCallable('nostrAuth');
-        var result = await nostrAuth({ pubkey: pubkey, sig: sig, event: event });
-        if (result.data && result.data.token) {
-            await auth.signInWithCustomToken(result.data.token);
-            var uid = result.data.uid;
-            var userDoc = await db.collection('users').doc(uid).get();
-            if (!userDoc.exists || !userDoc.data().username) {
-                var npubShort = 'npub...' + pubkey.substring(0, 8);
-                await db.collection('users').doc(uid).set({ username: npubShort, nostr: pubkey, points: 0, channelsVisited: 0, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0], created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            }
-            loadUser(uid); hideUsernamePrompt();
-            var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
-            showToast('🟣 Signed in with Nostr!');
-        } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed — no token received</span>'; }
-    } catch(e) { console.error('Nostr auth error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>'; }
-};
+    if (typeof showToast === 'function') showToast('Nostr sign-in loading...');
+}
 
 // Apple Sign-In removed
 
@@ -21954,58 +21853,6 @@ function initBottomNav() {
     document.body.appendChild(nav);
 }
 
-// ---- Mobile Learn Menu ----
-window.toggleMobileLearnMenu = function() {
-    var existing = document.getElementById('mobileLearnMenu');
-    if (existing) { existing.remove(); return; }
-    var appsMenu = document.getElementById('appsMenu');
-    if (appsMenu) appsMenu.remove();
-    var menu = document.createElement('div');
-    menu.id = 'mobileLearnMenu';
-    menu.style.cssText = 'position:fixed;bottom:70px;left:8px;right:8px;z-index:250;max-width:400px;margin:0 auto;background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);animation:fadeSlideIn 0.25s ease-out;';
-    menu.innerHTML =
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0;">🎓 Learn</h3><button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button></div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:12px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🟢 New to Bitcoin?</button>' +
-            '<button onclick="toggleMobileFlashcards()" id="mLearnFlashBtn" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">📚 Flashcards ▶</button>' +
-            '<div id="mLearnFlashGrid" style="display:none;flex-wrap:wrap;gap:6px;padding:4px 0 4px 8px;">' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Bitcoin Basics\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Security & Storage\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Lightning Network\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Mining & Energy\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>' +
-                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Economics & Money\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>' +
-                '<div id="mLearnMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;">' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Privacy & Sovereignty\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Nodes & P2P\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📡 Nodes</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Wallets & Tools\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💼 Wallets</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'History & Culture\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Common Myths\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Technical Deep Dives\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔬 Tech</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Satoshi Nakamoto\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🦸 Satoshi</button>' +
-                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Global Impact\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🌍 Global</button>' +
-                '</div>' +
-                '<button onclick="var m=document.getElementById(\'mLearnMoreFlash\');m.style.display=m.style.display===\'none\'?\'flex\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ More Topics\':\'▲ Less\'" style="width:100%;margin-top:4px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:700;font-family:inherit;padding:4px;">▼ More Topics</button>' +
-            '</div>' +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">⚡ Start a Quest</button>' +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startScholarQuest===\'function\')startScholarQuest(\'properties\')" style="padding:12px 14px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">🎓 Properties Certification</button>' +
-            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startScholarQuest===\'function\')startScholarQuest(\'technical\')" style="padding:12px 14px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">🛠️ Technical Certification</button>' +
-        '</div>';
-    document.body.appendChild(menu);
-    setTimeout(function() {
-        document.addEventListener('click', function closeMLearn(e) {
-            var m = document.getElementById('mobileLearnMenu');
-            if (m && !m.contains(e.target) && !e.target.closest('#bnavLearn')) { m.remove(); document.removeEventListener('click', closeMLearn); }
-        });
-    }, 100);
-};
-window.toggleMobileFlashcards = function() {
-    var grid = document.getElementById('mLearnFlashGrid');
-    var btn = document.getElementById('mLearnFlashBtn');
-    if (!grid) return;
-    if (grid.style.display === 'none') { grid.style.display = 'flex'; if (btn) btn.textContent = '📚 Flashcards ▼'; }
-    else { grid.style.display = 'none'; if (btn) btn.textContent = '📚 Flashcards ▶'; }
-};
-
 // ---- #4: Reading Progress Indicator ----
 function initReadingProgress() {
     var bar = document.createElement('div');
@@ -22406,6 +22253,85 @@ window.dismissPWABanner = function() {
     localStorage.setItem('btc_pwa_dismissed', Date.now().toString());
 };
 
+// ---- Mobile Learn Menu ----
+window.toggleMobileLearnMenu = function() {
+    var existing = document.getElementById('mobileLearnMenu');
+    if (existing) { existing.remove(); return; }
+
+    // Close apps menu if open
+    var appsMenu = document.getElementById('appsMenu');
+    if (appsMenu) appsMenu.remove();
+
+    var menu = document.createElement('div');
+    menu.id = 'mobileLearnMenu';
+    menu.style.cssText = 'position:fixed;bottom:70px;left:8px;right:8px;z-index:250;' +
+        'max-width:400px;margin:0 auto;' +
+        'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;' +
+        'padding:18px;box-shadow:0 -8px 40px rgba(0,0,0,0.6);' +
+        'animation:fadeSlideIn 0.25s ease-out;';
+
+    menu.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">' +
+            '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0;">🎓 Learn</h3>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            // New to Bitcoin
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:12px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🟢 New to Bitcoin?</button>' +
+            // Flashcards
+            '<button onclick="toggleMobileFlashcards()" id="mLearnFlashBtn" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">📚 Flashcards ▶</button>' +
+            '<div id="mLearnFlashGrid" style="display:none;flex-wrap:wrap;gap:6px;padding:4px 0 4px 8px;">' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Bitcoin Basics\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">₿ Basics</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Security & Storage\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔑 Security</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Lightning Network\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⚡ Lightning</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Mining & Energy\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">⛏️ Mining</button>' +
+                '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Economics & Money\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💰 Economics</button>' +
+                '<div id="mLearnMoreFlash" style="display:none;flex-wrap:wrap;gap:6px;">' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Privacy & Sovereignty\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🕵️ Privacy</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Nodes & P2P\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📡 Nodes</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Wallets & Tools\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">💼 Wallets</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'History & Culture\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">📜 History</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Common Myths\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🚫 Myths</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Technical Deep Dives\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🔬 Tech</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Satoshi Nakamoto\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🦸 Satoshi</button>' +
+                    '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();startFlashcards(\'Global Impact\')" class="flash-btn" style="font-size:0.75rem;padding:6px 10px;">🌍 Global</button>' +
+                '</div>' +
+                '<button onclick="var m=document.getElementById(\'mLearnMoreFlash\');m.style.display=m.style.display===\'none\'?\'flex\':\'none\';this.textContent=m.style.display===\'none\'?\'▼ More Topics\':\'▲ Less\'" style="width:100%;margin-top:4px;background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.7rem;font-weight:700;font-family:inherit;padding:4px;">▼ More Topics</button>' +
+            '</div>' +
+            // Quest
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startQuestManual===\'function\')startQuestManual()" style="padding:12px 14px;background:none;border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">⚡ Start a Quest</button>' +
+            // Certifications
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startScholarQuest===\'function\')startScholarQuest(\'properties\')" style="padding:12px 14px;background:none;border:1px solid #f7931a;color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">🎓 Properties Certification</button>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();if(typeof startScholarQuest===\'function\')startScholarQuest(\'technical\')" style="padding:12px 14px;background:none;border:1px solid #3b82f6;color:var(--text);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;">🛠️ Technical Certification</button>' +
+        '</div>';
+
+    document.body.appendChild(menu);
+
+    // Close on outside tap
+    setTimeout(function() {
+        document.addEventListener('click', function closeMLearn(e) {
+            var m = document.getElementById('mobileLearnMenu');
+            if (m && !m.contains(e.target) && !e.target.closest('#bnavLearn')) {
+                m.remove();
+                document.removeEventListener('click', closeMLearn);
+            }
+        });
+    }, 100);
+};
+
+window.toggleMobileFlashcards = function() {
+    var grid = document.getElementById('mLearnFlashGrid');
+    var btn = document.getElementById('mLearnFlashBtn');
+    if (!grid) return;
+    if (grid.style.display === 'none') {
+        grid.style.display = 'flex';
+        if (btn) btn.textContent = '📚 Flashcards ▼';
+    } else {
+        grid.style.display = 'none';
+        if (btn) btn.textContent = '📚 Flashcards ▶';
+    }
+};
+
 function initMobileUX() {
     console.log('[MobileUX] Initializing...');
     initPullToRefresh();
@@ -22745,6 +22671,24 @@ if (document.readyState === 'loading') {
             }
         }
     }
+
+    function toggleSidebarCollapse() {
+        var sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        var collapsed = sidebar.classList.toggle('sidebar-collapsed');
+        // Persist preference
+        try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch(e) {}
+    }
+
+    // Restore sidebar collapse state on desktop
+    (function() {
+        try {
+            if (window.innerWidth > 900 && localStorage.getItem('sidebar-collapsed') === '1') {
+                var sb = document.getElementById('sidebar');
+                if (sb) sb.classList.add('sidebar-collapsed');
+            }
+        } catch(e) {}
+    })();
 
     function toggleCat(label) {
         var group = label.nextElementSibling;
@@ -26731,6 +26675,7 @@ if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
 if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
+if (typeof toggleSidebarCollapse !== 'undefined') window.toggleSidebarCollapse = toggleSidebarCollapse;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
