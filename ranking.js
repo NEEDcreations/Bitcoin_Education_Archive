@@ -347,12 +347,299 @@ window.signInWithFacebook = async function() {
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
 }
 
-// Nostr sign-in — see bundle.js for full implementation
-// (signInWithNostr, nostrSignInWithExtension, nostrSignInWithNsec, nostrSignInWithNpub, nostrCompleteAuth)
+// Nostr sign-in — show modal with extension or nsec options
 window.signInWithNostr = async function() {
-    // Full implementation in bundle.js — shows modal with extension/nsec/npub options
     if (!checkRateLimit()) return;
-    if (typeof showToast === 'function') showToast('Nostr sign-in loading...');
+
+    var hasExtension = !!(window.nostr && typeof window.nostr.getPublicKey === 'function');
+
+    var modal = document.createElement('div');
+    modal.id = 'nostrAuthModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);padding:16px;';
+    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #8b5cf6;border-radius:20px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
+            '<div style="font-size:2rem;margin-bottom:10px;">🟣</div>' +
+            '<h3 style="color:var(--heading);margin-bottom:6px;">Sign in with Nostr</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:20px;">Use a browser extension (Alby, nos2x, Nostr Connect) or enter your nsec key.</p>' +
+
+            // NIP-07 Extension button
+            '<button id="nostrExtBtn" onclick="nostrSignInWithExtension()" style="width:100%;padding:14px;background:' + (hasExtension ? '#8b5cf6' : 'var(--card-bg)') + ';border:1px solid ' + (hasExtension ? '#8b5cf6' : 'var(--border)') + ';border-radius:12px;color:' + (hasExtension ? '#fff' : 'var(--text-muted)') + ';font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;">' +
+                (hasExtension ? '🔑 Sign in with Extension' : '🔑 No Extension Detected') +
+            '</button>' +
+            (!hasExtension ? '<p style="color:var(--text-faint);font-size:0.7rem;margin:-4px 0 10px;">Install <a href="https://getalby.com" target="_blank" style="color:#8b5cf6;">Alby</a> or <a href="https://chromewebstore.google.com/detail/nos2x/kpgefcfmnafjgpblomihpgkjhhoknhdl" target="_blank" style="color:#8b5cf6;">nos2x</a> to use this.</p>' : '') +
+
+            // Divider
+            '<div style="display:flex;align-items:center;gap:12px;margin:14px 0;">' +
+                '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+                '<span style="color:var(--text-faint);font-size:0.75rem;">or</span>' +
+                '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+            '</div>' +
+
+            // nsec input
+            '<input id="nostrNsecInput" type="password" placeholder="nsec1... (your private key)" style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;" autocomplete="off">' +
+            '<button onclick="nostrSignInWithNsec()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">🔐 Sign in with nsec</button>' +
+            '<p style="color:#ef4444;font-size:0.68rem;margin:0 0 14px;">⚠️ Your nsec is NEVER stored or sent to our server. It stays in your browser.</p>' +
+
+            '<div id="nostrAuthStatus" style="min-height:20px;font-size:0.82rem;margin-bottom:8px;"></div>' +
+
+            '<button onclick="document.getElementById(\'nostrAuthModal\').remove()" style="padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    document.body.appendChild(modal);
+};
+
+// NIP-07 extension sign-in
+window.nostrSignInWithExtension = async function() {
+    var statusEl = document.getElementById('nostrAuthStatus');
+    if (!window.nostr || typeof window.nostr.getPublicKey !== 'function') {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">No Nostr extension found. Install Alby or nos2x first.</span>';
+        return;
+    }
+    if (statusEl) statusEl.innerHTML = '<span style="color:#8b5cf6;">Requesting key from extension...</span>';
+
+    try {
+        var pubkey = await window.nostr.getPublicKey();
+        if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid public key from extension.</span>';
+            return;
+        }
+        if (statusEl) statusEl.innerHTML = '<span style="color:#8b5cf6;">Signing auth event...</span>';
+
+        // Create NIP-22242 auth event
+        var created_at = Math.floor(Date.now() / 1000);
+        var nostrEvent = {
+            kind: 22242,
+            created_at: created_at,
+            tags: [['relay', 'https://bitcoineducation.quest'], ['challenge', 'firebase-auth-' + created_at]],
+            content: 'Sign in to Bitcoin Education Archive',
+            pubkey: pubkey
+        };
+
+        // Ask extension to sign
+        var signed = await window.nostr.signEvent(nostrEvent);
+        if (!signed || !signed.sig) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Signing was cancelled or failed.</span>';
+            return;
+        }
+
+        await nostrCompleteAuth(signed.pubkey || pubkey, signed.sig, signed);
+    } catch(e) {
+        console.error('Nostr extension auth error:', e);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">' + (typeof escapeHtml === 'function' ? escapeHtml(e.message || 'Extension error') : (e.message || 'Extension error')) + '</span>';
+    }
+};
+
+// nsec sign-in (key never leaves the browser)
+window.nostrSignInWithNsec = async function() {
+    var statusEl = document.getElementById('nostrAuthStatus');
+    var nsecInput = document.getElementById('nostrNsecInput');
+    var nsec = nsecInput ? nsecInput.value.trim() : '';
+
+    if (!nsec) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Please enter your nsec key.</span>';
+        return;
+    }
+
+    if (!nsec.startsWith('nsec1')) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec format. Must start with nsec1.</span>';
+        return;
+    }
+
+    if (statusEl) statusEl.innerHTML = '<span style="color:#8b5cf6;">Deriving keys...</span>';
+
+    try {
+        // Decode nsec (bech32) to get raw private key
+        var decoded = bech32Decode(nsec);
+        if (!decoded || decoded.prefix !== 'nsec' || decoded.data.length !== 32) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec key.</span>';
+            return;
+        }
+
+        var privkeyBytes = decoded.data;
+        var privkeyHex = bytesToHex(privkeyBytes);
+
+        // Derive public key using SubtleCrypto or noble-secp256k1 approach
+        // We use a minimal schnorr implementation
+        var pubkey = await deriveNostrPubkey(privkeyBytes);
+        if (!pubkey) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Could not derive public key.</span>';
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = '<span style="color:#8b5cf6;">Signing auth event...</span>';
+
+        var created_at = Math.floor(Date.now() / 1000);
+        var nostrEvent = {
+            kind: 22242,
+            created_at: created_at,
+            tags: [['relay', 'https://bitcoineducation.quest'], ['challenge', 'firebase-auth-' + created_at]],
+            content: 'Sign in to Bitcoin Education Archive',
+            pubkey: pubkey
+        };
+
+        // Compute event ID
+        var serialized = JSON.stringify([0, nostrEvent.pubkey, nostrEvent.created_at, nostrEvent.kind, nostrEvent.tags, nostrEvent.content]);
+        var eventIdBytes = await cryptoSha256(new TextEncoder().encode(serialized));
+        var eventId = bytesToHex(new Uint8Array(eventIdBytes));
+        nostrEvent.id = eventId;
+
+        // Sign with schnorr
+        var sig = await schnorrSign(eventIdBytes, privkeyBytes);
+        nostrEvent.sig = bytesToHex(sig);
+
+        // Clear the nsec from memory immediately
+        if (nsecInput) nsecInput.value = '';
+
+        await nostrCompleteAuth(pubkey, nostrEvent.sig, nostrEvent);
+    } catch(e) {
+        console.error('Nostr nsec auth error:', e);
+        if (nsecInput) nsecInput.value = '';
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">' + (typeof escapeHtml === 'function' ? escapeHtml(e.message || 'Sign-in failed') : (e.message || 'Sign-in failed')) + '</span>';
+    }
+};
+
+// Complete auth flow — send signed event to Cloud Function
+async function nostrCompleteAuth(pubkey, sig, signedEvent) {
+    var statusEl = document.getElementById('nostrAuthStatus');
+    if (statusEl) statusEl.innerHTML = '<span style="color:#8b5cf6;">Verifying with server...</span>';
+
+    try {
+        var nostrAuthFn = firebase.functions().httpsCallable('nostrAuth');
+        var result = await nostrAuthFn({
+            pubkey: pubkey,
+            sig: sig,
+            event: signedEvent
+        });
+
+        if (!result.data || !result.data.token) {
+            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Server did not return a token.</span>';
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = '<span style="color:#22c55e;">✅ Authenticated!</span>';
+
+        await auth.signInWithCustomToken(result.data.token);
+
+        // Set up user doc if needed
+        var uid = result.data.uid;
+        var userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists || !userDoc.data().username) {
+            var nostrName = '🟣nostr-' + pubkey.substring(0, 8);
+            await db.collection('users').doc(uid).set({
+                username: nostrName,
+                authMethod: 'nostr',
+                nostr: pubkey,
+                points: 0,
+                channelsVisited: 0,
+                totalVisits: 1,
+                streak: 1,
+                lastVisit: new Date().toISOString().split('T')[0],
+                created: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        if (typeof loadUser === 'function') loadUser(uid);
+        if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+        setTimeout(function() {
+            var modal = document.getElementById('nostrAuthModal');
+            if (modal) modal.remove();
+        }, 800);
+        if (typeof showToast === 'function') showToast('🟣 Signed in with Nostr!');
+    } catch(e) {
+        console.error('Nostr auth complete error:', e);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed: ' + (typeof escapeHtml === 'function' ? escapeHtml(e.message || 'Unknown error') : (e.message || 'Unknown error')) + '</span>';
+    }
+}
+
+// ─── Crypto helpers for nsec sign-in (browser-native) ───
+
+function bytesToHex(bytes) {
+    return Array.from(bytes).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+function hexToBytes(hex) {
+    var bytes = new Uint8Array(hex.length / 2);
+    for (var i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    return bytes;
+}
+
+async function cryptoSha256(data) {
+    return crypto.subtle.digest('SHA-256', data);
+}
+
+// Bech32 decoder (for nsec1... → raw bytes)
+function bech32Decode(str) {
+    var CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    var pos = str.lastIndexOf('1');
+    if (pos < 1 || pos + 7 > str.length) return null;
+    var prefix = str.substring(0, pos).toLowerCase();
+    var dataChars = [];
+    for (var i = pos + 1; i < str.length; i++) {
+        var c = CHARSET.indexOf(str.charAt(i).toLowerCase());
+        if (c === -1) return null;
+        dataChars.push(c);
+    }
+    // Remove 6-char checksum
+    var values = dataChars.slice(0, -6);
+    // Convert from 5-bit to 8-bit
+    var data = convert5to8(values);
+    return { prefix: prefix, data: data };
+}
+
+function convert5to8(data) {
+    var acc = 0, bits = 0, out = [];
+    for (var i = 0; i < data.length; i++) {
+        acc = (acc << 5) | data[i];
+        bits += 5;
+        while (bits >= 8) {
+            bits -= 8;
+            out.push((acc >> bits) & 0xff);
+        }
+    }
+    return new Uint8Array(out);
+}
+
+// Schnorr signing (for nsec) — uses WebCrypto for EC operations
+// This is a minimal implementation using the secp256k1 curve
+// For browser compatibility, we load noble-secp256k1 from CDN if needed
+async function deriveNostrPubkey(privkeyBytes) {
+    // Try using @noble/secp256k1 if available from CDN
+    if (window._nobleSecp) {
+        var pub = window._nobleSecp.schnorr.getPublicKey(privkeyBytes);
+        return bytesToHex(pub);
+    }
+    // Load it dynamically
+    try {
+        await loadNobleSecp();
+        var pub = window._nobleSecp.schnorr.getPublicKey(privkeyBytes);
+        return bytesToHex(pub);
+    } catch(e) {
+        console.error('Failed to load secp256k1:', e);
+        return null;
+    }
+}
+
+async function schnorrSign(msgBytes, privkeyBytes) {
+    if (!window._nobleSecp) await loadNobleSecp();
+    return window._nobleSecp.schnorr.sign(new Uint8Array(msgBytes), privkeyBytes);
+}
+
+function loadNobleSecp() {
+    return new Promise(function(resolve, reject) {
+        if (window._nobleSecp) { resolve(); return; }
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/@noble/secp256k1@1.7.1/lib/index.js';
+        script.onload = function() {
+            if (window.nobleSecp256k1) {
+                window._nobleSecp = window.nobleSecp256k1;
+                resolve();
+            } else {
+                reject(new Error('noble-secp256k1 not found after load'));
+            }
+        };
+        script.onerror = function() { reject(new Error('Failed to load secp256k1 library')); };
+        document.head.appendChild(script);
+    });
 }
 
 // Apple Sign-In removed
