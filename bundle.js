@@ -25611,8 +25611,12 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _cu = _auth && _auth.currentUser;
         const isAdmin = (_cu && (_cu.email || "") === "needcreations@gmail.com");
 
+        // Experienced onboarding users bypass all gating
+        var _obProfile = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
+        var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
+
         // Tier Logic (Sign-in or threshold met)
-        const isFull = isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
+        const isFull = _isAdvanced || isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         const isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
 
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
@@ -26458,7 +26462,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _aAuth = (typeof auth !== 'undefined') ? auth : null;
         var _aCu = _aAuth && _aAuth.currentUser;
         var _isAdmin = (_aCu && (_aCu.email || '') === 'needcreations@gmail.com');
-        var _isFull = _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);
+        var _obP = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
+        var _isAdv = _obP && (_obP.level === 'advanced' || _obP.level === 'full');
+        var _isFull = _isAdv || _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);
         var _isExplorer = _isFull || (_vis >= 3 || _exploredN >= 3);
 
         var btnBase = 'padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;';
