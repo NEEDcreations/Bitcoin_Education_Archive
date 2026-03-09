@@ -19384,6 +19384,15 @@ window.showUserProfile = function(uid) {
                 profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
+            // Lightning Address & Tip button
+            ((u.lightningAddress || u.lightning) ? '<div style="margin-bottom:12px;">' +
+                '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
+                    '<span style="font-size:1rem;">⚡</span>' +
+                    '<span style="color:#eab308;font-size:0.78rem;font-weight:600;word-break:break-all;">' + escapeHtml(u.lightningAddress || u.lightning) + '</span>' +
+                    '<button onclick="navigator.clipboard.writeText(\'' + escapeHtml((u.lightningAddress || u.lightning).replace(/'/g, "\\'")) + '\');if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
+                '</div>' +
+                '<button onclick="document.getElementById(\'userProfileModal\').remove();showTipOverlay({recipientName:\'' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\',recipientUid:\'' + uid + '\',lightningAddress:\'' + escapeHtml(u.lightningAddress || u.lightning).replace(/'/g, "\\'") + '\',label:\'Tip ' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\',context:\'profile\'})" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
+            '</div>' : '') +
             // Message button
             (canMessage && dmEligibility.ok ?
                 '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'

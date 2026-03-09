@@ -195,8 +195,12 @@ window.executeTip = async function() {
                 var userDoc = await db.collection('users').doc(opts.recipientUid).get();
                 if (userDoc.exists) {
                     var userData = userDoc.data();
-                    if (userData.lightning && userData.lightning.includes('@')) {
-                        opts.lightningAddress = userData.lightning;
+                    if ((userData.lightningAddress || userData.lightning) && (userData.lightningAddress || userData.lightning).includes('@')) {
+                        opts.lightningAddress = userData.lightningAddress || userData.lightning;
+                        // Also fix the recipient name if it's generic
+                        if ((!opts.recipientName || opts.recipientName === 'this user') && userData.username) {
+                            opts.recipientName = userData.username;
+                        }
                     }
                 }
             } catch(e) { /* user doc not accessible or doesn't exist */ }

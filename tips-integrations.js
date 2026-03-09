@@ -58,19 +58,26 @@ function injectForumTips() {
         var itemId = idMatch ? idMatch[1] : '';
         var isReply = onclickStr.includes('forumVoteReply');
 
-        // Try to find author name from nearby elements
+        // Try to find author name and UID from nearby elements
         var card = btn.closest('div[style*="background"]') || btn.parentElement;
-        var authorEl = card ? card.querySelector('span[style*="font-weight:700"], div[style*="font-weight:700"]') : null;
-        var authorName = authorEl ? authorEl.textContent.trim() : 'this user';
-
-        // Try to get author UID from onclick handlers in the card
+        var authorName = 'this user';
         var authorUid = '';
+
+        // First try: find the showUserProfile link (most reliable — has both UID and name)
         if (card) {
             var profileLink = card.querySelector('[onclick*="showUserProfile"]');
             if (profileLink) {
                 var uidMatch = (profileLink.getAttribute('onclick') || '').match(/showUserProfile\('([^']+)'\)/);
                 if (uidMatch) authorUid = uidMatch[1];
+                // Extract name from the profile link text (strip emoji prefix)
+                var linkText = profileLink.textContent.trim();
+                if (linkText) authorName = linkText.replace(/^[^\w\s]+\s*/, '').trim() || linkText;
             }
+        }
+        // Fallback: font-weight:700 elements
+        if (authorName === 'this user' && card) {
+            var authorEl = card.querySelector('span[style*="font-weight:700"], div[style*="font-weight:700"]');
+            if (authorEl) authorName = authorEl.textContent.trim();
         }
 
         var tipOpts = {
