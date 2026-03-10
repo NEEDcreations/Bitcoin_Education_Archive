@@ -241,12 +241,14 @@
         .lb-close { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 1.1rem; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
         .lb-close:hover { border-color: var(--accent); color: var(--accent); }
         .lb-list { padding: 8px; }
-        .lb-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; }
+        .lb-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; }
         .lb-row:hover { background: var(--card-bg); }
         .lb-me { background: var(--accent-bg); border: 1px solid var(--accent-glow); }
-        .lb-rank { font-size: 0.9rem; min-width: 30px; color: var(--text-muted); }
-        .lb-name { color: var(--text); font-size: 0.9rem; flex: 1; }
-        .lb-score { color: var(--accent); font-weight: 700; font-size: 0.85rem; }
+        .lb-rank { font-size: 0.9rem; min-width: 28px; color: var(--text-muted); flex-shrink: 0; }
+        .lb-badge { font-size: 0.95rem; flex-shrink: 0; }
+        .lb-name { color: var(--text); font-size: 0.9rem; flex: 1; display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lb-name img { flex-shrink: 0; }
+        .lb-score { color: var(--accent); font-weight: 700; font-size: 0.85rem; flex-shrink: 0; white-space: nowrap; }
         .lb-levels { padding: 12px 20px; border-top: 1px solid var(--border); }
         .lb-levels h4 { color: var(--text-faint); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
         .lb-level-row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--text-muted); font-size: 0.8rem; }

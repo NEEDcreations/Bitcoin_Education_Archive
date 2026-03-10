@@ -2063,11 +2063,12 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
             var _rowPfp = d.profilePic
-                ? '<img src="' + d.profilePic + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px;border:1px solid var(--border);">'
+                ? '<img src="' + d.profilePic + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-name">' + _rowPfp + lv.emoji + ' ' + (d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + lv.emoji + '</span>' +
+                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + (d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
             '</div>';
         });
