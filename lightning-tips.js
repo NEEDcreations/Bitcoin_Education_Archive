@@ -299,9 +299,19 @@ function showInvoiceCopy(bolt11, amount, opts) {
         '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">Invoice for ' + amount.toLocaleString() + ' sats</div>' +
         '<div style="text-align:center;margin-bottom:10px;"><img src="' + qrUrl + '" alt="Lightning Invoice QR" style="width:180px;height:180px;border-radius:10px;display:inline-block;"></div>' +
         '<div style="padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;" onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')">' + bolt11.substr(0, 120) + '…</div>' +
-        '<button onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 Copy Invoice</button>' +
-        '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">Scan QR or paste invoice into your Lightning wallet</div>' +
+        '<button onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">📋 Copy Invoice</button>' +
+        '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:10px;text-align:center;">Scan QR or paste invoice into your Lightning wallet</div>' +
+        '<button id="tipPaidBtn" onclick="confirmInvoicePaid(' + amount + ')" style="width:100%;padding:12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;">✅ I\'ve Paid This Invoice</button>' +
     '</div>';
+
+    // Store opts for confirmInvoicePaid
+    window._tipInvoiceOpts = opts;
+}
+
+// Confirm manual invoice payment
+window.confirmInvoicePaid = function(amount) {
+    var opts = window._tipInvoiceOpts || window._tipOpts || {};
+    showTipSuccess(amount, opts);
 }
 
 // ─── Quick Tip Button Generator ──────────────────────────
