@@ -1033,6 +1033,10 @@ async function loadUser(uid, prefetchedDoc) {
             }
         }
 
+        // Sync PVP stats: Firestore is always source of truth (prevents cross-account bleed on same device)
+        localStorage.setItem('btc_pvp_wins', String(currentUser.pvpWins || 0));
+        localStorage.setItem('btc_pvp_losses', String(currentUser.pvpLosses || 0));
+
             // Restore Nacho nickname from Firestore
             if (currentUser.nachoNickname) {
                 localStorage.setItem('btc_nacho_nickname', currentUser.nachoNickname);
