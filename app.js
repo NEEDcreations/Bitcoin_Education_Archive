@@ -818,16 +818,18 @@
         img.onload = function() { _donateQRPreloaded = true; };
     }, 3000);
 
-    function _donateMethodHtml(label, copyVal, displayVal, linkUrl) {
+    function _donateMethodHtml(label, copyVal, displayVal, linkUrl, qrImg) {
         var id = 'dc_' + Math.random().toString(36).substr(2, 6);
         var linkBtn = linkUrl ? '<a href="' + linkUrl + '" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid var(--accent,#f7931a);border-radius:6px;color:var(--accent,#f7931a);font-size:0.65rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">Open ↗</a>' : '';
-        return '<div style="padding:10px;margin-bottom:8px;background:var(--card-bg,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;">' +
-            '<div style="font-size:0.72rem;color:var(--text-faint,#888);font-weight:700;margin-bottom:6px;">' + label + '</div>' +
-            '<div style="display:flex;align-items:center;gap:6px;">' +
+        var qrHtml = qrImg ? '<div style="text-align:center;margin-bottom:8px;"><img src="' + qrImg + '" alt="' + label + ' QR" style="width:140px;height:140px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;"></div>' : '';
+        return '<div style="padding:12px;margin-bottom:8px;background:var(--card-bg,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint,#888);font-weight:700;margin-bottom:8px;">' + label + '</div>' +
+            qrHtml +
+            (copyVal ? '<div style="display:flex;align-items:center;gap:6px;">' +
                 '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + copyVal.replace(/'/g, "\\'") + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
                 '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + copyVal.replace(/'/g, "\\'") + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
                 linkBtn +
-            '</div>' +
+            '</div>' : '') +
         '</div>';
     }
 
@@ -856,12 +858,12 @@
                 '<p style="color:var(--text-faint,#666);font-size:0.75rem;margin-top:10px;">⚠️ Donations are non-refundable</p>' +
                 '<button onclick="var el=document.getElementById(\'moreDonateMethods\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.textContent=el.style.display===\'none\'?\'💳 More Ways to Donate ▼\':\'💳 Hide Other Methods ▲\'" style="width:100%;padding:12px;background:var(--card-bg,#222);border:1px solid var(--border,#333);border-radius:10px;color:var(--text,#ccc);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-top:12px;transition:0.2s;">💳 More Ways to Donate ▼</button>' +
                 '<div id="moreDonateMethods" style="display:none;margin-top:14px;text-align:left;">' +
-                    _donateMethodHtml('₿ On-Chain Bitcoin', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', null) +
-                    _donateMethodHtml('🔒 BIP47 Payment Code', 'PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89', 'PM8TJWpq8Hq...Tg89', null) +
-                    _donateMethodHtml('💵 Cash App', '$NEEDcreations', '$NEEDcreations', 'https://cash.app/$NEEDcreations') +
-                    _donateMethodHtml('💜 Venmo', '@Phil2140', '@Phil2140', 'https://venmo.com/code?user_id=1358236213051392692&created=1773155307') +
-                    _donateMethodHtml('💙 PayPal', 'paypal.me/PhilipFazioli', 'paypal.me/PhilipFazioli', 'https://paypal.me/PhilipFazioli') +
-                    _donateMethodHtml('💚 Zelle', 'info.603btc@gmail.com', 'info.603btc@gmail.com', null) +
+                    _donateMethodHtml('₿ On-Chain Bitcoin', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', 'bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf', null, 'images/donate/onchain-qr.jpg') +
+                    _donateMethodHtml('🔒 BIP47 Payment Code', 'PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89', 'PM8TJWpq8Hq...Tg89', null, 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89') +
+                    _donateMethodHtml('💵 Cash App', '$NEEDcreations', '$NEEDcreations', 'https://cash.app/$NEEDcreations', 'images/donate/cashapp-qr.jpg') +
+                    _donateMethodHtml('💜 Venmo', '@Phil2140', '@Phil2140', 'https://venmo.com/code?user_id=1358236213051392692&created=1773155307', 'images/donate/venmo-qr.jpg') +
+                    _donateMethodHtml('💙 PayPal', 'paypal.me/PhilipFazioli', 'paypal.me/PhilipFazioli', 'https://paypal.me/PhilipFazioli', 'images/donate/paypal-qr.jpg') +
+                    _donateMethodHtml('💚 Zelle', null, null, null, 'images/donate/zelle-qr.jpg') +
                 '</div>' +
             '</div>';
         document.body.appendChild(modal);
