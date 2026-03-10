@@ -2148,11 +2148,10 @@ async function _loadPVPLeaderboard() {
             var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
             pvpHtml += '<div' + hidden + '>' +
                 '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-name">' + pvpIcon + ' ' + p.username + '</span>' +
-                '<span class="lb-score" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">' +
-                    '<span>' + p.wins + 'W – ' + p.losses + 'L (' + p.total + ' rounds)</span>' +
-                    '<span style="font-size:0.65rem;color:var(--text-faint);font-weight:500;">' + Math.round(p.winRate) + '% win rate</span>' +
-                '</span></div>';
+                '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
+                '<span class="lb-name">' + p.username + '</span>' +
+                '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W – ' + p.losses + 'L</span>' +
+            '</div>';
         });
         if (players.length > 10) {
             pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + players.length + ' PVP players ▼</button>';
