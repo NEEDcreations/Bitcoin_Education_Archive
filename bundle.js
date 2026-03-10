@@ -23717,7 +23717,7 @@ if (document.readyState === 'loading') {
     function _donateMethodHtml(label, copyVal, displayVal, linkUrl, qrImg) {
         var id = 'dc_' + Math.random().toString(36).substr(2, 6);
         var linkBtn = linkUrl ? '<a href="' + linkUrl + '" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid var(--accent,#f7931a);border-radius:6px;color:var(--accent,#f7931a);font-size:0.65rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">Open ↗</a>' : '';
-        var qrHtml = qrImg ? '<div style="text-align:center;margin-bottom:8px;"><img src="' + qrImg + '" alt="' + label + ' QR" style="width:140px;height:140px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;"></div>' : '';
+        var qrHtml = qrImg ? '<div style="text-align:center;margin-bottom:8px;"><img src="' + qrImg + '" alt="' + label + ' QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>' : '';
         return '<div style="padding:12px;margin-bottom:8px;background:var(--card-bg,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint,#888);font-weight:700;margin-bottom:8px;">' + label + '</div>' +
             qrHtml +
