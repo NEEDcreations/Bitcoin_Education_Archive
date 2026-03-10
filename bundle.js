@@ -22713,9 +22713,10 @@ if (document.readyState === 'loading') {
                         <div style="padding:15px;flex:1;display:flex;flex-direction:column;">
                             <div style="color:var(--accent);font-size:0.75rem;font-weight:800;text-transform:uppercase;margin-bottom:8px;">${dateStr} @ ${timeStr}</div>
                             <h3 style="font-size:1.1rem;color:var(--heading);margin:0 0 8px;line-height:1.4;">${ev.title}</h3>
-                            <div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:15px;display:flex;align-items:center;gap:5px;">
+                            <div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:${ev.description ? '8px' : '15px'};display:flex;align-items:center;gap:5px;">
                                 📍 ${ev.locationName || 'TBD'}
                             </div>
+                            ${ev.description ? '<div style="color:var(--text-dim);font-size:0.8rem;line-height:1.5;margin-bottom:15px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">' + (typeof escapeHtml === 'function' ? escapeHtml(ev.description) : ev.description) + '</div>' : ''}
                             <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid var(--border);">
                                 <div id="rsvp-count-${doc.id}" style="font-size:0.8rem;color:var(--text-muted);">${(ev.attendees || []).length || ev.attendeesCount || 0} attending</div>
                                 <button id="rsvp-btn-${doc.id}" onclick="event.stopPropagation();toggleRSVP('${doc.id}')" style="background:${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? 'var(--accent)' : 'var(--bg-side)'};color:${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? '#fff' : 'var(--text)'};border:1px solid ${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? 'var(--accent)' : 'var(--border)'};padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;touch-action:manipulation;">${(ev.attendees || []).indexOf(((typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '')) !== -1 ? "✅ I'm Going" : "I'm Going!"}</button>
@@ -22800,6 +22801,12 @@ if (document.readyState === 'loading') {
                     </div>
 
                     <div style="margin-bottom:20px;">
+                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Description (optional)</label>
+                        <textarea id="evDesc" placeholder="What's the event about? What should attendees expect?" rows="3" maxlength="1000" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;resize:vertical;font-family:inherit;font-size:0.9rem;line-height:1.5;box-sizing:border-box;"></textarea>
+                        <div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;text-align:right;">Max 1000 characters</div>
+                    </div>
+
+                    <div style="margin-bottom:20px;">
                         <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Photo (optional)</label>
                         <div style="display:flex;align-items:center;gap:12px;">
                             <div id="evCoverPreview" onclick="document.getElementById('evCoverFile').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;">
@@ -22871,6 +22878,9 @@ if (document.readyState === 'loading') {
                 btn.textContent = "Broadcasting...";
             }
 
+            var evDescEl = document.getElementById('evDesc');
+            var descVal = evDescEl ? evDescEl.value.trim().substring(0, 1000) : '';
+
             var eventData = {
                 title: title,
                 date: new Date(date).toISOString(),
@@ -22883,6 +22893,7 @@ if (document.readyState === 'loading') {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (linkVal) eventData.link = linkVal;
+            if (descVal) eventData.description = descVal;
             if (coverUrl) eventData.coverUrl = coverUrl;
             await db.collection('irl_events').add(eventData);
 
