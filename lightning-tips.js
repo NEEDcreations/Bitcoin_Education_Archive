@@ -299,9 +299,44 @@ function showInvoiceCopy(bolt11, amount, opts) {
         '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;margin-bottom:8px;">Invoice for ' + amount.toLocaleString() + ' sats</div>' +
         '<div style="text-align:center;margin-bottom:10px;"><img src="' + qrUrl + '" alt="Lightning Invoice QR" style="width:180px;height:180px;border-radius:10px;display:inline-block;"></div>' +
         '<div style="padding:8px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;max-height:70px;overflow-y:auto;line-height:1.4;cursor:pointer;margin-bottom:8px;" onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')">' + bolt11.substr(0, 120) + '…</div>' +
-        '<button onclick="navigator.clipboard.writeText(\'' + bolt11 + '\');if(typeof showToast===\'function\')showToast(\'📋 Invoice copied!\')" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 Copy Invoice</button>' +
+        '<button id="tipCopyInvBtn" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📋 Copy Invoice</button>' +
         '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:6px;text-align:center;">Scan QR or paste invoice into your Lightning wallet</div>' +
     '</div>';
+
+    // Attach copy handler that transitions to "payment sent" screen
+    setTimeout(function() {
+        var copyBtn = document.getElementById('tipCopyInvBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function() {
+                navigator.clipboard.writeText(bolt11).then(function() {
+                    if (typeof showToast === 'function') showToast('📋 Invoice copied!');
+                });
+                // After copying, show pending confirmation after brief delay
+                setTimeout(function() {
+                    _showInvoicePending(amount, opts);
+                }, 800);
+            });
+        }
+    }, 50);
+}
+
+function _showInvoicePending(amount, opts) {
+    var ov = document.getElementById('tipOverlay');
+    if (!ov) return;
+    var inner = ov.querySelector('div');
+    if (!inner) return;
+    inner.innerHTML = '<div style="text-align:center;padding:20px;animation:fadeSlideIn 0.3s;">' +
+        '<div style="font-size:3rem;margin-bottom:12px;">⚡</div>' +
+        '<div style="color:#eab308;font-size:1.2rem;font-weight:900;margin-bottom:6px;">Invoice Copied!</div>' +
+        '<div style="color:var(--heading);font-size:1.1rem;font-weight:700;margin-bottom:4px;">' + amount.toLocaleString() + ' sats</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">to ' + (typeof escapeHtml === 'function' ? escapeHtml(opts.recipientName || 'user') : (opts.recipientName || 'user')) + '</div>' +
+        '<div style="padding:12px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;margin-bottom:16px;">' +
+            '<div style="color:#eab308;font-size:0.82rem;font-weight:600;">Pay the invoice in your Lightning wallet.</div>' +
+            '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">Sats will arrive instantly once paid. ⚡</div>' +
+        '</div>' +
+        '<button onclick="this.closest(\'[id=tipOverlay]\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Done ✓</button>' +
+    '</div>';
+    if (typeof awardPoints === 'function') awardPoints(10, 'Lightning tip initiated');
 }
 
 // ─── Quick Tip Button Generator ──────────────────────────
