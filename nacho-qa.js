@@ -2348,13 +2348,46 @@ var OFF_TOPIC_PATTERNS = [
         "Why did the altcoiner cross the road? To chase the next pump. The Bitcoiner? Already on the other side, holding. 😂",
         "I told my friend to invest in Bitcoin. He said 'but what if it drops?' I said 'then you buy more!' He didn't think that was a joke. Neither did I. 🦌"
     ]},
-    { pattern: /^(hey|hi|hello|yo|sup|howdy|hola|greetings|gm|good morning|good evening|good afternoon)$|^(hey|hi|hello|yo) (nacho|there|buddy|friend|deer)|how are you|how do you feel|are you okay|how's it going|what's up|what is up|wassup|whats up/,
+    { pattern: /^(hey|hi|hello|yo|sup|howdy|hola|greetings|gm|good morning|good evening|good afternoon|what's good|ayy|ayo|heya|hiya|hey hey)[.!,?\s]*$|^(hey|hi|hello|yo|sup) (nacho|there|buddy|friend|deer|man|dude|bro|fam)[.!,?\s]*$|how are you|how do you feel|are you okay|how's it going|what's up|what is up|wassup|whats up|how you doing|how ya doing|how u doing|what's good|what's crackin|what's new|you good|you there|talk to me|what's happening/,
       answers: [
-        "Hey {name}! 🦌 Doing great — just hanging out, waiting for someone to ask me about Bitcoin! What's on your mind?",
-        "Living the dream, {name}! Well, a deer's dream — grass, sunshine, and sound money. What's on your mind?",
-        "Hey hey! 🧡 I'm good, {name}! Just grazed on some blockchain data. What can I help you learn today?",
-        "Well hello there, {name}! 👋 I'm always happy to chat. Got a Bitcoin question, or just saying hi? Either way, welcome!",
-        "Hey! 🦌 Great to see you. I was just brushing up on Lightning Network stuff. What brings you to the archive today?"
+        "Hey {name}! 🦌 What's good? Got a Bitcoin question or just vibing? Either way I'm here for it.",
+        "Yo {name}! 🧡 I'm always ready. What can I help you with today?",
+        "Hey hey! 🦌 Good to see you. What's on your mind?",
+        "What's up {name}! 👋 Always happy to chat. Fire away — Bitcoin questions, trivia, or just conversation.",
+        "Hey! 🦌 I've been waiting for you. What do you want to learn about today?",
+        "{name}! 🧡 What brings you to the archive? I'm ready for anything — Bitcoin, trivia, you name it.",
+        "Sup! 🦌 I was just counting sats. What can I do for you?",
+        "Hey there, {name}! Welcome back. Got questions? I've got answers. 🦌⚡"
+    ]},
+    { pattern: /^(good morning|morning|gm)[.!,?\s]*$/i,
+      answers: [
+        "Good morning, {name}! ☀️🦌 Rise and grind — another day to stack sats. What's on the agenda?",
+        "GM {name}! 🌅 Another beautiful day on the timechain. What can I help with?"
+    ]},
+    { pattern: /^(good night|gn|goodnight|night|nite)[.!,?\s]*$/i,
+      answers: [
+        "Good night, {name}! 🌙🦌 Sleep well — the blockchain never sleeps, so I'll hold it down. See you next time!",
+        "Night {name}! 🦌✨ Dream of sound money. Tick tock, next block — even while you sleep."
+    ]},
+    { pattern: /^(how's your day|how is your day|having a good day|how has your day been)[.!?\s]*$/i,
+      answers: [
+        "Great, {name}! 🦌 Every day blocks keep coming is a good day. How about yours?",
+        "Can't complain — 146 channels of knowledge and great company. What about you, {name}? 🧡"
+    ]},
+    { pattern: /^(i'm good|i'm fine|i'm great|doing good|doing well|doing fine|not bad|pretty good|all good|i'm okay|i'm alright|feeling good)[.!,?\s]*$/i,
+      answers: [
+        "Glad to hear it, {name}! 🦌🧡 So what brings you here today? Wanna learn something new about Bitcoin?",
+        "Nice! 🦌 Ready to go deeper down the rabbit hole? Ask me anything or try a quiz!"
+    ]},
+    { pattern: /^(not great|not good|bad day|having a bad day|feeling down|sad|stressed|tired|exhausted|rough day|terrible)[.!,?\s]*$/i,
+      answers: [
+        "Sorry to hear that, {name}. 🦌💛 Here's something that might cheer you up: no matter how bad your day is, your Bitcoin is still there, appreciating in value. Want me to tell you a fun fact or a joke?",
+        "Hang in there, {name}! 🦌🧡 Bad days end, but sound money lasts forever. Want a distraction? I've got trivia, memes, or I can blow your mind with a Bitcoin fact."
+    ]},
+    { pattern: /^(nothing|not much|nm|nmu|just chilling|just vibing|chillin|hanging out|just browsing|looking around|just looking)[.!,?\s]*$/i,
+      answers: [
+        "Same here, {name}! 🦌 Well... I'm always here. If you're browsing, try a random channel — you might discover something amazing!",
+        "Nice, sometimes that's the best way to learn! 🦌 If you want suggestions, I can point you to the best channels for your level. Just ask!"
     ]},
     { pattern: /can you help|help me|i need help|assist me/,
       answers: [
@@ -2391,11 +2424,13 @@ var OFF_TOPIC_PATTERNS = [
         "Bored? Not on my watch! 🦌 Here are some ideas: explore a random channel, take the Scholar Exam, check the memes channel, or ask me a trivia question!",
         "Bored is just code for 'hasn't discovered Lightning Network yet'! ⚡ Try asking me about something you've always wondered about Bitcoin."
     ]},
-    { pattern: /goodbye|bye|see you|gotta go|leaving|cya|later|peace out/,
+    { pattern: /goodbye|bye|see you|gotta go|leaving|cya|later|peace out|gotta run|heading out|signing off|ttyl|talk later|catch you later/,
       answers: [
         "See you later, {name}! 🦌👋 Remember: Nacho keys, nacho cheese! Come back anytime.",
         "Bye {name}! Keep stacking sats and I'll keep guarding this archive. 🦌✌️",
-        "Later, {name}! Every visit makes you smarter. Your future self will thank you! 🧡"
+        "Later, {name}! Every visit makes you smarter. Your future self will thank you! 🧡",
+        "Peace, {name}! 🦌 I'll be here when you get back. Tick tock, next block. ⏰",
+        "Take care, {name}! 🧡 Don't forget to stack some sats on your way out. 😉"
     ]},
     { pattern: /what is your favorite|do you like|your favorite|what do you prefer|which do you/,
       answers: [
@@ -2487,10 +2522,55 @@ var OFF_TOPIC_PATTERNS = [
         "I'm the only animal you need to talk to, {name}! 🦌 I'm Nacho — a Bitcoin deer from New Hampshire. What would you like to learn about Bitcoin?",
         "Other animals? The only animal in crypto worth knowing is this deer right here! 🦌💪 Got a Bitcoin question for me?"
     ]},
-    { pattern: /^[a-z]{1,4}$|^lol$|^ok$|^no$|^yes$|^why$|^how$|^what$|^huh$|^hmm$|^idk$|^bruh$/,
+    { pattern: /^(lol|lmao|rofl|haha|hahaha|ha ha|😂|🤣)[.!?\s]*$/i,
       answers: [
-        "That's a bit short for me to work with, {name}! 🦌 Try asking me a Bitcoin question like 'What is Bitcoin?' or 'How does mining work?'",
-        "I need a bit more to go on! 🦌 Ask me anything about Bitcoin — wallets, mining, Lightning, self-custody — I'm ready!"
+        "😂🦌 Glad I'm entertaining! Want to hear another joke, or shall we talk Bitcoin?",
+        "Haha! 🦌 I'm here all week. Got a Bitcoin question or want more laughs?"
+    ]},
+    { pattern: /^(ok|okay|k|alright|sure|cool|nice|neat|dope|sick|fire|based|lit|bet)[.!?\s]*$/i,
+      answers: [
+        "So what's next, {name}? 🦌 Want to learn something new, take a quiz, or just chat?",
+        "Cool! 🦌 I'm ready when you are. What do you want to know about?"
+    ]},
+    { pattern: /^(yes|yeah|yep|yup|ya|ye|yea|absolutely|definitely|for sure)[.!?\s]*$/i,
+      answers: [
+        "Alright! 🦌 What would you like to know? Bitcoin basics, advanced tech, or something specific?",
+        "Let's go! 🦌⚡ What topic are you curious about?"
+    ]},
+    { pattern: /^(no|nah|nope|not really|pass|naw)[.!?\s]*$/i,
+      answers: [
+        "No worries, {name}! 🦌 I'll be here whenever you're ready. Browse around or ask me anything anytime!",
+        "All good! 🦌 Just hanging out. Hit me up whenever you've got a question."
+    ]},
+    { pattern: /^(why|how|what|huh|hmm|idk|bruh|wut|hm)[.!?\s]*$/i,
+      answers: [
+        "Give me a bit more to work with, {name}! 🦌 Like 'Why is Bitcoin important?' or 'How does mining work?'",
+        "I'm ready to answer, but I need a full question! 🦌 Try: 'What is Bitcoin?' or 'How do I get started?'"
+    ]},
+    { pattern: /^[a-z]{1,3}[.!?\s]*$/i,
+      answers: [
+        "Hey {name}, that's a bit short for me! 🦌 Ask me something about Bitcoin — I know a LOT. Try 'What is Bitcoin?' to get started!",
+        "I need more than that! 🦌 Ask me anything — what is Bitcoin, how does mining work, what's a Lightning Address — whatever's on your mind."
+    ]},
+    { pattern: /^(what do you think|thoughts|your opinion|your take|what say you)[.!?\s]*$/i,
+      answers: [
+        "About what, {name}? 🦌 I've got strong opinions on Bitcoin, altcoins, monetary policy, and self-custody. Give me a topic!",
+        "I think Bitcoin fixes a LOT of things! 🦌 But what specifically are you asking about? Point me in a direction!"
+    ]},
+    { pattern: /^(interesting|wow|whoa|damn|dang|wild|crazy|insane|mind blown|no way|really|seriously|for real|wait what)[.!?\s]*$/i,
+      answers: [
+        "Right?! 🦌 Bitcoin is full of mind-blowing stuff. Want to go deeper? Ask me anything!",
+        "I know! 🤯🦌 The more you learn about Bitcoin, the crazier it gets. What else do you want to know?"
+    ]},
+    { pattern: /^(tell me more|more|go on|continue|keep going|explain more|elaborate)[.!?\s]*$/i,
+      answers: [
+        "Sure! What topic do you want me to dive deeper into, {name}? 🦌 Give me a keyword and I'll go all in.",
+        "Happy to expand! 🦌 What specifically do you want more detail on? Mining? Lightning? Wallets? Self-custody?"
+    ]},
+    { pattern: /^(i don't know|idk|not sure|i don't understand|confused|i'm confused|i'm lost|lost|what does that mean)[.!?\s]*$/i,
+      answers: [
+        "No worries, {name}! 🦌 That's why I'm here. Want me to explain something simpler? Try asking 'ELI5 Bitcoin' for a super easy explanation!",
+        "Totally normal — Bitcoin has a learning curve! 🦌 Tell me what's confusing and I'll break it down. Or say 'ELI5' and I'll explain it like you're five!"
     ]},
 ];
 
