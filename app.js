@@ -1813,8 +1813,9 @@
         try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _a = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-        var isExplorer = (_a && !_a.isAnonymous) || visits >= 3 || exploredCount >= 3;
         var isFull = (_a && !_a.isAnonymous) || visits >= 10 || exploredCount >= 10;
+        var isCommunity = isFull || visits >= 5 || exploredCount >= 5;
+        var isExplorer = isCommunity || visits >= 3 || exploredCount >= 3;
 
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
@@ -1827,8 +1828,9 @@
             '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">🛡️ Feature Rewards System</div>' +
             '<p style="margin:0;color:var(--text);">The Archive unlocks more powerful features as you learn to prevent Normie overload! 🦌</p>' +
             '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🗣️ PlebTalk & 🎸 Beats</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (isFull ? '0.5' : '1') + '"><span>🔹 10 Channels:</span> <strong>⚡ Marketplace</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🎵 Beats & 🤝 IRL Sync</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (isCommunity ? '0.5' : '1') + '"><span>🔹 5 Channels:</span> <strong>🗣️ Pleb Talk</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (isFull ? '0.5' : '1') + '"><span>🔹 10 Channels:</span> <strong>⚡ Lightning Mart</strong></div>' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (_a && !_a.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
             '</div>' +
         '</div>';
@@ -3005,9 +3007,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _obProfile = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
         var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
 
-        // Tier Logic (Sign-in or threshold met)
+        // Tier Logic — progressive unlock
+        // Explorer (3ch): Beats, IRL Sync | Community (5ch): PlebTalk | Full (10ch or signed in): Marketplace
         const isFull = _isAdvanced || isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
-        const isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
+        const isCommunity = isFull || (visits >= 5 || exploredCount >= 5);
+        const isExplorer = isCommunity || (visits >= 3 || exploredCount >= 3);
 
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
         const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, #authBtn, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
@@ -3058,10 +3062,13 @@ window.nachoQuizAnswer = function(btn, correct) {
             let reqMsg = '';
             if (tier === 'explorer') {
                 unlocked = isExplorer;
-                reqMsg = '🔒 Visit ' + Math.max(0, 3 - exploredCount) + ' more channels to unlock ' + name + '!';
+                reqMsg = '🔒 Visit ' + Math.max(0, 3 - exploredCount) + ' more channel' + (3 - exploredCount === 1 ? '' : 's') + ' to unlock ' + name + '!';
+            } else if (tier === 'community') {
+                unlocked = isCommunity;
+                reqMsg = '🔒 Explore ' + Math.max(0, 5 - exploredCount) + ' more channel' + (5 - exploredCount === 1 ? '' : 's') + ' to unlock ' + name + '!';
             } else if (tier === 'full') {
                 unlocked = isFull;
-                reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channels to unlock ' + name + '!';
+                reqMsg = '🔒 Explore ' + Math.max(0, 10 - exploredCount) + ' more channel' + (10 - exploredCount === 1 ? '' : 's') + ' or sign in to unlock ' + name + '!';
             }
 
             if (!unlocked) {
@@ -3090,16 +3097,15 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Unlock celebrations — fire once per tier
         var prevTier = localStorage.getItem('btc_unlocked_tier') || 'none';
-        if (isExplorer && prevTier === 'none') {
-            localStorage.setItem('btc_unlocked_tier', 'explorer');
-            if (typeof showToast === 'function') showToast('🎉 🗣️ PlebTalk & 🎵 Bitcoin Beats unlocked! Check Explore Apps!');
-        } else if (isFull && prevTier === 'explorer') {
-            localStorage.setItem('btc_unlocked_tier', 'full');
-            if (typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
-        } else if (isFull && prevTier === 'none') {
-            localStorage.setItem('btc_unlocked_tier', 'full');
-        } else if (isExplorer && prevTier !== 'explorer' && prevTier !== 'full') {
-            localStorage.setItem('btc_unlocked_tier', 'explorer');
+        var tiers = ['none', 'explorer', 'community', 'full'];
+        var curTier = isFull ? 'full' : isCommunity ? 'community' : isExplorer ? 'explorer' : 'none';
+        var prevIdx = tiers.indexOf(prevTier);
+        var curIdx = tiers.indexOf(curTier);
+        if (curIdx > prevIdx) {
+            localStorage.setItem('btc_unlocked_tier', curTier);
+            if (curTier === 'explorer' && typeof showToast === 'function') showToast('🎉 🎵 Bitcoin Beats & 🤝 IRL Sync unlocked! Check Explore Apps!');
+            if (curTier === 'community' && typeof showToast === 'function') showToast('🎉 🗣️ Pleb Talk unlocked! Join the community!');
+            if (curTier === 'full' && typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
         }
         
         // Add "Next Milestone" Info
@@ -3113,14 +3119,16 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         
         if (!isExplorer) {
-            const vLeft = 3 - visits;
-            const cLeft = 3 - exploredCount;
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channels OR visit the app ' + vLeft + ' more times to unlock 🗣️ PlebTalk! 🦌';
+            const cLeft = Math.max(0, 3 - exploredCount);
+            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' to unlock 🎵 Beats & 🤝 IRL Sync! 🦌';
+            milestoneEl.style.display = '';
+        } else if (!isCommunity) {
+            const cLeft = Math.max(0, 5 - exploredCount);
+            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' to unlock 🗣️ Pleb Talk! 🦌';
             milestoneEl.style.display = '';
         } else if (!isFull) {
-            const vLeft = 10 - visits;
-            const cLeft = 10 - exploredCount;
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' channels OR visit the app ' + vLeft + ' more times to unlock ⚡ Marketplace! 🚀';
+            const cLeft = Math.max(0, 10 - exploredCount);
+            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' or sign in to unlock ⚡ Lightning Mart! 🚀';
             milestoneEl.style.display = '';
         } else {
             milestoneEl.style.display = 'none';
@@ -3855,7 +3863,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _obP = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
         var _isAdv = _obP && (_obP.level === 'advanced' || _obP.level === 'full');
         var _isFull = _isAdv || _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);
-        var _isExplorer = _isFull || (_vis >= 3 || _exploredN >= 3);
+        var _isCommunity = _isFull || (_vis >= 5 || _exploredN >= 5);
+        var _isExplorer = _isCommunity || (_vis >= 3 || _exploredN >= 3);
 
         var btnBase = 'padding:15px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;transition:0.2s;';
         var btnLocked = btnBase + 'opacity:0.45;filter:grayscale(0.8);cursor:help;';
@@ -3869,12 +3878,14 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<span style="font-size:1.8rem;">' + emoji + '</span><span>' + label + '</span></button>';
         }
 
-        var forumLock = !_isExplorer;
         var beatsLock = !_isExplorer;
+        var irlLock = !_isExplorer;
+        var forumLock = !_isCommunity;
         var marketLock = !_isFull;
-        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Pleb Talk!';
         var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Bitcoin Beats!';
-        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more channels to unlock Lightning Mart!';
+        var irlMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock IRL Sync!';
+        var forumMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more channels to unlock Pleb Talk!';
+        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more channels or sign in to unlock Lightning Mart!';
 
         var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
@@ -3883,7 +3894,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 appBtn('⚔️', 'PVP Battle', "if(typeof enterPVPMode==='function')enterPVPMode()", false) +
                 appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) +
                 appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) +
-                appBtn('🤝', 'IRL Sync', "go('irl-sync')", false) +
+                appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
                 appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
             '</div></div>';
         document.body.insertAdjacentHTML('beforeend', html);

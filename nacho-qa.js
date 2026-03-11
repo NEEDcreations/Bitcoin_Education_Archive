@@ -2716,7 +2716,7 @@ function matchSiteNavigation(input) {
           answer: "We've got lots of sign-in options! 🔐🦌\n\n🔵 Google, 𝕏 Twitter/X, 🐙 GitHub, 📘 Facebook\n🟣 Nostr (extension, nsec, or npub)\n⚡ Lightning (scan QR with your wallet)\n📧 Email/password\n\nYour progress, points, and badges sync across all devices when signed in!",
           action: "showUsernamePrompt()", label: "🔐 Sign In" },
         { patterns: /how.*(unlock|tier|gate|progress)|unlock.*app|tier.*system|why.*locked|locked.*feature|how.*get.*access|feature.*locked|can't.*access|cant.*access/,
-          answer: "Features unlock as you explore! 🦌\n\n🔹 **Start**: Nacho Mode, Quests, PVP, IRL Sync — always available\n🔹 **3 channels**: Unlocks 🗣️ PlebTalk & 🎵 Bitcoin Beats\n🔹 **10 channels**: Unlocks ⚡ LightningMart\n🔹 **Sign up**: Your progress and profile persist across devices\n\nOr pick 'I'm experienced' during onboarding to unlock everything immediately! The channels themselves are never locked — only the apps unlock progressively.",
+          answer: "Features unlock as you explore! 🦌\n\n🟢 **Always**: Nacho Mode, PVP Battle, Quests — yours from the start\n🔵 **3 channels**: Unlocks 🎵 Bitcoin Beats & 🤝 IRL Sync\n🟣 **5 channels**: Unlocks 🗣️ Pleb Talk (community forum)\n🟠 **10 channels or sign in**: Unlocks ⚡ Lightning Mart\n\nOr pick 'I'm experienced' during onboarding to unlock everything immediately! The channels themselves are never locked — only the apps unlock progressively.",
           action: "goHome()", label: "🏠 Start Exploring" },
     ];
 
