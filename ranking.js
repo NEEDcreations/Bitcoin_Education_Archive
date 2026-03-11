@@ -1618,10 +1618,16 @@ function updateUserDisplay(lv) {
     }
 
     if (isAnon || (auth.currentUser && auth.currentUser.isAnonymous && !hasUsername)) {
+        // If user dismissed the banner this session, keep it hidden
+        if (sessionStorage.getItem('btc_signin_banner_dismissed') === '1') {
+            el.style.display = 'none';
+            return;
+        }
         // Anonymous user — eye-catching banner with points + sign up nudge
         el.style.cssText = 'position:fixed;top:44px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:380px;';
         el.onclick = function() { showSettingsPage('account'); };
         el.innerHTML =
+            '<button onclick="event.stopPropagation();sessionStorage.setItem(\'btc_signin_banner_dismissed\',\'1\');document.getElementById(\'userDisplay\').style.display=\'none\';" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">✕</button>' +
             '<div style="display:flex;flex-direction:column;gap:2px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +

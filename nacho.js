@@ -895,6 +895,30 @@ function createNacho() {
     if (!nachoVisible) toggle.style.display = 'flex';
     document.body.appendChild(toggle);
 
+    // Long-press on Nacho avatar to dismiss/minimize
+    (function() {
+        var avatar = document.getElementById('nacho-avatar');
+        if (!avatar) return;
+        var lpTimer = null;
+        var lpFired = false;
+        avatar.addEventListener('touchstart', function(e) {
+            lpFired = false;
+            lpTimer = setTimeout(function() {
+                lpFired = true;
+                if (typeof hideNacho === 'function') hideNacho();
+                if (typeof showToast === 'function') showToast('🦌 Nacho hidden! Tap the 🦌 icon to bring him back.');
+            }, 800);
+        }, { passive: true });
+        avatar.addEventListener('touchend', function() { clearTimeout(lpTimer); if (lpFired) { lpFired = false; } });
+        avatar.addEventListener('touchmove', function() { clearTimeout(lpTimer); });
+        // Desktop: right-click also hides
+        avatar.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            if (typeof hideNacho === 'function') hideNacho();
+            if (typeof showToast === 'function') showToast('🦌 Nacho hidden! Tap the 🦌 icon to bring him back.');
+        });
+    })();
+
     // Welcome after delay — use time-of-day greeting or regular welcome
     setTimeout(function() {
         if (!nachoVisible) return;
