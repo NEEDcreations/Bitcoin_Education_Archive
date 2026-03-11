@@ -1,6 +1,13 @@
 {
-  "updated": "2026-03-11T00:00:49.982Z",
+  "updated": "2026-03-11T04:00:50.094Z",
   "news": [
+    {
+      "date": "Mar 10, 2026",
+      "title": "Quantum Computing Isn't Just Coming for Bitcoin—It Threatens Messaging Apps Too",
+      "snippet": "Decrypt",
+      "link": "https://news.google.com/rss/articles/CBMiggFBVV95cUxNVkJvdnE3R01YUVVkUUVKZnRFU09XWVF1V0RWWS1zSm9oMFVqVnlDaEVCaTNTY2JTMVE5VlJxYWlRUUtHbjRLOV9yOXJuTmp1cmFSa2ROMFE5OGx6OTNKUUtjSVBpSjhNdV9YUW1QRHNDWHIwbkNyRlFqN1EwNjRKSU1R0gGKAUFVX3lxTE80c1Zvc2pCblh2VDJWZmtMbE5qb3huUHdQWG5uMWZMZkNrLU95U3BubTAzcFV6SkRBaDRsZkQ1WXZERVBlVUtUZDZudzZ6X2xSVjhEN2s0ejRBU1JxWDhQejlLX2ttaGljVEZKOGJadnMtakE4cEFfVEZIN09Na2tnVFFScDByeHdJdw?oc=5",
+      "source": "googlenews"
+    },
     {
       "date": "Mar 10, 2026",
       "title": "Bitcoin Whale Strategy Goes Both Guns Blazing Amid $10 Bil Mystery",
@@ -10,16 +17,9 @@
     },
     {
       "date": "Mar 10, 2026",
-      "title": "BlackRock vs. Coinbase: The Bitcoin Battle Begins #shorts",
-      "snippet": "Luke Mikic",
-      "link": "https://www.youtube.com/shorts/zpNFsM5JORY",
-      "source": "lukemikic"
-    },
-    {
-      "date": "Mar 10, 2026",
-      "title": "Bitcoin has mined 20 million coins: why the last of the remaining 1 million won’t arrive until 2140",
-      "snippet": "Fortune",
-      "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTFBtLURNdV95Z2t5c0Fnem9XeURRMmlERGxTSGVTV0xtbTJvNnRNdEtySkZXVDJkVVVUdmdIN2lPLTQyYnN2aWdtMmpNX3QwV1J6VmhXZzhSeXJPUXdWcmZidWxmcE9kWWJYdldMMDhzT2lZaHA3?oc=5",
+      "title": "Bitwise CIO reiterates bitcoin price could reach $1 million as he compares it to gold",
+      "snippet": "The Block",
+      "link": "https://news.google.com/rss/articles/CBMiggFBVV95cUxPVHBiVWxEcDJCZTA0YlgxSlpuOEg2VWdZbWRkS0xVelg2WGxwVW9yVVpEdUNLN3F0b0ZkUUdra290U3pVb3dNWHltaTRRVkVfTkc5akpUeGtxMURwWjUteU9XaVI2U2dxcVV5WkVsZFlNV1BLRU5WZVM5MHdGN3l1Nk5n?oc=5",
       "source": "googlenews"
     }
   ]
