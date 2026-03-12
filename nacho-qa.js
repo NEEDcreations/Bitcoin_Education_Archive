@@ -2764,8 +2764,93 @@ function checkAltcoin(input) {
     return null;
 }
 
+// Lightweight typo correction — catches common misspellings before KB lookup
+function fixTypos(input) {
+    // Common Bitcoin term misspellings → correct form
+    var typoMap = {
+        'miining': 'mining', 'minning': 'mining', 'mning': 'mining', 'minin': 'mining', 'minig': 'mining', 'minung': 'mining',
+        'bitcon': 'bitcoin', 'bitocin': 'bitcoin', 'bitcoun': 'bitcoin', 'bitcoim': 'bitcoin', 'bitcion': 'bitcoin', 'bicoin': 'bitcoin', 'btcion': 'bitcoin', 'bitconi': 'bitcoin',
+        'lightining': 'lightning', 'lightening': 'lightning', 'lighning': 'lightning', 'ligtning': 'lightning', 'lightnig': 'lightning', 'litning': 'lightning',
+        'walelt': 'wallet', 'walet': 'wallet', 'walllet': 'wallet', 'wallt': 'wallet', 'walett': 'wallet',
+        'blockchan': 'blockchain', 'blockchian': 'blockchain', 'blokchain': 'blockchain', 'blockhain': 'blockchain', 'blochain': 'blockchain',
+        'transacion': 'transaction', 'transacton': 'transaction', 'trnsaction': 'transaction', 'trasaction': 'transaction', 'transation': 'transaction',
+        'satoshis': 'satoshi', 'satosih': 'satoshi', 'satoschi': 'satoshi', 'sathoshi': 'satoshi',
+        'halveing': 'halving', 'halvning': 'halving', 'havling': 'halving', 'halvng': 'halving',
+        'diffficulty': 'difficulty', 'dificulty': 'difficulty', 'diffculty': 'difficulty', 'difiiculty': 'difficulty',
+        'nonce': 'nonce', 'nonce': 'nonce',
+        'decntralized': 'decentralized', 'decentralied': 'decentralized', 'decentralzied': 'decentralized', 'decetralized': 'decentralized',
+        'inflaton': 'inflation', 'infation': 'inflation', 'inflaiton': 'inflation',
+        'privte': 'private', 'privat': 'private', 'priavte': 'private',
+        'segwitt': 'segwit', 'segwt': 'segwit',
+        'taprooot': 'taproot', 'taprot': 'taproot', 'tparoot': 'taproot',
+        'nostr': 'nostr', 'nostar': 'nostr',
+        'litecoin': 'litecoin', 'etherium': 'ethereum', 'etheruem': 'ethereum', 'etherem': 'ethereum', 'etereum': 'ethereum',
+        'volatilty': 'volatility', 'volaitlity': 'volatility', 'volitility': 'volatility',
+        'curency': 'currency', 'curreny': 'currency', 'currencie': 'currency',
+        'investmnt': 'investment', 'investement': 'investment', 'investmnet': 'investment',
+        'crytpo': 'crypto', 'cryto': 'crypto', 'cyrpto': 'crypto', 'crypot': 'crypto',
+        'exchnage': 'exchange', 'exhange': 'exchange', 'exchagne': 'exchange', 'exchang': 'exchange',
+        'adress': 'address', 'adddress': 'address', 'addres': 'address', 'adresss': 'address',
+        'scarsity': 'scarcity', 'scarciy': 'scarcity', 'scaricty': 'scarcity',
+        'consenssus': 'consensus', 'consesus': 'consensus', 'concensus': 'consensus',
+        'mempoool': 'mempool', 'mepool': 'mempool', 'mempol': 'mempool',
+        'whitepaper': 'whitepaper', 'whtiepaper': 'whitepaper', 'whitpaper': 'whitepaper',
+        'quntum': 'quantum', 'quantam': 'quantum', 'quantom': 'quantum',
+        'custdy': 'custody', 'custoddy': 'custody', 'cusotdy': 'custody',
+        'multisig': 'multisig', 'mutlisig': 'multisig', 'multsig': 'multisig',
+        'coinjion': 'coinjoin', 'coinjon': 'coinjoin', 'coinjoing': 'coinjoin',
+        'ordianls': 'ordinals', 'ordinlas': 'ordinals', 'ordnials': 'ordinals',
+        'stabelcoin': 'stablecoin', 'stableconi': 'stablecoin', 'stablcoin': 'stablecoin',
+    };
+    var words = input.split(/\s+/);
+    var changed = false;
+    for (var i = 0; i < words.length; i++) {
+        var w = words[i].replace(/[?.!,;:'"()]/g, '');
+        if (typoMap[w]) {
+            words[i] = words[i].replace(w, typoMap[w]);
+            changed = true;
+        }
+    }
+    // Also try Levenshtein distance 1-2 for words > 4 chars against known Bitcoin terms
+    if (!changed) {
+        var knownTerms = ['bitcoin','mining','miner','lightning','wallet','blockchain','transaction','satoshi','halving','difficulty','nonce','taproot','segwit','nostr','mempool','whitepaper','quantum','custody','multisig','ordinals','coinjoin','stablecoin','decentralized','inflation','scarcity','consensus','exchange','address','volatility','investment','currency'];
+        for (var i = 0; i < words.length; i++) {
+            var w = words[i].replace(/[?.!,;:'"()]/g, '');
+            if (w.length < 4) continue;
+            for (var j = 0; j < knownTerms.length; j++) {
+                if (w === knownTerms[j]) break;
+                var dist = _levenshtein(w, knownTerms[j]);
+                if (dist > 0 && dist <= 2 && dist < w.length * 0.4) {
+                    words[i] = words[i].replace(w, knownTerms[j]);
+                    changed = true;
+                    break;
+                }
+            }
+        }
+    }
+    return words.join(' ');
+}
+
+function _levenshtein(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    var matrix = [];
+    for (var i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (var j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (var i = 1; i <= b.length; i++) {
+        for (var j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
 function findAnswer(input) {
-    input = input.toLowerCase().trim();
+    input = fixTypos(input.toLowerCase().trim());
     if (input.length < 2) return null;
 
     // ---- EMERGENCY PRIORITY: Live Data Awareness ----
@@ -3856,7 +3941,7 @@ window.nachoTrackTopic = function(question, source) {
 // callback(result) where result = { type, answer, channel, channelName, disclaimer }
 // type: 'safety'|'crisis'|'harm'|'financial'|'profanity'|'offtopic'|'kb'|'ai'|'deepsearch'|'websearch'|'fallback'
 window.nachoUnifiedAnswer = function(question, callback) {
-    var q = question.trim();
+    var q = (typeof fixTypos === 'function') ? fixTypos(question.trim().toLowerCase()) : question.trim();
     if (!q) { callback({ type: 'fallback', answer: "Ask me something about Bitcoin! 🦌" }); return; }
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
