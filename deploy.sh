@@ -10,6 +10,16 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
+# ---- Build: concatenate and minify bundle ----
+echo "🔨 Building bundle..."
+if [ -f build.sh ]; then
+    ./build.sh
+    if [ $? -ne 0 ]; then
+        echo "❌ Build failed"
+        exit 1
+    fi
+fi
+
 # ---- Run tests first ----
 echo "🧪 Running pre-commit tests..."
 node tests/run-all.js

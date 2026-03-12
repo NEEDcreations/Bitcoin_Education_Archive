@@ -3422,6 +3422,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             const offset = window._currentOffset;
             const msgs = window._currentMsgs;
             const btn = document.getElementById('loadMoreBtn');
+            if (!btn) return;
             const nextBatch = msgs.slice(offset, offset + 50);
             let html = '';
             nextBatch.forEach((m, bi) => {
@@ -3432,9 +3433,22 @@ window.nachoQuizAnswer = function(btn, correct) {
             });
             btn.insertAdjacentHTML('beforebegin', html);
             window._currentOffset = offset + 50;
-            if (window._currentOffset >= msgs.length) { btn.remove(); }
+            if (window._currentOffset >= msgs.length) { btn.remove(); window._scrollObserver && window._scrollObserver.disconnect(); }
             else { btn.textContent = 'Load more (' + (msgs.length - window._currentOffset) + ' remaining)'; }
         };
+        
+        // Auto-load more on scroll using IntersectionObserver (virtual scrolling lite)
+        (function() {
+            if (window._scrollObserver) { window._scrollObserver.disconnect(); window._scrollObserver = null; }
+            if (!document.getElementById('loadMoreBtn')) return;
+            window._scrollObserver = new IntersectionObserver(function(entries) {
+                if (entries[0].isIntersecting && typeof window.loadMoreMsgs === 'function') {
+                    window.loadMoreMsgs();
+                }
+            }, { root: null, rootMargin: '300px', threshold: 0 });
+            var loadBtn = document.getElementById('loadMoreBtn');
+            if (loadBtn) window._scrollObserver.observe(loadBtn);
+        })();
 
         // Mark channel as visited in sidebar
         document.querySelectorAll('.ch-btn').forEach(b => {
