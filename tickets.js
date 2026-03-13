@@ -333,6 +333,28 @@ async function onUserLoadedTickets() {
     checkReferralQualifications().catch(function() {});
 }
 
+// ---- Award tickets for content uploads ----
+window.awardTickets = async function(amount, reason) {
+    if (!amount || amount < 1) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+
+    var newTotal = (currentUser.orangeTickets || 0) + amount;
+    var bonusPoints = amount * TICKET_CONFIG.pointsPerTicket;
+
+    try {
+        await db.collection('users').doc(auth.currentUser.uid).update({
+            orangeTickets: newTotal,
+            points: firebase.firestore.FieldValue.increment(bonusPoints)
+        });
+        currentUser.orangeTickets = newTotal;
+        currentUser.points = (currentUser.points || 0) + bonusPoints;
+        if (typeof updateRankUI === 'function') updateRankUI();
+    } catch(e) { console.warn('[tickets] Award error:', e); }
+
+    if (typeof showToast === 'function') showToast('🎟️ +' + amount + ' Orange Tickets! ' + (reason || ''));
+};
+
 // Run on page load
 if (typeof window !== 'undefined') {
     // Capture referral code from URL immediately

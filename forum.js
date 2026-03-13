@@ -576,6 +576,7 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_date', today);
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
+        if (typeof awardTickets === 'function') awardTickets(5, '📝 Forum post');
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumPosts: firebase.firestore.FieldValue.increment(1)

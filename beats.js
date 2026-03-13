@@ -687,7 +687,7 @@ function _onUploadSuccess(btn) {
     document.getElementById('beatsUpStatus').textContent = '✅ Upload complete!';
     showToast('🎵 Track uploaded!');
     sessionStorage.setItem('_ch_beats_upload', '1');
-    if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');
+    if (typeof awardPoints === 'function') awardPoints(25, 'Uploaded a track to Bitcoin Beats!');if(typeof awardTickets==='function')awardTickets(10,'🎵 Beat uploaded');
     setTimeout(function() {
         var overlay = document.getElementById('beatsUploadOverlay');
         if (overlay) overlay.remove();

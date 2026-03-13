@@ -278,6 +278,8 @@
 
             document.getElementById('hostEventModal').remove();
             if (typeof showToast === 'function') showToast("✅ Event Synchronized!");
+            if (typeof awardPoints === 'function') awardPoints(15, '🤝 IRL event created');
+            if (typeof awardTickets === 'function') awardTickets(10, '🤝 Event hosted');
             loadEvents();
         } catch (e) {
             alert("Error broadcasting event: " + e.message);
