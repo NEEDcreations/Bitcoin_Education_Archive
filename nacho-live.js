@@ -64,12 +64,23 @@ function initTicker() {
     // Prevent duplicate initialization
     if (window._tickerInitialized) return;
     window._tickerInitialized = true;
+
+    // Hidden by default — user must enable in Settings
+    if (localStorage.getItem('btc_ticker_enabled') !== 'true') {
+        // Remove ticker and adjust layout if it exists
+        var existing = document.getElementById('btcTicker');
+        if (existing) existing.remove();
+        document.body.classList.remove('ticker-visible');
+        return;
+    }
+
     var ticker = document.getElementById('btcTicker');
     if (!ticker) {
         ticker = document.createElement('div');
         ticker.id = 'btcTicker';
         document.body.prepend(ticker);
     }
+    document.body.classList.add('ticker-visible');
 
     // Modern ticker style - fixed top, reserve space
     ticker.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10005;background:#030712;border-bottom:1px solid #f7931a;padding:0;height:32px;overflow:hidden;display:flex;align-items:center;font-family:inherit;font-size:0.75rem;color:#94a3b8;line-height:32px;';
@@ -94,19 +105,18 @@ function initTicker() {
         @keyframes btcTickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         #btcTicker:hover #tickerScroller { animation-play-state: paused; }
         @media(max-width:900px) { 
-            .mobile-bar { top: 32px !important; }
-            main { padding-top: 130px !important; }
-            aside { top: 130px !important; z-index: 10006; }
-            #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
-            #btcTicker { font-size: 0.65rem; height: 32px; visibility: visible !important; display: flex !important; }
-            .progress-bar { top: 118px !important; }
+            body.ticker-visible .mobile-bar { top: 32px !important; }
+            body.ticker-visible main { padding-top: 130px !important; }
+            body.ticker-visible aside { top: 130px !important; z-index: 10006; }
+            body.ticker-visible #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
+            #btcTicker { font-size: 0.65rem; height: 32px; }
+            body.ticker-visible .progress-bar { top: 118px !important; }
         }
         @media(min-width:901px) { 
-            aside { padding-top: 32px; }
-            main { padding-top: 32px; }
-            #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
-            #btcTicker { visibility: visible !important; display: flex !important; }
-            .progress-bar { top: 32px !important; }
+            body.ticker-visible aside { padding-top: 32px; }
+            body.ticker-visible main { padding-top: 32px; }
+            body.ticker-visible #nachoModeScreen { height: calc(100vh - 32px) !important; margin-top: 32px; }
+            body.ticker-visible .progress-bar { top: 32px !important; }
         }`;
 
     fetch('newsletter-data.json?v=' + Date.now()).then(r => r.json()).then(data => {
@@ -224,5 +234,26 @@ window.nachoLiveMessage = function() {
 
 setTimeout(fetchLiveData, 3000);
 setInterval(fetchLiveData, FETCH_INTERVAL);
+
+// Toggle ticker visibility — called from Settings
+window.toggleTickerSetting = function() {
+    var enabled = localStorage.getItem('btc_ticker_enabled') === 'true';
+    if (enabled) {
+        // Disable
+        localStorage.setItem('btc_ticker_enabled', 'false');
+        var t = document.getElementById('btcTicker');
+        if (t) t.remove();
+        document.body.classList.remove('ticker-visible');
+        if (typeof showToast === 'function') showToast('📡 Signal ticker hidden. Refresh to fully apply.');
+    } else {
+        // Enable
+        localStorage.setItem('btc_ticker_enabled', 'true');
+        window._tickerInitialized = false;
+        initTicker();
+        if (typeof showToast === 'function') showToast('📡 Signal ticker enabled!');
+    }
+    // Re-render settings if open
+    if (typeof showSettingsPage === 'function') showSettingsPage('data');
+};
 
 })();

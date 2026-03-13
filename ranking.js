@@ -2685,6 +2685,16 @@ function showSettingsPage(tab) {
             '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
             '</div>';
 
+        // Signal Ticker
+        const tickerOn = localStorage.getItem('btc_ticker_enabled') === 'true';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📡 Signal Ticker</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Live Bitcoin price, block height, and curated news headlines scrolling at the top of the screen.</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span style="color:var(--text);font-size:0.85rem;">Show Ticker</span>' +
+            '<button onclick="if(typeof toggleTickerSetting===\'function\')toggleTickerSetting();else{localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'prefs\');}" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tickerOn ? 'ON' : 'OFF') + '</button></div>' +
+            '</div>';
+
         // Keyboard Shortcuts (collapsible — takes lots of space)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div onclick="window._expanded_shortcuts=!window._expanded_shortcuts;showSettingsPage(\'prefs\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
