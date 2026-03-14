@@ -20537,20 +20537,6 @@ window.renderBitcoinBeats = function() {
             </div>
         </div>
 
-        <!-- Copyright Disclaimer (collapsible) -->
-        <div style="margin-bottom:20px;">
-            <button onclick="var d=document.getElementById('beatsCopyrightDetails');d.style.display=d.style.display==='none'?'block':'none';this.querySelector('span').textContent=d.style.display==='none'?'▸':'▾'" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;text-align:left;">
-                ⚠️ Copyright Notice <span style="margin-left:auto;">▸</span>
-            </button>
-            <div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">
-                By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.
-                <div style="margin-top:6px;">
-                    <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
-                    <a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>
-                </div>
-            </div>
-        </div>
-
         <!-- Tab Bar -->
         <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;">
             <button onclick="beatsTab('discover')" id="beatsTabDiscover" class="beats-tab active" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔥 Discover</button>
@@ -21383,12 +21369,24 @@ window.beatsRenderUpload = function() {
                 '<button onclick="beatsDoUpload()" id="beatsUpBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Upload Track</button>' +
             '</div>' +
 
-            // Info
-            '<div style="margin-top:24px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
+            // Copyright notice + Info
+            '<div style="margin-top:20px;max-width:480px;margin-left:auto;margin-right:auto;">' +
+                '<button onclick="var d=document.getElementById(\'beatsCopyrightDetails\');d.style.display=d.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=d.style.display===\'none\'?\'▸\':\'▾\'" style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;color:#eab308;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;text-align:left;">' +
+                    '⚠️ Copyright Notice <span style="margin-left:auto;">▸</span>' +
+                '</button>' +
+                '<div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">' +
+                    'By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.' +
+                    '<div style="margin-top:6px;">' +
+                        '<a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Full Terms</a> · ' +
+                        '<a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="margin-top:16px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
                 '<h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:12px;">Tips for Uploading</h3>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;line-height:1.5;">' +
                     '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 25MB)</p>' +
-                    '<p><strong>✅ Rewards:</strong> +25 points for each approved track</p>' +
+                    '<p><strong>✅ Rewards:</strong> +25 points + 🎟️ 10 Orange Tickets for each approved track</p>' +
                     '<p><strong>✅ Visibility:</strong> Your track will be publicly available to all users</p>' +
                     '<p><strong>⚠️ Copyright:</strong> Only upload music you own or have permission to share</p>' +
                 '</div>' +
