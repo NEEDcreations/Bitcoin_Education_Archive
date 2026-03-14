@@ -9320,6 +9320,9 @@ function matchSiteNavigation(input) {
         { patterns: /where.*(forum|community|discuss|chat|post)|how.*(post|discuss|talk)|community forum|where.*talk|where.*chat/,
           answer: "PlebTalk is where Bitcoiners discuss, share ideas, and help each other! 🗣️",
           action: "go('forum')", label: "🗣️ PlebTalk" },
+        { patterns: /where.*(article|blog|essay|long.form|write.*article|publish)|how.*(write|publish).*article|bitcoin.*article|read.*article/,
+          answer: "Articles live inside PlebTalk! Tap the 📝 Articles tab to browse or write. You need 100+ points and at least 500 words to publish. Markdown supported! 📝🦌",
+          action: "forumTab='articles';go('forum')", label: "📝 Articles" },
         { patterns: /where.*(market|shop|store|lightningmart|lightning.?mart)|how.*(list|trade).*(?:item|product|stuff)|marketplace|lightningmart|lightning.?mart|where.*sell.*(?:item|stuff|thing)|where.*buy.*(?:item|merch|stuff|thing)|spend.*(?:bitcoin|btc|sats)/,
           answer: "LightningMart is where you can buy and sell items for sats! ⚡",
           action: "go('marketplace')", label: "⚡ LightningMart" },
@@ -17197,6 +17200,13 @@ var forumPage = 'list'; // list | post | new
 var forumCurrentPost = null;
 var forumPostsCache = [];
 var forumLastLoad = 0;
+var forumTab = 'discussions'; // discussions | articles
+
+// Article tags
+var ARTICLE_TAGS = [
+    'Bitcoin Basics', 'Lightning', 'Mining', 'Privacy', 'Self-Custody',
+    'Economics', 'Technical', 'Culture', 'Opinion', 'Tutorial', 'News Analysis'
+];
 
 // ---- Render Forum ----
 window.renderForum = function() {
@@ -17225,6 +17235,17 @@ window.renderForum = function() {
             '<button onclick="forumNewPost()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;white-space:nowrap;">+ New Post</button>' +
         '</div>' +
     '</div>';
+
+    // Tab switcher
+    html += '<div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
+        '<button onclick="forumSwitchTab(\'discussions\')" style="flex:1;padding:10px;background:' + (forumTab === 'discussions' ? 'var(--accent)' : 'none') + ';color:' + (forumTab === 'discussions' ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">💬 Discussions</button>' +
+        '<button onclick="forumSwitchTab(\'articles\')" style="flex:1;padding:10px;background:' + (forumTab === 'articles' ? 'var(--accent)' : 'none') + ';color:' + (forumTab === 'articles' ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📝 Articles</button>' +
+    '</div>';
+
+    if (forumTab === 'articles') {
+        renderArticlesList(html, fc);
+        return;
+    }
 
     // Sort + Filter bar
     html += '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">';
@@ -17826,6 +17847,647 @@ window.forumDeleteReply = async function(replyId, postId) {
     } catch(e) {
         if (typeof showToast === 'function') showToast('Error deleting reply');
     }
+};
+
+// =============================================
+// 📝 PlebTalk Articles System
+// =============================================
+// ---- Tab Switcher ----
+window.forumSwitchTab = function(tab) {
+    forumTab = tab;
+    renderForum();
+};
+
+// ---- Simple Markdown to HTML ----
+function mdToHtml(md) {
+    if (!md) return '';
+    var h = fEsc(md);
+    h = h.replace(/^### (.+)$/gm, '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">$1</h3>');
+    h = h.replace(/^## (.+)$/gm, '<h2 style="color:var(--heading);font-size:1.25rem;font-weight:800;margin:24px 0 10px;">$1</h2>');
+    h = h.replace(/^# (.+)$/gm, '<h1 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:28px 0 12px;">$1</h1>');
+    h = h.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--heading);">$1</strong>');
+    h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    h = h.replace(/`(.+?)`/g, '<code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">$1</code>');
+    h = h.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">$1</blockquote>');
+    h = h.replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
+    h = h.replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
+    h = h.replace(/\n{2,}/g, '</p><p style="margin:12px 0;line-height:1.8;">');
+    h = '<p style="margin:12px 0;line-height:1.8;">' + h + '</p>';
+    return h;
+}
+
+// ---- Articles List View ----
+function renderArticlesList(htmlPrefix, fc) {
+    var html = htmlPrefix;
+    
+    // Action buttons
+    html += '<div style="display:flex;gap:8px;margin-bottom:16px;justify-content:flex-end;">' +
+        '<button onclick="showForumRulesBtn()" style="padding:10px 14px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:10px;font-size:0.85rem;cursor:pointer;font-family:inherit;">📜 Rules</button>' +
+        '<button onclick="articleNew()" style="padding:10px 18px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">✍️ Write Article</button>' +
+    '</div>';
+    
+    // Sort
+    html += '<div style="display:flex;gap:6px;margin-bottom:14px;">';
+    ['recent','top'].forEach(function(s) {
+        var labels = { recent: '🕐 Recent', top: '🔥 Top' };
+        var active = forumSort === s;
+        html += '<button onclick="forumSetSort(\'' + s + '\')" style="padding:8px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';">' + labels[s] + '</button>';
+    });
+    html += '</div>';
+    
+    html += '<div id="articlesList"><div style="text-align:center;padding:40px;color:var(--text-muted);">Loading articles...</div></div>';
+    html += '</div>';
+    fc.innerHTML = html;
+    document.getElementById('main').scrollTop = 0;
+    loadArticles();
+}
+
+// ---- Load Articles from Firestore ----
+async function loadArticles() {
+    var container = document.getElementById('articlesList');
+    if (!container || typeof db === 'undefined') return;
+    
+    try {
+        var sortField = forumSort === 'top' ? 'upvotes' : 'createdAt';
+        var snap = await db.collection('articles').where('status', '==', 'published').orderBy(sortField, 'desc').limit(30).get();
+        var articles = [];
+        snap.forEach(function(doc) { articles.push({ id: doc.id, ...doc.data() }); });
+        
+        if (articles.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:60px 20px;">' +
+                '<div style="font-size:3rem;margin-bottom:12px;">📝</div>' +
+                '<div style="color:var(--heading);font-size:1.1rem;font-weight:700;margin-bottom:6px;">No articles yet</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Be the first to publish a Bitcoin article!</div>' +
+                '<button onclick="articleNew()" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✍️ Write Article</button>' +
+            '</div>';
+            return;
+        }
+        
+        var html = '';
+        articles.forEach(function(a) {
+            var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
+            var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
+            var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
+            var pinned = a.pinned ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
+            
+            html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+            
+            if (a.coverUrl) {
+                html += '<div style="height:160px;background:url(' + fEsc(a.coverUrl) + ') center/cover no-repeat;"></div>';
+            }
+            
+            html += '<div style="padding:16px;">';
+            html += pinned + '<h3 style="color:var(--heading);font-size:1.05rem;font-weight:800;margin:0 0 6px;line-height:1.4;">' + fEsc(a.title) + '</h3>';
+            if (a.subtitle) html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;line-height:1.4;">' + fEsc(a.subtitle) + '</div>';
+            
+            // Tags
+            if (a.tags && a.tags.length) {
+                html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+                a.tags.forEach(function(t) { html += '<span style="padding:2px 8px;background:var(--accent-bg);border-radius:10px;font-size:0.65rem;color:var(--accent);font-weight:600;">' + fEsc(t) + '</span>'; });
+                html += '</div>';
+            }
+            
+            // Meta
+            html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text-faint);">' +
+                '<span>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</span>' +
+                '<span>·</span><span>' + readTime + ' min read</span>' +
+                (dateStr ? '<span>·</span><span>' + dateStr + '</span>' : '') +
+            '</div>';
+            
+            // Stats
+            html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;color:var(--text-faint);">' +
+                '<span>👍 ' + (a.upvotes || 0) + '</span>' +
+                '<span>💬 ' + (a.replyCount || 0) + '</span>' +
+                (a.tipTotal ? '<span>⚡ ' + a.tipTotal + ' sats</span>' : '') +
+            '</div>';
+            
+            html += '</div></div>';
+        });
+        
+        container.innerHTML = html;
+    } catch(e) {
+        console.error('Articles load error:', e);
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Error loading articles</div>';
+    }
+}
+
+// ---- Article Terms ----
+var ARTICLE_TERMS = [
+    'Content must be Bitcoin-focused or Bitcoin-adjacent',
+    'Minimum 500 words, maximum 10,000 words',
+    'No promotion of altcoins, scams, or affiliate spam',
+    'Original content only — no plagiarism',
+    'No hate speech or personal attacks',
+    'Author grants the archive a non-exclusive license to display the content',
+    'Moderators may remove content that violates these guidelines'
+];
+
+// ---- New Article Form ----
+window.articleNew = function() {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        if (typeof showToast === 'function') showToast('🔒 Sign in to write articles');
+        return;
+    }
+    var pts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
+    if (pts < 100) {
+        if (typeof showToast === 'function') showToast('📝 You need 100+ points to publish articles. Keep exploring!');
+        return;
+    }
+    
+    // Check for draft
+    var draft = null;
+    try { draft = JSON.parse(localStorage.getItem('btc_article_draft')); } catch(e) {}
+    
+    var fc = document.getElementById('forumContainer');
+    if (!fc) return;
+    
+    var _s = 'width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:12px;-webkit-appearance:none;';
+    
+    var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+    html += '<button onclick="forumTab=\'articles\';renderForum()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;">← Back to Articles</button>';
+    html += '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 14px;">✍️ Write an Article</h2>';
+    
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;">';
+    
+    // Title
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Title *</label>' +
+        '<input type="text" id="articleTitle" maxlength="120" placeholder="Your article title" value="' + (draft && draft.title ? fEsc(draft.title) : '') + '" style="' + _s + '">';
+    
+    // Subtitle
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Subtitle <span style="color:var(--text-faint);">(optional)</span></label>' +
+        '<input type="text" id="articleSubtitle" maxlength="200" placeholder="Brief description" value="' + (draft && draft.subtitle ? fEsc(draft.subtitle) : '') + '" style="' + _s + '">';
+    
+    // Tags
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:6px;">Tags (pick 1-3) *</label>' +
+        '<div id="articleTagsContainer" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+    var draftTags = (draft && draft.tags) ? draft.tags : [];
+    ARTICLE_TAGS.forEach(function(t) {
+        var sel = draftTags.indexOf(t) !== -1;
+        html += '<button onclick="toggleArticleTag(this,\'' + t + '\')" data-tag="' + t + '" style="padding:6px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'var(--accent-bg)' : 'none') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:600;">' + t + '</button>';
+    });
+    html += '</div>';
+    
+    // Body with preview toggle
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<label style="color:var(--text-muted);font-size:0.8rem;">Article Body * <span style="color:var(--text-faint);">(Markdown supported)</span></label>' +
+        '<button onclick="toggleArticlePreview()" id="articlePreviewBtn" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.7rem;cursor:pointer;font-family:inherit;">Preview</button>' +
+    '</div>' +
+    '<textarea id="articleBody" rows="15" maxlength="50000" placeholder="Write your article here...\n\n# Use headings\n**Bold text**\n*Italic text*\n> Blockquotes\n- Bullet lists\n`code`" style="' + _s + 'resize:vertical;min-height:300px;line-height:1.7;font-family:monospace;font-size:14px;">' + (draft && draft.body ? fEsc(draft.body) : '') + '</textarea>' +
+    '<div id="articlePreviewArea" style="display:none;padding:16px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;min-height:200px;"></div>';
+    
+    // Word count
+    html += '<div id="articleWordCount" style="text-align:right;font-size:0.7rem;color:var(--text-faint);margin:-8px 0 12px;">0 words · Min 500</div>';
+    
+    // Cover image
+    html += '<label style="color:var(--text-muted);font-size:0.8rem;display:block;margin-bottom:4px;">Cover Image <span style="color:var(--text-faint);">(optional)</span></label>' +
+        '<input type="file" id="articleCover" accept="image/jpeg,image/png,image/webp" style="' + _s + 'font-size:0.8rem;">';
+    
+    // Terms
+    html += '<div style="background:rgba(247,147,26,0.05);border:1px dashed var(--accent);border-radius:10px;padding:12px;margin:12px 0;">' +
+        '<div style="font-size:0.75rem;color:var(--accent);font-weight:700;margin-bottom:6px;">📋 Content Guidelines</div>';
+    ARTICLE_TERMS.forEach(function(t) {
+        html += '<div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:3px;">• ' + t + '</div>';
+    });
+    html += '<label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;">' +
+        '<input type="checkbox" id="articleTerms" style="width:18px;height:18px;accent-color:#f7931a;">' +
+        '<span style="font-size:0.8rem;color:var(--text);font-weight:600;">I agree to these guidelines</span>' +
+    '</label></div>';
+    
+    // Submit + Save Draft
+    html += '<div style="display:flex;gap:8px;">' +
+        '<button onclick="articleSaveDraft()" style="flex:1;padding:14px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-muted);border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">💾 Save Draft</button>' +
+        '<button onclick="articleSubmit()" style="flex:2;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">📝 Publish Article</button>' +
+    '</div>';
+    html += '<div id="articleStatus" style="margin-top:8px;font-size:0.85rem;text-align:center;"></div>';
+    
+    html += '</div></div>';
+    fc.innerHTML = html;
+    document.getElementById('main').scrollTop = 0;
+    
+    // Word count updater
+    var bodyEl = document.getElementById('articleBody');
+    if (bodyEl) {
+        bodyEl.addEventListener('input', function() {
+            var wc = this.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+            var el = document.getElementById('articleWordCount');
+            if (el) el.textContent = wc + ' words · Min 500';
+        });
+        // Auto-save draft every 30 seconds
+        window._articleAutoSave = setInterval(function() { articleSaveDraft(true); }, 30000);
+    }
+};
+
+// Tag toggle
+window.toggleArticleTag = function(btn, tag) {
+    var sel = btn.style.borderColor.indexOf('var(--accent)') !== -1 || btn.style.color.indexOf('var(--accent)') !== -1;
+    if (sel) {
+        btn.style.border = '1px solid var(--border)';
+        btn.style.background = 'none';
+        btn.style.color = 'var(--text-muted)';
+    } else {
+        // Count selected
+        var count = document.querySelectorAll('#articleTagsContainer button[style*="accent-bg"]').length;
+        if (count >= 3) { if (typeof showToast === 'function') showToast('Max 3 tags'); return; }
+        btn.style.border = '1px solid var(--accent)';
+        btn.style.background = 'var(--accent-bg)';
+        btn.style.color = 'var(--accent)';
+    }
+};
+
+// Preview toggle
+window.toggleArticlePreview = function() {
+    var body = document.getElementById('articleBody');
+    var preview = document.getElementById('articlePreviewArea');
+    var btn = document.getElementById('articlePreviewBtn');
+    if (!body || !preview) return;
+    if (preview.style.display === 'none') {
+        preview.innerHTML = mdToHtml(body.value);
+        preview.style.display = 'block';
+        body.style.display = 'none';
+        btn.textContent = 'Edit';
+    } else {
+        preview.style.display = 'none';
+        body.style.display = '';
+        btn.textContent = 'Preview';
+    }
+};
+
+// Save draft
+window.articleSaveDraft = function(silent) {
+    var title = (document.getElementById('articleTitle') || {}).value || '';
+    var subtitle = (document.getElementById('articleSubtitle') || {}).value || '';
+    var body = (document.getElementById('articleBody') || {}).value || '';
+    var tags = [];
+    document.querySelectorAll('#articleTagsContainer button').forEach(function(b) {
+        if (b.style.color && b.style.color.indexOf('var(--accent)') !== -1) tags.push(b.getAttribute('data-tag'));
+    });
+    if (!title && !body) return;
+    localStorage.setItem('btc_article_draft', JSON.stringify({ title: title, subtitle: subtitle, body: body, tags: tags, savedAt: Date.now() }));
+    if (!silent && typeof showToast === 'function') showToast('💾 Draft saved!');
+};
+
+// ---- Submit Article ----
+window.articleSubmit = async function() {
+    if (window._articleSubmitting) return;
+    var status = document.getElementById('articleStatus');
+    
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in required</span>';
+        return;
+    }
+    
+    var title = (document.getElementById('articleTitle').value || '').trim();
+    var subtitle = (document.getElementById('articleSubtitle').value || '').trim();
+    var body = (document.getElementById('articleBody').value || '').trim();
+    var terms = document.getElementById('articleTerms');
+    
+    if (!title || title.length < 10) { if (status) status.innerHTML = '<span style="color:#ef4444;">Title must be at least 10 characters</span>'; return; }
+    
+    var wordCount = body.split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+    if (wordCount < 500) { if (status) status.innerHTML = '<span style="color:#ef4444;">Article must be at least 500 words (currently ' + wordCount + ')</span>'; return; }
+    if (wordCount > 10000) { if (status) status.innerHTML = '<span style="color:#ef4444;">Article must be under 10,000 words</span>'; return; }
+    
+    var tags = [];
+    document.querySelectorAll('#articleTagsContainer button').forEach(function(b) {
+        if (b.style.color && b.style.color.indexOf('var(--accent)') !== -1) tags.push(b.getAttribute('data-tag'));
+    });
+    if (tags.length < 1) { if (status) status.innerHTML = '<span style="color:#ef4444;">Select at least 1 tag</span>'; return; }
+    
+    if (!terms || !terms.checked) { if (status) status.innerHTML = '<span style="color:#ef4444;">You must agree to the content guidelines</span>'; return; }
+    
+    if (!isCleanText(title) || !isCleanText(body)) { if (status) status.innerHTML = '<span style="color:#ef4444;">Content contains inappropriate language</span>'; return; }
+    
+    window._articleSubmitting = true;
+    if (status) status.innerHTML = '<span style="color:var(--text-muted);">Publishing...</span>';
+    
+    try {
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
+        var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
+        var userPic = (typeof currentUser !== 'undefined' && currentUser && currentUser.profilePic) ? currentUser.profilePic : '';
+        
+        // Upload cover image if provided
+        var coverUrl = '';
+        var coverInput = document.getElementById('articleCover');
+        if (coverInput && coverInput.files && coverInput.files[0]) {
+            var file = coverInput.files[0];
+            if (file.size > 3 * 1024 * 1024) { if (status) status.innerHTML = '<span style="color:#ef4444;">Cover image too large (max 3MB)</span>'; window._articleSubmitting = false; return; }
+            if (status) status.innerHTML = '<span style="color:var(--text-muted);">Uploading cover...</span>';
+            try {
+                var storage = firebase.storage();
+                var ref = storage.ref('articles/' + auth.currentUser.uid + '/' + Date.now() + '_cover');
+                var snap = await ref.put(file);
+                coverUrl = await snap.ref.getDownloadURL();
+            } catch(e) { console.warn('Cover upload failed:', e); }
+        }
+        
+        if (status) status.innerHTML = '<span style="color:var(--text-muted);">Publishing article...</span>';
+        
+        var articleData = {
+            title: title.substring(0, 120),
+            subtitle: subtitle.substring(0, 200),
+            body: body.substring(0, 50000),
+            tags: tags.slice(0, 3),
+            wordCount: wordCount,
+            readTime: Math.max(1, Math.round(wordCount / 200)),
+            authorId: auth.currentUser.uid,
+            authorName: userName,
+            authorPoints: userPts,
+            authorPic: userPic,
+            upvotes: 0,
+            voters: [],
+            replyCount: 0,
+            tipTotal: 0,
+            status: 'published',
+            pinned: false,
+            agreedToTerms: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (coverUrl) articleData.coverUrl = coverUrl;
+        
+        await db.collection('articles').add(articleData);
+        
+        // Clear draft
+        localStorage.removeItem('btc_article_draft');
+        if (window._articleAutoSave) clearInterval(window._articleAutoSave);
+        
+        // Awards
+        if (typeof awardPoints === 'function') awardPoints(30, '📝 Article published');
+        if (typeof awardTickets === 'function') awardTickets(20, '📝 Article published');
+        
+        if (typeof showToast === 'function') showToast('📝 Article published!');
+        forumTab = 'articles';
+        renderForum();
+    } catch(e) {
+        console.error('Article submit error:', e);
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error publishing: ' + fEsc(e.message) + '</span>';
+    }
+    window._articleSubmitting = false;
+};
+
+// ---- View Article ----
+window.articleView = async function(articleId) {
+    var fc = document.getElementById('forumContainer');
+    if (!fc || !db) return;
+    
+    fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:40px 12px;text-align:center;color:var(--text-muted);">Loading article...</div>';
+    
+    try {
+        var doc = await db.collection('articles').doc(articleId).get();
+        if (!doc.exists) { fc.innerHTML = '<div style="padding:40px;text-align:center;color:#ef4444;">Article not found</div>'; return; }
+        var a = doc.data();
+        a.id = articleId;
+        
+        var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
+        var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
+        var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
+        var isAuthor = auth && auth.currentUser && auth.currentUser.uid === a.authorId;
+        var isAdmin = isForumAdmin();
+        var hasVoted = auth && auth.currentUser && (a.voters || []).indexOf(auth.currentUser.uid) !== -1;
+        
+        var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+        html += '<button onclick="forumTab=\'articles\';renderForum()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:12px;font-family:inherit;">← Back to Articles</button>';
+        
+        // Cover
+        if (a.coverUrl) {
+            html += '<div style="margin:-16px -12px 20px;height:200px;background:url(' + fEsc(a.coverUrl) + ') center/cover no-repeat;border-radius:0 0 16px 16px;"></div>';
+        }
+        
+        // Title
+        html += '<h1 style="color:var(--heading);font-size:1.6rem;font-weight:900;margin:0 0 8px;line-height:1.3;">' + fEsc(a.title) + '</h1>';
+        if (a.subtitle) html += '<div style="color:var(--text-muted);font-size:1rem;margin-bottom:16px;line-height:1.4;">' + fEsc(a.subtitle) + '</div>';
+        
+        // Author bar
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
+        if (a.authorPic) html += '<img src="' + fEsc(a.authorPic) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+        html += '<div>' +
+            '<div style="font-weight:700;font-size:0.9rem;color:var(--text);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')">' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + (a.wordCount || 0).toLocaleString() + ' words</div>' +
+        '</div>';
+        // Edit button for author
+        if (isAuthor) html += '<button onclick="articleEdit(\'' + articleId + '\')" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
+        // Pin button for admin
+        if (isAdmin) html += '<button onclick="articleTogglePin(\'' + articleId + '\',' + (a.pinned ? 'false' : 'true') + ')" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
+        html += '</div>';
+        
+        // Tags
+        if (a.tags && a.tags.length) {
+            html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:20px;">';
+            a.tags.forEach(function(t) { html += '<span style="padding:3px 10px;background:var(--accent-bg);border-radius:12px;font-size:0.7rem;color:var(--accent);font-weight:600;">' + fEsc(t) + '</span>'; });
+            html += '</div>';
+        }
+        
+        // Article body (rendered markdown)
+        html += '<div style="line-height:1.8;font-size:1rem;color:var(--text);margin-bottom:30px;">' + mdToHtml(a.body) + '</div>';
+        
+        // Action bar
+        html += '<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px;">';
+        html += '<button onclick="articleVote(\'' + articleId + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
+        
+        // Tip button
+        if (typeof tipButtonHtml === 'function') {
+            html += tipButtonHtml({ recipientName: a.authorName, recipientUid: a.authorId, context: 'article', contextId: articleId, label: '⚡ Tip Author', size: 'md' });
+        }
+        
+        // Delete for admin/author
+        if (isAuthor || isAdmin) {
+            html += '<button onclick="articleDelete(\'' + articleId + '\')" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
+        }
+        html += '</div>';
+        
+        // Comments (reuse forum reply system)
+        html += '<h3 style="color:var(--heading);font-size:1rem;font-weight:700;margin-bottom:12px;">💬 Comments</h3>';
+        html += '<div id="articleReplies"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Loading comments...</div></div>';
+        
+        // Reply input
+        if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+            html += '<div style="margin-top:12px;">' +
+                '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
+                '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
+                '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
+            '</div>';
+        }
+        
+        html += '</div>';
+        fc.innerHTML = html;
+        document.getElementById('main').scrollTop = 0;
+        
+        // Load comments
+        articleLoadReplies(articleId);
+        
+        // Reading reward — award points after 60 seconds
+        if (auth && auth.currentUser) {
+            var readKey = 'btc_article_read_' + articleId;
+            if (!localStorage.getItem(readKey)) {
+                setTimeout(function() {
+                    if (document.getElementById('articleReplies')) {
+                        localStorage.setItem(readKey, '1');
+                        if (typeof awardPoints === 'function') awardPoints(5, '📖 Read an article');
+                        if (typeof showToast === 'function') showToast('📖 +5 points for reading!');
+                    }
+                }, 60000);
+            }
+        }
+    } catch(e) {
+        console.error('Article view error:', e);
+        fc.innerHTML = '<div style="padding:40px;text-align:center;color:#ef4444;">Error loading article</div>';
+    }
+};
+
+// ---- Article Vote ----
+window.articleVote = async function(articleId) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to upvote');
+        return;
+    }
+    try {
+        var ref = db.collection('articles').doc(articleId);
+        var doc = await ref.get();
+        if (!doc.exists) return;
+        var voters = doc.data().voters || [];
+        var uid = auth.currentUser.uid;
+        if (voters.indexOf(uid) !== -1) {
+            await ref.update({ upvotes: firebase.firestore.FieldValue.increment(-1), voters: firebase.firestore.FieldValue.arrayRemove(uid) });
+        } else {
+            await ref.update({ upvotes: firebase.firestore.FieldValue.increment(1), voters: firebase.firestore.FieldValue.arrayUnion(uid) });
+        }
+        articleView(articleId);
+    } catch(e) {}
+};
+
+// ---- Article Comments ----
+async function articleLoadReplies(articleId) {
+    var container = document.getElementById('articleReplies');
+    if (!container) return;
+    try {
+        var snap = await db.collection('article_replies').where('articleId', '==', articleId).orderBy('createdAt', 'asc').limit(50).get();
+        if (snap.empty) { container.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:0.85rem;">No comments yet. Be the first!</div>'; return; }
+        var html = '';
+        snap.forEach(function(doc) {
+            var r = doc.data();
+            var rlv = typeof getLevel === 'function' ? getLevel(r.authorPoints || 0) : { emoji: '🟢' };
+            var rDate = r.createdAt && r.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(r.createdAt.toDate()) : r.createdAt.toDate().toLocaleDateString()) : '';
+            var canDel = auth && auth.currentUser && (auth.currentUser.uid === r.authorId || isForumAdmin());
+            html += '<div style="padding:12px 0;border-bottom:1px solid var(--border);">' +
+                '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+                    '<span style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
+                    (canDel ? '<button onclick="articleDeleteReply(\'' + doc.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">🗑️</button>' : '') +
+                '</div>' +
+                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;">' + fEsc(r.body) + '</div>' +
+            '</div>';
+        });
+        container.innerHTML = html;
+    } catch(e) { container.innerHTML = '<div style="color:#ef4444;font-size:0.85rem;">Error loading comments</div>'; }
+}
+
+window.articleSubmitReply = async function(articleId) {
+    var input = document.getElementById('articleReplyInput');
+    var status = document.getElementById('articleReplyStatus');
+    if (!input || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    var body = input.value.trim();
+    if (!body || body.length < 2) { if (status) status.innerHTML = '<span style="color:#ef4444;">Comment too short</span>'; return; }
+    if (!isCleanText(body)) { if (status) status.innerHTML = '<span style="color:#ef4444;">Inappropriate language</span>'; return; }
+    try {
+        var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
+        var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
+        await db.collection('article_replies').add({
+            articleId: articleId, body: body.substring(0, 1000), authorId: auth.currentUser.uid,
+            authorName: userName, authorPoints: userPts, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
+        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
+        input.value = '';
+        if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Comment posted!</span>';
+        articleLoadReplies(articleId);
+    } catch(e) { if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting comment</span>'; }
+};
+
+window.articleDeleteReply = async function(replyId, articleId) {
+    if (!confirm('Delete this comment?')) return;
+    try {
+        await db.collection('article_replies').doc(replyId).delete();
+        await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(-1) });
+        if (typeof showToast === 'function') showToast('🗑️ Comment deleted');
+        articleLoadReplies(articleId);
+    } catch(e) {}
+};
+
+// ---- Article Edit ----
+window.articleEdit = async function(articleId) {
+    try {
+        var doc = await db.collection('articles').doc(articleId).get();
+        if (!doc.exists) return;
+        var a = doc.data();
+        if (auth.currentUser.uid !== a.authorId && !isForumAdmin()) return;
+        // Load into the editor with draft override
+        localStorage.setItem('btc_article_draft', JSON.stringify({ title: a.title, subtitle: a.subtitle || '', body: a.body, tags: a.tags || [] }));
+        window._articleEditId = articleId;
+        articleNew();
+        // Change submit button to "Update"
+        setTimeout(function() {
+            var btn = document.querySelector('[onclick="articleSubmit()"]');
+            if (btn) { btn.textContent = '✏️ Update Article'; btn.setAttribute('onclick', 'articleUpdate()'); }
+        }, 100);
+    } catch(e) { if (typeof showToast === 'function') showToast('Error loading article for edit'); }
+};
+
+window.articleUpdate = async function() {
+    var articleId = window._articleEditId;
+    if (!articleId) return;
+    var status = document.getElementById('articleStatus');
+    
+    var title = (document.getElementById('articleTitle').value || '').trim();
+    var subtitle = (document.getElementById('articleSubtitle').value || '').trim();
+    var body = (document.getElementById('articleBody').value || '').trim();
+    var wordCount = body.split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+    
+    if (!title || title.length < 10) { if (status) status.innerHTML = '<span style="color:#ef4444;">Title must be at least 10 characters</span>'; return; }
+    if (wordCount < 500) { if (status) status.innerHTML = '<span style="color:#ef4444;">Min 500 words</span>'; return; }
+    
+    var tags = [];
+    document.querySelectorAll('#articleTagsContainer button').forEach(function(b) {
+        if (b.style.color && b.style.color.indexOf('var(--accent)') !== -1) tags.push(b.getAttribute('data-tag'));
+    });
+    
+    if (status) status.innerHTML = '<span style="color:var(--text-muted);">Updating...</span>';
+    try {
+        await db.collection('articles').doc(articleId).update({
+            title: title.substring(0, 120), subtitle: subtitle.substring(0, 200),
+            body: body.substring(0, 50000), tags: tags.slice(0, 3),
+            wordCount: wordCount, readTime: Math.max(1, Math.round(wordCount / 200)),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        localStorage.removeItem('btc_article_draft');
+        window._articleEditId = null;
+        if (typeof showToast === 'function') showToast('✏️ Article updated!');
+        articleView(articleId);
+    } catch(e) { if (status) status.innerHTML = '<span style="color:#ef4444;">Error updating</span>'; }
+};
+
+// ---- Admin Pin/Unpin ----
+window.articleTogglePin = async function(articleId, pinState) {
+    try {
+        await db.collection('articles').doc(articleId).update({ pinned: pinState });
+        if (typeof showToast === 'function') showToast(pinState ? '📌 Article pinned!' : '📌 Article unpinned');
+        articleView(articleId);
+    } catch(e) {}
+};
+
+// ---- Delete Article ----
+window.articleDelete = async function(articleId) {
+    if (!confirm('Delete this article and all its comments? This cannot be undone.')) return;
+    try {
+        var repliesSnap = await db.collection('article_replies').where('articleId', '==', articleId).get();
+        var batch = db.batch();
+        repliesSnap.forEach(function(doc) { batch.delete(doc.ref); });
+        batch.delete(db.collection('articles').doc(articleId));
+        await batch.commit();
+        if (typeof showToast === 'function') showToast('🗑️ Article deleted');
+        forumTab = 'articles';
+        renderForum();
+    } catch(e) { if (typeof showToast === 'function') showToast('Error deleting article'); }
 };
 
 })();
@@ -25826,6 +26488,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_beats', title: '🎸 Bitcoin Beats', desc: 'Community music — discover, upload, and listen to Bitcoin tracks', keywords: 'beats music livestream live video radio stream audio upload song track listen discover artist genre community', action: "go('bitcoin-beats')" },
         { id: '_nacho', title: '🦌 Nacho Mode', desc: 'Interactive AI-powered Bitcoin tutor', keywords: 'nacho mode ai chat ask question tutor learn mascot deer', action: 'enterNachoMode()' },
         { id: '_forum', title: '🗣️ PlebTalk', desc: 'Discuss Bitcoin with the community', keywords: 'forum community chat discuss talk conversation post', action: "go('forum')" },
+        { id: '_articles', title: '📝 Articles', desc: 'Read and write long-form Bitcoin articles', keywords: 'article write publish essay blog read long form content author', action: "forumTab='articles';go('forum')" },
         { id: '_market', title: '⚡ LightningMart', desc: 'Buy and sell with Bitcoin', keywords: 'marketplace market buy sell trade shop store bitcoin sats lightning wallet hardware merch', action: "go('marketplace')" },
         { id: '_settings', title: '⚙️ Settings', desc: 'Profile, rank, tickets, referral link, theme', keywords: 'settings profile account rank level points tickets referral theme dark light audio sound notifications push', action: 'showSettings()' },
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
