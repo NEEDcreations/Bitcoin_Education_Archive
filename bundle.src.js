@@ -20545,7 +20545,7 @@ window.renderBitcoinBeats = function() {
             <div id="beatsCopyrightDetails" style="display:none;padding:10px 14px;margin-top:4px;background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:0 0 10px 10px;font-size:0.73rem;color:#eab308;line-height:1.5;">
                 By uploading music, you confirm you own the rights or have permission to share it. Copyrighted material uploaded without authorization will be removed. Bitcoin Education Archive is not responsible for user-uploaded content.
                 <div style="margin-top:6px;">
-                    <a href="/terms.html#bitcoin-beats" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
+                    <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;text-decoration:underline;">Full Terms</a> · 
                     <a href="#" onclick="event.preventDefault();beatsShowDMCA()" style="color:#eab308;text-decoration:underline;">DMCA Policy</a>
                 </div>
             </div>
