@@ -5993,16 +5993,14 @@ function _showBubble(text, pose) {
         }
         if (hasMoved && dragTarget) {
             var rect = dragTarget.getBoundingClientRect();
-            // Only dismiss if truly swiped off screen (more than half the avatar is off the viewport)
             if (rect.right < 20 || rect.left > window.innerWidth - 20 ||
                 rect.bottom < 20 || rect.top > window.innerHeight - 20) {
                 hideNacho();
                 localStorage.removeItem('btc_nacho_position');
             } else {
-                // Save position
                 localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+                setTimeout(adjustBubbleForPosition, 50);
             }
-            // Prevent the tap/click from firing after drag
             e.preventDefault();
         }
         dragTarget = null;
@@ -6053,17 +6051,79 @@ function _showBubble(text, pose) {
                 localStorage.removeItem('btc_nacho_position');
             } else {
                 localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+                setTimeout(adjustBubbleForPosition, 50);
             }
         }
         dragTarget = null;
     });
+
+    // After repositioning, adjust bubble alignment so it stays on screen
+    function adjustBubbleForPosition() {
+        var c = getContainer();
+        if (!c) return;
+        var bubble = document.getElementById('nacho-bubble');
+        if (!bubble) return;
+        var rect = c.getBoundingClientRect();
+        var viewW = window.innerWidth;
+        var viewH = window.innerHeight;
+        // If Nacho is on the right half, flip bubble to the left
+        if (rect.left > viewW / 2) {
+            bubble.style.marginLeft = '';
+            bubble.style.marginRight = '-6px';
+            bubble.style.alignSelf = 'flex-end';
+            // Flip arrow pointers
+            var before = bubble.querySelector(':scope')
+            bubble.style.setProperty('--bubble-side', 'right');
+        } else {
+            bubble.style.marginLeft = '-6px';
+            bubble.style.marginRight = '';
+            bubble.style.alignSelf = '';
+        }
+        // If near the top of screen, ensure bubble doesn't go above viewport
+        if (rect.top < 200) {
+            bubble.style.order = '2'; // render bubble below avatar
+            bubble.style.marginBottom = '0';
+            bubble.style.marginTop = '8px';
+        } else {
+            bubble.style.order = '';
+            bubble.style.marginBottom = '16px';
+            bubble.style.marginTop = '';
+        }
+    }
+
+    // Call after any position save
+    var _origSavePos = function(rect) {
+        localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
+        setTimeout(adjustBubbleForPosition, 50);
+    };
 
     // Reset position when Nacho is shown again (after being hidden)
     var _origShowNacho = window.showNacho;
     window.showNacho = function() {
         _origShowNacho.apply(this, arguments);
         restoreSavedPosition();
+        setTimeout(adjustBubbleForPosition, 200);
     };
+
+    // Also adjust on load
+    setTimeout(adjustBubbleForPosition, 1000);
+
+    // Double-tap to reset position
+    var lastResetTap = 0;
+    document.addEventListener('dblclick', function(e) {
+        var avatar = document.getElementById('nacho-avatar');
+        if (!avatar || !avatar.contains(e.target)) return;
+        localStorage.removeItem('btc_nacho_position');
+        var c = getContainer();
+        if (c) {
+            c.style.left = '';
+            c.style.top = '';
+            c.style.bottom = '';
+            c.style.right = '';
+        }
+        if (typeof showToast === 'function') showToast('🦌 Nacho reset to default position!');
+        setTimeout(adjustBubbleForPosition, 100);
+    });
 })();
 
 window.hideBubble = function(force) {
