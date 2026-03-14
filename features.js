@@ -359,7 +359,7 @@ window.showNachoStory = function(chapterOverride) {
 
     var overlay = document.createElement('div');
     overlay.id = 'nachoStoryOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.95);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     // Build chapter selector pills
@@ -388,11 +388,11 @@ window.showNachoStory = function(chapterOverride) {
     }
 
     var card = document.createElement('div');
-    card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;color:var(--text,#e2e8f0);font-family:inherit;';
+    card.style.cssText = 'background:#1a1a2e;border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:500px;width:100%;margin:40px auto;color:#e2e8f0;font-family:inherit;';
     card.innerHTML = '<div style="text-align:center;margin-bottom:12px;"><span style="font-size:2.5rem;">🦌📖</span></div>' +
         pillsHtml +
         '<h2 style="color:#f7931a;margin:0 0 12px;font-size:1.2rem;">' + ch.title + '</h2>' +
-        '<p style="line-height:1.7;font-size:0.95rem;margin:0 0 16px;">' + ch.text + '</p>' +
+        '<p style="line-height:1.8;font-size:0.95rem;margin:0 0 16px;color:#e2e8f0;">' + ch.text + '</p>' +
         '<div style="text-align:center;color:var(--text-muted,#94a3b8);font-size:0.8rem;margin-bottom:16px;">📖 Chapter ' + (chIdx + 1) + ' of ' + CHAPTERS.length + ' · ' + chaptersUnlocked + ' unlocked (' + (CHAPTERS.length - chaptersUnlocked) + ' remaining)</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' + prevBtn + nextBtn + '</div>' +
         '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="display:block;width:100%;margin-top:8px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#94a3b8);padding:10px;border-radius:8px;cursor:pointer;font-size:0.85rem;">Close</button>';
@@ -414,7 +414,7 @@ window.showPricePrediction = function() {
     if (!currentPrice) { if (typeof showToast === 'function') showToast('⏳ Loading price data...'); return; }
 
     var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.95);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     // Check for existing prediction
