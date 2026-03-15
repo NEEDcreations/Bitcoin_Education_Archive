@@ -173,26 +173,6 @@
       ]
     },
     {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "pvpWins",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "pvpLosses",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "beats_tracks",
       "queryScope": "COLLECTION",
       "fields": [
@@ -200,16 +180,6 @@
           "fieldPath": "authorId",
           "order": "ASCENDING"
         },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "beats_tracks",
-      "queryScope": "COLLECTION",
-      "fields": [
         {
           "fieldPath": "createdAt",
           "order": "DESCENDING"
