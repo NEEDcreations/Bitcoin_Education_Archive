@@ -316,8 +316,11 @@ window.beatsPlayTrack = function(idx) {
         if (trackId && typeof awardPoints === 'function' && auth && auth.currentUser) {
             // Prevent farming: track which songs were rewarded this session
             if (!window._beatsListenedIds) window._beatsListenedIds = {};
-            if (!window._beatsListenedIds[trackId]) {
+            var _listenCapKey = 'btc_beats_listen_' + new Date().toISOString().split('T')[0];
+            var _listenCount = parseInt(localStorage.getItem(_listenCapKey) || '0');
+            if (!window._beatsListenedIds[trackId] && _listenCount < 5) {
                 window._beatsListenedIds[trackId] = true;
+                localStorage.setItem(_listenCapKey, (_listenCount + 1).toString());
                 awardPoints(10, 'Listened to a full track on Bitcoin Beats 🎵');
             }
         }

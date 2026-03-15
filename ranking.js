@@ -117,11 +117,13 @@ function initRanking() {
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
             } else if (anonData) {
                 const existData = existingDoc.data();
-                if ((anonData.points || 0) > (existData.points || 0)) {
+                // Anti-abuse: only merge anonymous data once per account
+                if (!existData.mergedAnon && (anonData.points || 0) > (existData.points || 0)) {
                     await existingDoc.ref.update({
                         points: anonData.points,
                         channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
                         totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                        mergedAnon: true,
                     });
                 }
             }
@@ -252,13 +254,14 @@ async function handleEmailSignIn() {
             anonData.email = email;
             await db.collection('users').doc(emailUid).set(anonData);
         } else if (existingDoc.exists && anonData) {
-            // Existing email user — merge points if anon had more
+            // Existing email user — merge points if anon had more (one-time only)
             const existData = existingDoc.data();
-            if ((anonData.points || 0) > (existData.points || 0)) {
+            if (!existData.mergedAnon && (anonData.points || 0) > (existData.points || 0)) {
                 await existingDoc.ref.update({
                     points: anonData.points,
                     channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
                     totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                    mergedAnon: true,
                 });
             }
         }
@@ -677,14 +680,15 @@ async function signInWithProvider(provider) {
                 });
             }
         } else {
-            // Existing authenticated user — merge points if anon had more
+            // Existing authenticated user — merge points if anon had more (one-time only)
             if (anonData) {
                 const existData = existingDoc.data();
-                if ((anonData.points || 0) > (existData.points || 0)) {
+                if (!existData.mergedAnon && (anonData.points || 0) > (existData.points || 0)) {
                     await existingDoc.ref.update({
                         points: anonData.points,
                         channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
                         totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                        mergedAnon: true,
                     });
                 }
             }
@@ -1277,8 +1281,16 @@ async function awardVisitPoints() {
 
 async function awardPoints(pts, reason) {
     if (!currentUser || !rankingReady) return;
+
+    // Anti-abuse: global daily points cap (500/day)
+    var _dailyKey = 'btc_daily_pts_' + new Date().toISOString().split('T')[0];
+    var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
+    if (_dailyPts >= 500) return; // silently cap
+    if (_dailyPts + pts > 500) pts = 500 - _dailyPts; // award partial
+    if (pts <= 0) return;
+    localStorage.setItem(_dailyKey, (_dailyPts + pts).toString());
+
     if (currentUser._isLocal) {
-        // Anonymous user — save to localStorage only, no Firestore write
         currentUser.points = (currentUser.points || 0) + pts;
         localStorage.setItem('btc_points', currentUser.points.toString());
     } else {
@@ -1458,19 +1470,17 @@ function startReadTimer() {
         sessionStorage.setItem('btc_channel_read_seconds', readSeconds.toString());
         if (readSeconds - lastReadAward >= 30) {
             lastReadAward = readSeconds;
-            hasScrolledSinceLastAward = false; // Reset — must scroll again for next award
-            if (currentUser._isLocal) {
-                currentUser.points = (currentUser.points || 0) + POINTS.readTime;
-                localStorage.setItem('btc_points', currentUser.points.toString());
-            } else {
-                await db.collection('users').doc(currentUser.uid).update({
-                    points: firebase.firestore.FieldValue.increment(POINTS.readTime)
-                });
-                currentUser.points = (currentUser.points || 0) + POINTS.readTime;
-            }
-            // Silent — don't interrupt reading flow
-            updateRankUI();
-            refreshLeaderboardIfOpen();
+            hasScrolledSinceLastAward = false;
+
+            // Anti-abuse: max 5 read rewards per channel per day
+            var _chId = window.currentChannelId || 'unknown';
+            var _readCapKey = 'btc_read_cap_' + _chId + '_' + new Date().toISOString().split('T')[0];
+            var _readCount = parseInt(localStorage.getItem(_readCapKey) || '0');
+            if (_readCount >= 5) return; // capped for this channel today
+            localStorage.setItem(_readCapKey, (_readCount + 1).toString());
+
+            // Use awardPoints for global daily cap enforcement
+            await awardPoints(POINTS.readTime, '');
         }
     }, 1000);
 }
