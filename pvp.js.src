@@ -563,9 +563,19 @@
 
         try {
             var auth = getAuth();
-            if (!auth.currentUser) {
-                await auth.signInAnonymously();
+            if (!auth.currentUser || auth.currentUser.isAnonymous === undefined) {
+                var cred = await auth.signInAnonymously();
+                // Wait for auth state to fully propagate
+                if (!auth.currentUser) {
+                    await new Promise(function(resolve) { 
+                        var unsub = auth.onAuthStateChanged(function(user) { 
+                            if (user) { unsub(); resolve(); }
+                        });
+                        setTimeout(resolve, 3000); // safety timeout
+                    });
+                }
             }
+            if (!auth.currentUser) { throw new Error('Sign-in failed. Please try again.'); }
             // Set username in Firestore
             var uid = auth.currentUser.uid;
             await db.collection('users').doc(uid).set({
@@ -580,8 +590,11 @@
                 created: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
-            if (typeof currentUser !== 'undefined') {
-                if (!currentUser) window.currentUser = {};
+            // Load user data so currentUser is populated
+            if (typeof loadUser === 'function') {
+                await loadUser(uid);
+            } else {
+                if (typeof currentUser === 'undefined' || !currentUser) window.currentUser = {};
                 currentUser.username = name;
                 currentUser.uid = uid;
             }
