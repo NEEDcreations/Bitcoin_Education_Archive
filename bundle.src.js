@@ -24060,7 +24060,18 @@ async function fetchDashboardData() {
         }).catch(() => {})
     );
 
-    // 3. Fear & Greed Index
+    // 3. Lightning Network capacity (mempool.space)
+    promises.push(
+        fetch('https://mempool.space/api/v1/lightning/statistics/latest').then(r => r.json()).then(d => {
+            if (d) {
+                data.lnCapacity = d.latest ? d.latest.total_capacity : d.total_capacity;
+                data.lnNodes = d.latest ? d.latest.node_count : d.node_count;
+                data.lnChannels = d.latest ? d.latest.channel_count : d.channel_count;
+            }
+        }).catch(() => {})
+    );
+
+    // 4. Fear & Greed Index
     promises.push(
         fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => {
             if (d.data && d.data[0]) {
@@ -24191,6 +24202,10 @@ function renderDashboard(data) {
     html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), '');
     // 24h Volume
     html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), '');
+    // Lightning Network
+    var lnBtc = d.lnCapacity ? (d.lnCapacity / 100000000).toFixed(0) : '—';
+    var lnUsd = (d.lnCapacity && d.price) ? '$' + fmtT(d.lnCapacity / 100000000 * d.price) : '';
+    html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? ' · ' + lnUsd : ''));
 
     // Fear & Greed
     var fgVal = d.fearGreed || 0;
