@@ -1833,8 +1833,12 @@
         var anonWinKey = 'btc_pvp_anon_win_' + new Date().toISOString().split('T')[0];
         var anonWinsToday = parseInt(localStorage.getItem(anonWinKey) || '0');
 
-        function _savePvpResult(oppIsAnon) {
-            var statsBlocked = iWon && oppIsAnon && anonWinsToday >= 1;
+        // Also track wins vs new accounts (registered < 10 min ago)
+        var newAcctWinKey = 'btc_pvp_newacct_win_' + new Date().toISOString().split('T')[0];
+        var newAcctWinsToday = parseInt(localStorage.getItem(newAcctWinKey) || '0');
+
+        function _savePvpResult(oppIsAnon, oppIsNewAccount) {
+            var statsBlocked = iWon && ((oppIsAnon && anonWinsToday >= 1) || (oppIsNewAccount && newAcctWinsToday >= 1));
 
             if (iWon) {
                 if (statsBlocked) {
@@ -1847,6 +1851,7 @@
                     checkPVPBadges(wins);
                     savePVPStats(wins, parseInt(localStorage.getItem('btc_pvp_losses') || '0'));
                     if (oppIsAnon) localStorage.setItem(anonWinKey, (anonWinsToday + 1).toString());
+                    if (oppIsNewAccount) localStorage.setItem(newAcctWinKey, (newAcctWinsToday + 1).toString());
                 }
             } else if (!isDraw) {
                 var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0') + 1;
@@ -1862,14 +1867,20 @@
         if (pvpState.opponentUid && db) {
             db.collection('users').doc(pvpState.opponentUid).get().then(function(oppDoc) {
                 var oppIsAnon = true;
+                var oppIsNew = false;
                 if (oppDoc.exists) {
                     var od = oppDoc.data();
                     oppIsAnon = !od.email && !od.authMethod && !od.nostr;
+                    // Check if account was created within the last 10 minutes
+                    if (od.created && od.created.toDate) {
+                        var ageMs = Date.now() - od.created.toDate().getTime();
+                        oppIsNew = ageMs < 10 * 60 * 1000; // 10 minutes
+                    }
                 }
-                _savePvpResult(oppIsAnon);
-            }).catch(function() { _savePvpResult(false); });
+                _savePvpResult(oppIsAnon, oppIsNew);
+            }).catch(function() { _savePvpResult(false, false); });
         } else {
-            _savePvpResult(false);
+            _savePvpResult(false, false);
         }
 
         var resultEmoji = iWon ? '🏆' : (isDraw ? '🤝' : '💀');
