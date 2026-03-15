@@ -539,6 +539,13 @@
         overlay.id = 'pvpNameOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;';
         overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        // Push history so back gesture closes overlay instead of exiting app
+        history.pushState({ overlay: 'pvpName' }, '', '#pvp');
+        window.addEventListener('popstate', function _pvpNamePop(ev) {
+            var o = document.getElementById('pvpNameOverlay');
+            if (o) o.remove();
+            window.removeEventListener('popstate', _pvpNamePop);
+        }, { once: true });
         overlay.innerHTML =
             '<div style="background:#1a1a2e;border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:360px;width:100%;text-align:center;animation:fadeSlideIn 0.3s;">' +
                 '<div style="font-size:2.5rem;margin-bottom:12px;">⚔️</div>' +

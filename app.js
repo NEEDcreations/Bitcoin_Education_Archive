@@ -3982,6 +3982,8 @@ window.nachoQuizAnswer = function(btn, correct) {
 
             // GUARD STATE: user tried to leave the app — push them back to home
             if (!e.state || state.guard) {
+                // Re-establish the guard so it works again next time
+                history.replaceState({ guard: true }, '', window.location.pathname);
                 history.pushState({ home: true }, '', window.location.pathname);
                 goHome(true);
                 return;
@@ -3989,9 +3991,17 @@ window.nachoQuizAnswer = function(btn, correct) {
 
             // If we've gone back to null state (would leave site), push home state and stay
             if (!e.state && !hash) {
+                history.replaceState({ guard: true }, '', window.location.pathname);
                 history.pushState({ home: true }, '', window.location.pathname);
                 goHome(true);
                 return;
+            }
+
+            // Close any open overlay instead of navigating away
+            var _overlayIds = ['pvpNameOverlay','pvpOverlay','btcDashOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
+            for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
+                var _oel = document.getElementById(_overlayIds[_oi]);
+                if (_oel) { _oel.remove(); return; }
             }
 
             // Exit Nacho Mode if we're leaving it (skip goHome since popstate handles navigation)
