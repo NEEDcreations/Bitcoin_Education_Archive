@@ -23861,9 +23861,16 @@ function startPriceWs() {
         // Try Binance first, then Binance US as fallback
         var wsUrl = 'wss://stream.binance.com:9443/ws/btcusdt@ticker';
         _priceWs = new WebSocket(wsUrl);
-        _priceWs.onopen = function() { console.log('[Dashboard] Price WebSocket connected'); };
+        _priceWs.onopen = function() { 
+            console.log('[Dashboard] Price WebSocket connected'); 
+            // If no data received within 10s, WS might be silently dead — fallback
+            window._wsDataTimer = setTimeout(function() {
+                if (!_lastWsPrice) { console.warn('[Dashboard] WS connected but no data — falling back'); startPricePolling(); }
+            }, 10000);
+        };
         _priceWs.onmessage = function(evt) {
             try {
+                if (window._wsDataTimer) { clearTimeout(window._wsDataTimer); window._wsDataTimer = null; }
                 var d = JSON.parse(evt.data);
                 _lastWsPrice = parseFloat(d.c); // current price
                 _lastWsChange = parseFloat(d.P); // 24h change %
@@ -23889,8 +23896,44 @@ function startPriceWs() {
             } catch(e) {}
         };
         _priceWs.onclose = function() { console.log('[Dashboard] WS closed, reconnecting...'); _priceWs = null; setTimeout(startPriceWs, 5000); };
-        _priceWs.onerror = function(e) { console.warn('[Dashboard] WS error:', e); try { _priceWs.close(); } catch(x) {} _priceWs = null; };
-    } catch(e) {}
+        _priceWs.onerror = function(e) { console.warn('[Dashboard] WS error, falling back to polling'); try { _priceWs.close(); } catch(x) {} _priceWs = null; startPricePolling(); };
+    } catch(e) { startPricePolling(); }
+}
+
+// Polling fallback if WebSocket fails (updates every 5 seconds via Binance REST)
+var _pricePollTimer = null;
+function startPricePolling() {
+    if (_pricePollTimer) return; // already polling
+    console.log('[Dashboard] Starting price polling fallback');
+    function poll() {
+        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d && d.lastPrice) {
+                    _lastWsPrice = parseFloat(d.lastPrice);
+                    _lastWsChange = parseFloat(d.priceChangePercent);
+                    // Update dashboard
+                    var priceEl = document.getElementById('dashLivePrice');
+                    if (priceEl) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
+                    var changeEl = document.getElementById('dashLiveChange');
+                    if (changeEl) {
+                        var color = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
+                        var arrow = _lastWsChange >= 0 ? '▲' : '▼';
+                        changeEl.innerHTML = '<span style="color:' + color + ';">' + arrow + ' ' + Math.abs(_lastWsChange).toFixed(2) + '% (24h)</span>';
+                    }
+                    // Update fixed button
+                    var btnPrice = document.getElementById('dashBtnPrice');
+                    if (btnPrice) {
+                        var c2 = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
+                        var a2 = _lastWsChange >= 0 ? '▲' : '▼';
+                        btnPrice.innerHTML = '$' + fmtNum(_lastWsPrice, 0) + ' <span style="color:' + c2 + ';font-size:0.6rem;">' + a2 + Math.abs(_lastWsChange).toFixed(1) + '%</span>';
+                    }
+                    window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
+                }
+            }).catch(function() {});
+    }
+    poll();
+    _pricePollTimer = setInterval(poll, 5000);
 }
 
 function stopPriceWs() {
@@ -24093,7 +24136,7 @@ function renderDashboard(data) {
     html += '<div style="text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px;">';
     html += '<div id="dashLivePrice" style="font-size:2.2rem;font-weight:900;color:var(--heading);letter-spacing:-1px;">$' + fmtNum(livePrice, 2) + '</div>';
     html += '<div id="dashLiveChange" style="font-size:1rem;font-weight:700;margin-top:4px;"><span style="color:' + liveColor + ';">' + liveArrow + ' ' + Math.abs(liveChange).toFixed(2) + '% (24h)</span></div>';
-    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;">🔴 Live from Binance</div>';
+    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;" id="dashLiveIndicator">🔴 Live — updates automatically</div>';
     html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
     html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
     html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
