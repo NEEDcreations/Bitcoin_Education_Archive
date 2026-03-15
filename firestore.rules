@@ -322,6 +322,53 @@ service cloud.firestore {
     }
 
     // =============================================
+    // ARTICLES
+    // =============================================
+    match /articles/{articleId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 10
+                    && request.resource.data.title.size() <= 120
+                    && request.resource.data.body is string
+                    && request.resource.data.agreedToTerms == true;
+      allow update: if request.auth != null
+                    && (
+                      // Author can edit their own article
+                      resource.data.authorId == request.auth.uid
+                      // Upvotes/tips: anyone authenticated
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount', 'tipTotal'])
+                      // Admin
+                      || request.auth.token.email == 'needcreations@gmail.com'
+                    );
+      allow delete: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
+    // ARTICLE REPLIES
+    // =============================================
+    match /article_replies/{replyId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.body is string
+                    && request.resource.data.body.size() >= 2
+                    && request.resource.data.body.size() <= 2000;
+      allow update: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                        || request.auth.token.email == 'needcreations@gmail.com');
+      allow delete: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
+    }
+
+    // =============================================
     // DEFAULT: deny everything else
     // =============================================
     // NOTIFICATIONS

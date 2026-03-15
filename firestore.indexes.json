@@ -215,6 +215,48 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "articles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "articles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "upvotes",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "article_replies",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "articleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
