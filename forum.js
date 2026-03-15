@@ -796,6 +796,12 @@ window.forumSwitchTab = function(tab) {
 function mdToHtml(md) {
     if (!md) return '';
     var h = fEsc(md);
+    // Images: ![alt](url)
+    h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
+    // Links: [text](url)
+    h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">$1</a>');
+    // Bare URLs (not already in an href or src)
+    h = h.replace(/(?<!href="|src=")(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>');
     h = h.replace(/^### (.+)$/gm, '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">$1</h3>');
     h = h.replace(/^## (.+)$/gm, '<h2 style="color:var(--heading);font-size:1.25rem;font-weight:800;margin:24px 0 10px;">$1</h2>');
     h = h.replace(/^# (.+)$/gm, '<h1 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:28px 0 12px;">$1</h1>');
@@ -805,6 +811,7 @@ function mdToHtml(md) {
     h = h.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">$1</blockquote>');
     h = h.replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
     h = h.replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
+    h = h.replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">');
     h = h.replace(/\n{2,}/g, '</p><p style="margin:12px 0;line-height:1.8;">');
     h = '<p style="margin:12px 0;line-height:1.8;">' + h + '</p>';
     return h;
@@ -967,7 +974,18 @@ window.articleNew = function() {
         '<label style="color:var(--text-muted);font-size:0.8rem;">Article Body * <span style="color:var(--text-faint);">(Markdown supported)</span></label>' +
         '<button onclick="toggleArticlePreview()" id="articlePreviewBtn" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.7rem;cursor:pointer;font-family:inherit;">Preview</button>' +
     '</div>' +
-    '<textarea id="articleBody" rows="15" maxlength="50000" placeholder="Write your article here...\n\n# Use headings\n**Bold text**\n*Italic text*\n> Blockquotes\n- Bullet lists\n`code`" style="' + _s + 'resize:vertical;min-height:300px;line-height:1.7;font-family:monospace;font-size:14px;">' + (draft && draft.body ? fEsc(draft.body) : '') + '</textarea>' +
+    '<div id="articleToolbar" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
+        '<button type="button" onclick="articleInsert(\'**\',\'**\',\'bold text\')" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:800;" title="Bold">B</button>' +
+        '<button type="button" onclick="articleInsert(\'*\',\'*\',\'italic text\')" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;font-style:italic;" title="Italic">I</button>' +
+        '<button type="button" onclick="articleInsert(\'## \',\'\\n\',\'Heading\')" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" title="Heading">H</button>' +
+        '<button type="button" onclick="articleInsert(\'> \',\'\\n\',\'quote\')" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;" title="Quote">❝</button>' +
+        '<button type="button" onclick="articleInsert(\'- \',\'\\n\',\'list item\')" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;" title="List">•</button>' +
+        '<span style="width:1px;background:var(--border);margin:0 4px;"></span>' +
+        '<button type="button" onclick="articleInsertLink()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" title="Insert Link">🔗 Link</button>' +
+        '<button type="button" onclick="articleInsertImage()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" title="Insert Image">🖼️ Image</button>' +
+        '<button type="button" onclick="articleInsert(\'---\\n\',\'\',\'\')" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;" title="Horizontal Rule">—</button>' +
+    '</div>' +
+    '<textarea id="articleBody" rows="15" maxlength="50000" placeholder="Write your article here...\n\nUse the toolbar above to format text, add links, and insert images.\n\n# Headings\n**Bold** and *italic*\n> Blockquotes\n- Bullet lists\n[Link text](https://example.com)\n![Image](https://example.com/photo.jpg)" style="' + _s + 'resize:vertical;min-height:300px;line-height:1.7;font-family:monospace;font-size:14px;">' + (draft && draft.body ? fEsc(draft.body) : '') + '</textarea>' +
     '<div id="articlePreviewArea" style="display:none;padding:16px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;min-height:200px;"></div>';
     
     // Word count
@@ -1030,6 +1048,147 @@ window.toggleArticleTag = function(btn, tag) {
 };
 
 // Preview toggle
+// ---- Article Editor Toolbar Helpers ----
+window.articleInsert = function(before, after, placeholder) {
+    var ta = document.getElementById('articleBody');
+    if (!ta) return;
+    ta.focus();
+    var start = ta.selectionStart, end = ta.selectionEnd;
+    var selected = ta.value.substring(start, end);
+    var text = selected || placeholder;
+    var insert = before + text + after;
+    ta.setRangeText(insert, start, end, 'select');
+    // Select just the text portion for easy replacement
+    if (!selected) {
+        ta.selectionStart = start + before.length;
+        ta.selectionEnd = start + before.length + text.length;
+    }
+    ta.dispatchEvent(new Event('input'));
+};
+
+window.articleInsertLink = function() {
+    var ta = document.getElementById('articleBody');
+    if (!ta) return;
+    var selected = ta.value.substring(ta.selectionStart, ta.selectionEnd);
+    
+    // Show a small inline dialog
+    var existing = document.getElementById('articleLinkDialog');
+    if (existing) existing.remove();
+    var dialog = document.createElement('div');
+    dialog.id = 'articleLinkDialog';
+    dialog.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:16px;';
+    dialog.onclick = function(e) { if (e.target === dialog) dialog.remove(); };
+    var is = 'width:100%;padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:10px;';
+    dialog.innerHTML =
+        '<div style="background:var(--bg-side);border:1px solid var(--accent);border-radius:16px;padding:24px;max-width:380px;width:100%;">' +
+            '<h3 style="color:var(--heading);margin:0 0 16px;font-size:1rem;">🔗 Insert Link</h3>' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Link Text</label>' +
+            '<input type="text" id="linkDialogText" value="' + (typeof fEsc === 'function' ? fEsc(selected) : selected) + '" placeholder="Click here to read more" style="' + is + '">' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">URL</label>' +
+            '<input type="url" id="linkDialogUrl" placeholder="https://example.com" style="' + is + '">' +
+            '<div style="display:flex;gap:8px;">' +
+                '<button onclick="document.getElementById(\'articleLinkDialog\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Cancel</button>' +
+                '<button onclick="articleDoInsertLink()" style="flex:2;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Insert Link</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(dialog);
+    setTimeout(function() { document.getElementById('linkDialogUrl').focus(); }, 100);
+};
+
+window.articleDoInsertLink = function() {
+    var text = (document.getElementById('linkDialogText').value || '').trim() || 'link';
+    var url = (document.getElementById('linkDialogUrl').value || '').trim();
+    if (!url) { if (typeof showToast === 'function') showToast('Enter a URL'); return; }
+    if (!url.match(/^https?:\/\//)) url = 'https://' + url;
+    var ta = document.getElementById('articleBody');
+    if (ta) {
+        var md = '[' + text + '](' + url + ')';
+        var start = ta.selectionStart;
+        ta.setRangeText(md, start, ta.selectionEnd, 'end');
+        ta.dispatchEvent(new Event('input'));
+    }
+    document.getElementById('articleLinkDialog').remove();
+};
+
+window.articleInsertImage = function() {
+    var existing = document.getElementById('articleImageDialog');
+    if (existing) existing.remove();
+    var dialog = document.createElement('div');
+    dialog.id = 'articleImageDialog';
+    dialog.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);padding:16px;';
+    dialog.onclick = function(e) { if (e.target === dialog) dialog.remove(); };
+    var is = 'width:100%;padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;margin-bottom:10px;';
+    dialog.innerHTML =
+        '<div style="background:var(--bg-side);border:1px solid var(--accent);border-radius:16px;padding:24px;max-width:380px;width:100%;">' +
+            '<h3 style="color:var(--heading);margin:0 0 16px;font-size:1rem;">🖼️ Insert Image</h3>' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Image URL</label>' +
+            '<input type="url" id="imageDialogUrl" placeholder="https://example.com/photo.jpg" style="' + is + '">' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Caption <span style="color:var(--text-faint);">(optional)</span></label>' +
+            '<input type="text" id="imageDialogAlt" placeholder="Describe the image" style="' + is + '">' +
+            '<div style="margin-bottom:12px;padding:8px 10px;background:rgba(247,147,26,0.05);border:1px dashed var(--border);border-radius:8px;">' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;">Or upload from device:</div>' +
+                '<input type="file" id="imageDialogFile" accept="image/jpeg,image/png,image/webp,image/gif" style="font-size:0.8rem;color:var(--text);">' +
+            '</div>' +
+            '<div id="imageDialogPreview" style="display:none;margin-bottom:10px;text-align:center;"></div>' +
+            '<div style="display:flex;gap:8px;">' +
+                '<button onclick="document.getElementById(\'articleImageDialog\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Cancel</button>' +
+                '<button onclick="articleDoInsertImage()" id="imageDialogBtn" style="flex:2;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Insert Image</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(dialog);
+    // Handle file upload → Firebase Storage
+    setTimeout(function() {
+        var fileInput = document.getElementById('imageDialogFile');
+        if (fileInput) fileInput.addEventListener('change', function() {
+            var file = this.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) { if (typeof showToast === 'function') showToast('Image too large (max 5MB)'); return; }
+            var preview = document.getElementById('imageDialogPreview');
+            var btn = document.getElementById('imageDialogBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Uploading...'; }
+            // Try Firebase Storage
+            if (typeof firebase !== 'undefined' && firebase.storage && typeof auth !== 'undefined' && auth.currentUser) {
+                var ref = firebase.storage().ref('article-images/' + auth.currentUser.uid + '/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+                ref.put(file).then(function(snap) {
+                    return snap.ref.getDownloadURL();
+                }).then(function(url) {
+                    document.getElementById('imageDialogUrl').value = url;
+                    if (preview) { preview.style.display = 'block'; preview.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:150px;border-radius:8px;">'; }
+                    if (btn) { btn.disabled = false; btn.textContent = 'Insert Image'; }
+                    if (typeof showToast === 'function') showToast('✅ Image uploaded!');
+                }).catch(function(err) {
+                    if (typeof showToast === 'function') showToast('Upload failed: ' + (err.message || 'Unknown error'));
+                    if (btn) { btn.disabled = false; btn.textContent = 'Insert Image'; }
+                });
+            } else {
+                // No Firebase Storage — fall back to data URL (limited)
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imageDialogUrl').value = e.target.result;
+                    if (preview) { preview.style.display = 'block'; preview.innerHTML = '<img src="' + e.target.result + '" style="max-width:100%;max-height:150px;border-radius:8px;">'; }
+                    if (btn) { btn.disabled = false; btn.textContent = 'Insert Image'; }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        document.getElementById('imageDialogUrl').focus();
+    }, 100);
+};
+
+window.articleDoInsertImage = function() {
+    var url = (document.getElementById('imageDialogUrl').value || '').trim();
+    var alt = (document.getElementById('imageDialogAlt').value || '').trim() || 'image';
+    if (!url) { if (typeof showToast === 'function') showToast('Enter an image URL or upload a file'); return; }
+    var ta = document.getElementById('articleBody');
+    if (ta) {
+        var md = '\n![' + alt + '](' + url + ')\n';
+        var start = ta.selectionStart;
+        ta.setRangeText(md, start, ta.selectionEnd, 'end');
+        ta.dispatchEvent(new Event('input'));
+    }
+    document.getElementById('articleImageDialog').remove();
+};
+
 window.toggleArticlePreview = function() {
     var body = document.getElementById('articleBody');
     var preview = document.getElementById('articlePreviewArea');
