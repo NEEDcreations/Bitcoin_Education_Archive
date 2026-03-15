@@ -175,7 +175,7 @@
                 // ── INTERESTS ──
                 html += '<div style="font-size:2.5rem;margin-bottom:16px;">💡</div>';
                 html += '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 8px;">What interests you?</h1>';
-                html += '<p style="color:#64748b;font-size:0.9rem;margin:0 0 28px;">Pick a few and we\'ll build your starting path.</p>';
+                html += '<p style="color:#64748b;font-size:0.9rem;margin:0 0 28px;">Pick a few — or skip to explore freely.</p>';
 
                 var tags = [
                     { label: 'Why Bitcoin?', emoji: '❓' },
@@ -201,7 +201,7 @@
             html += '</div>'; // End content
 
             // CTA button
-            var canAdvance = state.step === 0 || (state.step === 1 && state.level) || (state.step === 2 && state.interests.length >= 1);
+            var canAdvance = state.step === 0 || (state.step === 1 && state.level) || state.step === 2;
             var isLast = state.step === 2;
 
             html += '<div style="margin-top:36px;width:100%;max-width:480px;">';
@@ -209,16 +209,22 @@
             html += isLast ? 'Start Exploring →' : 'Continue';
             html += '</button>';
 
-            // Skip option on first step
-            if (state.step === 0) {
-                html += '<button onclick="window._onboardingSkip()" style="width:100%;margin-top:10px;padding:12px 0;background:none;border:1px solid #1e293b;border-radius:12px;color:#475569;font-size:0.85rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>';
+            // Back button (steps 1 and 2)
+            if (state.step > 0) {
+                html += '<button onclick="window._onboardingBack()" style="width:100%;margin-top:10px;padding:12px 0;background:none;border:1px solid #1e293b;border-radius:12px;color:#475569;font-size:0.85rem;cursor:pointer;font-family:inherit;">← Back</button>';
             }
+            // Skip option on ALL steps
+            html += '<button onclick="window._onboardingSkip()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.8rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>';
             html += '</div>';
 
             overlay.innerHTML = html;
         }
 
         // ── Wizard Actions ──
+        window._onboardingBack = function () {
+            if (state.step > 0) { state.step--; render(); }
+        };
+
         window._onboardingSelectLevel = function (level) {
             state.level = level;
             render();
