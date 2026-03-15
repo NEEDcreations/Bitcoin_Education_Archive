@@ -23836,6 +23836,51 @@ if (document.readyState === 'loading') {
 (function() {
 'use strict';
 
+// ---- Real-Time Price WebSocket (Binance) ----
+var _priceWs = null;
+var _lastWsPrice = null;
+var _lastWsChange = null;
+var _wsOpenPrice = null; // 24h open for % calc
+
+function startPriceWs() {
+    if (_priceWs && _priceWs.readyState <= 1) return; // already open/connecting
+    try {
+        _priceWs = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
+        _priceWs.onmessage = function(evt) {
+            try {
+                var d = JSON.parse(evt.data);
+                _lastWsPrice = parseFloat(d.c); // current price
+                _lastWsChange = parseFloat(d.P); // 24h change %
+                _wsOpenPrice = parseFloat(d.o); // 24h open
+                // Update dashboard overlay if open
+                var priceEl = document.getElementById('dashLivePrice');
+                if (priceEl) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
+                var changeEl = document.getElementById('dashLiveChange');
+                if (changeEl) {
+                    var color = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
+                    var arrow = _lastWsChange >= 0 ? '▲' : '▼';
+                    changeEl.innerHTML = '<span style="color:' + color + ';">' + arrow + ' ' + Math.abs(_lastWsChange).toFixed(2) + '% (24h)</span>';
+                }
+                // Update fixed button
+                var btnPrice = document.getElementById('dashBtnPrice');
+                if (btnPrice) {
+                    var c2 = _lastWsChange >= 0 ? '#22c55e' : '#ef4444';
+                    var a2 = _lastWsChange >= 0 ? '▲' : '▼';
+                    btnPrice.innerHTML = '$' + fmtNum(_lastWsPrice, 0) + ' <span style="color:' + c2 + ';font-size:0.6rem;">' + a2 + Math.abs(_lastWsChange).toFixed(1) + '%</span>';
+                }
+                // Cache for other uses
+                window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
+            } catch(e) {}
+        };
+        _priceWs.onclose = function() { setTimeout(startPriceWs, 5000); }; // reconnect
+        _priceWs.onerror = function() { _priceWs.close(); };
+    } catch(e) {}
+}
+
+function stopPriceWs() {
+    if (_priceWs) { _priceWs.onclose = null; _priceWs.close(); _priceWs = null; }
+}
+
 // ---- Cache & State ----
 var DASH_CACHE_KEY = 'btc_dashboard_cache';
 var DASH_CACHE_TTL = 120000; // 2 min
@@ -24024,10 +24069,15 @@ function renderDashboard(data) {
     html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
     html += '</div>';
 
-    // Price hero
+    // Price hero (live-updated via WebSocket)
+    var livePrice = _lastWsPrice || d.price;
+    var liveChange = _lastWsChange !== null ? _lastWsChange : (d.change24h || 0);
+    var liveColor = liveChange >= 0 ? '#22c55e' : '#ef4444';
+    var liveArrow = liveChange >= 0 ? '▲' : '▼';
     html += '<div style="text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px;">';
-    html += '<div style="font-size:2.2rem;font-weight:900;color:var(--heading);letter-spacing:-1px;">$' + fmtNum(d.price, 0) + '</div>';
-    html += '<div style="font-size:1rem;color:' + changeColor + ';font-weight:700;margin-top:4px;">' + changeArrow + ' ' + (d.change24h || 0).toFixed(2) + '% (24h)</div>';
+    html += '<div id="dashLivePrice" style="font-size:2.2rem;font-weight:900;color:var(--heading);letter-spacing:-1px;">$' + fmtNum(livePrice, 2) + '</div>';
+    html += '<div id="dashLiveChange" style="font-size:1rem;font-weight:700;margin-top:4px;"><span style="color:' + liveColor + ';">' + liveArrow + ' ' + Math.abs(liveChange).toFixed(2) + '% (24h)</span></div>';
+    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;">🔴 Live from Binance</div>';
     html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
     html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
     html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
@@ -24208,6 +24258,9 @@ window.toggleDashboard = async function() {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
+    // Start real-time price
+    startPriceWs();
+
     // Fetch and render
     var data = await fetchDashboardData();
     card.innerHTML = renderDashboard(data);
@@ -24232,6 +24285,7 @@ window.closeDashboard = function() {
 function init() {
     injectDashboardButton(); // Fixed button — always visible
     injectHomeDashboardButton(); // Larger button on home page
+    startPriceWs(); // Start real-time price for the button
 }
 
 if (document.readyState === 'loading') {
