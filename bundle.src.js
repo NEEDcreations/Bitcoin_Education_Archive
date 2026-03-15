@@ -10324,6 +10324,7 @@ var NACHO_SEARCH_PROXY = localStorage.getItem('btc_nacho_search_proxy') || 'http
 
 // ---- Nacho AI (LLM via Cloudflare Workers AI) ----
 var NACHO_AI_DAILY_LIMIT = 30; // per user per day (AI is primary brain now)
+var NACHO_SYSTEM_PROMPT = "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate.";
 
 function getAICount() {
     var data = JSON.parse(localStorage.getItem('btc_nacho_ai_uses') || '{}');
@@ -10364,7 +10365,7 @@ function nachoAIAnswer(question, callback) {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
-            kbContext = (kbAnswerText || '').substring(0.300);
+            kbContext = (kbAnswerText || '').substring(0, 300);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
     }
@@ -10401,7 +10402,7 @@ function nachoAIAnswer(question, callback) {
             history: history,
             kbContext: kbContext,
             maxi: true,
-            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate." 
+            forceMaxi: NACHO_SYSTEM_PROMPT 
         })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
@@ -11124,7 +11125,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                             history: history,
                             kbContext: kbContext,
                             maxi: true,
-                            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate."
+                            forceMaxi: NACHO_SYSTEM_PROMPT
                         })
                     };
                     if (controller) { fetchOpts.signal = controller.signal; }
@@ -11154,7 +11155,7 @@ window.nachoUnifiedAnswer = function(question, callback) {
                             history: history,
                             kbContext: kbContext,
                             maxi: true,
-                            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate."
+                            forceMaxi: NACHO_SYSTEM_PROMPT
                         })
                     };
                     if (controller) { fetchOpts.signal = controller.signal; }
