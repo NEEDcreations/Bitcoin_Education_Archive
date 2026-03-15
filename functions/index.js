@@ -351,26 +351,40 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         ]);
         const eventId = crypto.createHash('sha256').update(serialized).digest('hex');
         
-        // Also accept the client-computed event ID if serialization differs
-        const msgHex = (nostrEvent.id && /^[a-f0-9]{64}$/.test(nostrEvent.id)) ? nostrEvent.id : eventId;
+        // Use the client-provided event ID first (Alby/extensions compute this correctly)
+        // Fall back to our own computation if client didn't provide one
+        const clientId = (nostrEvent.id && /^[a-f0-9]{64}$/.test(nostrEvent.id)) ? nostrEvent.id : null;
+        
+        // Get the actual signature — prefer from the event object itself
+        const actualSig = (nostrEvent.sig && /^[a-f0-9]{128}$/.test(nostrEvent.sig)) ? nostrEvent.sig : sig;
         
         // Verify signature using schnorr
-        const sigBytes = Buffer.from(sig, 'hex');
+        const sigBytes = Buffer.from(actualSig, 'hex');
         const pubkeyBytes = Buffer.from(pubkey, 'hex');
-        const msgBytes = Buffer.from(msgHex, 'hex');
         
         let valid = false;
-        try {
-            valid = secp.schnorr.verifySync(sigBytes, msgBytes, pubkeyBytes);
-        } catch(verifyErr) {
-            // Try with the other event ID if first attempt used client ID
-            if (msgHex !== eventId) {
-                const altMsgBytes = Buffer.from(eventId, 'hex');
-                valid = secp.schnorr.verifySync(sigBytes, altMsgBytes, pubkeyBytes);
-            }
+        // Try client event ID first (most reliable — matches what the extension signed)
+        if (clientId) {
+            try {
+                valid = secp.schnorr.verifySync(sigBytes, Buffer.from(clientId, 'hex'), pubkeyBytes);
+            } catch(e1) { /* try next */ }
+        }
+        // Try our computed event ID
+        if (!valid) {
+            try {
+                valid = secp.schnorr.verifySync(sigBytes, Buffer.from(eventId, 'hex'), pubkeyBytes);
+            } catch(e2) { /* try next */ }
+        }
+        // Last resort: try verifying against raw sig hash (some older extensions)
+        if (!valid && sig !== actualSig) {
+            try {
+                const altSigBytes = Buffer.from(sig, 'hex');
+                valid = secp.schnorr.verifySync(altSigBytes, Buffer.from(clientId || eventId, 'hex'), pubkeyBytes);
+            } catch(e3) { /* give up */ }
         }
         
         if (!valid) {
+            console.error('Nostr sig verify FAILED. clientId:', clientId ? clientId.substring(0,16) : 'none', 'computedId:', eventId.substring(0,16), 'sigLen:', actualSig.length, 'pubkey:', pubkey.substring(0,16));
             throw new functions.https.HttpsError('permission-denied', 'Signature verification failed');
         }
     } catch(e) {
@@ -505,7 +519,9 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     }
 
     // Signature valid — mark challenge as completed with the linking key
-    const lnUid = 'ln:' + key;
+    // Firebase UIDs max 128 chars. If key is too long (uncompressed pubkey = 130 hex), hash it.
+    const crypto3 = require('crypto');
+    const lnUid = ('ln:' + key).length <= 128 ? 'ln:' + key : 'ln:' + crypto3.createHash('sha256').update(key).digest('hex');
 
     // Create Firebase auth user if needed
     try {

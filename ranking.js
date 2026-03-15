@@ -1106,12 +1106,22 @@ async function loadUser(uid, prefetchedDoc) {
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
-    // Perfect Identity Check: show settings if logged in OR if anonymous user has a name
-    var isSignedIn = auth && auth.currentUser && !auth.currentUser.isAnonymous;
-    var hasUsername = currentUser && (currentUser.username || localStorage.getItem('btc_username'));
+    // Check all possible ways a user can be "signed in":
+    // 1. Firebase auth user exists and is NOT anonymous
+    // 2. currentUser from Firestore has a username
+    // 3. localStorage has a username (cached from previous session)
+    var firebaseUser = auth && auth.currentUser;
+    var isRealAuth = firebaseUser && !firebaseUser.isAnonymous;
+    var fsUsername = currentUser && currentUser.username;
+    var localUsername = localStorage.getItem('btc_username');
+    var displayName = fsUsername || localUsername || (firebaseUser && firebaseUser.displayName) || '';
 
-    if (isSignedIn || hasUsername) {
-        btn.innerHTML = '⚙️ <strong>' + (hasUsername ? hasUsername : 'My Account') + '</strong> — Settings';
+    // For Nostr/Lightning users: check UID prefix as additional signal
+    var isNostrOrLn = firebaseUser && firebaseUser.uid && (firebaseUser.uid.startsWith('nostr:') || firebaseUser.uid.startsWith('ln:'));
+    
+    if (isRealAuth || isNostrOrLn || displayName) {
+        var name = displayName || 'My Account';
+        btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> — Settings';
         btn.onclick = function() { showSettings(); };
         btn.style.background = 'none';
         btn.style.border = '2px solid #22c55e';
@@ -1125,6 +1135,30 @@ function updateAuthButton() {
         btn.style.color = '#000';
         btn.onmouseover = function() { this.style.transform='scale(1.02)'; };
         btn.onmouseout = function() { this.style.transform='scale(1)'; };
+    }
+
+    // Also hide guest banner for signed-in users
+    var guestBanner = document.getElementById('guestPointsBanner');
+    if (guestBanner && (isRealAuth || isNostrOrLn)) {
+        guestBanner.style.display = 'none';
+    }
+
+    // Update giveaway banner for signed-in users
+    var giveawayBanner = document.getElementById('giveawayBanner');
+    if (giveawayBanner && (isRealAuth || isNostrOrLn)) {
+        // Check if user is already entered
+        var hasGiveaway = currentUser && currentUser.giveaway;
+        if (hasGiveaway) {
+            giveawayBanner.innerHTML =
+                '<div style="position:absolute;top:-20px;right:-20px;font-size:5rem;opacity:0.15;pointer-events:none;">⚡</div>' +
+                '<div style="font-size:1.8rem;margin-bottom:6px;">🎉 25,000 SATS GIVEAWAY 🎉</div>' +
+                '<div style="color:rgba(255,255,255,0.95);font-size:1rem;font-weight:600;">You\'re entered! Good luck! 🍀</div>' +
+                '<div style="display:inline-block;margin-top:12px;padding:10px 24px;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.5);border-radius:10px;color:#fff;font-weight:700;font-size:0.95rem;letter-spacing:0.5px;">✅ Entered</div>';
+            giveawayBanner.onclick = function() { showSettings(); };
+        } else {
+            giveawayBanner.querySelector('div:last-child') && (giveawayBanner.querySelector('div:last-child').textContent = '⚙️ View Your Profile →');
+            giveawayBanner.onclick = function() { showSettings(); };
+        }
     }
 }
 
