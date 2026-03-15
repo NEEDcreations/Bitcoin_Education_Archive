@@ -5882,10 +5882,35 @@ function _showBubble(text, pose) {
         ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(a => avatar.classList.remove(a));
     }
 
+    // Auto-detect app/feature mentions and append action buttons
+    var actionBtn = '';
+    if (text.indexOf('<button') === -1) { // don't double-add to interactive content
+        var _linkMap = [
+            { pattern: /IRL Sync/i, action: "go('irl-sync')", label: "🤝 Open IRL Sync" },
+            { pattern: /PlebTalk/i, action: "go('forum')", label: "🗣️ Open PlebTalk" },
+            { pattern: /LightningMart|Lightning Mart|Marketplace/i, action: "go('marketplace')", label: "⚡ Open LightningMart" },
+            { pattern: /Bitcoin Beats/i, action: "go('bitcoin-beats')", label: "🎸 Open Bitcoin Beats" },
+            { pattern: /Nacho Mode/i, action: "enterNachoMode()", label: "🦌 Enter Nacho Mode" },
+            { pattern: /PVP|trivia battle/i, action: "enterPVPMode()", label: "⚔️ Enter PVP" },
+            { pattern: /Leaderboard/i, action: "toggleLeaderboard()", label: "🏆 Open Leaderboard" },
+            { pattern: /Scholar Cert|Scholar Exam|certification/i, action: "startScholarQuest()", label: "🎓 Start Certification" },
+            { pattern: /Flashcard/i, action: "goHome()", label: "📚 Go to Flashcards" },
+            { pattern: /Daily Spin|spin the wheel/i, action: "showSpinWheel()", label: "🎡 Daily Spin" },
+            { pattern: /Nacho.s Story/i, action: "showNachoStory()", label: "📖 Read Story" },
+            { pattern: /Nacho.s Closet/i, action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
+        ];
+        for (var _li = 0; _li < _linkMap.length; _li++) {
+            if (_linkMap[_li].pattern.test(text)) {
+                actionBtn = '<button onclick="event.stopPropagation();' + _linkMap[_li].action + ';hideBubble(true);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">' + _linkMap[_li].label + '</button>';
+                break;
+            }
+        }
+    }
+
     // Use innerHTML if text contains HTML (buttons, quiz, etc.), otherwise textContent
-    var isInteractive = text.indexOf('<button') !== -1 || text.indexOf('<div') !== -1;
+    var isInteractive = text.indexOf('<button') !== -1 || text.indexOf('<div') !== -1 || actionBtn;
     if (isInteractive) {
-        textEl.innerHTML = personalize(text);
+        textEl.innerHTML = personalize(text) + actionBtn;
     } else {
         textEl.textContent = personalize(text);
     }
