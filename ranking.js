@@ -519,47 +519,50 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
 window.signInWithLightning = async function() {
     if (!checkRateLimit()) return;
 
-    try {
-        if (typeof showToast === 'function') showToast('⚡ Generating Lightning login...');
+    // Show modal immediately with loading skeleton (Cloud Function can be slow on cold start)
+    var qrModal = document.createElement('div');
+    qrModal.id = 'lnAuthModal';
+    qrModal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
+    qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
+    qrModal.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
+            '<div style="font-size:2rem;margin-bottom:10px;">⚡</div>' +
+            '<h3 style="color:var(--heading);margin-bottom:6px;">Lightning Login</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Scan this QR code with your Lightning wallet (Alby, Zeus, Phoenix, BlueWallet, etc.)</p>' +
+            '<div id="lnAuthQR" style="background:#fff;padding:16px;border-radius:12px;display:inline-block;margin-bottom:16px;min-width:220px;min-height:220px;display:flex;align-items:center;justify-content:center;">' +
+                '<div style="text-align:center;"><div style="width:32px;height:32px;border:3px solid #ccc;border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 8px;"></div><div style="color:#666;font-size:0.75rem;">Generating challenge...</div></div>' +
+            '</div>' +
+            '<div id="lnAuthCopyWrap" style="margin-bottom:12px;display:none;"></div>' +
+            '<p id="lnAuthStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Connecting to server...</p>' +
+            '<button onclick="document.getElementById(\'lnAuthModal\').remove()" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '</div>';
+    document.body.appendChild(qrModal);
 
+    try {
         // Request challenge from Cloud Function
         var lnAuthChallenge = firebase.functions().httpsCallable('lnAuthChallenge');
         var challengeResult = await lnAuthChallenge();
 
+        // Check modal still exists (user might have cancelled)
+        if (!document.getElementById('lnAuthModal')) return;
+
         if (!challengeResult.data || !challengeResult.data.k1 || !challengeResult.data.lnurl) {
             if (typeof showToast === 'function') showToast('Failed to generate login challenge');
+            qrModal.remove();
             return;
         }
 
         var k1 = challengeResult.data.k1;
         var lnurlEncoded = challengeResult.data.lnurl;
 
-        // Show QR code modal for scanning with Lightning wallet
-        var qrModal = document.createElement('div');
-        qrModal.id = 'lnAuthModal';
-        qrModal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
-        qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
-        qrModal.innerHTML =
-            '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
-                '<div style="font-size:2rem;margin-bottom:10px;">⚡</div>' +
-                '<h3 style="color:var(--heading);margin-bottom:6px;">Lightning Login</h3>' +
-                '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Scan this QR code with your Lightning wallet (Alby, Zeus, Phoenix, BlueWallet, etc.)</p>' +
-                '<div id="lnAuthQR" style="background:#fff;padding:16px;border-radius:12px;display:inline-block;margin-bottom:16px;"></div>' +
-                '<div style="margin-bottom:12px;">' +
-                    '<button onclick="navigator.clipboard.writeText(\'' + lnurlEncoded + '\').then(function(){showToast(\'Copied!\');})" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;">📋 Copy LNURL</button>' +
-                '</div>' +
-                '<p id="lnAuthStatus" style="color:var(--accent);font-size:0.85rem;font-weight:600;">Waiting for wallet...</p>' +
-                '<button onclick="document.getElementById(\'lnAuthModal\').remove()" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
-            '</div>';
-        document.body.appendChild(qrModal);
-
-        // Generate QR code (client-side, no external API)
+        // Replace loading skeleton with actual QR code
         var qrContainer = document.getElementById('lnAuthQR');
         if (qrContainer) {
+            qrContainer.innerHTML = '';
+            qrContainer.style.display = 'inline-block';
             if (typeof _renderQRCode === 'function') {
                 _renderQRCode(qrContainer, 'lightning:' + lnurlEncoded, 220);
             } else {
-                // Fallback to external API if client-side lib not loaded
                 var qrImg = document.createElement('img');
                 qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent('lightning:' + lnurlEncoded);
                 qrImg.width = 220; qrImg.height = 220; qrImg.alt = 'Lightning Auth QR';
@@ -567,6 +570,17 @@ window.signInWithLightning = async function() {
                 qrContainer.appendChild(qrImg);
             }
         }
+
+        // Show copy button now that we have the LNURL
+        var copyWrap = document.getElementById('lnAuthCopyWrap');
+        if (copyWrap) {
+            copyWrap.style.display = 'block';
+            copyWrap.innerHTML = '<button onclick="navigator.clipboard.writeText(\'' + lnurlEncoded + '\').then(function(){showToast(\'Copied!\');})" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;">📋 Copy LNURL</button>';
+        }
+
+        // Update status
+        var statusEl = document.getElementById('lnAuthStatus');
+        if (statusEl) { statusEl.textContent = 'Waiting for wallet...'; statusEl.style.color = 'var(--accent)'; }
 
         // Poll for completion
         var lnAuthVerify = firebase.functions().httpsCallable('lnAuthVerify');
