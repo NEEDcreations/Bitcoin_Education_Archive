@@ -1829,25 +1829,47 @@
         var iWon = myQWins > oppQWins;
         var isDraw = myQWins === oppQWins; // should not happen with rerolls, but just in case
 
-        // Save result
-        if (iWon) {
-            var wins = parseInt(localStorage.getItem('btc_pvp_wins') || '0') + 1;
-            localStorage.setItem('btc_pvp_wins', wins.toString());
-            // Award global points
-            if (typeof awardPoints === 'function') awardPoints(myData.score, '⚔️ PVP Victory!');
-            // Check for new PVP badges
-            checkPVPBadges(wins);
-            // Sync to Firebase
-            savePVPStats(wins, parseInt(localStorage.getItem('btc_pvp_losses') || '0'));
-        } else if (!isDraw) {
-            var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0') + 1;
-            localStorage.setItem('btc_pvp_losses', losses.toString());
-            // Consolation points
-            if (typeof awardPoints === 'function' && myData.score > 0) awardPoints(Math.floor(myData.score / 2), '⚔️ PVP Consolation');
-            savePVPStats(parseInt(localStorage.getItem('btc_pvp_wins') || '0'), losses);
+        // Anti-abuse: check if opponent is anonymous, max 1 recorded win vs anon per day
+        var anonWinKey = 'btc_pvp_anon_win_' + new Date().toISOString().split('T')[0];
+        var anonWinsToday = parseInt(localStorage.getItem(anonWinKey) || '0');
+
+        function _savePvpResult(oppIsAnon) {
+            var statsBlocked = iWon && oppIsAnon && anonWinsToday >= 1;
+
+            if (iWon) {
+                if (statsBlocked) {
+                    if (typeof awardPoints === 'function') awardPoints(Math.floor(myData.score / 2), '⚔️ PVP Win (unranked vs guest)');
+                    if (typeof showToast === 'function') showToast('⚔️ Win! Stats not recorded — max 1 ranked win vs guests per day.');
+                } else {
+                    var wins = parseInt(localStorage.getItem('btc_pvp_wins') || '0') + 1;
+                    localStorage.setItem('btc_pvp_wins', wins.toString());
+                    if (typeof awardPoints === 'function') awardPoints(myData.score, '⚔️ PVP Victory!');
+                    checkPVPBadges(wins);
+                    savePVPStats(wins, parseInt(localStorage.getItem('btc_pvp_losses') || '0'));
+                    if (oppIsAnon) localStorage.setItem(anonWinKey, (anonWinsToday + 1).toString());
+                }
+            } else if (!isDraw) {
+                var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0') + 1;
+                localStorage.setItem('btc_pvp_losses', losses.toString());
+                if (typeof awardPoints === 'function' && myData.score > 0) awardPoints(Math.floor(myData.score / 2), '⚔️ PVP Consolation');
+                savePVPStats(parseInt(localStorage.getItem('btc_pvp_wins') || '0'), losses);
+            } else {
+                if (typeof awardPoints === 'function') awardPoints(5, '⚔️ PVP Draw');
+            }
+        }
+
+        // Check opponent account type then save
+        if (pvpState.opponentUid && db) {
+            db.collection('users').doc(pvpState.opponentUid).get().then(function(oppDoc) {
+                var oppIsAnon = true;
+                if (oppDoc.exists) {
+                    var od = oppDoc.data();
+                    oppIsAnon = !od.email && !od.authMethod && !od.nostr;
+                }
+                _savePvpResult(oppIsAnon);
+            }).catch(function() { _savePvpResult(false); });
         } else {
-            // Draw — small reward
-            if (typeof awardPoints === 'function') awardPoints(5, '⚔️ PVP Draw');
+            _savePvpResult(false);
         }
 
         var resultEmoji = iWon ? '🏆' : (isDraw ? '🤝' : '💀');
