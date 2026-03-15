@@ -129,7 +129,7 @@
             var html = '';
 
             // Progress dots
-            html += '<div style="display:flex;gap:8px;margin-bottom:40px;">';
+            html += '<div style="display:flex;gap:8px;margin-bottom:30px;">';
             for (var i = 0; i < 3; i++) {
                 var isActive = i <= state.step;
                 var isCurrent = i === state.step;
@@ -141,23 +141,23 @@
             html += '<div id="onboardingContent" style="max-width:480px;width:100%;text-align:center;">';
 
             if (state.step === 0) {
-                // ── WELCOME ──
-                html += '<div style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea580c);margin:0 auto 24px;display:flex;align-items:center;justify-content:center;font-size:48px;box-shadow:0 0 60px rgba(249,115,22,0.3);">₿</div>';
-                html += '<h1 style="color:#fff;font-size:1.8rem;font-weight:900;margin:0 0 12px;letter-spacing:-0.5px;">Welcome to the Archive</h1>';
-                html += '<p style="color:#64748b;font-size:1.05rem;line-height:1.6;margin:0 0 32px;">A free Bitcoin education library with 146 topics, curated by Bitcoiners for the world.</p>';
-                html += '<p style="color:#475569;font-size:0.85rem;margin:0;">No account required. Free forever. No ads.</p>';
+                // ── NACHO WELCOME ──
+                html += '<div style="font-size:4rem;margin-bottom:12px;">🦌</div>';
+                html += '<h1 style="color:#fff;font-size:1.6rem;font-weight:900;margin:0 0 8px;letter-spacing:-0.5px;">Hey! I\'m Nacho.</h1>';
+                html += '<p style="color:#94a3b8;font-size:1rem;line-height:1.6;margin:0 0 24px;">I\'ll be your Bitcoin guide! This archive has 146 channels of Bitcoin education — and I know all of it. 🧡</p>';
+                html += '<p style="color:#475569;font-size:0.85rem;margin:0;">No account needed. Free forever. No ads. Just Bitcoin.</p>';
             }
 
             else if (state.step === 1) {
-                // ── EXPERIENCE LEVEL ──
-                html += '<div style="font-size:2.5rem;margin-bottom:16px;">🎯</div>';
-                html += '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 8px;">How much do you know?</h1>';
-                html += '<p style="color:#64748b;font-size:0.9rem;margin:0 0 28px;">This helps us personalize your experience.</p>';
+                // ── EXPERIENCE LEVEL (Nacho asks) ──
+                html += '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>';
+                html += '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">How deep in the rabbit hole are you?</h1>';
+                html += '<p style="color:#64748b;font-size:0.85rem;margin:0 0 24px;">I\'ll customize your experience based on this.</p>';
 
                 var levels = [
-                    { value: 'beginner', emoji: '🌱', label: 'Brand new to Bitcoin', desc: 'Start with the basics' },
-                    { value: 'intermediate', emoji: '📘', label: 'I know a little', desc: 'Skip the intro stuff' },
-                    { value: 'advanced', emoji: '⚡', label: 'I\'m experienced', desc: 'Show me everything' },
+                    { value: 'beginner', emoji: '🌱', label: 'Brand new to Bitcoin', desc: 'I\'ll start you with the basics' },
+                    { value: 'intermediate', emoji: '📘', label: 'I know a little', desc: 'I\'ll skip the intro stuff' },
+                    { value: 'advanced', emoji: '🔥', label: 'I\'m a Bitcoiner', desc: 'Full access — show me everything' },
                 ];
 
                 levels.forEach(function (opt) {
@@ -172,10 +172,10 @@
             }
 
             else if (state.step === 2) {
-                // ── INTERESTS ──
-                html += '<div style="font-size:2.5rem;margin-bottom:16px;">💡</div>';
-                html += '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 8px;">What interests you?</h1>';
-                html += '<p style="color:#64748b;font-size:0.9rem;margin:0 0 28px;">Pick a few — or skip to explore freely.</p>';
+                // ── INTERESTS (Nacho asks) ──
+                html += '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>';
+                html += '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What catches your eye?</h1>';
+                html += '<p style="color:#64748b;font-size:0.85rem;margin:0 0 24px;">Pick a few and I\'ll build your starting path — or just dive in!</p>';
 
                 var tags = [
                     { label: 'Why Bitcoin?', emoji: '❓' },
@@ -247,7 +247,7 @@
         };
 
         window._onboardingSkip = function () {
-            _completeOnboarding({ step: 0, level: 'beginner', interests: [] });
+            _completeOnboarding({ step: 0, level: 'intermediate', interests: [], skipped: true });
         };
 
         function _completeOnboarding(finalState) {
@@ -469,6 +469,70 @@
         });
     }
 
+    // ─── PROGRESS BREADCRUMBS ──────────────────────────────
+    // Shows a persistent "📍 Next up →" card on the homepage
+    window.showProgressBreadcrumb = function() {
+        var home = document.getElementById('home');
+        if (!home || document.getElementById('progressBreadcrumb')) return;
+        var profile = window.getOnboardingProfile();
+        if (!profile) return;
+        var visited = [];
+        try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+        if (visited.length >= 15) return; // advanced users don't need this
+
+        // Find next unvisited recommended channel
+        var level = profile.level || 'beginner';
+        var recs = CURATED_CHANNELS[level] || CURATED_CHANNELS.beginner;
+        var nextRec = null;
+        for (var i = 0; i < recs.length; i++) {
+            if (visited.indexOf(recs[i].id) === -1) { nextRec = recs[i]; break; }
+        }
+        // If all curated are visited, suggest from interests
+        if (!nextRec && profile.interests && profile.interests.length > 0) {
+            for (var j = 0; j < profile.interests.length; j++) {
+                var intChannels = INTEREST_CHANNELS[profile.interests[j]] || [];
+                for (var k = 0; k < intChannels.length; k++) {
+                    if (visited.indexOf(intChannels[k]) === -1) {
+                        nextRec = { id: intChannels[k], reason: 'Based on your interests' };
+                        break;
+                    }
+                }
+                if (nextRec) break;
+            }
+        }
+        if (!nextRec) return; // nothing to recommend
+
+        var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[nextRec.id] : null;
+        if (!meta) return;
+        var emoji = meta.title ? (meta.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u) || ['📄'])[0] : '📄';
+        var chanName = nextRec.id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        var progress = Math.min(visited.length, recs.length);
+
+        var el = document.createElement('div');
+        el.id = 'progressBreadcrumb';
+        el.style.cssText = 'max-width:480px;margin:0 auto 20px;cursor:pointer;';
+        el.innerHTML =
+            '<div onclick="go(\'' + nextRec.id + '\')" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(249,115,22,0.02));border:1px solid rgba(249,115,22,0.2);border-radius:14px;transition:0.2s;" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.5)\'" onmouseout="this.style.borderColor=\'rgba(249,115,22,0.2)\'">' +
+                '<span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + emoji + '</span>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">📍 Up next for you</div>' +
+                    '<div style="font-weight:700;font-size:0.95rem;color:var(--heading);margin-top:2px;">' + chanName + '</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:1px;">' + (nextRec.reason || '') + '</div>' +
+                '</div>' +
+                '<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>' +
+            '</div>' +
+            '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;">' +
+                '<div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--accent);width:' + Math.round(progress / recs.length * 100) + '%;border-radius:2px;transition:0.3s;"></div></div>' +
+                '<span style="font-size:0.65rem;color:var(--text-faint);white-space:nowrap;">' + progress + '/' + recs.length + ' done</span>' +
+            '</div>';
+
+        // Insert after subtitle or curated section
+        var target = document.getElementById('curatedStartSection') || home.querySelector('.home-subtitle');
+        if (target) {
+            target.parentNode.insertBefore(el, target.nextSibling);
+        }
+    };
+
     // ─── INITIALIZATION ───────────────────────────────────
     function init() {
         // Show onboarding for first-time users
@@ -479,6 +543,9 @@
             window.applySimplifiedHome();
         }
 
+        // Show progress breadcrumb on homepage
+        setTimeout(function() { if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb(); }, 1000);
+
         // Check progressive reveal on every channel visit
         var _origGo = window.go;
         if (typeof _origGo === 'function') {
@@ -486,6 +553,12 @@
                 var result = _origGo.apply(this, arguments);
                 // Check after navigation completes
                 setTimeout(window.checkProgressiveReveal, 1000);
+                // Refresh breadcrumb when going home
+                setTimeout(function() { 
+                    var bc = document.getElementById('progressBreadcrumb'); 
+                    if (bc) bc.remove(); 
+                    if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb(); 
+                }, 1200);
                 return result;
             };
         }
