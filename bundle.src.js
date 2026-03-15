@@ -9138,7 +9138,44 @@ const STATEMENT_RESPONSES = [
     { pattern: /bitcoin (is|was|will be) (dead|dying|over|finished|done)/i, response: "Bitcoin has been declared dead 470+ times and keeps coming back stronger! 💀→🚀🦌 What makes you think it's over this time? I've got data that says otherwise..." },
     { pattern: /this is (cool|awesome|amazing|great|incredible|sick|fire|dope)/i, response: "Right?! 🔥🦌 And it only gets better the deeper you go. What part blew your mind? I can take you further down that rabbit hole!" },
     { pattern: /i (need|want) (help|advice|guidance|to understand|to learn)/i, response: "That's literally why I exist, {name}! 🦌🧡 Tell me what you need help with — basics, buying, storing, privacy, Lightning — and I'll guide you through it." },
+    { pattern: /i('m| am) (new|a beginner|just starting|getting started|starting out)/i, response: "Welcome aboard, {name}! 🌱🦌 Everyone starts somewhere. The best place to begin? Ask me 'What is Bitcoin?' and I'll give you the rundown. Or check out our beginner channels — I curated them just for people like you!" },
+    { pattern: /bitcoin (changed|saved|fixed|helped) (my |)(life|everything|me|things)/i, response: "That's powerful, {name}. 🧡🦌 Stories like yours are what this is all about. Bitcoin isn't just technology — it's hope, freedom, and sound money for everyone. What was the moment it clicked for you?" },
+    { pattern: /i('m| am) (stacking|dca|accumulating|saving|hodling)/i, response: "Consistent stacking is the way, {name}! 💎🦌 Time in the market beats timing the market — especially with sound money. How long have you been at it?" },
+    { pattern: /(my friend|my dad|my mom|my wife|my husband|my boss|someone i know) (doesn't|thinks|says|told me)/i, response: "Ah, the eternal struggle of orange-pilling your circle! 🍊🦌 What did they say? I might have the perfect counter-argument. Bitcoin is hard to explain, but once it clicks, there's no going back." },
+    { pattern: /i (just|recently) (learned|discovered|found out|read|watched|heard)/i, response: "Awesome — you're going deeper! 🦌🧡 What did you learn? I can build on that and connect it to the bigger picture. The Bitcoin rabbit hole is infinite!" },
+    { pattern: /(price|btc) (is|just|went) (up|down|pumping|dumping|crashing|mooning|tanking|ripping)/i, response: "Price action gets the blood flowing! 📊🦌 But remember — short-term noise, long-term signal. Bitcoin's fundamentals haven't changed: 21 million cap, decentralized, unstoppable. Want to understand what drives the long-term value?" },
+    { pattern: /i (think|believe|feel) (bitcoin|btc) (is|will|can|could)/i, response: "I love hearing perspectives! 🦌 What makes you think that? Let's dig into it together — I can back up the bull case with data, or challenge assumptions if that helps!" },
 ];
+
+// Smart fallback — extracts keywords from a missed question and suggests relevant content
+function smartFallback(input) {
+    if (!input) return FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+    var lower = input.toLowerCase();
+    // Topic keyword → channel suggestion mapping
+    var topicMap = [
+        { words: ['wallet','wallets','store','storage','cold','hot','hardware','ledger','trezor','coldcard','seed','backup'], ch: 'self-custody', suggestion: 'Check out the Self-Custody channel — it covers wallets, backups, and security! 🔐' },
+        { words: ['mine','mining','miner','miners','hashrate','asic','pow','proof of work','energy','hash'], ch: 'mining', suggestion: 'Explore the Mining channel — it\'s all about how Bitcoin is created! ⛏️' },
+        { words: ['lightning','ln','channel','channels','lnurl','bolt','zap','sats','tip','tipping'], ch: 'lightning-network', suggestion: 'The Lightning Network channel has everything on instant Bitcoin payments! ⚡' },
+        { words: ['privacy','private','anonymous','coinjoin','kyc','surveillance','tracking','traced'], ch: 'privacy', suggestion: 'Our Privacy channel dives deep into Bitcoin privacy tools and techniques! 🕵️' },
+        { words: ['halving','supply','scarcity','scarce','inflation','deflation','monetary','21 million','cap'], ch: 'halving', suggestion: 'The Halving channel explains Bitcoin\'s scarce supply schedule! 📉' },
+        { words: ['node','nodes','run','full node','core','bitcoin core','validate','sovereign'], ch: 'running-a-node', suggestion: 'Check out Running a Node — become a sovereign Bitcoiner! 🖥️' },
+        { words: ['price','worth','value','cost','expensive','cheap','market','bull','bear','crash','moon','ath','dip'], ch: 'bitcoin-economics', suggestion: 'The Economics channel covers price, value, and market dynamics! 📊' },
+        { words: ['tax','taxes','irs','capital gains','reporting','legal','law','regulation'], ch: 'tax-and-law', suggestion: 'Our Tax & Law channel has the legal stuff covered! ⚖️' },
+        { words: ['history','satoshi','genesis','cypherpunk','whitepaper','nakamoto','origin','started','created','invented'], ch: 'bitcoin-history', suggestion: 'The Bitcoin History channel tells the whole story! 📜' },
+        { words: ['buy','sell','exchange','trade','coinbase','kraken','bisq','purchase','dca','dollar cost'], ch: 'getting-bitcoin', suggestion: 'Getting Bitcoin channel has all the ways to acquire some! 💰' },
+        { words: ['security','hack','hacked','phishing','scam','safe','attack','vulnerability','secure'], ch: 'self-custody', suggestion: 'Self-Custody channel covers security best practices! 🛡️' },
+        { words: ['nostr','social','media','zaps','relay','nip','decentralized social','censorship'], ch: 'nostr', suggestion: 'Our Nostr channel covers Bitcoin\'s social layer! 📡' },
+    ];
+    for (var i = 0; i < topicMap.length; i++) {
+        for (var j = 0; j < topicMap[i].words.length; j++) {
+            if (lower.indexOf(topicMap[i].words[j]) !== -1) {
+                return "I don't have a perfect answer for that specific question, {name}, but I think I know where to point you! 🦌 " + topicMap[i].suggestion + " You can jump there now or ask me something more specific about " + topicMap[i].words[0] + "s!";
+            }
+        }
+    }
+    // No keyword match — use generic but friendly fallback
+    return FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+}
 
 // Check if user input is a statement (not a question) and respond naturally
 function checkStatement(input) {
@@ -11259,9 +11296,14 @@ window.nachoUnifiedAnswer = function(question, callback) {
     var ot = checkOffTopic(q);
     if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
 
-    // Fallback
+    // Statement check before final fallback
+    var stmtResp = checkStatement(q);
+    if (stmtResp) { callback({ type: 'statement', answer: pq(stmtResp) }); return; }
+
+    // Smart fallback: extract keywords and suggest relevant channels
+    var smartFb = smartFallback(q);
     nachoTrackMiss(q);
-    callback({ type: 'fallback', answer: pq(FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)]) });
+    callback({ type: 'fallback', answer: pq(smartFb) });
 };
 
 // Expose IIFE functions to window
