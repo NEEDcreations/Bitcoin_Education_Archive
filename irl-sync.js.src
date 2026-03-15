@@ -85,7 +85,7 @@
                 const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
                 return `
-                    <div class="event-card" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:0.3s;display:flex;flex-direction:column;height:100%;" onmouseover="this.style.transform='translateY(-5px)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='none';this.style.borderColor='var(--border)'">
+                    <div class="event-card" onclick="viewEvent('${doc.id}')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:0.3s;display:flex;flex-direction:column;height:100%;" onmouseover="this.style.transform='translateY(-5px)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='none';this.style.borderColor='var(--border)'">
                         <div style="height:160px;${ev.coverUrl ? 'background:url(' + ev.coverUrl + ') center/cover no-repeat;' : 'background:linear-gradient(45deg, #1a1a2e, #16213e);display:flex;align-items:center;justify-content:center;font-size:3rem;'}">
                             ${ev.coverUrl ? '' : (ev.emoji || '🧡')}
                         </div>
@@ -285,6 +285,153 @@
             alert("Error broadcasting event: " + e.message);
             btn.disabled = false;
             btn.textContent = "Retry Broadcast";
+        }
+    };
+
+    // ---- View Event Detail ----
+    window.viewEvent = async function(eventId) {
+        if (!e) return;
+        try {
+            var doc = await e.collection('irl_events').doc(eventId).get();
+            if (!doc.exists) { if (typeof showToast === 'function') showToast('Event not found'); return; }
+            var ev = doc.data();
+            var d = new Date(ev.date);
+            var dateStr = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            var timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
+            var isHost = t && t.currentUser && t.currentUser.uid === ev.hostId;
+            var isGoing = t && t.currentUser && (ev.attendees || []).indexOf(t.currentUser.uid) !== -1;
+
+            var overlay = document.createElement('div');
+            overlay.id = 'eventDetailOverlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+            overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+
+            var html = '<div style="background:#1a1a2e;border:1px solid var(--accent);border-radius:20px;max-width:500px;width:100%;margin:40px auto;overflow:hidden;">';
+
+            // Cover image
+            if (ev.coverUrl) {
+                html += '<div style="height:220px;background:url(' + esc(ev.coverUrl) + ') center/cover no-repeat;"></div>';
+            }
+
+            html += '<div style="padding:24px;">';
+            // Date & time
+            html += '<div style="color:var(--accent);font-size:0.8rem;font-weight:800;text-transform:uppercase;margin-bottom:10px;">' + dateStr + ' @ ' + timeStr + '</div>';
+            // Title
+            html += '<h2 style="color:#e2e8f0;font-size:1.4rem;font-weight:900;margin:0 0 12px;line-height:1.3;">' + esc(ev.title) + '</h2>';
+            // Location
+            html += '<div style="color:#94a3b8;font-size:0.9rem;margin-bottom:16px;display:flex;align-items:center;gap:6px;">📍 ' + esc(ev.locationName || 'TBD') + '</div>';
+            // Full description
+            if (ev.description) {
+                html += '<div style="color:#cbd5e1;font-size:0.9rem;line-height:1.7;margin-bottom:20px;white-space:pre-wrap;">' + esc(ev.description) + '</div>';
+            }
+            // Link
+            if (ev.link) {
+                html += '<a href="' + esc(ev.link) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;text-decoration:none;margin-bottom:16px;">🔗 Event Link ↗</a>';
+            }
+            // Host
+            html += '<div style="color:#64748b;font-size:0.78rem;margin-bottom:16px;">Hosted by <strong style="color:#94a3b8;">' + esc(ev.hostName || 'Anonymous Pleb') + '</strong></div>';
+            // Attendees
+            html += '<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:16px;">' + ((ev.attendees || []).length || 0) + ' attending</div>';
+
+            // Action buttons
+            html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+            html += '<button onclick="event.stopPropagation();toggleRSVP(\'' + eventId + '\');document.getElementById(\'eventDetailOverlay\').remove()" style="flex:1;padding:12px;background:' + (isGoing ? 'var(--accent)' : 'var(--bg-side,#0a0a1a)') + ';color:' + (isGoing ? '#fff' : '#e2e8f0') + ';border:1px solid ' + (isGoing ? 'var(--accent)' : 'var(--border,#333)') + ';border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (isGoing ? "✅ I'm Going" : "I'm Going!") + '</button>';
+            if (isHost) {
+                html += '<button onclick="event.stopPropagation();document.getElementById(\'eventDetailOverlay\').remove();editEvent(\'' + eventId + '\')" style="padding:12px 16px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#94a3b8;font-size:0.85rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
+                html += '<button onclick="event.stopPropagation();deleteEvent(\'' + eventId + '\')" style="padding:12px 16px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️</button>';
+            }
+            html += '</div>';
+
+            // Close button
+            html += '<button onclick="document.getElementById(\'eventDetailOverlay\').remove()" style="width:100%;margin-top:12px;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#64748b;font-size:0.85rem;cursor:pointer;font-family:inherit;">Close</button>';
+
+            html += '</div></div>';
+            overlay.innerHTML = html;
+            document.body.appendChild(overlay);
+        } catch(err) {
+            console.error('Event view error:', err);
+            if (typeof showToast === 'function') showToast('Error loading event');
+        }
+    };
+
+    // ---- Edit Event ----
+    window.editEvent = async function(eventId) {
+        if (!e || !t || !t.currentUser) return;
+        try {
+            var doc = await e.collection('irl_events').doc(eventId).get();
+            if (!doc.exists) return;
+            var ev = doc.data();
+            if (t.currentUser.uid !== ev.hostId) { if (typeof showToast === 'function') showToast('Only the host can edit'); return; }
+
+            var overlay = document.createElement('div');
+            overlay.id = 'editEventOverlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+            overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+
+            var evDate = ev.date ? new Date(ev.date).toISOString().slice(0, 16) : '';
+            var _s = 'width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border,#333);border-radius:10px;color:#e2e8f0;outline:none;box-sizing:border-box;font-family:inherit;margin-bottom:12px;';
+
+            var html = '<div style="background:#1a1a2e;border:1px solid var(--accent);border-radius:20px;padding:28px;max-width:500px;width:100%;margin:40px auto;">';
+            html += '<h2 style="color:#e2e8f0;margin:0 0 16px;">✏️ Edit Event</h2>';
+            html += '<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Title</label>';
+            html += '<input type="text" id="editEvTitle" value="' + (typeof escapeHtml === 'function' ? escapeHtml(ev.title || '') : ev.title || '') + '" style="' + _s + '">';
+            html += '<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Date & Time</label>';
+            html += '<input type="datetime-local" id="editEvDate" value="' + evDate + '" style="' + _s + '">';
+            html += '<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Location</label>';
+            html += '<input type="text" id="editEvLoc" value="' + (typeof escapeHtml === 'function' ? escapeHtml(ev.locationName || ev.location || '') : ev.locationName || '') + '" style="' + _s + '">';
+            html += '<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Link (optional)</label>';
+            html += '<input type="url" id="editEvLink" value="' + (typeof escapeHtml === 'function' ? escapeHtml(ev.link || '') : ev.link || '') + '" style="' + _s + '">';
+            html += '<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Description (optional)</label>';
+            html += '<textarea id="editEvDesc" rows="4" maxlength="1000" style="' + _s + 'resize:vertical;">' + (typeof escapeHtml === 'function' ? escapeHtml(ev.description || '') : ev.description || '') + '</textarea>';
+            html += '<button onclick="submitEditEvent(\'' + eventId + '\')" id="editEvBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;">Save Changes</button>';
+            html += '<button onclick="document.getElementById(\'editEventOverlay\').remove()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#64748b;cursor:pointer;font-family:inherit;">Cancel</button>';
+            html += '</div>';
+            overlay.innerHTML = html;
+            document.body.appendChild(overlay);
+        } catch(err) {
+            if (typeof showToast === 'function') showToast('Error loading event for edit');
+        }
+    };
+
+    window.submitEditEvent = async function(eventId) {
+        var btn = document.getElementById('editEvBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+        try {
+            var title = (document.getElementById('editEvTitle').value || '').trim();
+            var date = document.getElementById('editEvDate').value;
+            var loc = (document.getElementById('editEvLoc').value || '').trim();
+            var link = (document.getElementById('editEvLink').value || '').trim();
+            var desc = (document.getElementById('editEvDesc').value || '').trim();
+            if (!title || !date || !loc) { alert('Fill in title, date, and location'); if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; } return; }
+            await e.collection('irl_events').doc(eventId).update({
+                title: title,
+                date: new Date(date).toISOString(),
+                location: loc,
+                locationName: loc,
+                link: link || null,
+                description: desc.substring(0, 1000) || null,
+            });
+            document.getElementById('editEventOverlay').remove();
+            if (typeof showToast === 'function') showToast('✅ Event updated!');
+            loadEvents();
+        } catch(err) {
+            alert('Error saving: ' + err.message);
+            if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+        }
+    };
+
+    // ---- Delete Event ----
+    window.deleteEvent = async function(eventId) {
+        if (!confirm('Delete this event? This cannot be undone.')) return;
+        try {
+            await e.collection('irl_events').doc(eventId).delete();
+            var overlay = document.getElementById('eventDetailOverlay');
+            if (overlay) overlay.remove();
+            if (typeof showToast === 'function') showToast('🗑️ Event deleted');
+            loadEvents();
+        } catch(err) {
+            if (typeof showToast === 'function') showToast('Error deleting event');
         }
     };
 
