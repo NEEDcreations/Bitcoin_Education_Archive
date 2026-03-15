@@ -1103,23 +1103,34 @@ async function loadUser(uid, prefetchedDoc) {
     }
 }
 
+// Track if button was ever set to "signed in" state — never downgrade once set
+var _authBtnSignedIn = false;
+
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
     // Check all possible ways a user can be "signed in":
-    // 1. Firebase auth user exists and is NOT anonymous
-    // 2. currentUser from Firestore has a username
-    // 3. localStorage has a username (cached from previous session)
     var firebaseUser = auth && auth.currentUser;
     var isRealAuth = firebaseUser && !firebaseUser.isAnonymous;
     var fsUsername = currentUser && currentUser.username;
     var localUsername = localStorage.getItem('btc_username');
     var displayName = fsUsername || localUsername || (firebaseUser && firebaseUser.displayName) || '';
-
-    // For Nostr/Lightning users: check UID prefix as additional signal
     var isNostrOrLn = firebaseUser && firebaseUser.uid && (firebaseUser.uid.startsWith('nostr:') || firebaseUser.uid.startsWith('ln:'));
     
-    if (isRealAuth || isNostrOrLn || displayName) {
+    var shouldShowSignedIn = isRealAuth || isNostrOrLn || displayName;
+    
+    // Once signed in, NEVER go back to "Create Account" unless explicitly signed out (firebaseUser is null)
+    if (shouldShowSignedIn) {
+        _authBtnSignedIn = true;
+    } else if (_authBtnSignedIn && firebaseUser) {
+        // Auth still exists but Firestore temporarily lost — don't downgrade
+        return;
+    } else if (!firebaseUser) {
+        // Actually signed out
+        _authBtnSignedIn = false;
+    }
+    
+    if (_authBtnSignedIn) {
         var name = displayName || 'My Account';
         btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> — Settings';
         btn.onclick = function() { showSettings(); };
@@ -1139,14 +1150,13 @@ function updateAuthButton() {
 
     // Also hide guest banner for signed-in users
     var guestBanner = document.getElementById('guestPointsBanner');
-    if (guestBanner && (isRealAuth || isNostrOrLn)) {
+    if (guestBanner && _authBtnSignedIn) {
         guestBanner.style.display = 'none';
     }
 
     // Update giveaway banner for signed-in users
     var giveawayBanner = document.getElementById('giveawayBanner');
-    if (giveawayBanner && (isRealAuth || isNostrOrLn)) {
-        // Check if user is already entered
+    if (giveawayBanner && _authBtnSignedIn) {
         var hasGiveaway = currentUser && currentUser.giveaway;
         if (hasGiveaway) {
             giveawayBanner.innerHTML =
