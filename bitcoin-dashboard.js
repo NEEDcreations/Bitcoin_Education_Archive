@@ -16,7 +16,10 @@ var _wsOpenPrice = null; // 24h open for % calc
 function startPriceWs() {
     if (_priceWs && _priceWs.readyState <= 1) return; // already open/connecting
     try {
-        _priceWs = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker');
+        // Try Binance first, then Binance US as fallback
+        var wsUrl = 'wss://stream.binance.com:9443/ws/btcusdt@ticker';
+        _priceWs = new WebSocket(wsUrl);
+        _priceWs.onopen = function() { console.log('[Dashboard] Price WebSocket connected'); };
         _priceWs.onmessage = function(evt) {
             try {
                 var d = JSON.parse(evt.data);
@@ -43,8 +46,8 @@ function startPriceWs() {
                 window._btcPriceCache = { price: _lastWsPrice, change: _lastWsChange, ts: Date.now() };
             } catch(e) {}
         };
-        _priceWs.onclose = function() { setTimeout(startPriceWs, 5000); }; // reconnect
-        _priceWs.onerror = function() { _priceWs.close(); };
+        _priceWs.onclose = function() { console.log('[Dashboard] WS closed, reconnecting...'); _priceWs = null; setTimeout(startPriceWs, 5000); };
+        _priceWs.onerror = function(e) { console.warn('[Dashboard] WS error:', e); try { _priceWs.close(); } catch(x) {} _priceWs = null; };
     } catch(e) {}
 }
 
@@ -395,21 +398,8 @@ function _updateDashBtnPrice() {
     setTimeout(_updateDashBtnPrice, DASH_CACHE_TTL);
 }
 
-// ---- Home page button (larger, prominent) ----
-window.injectHomeDashboardButton = function() {
-    var home = document.getElementById('home');
-    if (!home || document.getElementById('homeDashBtn')) return;
-    var statsPanel = document.getElementById('appStatsPanel');
-    if (!statsPanel) return;
-    var btn = document.createElement('button');
-    btn.id = 'homeDashBtn';
-    btn.onclick = function() { toggleDashboard(); };
-    btn.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 auto 16px;padding:10px 20px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;';
-    btn.innerHTML = '📊 Bitcoin Network Metrics';
-    btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.12)'; };
-    btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.2)'; this.style.background = 'rgba(247,147,26,0.06)'; };
-    statsPanel.parentNode.insertBefore(btn, statsPanel.nextSibling);
-};
+// Home page button removed — 📊 is now inline with logo/donate on all pages
+window.injectHomeDashboardButton = function() {};
 
 // ---- Toggle Overlay ----
 window.toggleDashboard = async function() {

@@ -3362,6 +3362,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="channel-logos">' +
                 '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
+                '<span onclick="toggleDashboard()" style="width:50px;height:50px;background:rgba(247,147,26,0.1);border:2px solid rgba(247,147,26,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.15);font-size:1.2rem;flex-shrink:0;" title="Bitcoin Network Metrics">📊</span>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
