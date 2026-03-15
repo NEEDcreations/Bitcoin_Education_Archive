@@ -17,8 +17,8 @@ const FIREBASE_CONFIG = {
 const LEVELS = [
     { name: 'Normie',     emoji: '🟢', min: 0 },
     { name: 'Curious',    emoji: '🔵', min: 10 },
-    { name: 'Pleb',       emoji: '🟠', min: 21 },
-    { name: 'Stacker',    emoji: '📦', min: 210 },
+    { name: 'Pleb',       emoji: '🟠', min: 210 },
+    { name: 'Stacker',    emoji: '📦', min: 500 },
     { name: 'Hodler',     emoji: '💎', min: 1337 },
     { name: 'Maxi',       emoji: '🔥', min: 2100 },
     { name: 'Cypherpunk', emoji: '🛡️', min: 4444 },
