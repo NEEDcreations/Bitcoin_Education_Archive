@@ -1541,15 +1541,26 @@ let nachoFlyCooldown = 0;
 window.nachoClick = function() {
     const now = Date.now();
 
-    // Triple-tap detection (3 taps within 600ms)
+    // Multi-tap detection
     nachoTapTimes.push(now);
     if (nachoTapTimes.length > 3) nachoTapTimes.shift();
+
+    // Triple-tap: Nacho fly (3 taps within 600ms)
     if (nachoTapTimes.length === 3 && (nachoTapTimes[2] - nachoTapTimes[0]) < 600 && now - nachoFlyCooldown > 5000) {
         nachoTapTimes = [];
         nachoFlyCooldown = now;
         lastClickTime = now;
         if (typeof nachoFly === 'function') nachoFly();
         forceShowBubble(personalize("Wheeeee! ⚡🦌⚡"));
+        return;
+    }
+
+    // Double-tap: hide Nacho (2 taps within 400ms)
+    if (nachoTapTimes.length >= 2 && (nachoTapTimes[nachoTapTimes.length - 1] - nachoTapTimes[nachoTapTimes.length - 2]) < 400 && nachoTapTimes.length < 3) {
+        nachoTapTimes = [];
+        lastClickTime = now;
+        if (typeof hideNacho === 'function') hideNacho();
+        if (typeof showToast === 'function') showToast('🦌 Nacho hidden — tap the 🦌 button to bring him back!');
         return;
     }
 
