@@ -648,6 +648,11 @@ window.forumSubmitReply = async function(postId) {
         });
 
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Notify post author
+        if (forumCurrentPost && forumCurrentPost.authorId && typeof sendNotification === 'function') {
+            var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+            sendNotification(forumCurrentPost.authorId, 'reply', _un + ' replied to your post "' + (forumCurrentPost.title || '').substring(0, 40) + '"', 'forum_post', postId);
+        }
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumReplies: firebase.firestore.FieldValue.increment(1)
@@ -687,6 +692,12 @@ window.forumVotePost = async function(postId) {
                 upvotes: firebase.firestore.FieldValue.increment(1),
                 voters: firebase.firestore.FieldValue.arrayUnion(uid)
             });
+            // Notify post author
+            var _d = doc.data();
+            if (_d.authorId && typeof sendNotification === 'function') {
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(_d.authorId, 'upvote', _un + ' upvoted your post "' + (_d.title || '').substring(0, 40) + '"', 'forum_post', postId);
+            }
         }
 
         // Refresh
@@ -1274,6 +1285,11 @@ window.articleVote = async function(articleId) {
             await ref.update({ upvotes: firebase.firestore.FieldValue.increment(-1), voters: firebase.firestore.FieldValue.arrayRemove(uid) });
         } else {
             await ref.update({ upvotes: firebase.firestore.FieldValue.increment(1), voters: firebase.firestore.FieldValue.arrayUnion(uid) });
+            var _ad = doc.data();
+            if (_ad.authorId && typeof sendNotification === 'function') {
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(_ad.authorId, 'upvote', _un + ' upvoted your article "' + (_ad.title || '').substring(0, 40) + '"', 'article', articleId);
+            }
         }
         articleView(articleId);
     } catch(e) {}
@@ -1321,6 +1337,14 @@ window.articleSubmitReply = async function(articleId) {
         });
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
+        // Notify article author
+        try {
+            var _aDoc = await db.collection('articles').doc(articleId).get();
+            if (_aDoc.exists && _aDoc.data().authorId && typeof sendNotification === 'function') {
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(_aDoc.data().authorId, 'comment', _un + ' commented on your article "' + (_aDoc.data().title || '').substring(0, 40) + '"', 'article', articleId);
+            }
+        } catch(e) {}
         input.value = '';
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Comment posted!</span>';
         articleLoadReplies(articleId);

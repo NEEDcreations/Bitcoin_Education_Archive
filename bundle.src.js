@@ -4808,9 +4808,9 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: New to Bitcoin? Start with the 'one-stop-shop' channel — it has everything to get you started! 🎯" },
     { pose: 'brain', text: "💡 Tip: Channels are organized into Properties, Experienced Topics, Resources, and Additional Info. Start with Properties!" },
     // Forum & Marketplace
-    { pose: 'point', text: "💡 Tip: Post in the PlebTalk to earn the 📣 Town Crier badge + 100 points! Press F or find it in the sidebar." },
+    { pose: 'point', text: "💡 Tip: Post in the PlebTalk to earn the 📣 Town Crier badge + 100 points! Press T or find it in the sidebar." },
     { pose: 'point', text: "💡 Tip: Reply to PlebTalk posts to earn the 💬 Conversationalist badge + 75 points! Join the discussion!" },
-    { pose: 'cheese', text: "💡 Tip: LightningMart lets you buy and sell with Bitcoin! List an item to earn the 🏪 Merchant badge! Press M to check it out." },
+    { pose: 'cheese', text: "💡 Tip: LightningMart lets you buy and sell with Bitcoin! List an item to earn the 🏪 Merchant badge! Press S to check it out." },
     { pose: 'point', text: "💡 Tip: Found something cool on LightningMart? Contact the seller to earn the 🛍️ Shopper badge!" },
     // Closet
     { pose: 'celebrate', text: "💡 Tip: Check out my closet in Settings → Nacho! You can dress me up with items you unlock! 🎽🦌" },
@@ -4831,7 +4831,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Nacho Mode saves your full chat history — come back anytime to pick up where you left off!" },
     { pose: 'celebrate', text: "💡 Tip: Ask me 10, 25, 50, or 100 questions in Nacho Mode to unlock special milestones! 🎉" },
     // Forum
-    { pose: 'fire', text: "💡 Tip: We have a PlebTalk! Press F or click '🗣️ PlebTalk' in the sidebar to discuss Bitcoin! 💬" },
+    { pose: 'fire', text: "💡 Tip: We have a PlebTalk! Press T or click '🗣️ PlebTalk' in the sidebar to discuss Bitcoin! 💬" },
     { pose: 'point', text: "💡 Tip: In PlebTalk, upvote great posts with ⚡ and earn +10 points for posting, +5 for replying!" },
     { pose: 'brain', text: "💡 Tip: PlebTalk posts can include links! Share interesting Bitcoin articles or resources with the community! 🔗" },
     // Profiles
@@ -4843,12 +4843,12 @@ const TIPS = [
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
     // Keyboard shortcuts
-    { pose: 'point', text: "💡 Tip: Press ? to see ALL keyboard shortcuts! N=Nacho, F=PlebTalk, D=Donate, L=Leaderboard, and more! ⌨️" },
+    { pose: 'point', text: "💡 Tip: Press ? to see ALL keyboard shortcuts! N=Nacho, T=PlebTalk, P=Donate, L=Leaderboard, and more! ⌨️" },
     { pose: 'point', text: "💡 Tip: Press A to quickly ask me a question from any page — no need to enter Nacho Mode! 🦌" },
     // Nostr
     { pose: 'cool', text: "💡 Tip: You can sign in with Nostr! If you have Alby or nos2x, click the 🟣 Nostr button on the sign-in page! ⚡" },
     // Donate
-    { pose: 'love', text: "💡 Tip: Press D to open the donation page — support the archive with Lightning! Every sat counts! ⚡🧡" },
+    { pose: 'love', text: "💡 Tip: Press P to open the donation page — support the archive with Lightning! Every sat counts! ⚡🧡" },
     // Language
     { pose: 'point', text: "💡 Tip: The site supports 15+ languages! Change it in Settings → Prefs. I can even answer in your language! 🌍" },
     // DMs
@@ -4856,7 +4856,7 @@ const TIPS = [
     { pose: 'eyes', text: "💡 Tip: DMs are protected — you need 50 points and a 24h-old account to message. No scammers allowed! 🛡️" },
     { pose: 'point', text: "💡 Tip: Never share your seed phrase, private keys, or send Bitcoin to strangers in DMs! Stay safe! 🔒" },
     // PVP
-    { pose: 'fire', text: "💡 Tip: Challenge other Bitcoiners to PVP trivia battles! Press P or find ⚔️ PVP in the sidebar! Who knows more? 🏆" },
+    { pose: 'fire', text: "💡 Tip: Challenge other Bitcoiners to PVP trivia battles! Press X or find ⚔️ PVP in the sidebar! Who knows more? 🏆" },
     { pose: 'celebrate', text: "💡 Tip: Win PVP battles to climb the PVP leaderboard! Your wins and losses show on your profile! ⚔️" },
     // Bitcoin Beats
     { pose: 'fire', text: "💡 Tip: Bitcoin Beats is our community music platform! Listen, upload, and discover tracks made by Bitcoiners! 🎸🦌" },
@@ -17260,8 +17260,15 @@ window.startFlashcards = function(topic) {
                     <p style="color:var(--text-muted);margin-bottom:30px;">You've mastered the <strong>${topic}</strong> deck.</p>
                     <button id="finishDeck" style="padding:16px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(247,147,26,0.3);">Back to Scholar Tab</button>
                 </div>`;
-                document.getElementById('finishDeck').onclick = () => { 
-                    if (typeof awardPoints === 'function') awardPoints(10, '📚 Completed ' + topic + ' deck');
+                document.getElementById('finishDeck').onclick = () => {
+                    var _fcKey = 'btc_fc_done_' + topic.replace(/\s+/g,'_') + '_' + new Date().toISOString().split('T')[0];
+                    if (!localStorage.getItem(_fcKey)) {
+                        localStorage.setItem(_fcKey, '1');
+                        if (typeof awardPoints === 'function') awardPoints(15, '📚 Completed ' + topic + ' deck');
+                        if (typeof awardTickets === 'function') awardTickets(5, '📚 Flashcard deck complete');
+                    } else {
+                        if (typeof showToast === 'function') showToast('📚 Already completed this deck today!');
+                    }
                     sessionStorage.setItem('_ch_flashcard', '1');
                     closeQuest(); 
                     if (typeof showSettingsPage === 'function') showSettingsPage('scholar'); 
@@ -17938,6 +17945,11 @@ window.forumSubmitReply = async function(postId) {
         });
 
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
+        // Notify post author
+        if (forumCurrentPost && forumCurrentPost.authorId && typeof sendNotification === 'function') {
+            var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+            sendNotification(forumCurrentPost.authorId, 'reply', _un + ' replied to your post "' + (forumCurrentPost.title || '').substring(0, 40) + '"', 'forum_post', postId);
+        }
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumReplies: firebase.firestore.FieldValue.increment(1)
@@ -17977,6 +17989,12 @@ window.forumVotePost = async function(postId) {
                 upvotes: firebase.firestore.FieldValue.increment(1),
                 voters: firebase.firestore.FieldValue.arrayUnion(uid)
             });
+            // Notify post author
+            var _d = doc.data();
+            if (_d.authorId && typeof sendNotification === 'function') {
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(_d.authorId, 'upvote', _un + ' upvoted your post "' + (_d.title || '').substring(0, 40) + '"', 'forum_post', postId);
+            }
         }
 
         // Refresh
@@ -18564,6 +18582,11 @@ window.articleVote = async function(articleId) {
             await ref.update({ upvotes: firebase.firestore.FieldValue.increment(-1), voters: firebase.firestore.FieldValue.arrayRemove(uid) });
         } else {
             await ref.update({ upvotes: firebase.firestore.FieldValue.increment(1), voters: firebase.firestore.FieldValue.arrayUnion(uid) });
+            var _ad = doc.data();
+            if (_ad.authorId && typeof sendNotification === 'function') {
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(_ad.authorId, 'upvote', _un + ' upvoted your article "' + (_ad.title || '').substring(0, 40) + '"', 'article', articleId);
+            }
         }
         articleView(articleId);
     } catch(e) {}
@@ -18611,6 +18634,14 @@ window.articleSubmitReply = async function(articleId) {
         });
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
+        // Notify article author
+        try {
+            var _aDoc = await db.collection('articles').doc(articleId).get();
+            if (_aDoc.exists && _aDoc.data().authorId && typeof sendNotification === 'function') {
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(_aDoc.data().authorId, 'comment', _un + ' commented on your article "' + (_aDoc.data().title || '').substring(0, 40) + '"', 'article', articleId);
+            }
+        } catch(e) {}
         input.value = '';
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Comment posted!</span>';
         articleLoadReplies(articleId);

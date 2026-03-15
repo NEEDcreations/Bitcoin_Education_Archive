@@ -324,6 +324,19 @@ service cloud.firestore {
     // =============================================
     // DEFAULT: deny everything else
     // =============================================
+    // NOTIFICATIONS
+    // =============================================
+    match /notifications/{notifId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == resource.data.recipientId;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.recipientId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.recipientId;
+    }
+
+    // =============================================
     match /{document=**} {
       allow read, write: if false;
     }

@@ -4424,8 +4424,15 @@ window.startFlashcards = function(topic) {
                     <p style="color:var(--text-muted);margin-bottom:30px;">You've mastered the <strong>${topic}</strong> deck.</p>
                     <button id="finishDeck" style="padding:16px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(247,147,26,0.3);">Back to Scholar Tab</button>
                 </div>`;
-                document.getElementById('finishDeck').onclick = () => { 
-                    if (typeof awardPoints === 'function') awardPoints(10, '📚 Completed ' + topic + ' deck');
+                document.getElementById('finishDeck').onclick = () => {
+                    var _fcKey = 'btc_fc_done_' + topic.replace(/\s+/g,'_') + '_' + new Date().toISOString().split('T')[0];
+                    if (!localStorage.getItem(_fcKey)) {
+                        localStorage.setItem(_fcKey, '1');
+                        if (typeof awardPoints === 'function') awardPoints(15, '📚 Completed ' + topic + ' deck');
+                        if (typeof awardTickets === 'function') awardTickets(5, '📚 Flashcard deck complete');
+                    } else {
+                        if (typeof showToast === 'function') showToast('📚 Already completed this deck today!');
+                    }
                     sessionStorage.setItem('_ch_flashcard', '1');
                     closeQuest(); 
                     if (typeof showSettingsPage === 'function') showSettingsPage('scholar'); 
