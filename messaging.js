@@ -452,6 +452,17 @@ window.showUserProfile = function(uid) {
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' pts</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
             '</div>' +
+            // Bio
+            (u.bio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;text-align:left;">' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + escapeHtml(u.bio) + '</div>' +
+            '</div>' : '') +
+            // Social links
+            ((u.twitter || u.nostr || u.website) ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
+                (u.twitter ? '<a href="https://x.com/' + escapeHtml(u.twitter.replace('@','')) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">𝕏 ' + escapeHtml(u.twitter) + '</a>' : '') +
+                (u.nostr ? '<span style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:#8b5cf6;font-size:0.72rem;">🟣 Nostr</span>' : '') +
+                (u.website ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
+            '</div>' : '') +
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🏅', badgeCount, 'Badges') +

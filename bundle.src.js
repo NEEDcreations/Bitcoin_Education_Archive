@@ -9375,6 +9375,83 @@ var OFF_TOPIC_PATTERNS = [
         "No worries, {name}! 🦌 That's why I'm here. Want me to explain something simpler? Try asking 'ELI5 Bitcoin' for a super easy explanation!",
         "Totally normal — Bitcoin has a learning curve! 🦌 Tell me what's confusing and I'll break it down. Or say 'ELI5' and I'll explain it like you're five!"
     ]},
+    { pattern: /^(what's new|anything new|what's changed|what's happening|any news|any updates)[.!?\s]*$/i,
+      answers: [
+        "Always something happening in Bitcoin, {name}! 🦌 Want me to check the latest news? Or ask about a specific topic — mining, Lightning, price action, regulation — you name it!",
+        "New blocks every 10 minutes — that never gets old! 🧱🦌 Want to hear about the latest developments? Ask me anything!"
+    ]},
+    { pattern: /^(you're wrong|that's wrong|that's not right|incorrect|nope that's wrong|wrong answer|bad answer|you made a mistake)[.!?\s]*$/i,
+      answers: [
+        "Hmm, I'm always learning! 🦌 What did I get wrong, {name}? Let me know and I'll try to give a better answer.",
+        "My bad if I messed that up! 🦌 Tell me what's incorrect and I'll dig deeper. I want to get it right for you."
+    ]},
+    { pattern: /^(who made this|who built this|who created this app|who runs this|who is behind this)[.!?\s]*$/i,
+      answers: [
+        "This archive was built by Phil (NEEDcreations) and the Bitcoin community! 🦌🧡 It's free, open-source, and powered by hundreds of contributors from Bitcoin Twitter and the Bitcoin Education Discord. No VC money, no corporate sponsors — just Bitcoiners building for Bitcoiners.",
+        "Built by Bitcoiners, for Bitcoiners! 🦌 Phil (NEEDcreations) is the lead curator, with contributions from hundreds of community members. Everything is free and open-source. Check the homepage for more!"
+    ]},
+    { pattern: /^(how does this work|how does this app work|how do i use this|what is this app|what is this site|what is this place)[.!?\s]*$/i,
+      answers: [
+        "Welcome to the Bitcoin Education Archive! 🦌🧡 We have 146 Bitcoin channels covering everything from basics to advanced tech. You can read channels, earn points, take quests, chat in PlebTalk, battle in PVP trivia, tip with Lightning, and talk to me! Just start exploring or ask me anything.",
+        "This is the biggest free Bitcoin education library on the web! 🦌 Read channels to learn, earn points to level up, take the Scholar exam for certification, and join the community. I'm Nacho — your AI guide. Ask me anything about Bitcoin!"
+    ]},
+    { pattern: /^(i disagree|i don't agree|that's debatable|not everyone thinks that|some people say|actually)[.!?\s]*$/i,
+      answers: [
+        "Fair enough, {name}! 🦌 Bitcoin is full of healthy debate. What's your take? I'm always interested in hearing different perspectives — as long as they involve sound money! 🧡",
+        "Debate is how we sharpen ideas, {name}! 🦌 What's your view? I'm a maximalist but I respect well-reasoned arguments."
+    ]},
+    { pattern: /can you explain|explain to me|break it down|dumb it down|simplify|make it simple|in simple terms|in plain english/i,
+      answers: [
+        "Absolutely! 🦌 What topic do you want me to simplify, {name}? I can ELI5 anything — mining, Lightning, wallets, consensus — just name it!",
+        "That's literally my favorite thing to do! 🦌 Give me a topic and I'll break it down. Try saying 'ELI5 mining' or 'explain Lightning simply'!"
+    ]},
+    { pattern: /^(that makes sense|makes sense|got it|i see|i understand now|ah i see|oh i get it|ohhh|ahh|aha)[.!?\s]*$/i,
+      answers: [
+        "Awesome! 🦌🧡 Bitcoin clicks differently once it starts making sense. Want to go deeper on that topic or explore something new?",
+        "Love it when the lightbulb goes on! 💡🦌 Ready for the next rabbit hole? Ask me anything!"
+    ]},
+    { pattern: /^(that's cool|that's awesome|that's amazing|that's insane|that's incredible|mind blown|blown away)[.!?\s]*$/i,
+      answers: [
+        "Right?! 🤯🦌 Bitcoin is full of mind-blowing stuff. The deeper you go, the crazier it gets. Want to hear more?",
+        "And it only gets better from here, {name}! 🦌 The Bitcoin rabbit hole is infinite. What else do you want to explore?"
+    ]},
+    { pattern: /^(i'm new here|first time|just started|brand new|just got here|newbie here|noob here)[.!?\s]*$/i,
+      answers: [
+        "Welcome, {name}! 🦌🧡 You're in the right place. I'd suggest starting with 'What is Bitcoin?' or our one-stop-shop channel. Or just ask me anything — I'll guide you!",
+        "A new Bitcoiner in the making! 🦌 Start with the basics — ask me 'What is Bitcoin?' or try our Beginner Quests. No question is too simple. I'm here to help!"
+    ]},
+    { pattern: /^(i'm back|back again|missed you|i missed this|hello again|returning)[.!?\s]*$/i,
+      answers: [
+        "Welcome back, {name}! 🦌🧡 I've been here stacking knowledge while you were gone. What do you want to dive into?",
+        "{name}! 🦌 Good to see you again! Ready to pick up where we left off? Ask me anything!"
+    ]},
+    { pattern: /^(teach me|teach me something|learn something|i want to learn|show me something|educate me)[.!?\s]*$/i,
+      answers: [
+        "Let's learn! 🦌📚 Pick a topic: Bitcoin basics, Lightning Network, mining, privacy, self-custody, economics — or I can pick something random for you!",
+        "That's the spirit, {name}! 🦌 What interests you most? Or say 'surprise me' and I'll pick something mind-blowing!"
+    ]},
+    { pattern: /surprise me|blow my mind|random fact|tell me something|something cool|something interesting|fun fact/i,
+      answers: [
+        "Here's one: If you started guessing Bitcoin private keys at 1 trillion per second, it would take longer than the age of the universe to find one! 🤯🦌 The math protecting your sats is insane.",
+        "Did you know? The Bitcoin network processes more computation per second than all the world's supercomputers combined — and it's been running 24/7 since 2009 with 99.98% uptime! 🦌⚡",
+        "Fun fact: Satoshi's coins (~1.1M BTC) have NEVER moved since 2009. That's the ultimate HODL. 🦌💎",
+        "Here's one: Bitcoin's energy usage is actually a feature — it makes counterfeiting impossible. You'd have to outspend the entire mining network to fake a single transaction! ⛏️🦌"
+    ]},
+    { pattern: /^(where should i start|where do i start|what should i read first|beginner|i'm a beginner|complete beginner|where to begin)[.!?\s]*$/i,
+      answers: [
+        "Start here, {name}! 🦌\n\n1️⃣ Read the **one-stop-shop** channel (best overview)\n2️⃣ Ask me 'ELI5 Bitcoin' for the simplest explanation\n3️⃣ Try a **Beginner Quest** to test what you learn\n4️⃣ Check the **whitepaper** channel (only 9 pages!)\n\nOr just ask me anything — no question is too basic!",
+        "Great question! Start with our **one-stop-shop** channel — it covers the highlights fast. Then try asking me questions as you go. I'll always point you to the right channel! 🦌🧡"
+    ]},
+    { pattern: /^(shut up|stop talking|be quiet|stfu|go away|leave me alone|stop|enough)[.!?\s]*$/i,
+      answers: [
+        "Okay, I'll be quiet! 🦌 I'll be here whenever you want to chat again. Long-press me to hide, or just ignore me — no hard feelings! 🧡",
+        "Taking a break! 🦌 I'll stop popping up. If you want me back, tap the 🦌 icon. No worries at all, {name}!"
+    ]},
+    { pattern: /^(you're smart|you're so smart|genius|brilliant|how do you know all this|how do you know so much)[.!?\s]*$/i,
+      answers: [
+        "I've read 146 Bitcoin channels front to back, {name}! 🦌📚 Plus I've got a Llama-powered brain for the tricky questions. But honestly, YOU'RE the smart one for being here and learning!",
+        "I stand on the shoulders of Bitcoiners! 🦌 Everything I know comes from this archive's 8,000+ posts and the amazing community that built it. I just organize it for you! 🧡"
+    ]},
 ];
 
 function checkOffTopic(input) {
@@ -20119,6 +20196,17 @@ window.showUserProfile = function(uid) {
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' pts</div>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:2px;">' + status.label + '</div>' +
             '</div>' +
+            // Bio
+            (u.bio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;text-align:left;">' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About</div>' +
+                '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + escapeHtml(u.bio) + '</div>' +
+            '</div>' : '') +
+            // Social links
+            ((u.twitter || u.nostr || u.website) ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
+                (u.twitter ? '<a href="https://x.com/' + escapeHtml(u.twitter.replace('@','')) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">𝕏 ' + escapeHtml(u.twitter) + '</a>' : '') +
+                (u.nostr ? '<span style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:#8b5cf6;font-size:0.72rem;">🟣 Nostr</span>' : '') +
+                (u.website ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
+            '</div>' : '') +
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🏅', badgeCount, 'Badges') +
