@@ -533,19 +533,82 @@
     // =============================================
     // PVP MODE — ENTRY POINT
     // =============================================
+    // Quick PVP name prompt for anonymous users
+    window._pvpQuickName = function() {
+        var overlay = document.createElement('div');
+        overlay.id = 'pvpNameOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        overlay.innerHTML =
+            '<div style="background:#1a1a2e;border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:360px;width:100%;text-align:center;animation:fadeSlideIn 0.3s;">' +
+                '<div style="font-size:2.5rem;margin-bottom:12px;">⚔️</div>' +
+                '<h3 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 6px;">Enter the Arena</h3>' +
+                '<p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 20px;">Choose a battle name to play PVP trivia!</p>' +
+                '<input type="text" id="pvpQuickNameInput" maxlength="20" placeholder="Your battle name" style="width:100%;padding:14px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;box-sizing:border-box;text-align:center;margin-bottom:12px;" autofocus>' +
+                '<button onclick="pvpQuickNameSubmit()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">⚔️ Enter Battle</button>' +
+                '<div style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.05);border:1px dashed rgba(247,147,26,0.2);border-radius:8px;">' +
+                    '<div style="color:var(--text-faint);font-size:0.72rem;line-height:1.4;">Want to save your wins and get on the leaderboard permanently?</div>' +
+                    '<button onclick="document.getElementById(\'pvpNameOverlay\').remove();if(typeof showUsernamePrompt===\'function\')showUsernamePrompt();sessionStorage.setItem(\'btc_pvp_pending\',\'true\')" style="margin-top:6px;padding:6px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Account Instead →</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        setTimeout(function() { var inp = document.getElementById('pvpQuickNameInput'); if (inp) inp.focus(); }, 100);
+    };
+
+    window.pvpQuickNameSubmit = async function() {
+        var inp = document.getElementById('pvpQuickNameInput');
+        var name = inp ? inp.value.trim() : '';
+        if (!name || name.length < 2) { if (typeof showToast === 'function') showToast('Name must be at least 2 characters'); return; }
+        if (name.length > 20) name = name.substring(0, 20);
+
+        try {
+            var auth = getAuth();
+            if (!auth.currentUser) {
+                await auth.signInAnonymously();
+            }
+            // Set username in Firestore
+            var uid = auth.currentUser.uid;
+            await db.collection('users').doc(uid).set({
+                username: name,
+                points: 0,
+                channelsVisited: 0,
+                totalVisits: 1,
+                streak: 0,
+                pvpWins: 0,
+                pvpLosses: 0,
+                lastVisit: new Date().toISOString().split('T')[0],
+                created: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            if (typeof currentUser !== 'undefined') {
+                if (!currentUser) window.currentUser = {};
+                currentUser.username = name;
+                currentUser.uid = uid;
+            }
+
+            var overlay = document.getElementById('pvpNameOverlay');
+            if (overlay) overlay.remove();
+
+            // Now enter PVP
+            enterPVPMode();
+        } catch(e) {
+            if (typeof showToast === 'function') showToast('Error: ' + (e.message || 'Try again'));
+        }
+    };
+
     window.enterPVPMode = function() {
         var auth = getAuth();
-        if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-            // Show the sign-in modal with a message
-            if (typeof showToast === 'function') showToast('⚔️ Sign in to play PVP Battle!');
-            // Try to open the sign-in modal
-            var modal = document.getElementById('usernameModal');
-            if (modal) {
-                modal.classList.add('open');
-                // Store intent so after sign-in we can redirect to PVP
-                sessionStorage.setItem('btc_pvp_pending', 'true');
-            }
+        if (!auth || !auth.currentUser) {
+            _pvpQuickName();
             return;
+        }
+        // If anonymous with no username, show quick name prompt
+        if (auth.currentUser.isAnonymous) {
+            var hasName = typeof currentUser !== 'undefined' && currentUser && currentUser.username && currentUser.username !== 'Anon';
+            if (!hasName) {
+                _pvpQuickName();
+                return;
+            }
         }
 
         pvpState.active = true;
@@ -801,6 +864,16 @@
                         '</div>' +
                         '<div style="color:var(--text);font-weight:700;font-size:0.95rem;">Searching for opponent...</div>' +
                         '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">First come, first served matchmaking</div>' +
+                    '</div>' +
+                    // Share link to challenge a friend
+                    '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.4);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">' +
+                        '<div style="font-size:1.3rem;margin-bottom:6px;">🔗⚔️</div>' +
+                        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">Send this link to a friend right now to battle them in PVP Bitcoin trivia!</div>' +
+                        '<div style="display:flex;gap:6px;margin-top:10px;">' +
+                            '<div style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.7rem;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'📋 Link copied!\')">https://bitcoineducation.quest/#pvp</div>' +
+                            '<button onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'📋 Link copied! Send it to a friend!\')" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Copy</button>' +
+                        '</div>' +
+                        (navigator.share ? '<button onclick="navigator.share({title:\'PVP Bitcoin Trivia Battle!\',text:\'Challenge me to a Bitcoin trivia battle right now! ⚔️\',url:\'https://bitcoineducation.quest/#pvp\'}).catch(function(){})" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📤 Share with a friend</button>' : '') +
                     '</div>' +
                     // Fun Fact card (rotates)
                     '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;text-align:left;">' +
