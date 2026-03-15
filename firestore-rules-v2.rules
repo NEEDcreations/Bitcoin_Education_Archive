@@ -12,8 +12,9 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && request.auth.uid == userId
                     && (!('points' in request.resource.data) 
-                        || request.resource.data.points <= resource.data.points + 2200
-                        || request.resource.data.points is int);
+                        || (request.resource.data.points is int
+                            && request.resource.data.points >= resource.data.points
+                            && request.resource.data.points <= resource.data.points + 2200));
       allow delete: if request.auth != null
                     && request.auth.uid == userId;
     }

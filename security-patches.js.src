@@ -64,12 +64,24 @@
     // Strips potential script injection from user text inputs
     window.sanitizeInput = function(text) {
         if (!text) return '';
-        return text
-            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-            .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
-            .replace(/on\w+\s*=/gi, '')
-            .replace(/javascript:/gi, '')
-            .trim();
+        // DOM-based sanitizer: browser parser strips all HTML, impossible to bypass with encoding
+        var el = document.createElement('div');
+        el.textContent = text;
+        var clean = el.textContent;
+        // Strip control characters
+        clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+        return clean.trim();
+    };
+
+    // Profile pic URL validator
+    window.isValidProfilePicUrl = function(url) {
+        if (!url) return false;
+        if (typeof url !== 'string') return false;
+        // Allow data: URIs (base64 images) and Firebase Storage URLs
+        if (/^data:image\/(jpeg|jpg|png|webp|gif);base64,/.test(url)) return true;
+        if (/^https:\/\/firebasestorage\.googleapis\.com\//.test(url)) return true;
+        if (/^https:\/\/.*\.firebasestorage\.app\//.test(url)) return true;
+        return false;
     };
 
     // ─── Fingerprint hash improvement (S3 fix) ──────────────

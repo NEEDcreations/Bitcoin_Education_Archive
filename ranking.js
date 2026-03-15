@@ -26,6 +26,25 @@ const LEVELS = [
     { name: 'Satoshi',    emoji: '👑', min: 21000 },
 ];
 
+// Client-side QR code generation (avoids leaking data to external API)
+function _renderQRCode(container, data, size) {
+    if (window.qrcode && typeof window.qrcode === 'function') { _drawQR(container, data, size); return; }
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    script.onload = function() { _drawQR(container, data, size); };
+    script.onerror = function() { container.innerHTML = '<div style="word-break:break-all;font-size:0.6rem;max-width:' + size + 'px;">' + data + '</div>'; };
+    document.head.appendChild(script);
+}
+function _drawQR(container, data, size) {
+    try {
+        var qr = qrcode(0, 'M'); qr.addData(data); qr.make();
+        var img = document.createElement('img');
+        img.src = qr.createDataURL(6, 4); img.width = size; img.height = size;
+        img.alt = 'QR Code'; img.style.cssText = 'border-radius:8px;image-rendering:pixelated;';
+        container.innerHTML = ''; container.appendChild(img);
+    } catch(e) { container.innerHTML = '<div style="color:#ef4444;font-size:0.8rem;">QR generation failed</div>'; }
+}
+
 // Points config
 const POINTS = {
     visit: 5,
@@ -118,9 +137,10 @@ function initRanking() {
             } else if (anonData) {
                 const existData = existingDoc.data();
                 // Anti-abuse: only merge anonymous data once per account
-                if (!existData.mergedAnon && (anonData.points || 0) > (existData.points || 0)) {
+                var _mergedPts = Math.min(anonData.points || 0, 500);
+                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
                     await existingDoc.ref.update({
-                        points: anonData.points,
+                        points: Math.max(_mergedPts, existData.points || 0),
                         channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
                         totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
                         mergedAnon: true,
@@ -256,9 +276,10 @@ async function handleEmailSignIn() {
         } else if (existingDoc.exists && anonData) {
             // Existing email user — merge points if anon had more (one-time only)
             const existData = existingDoc.data();
-            if (!existData.mergedAnon && (anonData.points || 0) > (existData.points || 0)) {
+            var _mergedPts = Math.min(anonData.points || 0, 500);
+                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
                 await existingDoc.ref.update({
-                    points: anonData.points,
+                    points: Math.max(_mergedPts, existData.points || 0),
                     channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
                     totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
                     mergedAnon: true,
@@ -532,17 +553,19 @@ window.signInWithLightning = async function() {
             '</div>';
         document.body.appendChild(qrModal);
 
-        // Generate QR code
+        // Generate QR code (client-side, no external API)
         var qrContainer = document.getElementById('lnAuthQR');
         if (qrContainer) {
-            // Use a simple QR code approach — create img with QR API
-            var qrImg = document.createElement('img');
-            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent('lightning:' + lnurlEncoded);
-            qrImg.width = 220;
-            qrImg.height = 220;
-            qrImg.alt = 'Lightning Auth QR';
-            qrImg.style.cssText = 'border-radius:8px;';
-            qrContainer.appendChild(qrImg);
+            if (typeof _renderQRCode === 'function') {
+                _renderQRCode(qrContainer, 'lightning:' + lnurlEncoded, 220);
+            } else {
+                // Fallback to external API if client-side lib not loaded
+                var qrImg = document.createElement('img');
+                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent('lightning:' + lnurlEncoded);
+                qrImg.width = 220; qrImg.height = 220; qrImg.alt = 'Lightning Auth QR';
+                qrImg.style.cssText = 'border-radius:8px;';
+                qrContainer.appendChild(qrImg);
+            }
         }
 
         // Poll for completion
@@ -635,11 +658,20 @@ async function signInWithProvider(provider) {
 
     // In-app browsers can't do popups or redirects reliably — open in system browser
     if (isInAppBrowser()) {
-        // Try to open in external browser instead
-        var url = window.location.href;
-        if (typeof showToast === 'function') showToast('Please open in your browser to sign in. Tap ⋮ → Open in Browser');
-        // Try to force external browser
-        window.open(url, '_system');
+        var _ua = navigator.userAgent || '';
+        var _hint = /iPhone|iPad/i.test(_ua) ? 'Tap the share icon (↑) → "Open in Safari"'
+            : /Android/i.test(_ua) ? 'Tap ⋮ (menu) → "Open in Browser"'
+            : 'Open this page in your default browser';
+        var _iab = document.createElement('div');
+        _iab.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.9);padding:20px;';
+        _iab.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:12px;">🌐</div>' +
+            '<h3 style="color:var(--heading);margin-bottom:8px;">Open in Browser</h3>' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Sign-in doesn\'t work inside apps. ' + _hint + '</p>' +
+            '<button onclick="navigator.clipboard.writeText(window.location.href);if(typeof showToast===\'function\')showToast(\'📋 Link copied!\')" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">📋 Copy Link</button>' +
+            '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Close</button>' +
+        '</div>';
+        document.body.appendChild(_iab);
         return;
     }
 
@@ -683,9 +715,10 @@ async function signInWithProvider(provider) {
             // Existing authenticated user — merge points if anon had more (one-time only)
             if (anonData) {
                 const existData = existingDoc.data();
-                if (!existData.mergedAnon && (anonData.points || 0) > (existData.points || 0)) {
+                var _mergedPts = Math.min(anonData.points || 0, 500);
+                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
                     await existingDoc.ref.update({
-                        points: anonData.points,
+                        points: Math.max(_mergedPts, existData.points || 0),
                         channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
                         totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
                         mergedAnon: true,
@@ -1316,12 +1349,11 @@ function refreshLeaderboardIfOpen() {
         // Clear cache so next open fetches fresh data
         window._lbCache = null;
         window._lbCacheTime = null;
-        // Debounce: wait a moment for Firestore to propagate
-        clearTimeout(window._lbRefreshTimer);
-        window._lbRefreshTimer = setTimeout(function() {
-            toggleLeaderboard(); // close
-            toggleLeaderboard(); // re-open with fresh data
-        }, 800);
+        // In-place update: find the current user's row and update score
+        var meRow = lb.querySelector('.lb-me .lb-score');
+        if (meRow && currentUser) {
+            meRow.textContent = (currentUser.points || 0).toLocaleString() + ' pts';
+        }
     }
 }
 
@@ -1579,7 +1611,7 @@ function updateRankUI() {
     bar.innerHTML =
         '<div class="rank-info" onclick="toggleLeaderboard()">' +
             '<span class="rank-level">' + lv.emoji + ' ' + lv.name + '</span>' +
-            '<span class="rank-user">' + (currentUser.username || 'Anon') + '</span>' +
+            '<span class="rank-user">' + escapeHtml(currentUser.username || 'Anon') + '</span>' +
             '<span class="rank-pts">' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
             streakHtml + ticketHtml +
         '</div>' + progressHtml + signInLink;
@@ -1689,7 +1721,7 @@ function updateUserDisplay(lv) {
         const streak = currentUser.streak || 0;
         const streakText = streak > 0 ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + ' day streak</span>' : '';
         wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
-            '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + currentUser.username + '!</span>' +
+            '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + escapeHtml(currentUser.username || 'Anon') + '!</span>' +
             '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
             streakText +
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">⚙️ Tap here for Account & Settings</div>';
@@ -1706,7 +1738,7 @@ function showLevelUpCelebration(lv) {
     // Play triumphant sound
     if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
             const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
             // Triumphant fanfare: C5, E5, G5, C6, E6, G6
             const notes = [523.25, 659.25, 783.99, 1046.50, 1318.5, 1568.0];
@@ -1929,7 +1961,7 @@ async function toggleLeaderboard() {
     // Leaderboard open sound — dramatic reveal
     if ((typeof canPlaySound !== 'function' || canPlaySound()) && (typeof audioEnabled === 'undefined' || audioEnabled)) {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
             const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
             // Rising whoosh + chime
             const now = ctx.currentTime;
@@ -2003,12 +2035,12 @@ async function toggleLeaderboard() {
             if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
 
             var _rowPfp = d.profilePic
-                ? '<img src="' + d.profilePic + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
+                ? '<img src="' + escapeHtml(d.profilePic) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + lv.emoji + '</span>' +
-                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + (d.username || 'Anon') + statusDot + certIcons + '</span>' +
+                '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
             '</div>';
         });
@@ -2069,7 +2101,7 @@ async function _loadPVPLeaderboard() {
             var total = wins + losses;
             if (total === 0) return;
             var winRate = total > 0 ? (wins / total) * 100 : 0;
-            playerMap[doc.id] = { id: doc.id, username: d.username || 'Anon', wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid };
+            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid };
         }
         winsSnap.forEach(addPlayer);
         lossSnap.forEach(addPlayer);
