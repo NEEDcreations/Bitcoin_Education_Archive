@@ -44,7 +44,7 @@ function initPullToRefresh() {
         if (pullDist > 80 && main.scrollTop <= 0) {
             pullEl.textContent = '🔄 Refreshing...';
             pullEl.style.top = '10px';
-            setTimeout(function() { location.reload(); }, 500);
+            setTimeout(function() { if (typeof currentChannelId !== 'undefined' && currentChannelId) { go(currentChannelId); } else { goHome(); } if (typeof loadUser === 'function' && auth && auth.currentUser) loadUser(auth.currentUser.uid); if (typeof showToast === 'function') showToast('✅ Refreshed'); }, 300);
         } else {
             pullEl.style.top = '-50px';
             pullEl.style.opacity = '0';
