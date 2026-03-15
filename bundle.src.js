@@ -23682,6 +23682,50 @@ window.dismissPWABanner = function() {
     localStorage.setItem('btc_pwa_dismissed', Date.now().toString());
 };
 
+// ---- iOS "Add to Home Screen" Hint ----
+(function() {
+    // Only show on iOS Safari, not in standalone mode, not already dismissed
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var isSafari = /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|Chrome/.test(navigator.userAgent);
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (!isIOS || !isSafari || isStandalone) return;
+    var dismissed = localStorage.getItem('btc_ios_a2hs_dismissed');
+    if (dismissed && Date.now() - parseInt(dismissed) < 30 * 86400000) return; // 30 days
+    setTimeout(function() {
+        if (document.getElementById('iosA2HSBanner')) return;
+        var banner = document.createElement('div');
+        banner.id = 'iosA2HSBanner';
+        banner.style.cssText = 'position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #f7931a;border-radius:16px;padding:16px 20px;max-width:340px;width:90%;box-shadow:0 8px 32px rgba(247,147,26,0.3);animation:slideUp 0.4s ease;font-family:inherit;';
+        banner.innerHTML =
+            '<div style="display:flex;align-items:flex-start;gap:12px;">' +
+                '<div style="font-size:2rem;flex-shrink:0;">🦌</div>' +
+                '<div style="flex:1;">' +
+                    '<div style="color:#f7931a;font-weight:700;font-size:0.95rem;margin-bottom:4px;">Add to Home Screen</div>' +
+                    '<div style="color:#ccc;font-size:0.8rem;line-height:1.5;">For the best experience, add this app to your home screen:</div>' +
+                    '<div style="color:#94a3b8;font-size:0.78rem;line-height:1.6;margin-top:8px;">' +
+                        '1. Tap the <strong style="color:#fff;">Share</strong> button <span style="font-size:1rem;vertical-align:middle;">⬆️</span> at the bottom<br>' +
+                        '2. Scroll down and tap <strong style="color:#fff;">Add to Home Screen</strong>' +
+                    '</div>' +
+                '</div>' +
+                '<button onclick="dismissIOSA2HS()" style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;padding:4px;flex-shrink:0;touch-action:manipulation;">✕</button>' +
+            '</div>' +
+            '<button onclick="dismissIOSA2HS()" style="width:100%;margin-top:12px;padding:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:#ccc;font-size:0.85rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">Got it!</button>';
+        if (!document.getElementById('pwaAnimStyle')) {
+            var style = document.createElement('style');
+            style.id = 'pwaAnimStyle';
+            style.textContent = '@keyframes slideUp{from{transform:translateX(-50%) translateY(100px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}';
+            document.head.appendChild(style);
+        }
+        document.body.appendChild(banner);
+    }, 120000); // 120 seconds
+})();
+
+window.dismissIOSA2HS = function() {
+    var banner = document.getElementById('iosA2HSBanner');
+    if (banner) banner.remove();
+    localStorage.setItem('btc_ios_a2hs_dismissed', Date.now().toString());
+};
+
 // ---- Mobile Learn Menu ----
 window.toggleMobileLearnMenu = function() {
     var existing = document.getElementById('mobileLearnMenu');
