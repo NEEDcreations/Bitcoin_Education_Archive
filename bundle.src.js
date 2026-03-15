@@ -21484,7 +21484,7 @@ window.beatsShowUpload = function() {
                 '<option value="ambient">Ambient / Lo-fi</option>' +
                 '<option value="other">Other</option>' +
             '</select>' +
-            '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
+            '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 50MB)</label>' +
             '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
             '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Cover Art (JPG, PNG, WebP — max 2MB)</label>' +
             '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
@@ -21524,7 +21524,7 @@ window.beatsDoUpload = function() {
     if (!copyrightCheck.checked) { showToast('You must confirm copyright ownership'); return; }
 
     var file = fileInput.files[0];
-    if (file.size > 25 * 1024 * 1024) { showToast('File too large. Max 25MB.'); return; }
+    if (file.size > 50 * 1024 * 1024) { showToast('File too large. Max 50MB.'); return; }
     if (!file.type.match(/audio\/(mpeg|mp3|wav|wave|x-wav|flac|ogg|aac|mp4|x-m4a)/)) { showToast('Unsupported format. Use MP3, WAV, FLAC, OGG, or AAC.'); return; }
 
     // Check cover art if provided
@@ -21879,7 +21879,7 @@ window.beatsRenderUpload = function() {
                     '<option value="ambient">Ambient / Lo-fi</option>' +
                     '<option value="other">Other</option>' +
                 '</select>' +
-                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 25MB)</label>' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Audio File * (MP3, WAV, FLAC, OGG, AAC — max 50MB)</label>' +
                 '<input type="file" id="beatsUpFile" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/flac,audio/ogg,audio/aac,audio/mp4,audio/x-m4a" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;margin-bottom:12px;box-sizing:border-box;">' +
                 '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Cover Art (JPG, PNG, WebP — max 2MB)</label>' +
                 '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
@@ -21920,7 +21920,7 @@ window.beatsRenderUpload = function() {
             '<div style="margin-top:16px;padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;text-align:center;">' +
                 '<h3 style="color:var(--heading);font-weight:800;font-size:0.95rem;margin-bottom:12px;">Tips for Uploading</h3>' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;line-height:1.5;">' +
-                    '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 25MB)</p>' +
+                    '<p><strong>✅ Supported formats:</strong> MP3, WAV, FLAC, OGG, AAC (max 50MB)</p>' +
                     '<p><strong>✅ Rewards:</strong> +25 points + 🎟️ 10 Orange Tickets for each approved track</p>' +
                     '<p><strong>✅ Visibility:</strong> Your track will be publicly available to all users</p>' +
                     '<p><strong>⚠️ Copyright:</strong> Only upload music you own or have permission to share</p>' +
