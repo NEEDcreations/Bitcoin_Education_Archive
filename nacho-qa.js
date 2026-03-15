@@ -2943,6 +2943,32 @@ function findAnswer(input) {
         }
     }
 
+    // Follow-up detection: short questions with pronouns/references that need prior context
+    var _isFollowUp = _nachoConvoHistory.length > 0 && (
+        /^\b(it|that|this|they|them|those|these|the same|which one)\b/i.test(input) ||
+        /^\b(how much|how long|how many|is it|are they|can it|does it|what about|and what|but what|so what|tell me more|go deeper|explain more|elaborate)\b/i.test(input) ||
+        (input.split(/\s+/).length <= 5 && !/bitcoin|btc|mining|lightning|wallet|satoshi|halving|blockchain/i.test(input))
+    );
+    if (_isFollowUp) return null; // route to AI which has conversation history
+
+    // Questions that should ALWAYS go to AI (bypass KB) unless exact match
+    var _shouldAIHandle = (
+        // Comparison questions (except altcoins — those have dedicated handlers)
+        /\bcompare\b|difference between|versus\b|\bvs\.?\b.*(?!ethereum|eth\b|xrp|solana|cardano|doge)/i.test(input) ||
+        // Speculative / opinion
+        /\bdo you think\b|\bwhat if\b|\bwould you\b|\bcould bitcoin\b|\bshould i\b|\bwhat do you recommend\b|\bbest for me\b|\bwhich one should/i.test(input) ||
+        // Country / region specific
+        /\b(?:germany|india|uk|japan|brazil|canada|australia|nigeria|europe|asia|africa|south america)\b.*bitcoin|bitcoin.*\b(?:germany|india|uk|japan|brazil|canada|australia|nigeria|europe|asia|africa)\b/i.test(input) ||
+        // Time-specific / current events
+        /\bright now\b|\btoday\b|\bthis week\b|\bthis month\b|\bin 202[4-9]\b|\bcurrently\b|\blatest\b|\brecently\b/i.test(input) ||
+        // List / enumeration
+        /\btop \d|\bgive me \d|\d reasons\b|\d things\b|\d ways\b|\blist of\b|\bname \d|\bwhat are the best\b/i.test(input) ||
+        // Multi-part questions (two topics joined by "and")
+        /\bhow (?:are|is|do) .{5,} and .{5,} (?:related|connected|different|similar)\b/i.test(input) ||
+        // Personal advice
+        /\bhow much should i\b|\bis it worth\b|\bam i too late\b.*(?:specific|personally)\b|\bfor a beginner like me\b/i.test(input)
+    );
+
     let bestMatch = null;
     let bestScore = 0;
 
@@ -2952,15 +2978,15 @@ function findAnswer(input) {
         for (const key of entry.keys) {
             if (input === key) { score = 100; break; } // Exact match
             if (input.includes(key)) { score = Math.max(score, 50 + key.length); } // Contains match (longer = better)
-            // Word overlap scoring — require exact word match for short words
+            // Word overlap scoring
             const keyWords = key.split(/\s+/);
             const inputWords = input.split(/\s+/);
             let wordMatches = 0;
             for (const kw of keyWords) {
                 if (kw.length < 3) continue;
                 for (const iw of inputWords) {
-                    if (iw === kw) { wordMatches += 2; } // Exact word match (strong)
-                    else if (kw.length >= 6 && (iw.includes(kw) || kw.includes(iw))) { wordMatches++; } // Substring only for long words
+                    if (iw === kw) { wordMatches += 2; }
+                    else if (kw.length >= 6 && (iw.includes(kw) || kw.includes(iw))) { wordMatches++; }
                 }
             }
             if (wordMatches > 0) {
@@ -2973,17 +2999,12 @@ function findAnswer(input) {
         }
     }
 
-    // If we found a strong KB match, return it (even for current-event-like questions)
-    // Score 50+ required — prevents false matches on random off-topic questions
-    // BUT: list-type questions ("top 5", "give me X reasons", "list of") should go to AI
-    // since they need generated/structured content that KB entries can't provide well
-    if (bestScore >= 50) {
-        var isListQ = /\btop \d|give me \d|\d reasons|\d things|\d ways|list of|name \d|what are the best/i.test(input);
-        if (isListQ && bestScore < 80) return null; // let AI handle list questions unless exact match
+    // Threshold: 65 for word-overlap matches, exact/contains matches already score 50+key.length
+    // AI-route questions bypass KB unless we got a very strong match (80+)
+    if (bestScore >= 65) {
+        if (_shouldAIHandle && bestScore < 80) return null; // let AI handle nuanced questions
         return bestMatch;
     }
-
-    // No KB match — check if this is a current event question (route to web search)
 
     return null;
 }
