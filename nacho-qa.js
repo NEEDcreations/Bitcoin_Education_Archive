@@ -94,8 +94,8 @@ const NACHO_KB = [
       answer: "Hal Finney was a legendary cryptographer and one of Bitcoin's earliest supporters! 🫡 He was the FIRST person (other than Satoshi) to run Bitcoin software, and received the very first Bitcoin transaction ever — 10 BTC from Satoshi on January 12, 2009. He famously tweeted 'Running bitcoin' on that day. Hal had previously created Reusable Proof of Work (RPOW), a direct predecessor to Bitcoin's mining system. Sadly, Hal was diagnosed with ALS and passed away in 2014. He's cryopreserved, hoping future technology might give him another shot. Some people believe Hal WAS Satoshi — but either way, he's a true Bitcoin hero. Running bitcoin forever. 🦌💙",
       channel: 'history', channelName: 'History' },
 
-    { keys: ['why bitcoin','why is bitcoin important','why should i care','what\'s the point','why does bitcoin matter'],
-      answer: "Bitcoin gives you true ownership of your money. No one can freeze it, inflate it away, or stop you from sending it. It's financial freedom for everyone on Earth.",
+    { keys: ['why bitcoin','why is bitcoin important','why should i care','what\'s the point','why does bitcoin matter','reasons to buy bitcoin','why buy bitcoin','top reasons bitcoin','reasons to own bitcoin','why invest in bitcoin','why should i buy bitcoin'],
+      answer: "Here are the biggest reasons to own Bitcoin, {name}! 🦌🟠\n\n1️⃣ **Scarcity** — Only 21 million will ever exist. No government can print more.\n2️⃣ **Financial freedom** — Send money anywhere, anytime, no permission needed.\n3️⃣ **Inflation hedge** — While fiat loses value every year, Bitcoin's supply is fixed.\n4️⃣ **Self-custody** — You truly OWN it. No bank can freeze or seize it.\n5️⃣ **Decentralization** — No CEO, no company, no single point of failure.\n6️⃣ **24/7 global market** — Trade anytime, no bank hours, no borders.\n7️⃣ **Growing adoption** — ETFs, nation-states, corporations — the trend is undeniable.\n\nBitcoin is the first asset in human history that is provably scarce, permissionless, and unstoppable. ⚡",
       channel: 'one-stop-shop', channelName: 'One Stop Shop' },
 
     // === BUYING & INVESTING ===
@@ -2975,8 +2975,13 @@ function findAnswer(input) {
 
     // If we found a strong KB match, return it (even for current-event-like questions)
     // Score 50+ required — prevents false matches on random off-topic questions
-    // (40 was too low: common words like "what", "how", "is" would accumulate score)
-    if (bestScore >= 50) return bestMatch;
+    // BUT: list-type questions ("top 5", "give me X reasons", "list of") should go to AI
+    // since they need generated/structured content that KB entries can't provide well
+    if (bestScore >= 50) {
+        var isListQ = /\btop \d|give me \d|\d reasons|\d things|\d ways|list of|name \d|what are the best/i.test(input);
+        if (isListQ && bestScore < 80) return null; // let AI handle list questions unless exact match
+        return bestMatch;
+    }
 
     // No KB match — check if this is a current event question (route to web search)
 
