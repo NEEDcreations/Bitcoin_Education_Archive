@@ -266,24 +266,55 @@ window.trackNachoInteraction = function() {
 
 // ---- Follow-up Suggestions ----
 const FOLLOW_UPS = {
-    'mining': ['How does the difficulty adjustment work?', 'What is a halving?', 'Is mining bad for the environment?'],
-    'wallet': ['What is a seed phrase?', 'What is self-custody?', 'What is a hardware wallet?'],
-    'lightning': ['How fast is Lightning?', 'What are sats?', 'How do I use Lightning?'],
-    'halving': ['What is the block reward?', 'When is the next halving?', 'Why does the price go up after halving?'],
-    'price': ['Is it too late to buy?', 'What is DCA?', 'Why is Bitcoin volatile?'],
-    'self-custody': ['What is a seed phrase?', 'What wallets do you recommend?', 'What does HODL mean?'],
-    'privacy': ['What is CoinJoin?', 'What is non-KYC Bitcoin?', 'Is Bitcoin anonymous?'],
-    'basics': ['How does mining work?', 'What is the Lightning Network?', 'Who created Bitcoin?'],
-    'fud': ['Is Bitcoin bad for the environment?', 'Can Bitcoin be hacked?', 'Will governments ban Bitcoin?'],
+    'mining': ['How does the difficulty adjustment work?', 'What is a halving?', 'Is mining bad for the environment?', 'What is a nonce?', 'Can I mine at home?', 'What is an ASIC?'],
+    'wallet': ['What is a seed phrase?', 'What is self-custody?', 'What is a hardware wallet?', 'How do I back up my wallet?', 'What is multisig?', 'Which wallet is best for beginners?'],
+    'lightning': ['How fast is Lightning?', 'What are sats?', 'How do I get a Lightning Address?', 'What is a payment channel?', 'What is LNURL?', 'Can I tip people with Lightning?'],
+    'halving': ['What is the block reward?', 'When is the next halving?', 'Why does the price go up after halving?', 'How many halvings are left?', 'What happens when all Bitcoin are mined?'],
+    'price': ['Is it too late to buy?', 'What is DCA?', 'Why is Bitcoin volatile?', 'How high can Bitcoin go?', 'What is stock-to-flow?'],
+    'self-custody': ['What is a seed phrase?', 'What wallets do you recommend?', 'What does HODL mean?', 'What is cold storage?', 'What is a passphrase?'],
+    'privacy': ['What is CoinJoin?', 'What is non-KYC Bitcoin?', 'Is Bitcoin anonymous?', 'What are silent payments?', 'What is Nostr?'],
+    'basics': ['How does mining work?', 'What is the Lightning Network?', 'Who created Bitcoin?', 'What is a sat?', 'Why is there only 21 million?'],
+    'fud': ['Is Bitcoin bad for the environment?', 'Can Bitcoin be hacked?', 'Will governments ban Bitcoin?', 'What about quantum computers?', 'Is Bitcoin a Ponzi scheme?'],
+    'node': ['Why should I run a node?', 'What is a full node?', 'How does consensus work?', 'What is Nakamoto Consensus?'],
+    'taproot': ['What is Schnorr?', 'What are covenants?', 'What is MuSig2?', 'What is OP_CAT?'],
+    'security': ['What is a 51% attack?', 'How secure is Bitcoin?', 'What is proof of work?', 'Can Bitcoin be hacked?'],
+    'scarcity': ['Why only 21 million?', 'What makes Bitcoin scarce?', 'What is inflation?', 'Bitcoin vs gold?'],
+    'layer': ['What is Lightning Network?', 'What are sidechains?', 'What is the Liquid Network?', 'What are channel factories?'],
+    'economics': ['What is sound money?', 'What is the Cantillon Effect?', 'What is time preference?', 'Why is fiat bad?'],
+    'satoshi': ['Why did Satoshi disappear?', 'Who is Hal Finney?', 'What is the Genesis Block?', 'Is Craig Wright Satoshi?'],
+    'nostr': ['What is Nostr?', 'How do I use Nostr?', 'What are Nostr relays?', 'Can I sign in with Nostr?'],
+    'regulation': ['Can Bitcoin be banned?', 'What happened when China banned Bitcoin?', 'Is Bitcoin legal?', 'What about the SEC?'],
+    'altcoin': ['Why is Bitcoin different from altcoins?', 'What about Ethereum?', 'Are meme coins worth it?', 'Why Bitcoin only?'],
+    'invest': ['What is DCA?', 'How much should I invest?', 'Is now a good time to buy?', 'What is HODL?'],
+    'history': ['What is Pizza Day?', 'What are the blocksize wars?', 'When was the first transaction?', 'What is the Genesis Block?'],
+    'energy': ['Does Bitcoin waste energy?', 'How much energy does mining use?', 'Is Bitcoin green?', 'What is stranded energy?'],
 };
+
+// Track recently shown follow-ups to avoid repeats
+var _shownFollowUps = [];
 
 window.nachoFollowUps = function(answer) {
     if (!answer) return [];
     var lower = answer.toLowerCase();
+    var candidates = [];
     for (var topic in FOLLOW_UPS) {
-        if (lower.includes(topic)) return FOLLOW_UPS[topic];
+        if (lower.includes(topic)) {
+            candidates = candidates.concat(FOLLOW_UPS[topic]);
+        }
     }
-    return [];
+    if (candidates.length === 0) {
+        // Default follow-ups for any Bitcoin answer
+        candidates = ['What is Bitcoin?', 'How do I get started?', 'What is the Lightning Network?', 'Who created Bitcoin?', 'Why is there only 21 million?', 'What is self-custody?'];
+    }
+    // Filter out recently shown
+    var filtered = candidates.filter(function(q) { return _shownFollowUps.indexOf(q) === -1; });
+    if (filtered.length < 2) { _shownFollowUps = []; filtered = candidates; } // reset if exhausted
+    // Shuffle and pick 2
+    filtered.sort(function() { return Math.random() - 0.5; });
+    var picked = filtered.slice(0, 2);
+    _shownFollowUps = _shownFollowUps.concat(picked);
+    if (_shownFollowUps.length > 20) _shownFollowUps = _shownFollowUps.slice(-10); // keep last 10
+    return picked;
 };
 
 // ---- Question Analytics ----

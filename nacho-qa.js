@@ -2745,10 +2745,10 @@ function matchSiteNavigation(input) {
           answer: "The Exploration Map is on the homepage — it shows which channels you've visited! 🗺️",
           action: "goHome()", label: "🗺️ View Map" },
         { patterns: /where.*(keyboard|shortcut|hotkey)|keyboard.*short|shortcut/,
-          answer: "Press ? or K on your keyboard to see all shortcuts! ⌨️",
+          answer: "Press ? to see all shortcuts! ⌨️ Quick ones: H=Home, T=PlebTalk, N=Nacho Mode, X=PVP, S=Market, L=Leaderboard, A=Ask Nacho, P=Donate, C=Random Channel, D=Toggle Theme",
           action: "showKeyboardHelp()", label: "⌨️ View Shortcuts" },
         { patterns: /how.*(use|navigate|work).*site|how.*this.*work|what.*can.*do.*here|site.*guide|help.*navigate|tutorial/,
-          answer: "Welcome! Here's what you can do: 📚 Read 146+ Bitcoin channels, ⚡ Take quests & earn certifications, 🗣️ Chat in PlebTalk, ⚡ Trade on LightningMart, 🎸 Listen on Bitcoin Beats, 🤝 Find meetups on IRL Sync, ⚔️ PVP trivia battles, 💬 DM other users, ⚡ Tip with Lightning, 🟣 Sign in with Nostr — and of course, talk to me! 🦌 Ask 'what features do you have' for the full list!",
+          answer: "Welcome! Here's what you can do: 📚 Read 146+ Bitcoin channels, ⚡ Take quests & earn certifications, 🗣️ PlebTalk (forum + articles), ⚡ LightningMart, 🎸 Bitcoin Beats, 🤝 IRL Sync meetups, ⚔️ PVP trivia battles, 💬 DMs, ⚡ Lightning tipping, 📝 Write articles, 📚 Flashcards, 🎓 Scholar Certifications, 🔔 Notifications when people interact with your content — and of course, talk to me! 🦌",
           action: "goHome()", label: "🏠 Explore the Archive" },
         { patterns: /where.*(dm|direct.*message|message|inbox|chat.*someone)|how.*(message|dm|send.*message|contact)|dm\b|direct message|inbox|message.*user|message.*someone/,
           answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 points and a 24-hour-old account to send DMs (keeps scammers out). You can also ⚡ tip users from their profile if they have a Lightning Address! 🛡️",
@@ -2790,7 +2790,7 @@ function matchSiteNavigation(input) {
           answer: "Toggle your sound effects with the button below or press M on your keyboard! 🔊",
           action: "toggleAudio()", label: "🔊 Toggle Audio" },
         { patterns: /what.*feature|all.*feature|list.*feature|everything.*can.*do|what.*this.*app|what.*this.*site|what.*do.*you.*have|full.*list|app.*overview|site.*tour|show.*everything|what.*all.*can|what.*offer/,
-          answer: "Here's everything on the Bitcoin Education Archive! 🦌\n\n📚 **Learn**: 146+ Bitcoin channels, 📚 Flashcards, ⚡ Quests, 🎓 Scholar Certifications\n🦌 **Nacho**: Talk to me (AI tutor), 📖 Nacho's Story, 🎮 Quiz Me, 🎽 Nacho's Closet\n🗣️ **Social**: PlebTalk forum, 💬 DMs, ⚔️ PVP Battles, 🤝 IRL Sync meetups\n⚡ **Lightning**: Connect wallet, tip users, ⚡ LightningMart\n🎵 **Media**: Bitcoin Beats music, 😂 Random Memes, 🎨 Art, 📊 Graphics\n🏆 **Progress**: Leaderboard, 🏅 Badges, 🎟️ Orange Tickets, 🎡 Daily Spin, 📈 Price Prediction\n🔐 **Account**: Sign in with Google, Twitter/X, GitHub, Nostr, or Lightning\n📡 **The Signal**: Weekly curated Bitcoin newsletter\n\nJust ask me 'where is [feature]' and I'll take you there!",
+          answer: "Here's everything on the Bitcoin Education Archive! 🦌\n\n📚 **Learn**: 146+ Bitcoin channels, 📚 Flashcards (earn tickets!), ⚡ Quests, 🎓 Scholar & Technical Certifications\n🦌 **Nacho**: Talk to me (AI + 500 KB entries), 📖 Nacho's Story (daily chapters), 🎮 Quiz Me, 🎽 Nacho's Closet\n🗣️ **Social**: PlebTalk forum + 📝 Articles, 💬 DMs, ⚔️ PVP Battles (no sign-in required!), 🤝 IRL Sync meetups, 🔔 Notifications\n⚡ **Lightning**: Connect wallet (WebLN/NWC), tip users, ⚡ LightningMart\n🎵 **Media**: Bitcoin Beats (upload & listen), 😂 Memes, 🎨 Art, 📊 Graphics\n🏆 **Progress**: Leaderboard, 🏅 Badges, 🎟️ Orange Tickets, 🎡 Daily Spin, 📈 Price Prediction\n🔐 **Account**: Google, Twitter/X, GitHub, Facebook, 🟣 Nostr, ⚡ Lightning, Email\n📡 **The Signal**: Live ticker + weekly curated newsletter\n💛 **Donate**: 7 methods (Lightning, On-Chain, BIP47, Cash App, Venmo, PayPal, Zelle)\n\nKeyboard shortcuts: press ? to see all! T=PlebTalk, N=Nacho, X=PVP, S=Market, L=Leaderboard",
           action: "goHome()", label: "🏠 Explore the Archive" },
         { patterns: /how.*(sign.*in|log.*in|create.*account|register)|sign.*in.*option|login.*option|what.*sign.*in|which.*sign.*in|auth.*method|sign.*in.*method/,
           answer: "We've got lots of sign-in options! 🔐🦌\n\n🔵 Google, 𝕏 Twitter/X, 🐙 GitHub, 📘 Facebook\n🟣 Nostr (extension, nsec, or npub)\n⚡ Lightning (scan QR with your wallet)\n📧 Email/password\n\nYour progress, points, and badges sync across all devices when signed in!",
@@ -4113,6 +4113,38 @@ window.nachoUnifiedAnswer = function(question, callback) {
         var kbAnswer = processNfa(pq(kbMatch.answer));
         var ch = kbMatch.channel || null;
         var chName = kbMatch.channelName || null;
+        // Auto-detect channel if not explicitly set
+        if (!ch) {
+            var _autoMap = [
+                { pattern: /mining|miner|asic|hashrate|nonce|sha-256|difficulty adjustment/i, ch: 'mining', name: 'Mining' },
+                { pattern: /lightning|lnurl|channel capacity|payment channel|bolt11|lightning address/i, ch: 'layer-2-lightning', name: 'Lightning Network' },
+                { pattern: /wallet|seed phrase|private key|cold storage|hardware wallet|ledger|trezor|coldcard|self-custody|custody/i, ch: 'self-custody', name: 'Self Custody' },
+                { pattern: /halving|block reward|subsidy|21 million|supply cap/i, ch: 'scarce', name: 'Scarce' },
+                { pattern: /privacy|coinjoin|kyc|non-kyc|anonymous|fungible/i, ch: 'privacy-nonkyc', name: 'Privacy' },
+                { pattern: /lightning mart|marketplace|buy.*sell|merchant/i, ch: 'marketplace', name: 'LightningMart' },
+                { pattern: /inflation|fiat|money printing|cantillon|central bank|federal reserve/i, ch: 'problems-of-money', name: 'Problems of Money' },
+                { pattern: /node|full node|consensus|nakamoto consensus/i, ch: 'nodes', name: 'Nodes' },
+                { pattern: /taproot|schnorr|segwit|covenant|op_cat/i, ch: 'taproot', name: 'Taproot' },
+                { pattern: /whitepaper|satoshi nakamoto|genesis block/i, ch: 'whitepaper', name: 'Whitepaper' },
+                { pattern: /nostr|decentralized social/i, ch: 'nostr', name: 'Nostr' },
+                { pattern: /energy|environment|carbon|green/i, ch: 'energy', name: 'Energy' },
+                { pattern: /etf|institutional|blackrock|microstrategy|saylor/i, ch: 'regulation', name: 'Regulation' },
+                { pattern: /invest|dca|dollar cost|hodl|strategy/i, ch: 'investment-strategy', name: 'Investment Strategy' },
+                { pattern: /store of value|digital gold|gold.*bitcoin|sound money/i, ch: 'money', name: 'Money' },
+                { pattern: /history|pizza day|cypherpunk|blocksize war/i, ch: 'history', name: 'History' },
+                { pattern: /scam|ponzi|pyramid|fraud|rug pull/i, ch: 'misconceptions-fud', name: 'Misconceptions & FUD' },
+                { pattern: /altcoin|ethereum|xrp|solana|cardano|shitcoin/i, ch: 'evidence-against-alts', name: 'Evidence Against Alts' },
+            ];
+            var _qLower = q.toLowerCase();
+            var _aLower = (kbMatch.answer || '').toLowerCase();
+            for (var _ai = 0; _ai < _autoMap.length; _ai++) {
+                if (_autoMap[_ai].pattern.test(_qLower) || _autoMap[_ai].pattern.test(_aLower)) {
+                    ch = _autoMap[_ai].ch;
+                    chName = _autoMap[_ai].name;
+                    break;
+                }
+            }
+        }
         var _kbCallbackFired = false;
 
         // Try AI to make the KB answer more conversational (but KB content is the truth)
