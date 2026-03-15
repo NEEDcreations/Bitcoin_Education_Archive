@@ -148,6 +148,16 @@ async function fetchDashboardData() {
         data.halving = 210000 - (data.blockHeight % 210000);
         var halvingEpoch = Math.floor(data.blockHeight / 210000);
         data.subsidy = (50 / Math.pow(2, halvingEpoch)).toFixed(4);
+        data.nextSubsidy = (50 / Math.pow(2, halvingEpoch + 1)).toFixed(4);
+        data.halvingBlock = (halvingEpoch + 1) * 210000;
+        // ETA: ~10 min per block
+        var halvingMs = data.halving * 10 * 60 * 1000;
+        data.halvingEta = new Date(Date.now() + halvingMs);
+        // Countdown components
+        var totalSec = Math.floor(halvingMs / 1000);
+        data.halvingDays = Math.floor(totalSec / 86400);
+        data.halvingHours = Math.floor((totalSec % 86400) / 3600);
+        data.halvingMins = Math.floor((totalSec % 3600) / 60);
     }
 
     data.ts = Date.now();
@@ -194,6 +204,27 @@ function renderDashboard(data) {
     html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
     html += '</div>';
     html += '</div>';
+
+    // Halving Countdown
+    if (d.halvingDays !== undefined) {
+        var halvingPct = d.halving ? ((210000 - d.halving) / 210000 * 100).toFixed(1) : 0;
+        var etaStr = d.halvingEta ? d.halvingEta.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+        html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;">';
+        html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + '</div>';
+        html += '<div style="display:flex;justify-content:center;gap:16px;margin-bottom:10px;">';
+        html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
+        html += '<div style="font-size:1.4rem;color:var(--text-faint);font-weight:300;">:</div>';
+        html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingHours || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Hours</div></div>';
+        html += '<div style="font-size:1.4rem;color:var(--text-faint);font-weight:300;">:</div>';
+        html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingMins || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Mins</div></div>';
+        html += '</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Est. <strong style="color:var(--text);">' + etaStr + '</strong> · ' + fmtNum(d.halving) + ' blocks remaining</div>';
+        html += '<div style="background:var(--border);height:6px;border-radius:3px;overflow:hidden;max-width:300px;margin:0 auto;">';
+        html += '<div style="height:100%;background:linear-gradient(90deg,#f97316,#ea580c);width:' + halvingPct + '%;border-radius:3px;transition:0.3s;"></div>';
+        html += '</div>';
+        html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;">' + halvingPct + '% through epoch · Subsidy drops ' + d.subsidy + ' → ' + (d.nextSubsidy || '?') + ' BTC</div>';
+        html += '</div>';
+    }
 
     // Grid
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
