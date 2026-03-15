@@ -24100,26 +24100,50 @@ function metricCard(emoji, label, value, sub) {
     '</div>';
 }
 
-// ---- Dashboard Button (injected next to logo) ----
+// ---- Persistent Dashboard Button (fixed position, visible on ALL pages) ----
 window.injectDashboardButton = function() {
-    if (document.getElementById('dashBtn')) return;
-    // Find the logo containers
-    var targets = document.querySelectorAll('.channel-logos, .home-logos');
-    targets.forEach(function(container) {
-        if (container.querySelector('#dashBtn')) return;
-        var btn = document.createElement('span');
-        btn.id = 'dashBtn';
-        btn.onclick = function() { toggleDashboard(); };
-        btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:50%;background:rgba(247,147,26,0.1);border:2px solid rgba(247,147,26,0.3);cursor:pointer;font-size:1.1rem;transition:0.2s;flex-shrink:0;';
-        btn.innerHTML = '📊';
-        btn.title = 'Bitcoin Network Metrics';
-        btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.2)'; };
-        btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.3)'; this.style.background = 'rgba(247,147,26,0.1)'; };
-        container.appendChild(btn);
-    });
+    if (document.getElementById('dashBtnFixed')) return;
+    var btn = document.createElement('button');
+    btn.id = 'dashBtnFixed';
+    btn.onclick = function() { toggleDashboard(); };
+    btn.style.cssText = 'position:fixed;top:6px;right:6px;z-index:180;display:flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(15,15,35,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--text);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;';
+    btn.innerHTML = '📊 <span style="color:var(--accent);" id="dashBtnPrice">Network</span>';
+    btn.title = 'Bitcoin Network Metrics';
+    btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.12)'; };
+    btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.25)'; this.style.background = 'rgba(15,15,35,0.9)'; };
+    document.body.appendChild(btn);
+
+    // Add responsive style
+    if (!document.getElementById('dashBtnCSS')) {
+        var css = document.createElement('style');
+        css.id = 'dashBtnCSS';
+        css.textContent = '@media(max-width:900px){#dashBtnFixed{top:4px;right:4px;padding:5px 10px;font-size:0.68rem;}}';
+        document.head.appendChild(css);
+    }
+
+    // Pre-fetch price to show on button
+    _updateDashBtnPrice();
 };
 
-// ---- Home page button (always visible) ----
+function _updateDashBtnPrice() {
+    try {
+        var cached = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
+        if (cached && cached.data && cached.data.price) {
+            var el = document.getElementById('dashBtnPrice');
+            if (el) {
+                var p = cached.data.price;
+                var change = cached.data.change24h || 0;
+                var color = change >= 0 ? '#22c55e' : '#ef4444';
+                var arrow = change >= 0 ? '▲' : '▼';
+                el.innerHTML = '$' + fmtNum(p, 0) + ' <span style="color:' + color + ';font-size:0.6rem;">' + arrow + (Math.abs(change)).toFixed(1) + '%</span>';
+            }
+        }
+    } catch(e) {}
+    // Refresh every 2 min
+    setTimeout(_updateDashBtnPrice, DASH_CACHE_TTL);
+}
+
+// ---- Home page button (larger, prominent) ----
 window.injectHomeDashboardButton = function() {
     var home = document.getElementById('home');
     if (!home || document.getElementById('homeDashBtn')) return;
@@ -24175,17 +24199,8 @@ window.closeDashboard = function() {
 
 // ---- Auto-inject on page load ----
 function init() {
-    injectHomeDashboardButton();
-    injectDashboardButton();
-    // Re-inject on navigation
-    var _origGo = window.go;
-    if (typeof _origGo === 'function' && !window._dashGoHooked) {
-        window._dashGoHooked = true;
-        var origGo = window.go;
-        // Use MutationObserver instead to avoid conflicts
-    }
-    // Watch for channel-logos appearing
-    new MutationObserver(function() { injectDashboardButton(); }).observe(document.getElementById('main') || document.body, { childList: true, subtree: true });
+    injectDashboardButton(); // Fixed button — always visible
+    injectHomeDashboardButton(); // Larger button on home page
 }
 
 if (document.readyState === 'loading') {
