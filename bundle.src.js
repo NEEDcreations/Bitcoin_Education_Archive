@@ -21313,14 +21313,16 @@ window.beatsPlayTrack = function(idx) {
         coverArt: track.coverArt || ''
     };
 
-    // Play count: increment after 30s of listening
+    // Play count: increment after 30s of continuous listening
     if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }
-    window._beatsPlayCounted = false;
+    if (!window._beatsPlayCountedIds) window._beatsPlayCountedIds = {};
     window._beatsPlayCountTimer = setTimeout(function() {
-        if (window._beatsPlayCounted) return;
         if (!window._beatsAudio || window._beatsAudio.paused) return;
-        window._beatsPlayCounted = true;
-        if (typeof db !== 'undefined' && track.id) {
+        if (!track.id) return;
+        // Only count each track once per session
+        if (window._beatsPlayCountedIds[track.id]) return;
+        window._beatsPlayCountedIds[track.id] = true;
+        if (typeof db !== 'undefined') {
             db.collection('beats_tracks').doc(track.id).update({
                 plays: firebase.firestore.FieldValue.increment(1)
             }).catch(function() {});
@@ -21375,12 +21377,8 @@ window.beatsPlayTrack = function(idx) {
         beatsNextTrack();
     };
 
-    // Increment play count
-    if (track.id && typeof db !== 'undefined') {
-        db.collection('beats_tracks').doc(track.id).update({
-            plays: firebase.firestore.FieldValue.increment(1)
-        }).catch(function() {});
-    }
+    // Play count is handled by the 30-second timer above (lines 271-280)
+    // Do NOT increment here — this fires on every play/restart
 
     // Refresh list to show playing indicator
     beatsLoadTracks(window._beatsCurrentTab);
