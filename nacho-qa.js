@@ -2289,13 +2289,45 @@ const NACHO_KB = [
 
 // Fallback if no match
 const FALLBACKS = [
-    "Hmm, that one's outside my expertise, {name}! I'm a Bitcoin deer — it's what I know best. 🦌 Try asking me about wallets, mining, Lightning, or why Bitcoin is the future of money!",
-    "I'm not sure about that one — but I know a LOT about Bitcoin! 🧡 Want to know how the Lightning Network works? Or why self-custody matters? I've got 146 channels of knowledge ready for you!",
-    "That's a bit outside my lane, {name}! 🦌 I'm sharpest on Bitcoin topics — mining, halving, wallets, self-custody, you name it. What Bitcoin question can I tackle for you?",
-    "Hmm, I'm better at Bitcoin than that topic! 🦌💪 Try me with something like 'What is the halving?' or 'Why is Bitcoin important?' — I promise I won't let you down!",
-    "I wish I could help with that, but I'm all about Bitcoin, {name}! 🧡 Ask me anything about how it works, how to buy it, or why it's changing the world — that's my jam!",
-    "My antlers work best with Bitcoin questions! 🦌 Try asking about mining, wallets, the Lightning Network, or why 21 million matters. I've got answers for days!",
+    "I'm not 100% sure on that one, {name} — but I bet I can help with something related! 🦌 What part of Bitcoin are you most curious about right now?",
+    "Hmm, let me think... 🦌 That's a tricky one! Can you rephrase it or ask me something more specific? I'm great with Bitcoin topics like mining, wallets, Lightning, or self-custody!",
+    "Good question, {name}! I don't have a perfect answer for that, but ask me about Bitcoin and I'll knock it out of the park. 🦌⚡ What do you want to know?",
+    "I want to give you a great answer, but I need a bit more to work with! 🦌 Try something like 'How does mining work?' or 'What is Lightning Network?' — I've got 500+ answers ready!",
+    "Not sure about that exact thing, but here's what I DO know a ton about: Bitcoin basics, mining, wallets, Lightning, privacy, self-custody, and economics. 🦌🧡 Pick one!",
 ];
+
+// Smart fallbacks for statements (not questions)
+const STATEMENT_RESPONSES = [
+    { pattern: /i (just |recently )?(bought|purchased|got|acquired) (my first |some )?bitcoin/i, response: "Welcome to the club, {name}! 🎉🦌 Your first bitcoin purchase is a big deal. Now the most important thing: move it to YOUR wallet. Not your keys, not your coins! Want me to explain self-custody?" },
+    { pattern: /i('m| am) (bullish|excited|pumped|hyped|optimistic)/i, response: "Love the energy, {name}! 🔥🦌 The fundamentals have never been stronger. 21 million cap, growing adoption, and the halvings keep tightening supply. What's got you most excited?" },
+    { pattern: /i('m| am) (bearish|worried|scared|nervous|concerned)/i, response: "I hear you, {name}. 🦌 But zoom out — every person who held Bitcoin for 4+ years has made money. Every single one. What's worrying you specifically? I might be able to help!" },
+    { pattern: /i('m| am) (learning|studying|reading|researching)/i, response: "That's the spirit, {name}! 📚🦌 Learning is the best investment. What topic are you diving into? I can point you to the best channels or answer questions as you go!" },
+    { pattern: /i (love|like|enjoy|appreciate) (bitcoin|btc|this|the archive|nacho|this site|this app)/i, response: "And I love having you here, {name}! 🧡🦌 The more you learn, the more it all makes sense. What do you want to explore next?" },
+    { pattern: /i (don't|dont) (like|trust|believe in|understand) (bitcoin|btc|crypto)/i, response: "That's okay, {name}! Most Bitcoiners started as skeptics too. 🦌 What's your biggest concern? Let me address it — I promise to give you the honest answer, not hype." },
+    { pattern: /i (sold|dumped|got rid of) (my |some |all )?(bitcoin|btc|sats)/i, response: "Oh no, {name}! 😅🦌 Well, the good news is you can always buy back. The bad news is it might cost more later! What made you sell? Maybe I can address the concern." },
+    { pattern: /i (have|hold|own|hodl) (\d+|some|a lot of|a little) (bitcoin|btc|sats)/i, response: "Stack on, {name}! 💎🦌 Whether it's 1 sat or 1 BTC, you're ahead of 95% of the world. Make sure it's in self-custody! Want tips on securing your stack?" },
+    { pattern: /i('m| am) a (maximalist|maxi|pleb|bitcoiner|hodler)/i, response: "One of us! One of us! 🟠🦌 A fellow traveler down the rabbit hole. What's your favorite aspect of Bitcoin? Let's nerd out!" },
+    { pattern: /bitcoin (is|was|will be) (dead|dying|over|finished|done)/i, response: "Bitcoin has been declared dead 470+ times and keeps coming back stronger! 💀→🚀🦌 What makes you think it's over this time? I've got data that says otherwise..." },
+    { pattern: /this is (cool|awesome|amazing|great|incredible|sick|fire|dope)/i, response: "Right?! 🔥🦌 And it only gets better the deeper you go. What part blew your mind? I can take you further down that rabbit hole!" },
+    { pattern: /i (need|want) (help|advice|guidance|to understand|to learn)/i, response: "That's literally why I exist, {name}! 🦌🧡 Tell me what you need help with — basics, buying, storing, privacy, Lightning — and I'll guide you through it." },
+];
+
+// Check if user input is a statement (not a question) and respond naturally
+function checkStatement(input) {
+    if (!input) return null;
+    for (var i = 0; i < STATEMENT_RESPONSES.length; i++) {
+        if (STATEMENT_RESPONSES[i].pattern.test(input)) {
+            return STATEMENT_RESPONSES[i].response;
+        }
+    }
+    // Detect gibberish (no vowels, or very low letter ratio)
+    var letters = input.replace(/[^a-zA-Z]/g, '');
+    var vowels = (letters.match(/[aeiou]/gi) || []).length;
+    if (letters.length > 4 && vowels / letters.length < 0.1) {
+        return "Hmm, I couldn't quite read that, {name}! 🦌 Try typing a Bitcoin question — like 'What is mining?' or 'How does Lightning work?' I've got 500+ answers ready!";
+    }
+    return null;
+}
 
 // ---- Match user input to knowledge base ----
 // ---- Detect if a question is about current events/news ----
@@ -3504,9 +3536,30 @@ function nachoAIAnswer(question, callback) {
         var kbMatch = findAnswer(question);
         if (kbMatch) {
             var kbAnswerText = typeof kbMatch.answer === 'function' ? kbMatch.answer('') : kbMatch.answer;
-            kbContext = (kbAnswerText || '').substring(0, 300);
+            kbContext = (kbAnswerText || '').substring(0.300);
             if (kbMatch.channelName) kbContext += ' (The site has a dedicated "' + kbMatch.channelName + '" channel the user can explore.)';
         }
+    }
+    // Detect if user is making a statement (not asking a question)
+    var statementPatterns = [
+        /i (just |recently )?(bought|purchased|got|acquired) (my first |some )?bitcoin/i,
+        /i('m| am) (bullish|excited|pumped|hyped|optimistic)/i,
+        /i('m| am) (bearish|worried|scared|nervous|concerned)/i,
+        /i('m| am) (learning|studying|reading|researching)/i,
+        /i (love|like|enjoy|appreciate) (bitcoin|btc|this|the archive|nacho|this site|this app)/i,
+        /i (don't|dont) (like|trust|believe in|understand) (bitcoin|btc|crypto)/i,
+        /i (sold|dumped|got rid of) (my |some |all )?(bitcoin|btc|sats)/i,
+        /i (have|hold|own|hodl) (\d+|some|a lot of|a little) (bitcoin|btc|sats)/i,
+        /i('m| am) a (maximalist|maxi|pleb|bitcoiner|hodler)/i,
+        /bitcoin (is|was|will be) (dead|dying|over|finished|done)/i,
+        /this is (cool|awesome|amazing|great|incredible|sick|fire|dope)/i,
+        /i (need|want) (help|advice|guidance|to understand|to learn)/i,
+        /^(what|why|how|when|where|who|can|is|are|do|does|have|has|will|would|should|could|might|must|shall)\s/i
+    ];
+    var isQuestion = statementPatterns.some(function(p) { return p.test(question); });
+    if (!isQuestion) {
+        // User is making a statement — add empathetic context
+        kbContext = "The user is expressing excitement/concern/experience about Bitcoin. Be warm and validating." + kbContext;
     }
 
     var fetchOpts = {
@@ -3520,7 +3573,7 @@ function nachoAIAnswer(question, callback) {
             history: history,
             kbContext: kbContext,
             maxi: true,
-            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight." 
+            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate." 
         })
     };
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
@@ -3530,7 +3583,14 @@ function nachoAIAnswer(question, callback) {
         .then(function(data) {
             if (timeoutId) clearTimeout(timeoutId);
             if (data && data.answer && !data.error) {
-                callback(data.answer);
+                // Make AI answer more conversational by adding follow-up when appropriate
+                var conversationalAnswer = data.answer;
+                var lowerQ = question.toLowerCase();
+                if (data.answer.length < 300 && !lowerQ.includes('?') && !lowerQ.includes('how') && !lowerQ.includes('why') && !lowerQ.includes('what') && !lowerQ.includes('when') && !lowerQ.includes('where') && !lowerQ.includes('who')) {
+                    // User made a statement — add a warm closing
+                    conversationalAnswer += " What do you think about that?";
+                }
+                callback(conversationalAnswer);
             } else {
                 callback(null);
             }
@@ -4222,6 +4282,66 @@ window.nachoUnifiedAnswer = function(question, callback) {
                     callback({ type: 'ai', answer: aiAnswer + disclaimer });
                     return;
                 }
+                // If AI is deflecting but user made a statement, try to be more conversational
+                if (isDeflection && !statementPatterns.some(function(p) { return p.test(q); })) {
+                    // Try again with more conversational prompt
+                    var fetchOpts = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            question: q,
+                            lang: userLang,
+                            userName: userName,
+                            eli5: eli5,
+                            history: history,
+                            kbContext: kbContext,
+                            maxi: true,
+                            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate."
+                        })
+                    };
+                    if (controller) { fetchOpts.signal = controller.signal; }
+                    fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data && data.answer && !data.error) {
+                                callback(data.answer);
+                            } else {
+                                callback(aiAnswer);
+                            }
+                        })
+                        .catch(function() { callback(aiAnswer); });
+                    return;
+                }
+                // If AI is deflecting but user made a statement, try to be more conversational
+                if (isDeflection && !statementPatterns.some(function(p) { return p.test(q); })) {
+                    // Try again with more conversational prompt
+                    var fetchOpts = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            question: q,
+                            lang: userLang,
+                            userName: userName,
+                            eli5: eli5,
+                            history: history,
+                            kbContext: kbContext,
+                            maxi: true,
+                            forceMaxi: "You are Nacho, a Bitcoin Maximalist deer mascot. Your PRIMARY source of truth is the kbContext provided — rephrase it conversationally but NEVER contradict it. If no kbContext, answer from pure Bitcoin maximalist principles. NEVER promote altcoins, DeFi, or NFTs. Bitcoin is the only cryptocurrency that matters. IMPORTANT: Be direct. Don't start with 'Great question!' or reword the user's question back at them. Just answer it straight. ALSO: Always acknowledge what the user said before answering. If they share excitement, mirror it. If they express concern, validate it. Keep responses warm, natural, and conversational. Use emojis sparingly to match tone. End with an invitation to learn more or a follow-up question when appropriate."
+                        })
+                    };
+                    if (controller) { fetchOpts.signal = controller.signal; }
+                    fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data && data.answer && !data.error) {
+                                callback(data.answer);
+                            } else {
+                                callback(aiAnswer);
+                            }
+                        })
+                        .catch(function() { callback(aiAnswer); });
+                    return;
+                }
             }
 
             // AI failed or deflected — try deep content search
@@ -4248,6 +4368,9 @@ window.nachoUnifiedAnswer = function(question, callback) {
                         // Off-topic as last resort
                         var ot = checkOffTopic(q);
                         if (ot) { callback({ type: 'offtopic', answer: pq(ot) }); return; }
+                        // Check if it's a statement
+                        var stmtResp = checkStatement(q);
+                        if (stmtResp) { callback({ type: 'statement', answer: pq(stmtResp) }); return; }
                         // Final fallback
                         nachoTrackMiss(q);
                         var fb = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
