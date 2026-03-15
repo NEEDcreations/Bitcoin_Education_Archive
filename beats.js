@@ -87,9 +87,29 @@ window.beatsEnsureGlobalPlayer = function() {
             '<button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>' +
             '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:60px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
             '<button onclick="beatsShowComments()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:0.9rem;cursor:pointer;padding:4px;" title="Comments">💬</button>' +
+            '<button onclick="beatsCollapsePlayer()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.9rem;cursor:pointer;padding:4px;" title="Minimize">▼</button>' +
             '<button onclick="beatsClosePlayer()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.9rem;cursor:pointer;padding:4px;" title="Close">✕</button>' +
         '</div>';
     document.body.appendChild(gp);
+
+    // Create collapsed mini-player pill
+    var mini = document.createElement('div');
+    mini.id = 'beatsMiniPlayer';
+    mini.style.cssText = 'display:none;position:fixed;bottom:64px;right:12px;z-index:201;background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(247,147,26,0.3);border-radius:28px;padding:6px 12px 6px 6px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:none;align-items:center;gap:8px;transition:transform 0.2s;';
+    mini.onclick = function() { beatsExpandPlayer(); };
+    mini.innerHTML =
+        '<div id="beatsMiniArt" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden;flex-shrink:0;">🎵</div>' +
+        '<div style="max-width:120px;min-width:0;">' +
+            '<div id="beatsMiniTitle" style="color:#fff;font-size:0.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>' +
+        '</div>' +
+        '<button onclick="event.stopPropagation();beatsTogglePlay()" id="beatsMiniPlayBtn" style="background:var(--accent);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">⏸</button>';
+    if (!document.getElementById('beatsMiniPlayerCSS')) {
+        var mcss = document.createElement('style');
+        mcss.id = 'beatsMiniPlayerCSS';
+        mcss.textContent = '@media(min-width:901px){#beatsMiniPlayer{bottom:12px!important;}}#beatsMiniPlayer:hover{transform:scale(1.05);}';
+        document.head.appendChild(mcss);
+    }
+    document.body.appendChild(mini);
 };
 
 window.beatsShowGlobalPlayer = function() {
@@ -98,11 +118,44 @@ window.beatsShowGlobalPlayer = function() {
     if (gp) gp.style.display = 'block';
 };
 
+window.beatsCollapsePlayer = function() {
+    var gp = document.getElementById('beatsGlobalPlayer');
+    var mini = document.getElementById('beatsMiniPlayer');
+    if (gp) gp.style.display = 'none';
+    if (mini) {
+        // Sync mini-player state
+        var art = document.getElementById('beatsNowArt');
+        var miniArt = document.getElementById('beatsMiniArt');
+        if (art && miniArt) {
+            var img = art.querySelector('img');
+            miniArt.innerHTML = img ? '<img src="' + img.src + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵';
+        }
+        var title = document.getElementById('beatsNowTitle');
+        var miniTitle = document.getElementById('beatsMiniTitle');
+        if (title && miniTitle) miniTitle.textContent = title.textContent;
+        var miniBtn = document.getElementById('beatsMiniPlayBtn');
+        if (miniBtn) miniBtn.textContent = (window._beatsAudio && !window._beatsAudio.paused) ? '⏸' : '▶';
+        mini.style.display = 'flex';
+    }
+    // Close comments panel if open
+    var cp = document.getElementById('beatsCommentsPanel');
+    if (cp) cp.remove();
+};
+
+window.beatsExpandPlayer = function() {
+    var gp = document.getElementById('beatsGlobalPlayer');
+    var mini = document.getElementById('beatsMiniPlayer');
+    if (gp) gp.style.display = 'block';
+    if (mini) mini.style.display = 'none';
+};
+
 window.beatsClosePlayer = function() {
     if (window._beatsAudio) { window._beatsAudio.pause(); window._beatsAudio = null; }
     clearInterval(window._beatsUpdateInterval);
     var gp = document.getElementById('beatsGlobalPlayer');
     if (gp) gp.style.display = 'none';
+    var mini = document.getElementById('beatsMiniPlayer');
+    if (mini) mini.style.display = 'none';
     var cp = document.getElementById('beatsCommentsPanel');
     if (cp) cp.remove();
     window._beatsNowPlaying = null;
@@ -340,13 +393,16 @@ window.beatsPlayTrack = function(idx) {
 window.beatsTogglePlay = function() {
     if (!window._beatsAudio) return;
     var btn = document.getElementById('beatsPlayBtn');
+    var miniBtn = document.getElementById('beatsMiniPlayBtn');
     if (window._beatsAudio.paused) {
         window._beatsAudio.play();
         if (btn) btn.textContent = '⏸';
+        if (miniBtn) miniBtn.textContent = '⏸';
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     } else {
         window._beatsAudio.pause();
         if (btn) btn.textContent = '▶';
+        if (miniBtn) miniBtn.textContent = '▶';
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     }
 };
