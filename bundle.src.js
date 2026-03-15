@@ -23827,7 +23827,375 @@ if (document.readyState === 'loading') {
 }
 
 })();
-!function(){const o="undefined"!=typeof firebase?firebase.firestore():null,n="undefined"!=typeof firebase?firebase.auth():null;async function r(){const e=document.getElementById("eventGrid");if(e&&o)try{const t=await o.collection("irl_events").where("date",">=",(new Date).toISOString()).orderBy("date","asc").limit(20).get();if(t.empty)return void(e.innerHTML='\n                    <div style="grid-column:1/-1;text-align:center;background:var(--card-bg);padding:60px;border-radius:20px;border:1px dashed var(--border);">\n                        <div style="font-size:3rem;margin-bottom:15px;">🏜️</div>\n                        <h3 style="color:var(--heading);margin-bottom:10px;">No events found in your area</h3>\n                        <p style="color:var(--text-muted);margin-bottom:20px;">Be the first to plant a Bitcoin flag in your city!</p>\n                        <button onclick="showHostEventModal()" style="padding:10px 20px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:10px;font-weight:700;cursor:pointer;">Start a Local Group</button>\n                    </div>\n                ');e.innerHTML=t.docs.map(e=>{const t=e.data(),o=new Date(t.date),r=o.toLocaleDateString(void 0,{weekday:"short",month:"short",day:"numeric"}),i=o.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"});return`\n                    <div class="event-card" onclick="viewEvent('${e.id}')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:0.3s;display:flex;flex-direction:column;height:100%;" onmouseover="this.style.transform='translateY(-5px)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='none';this.style.borderColor='var(--border)'">\n                        <div style="height:160px;${t.coverUrl?"background:url("+t.coverUrl+") center/cover no-repeat;":"background:linear-gradient(45deg, #1a1a2e, #16213e);display:flex;align-items:center;justify-content:center;font-size:3rem;"}">\n                            ${t.coverUrl?"":t.emoji||"🧡"}\n                        </div>\n                        <div style="padding:15px;flex:1;display:flex;flex-direction:column;">\n                            <div style="color:var(--accent);font-size:0.75rem;font-weight:800;text-transform:uppercase;margin-bottom:8px;">${r} @ ${i}</div>\n                            <h3 style="font-size:1.1rem;color:var(--heading);margin:0 0 8px;line-height:1.4;">${t.title}</h3>\n                            <div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:${t.description?"8px":"15px"};display:flex;align-items:center;gap:5px;">\n                                📍 ${t.locationName||"TBD"}\n                            </div>\n                            ${t.description?'<div style="color:var(--text-dim);font-size:0.8rem;line-height:1.5;margin-bottom:15px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">'+("function"==typeof escapeHtml?escapeHtml(t.description):t.description)+"</div>":""}\n                            <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid var(--border);">\n                                <div id="rsvp-count-${e.id}" style="font-size:0.8rem;color:var(--text-muted);">${(t.attendees||[]).length||t.attendeesCount||0} attending</div>\n                                <button id="rsvp-btn-${e.id}" onclick="event.stopPropagation();toggleRSVP('${e.id}')" style="background:${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"var(--accent)":"var(--bg-side)"};color:${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"#fff":"var(--text)"};border:1px solid ${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"var(--accent)":"var(--border)"};padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;touch-action:manipulation;">${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"✅ I'm Going":"I'm Going!"}</button>\n                            </div>\n                        </div>\n                    </div>\n                `}).join("")}catch(t){console.error("IRL Sync Load Error:",t),e.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--text-muted);">Error frequency interference. Try a hard refresh.</div>'}}window.renderIRLSync=function(e={}){const t=document.getElementById("forumContainer");if(!t)return;t.innerHTML='\n            <div id="irl-sync-view" style="max-width:900px;margin:0 auto;padding:20px;font-family:inherit;color:var(--text);">\n        <div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">\n            <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">\n            <span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>\n        </div>\n                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">\n                    <div>\n                        <h1 style="font-size:1.8rem;color:var(--heading);margin:0;">IRL Sync 🤝</h1>\n                        <p style="color:var(--text-muted);margin:5px 0 0;">Find Bitcoin meetups and orange-pill your local community.</p>\n                    </div>\n                    <button onclick="showHostEventModal()" style="padding:12px 24px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:700;cursor:pointer;transition:0.2s;">+ Host an Event</button>\n                </div>\n\n                <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:40px;display:flex;gap:15px;flex-wrap:wrap;">\n                    <div style="flex:1;min-width:250px;position:relative;">\n                        <span style="position:absolute;left:15px;top:50%;transform:translateY(-50%);opacity:0.5;">🔍</span>\n                        <input type="text" id="eventSearch" placeholder="Search events..." style="width:100%;padding:12px 12px 12px 45px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n                    <div style="flex:1;min-width:200px;position:relative;">\n                        <span style="position:absolute;left:15px;top:50%;transform:translateY(-50%);opacity:0.5;">📍</span>\n                        <input type="text" id="eventLocation" placeholder="Location..." style="width:100%;padding:12px 12px 12px 45px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n                    <button style="padding:0 25px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;">Find Events</button>\n                </div>\n\n                <h2 style="font-size:1.3rem;color:var(--heading);margin-bottom:20px;">Upcoming Events</h2>\n                <div id="eventGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:25px;">\n                    \x3c!-- Events load here --\x3e\n                    <div style="grid-column:1/-1;text-align:center;padding:100px 0;opacity:0.5;">\n                        <span style="font-size:3rem;">📡</span><br>Searching the frequency for local signals...\n                    </div>\n                </div>\n            </div>\n        ',t.style.display="block","function"==typeof setFloatingElementsVisible&&setFloatingElementsVisible(!0),r()},window.toggleRSVP=async function(e){if(n&&n.currentUser&&!n.currentUser.isAnonymous){var t=n.currentUser.uid,r=document.getElementById("rsvp-btn-"+e),i=document.getElementById("rsvp-count-"+e);try{var a=o.collection("irl_events").doc(e),d=await a.get();if(!d.exists)return;var l=d.data().attendees||[];-1!==l.indexOf(t)?(await a.update({attendees:firebase.firestore.FieldValue.arrayRemove(t)}),r&&(r.textContent="I'm Going!",r.style.background="var(--bg-side)",r.style.color="var(--text)",r.style.borderColor="var(--border)"),i&&(i.textContent=Math.max(0,l.length-1)+" attending"),"function"==typeof showToast&&showToast("👋 RSVP removed")):(await a.update({attendees:firebase.firestore.FieldValue.arrayUnion(t)}),r&&(r.textContent="✅ I'm Going",r.style.background="var(--accent)",r.style.color="#fff",r.style.borderColor="var(--accent)"),i&&(i.textContent=l.length+1+" attending"),"function"==typeof showToast&&showToast("🤝 You're going! See you there!"))}catch(e){console.error("RSVP error:",e),"function"==typeof showToast&&showToast("Could not update RSVP. Try again.")}}else"function"==typeof showSignInPrompt?showSignInPrompt():"function"==typeof showToast&&showToast("Sign in to RSVP!")},window.showHostEventModal=function(){if(!n.currentUser)return void("function"==typeof showSignInPrompt&&showSignInPrompt());document.body.insertAdjacentHTML("beforeend",'\n            <div id="hostEventModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;">\n                <div style="background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:500px;border-radius:24px;padding:30px;position:relative;animation:nachoPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">\n                    <button onclick="document.getElementById(\'hostEventModal\').remove()" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button>\n                    \n                    <h2 style="margin:0 0 10px;color:var(--heading);">Host an Event 🏙️</h2>\n                    <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:25px;">Gather your local plebs for a meetup.</p>\n                    \n                    <div style="margin-bottom:15px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Title</label>\n                        <input type="text" id="evTitle" placeholder="e.g. Satoshi\'s Coffee Meetup" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n\n                    <div style="display:flex;gap:15px;margin-bottom:15px;">\n                        <div style="flex:1;">\n                            <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Date & Time</label>\n                            <input type="datetime-local" id="evDate" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                        </div>\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Location (City, Venue)</label>\n                        <input type="text" id="evLoc" placeholder="e.g. Austin, TX @ The Bitcoin Commons" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Link (optional)</label>\n                        <input type="url" id="evLink" placeholder="e.g. https://meetup.com/your-event" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Description (optional)</label>\n                        <textarea id="evDesc" placeholder="What\'s the event about? What should attendees expect?" rows="3" maxlength="1000" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;resize:vertical;font-family:inherit;font-size:0.9rem;line-height:1.5;box-sizing:border-box;"></textarea>\n                        <div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;text-align:right;">Max 1000 characters</div>\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Photo (optional)</label>\n                        <div style="display:flex;align-items:center;gap:12px;">\n                            <div id="evCoverPreview" onclick="document.getElementById(\'evCoverFile\').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;">\n                                <span style="font-size:2rem;color:var(--text-faint);">📷</span>\n                            </div>\n                            <div style="flex:1;">\n                                <input type="file" id="evCoverFile" accept="image/jpeg,image/jpg,image/png,image/webp" style="width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById(\'evCoverPreview\');if(p)p.innerHTML=\'<img src=&quot;\'+e.target.result+\'&quot; style=&quot;width:100%;height:100%;object-fit:cover;&quot;>\';};r.readAsDataURL(f);}">\n                                <div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">JPG, PNG, or WebP — max 3MB</div>\n                            </div>\n                        </div>\n                    </div>\n\n                    <button onclick="submitEvent()" id="evSubmitBtn" style="width:100%;padding:15px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;transition:0.2s;">📡 Broadcast to Network</button>\n                </div>\n            </div>\n        ')},window.submitEvent=async function(){const e=document.getElementById("evTitle").value,t=document.getElementById("evDate").value,i=document.getElementById("evLoc").value,a=document.getElementById("evSubmitBtn");if(e&&t&&i){a.disabled=!0,a.textContent="Broadcasting...";try{var d=document.getElementById("evLink"),l=d?d.value.trim():"",s=document.getElementById("evCoverFile"),c=s&&s.files&&s.files[0]?s.files[0]:null;if(c){if(c.size>3145728)return alert("Image too large. Max 3MB."),a.disabled=!1,void(a.textContent="📡 Broadcast to Network");if(!c.type.match(/image\/(jpeg|jpg|png|webp)/))return alert("Use JPG, PNG, or WebP."),a.disabled=!1,void(a.textContent="📡 Broadcast to Network")}var p="";if(c){var v=null;try{v=firebase.storage()}catch(e){}if(v){a.textContent="Uploading photo...";var u=Date.now(),g=v.ref("irl-events/"+n.currentUser.uid+"/"+u+"_"+c.name.replace(/[^a-zA-Z0-9._-]/g,"_")),m=await g.put(c);p=await m.ref.getDownloadURL()}else c.size<204800&&(p=await new Promise(function(e){var t=new FileReader;t.onload=function(t){e(t.target.result)},t.readAsDataURL(c)}));a.textContent="Broadcasting..."}var b=document.getElementById("evDesc"),f=b?b.value.trim().substring(0,1e3):"",x={title:e,date:new Date(t).toISOString(),location:i,locationName:i,hostId:n.currentUser.uid,hostName:n.currentUser.displayName||"Anonymous Pleb",attendeesCount:1,attendees:[n.currentUser.uid],createdAt:firebase.firestore.FieldValue.serverTimestamp()};l&&(x.link=l),f&&(x.description=f),p&&(x.coverUrl=p),await o.collection("irl_events").add(x),document.getElementById("hostEventModal").remove(),"function"==typeof showToast&&showToast("✅ Event Synchronized!"),"function"==typeof awardPoints&&awardPoints(15,"🤝 IRL event created"),"function"==typeof awardTickets&&awardTickets(10,"🤝 Event hosted"),r()}catch(e){alert("Error broadcasting event: "+e.message),a.disabled=!1,a.textContent="Retry Broadcast"}}else alert("Fill all fields to broadcast!")},window.viewEvent=async function(o){if(e)try{var n=await e.collection("irl_events").doc(o).get();if(!n.exists)return void("function"==typeof showToast&&showToast("Event not found"));var r=n.data(),i=new Date(r.date),a=i.toLocaleDateString(void 0,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),d=i.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"}),l="function"==typeof escapeHtml?escapeHtml:function(e){return e},s=t&&t.currentUser&&t.currentUser.uid===r.hostId,c=t&&t.currentUser&&-1!==(r.attendees||[]).indexOf(t.currentUser.uid),p=document.createElement("div");p.id="eventDetailOverlay",p.style.cssText="position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;",p.onclick=function(e){e.target===p&&p.remove()};var v='<div style="background:#1a1a2e;border:1px solid var(--accent);border-radius:20px;max-width:500px;width:100%;margin:40px auto;overflow:hidden;">';r.coverUrl&&(v+='<div style="height:220px;background:url('+l(r.coverUrl)+') center/cover no-repeat;"></div>'),v+='<div style="padding:24px;">',v+='<div style="color:var(--accent);font-size:0.8rem;font-weight:800;text-transform:uppercase;margin-bottom:10px;">'+a+" @ "+d+"</div>",v+='<h2 style="color:#e2e8f0;font-size:1.4rem;font-weight:900;margin:0 0 12px;line-height:1.3;">'+l(r.title)+"</h2>",v+='<div style="color:#94a3b8;font-size:0.9rem;margin-bottom:16px;display:flex;align-items:center;gap:6px;">📍 '+l(r.locationName||"TBD")+"</div>",r.description&&(v+='<div style="color:#cbd5e1;font-size:0.9rem;line-height:1.7;margin-bottom:20px;white-space:pre-wrap;">'+l(r.description)+"</div>"),r.link&&(v+='<a href="'+l(r.link)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;text-decoration:none;margin-bottom:16px;">🔗 Event Link ↗</a>'),v+='<div style="color:#64748b;font-size:0.78rem;margin-bottom:16px;">Hosted by <strong style="color:#94a3b8;">'+l(r.hostName||"Anonymous Pleb")+"</strong></div>",v+='<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:16px;">'+((r.attendees||[]).length||0)+" attending</div>",v+='<div style="display:flex;gap:8px;flex-wrap:wrap;">',v+="<button onclick=\"event.stopPropagation();toggleRSVP('"+o+"');document.getElementById('eventDetailOverlay').remove()\" style=\"flex:1;padding:12px;background:"+(c?"var(--accent)":"var(--bg-side,#0a0a1a)")+";color:"+(c?"#fff":"#e2e8f0")+";border:1px solid "+(c?"var(--accent)":"var(--border,#333)")+';border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">'+(c?"✅ I'm Going":"I'm Going!")+"</button>",s&&(v+="<button onclick=\"event.stopPropagation();document.getElementById('eventDetailOverlay').remove();editEvent('"+o+'\')" style="padding:12px 16px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#94a3b8;font-size:0.85rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>',v+="<button onclick=\"event.stopPropagation();deleteEvent('"+o+'\')" style="padding:12px 16px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️</button>'),v+="</div>",v+='<button onclick="document.getElementById(\'eventDetailOverlay\').remove()" style="width:100%;margin-top:12px;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#64748b;font-size:0.85rem;cursor:pointer;font-family:inherit;">Close</button>',v+="</div></div>",p.innerHTML=v,document.body.appendChild(p)}catch(e){console.error("Event view error:",e),"function"==typeof showToast&&showToast("Error loading event")}},window.editEvent=async function(o){if(e&&t&&t.currentUser)try{var n=await e.collection("irl_events").doc(o).get();if(!n.exists)return;var r=n.data();if(t.currentUser.uid!==r.hostId)return void("function"==typeof showToast&&showToast("Only the host can edit"));var i=document.createElement("div");i.id="editEventOverlay",i.style.cssText="position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;",i.onclick=function(e){e.target===i&&i.remove()};var a=r.date?new Date(r.date).toISOString().slice(0,16):"",d="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border,#333);border-radius:10px;color:#e2e8f0;outline:none;box-sizing:border-box;font-family:inherit;margin-bottom:12px;",l='<div style="background:#1a1a2e;border:1px solid var(--accent);border-radius:20px;padding:28px;max-width:500px;width:100%;margin:40px auto;">';l+='<h2 style="color:#e2e8f0;margin:0 0 16px;">✏️ Edit Event</h2>',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Title</label>',l+='<input type="text" id="editEvTitle" value="'+("function"==typeof escapeHtml?escapeHtml(r.title||""):r.title||"")+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Date & Time</label>',l+='<input type="datetime-local" id="editEvDate" value="'+a+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Location</label>',l+='<input type="text" id="editEvLoc" value="'+("function"==typeof escapeHtml?escapeHtml(r.locationName||r.location||""):r.locationName||"")+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Link (optional)</label>',l+='<input type="url" id="editEvLink" value="'+("function"==typeof escapeHtml?escapeHtml(r.link||""):r.link||"")+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Description (optional)</label>',l+='<textarea id="editEvDesc" rows="4" maxlength="1000" style="'+d+'resize:vertical;">'+("function"==typeof escapeHtml?escapeHtml(r.description||""):r.description||"")+"</textarea>",l+="<button onclick=\"submitEditEvent('"+o+'\')" id="editEvBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;">Save Changes</button>',l+='<button onclick="document.getElementById(\'editEventOverlay\').remove()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#64748b;cursor:pointer;font-family:inherit;">Cancel</button>',l+="</div>",i.innerHTML=l,document.body.appendChild(i)}catch(e){"function"==typeof showToast&&showToast("Error loading event for edit")}},window.submitEditEvent=async function(t){var o=document.getElementById("editEvBtn");o&&(o.disabled=!0,o.textContent="Saving...");try{var n=(document.getElementById("editEvTitle").value||"").trim(),i=document.getElementById("editEvDate").value,a=(document.getElementById("editEvLoc").value||"").trim(),d=(document.getElementById("editEvLink").value||"").trim(),l=(document.getElementById("editEvDesc").value||"").trim();if(!n||!i||!a)return alert("Fill in title, date, and location"),void(o&&(o.disabled=!1,o.textContent="Save Changes"));await e.collection("irl_events").doc(t).update({title:n,date:new Date(i).toISOString(),location:a,locationName:a,link:d||null,description:l.substring(0,1e3)||null}),document.getElementById("editEventOverlay").remove(),"function"==typeof showToast&&showToast("✅ Event updated!"),r()}catch(e){alert("Error saving: "+e.message),o&&(o.disabled=!1,o.textContent="Save Changes")}},window.deleteEvent=async function(t){if(confirm("Delete this event? This cannot be undone."))try{await e.collection("irl_events").doc(t).delete();var o=document.getElementById("eventDetailOverlay");o&&o.remove(),"function"==typeof showToast&&showToast("🗑️ Event deleted"),r()}catch(e){"function"==typeof showToast&&showToast("Error deleting event")}}}();(function() {
+!function(){const o="undefined"!=typeof firebase?firebase.firestore():null,n="undefined"!=typeof firebase?firebase.auth():null;async function r(){const e=document.getElementById("eventGrid");if(e&&o)try{const t=await o.collection("irl_events").where("date",">=",(new Date).toISOString()).orderBy("date","asc").limit(20).get();if(t.empty)return void(e.innerHTML='\n                    <div style="grid-column:1/-1;text-align:center;background:var(--card-bg);padding:60px;border-radius:20px;border:1px dashed var(--border);">\n                        <div style="font-size:3rem;margin-bottom:15px;">🏜️</div>\n                        <h3 style="color:var(--heading);margin-bottom:10px;">No events found in your area</h3>\n                        <p style="color:var(--text-muted);margin-bottom:20px;">Be the first to plant a Bitcoin flag in your city!</p>\n                        <button onclick="showHostEventModal()" style="padding:10px 20px;background:none;border:2px solid var(--accent);color:var(--accent);border-radius:10px;font-weight:700;cursor:pointer;">Start a Local Group</button>\n                    </div>\n                ');e.innerHTML=t.docs.map(e=>{const t=e.data(),o=new Date(t.date),r=o.toLocaleDateString(void 0,{weekday:"short",month:"short",day:"numeric"}),i=o.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"});return`\n                    <div class="event-card" onclick="viewEvent('${e.id}')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:0.3s;display:flex;flex-direction:column;height:100%;" onmouseover="this.style.transform='translateY(-5px)';this.style.borderColor='var(--accent)'" onmouseout="this.style.transform='none';this.style.borderColor='var(--border)'">\n                        <div style="height:160px;${t.coverUrl?"background:url("+t.coverUrl+") center/cover no-repeat;":"background:linear-gradient(45deg, #1a1a2e, #16213e);display:flex;align-items:center;justify-content:center;font-size:3rem;"}">\n                            ${t.coverUrl?"":t.emoji||"🧡"}\n                        </div>\n                        <div style="padding:15px;flex:1;display:flex;flex-direction:column;">\n                            <div style="color:var(--accent);font-size:0.75rem;font-weight:800;text-transform:uppercase;margin-bottom:8px;">${r} @ ${i}</div>\n                            <h3 style="font-size:1.1rem;color:var(--heading);margin:0 0 8px;line-height:1.4;">${t.title}</h3>\n                            <div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:${t.description?"8px":"15px"};display:flex;align-items:center;gap:5px;">\n                                📍 ${t.locationName||"TBD"}\n                            </div>\n                            ${t.description?'<div style="color:var(--text-dim);font-size:0.8rem;line-height:1.5;margin-bottom:15px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">'+("function"==typeof escapeHtml?escapeHtml(t.description):t.description)+"</div>":""}\n                            <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:15px;border-top:1px solid var(--border);">\n                                <div id="rsvp-count-${e.id}" style="font-size:0.8rem;color:var(--text-muted);">${(t.attendees||[]).length||t.attendeesCount||0} attending</div>\n                                <button id="rsvp-btn-${e.id}" onclick="event.stopPropagation();toggleRSVP('${e.id}')" style="background:${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"var(--accent)":"var(--bg-side)"};color:${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"#fff":"var(--text)"};border:1px solid ${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"var(--accent)":"var(--border)"};padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;touch-action:manipulation;">${-1!==(t.attendees||[]).indexOf(void 0!==n&&n&&n.currentUser?n.currentUser.uid:"")?"✅ I'm Going":"I'm Going!"}</button>\n                            </div>\n                        </div>\n                    </div>\n                `}).join("")}catch(t){console.error("IRL Sync Load Error:",t),e.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--text-muted);">Error frequency interference. Try a hard refresh.</div>'}}window.renderIRLSync=function(e={}){const t=document.getElementById("forumContainer");if(!t)return;t.innerHTML='\n            <div id="irl-sync-view" style="max-width:900px;margin:0 auto;padding:20px;font-family:inherit;color:var(--text);">\n        <div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">\n            <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">\n            <span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>\n        </div>\n                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">\n                    <div>\n                        <h1 style="font-size:1.8rem;color:var(--heading);margin:0;">IRL Sync 🤝</h1>\n                        <p style="color:var(--text-muted);margin:5px 0 0;">Find Bitcoin meetups and orange-pill your local community.</p>\n                    </div>\n                    <button onclick="showHostEventModal()" style="padding:12px 24px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:700;cursor:pointer;transition:0.2s;">+ Host an Event</button>\n                </div>\n\n                <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:40px;display:flex;gap:15px;flex-wrap:wrap;">\n                    <div style="flex:1;min-width:250px;position:relative;">\n                        <span style="position:absolute;left:15px;top:50%;transform:translateY(-50%);opacity:0.5;">🔍</span>\n                        <input type="text" id="eventSearch" placeholder="Search events..." style="width:100%;padding:12px 12px 12px 45px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n                    <div style="flex:1;min-width:200px;position:relative;">\n                        <span style="position:absolute;left:15px;top:50%;transform:translateY(-50%);opacity:0.5;">📍</span>\n                        <input type="text" id="eventLocation" placeholder="Location..." style="width:100%;padding:12px 12px 12px 45px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n                    <button style="padding:0 25px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;">Find Events</button>\n                </div>\n\n                <h2 style="font-size:1.3rem;color:var(--heading);margin-bottom:20px;">Upcoming Events</h2>\n                <div id="eventGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:25px;">\n                    \x3c!-- Events load here --\x3e\n                    <div style="grid-column:1/-1;text-align:center;padding:100px 0;opacity:0.5;">\n                        <span style="font-size:3rem;">📡</span><br>Searching the frequency for local signals...\n                    </div>\n                </div>\n            </div>\n        ',t.style.display="block","function"==typeof setFloatingElementsVisible&&setFloatingElementsVisible(!0),r()},window.toggleRSVP=async function(e){if(n&&n.currentUser&&!n.currentUser.isAnonymous){var t=n.currentUser.uid,r=document.getElementById("rsvp-btn-"+e),i=document.getElementById("rsvp-count-"+e);try{var a=o.collection("irl_events").doc(e),d=await a.get();if(!d.exists)return;var l=d.data().attendees||[];-1!==l.indexOf(t)?(await a.update({attendees:firebase.firestore.FieldValue.arrayRemove(t)}),r&&(r.textContent="I'm Going!",r.style.background="var(--bg-side)",r.style.color="var(--text)",r.style.borderColor="var(--border)"),i&&(i.textContent=Math.max(0,l.length-1)+" attending"),"function"==typeof showToast&&showToast("👋 RSVP removed")):(await a.update({attendees:firebase.firestore.FieldValue.arrayUnion(t)}),r&&(r.textContent="✅ I'm Going",r.style.background="var(--accent)",r.style.color="#fff",r.style.borderColor="var(--accent)"),i&&(i.textContent=l.length+1+" attending"),"function"==typeof showToast&&showToast("🤝 You're going! See you there!"))}catch(e){console.error("RSVP error:",e),"function"==typeof showToast&&showToast("Could not update RSVP. Try again.")}}else"function"==typeof showSignInPrompt?showSignInPrompt():"function"==typeof showToast&&showToast("Sign in to RSVP!")},window.showHostEventModal=function(){if(!n.currentUser)return void("function"==typeof showSignInPrompt&&showSignInPrompt());document.body.insertAdjacentHTML("beforeend",'\n            <div id="hostEventModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;">\n                <div style="background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:500px;border-radius:24px;padding:30px;position:relative;animation:nachoPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">\n                    <button onclick="document.getElementById(\'hostEventModal\').remove()" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button>\n                    \n                    <h2 style="margin:0 0 10px;color:var(--heading);">Host an Event 🏙️</h2>\n                    <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:25px;">Gather your local plebs for a meetup.</p>\n                    \n                    <div style="margin-bottom:15px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Title</label>\n                        <input type="text" id="evTitle" placeholder="e.g. Satoshi\'s Coffee Meetup" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n\n                    <div style="display:flex;gap:15px;margin-bottom:15px;">\n                        <div style="flex:1;">\n                            <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Date & Time</label>\n                            <input type="datetime-local" id="evDate" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                        </div>\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Location (City, Venue)</label>\n                        <input type="text" id="evLoc" placeholder="e.g. Austin, TX @ The Bitcoin Commons" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Link (optional)</label>\n                        <input type="url" id="evLink" placeholder="e.g. https://meetup.com/your-event" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;">\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Description (optional)</label>\n                        <textarea id="evDesc" placeholder="What\'s the event about? What should attendees expect?" rows="3" maxlength="1000" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);outline:none;resize:vertical;font-family:inherit;font-size:0.9rem;line-height:1.5;box-sizing:border-box;"></textarea>\n                        <div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;text-align:right;">Max 1000 characters</div>\n                    </div>\n\n                    <div style="margin-bottom:20px;">\n                        <label style="display:block;font-size:0.75rem;font-weight:700;color:var(--text-faint);margin-bottom:5px;text-transform:uppercase;">Event Photo (optional)</label>\n                        <div style="display:flex;align-items:center;gap:12px;">\n                            <div id="evCoverPreview" onclick="document.getElementById(\'evCoverFile\').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;">\n                                <span style="font-size:2rem;color:var(--text-faint);">📷</span>\n                            </div>\n                            <div style="flex:1;">\n                                <input type="file" id="evCoverFile" accept="image/jpeg,image/jpg,image/png,image/webp" style="width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;" onchange="var f=this.files[0];if(f){var r=new FileReader();r.onload=function(e){var p=document.getElementById(\'evCoverPreview\');if(p)p.innerHTML=\'<img src=&quot;\'+e.target.result+\'&quot; style=&quot;width:100%;height:100%;object-fit:cover;&quot;>\';};r.readAsDataURL(f);}">\n                                <div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">JPG, PNG, or WebP — max 3MB</div>\n                            </div>\n                        </div>\n                    </div>\n\n                    <button onclick="submitEvent()" id="evSubmitBtn" style="width:100%;padding:15px;background:#f7931a;color:#000;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;transition:0.2s;">📡 Broadcast to Network</button>\n                </div>\n            </div>\n        ')},window.submitEvent=async function(){const e=document.getElementById("evTitle").value,t=document.getElementById("evDate").value,i=document.getElementById("evLoc").value,a=document.getElementById("evSubmitBtn");if(e&&t&&i){a.disabled=!0,a.textContent="Broadcasting...";try{var d=document.getElementById("evLink"),l=d?d.value.trim():"",s=document.getElementById("evCoverFile"),c=s&&s.files&&s.files[0]?s.files[0]:null;if(c){if(c.size>3145728)return alert("Image too large. Max 3MB."),a.disabled=!1,void(a.textContent="📡 Broadcast to Network");if(!c.type.match(/image\/(jpeg|jpg|png|webp)/))return alert("Use JPG, PNG, or WebP."),a.disabled=!1,void(a.textContent="📡 Broadcast to Network")}var p="";if(c){var v=null;try{v=firebase.storage()}catch(e){}if(v){a.textContent="Uploading photo...";var u=Date.now(),g=v.ref("irl-events/"+n.currentUser.uid+"/"+u+"_"+c.name.replace(/[^a-zA-Z0-9._-]/g,"_")),m=await g.put(c);p=await m.ref.getDownloadURL()}else c.size<204800&&(p=await new Promise(function(e){var t=new FileReader;t.onload=function(t){e(t.target.result)},t.readAsDataURL(c)}));a.textContent="Broadcasting..."}var b=document.getElementById("evDesc"),f=b?b.value.trim().substring(0,1e3):"",x={title:e,date:new Date(t).toISOString(),location:i,locationName:i,hostId:n.currentUser.uid,hostName:n.currentUser.displayName||"Anonymous Pleb",attendeesCount:1,attendees:[n.currentUser.uid],createdAt:firebase.firestore.FieldValue.serverTimestamp()};l&&(x.link=l),f&&(x.description=f),p&&(x.coverUrl=p),await o.collection("irl_events").add(x),document.getElementById("hostEventModal").remove(),"function"==typeof showToast&&showToast("✅ Event Synchronized!"),"function"==typeof awardPoints&&awardPoints(15,"🤝 IRL event created"),"function"==typeof awardTickets&&awardTickets(10,"🤝 Event hosted"),r()}catch(e){alert("Error broadcasting event: "+e.message),a.disabled=!1,a.textContent="Retry Broadcast"}}else alert("Fill all fields to broadcast!")},window.viewEvent=async function(o){if(e)try{var n=await e.collection("irl_events").doc(o).get();if(!n.exists)return void("function"==typeof showToast&&showToast("Event not found"));var r=n.data(),i=new Date(r.date),a=i.toLocaleDateString(void 0,{weekday:"long",month:"long",day:"numeric",year:"numeric"}),d=i.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"}),l="function"==typeof escapeHtml?escapeHtml:function(e){return e},s=t&&t.currentUser&&t.currentUser.uid===r.hostId,c=t&&t.currentUser&&-1!==(r.attendees||[]).indexOf(t.currentUser.uid),p=document.createElement("div");p.id="eventDetailOverlay",p.style.cssText="position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;",p.onclick=function(e){e.target===p&&p.remove()};var v='<div style="background:#1a1a2e;border:1px solid var(--accent);border-radius:20px;max-width:500px;width:100%;margin:40px auto;overflow:hidden;">';r.coverUrl&&(v+='<div style="height:220px;background:url('+l(r.coverUrl)+') center/cover no-repeat;"></div>'),v+='<div style="padding:24px;">',v+='<div style="color:var(--accent);font-size:0.8rem;font-weight:800;text-transform:uppercase;margin-bottom:10px;">'+a+" @ "+d+"</div>",v+='<h2 style="color:#e2e8f0;font-size:1.4rem;font-weight:900;margin:0 0 12px;line-height:1.3;">'+l(r.title)+"</h2>",v+='<div style="color:#94a3b8;font-size:0.9rem;margin-bottom:16px;display:flex;align-items:center;gap:6px;">📍 '+l(r.locationName||"TBD")+"</div>",r.description&&(v+='<div style="color:#cbd5e1;font-size:0.9rem;line-height:1.7;margin-bottom:20px;white-space:pre-wrap;">'+l(r.description)+"</div>"),r.link&&(v+='<a href="'+l(r.link)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;text-decoration:none;margin-bottom:16px;">🔗 Event Link ↗</a>'),v+='<div style="color:#64748b;font-size:0.78rem;margin-bottom:16px;">Hosted by <strong style="color:#94a3b8;">'+l(r.hostName||"Anonymous Pleb")+"</strong></div>",v+='<div style="color:#94a3b8;font-size:0.85rem;margin-bottom:16px;">'+((r.attendees||[]).length||0)+" attending</div>",v+='<div style="display:flex;gap:8px;flex-wrap:wrap;">',v+="<button onclick=\"event.stopPropagation();toggleRSVP('"+o+"');document.getElementById('eventDetailOverlay').remove()\" style=\"flex:1;padding:12px;background:"+(c?"var(--accent)":"var(--bg-side,#0a0a1a)")+";color:"+(c?"#fff":"#e2e8f0")+";border:1px solid "+(c?"var(--accent)":"var(--border,#333)")+';border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">'+(c?"✅ I'm Going":"I'm Going!")+"</button>",s&&(v+="<button onclick=\"event.stopPropagation();document.getElementById('eventDetailOverlay').remove();editEvent('"+o+'\')" style="padding:12px 16px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#94a3b8;font-size:0.85rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>',v+="<button onclick=\"event.stopPropagation();deleteEvent('"+o+'\')" style="padding:12px 16px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️</button>'),v+="</div>",v+='<button onclick="document.getElementById(\'eventDetailOverlay\').remove()" style="width:100%;margin-top:12px;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#64748b;font-size:0.85rem;cursor:pointer;font-family:inherit;">Close</button>',v+="</div></div>",p.innerHTML=v,document.body.appendChild(p)}catch(e){console.error("Event view error:",e),"function"==typeof showToast&&showToast("Error loading event")}},window.editEvent=async function(o){if(e&&t&&t.currentUser)try{var n=await e.collection("irl_events").doc(o).get();if(!n.exists)return;var r=n.data();if(t.currentUser.uid!==r.hostId)return void("function"==typeof showToast&&showToast("Only the host can edit"));var i=document.createElement("div");i.id="editEventOverlay",i.style.cssText="position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;",i.onclick=function(e){e.target===i&&i.remove()};var a=r.date?new Date(r.date).toISOString().slice(0,16):"",d="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border,#333);border-radius:10px;color:#e2e8f0;outline:none;box-sizing:border-box;font-family:inherit;margin-bottom:12px;",l='<div style="background:#1a1a2e;border:1px solid var(--accent);border-radius:20px;padding:28px;max-width:500px;width:100%;margin:40px auto;">';l+='<h2 style="color:#e2e8f0;margin:0 0 16px;">✏️ Edit Event</h2>',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Title</label>',l+='<input type="text" id="editEvTitle" value="'+("function"==typeof escapeHtml?escapeHtml(r.title||""):r.title||"")+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Date & Time</label>',l+='<input type="datetime-local" id="editEvDate" value="'+a+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Location</label>',l+='<input type="text" id="editEvLoc" value="'+("function"==typeof escapeHtml?escapeHtml(r.locationName||r.location||""):r.locationName||"")+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Link (optional)</label>',l+='<input type="url" id="editEvLink" value="'+("function"==typeof escapeHtml?escapeHtml(r.link||""):r.link||"")+'" style="'+d+'">',l+='<label style="display:block;font-size:0.75rem;color:#64748b;margin-bottom:4px;">Description (optional)</label>',l+='<textarea id="editEvDesc" rows="4" maxlength="1000" style="'+d+'resize:vertical;">'+("function"==typeof escapeHtml?escapeHtml(r.description||""):r.description||"")+"</textarea>",l+="<button onclick=\"submitEditEvent('"+o+'\')" id="editEvBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;">Save Changes</button>',l+='<button onclick="document.getElementById(\'editEventOverlay\').remove()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:#64748b;cursor:pointer;font-family:inherit;">Cancel</button>',l+="</div>",i.innerHTML=l,document.body.appendChild(i)}catch(e){"function"==typeof showToast&&showToast("Error loading event for edit")}},window.submitEditEvent=async function(t){var o=document.getElementById("editEvBtn");o&&(o.disabled=!0,o.textContent="Saving...");try{var n=(document.getElementById("editEvTitle").value||"").trim(),i=document.getElementById("editEvDate").value,a=(document.getElementById("editEvLoc").value||"").trim(),d=(document.getElementById("editEvLink").value||"").trim(),l=(document.getElementById("editEvDesc").value||"").trim();if(!n||!i||!a)return alert("Fill in title, date, and location"),void(o&&(o.disabled=!1,o.textContent="Save Changes"));await e.collection("irl_events").doc(t).update({title:n,date:new Date(i).toISOString(),location:a,locationName:a,link:d||null,description:l.substring(0,1e3)||null}),document.getElementById("editEventOverlay").remove(),"function"==typeof showToast&&showToast("✅ Event updated!"),r()}catch(e){alert("Error saving: "+e.message),o&&(o.disabled=!1,o.textContent="Save Changes")}},window.deleteEvent=async function(t){if(confirm("Delete this event? This cannot be undone."))try{await e.collection("irl_events").doc(t).delete();var o=document.getElementById("eventDetailOverlay");o&&o.remove(),"function"==typeof showToast&&showToast("🗑️ Event deleted"),r()}catch(e){"function"==typeof showToast&&showToast("Error deleting event")}}}();// © 2024-2026 603BTC LLC. All rights reserved.
+// =============================================
+// ₿ Bitcoin Network Dashboard — Real-Time Metrics
+// Sources: mempool.space, CoinGecko, alternative.me
+// =============================================
+
+(function() {
+'use strict';
+
+// ---- Cache & State ----
+var DASH_CACHE_KEY = 'btc_dashboard_cache';
+var DASH_CACHE_TTL = 120000; // 2 min
+var _dashData = null;
+var _dashLoading = false;
+var _dashInterval = null;
+
+// ---- Number Formatting ----
+function fmtNum(n, decimals) {
+    if (n === null || n === undefined) return '—';
+    if (typeof decimals === 'number') return Number(n).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return Number(n).toLocaleString();
+}
+function fmtCompact(n) {
+    if (n === null || n === undefined) return '—';
+    if (n >= 1e18) return (n / 1e18).toFixed(2) + ' EH/s';
+    if (n >= 1e15) return (n / 1e15).toFixed(2) + ' PH/s';
+    if (n >= 1e12) return (n / 1e12).toFixed(2) + ' TH/s';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' GH/s';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + ' M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return fmtNum(n);
+}
+function fmtT(n) {
+    if (n === null || n === undefined) return '—';
+    if (n >= 1e12) return (n / 1e12).toFixed(2) + ' T';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' B';
+    return fmtNum(n);
+}
+function fmtSatsPerDollar(price) {
+    if (!price) return '—';
+    return fmtNum(Math.round(100000000 / price));
+}
+function fmtSupply(n) {
+    if (!n) return '—';
+    return (n / 1e6).toFixed(2) + 'M / 21M';
+}
+function fmtPctMined(n) {
+    if (!n) return '—';
+    return ((n / 21000000) * 100).toFixed(2) + '%';
+}
+
+// ---- Fetch All Data ----
+async function fetchDashboardData() {
+    if (_dashLoading) return _dashData;
+    _dashLoading = true;
+
+    // Check cache
+    try {
+        var cached = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
+        if (cached && Date.now() - cached.ts < DASH_CACHE_TTL) {
+            _dashData = cached.data;
+            _dashLoading = false;
+            return _dashData;
+        }
+    } catch(e) {}
+
+    var data = _dashData || {};
+
+    // Parallel fetch from multiple APIs
+    var promises = [];
+
+    // 1. mempool.space — block height, fees, hashrate, difficulty, mempool
+    promises.push(
+        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => { data.blockHeight = parseInt(h); }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/v1/fees/recommended').then(r => r.json()).then(f => {
+            data.feeFast = f.fastestFee;
+            data.feeHalf = f.halfHourFee;
+            data.feeHour = f.hourFee;
+            data.feeEcon = f.economyFee;
+            data.feeMin = f.minimumFee;
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/v1/mining/hashrate/1d').then(r => r.json()).then(d => {
+            if (d.currentHashrate) data.hashrate = d.currentHashrate;
+            if (d.currentDifficulty) data.difficulty = d.currentDifficulty;
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/v1/difficulty-adjustment').then(r => r.json()).then(d => {
+            data.diffChange = d.difficultyChange;
+            data.diffEstDate = d.estimatedRetargetDate;
+            data.diffRemaining = d.remainingBlocks;
+            data.diffProgress = d.progressPercent;
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/mempool').then(r => r.json()).then(m => {
+            data.mempoolTxs = m.count;
+            data.mempoolSize = m.vsize; // vbytes
+        }).catch(() => {})
+    );
+
+    // 2. CoinGecko — price, market cap, volume, supply, 24h change
+    promises.push(
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true').then(r => r.json()).then(d => {
+            if (d.bitcoin) {
+                data.price = d.bitcoin.usd;
+                data.change24h = d.bitcoin.usd_24h_change;
+                data.volume24h = d.bitcoin.usd_24h_vol;
+                data.marketCap = d.bitcoin.usd_market_cap;
+            }
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false').then(r => r.json()).then(d => {
+            if (d.market_data) {
+                data.supply = d.market_data.circulating_supply;
+                data.ath = d.market_data.ath ? d.market_data.ath.usd : null;
+                data.athDate = d.market_data.ath_date ? d.market_data.ath_date.usd : null;
+                data.athChange = d.market_data.ath_change_percentage ? d.market_data.ath_change_percentage.usd : null;
+                data.high24h = d.market_data.high_24h ? d.market_data.high_24h.usd : null;
+                data.low24h = d.market_data.low_24h ? d.market_data.low_24h.usd : null;
+            }
+        }).catch(() => {})
+    );
+
+    // 3. Fear & Greed Index
+    promises.push(
+        fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => {
+            if (d.data && d.data[0]) {
+                data.fearGreed = parseInt(d.data[0].value);
+                data.fearGreedLabel = d.data[0].value_classification;
+            }
+        }).catch(() => {})
+    );
+
+    await Promise.all(promises);
+
+    // Derived metrics
+    if (data.price) {
+        data.satsPerDollar = Math.round(100000000 / data.price);
+        data.moscowTime = Math.round(100000000 / data.price); // sats per dollar
+    }
+    if (data.blockHeight) {
+        data.halving = 210000 - (data.blockHeight % 210000);
+        var halvingEpoch = Math.floor(data.blockHeight / 210000);
+        data.subsidy = (50 / Math.pow(2, halvingEpoch)).toFixed(4);
+    }
+
+    data.ts = Date.now();
+    _dashData = data;
+
+    // Cache
+    try { localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
+    _dashLoading = false;
+    return data;
+}
+
+// ---- Fear/Greed Color ----
+function fgColor(val) {
+    if (val <= 25) return '#ef4444'; // Extreme Fear
+    if (val <= 45) return '#f97316'; // Fear
+    if (val <= 55) return '#eab308'; // Neutral
+    if (val <= 75) return '#84cc16'; // Greed
+    return '#22c55e'; // Extreme Greed
+}
+
+// ---- Render Dashboard Overlay ----
+function renderDashboard(data) {
+    var d = data || {};
+    var changeColor = (d.change24h || 0) >= 0 ? '#22c55e' : '#ef4444';
+    var changeArrow = (d.change24h || 0) >= 0 ? '▲' : '▼';
+    var diffChangeColor = (d.diffChange || 0) >= 0 ? '#22c55e' : '#ef4444';
+    var nextRetarget = d.diffEstDate ? new Date(d.diffEstDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+    var html = '';
+    
+    // Header
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
+    html += '<div><h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0;letter-spacing:-0.5px;">₿ Bitcoin Network</h2>';
+    html += '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Live metrics · Updates every 2 min</div></div>';
+    html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
+    html += '</div>';
+
+    // Price hero
+    html += '<div style="text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px;">';
+    html += '<div style="font-size:2.2rem;font-weight:900;color:var(--heading);letter-spacing:-1px;">$' + fmtNum(d.price, 0) + '</div>';
+    html += '<div style="font-size:1rem;color:' + changeColor + ';font-weight:700;margin-top:4px;">' + changeArrow + ' ' + (d.change24h || 0).toFixed(2) + '% (24h)</div>';
+    html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
+    html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
+    html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
+    html += '</div>';
+    html += '</div>';
+
+    // Grid
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+
+    // Sats per Dollar
+    html += metricCard('⚡', 'Sats per Dollar', fmtNum(d.satsPerDollar), 'Moscow Time');
+    // Block Height
+    html += metricCard('⛓️', 'Block Height', fmtNum(d.blockHeight), '');
+    // Current Block Subsidy
+    html += metricCard('🪙', 'Block Subsidy', d.subsidy + ' BTC', fmtNum(d.halving) + ' blocks to halving');
+    // Hashrate
+    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), '');
+    // Difficulty
+    html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '');
+    // Next Difficulty Adj
+    html += metricCard('🔄', 'Next Adjustment', (d.diffChange >= 0 ? '+' : '') + (d.diffChange || 0).toFixed(2) + '%', nextRetarget + ' · ' + fmtNum(d.diffRemaining) + ' blocks');
+
+    // Fees
+    html += metricCard('💸', 'Fast Fee', (d.feeFast || '—') + ' sat/vB', 'Half-hour: ' + (d.feeHalf || '—') + ' · Economy: ' + (d.feeEcon || '—'));
+    // Mempool
+    html += metricCard('📋', 'Mempool', fmtNum(d.mempoolTxs) + ' txs', d.mempoolSize ? (d.mempoolSize / 1e6).toFixed(1) + ' MvB' : '');
+
+    // Supply
+    html += metricCard('💰', 'Circulating Supply', fmtSupply(d.supply), fmtPctMined(d.supply) + ' mined');
+    // Market Cap
+    html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), '');
+    // 24h Volume
+    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), '');
+
+    // Fear & Greed
+    var fgVal = d.fearGreed || 0;
+    var fgLabel = d.fearGreedLabel || '—';
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;grid-column:1/-1;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div><div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">😱 Fear & Greed Index</div>';
+    html += '<div style="font-size:1.3rem;font-weight:900;color:' + fgColor(fgVal) + ';margin-top:4px;">' + fgVal + ' — ' + fgLabel + '</div></div>';
+    html += '<div style="position:relative;width:80px;height:80px;">';
+    html += '<svg viewBox="0 0 36 36" style="width:80px;height:80px;transform:rotate(-90deg);">';
+    html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" stroke-width="3"></circle>';
+    html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="' + fgColor(fgVal) + '" stroke-width="3" stroke-dasharray="' + (fgVal * 0.9742) + ' 100" stroke-linecap="round"></circle>';
+    html += '</svg>';
+    html += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:900;color:' + fgColor(fgVal) + ';">' + fgVal + '</div>';
+    html += '</div></div></div>';
+
+    // ATH
+    if (d.ath) {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;grid-column:1/-1;display:flex;align-items:center;gap:12px;">';
+        html += '<span style="font-size:1.5rem;">🏔️</span>';
+        html += '<div><div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">All-Time High</div>';
+        html += '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">$' + fmtNum(d.ath, 0) + '</div></div>';
+        html += '<div style="margin-left:auto;text-align:right;"><div style="color:#ef4444;font-size:0.85rem;font-weight:700;">' + (d.athChange || 0).toFixed(1) + '%</div>';
+        if (d.athDate) html += '<div style="color:var(--text-faint);font-size:0.65rem;">' + new Date(d.athDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>';
+        html += '</div></div>';
+    }
+
+    html += '</div>'; // end grid
+
+    // Sources
+    html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:0.6rem;color:var(--text-faint);line-height:1.6;">';
+    html += '<strong>Data Sources:</strong> ';
+    html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool) · ';
+    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (price, market cap, supply, volume) · ';
+    html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index)';
+    html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
+    html += '</div>';
+
+    return html;
+}
+
+function metricCard(emoji, label, value, sub) {
+    return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;">' +
+        '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + emoji + ' ' + label + '</div>' +
+        '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-top:4px;letter-spacing:-0.3px;">' + (value || '—') + '</div>' +
+        (sub ? '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">' + sub + '</div>' : '') +
+    '</div>';
+}
+
+// ---- Dashboard Button (injected next to logo) ----
+window.injectDashboardButton = function() {
+    if (document.getElementById('dashBtn')) return;
+    // Find the logo containers
+    var targets = document.querySelectorAll('.channel-logos, .home-logos');
+    targets.forEach(function(container) {
+        if (container.querySelector('#dashBtn')) return;
+        var btn = document.createElement('span');
+        btn.id = 'dashBtn';
+        btn.onclick = function() { toggleDashboard(); };
+        btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:50%;background:rgba(247,147,26,0.1);border:2px solid rgba(247,147,26,0.3);cursor:pointer;font-size:1.1rem;transition:0.2s;flex-shrink:0;';
+        btn.innerHTML = '📊';
+        btn.title = 'Bitcoin Network Metrics';
+        btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.2)'; };
+        btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.3)'; this.style.background = 'rgba(247,147,26,0.1)'; };
+        container.appendChild(btn);
+    });
+};
+
+// ---- Home page button (always visible) ----
+window.injectHomeDashboardButton = function() {
+    var home = document.getElementById('home');
+    if (!home || document.getElementById('homeDashBtn')) return;
+    var statsPanel = document.getElementById('appStatsPanel');
+    if (!statsPanel) return;
+    var btn = document.createElement('button');
+    btn.id = 'homeDashBtn';
+    btn.onclick = function() { toggleDashboard(); };
+    btn.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 auto 16px;padding:10px 20px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;';
+    btn.innerHTML = '📊 Bitcoin Network Metrics';
+    btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.12)'; };
+    btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.2)'; this.style.background = 'rgba(247,147,26,0.06)'; };
+    statsPanel.parentNode.insertBefore(btn, statsPanel.nextSibling);
+};
+
+// ---- Toggle Overlay ----
+window.toggleDashboard = async function() {
+    var existing = document.getElementById('btcDashOverlay');
+    if (existing) { existing.remove(); clearInterval(_dashInterval); _dashInterval = null; return; }
+
+    // Create overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'btcDashOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) { if (e.target === overlay) { closeDashboard(); } };
+
+    var card = document.createElement('div');
+    card.id = 'btcDashCard';
+    card.style.cssText = 'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:500px;width:100%;margin:40px auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s ease-out;';
+    card.innerHTML = '<div style="text-align:center;padding:40px;"><div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="color:var(--text-muted);font-size:0.85rem;">Loading Bitcoin metrics...</div></div>';
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Fetch and render
+    var data = await fetchDashboardData();
+    card.innerHTML = renderDashboard(data);
+
+    // Auto-refresh every 2 min
+    _dashInterval = setInterval(async function() {
+        if (!document.getElementById('btcDashOverlay')) { clearInterval(_dashInterval); return; }
+        localStorage.removeItem(DASH_CACHE_KEY); // force fresh
+        var fresh = await fetchDashboardData();
+        var c = document.getElementById('btcDashCard');
+        if (c) c.innerHTML = renderDashboard(fresh);
+    }, DASH_CACHE_TTL);
+};
+
+window.closeDashboard = function() {
+    var overlay = document.getElementById('btcDashOverlay');
+    if (overlay) overlay.remove();
+    if (_dashInterval) { clearInterval(_dashInterval); _dashInterval = null; }
+};
+
+// ---- Auto-inject on page load ----
+function init() {
+    injectHomeDashboardButton();
+    injectDashboardButton();
+    // Re-inject on navigation
+    var _origGo = window.go;
+    if (typeof _origGo === 'function' && !window._dashGoHooked) {
+        window._dashGoHooked = true;
+        var origGo = window.go;
+        // Use MutationObserver instead to avoid conflicts
+    }
+    // Watch for channel-logos appearing
+    new MutationObserver(function() { injectDashboardButton(); }).observe(document.getElementById('main') || document.body, { childList: true, subtree: true });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 2000); });
+} else {
+    setTimeout(init, 2000);
+}
+
+})();
+(function() {
     var _lastTickerPrice = null;
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };

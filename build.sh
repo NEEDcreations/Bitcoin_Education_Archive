@@ -2,7 +2,7 @@
 # Build script — concatenate source files into bundle.js, then minify
 # Source files are preserved as .src backups
 
-SOURCES="channel_index.js utils.js ranking.js badges.js tickets.js engagement.js nacho-live.js nacho.js nacho-qa.js nacho-engage.js nacho-closet.js quests.js scholar.js forum.js marketplace.js messaging.js beats.js features.js mobile-ux.js irl-sync.js app.js ux-patches.js"
+SOURCES="channel_index.js utils.js ranking.js badges.js tickets.js engagement.js nacho-live.js nacho.js nacho-qa.js nacho-engage.js nacho-closet.js quests.js scholar.js forum.js marketplace.js messaging.js beats.js features.js mobile-ux.js irl-sync.js bitcoin-dashboard.js app.js ux-patches.js"
 
 echo "📦 Building bundle from source files..."
 cat $SOURCES > bundle.src.js

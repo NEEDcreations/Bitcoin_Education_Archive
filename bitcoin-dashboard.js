@@ -1,0 +1,368 @@
+// © 2024-2026 603BTC LLC. All rights reserved.
+// =============================================
+// ₿ Bitcoin Network Dashboard — Real-Time Metrics
+// Sources: mempool.space, CoinGecko, alternative.me
+// =============================================
+
+(function() {
+'use strict';
+
+// ---- Cache & State ----
+var DASH_CACHE_KEY = 'btc_dashboard_cache';
+var DASH_CACHE_TTL = 120000; // 2 min
+var _dashData = null;
+var _dashLoading = false;
+var _dashInterval = null;
+
+// ---- Number Formatting ----
+function fmtNum(n, decimals) {
+    if (n === null || n === undefined) return '—';
+    if (typeof decimals === 'number') return Number(n).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return Number(n).toLocaleString();
+}
+function fmtCompact(n) {
+    if (n === null || n === undefined) return '—';
+    if (n >= 1e18) return (n / 1e18).toFixed(2) + ' EH/s';
+    if (n >= 1e15) return (n / 1e15).toFixed(2) + ' PH/s';
+    if (n >= 1e12) return (n / 1e12).toFixed(2) + ' TH/s';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' GH/s';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + ' M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return fmtNum(n);
+}
+function fmtT(n) {
+    if (n === null || n === undefined) return '—';
+    if (n >= 1e12) return (n / 1e12).toFixed(2) + ' T';
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' B';
+    return fmtNum(n);
+}
+function fmtSatsPerDollar(price) {
+    if (!price) return '—';
+    return fmtNum(Math.round(100000000 / price));
+}
+function fmtSupply(n) {
+    if (!n) return '—';
+    return (n / 1e6).toFixed(2) + 'M / 21M';
+}
+function fmtPctMined(n) {
+    if (!n) return '—';
+    return ((n / 21000000) * 100).toFixed(2) + '%';
+}
+
+// ---- Fetch All Data ----
+async function fetchDashboardData() {
+    if (_dashLoading) return _dashData;
+    _dashLoading = true;
+
+    // Check cache
+    try {
+        var cached = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
+        if (cached && Date.now() - cached.ts < DASH_CACHE_TTL) {
+            _dashData = cached.data;
+            _dashLoading = false;
+            return _dashData;
+        }
+    } catch(e) {}
+
+    var data = _dashData || {};
+
+    // Parallel fetch from multiple APIs
+    var promises = [];
+
+    // 1. mempool.space — block height, fees, hashrate, difficulty, mempool
+    promises.push(
+        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => { data.blockHeight = parseInt(h); }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/v1/fees/recommended').then(r => r.json()).then(f => {
+            data.feeFast = f.fastestFee;
+            data.feeHalf = f.halfHourFee;
+            data.feeHour = f.hourFee;
+            data.feeEcon = f.economyFee;
+            data.feeMin = f.minimumFee;
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/v1/mining/hashrate/1d').then(r => r.json()).then(d => {
+            if (d.currentHashrate) data.hashrate = d.currentHashrate;
+            if (d.currentDifficulty) data.difficulty = d.currentDifficulty;
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/v1/difficulty-adjustment').then(r => r.json()).then(d => {
+            data.diffChange = d.difficultyChange;
+            data.diffEstDate = d.estimatedRetargetDate;
+            data.diffRemaining = d.remainingBlocks;
+            data.diffProgress = d.progressPercent;
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://mempool.space/api/mempool').then(r => r.json()).then(m => {
+            data.mempoolTxs = m.count;
+            data.mempoolSize = m.vsize; // vbytes
+        }).catch(() => {})
+    );
+
+    // 2. CoinGecko — price, market cap, volume, supply, 24h change
+    promises.push(
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true').then(r => r.json()).then(d => {
+            if (d.bitcoin) {
+                data.price = d.bitcoin.usd;
+                data.change24h = d.bitcoin.usd_24h_change;
+                data.volume24h = d.bitcoin.usd_24h_vol;
+                data.marketCap = d.bitcoin.usd_market_cap;
+            }
+        }).catch(() => {})
+    );
+    promises.push(
+        fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false').then(r => r.json()).then(d => {
+            if (d.market_data) {
+                data.supply = d.market_data.circulating_supply;
+                data.ath = d.market_data.ath ? d.market_data.ath.usd : null;
+                data.athDate = d.market_data.ath_date ? d.market_data.ath_date.usd : null;
+                data.athChange = d.market_data.ath_change_percentage ? d.market_data.ath_change_percentage.usd : null;
+                data.high24h = d.market_data.high_24h ? d.market_data.high_24h.usd : null;
+                data.low24h = d.market_data.low_24h ? d.market_data.low_24h.usd : null;
+            }
+        }).catch(() => {})
+    );
+
+    // 3. Fear & Greed Index
+    promises.push(
+        fetch('https://api.alternative.me/fng/?limit=1').then(r => r.json()).then(d => {
+            if (d.data && d.data[0]) {
+                data.fearGreed = parseInt(d.data[0].value);
+                data.fearGreedLabel = d.data[0].value_classification;
+            }
+        }).catch(() => {})
+    );
+
+    await Promise.all(promises);
+
+    // Derived metrics
+    if (data.price) {
+        data.satsPerDollar = Math.round(100000000 / data.price);
+        data.moscowTime = Math.round(100000000 / data.price); // sats per dollar
+    }
+    if (data.blockHeight) {
+        data.halving = 210000 - (data.blockHeight % 210000);
+        var halvingEpoch = Math.floor(data.blockHeight / 210000);
+        data.subsidy = (50 / Math.pow(2, halvingEpoch)).toFixed(4);
+    }
+
+    data.ts = Date.now();
+    _dashData = data;
+
+    // Cache
+    try { localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
+    _dashLoading = false;
+    return data;
+}
+
+// ---- Fear/Greed Color ----
+function fgColor(val) {
+    if (val <= 25) return '#ef4444'; // Extreme Fear
+    if (val <= 45) return '#f97316'; // Fear
+    if (val <= 55) return '#eab308'; // Neutral
+    if (val <= 75) return '#84cc16'; // Greed
+    return '#22c55e'; // Extreme Greed
+}
+
+// ---- Render Dashboard Overlay ----
+function renderDashboard(data) {
+    var d = data || {};
+    var changeColor = (d.change24h || 0) >= 0 ? '#22c55e' : '#ef4444';
+    var changeArrow = (d.change24h || 0) >= 0 ? '▲' : '▼';
+    var diffChangeColor = (d.diffChange || 0) >= 0 ? '#22c55e' : '#ef4444';
+    var nextRetarget = d.diffEstDate ? new Date(d.diffEstDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+    var html = '';
+    
+    // Header
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
+    html += '<div><h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0;letter-spacing:-0.5px;">₿ Bitcoin Network</h2>';
+    html += '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Live metrics · Updates every 2 min</div></div>';
+    html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
+    html += '</div>';
+
+    // Price hero
+    html += '<div style="text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px;">';
+    html += '<div style="font-size:2.2rem;font-weight:900;color:var(--heading);letter-spacing:-1px;">$' + fmtNum(d.price, 0) + '</div>';
+    html += '<div style="font-size:1rem;color:' + changeColor + ';font-weight:700;margin-top:4px;">' + changeArrow + ' ' + (d.change24h || 0).toFixed(2) + '% (24h)</div>';
+    html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
+    html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
+    html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
+    html += '</div>';
+    html += '</div>';
+
+    // Grid
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+
+    // Sats per Dollar
+    html += metricCard('⚡', 'Sats per Dollar', fmtNum(d.satsPerDollar), 'Moscow Time');
+    // Block Height
+    html += metricCard('⛓️', 'Block Height', fmtNum(d.blockHeight), '');
+    // Current Block Subsidy
+    html += metricCard('🪙', 'Block Subsidy', d.subsidy + ' BTC', fmtNum(d.halving) + ' blocks to halving');
+    // Hashrate
+    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), '');
+    // Difficulty
+    html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '');
+    // Next Difficulty Adj
+    html += metricCard('🔄', 'Next Adjustment', (d.diffChange >= 0 ? '+' : '') + (d.diffChange || 0).toFixed(2) + '%', nextRetarget + ' · ' + fmtNum(d.diffRemaining) + ' blocks');
+
+    // Fees
+    html += metricCard('💸', 'Fast Fee', (d.feeFast || '—') + ' sat/vB', 'Half-hour: ' + (d.feeHalf || '—') + ' · Economy: ' + (d.feeEcon || '—'));
+    // Mempool
+    html += metricCard('📋', 'Mempool', fmtNum(d.mempoolTxs) + ' txs', d.mempoolSize ? (d.mempoolSize / 1e6).toFixed(1) + ' MvB' : '');
+
+    // Supply
+    html += metricCard('💰', 'Circulating Supply', fmtSupply(d.supply), fmtPctMined(d.supply) + ' mined');
+    // Market Cap
+    html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), '');
+    // 24h Volume
+    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), '');
+
+    // Fear & Greed
+    var fgVal = d.fearGreed || 0;
+    var fgLabel = d.fearGreedLabel || '—';
+    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;grid-column:1/-1;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div><div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">😱 Fear & Greed Index</div>';
+    html += '<div style="font-size:1.3rem;font-weight:900;color:' + fgColor(fgVal) + ';margin-top:4px;">' + fgVal + ' — ' + fgLabel + '</div></div>';
+    html += '<div style="position:relative;width:80px;height:80px;">';
+    html += '<svg viewBox="0 0 36 36" style="width:80px;height:80px;transform:rotate(-90deg);">';
+    html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" stroke-width="3"></circle>';
+    html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="' + fgColor(fgVal) + '" stroke-width="3" stroke-dasharray="' + (fgVal * 0.9742) + ' 100" stroke-linecap="round"></circle>';
+    html += '</svg>';
+    html += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:900;color:' + fgColor(fgVal) + ';">' + fgVal + '</div>';
+    html += '</div></div></div>';
+
+    // ATH
+    if (d.ath) {
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;grid-column:1/-1;display:flex;align-items:center;gap:12px;">';
+        html += '<span style="font-size:1.5rem;">🏔️</span>';
+        html += '<div><div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">All-Time High</div>';
+        html += '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">$' + fmtNum(d.ath, 0) + '</div></div>';
+        html += '<div style="margin-left:auto;text-align:right;"><div style="color:#ef4444;font-size:0.85rem;font-weight:700;">' + (d.athChange || 0).toFixed(1) + '%</div>';
+        if (d.athDate) html += '<div style="color:var(--text-faint);font-size:0.65rem;">' + new Date(d.athDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + '</div>';
+        html += '</div></div>';
+    }
+
+    html += '</div>'; // end grid
+
+    // Sources
+    html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:0.6rem;color:var(--text-faint);line-height:1.6;">';
+    html += '<strong>Data Sources:</strong> ';
+    html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool) · ';
+    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (price, market cap, supply, volume) · ';
+    html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index)';
+    html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
+    html += '</div>';
+
+    return html;
+}
+
+function metricCard(emoji, label, value, sub) {
+    return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;">' +
+        '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + emoji + ' ' + label + '</div>' +
+        '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-top:4px;letter-spacing:-0.3px;">' + (value || '—') + '</div>' +
+        (sub ? '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">' + sub + '</div>' : '') +
+    '</div>';
+}
+
+// ---- Dashboard Button (injected next to logo) ----
+window.injectDashboardButton = function() {
+    if (document.getElementById('dashBtn')) return;
+    // Find the logo containers
+    var targets = document.querySelectorAll('.channel-logos, .home-logos');
+    targets.forEach(function(container) {
+        if (container.querySelector('#dashBtn')) return;
+        var btn = document.createElement('span');
+        btn.id = 'dashBtn';
+        btn.onclick = function() { toggleDashboard(); };
+        btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:50%;background:rgba(247,147,26,0.1);border:2px solid rgba(247,147,26,0.3);cursor:pointer;font-size:1.1rem;transition:0.2s;flex-shrink:0;';
+        btn.innerHTML = '📊';
+        btn.title = 'Bitcoin Network Metrics';
+        btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.2)'; };
+        btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.3)'; this.style.background = 'rgba(247,147,26,0.1)'; };
+        container.appendChild(btn);
+    });
+};
+
+// ---- Home page button (always visible) ----
+window.injectHomeDashboardButton = function() {
+    var home = document.getElementById('home');
+    if (!home || document.getElementById('homeDashBtn')) return;
+    var statsPanel = document.getElementById('appStatsPanel');
+    if (!statsPanel) return;
+    var btn = document.createElement('button');
+    btn.id = 'homeDashBtn';
+    btn.onclick = function() { toggleDashboard(); };
+    btn.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 auto 16px;padding:10px 20px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;';
+    btn.innerHTML = '📊 Bitcoin Network Metrics';
+    btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.12)'; };
+    btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.2)'; this.style.background = 'rgba(247,147,26,0.06)'; };
+    statsPanel.parentNode.insertBefore(btn, statsPanel.nextSibling);
+};
+
+// ---- Toggle Overlay ----
+window.toggleDashboard = async function() {
+    var existing = document.getElementById('btcDashOverlay');
+    if (existing) { existing.remove(); clearInterval(_dashInterval); _dashInterval = null; return; }
+
+    // Create overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'btcDashOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) { if (e.target === overlay) { closeDashboard(); } };
+
+    var card = document.createElement('div');
+    card.id = 'btcDashCard';
+    card.style.cssText = 'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:500px;width:100%;margin:40px auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s ease-out;';
+    card.innerHTML = '<div style="text-align:center;padding:40px;"><div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="color:var(--text-muted);font-size:0.85rem;">Loading Bitcoin metrics...</div></div>';
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Fetch and render
+    var data = await fetchDashboardData();
+    card.innerHTML = renderDashboard(data);
+
+    // Auto-refresh every 2 min
+    _dashInterval = setInterval(async function() {
+        if (!document.getElementById('btcDashOverlay')) { clearInterval(_dashInterval); return; }
+        localStorage.removeItem(DASH_CACHE_KEY); // force fresh
+        var fresh = await fetchDashboardData();
+        var c = document.getElementById('btcDashCard');
+        if (c) c.innerHTML = renderDashboard(fresh);
+    }, DASH_CACHE_TTL);
+};
+
+window.closeDashboard = function() {
+    var overlay = document.getElementById('btcDashOverlay');
+    if (overlay) overlay.remove();
+    if (_dashInterval) { clearInterval(_dashInterval); _dashInterval = null; }
+};
+
+// ---- Auto-inject on page load ----
+function init() {
+    injectHomeDashboardButton();
+    injectDashboardButton();
+    // Re-inject on navigation
+    var _origGo = window.go;
+    if (typeof _origGo === 'function' && !window._dashGoHooked) {
+        window._dashGoHooked = true;
+        var origGo = window.go;
+        // Use MutationObserver instead to avoid conflicts
+    }
+    // Watch for channel-logos appearing
+    new MutationObserver(function() { injectDashboardButton(); }).observe(document.getElementById('main') || document.body, { childList: true, subtree: true });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 2000); });
+} else {
+    setTimeout(init, 2000);
+}
+
+})();
