@@ -4138,6 +4138,14 @@ function downloadCertificate(type) {
     ctx.fillText(dateStr, 375, 640);
     ctx.fillText('₿ Verification #'+Math.random().toString(36).substr(2, 9).toUpperCase(), 825, 640);
 
+    // Signature
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'italic 20px Georgia, serif';
+    ctx.fillText('Signed,', 825, 720);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 22px Georgia, serif';
+    ctx.fillText('603BTC LLC', 825, 750);
+
     // Tiny watermark
     ctx.font = '10px Arial';
     ctx.fillStyle = '#334155';
