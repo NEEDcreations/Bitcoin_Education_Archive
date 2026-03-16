@@ -841,13 +841,34 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Strategy: Try popup FIRST on all platforms (including mobile).
-    // signInWithRedirect is broken on many mobile browsers (Safari ITP, storage partitioning).
-    // Popup works on Chrome Android, Samsung, Firefox, and most modern mobile browsers.
-    // Only use redirect as a last resort for true in-app browsers that block popups entirely.
+    // Strategy: Use redirect on mobile (popups are unreliable in PWAs and many mobile browsers).
+    // Use popup on desktop where it's more seamless.
+    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
+    // Mobile or PWA → use redirect flow directly
+    if (isMobileDevice || isStandalone) {
+        try {
+            showToast('⏳ Opening sign-in...');
+            const anonUser = auth.currentUser;
+            if (anonUser && anonUser.isAnonymous) {
+                localStorage.setItem('btc_anon_uid', anonUser.uid);
+                try {
+                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+                    if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+                } catch(e2) {}
+            }
+            await auth.signInWithRedirect(provider);
+            return;
+        } catch(e) {
+            console.error('Redirect sign-in error:', e);
+            showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
+            return;
+        }
+    }
+
+    // Desktop → try popup first
     try {
-        // ALL PLATFORMS: Try popup first
         const { anonUid, anonData } = await saveAnonData();
 
         const result = await auth.signInWithPopup(provider);
