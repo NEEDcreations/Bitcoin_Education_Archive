@@ -24167,7 +24167,23 @@ async function fetchDashboardData() {
         }).catch(() => {})
     );
 
-    await Promise.all(promises);
+    // Race: all fetches vs 8-second timeout
+    await Promise.race([
+        Promise.all(promises),
+        new Promise(resolve => setTimeout(resolve, 8000))
+    ]);
+
+    // If no price from CoinGecko, try cached or WS price
+    if (!data.price && _lastWsPrice) data.price = _lastWsPrice;
+    if (!data.price) {
+        try {
+            var _fc = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
+            if (_fc && _fc.data && _fc.data.price) {
+                // Use stale cache rather than showing nothing
+                Object.keys(_fc.data).forEach(function(k) { if (!data[k]) data[k] = _fc.data[k]; });
+            }
+        } catch(e) {}
+    }
 
     // Derived metrics
     if (data.price) {
