@@ -16,12 +16,11 @@ var _wsOpenPrice = null; // 24h open for % calc
 function startPriceWs() {
     if (_priceWs && _priceWs.readyState <= 1) return; // already open/connecting
     try {
-        // Try Binance first, then Binance US as fallback
-        var wsUrl = 'wss://stream.binance.com:9443/ws/btcusdt@ticker';
+        // Use CoinCap WebSocket — free, no CORS issues, no auth
+        var wsUrl = 'wss://ws.coincap.io/prices?assets=bitcoin';
         _priceWs = new WebSocket(wsUrl);
         _priceWs.onopen = function() { 
-            console.log('[Dashboard] Price WebSocket connected'); 
-            // If no data received within 10s, WS might be silently dead — fallback
+            console.log('[Dashboard] Price WebSocket connected (CoinCap)'); 
             window._wsDataTimer = setTimeout(function() {
                 if (!_lastWsPrice) { console.warn('[Dashboard] WS connected but no data — falling back'); startPricePolling(); }
             }, 10000);
@@ -30,8 +29,12 @@ function startPriceWs() {
             try {
                 if (window._wsDataTimer) { clearTimeout(window._wsDataTimer); window._wsDataTimer = null; }
                 var d = JSON.parse(evt.data);
-                _lastWsPrice = parseFloat(d.c); // current price
-                _lastWsChange = parseFloat(d.P); // 24h change %
+                if (!d.bitcoin) return;
+                var newPrice = parseFloat(d.bitcoin);
+                // Calculate change from cached 24h data or previous price
+                if (!_wsOpenPrice && _lastWsPrice) _wsOpenPrice = _lastWsPrice;
+                _lastWsPrice = newPrice;
+                if (_wsOpenPrice) _lastWsChange = ((_lastWsPrice - _wsOpenPrice) / _wsOpenPrice) * 100;
                 _wsOpenPrice = parseFloat(d.o); // 24h open
                 // Update dashboard overlay if open
                 var priceEl = document.getElementById('dashLivePrice');
@@ -62,14 +65,14 @@ function startPriceWs() {
 var _pricePollTimer = null;
 function startPricePolling() {
     if (_pricePollTimer) return; // already polling
-    console.log('[Dashboard] Starting price polling fallback');
+    console.log('[Dashboard] Starting price polling fallback (CoinGecko)');
     function poll() {
-        fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                if (d && d.lastPrice) {
-                    _lastWsPrice = parseFloat(d.lastPrice);
-                    _lastWsChange = parseFloat(d.priceChangePercent);
+                if (d && d.bitcoin) {
+                    _lastWsPrice = d.bitcoin.usd;
+                    _lastWsChange = d.bitcoin.usd_24h_change || 0;
                     // Update dashboard
                     var priceEl = document.getElementById('dashLivePrice');
                     if (priceEl) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
@@ -91,7 +94,7 @@ function startPricePolling() {
             }).catch(function() {});
     }
     poll();
-    _pricePollTimer = setInterval(poll, 5000);
+    _pricePollTimer = setInterval(poll, 30000); // CoinGecko rate limit: ~30 calls/min
 }
 
 function stopPriceWs() {
@@ -202,6 +205,11 @@ async function fetchDashboardData() {
                 data.change24h = d.bitcoin.usd_24h_change;
                 data.volume24h = d.bitcoin.usd_24h_vol;
                 data.marketCap = d.bitcoin.usd_market_cap;
+                // Seed WS open price for % calc
+                if (!_wsOpenPrice && data.price && data.change24h) {
+                    _wsOpenPrice = data.price / (1 + data.change24h / 100);
+                    _lastWsChange = data.change24h;
+                }
             }
         }).catch(() => {})
     );
