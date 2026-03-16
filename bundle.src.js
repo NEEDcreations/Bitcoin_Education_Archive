@@ -23638,20 +23638,50 @@ window.checkDailyChallenge = function() {
     if (challenge.check()) {
         localStorage.setItem('btc_challenge_done', today);
         if (typeof awardPoints === 'function') awardPoints(15, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +15 pts');
+        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(2, '🎯 Daily challenge!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +15 pts + 🎟️ 2 tickets!');
         haptic('success');
         renderDailyChallenge();
+        // Pulse the card to draw attention
+        var el = document.getElementById('dailyChallengeCard');
+        if (el) {
+            el.style.transition = 'transform 0.3s, box-shadow 0.3s';
+            el.style.transform = 'scale(1.03)';
+            el.style.boxShadow = '0 0 20px rgba(34,197,94,0.4)';
+            setTimeout(function() { el.style.transform = ''; el.style.boxShadow = ''; }, 1500);
+        }
     }
 }
-setInterval(window.checkDailyChallenge, 5000);
+setInterval(window.checkDailyChallenge, 3000);
 
-// Track channel visits for challenge
+// Track channel visits for challenge — use a MutationObserver as backup
+// so wrapping order doesn't matter
+(function() {
+    var _lastTrackedId = '';
+    window._trackChallengeNav = function(id) {
+        if (!id || id === _lastTrackedId) return;
+        _lastTrackedId = id;
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms') {
+            sessionStorage.setItem('btc_forum_visited', 'true');
+        }
+        if (id !== 'forum' && id !== 'marketplace' && id !== 'bitcoin-beats' && id !== 'irl-sync' && id !== 'dms') {
+            var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
+            sessionStorage.setItem('btc_channels_today', count.toString());
+            var visited = safeJSON('btc_visited_channels', []);
+            if (visited.indexOf(id) === -1) sessionStorage.setItem('btc_new_channel_read', 'true');
+        }
+        // Check challenge immediately after nav
+        setTimeout(function() { if (typeof checkDailyChallenge === 'function') checkDailyChallenge(); }, 500);
+    };
+})();
+
 var _origGoForChallenge = window.go;
 if (_origGoForChallenge) {
     // Wrap to track
     var _realGo = window.go;
     window.go = async function(id) {
         var result = await _realGo.apply(this, arguments);
+        if (typeof window._trackChallengeNav === 'function') window._trackChallengeNav(id);
         if (id && id !== 'forum') {
             var count = parseInt(sessionStorage.getItem('btc_channels_today') || '0') + 1;
             sessionStorage.setItem('btc_channels_today', count);
@@ -23671,6 +23701,12 @@ if (_origNachoUnified) {
         return _origNachoUnified.apply(this, arguments);
     };
 }
+
+// Hashchange fallback — catches navigation even if go() wrapper is overridden
+window.addEventListener('hashchange', function() {
+    var h = location.hash.slice(1);
+    if (h && typeof window._trackChallengeNav === 'function') window._trackChallengeNav(h);
+});
 
 // Quiz + Favorite tracking moved to index.html (inline definitions)
 // Wrappers here can't work because those functions are defined after this file loads
