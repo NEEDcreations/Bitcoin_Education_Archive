@@ -24179,33 +24179,33 @@ function renderDashboard(data) {
     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
 
     // Sats per Dollar
-    html += metricCard('⚡', 'Sats per Dollar', fmtNum(d.satsPerDollar), 'Moscow Time');
+    html += metricCard('⚡', 'Sats per Dollar', fmtNum(d.satsPerDollar), 'Moscow Time', 'How many satoshis (sats) you get for $1 USD. A satoshi is the smallest unit of Bitcoin (0.00000001 BTC). Also called Moscow Time — the number on the clock is how many sats per dollar.');
     // Block Height
-    html += metricCard('⛓️', 'Block Height', fmtNum(d.blockHeight), '');
+    html += metricCard('⛓️', 'Block Height', fmtNum(d.blockHeight), '', 'The total number of blocks mined since Bitcoin\'s Genesis Block on Jan 3, 2009. A new block is added roughly every 10 minutes. This number only goes up — never down.');
     // Current Block Subsidy
-    html += metricCard('🪙', 'Block Subsidy', d.subsidy + ' BTC', fmtNum(d.halving) + ' blocks to halving');
+    html += metricCard('🪙', 'Block Subsidy', d.subsidy + ' BTC', fmtNum(d.halving) + ' blocks to halving', 'The reward miners receive for finding each new block. Started at 50 BTC in 2009 and halves every 210,000 blocks (~4 years). Currently 3.125 BTC per block.');
     // Hashrate
-    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), '');
+    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), '', 'The total computing power securing the Bitcoin network, measured in hashes per second. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
     // Difficulty
-    html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '');
+    html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '', 'How hard it is to mine a new block. Adjusts every 2,016 blocks (~2 weeks) to keep block times at ~10 minutes. If miners join, difficulty goes up. If miners leave, it goes down.');
     // Next Difficulty Adj
-    html += metricCard('🔄', 'Next Adjustment', (d.diffChange >= 0 ? '+' : '') + (d.diffChange || 0).toFixed(2) + '%', nextRetarget + ' · ' + fmtNum(d.diffRemaining) + ' blocks');
+    html += metricCard('🔄', 'Next Adjustment', (d.diffChange >= 0 ? '+' : '') + (d.diffChange || 0).toFixed(2) + '%', nextRetarget + ' · ' + fmtNum(d.diffRemaining) + ' blocks', 'The estimated change in mining difficulty at the next adjustment. Positive means blocks are being found faster than 10 min (more miners joined). Negative means slower (miners left).');
 
     // Fees
-    html += metricCard('💸', 'Fast Fee', (d.feeFast || '—') + ' sat/vB', 'Half-hour: ' + (d.feeHalf || '—') + ' · Economy: ' + (d.feeEcon || '—'));
+    html += metricCard('💸', 'Fast Fee', (d.feeFast || '—') + ' sat/vB', 'Half-hour: ' + (d.feeHalf || '—') + ' · Economy: ' + (d.feeEcon || '—'), 'The recommended transaction fee in satoshis per virtual byte (sat/vB). Fast = next block (~10 min). Half-hour = 1-3 blocks. Economy = lowest priority. Higher fees = faster confirmation.');
     // Mempool
-    html += metricCard('📋', 'Mempool', fmtNum(d.mempoolTxs) + ' txs', d.mempoolSize ? (d.mempoolSize / 1e6).toFixed(1) + ' MvB' : '');
+    html += metricCard('📋', 'Mempool', fmtNum(d.mempoolTxs) + ' txs', d.mempoolSize ? (d.mempoolSize / 1e6).toFixed(1) + ' MvB' : '', 'The waiting room for unconfirmed Bitcoin transactions. Shows how many transactions are waiting to be included in a block and their total size. A full mempool means higher fees.');
 
     // Supply
-    html += metricCard('💰', 'Circulating Supply', fmtSupply(d.supply), fmtPctMined(d.supply) + ' mined');
+    html += metricCard('💰', 'Circulating Supply', fmtSupply(d.supply), fmtPctMined(d.supply) + ' mined', 'How many of the 21 million total Bitcoin have been mined so far. No more than 21 million will ever exist — this is enforced by code and consensus. The last Bitcoin will be mined around the year 2140.');
     // Market Cap
-    html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), '');
+    html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), '', 'Total value of all Bitcoin in circulation (price × circulating supply). Puts Bitcoin\'s size in perspective compared to gold (~$16T), the S&P 500, or global real estate.');
     // 24h Volume
-    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), '');
+    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), '', 'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume often signals strong market interest or significant price moves.');
     // Lightning Network
     var lnBtc = d.lnCapacity ? (d.lnCapacity / 100000000).toFixed(0) : '—';
     var lnUsd = (d.lnCapacity && d.price) ? '$' + fmtT(d.lnCapacity / 100000000 * d.price) : '';
-    html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? ' · ' + lnUsd : ''));
+    html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? ' · ' + lnUsd : ''), 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
 
     // Fear & Greed
     var fgVal = d.fearGreed || 0;
@@ -24247,13 +24247,37 @@ function renderDashboard(data) {
     return html;
 }
 
-function metricCard(emoji, label, value, sub) {
-    return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;">' +
-        '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + emoji + ' ' + label + '</div>' +
+function metricCard(emoji, label, value, sub, tip) {
+    var tipAttr = tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + tip.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"';
+    return '<div' + tipAttr + '>' +
+        '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + emoji + ' ' + label + (tip ? ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span>' : '') + '</div>' +
         '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-top:4px;letter-spacing:-0.3px;">' + (value || '—') + '</div>' +
         (sub ? '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">' + sub + '</div>' : '') +
     '</div>';
 }
+
+// Tooltip display
+window.showDashTip = function(el, text) {
+    // Remove any existing tooltip
+    var existing = document.getElementById('dashTipPopup');
+    if (existing) existing.remove();
+    
+    var tip = document.createElement('div');
+    tip.id = 'dashTipPopup';
+    tip.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 8px);z-index:10;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;max-width:260px;width:max-content;box-shadow:0 8px 24px rgba(0,0,0,0.5);animation:fadeSlideIn 0.2s ease-out;pointer-events:auto;';
+    tip.innerHTML = '<div style="color:var(--text);font-size:0.75rem;line-height:1.5;">' + text + '</div>' +
+        '<div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%) rotate(45deg);width:10px;height:10px;background:var(--bg-side,#1a1a2e);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);"></div>';
+    el.style.position = 'relative';
+    el.appendChild(tip);
+    
+    // Close on click anywhere else
+    setTimeout(function() {
+        document.addEventListener('click', function _closeTip(e) {
+            if (tip.parentNode) tip.remove();
+            document.removeEventListener('click', _closeTip);
+        }, { once: true });
+    }, 50);
+};
 
 // ---- Persistent Dashboard Button (fixed position, visible on ALL pages) ----
 window.injectDashboardButton = function() {
