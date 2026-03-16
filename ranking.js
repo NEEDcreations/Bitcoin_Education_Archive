@@ -1134,19 +1134,23 @@ function updateAuthButton() {
         var name = displayName || 'My Account';
         btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> — Settings';
         btn.onclick = function() { showSettings(); };
+        btn.style.display = 'block';
         btn.style.background = 'none';
         btn.style.border = '2px solid #22c55e';
         btn.style.color = '#22c55e';
         btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
         btn.onmouseout = function() { this.style.background='none'; this.style.color='#22c55e'; };
-    } else {
+    } else if (!firebaseUser || (firebaseUser && firebaseUser.isAnonymous)) {
+        // Only show "Create Account" for truly anonymous/no-auth users
         btn.textContent = 'Create Free Account / Sign In';
+        btn.style.display = 'block';
         btn.style.background = 'var(--accent)';
         btn.style.border = 'none';
         btn.style.color = '#000';
         btn.onmouseover = function() { this.style.transform='scale(1.02)'; };
         btn.onmouseout = function() { this.style.transform='scale(1)'; };
     }
+    // If auth hasn't resolved yet (firebaseUser exists but not anonymous and not identified), keep button hidden
 
     // Also hide guest banner for signed-in users
     var guestBanner = document.getElementById('guestPointsBanner');
