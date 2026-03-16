@@ -779,15 +779,17 @@ function createNacho() {
         /* Bring-back toggle */
         #nacho-toggle {
             position: fixed; bottom: 80px; left: 330px; z-index: 250;
-            width: 36px; height: 36px;
-            background: var(--card-bg, #1a1a2e); border: 1px solid var(--border, #333);
+            width: 52px; height: 52px;
+            background: radial-gradient(circle, #fff 60%, rgba(255,255,255,0.85) 100%);
+            border: 2px solid rgba(247,147,26,0.5);
             border-radius: 50%; display: none; align-items: center; justify-content: center;
-            font-size: 1rem; cursor: pointer; opacity: 0.3; transition: opacity 0.2s;
+            font-size: 1.6rem; cursor: pointer; opacity: 0.9; transition: all 0.3s;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 3px rgba(247,147,26,0.15);
         }
-        #nacho-toggle:hover { opacity: 1; }
+        #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
         @media (max-width: 900px) { #nacho-toggle { bottom: 160px; left: 16px; } }
-        @media (max-width: 480px) { #nacho-toggle { bottom: 150px; left: 12px; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: 150px; left: 12px; width: 48px; height: 48px; font-size: 1.4rem; } }
     `;
     document.head.appendChild(style);
 
