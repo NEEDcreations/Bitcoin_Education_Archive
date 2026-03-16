@@ -1093,3 +1093,233 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     });
     observer.observe(document.body, { childList: true, subtree: true });
 })();
+
+// =============================================
+// Phase 2: Architecture & Engagement Improvements
+// =============================================
+
+// ---- Image Blur-Up Loading ----
+// Adds a blurred placeholder while images load
+(function() {
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(node) {
+                if (node.nodeType !== 1) return;
+                var imgs = node.querySelectorAll ? [node, ...node.querySelectorAll('img.msg-img')] : [node];
+                imgs.forEach(function(img) {
+                    if (img.tagName !== 'IMG' || !img.classList.contains('msg-img') || img.dataset.blurUp) return;
+                    img.dataset.blurUp = '1';
+                    img.style.filter = 'blur(8px)';
+                    img.style.transition = 'filter 0.4s ease';
+                    if (img.complete && img.naturalWidth > 0) {
+                        img.style.filter = 'none';
+                    } else {
+                        img.addEventListener('load', function() { img.style.filter = 'none'; }, { once: true });
+                        img.addEventListener('error', function() { img.style.filter = 'none'; }, { once: true });
+                    }
+                });
+            });
+        });
+    });
+    if (document.getElementById('main')) {
+        observer.observe(document.getElementById('main'), { childList: true, subtree: true });
+    }
+})();
+
+// ---- Nacho Conversation Memory Across Sessions (#13) ----
+// Persist last 20 exchanges to localStorage, load into AI context
+(function() {
+    var CONVO_KEY = 'btc_nacho_convo_persist';
+    var MAX_PERSIST = 20;
+    
+    // Patch nachoRemember to also persist
+    var _origRemember = window.nachoRemember;
+    if (typeof _origRemember === 'function') {
+        window.nachoRemember = function(q, a) {
+            _origRemember(q, a);
+            try {
+                var stored = JSON.parse(localStorage.getItem(CONVO_KEY) || '[]');
+                stored.push({ q: q, a: (a || '').substring(0, 200), t: Date.now() });
+                if (stored.length > MAX_PERSIST) stored = stored.slice(-MAX_PERSIST);
+                localStorage.setItem(CONVO_KEY, JSON.stringify(stored));
+            } catch(e) {}
+        };
+    }
+    
+    // Restore on load into _nachoConvoHistory
+    setTimeout(function() {
+        if (typeof window._nachoConvoHistory !== 'undefined' && window._nachoConvoHistory.length === 0) {
+            try {
+                var stored = JSON.parse(localStorage.getItem(CONVO_KEY) || '[]');
+                if (stored.length > 0) {
+                    // Load last 5 into active history for AI context
+                    for (var i = Math.max(0, stored.length - 5); i < stored.length; i++) {
+                        window._nachoConvoHistory.push(stored[i]);
+                    }
+                }
+            } catch(e) {}
+        }
+    }, 3000);
+})();
+
+// ---- Proactive Nacho Based on Reading (#14) ----
+(function() {
+    var READING_KEY = 'btc_nacho_topic_tracker';
+    
+    // Track topic categories when visiting channels
+    var _origOnChannel = window.nachoOnPage;
+    window.nachoOnPage = function(pageId) {
+        if (typeof _origOnChannel === 'function') _origOnChannel(pageId);
+        if (!pageId || typeof CHANNELS === 'undefined' || !CHANNELS[pageId]) return;
+        try {
+            var cat = CHANNELS[pageId].cat || '';
+            var tracker = JSON.parse(localStorage.getItem(READING_KEY) || '{}');
+            tracker[cat] = (tracker[cat] || 0) + 1;
+            localStorage.setItem(READING_KEY, JSON.stringify(tracker));
+            
+            // After 3 visits to same category, proactive suggestion
+            if (tracker[cat] === 3 && typeof forceShowBubble === 'function') {
+                var catName = cat || 'this topic';
+                setTimeout(function() {
+                    forceShowBubble('You\'ve been reading a lot about ' + catName + '! 🦌 Want me to quiz you on it? Just say "quiz me on ' + catName + '" in Nacho Mode! ⚡');
+                }, 5000);
+            }
+        } catch(e) {}
+    };
+})();
+
+// ---- Reading Progress Per Channel (#15) ----
+(function() {
+    var PROGRESS_KEY = 'btc_channel_progress';
+    var mainEl = document.getElementById('main');
+    if (!mainEl) return;
+    
+    var _saveTimer = null;
+    mainEl.addEventListener('scroll', function() {
+        if (!window.currentChannelId) return;
+        clearTimeout(_saveTimer);
+        _saveTimer = setTimeout(function() {
+            var scrollPct = mainEl.scrollHeight > mainEl.clientHeight ? Math.round(mainEl.scrollTop / (mainEl.scrollHeight - mainEl.clientHeight) * 100) : 100;
+            try {
+                var progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+                var prev = progress[window.currentChannelId] || 0;
+                if (scrollPct > prev) {
+                    progress[window.currentChannelId] = scrollPct;
+                    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+                }
+            } catch(e) {}
+        }, 500);
+    });
+    
+    // Show "Continue reading" indicator when revisiting
+    window.getChannelProgress = function(channelId) {
+        try {
+            var progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+            return progress[channelId] || 0;
+        } catch(e) { return 0; }
+    };
+})();
+
+// ---- Global Error Boundary (#16) ----
+(function() {
+    var _errorCount = 0;
+    window.addEventListener('unhandledrejection', function(e) {
+        _errorCount++;
+        if (_errorCount > 5) return; // Don't spam
+        console.error('[Error Boundary] Unhandled promise rejection:', e.reason);
+        // Show non-intrusive error only for user-facing failures
+        if (e.reason && e.reason.message && /firestore|permission|network|fetch/i.test(e.reason.message)) {
+            if (typeof showToast === 'function') showToast('⚠️ Connection issue — some features may not work. Try refreshing.');
+        }
+    });
+    
+    window.addEventListener('error', function(e) {
+        _errorCount++;
+        if (_errorCount > 5) return;
+        console.error('[Error Boundary]', e.message, e.filename, e.lineno);
+    });
+})();
+
+// ---- Enhanced Offline Channel Caching (#17) ----
+// Cache last 10 visited channel JSON files for offline reading
+(function() {
+    var OFFLINE_KEY = 'btc_offline_channels';
+    var MAX_CACHED = 10;
+    
+    // After a channel loads, cache its data
+    var _origGo = window.go;
+    if (typeof _origGo === 'function' && !window._offlineCacheHooked) {
+        window._offlineCacheHooked = true;
+        // Use event-based approach instead of wrapping go()
+        // Cache channel data when it loads successfully
+        setInterval(function() {
+            if (!window.currentChannelId || typeof CHANNELS === 'undefined') return;
+            var ch = CHANNELS[window.currentChannelId];
+            if (!ch || !ch.file) return;
+            try {
+                var cached = JSON.parse(localStorage.getItem(OFFLINE_KEY) || '{}');
+                if (cached[window.currentChannelId] && Date.now() - cached[window.currentChannelId].ts < 86400000) return; // cached within 24h
+                // Store channel JSON URL for SW to cache
+                if ('caches' in window) {
+                    caches.open('btc-offline-channels').then(function(cache) {
+                        cache.add(ch.file).catch(function() {});
+                    });
+                }
+                cached[window.currentChannelId] = { ts: Date.now() };
+                // Keep only last 10
+                var keys = Object.keys(cached);
+                if (keys.length > MAX_CACHED) {
+                    keys.sort(function(a, b) { return cached[a].ts - cached[b].ts; });
+                    for (var i = 0; i < keys.length - MAX_CACHED; i++) {
+                        delete cached[keys[i]];
+                        if ('caches' in window) {
+                            var file = CHANNELS[keys[i]] && CHANNELS[keys[i]].file;
+                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(file).catch(function() {}); });
+                        }
+                    }
+                }
+                localStorage.setItem(OFFLINE_KEY, JSON.stringify(cached));
+            } catch(e) {}
+        }, 10000); // Check every 10s
+    }
+})();
+
+// ---- Onboarding Completion Tracking (#18) ----
+(function() {
+    // Track onboarding events anonymously
+    var _origComplete = window._completeOnboarding;
+    var _origSkip = window._onboardingSkip;
+    
+    function trackOnboarding(event, data) {
+        if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
+        try {
+            db.collection('stats').doc('onboarding').set({
+                [event]: firebase.firestore.FieldValue.increment(1),
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).catch(function() {});
+        } catch(e) {}
+    }
+    
+    // Track wizard shown
+    var _origShow = window.showOnboardingWizard;
+    if (typeof _origShow === 'function') {
+        window.showOnboardingWizard = function() {
+            var result = _origShow.apply(this, arguments);
+            if (result) trackOnboarding('shown');
+            return result;
+        };
+    }
+    
+    // Track completion via setOnboardingProfile
+    var _origSetProfile = window.setOnboardingProfile;
+    if (typeof _origSetProfile === 'function') {
+        window.setOnboardingProfile = function(profile) {
+            _origSetProfile.apply(this, arguments);
+            if (profile && profile.level) {
+                trackOnboarding('completed_' + profile.level);
+                trackOnboarding('completed');
+            }
+        };
+    }
+})();
+

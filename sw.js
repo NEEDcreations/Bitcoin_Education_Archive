@@ -1,6 +1,6 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v27';
+const CACHE_NAME = 'btc-archive-v28';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -70,8 +70,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // JSON data files: network-first with cache fallback
-  if (/\.json(\?|$)/i.test(url.pathname) && url.pathname.includes('data/')) {
+  // JSON data files: network-first with cache fallback (includes offline channel cache)
+  if (/\.json(\?|$)/i.test(url.pathname) && (url.pathname.includes('data/') || url.pathname.includes('channels/'))) {
     event.respondWith(
       fetch(event.request).then(response => {
         if (response.ok) {

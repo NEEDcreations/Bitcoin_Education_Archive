@@ -4,15 +4,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="dns-prefetch" href="https://www.gstatic.com">
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://firestore.googleapis.com">
-    <link rel="preload" href="bundle.js?v=20260315" as="script">
+    <link rel="preload" href="bundle.js?v=20260316" as="script">
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
@@ -58,6 +61,8 @@
             --heading: #fff; --link: #38bdf8;
             --input-bg: #020617; --msg-border: rgba(255,255,255,0.03);
             --card-bg: rgba(255,255,255,0.03); --overlay: rgba(0,0,0,0.92);
+            --secondary: #1e293b; --text-secondary: #94a3b8;
+            --display-font: 'Outfit', 'Segoe UI', system-ui, sans-serif;
         }
         [data-theme="light"] {
             --bg: #f8fafc; --bg-side: #ffffff; --border: #e2e8f0;
@@ -66,9 +71,26 @@
             --heading: #0f172a; --link: #2563eb;
             --input-bg: #f1f5f9; --msg-border: rgba(0,0,0,0.06);
             --card-bg: rgba(0,0,0,0.03); --overlay: rgba(255,255,255,0.95);
+            --secondary: #e2e8f0; --text-secondary: #475569;
         }
 
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+        /* Display font for major headings */
+        h1, h2, .channel-title { font-family: var(--display-font, 'Segoe UI', system-ui, sans-serif); }
+        /* Global button tactile feedback */
+        button, [onclick] { transition: transform 0.12s ease, opacity 0.12s ease; }
+        button:active, [onclick]:active { transform: scale(0.97); }
+        /* Page content fade-in transition */
+        #msgs, #forumContainer { animation: contentFadeIn 0.25s ease-out; }
+        @keyframes contentFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        /* Shimmer for skeleton loading */
+        .skeleton { background: linear-gradient(90deg, var(--card-bg) 25%, rgba(255,255,255,0.06) 50%, var(--card-bg) 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        /* Hero gradient glow behind logo */
+        .home-logos { position: relative; }
+        .home-logos::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; background: radial-gradient(circle, rgba(247,147,26,0.12) 0%, transparent 70%); border-radius: 50%; pointer-events: none; animation: heroGlow 4s ease-in-out infinite; z-index: 0; }
+        @keyframes heroGlow { 0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }
+        .home-logos > * { position: relative; z-index: 1; }
         
         /* Theme Toggle */
         .theme-toggle { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; margin-left: 10px; }
@@ -141,7 +163,7 @@
 
         .hero { padding: 80px 60px 40px; max-width: 1300px; margin: 0 auto; }
         .hero .cat { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: 800; margin-bottom: 12px; }
-        .hero h1 { font-size: 2.4rem; font-weight: 900; color: var(--heading); letter-spacing: -0.5px; line-height: 1.25; margin-bottom: 16px; }
+        .hero h1 { font-size: 2.4rem; font-weight: 900; color: var(--heading); letter-spacing: -0.5px; line-height: 1.25; margin-bottom: 16px; font-family: var(--display-font); }
         .hero .desc { color: var(--text-muted); font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 30px; margin-bottom: 0; }
         
         /* Messages */
@@ -345,8 +367,8 @@
         .donate-circle:hover::after { opacity: 1; }
         .home-btc { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
         .home-ln { filter: drop-shadow(0 0 30px rgba(247,147,26,0.4)); }
-        .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1px; line-height: 1.15; margin-bottom: 20px; }
-        .home-subtitle { font-size: 1.2rem; color: #64748b; margin-bottom: 40px; line-height: 1.6; }
+        .home-title { font-size: 3.5rem; font-weight: 900; color: var(--heading); letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; }
+        .home-subtitle { font-size: 1.2rem; color: var(--text-secondary, #94a3b8); margin-bottom: 40px; line-height: 1.6; }
         .home-credits { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px 30px; margin-bottom: 40px; text-align: left; }
         .home-credits p { color: var(--text-dim); font-size: 1rem; margin-bottom: 8px; line-height: 1.6; }
         .home-credits p:last-child { margin-bottom: 0; }
@@ -961,7 +983,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <script src="security-patches.js?v=20260307"></script>
-    <script src="bundle.js?v=20260315" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260316" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260307" defer></script>
     <script src="mobile-optimize.js?v=20260307" defer></script>
