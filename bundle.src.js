@@ -19046,7 +19046,7 @@ window.articleView = async function(articleId) {
         
         // Cover
         if (a.coverUrl) {
-            html += '<div style="margin:-16px -12px 20px;height:200px;background:url(' + fEsc(a.coverUrl) + ') center/cover no-repeat;border-radius:0 0 16px 16px;"></div>';
+            html += '<div style="margin:-16px -12px 20px;border-radius:0 0 16px 16px;overflow:hidden;"><img src="' + fEsc(a.coverUrl) + '" alt="Cover" style="width:100%;display:block;object-fit:contain;max-height:500px;"></div>';
         }
         
         // Title
