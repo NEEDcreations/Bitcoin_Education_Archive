@@ -748,3 +748,161 @@ window.setFloatingElementsVisible = function(visible) {
         if (el) el.style.display = visible ? '' : 'none';
     });
 };
+
+// ========== CELEBRATION SYSTEM ==========
+// Reusable celebration overlay for big achievements
+window.showCelebration = function(opts) {
+    var emoji = opts.emoji || '🎉';
+    var title = opts.title || 'Achievement Unlocked!';
+    var message = opts.message || '';
+    var rewards = opts.rewards || []; // [{label:'100',sub:'PTS'},{label:'25',sub:'TICKETS'}]
+    var btnText = opts.btnText || 'Amazing! 🎉';
+    var _celeb = document.createElement('div');
+    _celeb.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeSlideIn 0.5s ease-out;';
+    _celeb.onclick = function(e) { if (e.target === _celeb) { _celeb.style.opacity='0'; _celeb.style.transition='opacity 0.4s'; setTimeout(function(){_celeb.remove();},400); } };
+    var rewardHtml = '';
+    if (rewards.length > 0) {
+        rewardHtml = '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;">';
+        rewards.forEach(function(r) {
+            rewardHtml += '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:' + (r.color || '#22c55e') + ';">+' + r.label + '</div><div style="font-size:0.7rem;color:#94a3b8;">' + r.sub + '</div></div>';
+        });
+        rewardHtml += '</div>';
+    }
+    _celeb.innerHTML = '<div style="text-align:center;max-width:380px;width:100%;animation:fadeSlideIn 0.6s ease-out;">' +
+        '<div style="font-size:4rem;margin-bottom:16px;animation:nachoModeBounce 1.5s ease-in-out infinite;">' + emoji + '</div>' +
+        '<div style="font-size:1.8rem;font-weight:900;color:#f7931a;margin-bottom:8px;text-shadow:0 0 30px rgba(247,147,26,0.5);">' + title + '</div>' +
+        '<div style="font-size:1rem;color:#e2e8f0;margin-bottom:20px;line-height:1.6;">' + message + '</div>' +
+        rewardHtml +
+        '<button onclick="event.stopPropagation();this.closest(\'div[style*=fixed]\').remove()" style="padding:14px 40px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(247,147,26,0.4);">' + btnText + '</button>' +
+        '</div>';
+    document.body.appendChild(_celeb);
+    if (typeof launchConfetti === 'function') launchConfetti();
+    if (typeof playBadgeSound === 'function') playBadgeSound();
+    setTimeout(function() { if (typeof launchConfetti === 'function') launchConfetti(); }, 1200);
+};
+
+// ========== SCHOLAR CERTIFICATION CELEBRATION ==========
+// Hook into scholar exam completion
+(function() {
+    var _checkScholar = setInterval(function() {
+        var types = ['prop', 'tech'];
+        types.forEach(function(t) {
+            var key = 'btc_scholar_' + t + '_passed';
+            var celebKey = 'btc_scholar_' + t + '_celebrated';
+            if (localStorage.getItem(key) === 'true' && localStorage.getItem(celebKey) !== 'true') {
+                localStorage.setItem(celebKey, 'true');
+                var isT = t === 'tech';
+                setTimeout(function() {
+                    showCelebration({
+                        emoji: isT ? '🛠️🎓🏆' : '📖🎓🎉',
+                        title: isT ? 'PROTOCOL EXPERT!' : 'BITCOIN SCHOLAR!',
+                        message: isT ?
+                            'You passed the Technical Protocol Expert Certification! You understand Bitcoin at the deepest level. True cypherpunk material! 🔐' :
+                            'You passed the Bitcoin Scholar Certification! You have a thorough understanding of Bitcoin\'s properties and economics! 🧡',
+                        rewards: [
+                            { label: '2,100', sub: 'PTS', color: '#22c55e' },
+                            { label: isT ? '🛠️' : '🎓', sub: 'BADGE', color: '#f7931a' }
+                        ],
+                        btnText: isT ? 'Protocol Expert! 🛠️' : 'Scholar! 🎓'
+                    });
+                }, 500);
+            }
+        });
+    }, 3000);
+})();
+
+// ========== EXPLORATION MAP MILESTONES ==========
+(function() {
+    var MILESTONES = [
+        { pct: 25, key: 'explore_25', emoji: '🗺️🌱', title: '25% EXPLORED!', msg: 'A quarter of the archive explored! You\'re building a solid Bitcoin foundation.', pts: 50, tickets: 10 },
+        { pct: 50, key: 'explore_50', emoji: '🗺️🔥', title: '50% EXPLORED!', msg: 'Halfway through the entire archive! You know more about Bitcoin than most people on Earth.', pts: 100, tickets: 25 },
+        { pct: 75, key: 'explore_75', emoji: '🗺️⚡', title: '75% EXPLORED!', msg: 'Three quarters done! You\'re in the top tier of Bitcoin knowledge seekers.', pts: 200, tickets: 50 },
+        { pct: 100, key: 'explore_100', emoji: '🗺️👑🏆', title: 'ARCHIVE COMPLETE!', msg: 'You\'ve explored EVERY SINGLE channel in the archive. You are a true Bitcoin scholar. Satoshi would be proud! 🧡', pts: 500, tickets: 100 }
+    ];
+
+    window._checkExplorationMilestones = function() {
+        if (typeof CHANNELS === 'undefined') return;
+        var visited = safeJSON('btc_visited_channels', []);
+        var total = Object.keys(CHANNELS).length;
+        var pct = Math.round((visited.length / total) * 100);
+
+        MILESTONES.forEach(function(m) {
+            if (pct >= m.pct && localStorage.getItem('btc_' + m.key + '_celebrated') !== 'true') {
+                localStorage.setItem('btc_' + m.key + '_celebrated', 'true');
+                // Award points
+                if (typeof awardPoints === 'function') awardPoints(m.pts, '🗺️ ' + m.pct + '% Explored');
+                // Award tickets
+                if (typeof awardOrangeTickets === 'function') {
+                    awardOrangeTickets(m.tickets, '🗺️ ' + m.pct + '% Explored');
+                } else {
+                    var _t = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
+                    localStorage.setItem('btc_orange_tickets', (_t + m.tickets).toString());
+                }
+                // Show celebration
+                setTimeout(function() {
+                    showCelebration({
+                        emoji: m.emoji,
+                        title: m.title,
+                        message: m.msg,
+                        rewards: [
+                            { label: m.pts.toString(), sub: 'PTS', color: '#22c55e' },
+                            { label: m.tickets.toString(), sub: '🎟️ TICKETS', color: '#f7931a' }
+                        ]
+                    });
+                }, 800);
+                // Sync to Firebase
+                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    var upd = {}; upd['explorationMilestone_' + m.pct] = true;
+                    try { db.collection('users').doc(auth.currentUser.uid).update(upd).catch(function(){}); } catch(e) {}
+                }
+            }
+        });
+    };
+
+    // Check milestones when exploration map renders
+    var _origRenderMap = window.renderExplorationMap;
+    window.renderExplorationMap = function() {
+        _origRenderMap();
+        window._checkExplorationMilestones();
+    };
+})();
+
+// ========== MINI QUEST CELEBRATIONS ==========
+// Small toast + haptic for channel quests and Nacho quizzes
+(function() {
+    // Hook into quest completion — add a celebratory touch
+    var _origShowQuestFinal = window.showQuestFinalResults;
+    if (_origShowQuestFinal) {
+        window.showQuestFinalResults = function() {
+            _origShowQuestFinal.apply(this, arguments);
+            var score = window._questScore || 0;
+            if (score === 5) {
+                // Perfect score!
+                if (typeof showToast === 'function') showToast('🏆 PERFECT SCORE! You nailed every question!');
+                if (typeof launchConfetti === 'function') setTimeout(launchConfetti, 300);
+            } else if (score >= 3) {
+                if (typeof showToast === 'function') showToast('⚡ Quest passed! +' + (window._questPts || 0) + ' pts earned!');
+            }
+        };
+    }
+
+    // Hook into Nacho quiz answers for small celebrations
+    var _origNachoQuizAnswer = window.nachoQuizAnswer;
+    if (_origNachoQuizAnswer) {
+        window.nachoQuizAnswer = function(btn, correct) {
+            _origNachoQuizAnswer.apply(this, arguments);
+            if (correct) {
+                if (typeof haptic === 'function') haptic('success');
+            }
+        };
+    }
+
+    // Hook into conversation quiz answers
+    var _origConvoQuizAnswer = window.convoQuizAnswer;
+    if (_origConvoQuizAnswer) {
+        window.convoQuizAnswer = function(btn, correct) {
+            _origConvoQuizAnswer.apply(this, arguments);
+            if (correct && typeof haptic === 'function') haptic('light');
+        };
+    }
+})();
