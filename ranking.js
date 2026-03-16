@@ -3392,7 +3392,12 @@ window.removeProfilePic = function() {
 
 async function saveProfile() {
     var status = document.getElementById('profileStatus');
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in with Google, Facebook, Twitter, or email to save your profile!');
+        if (status) status.innerHTML = '<span style="color:#ef4444;">🔒 Create a free account to save your profile</span>';
+        if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 1500);
+        return;
+    }
     
     var uid = auth.currentUser.uid;
     var bio = document.getElementById('profileBio') ? document.getElementById('profileBio').value.trim() : '';
@@ -3544,7 +3549,22 @@ window.setDisplayBadge = function(badgeId) {
     showSettingsPage('account');
     showToast(badgeId ? '🏅 Display badge updated!' : '🏅 Using default rank emoji');
 };
-if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) { if (!currentUser || !db || !auth || !auth.currentUser) return; try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); currentUser.username = name; updateAuthButton(); updateRankUI(); showToast('✅ Username updated to ' + name); } catch(e) { showToast('Error updating username'); } };
+if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) {
+    // Read from input if no name passed
+    if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
+    if (!name || name.length < 2) { showToast('Username must be at least 2 characters'); return; }
+    if (name.length > 20) { showToast('Username max 20 characters'); return; }
+    if (typeof isCleanText === 'function' && !isCleanText(name)) { showToast('Username contains inappropriate language'); return; }
+    // Save locally always (works for anon too)
+    localStorage.setItem('btc_username', name);
+    if (currentUser) { currentUser.username = name; }
+    updateAuthButton(); updateRankUI();
+    // Save to Firestore if signed in
+    if (auth && auth.currentUser && db) {
+        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); } catch(e) { console.warn('Username Firestore save failed:', e); }
+    }
+    showToast('✅ Username updated to ' + name);
+};
 window.togglePushNotifications = async function() { try { if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; } var permission = await Notification.requestPermission(); if (permission === 'granted') { localStorage.setItem('btc_push_enabled', 'true'); showToast('🔔 Notifications Enabled!'); } else { localStorage.setItem('btc_push_enabled', 'false'); showToast('❌ Notification permission denied'); } showSettingsPage('prefs'); } catch(e) { console.error(e); } };
 if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
 if (typeof disable2FA === 'undefined') window.disable2FA = function() { showToast('2FA management coming soon'); };
