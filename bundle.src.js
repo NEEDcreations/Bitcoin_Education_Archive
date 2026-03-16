@@ -24097,9 +24097,22 @@ async function fetchDashboardData() {
         }).catch(() => {})
     );
     promises.push(
-        fetch('https://mempool.space/api/v1/mining/hashrate/1d').then(r => r.json()).then(d => {
+        fetch('https://mempool.space/api/v1/mining/hashrate/1m').then(r => r.json()).then(d => {
             if (d.currentHashrate) data.hashrate = d.currentHashrate;
             if (d.currentDifficulty) data.difficulty = d.currentDifficulty;
+            // Calculate 24h hashrate change from historical data
+            if (d.hashrates && d.hashrates.length >= 2) {
+                var latest = d.hashrates[d.hashrates.length - 1];
+                // Find entry from ~24h ago
+                var target = (latest.timestamp || Date.now()/1000) - 86400;
+                var prev = d.hashrates[0];
+                for (var i = 0; i < d.hashrates.length; i++) {
+                    if (d.hashrates[i].timestamp <= target) prev = d.hashrates[i];
+                }
+                if (prev.avgHashrate && latest.avgHashrate && prev.avgHashrate > 0) {
+                    data.hashrateChange24h = ((latest.avgHashrate - prev.avgHashrate) / prev.avgHashrate * 100);
+                }
+            }
         }).catch(() => {})
     );
     promises.push(
@@ -24142,6 +24155,7 @@ async function fetchDashboardData() {
                 data.athChange = d.market_data.ath_change_percentage ? d.market_data.ath_change_percentage.usd : null;
                 data.high24h = d.market_data.high_24h ? d.market_data.high_24h.usd : null;
                 data.low24h = d.market_data.low_24h ? d.market_data.low_24h.usd : null;
+                data.mktCapChange24h = d.market_data.market_cap_change_percentage_24h || null;
             }
         }).catch(() => {})
     );
@@ -24248,8 +24262,8 @@ function renderDashboard(data) {
     var liveArrow = liveChange >= 0 ? '▲' : '▼';
     html += '<div style="text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px;">';
     html += '<div id="dashLivePrice" style="font-size:2.2rem;font-weight:900;color:var(--heading);letter-spacing:-1px;">$' + fmtNum(livePrice, 2) + '</div>';
-    html += '<div id="dashLiveChange" style="font-size:1rem;font-weight:700;margin-top:4px;"><span style="color:' + liveColor + ';">' + liveArrow + ' ' + Math.abs(liveChange).toFixed(2) + '% (24h)</span></div>';
-    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;" id="dashLiveIndicator">🔴 Live — updates automatically</div>';
+    html += '<div id="dashLiveChange" style="font-size:1rem;font-weight:700;margin-top:4px;"><span style="color:' + liveColor + ';">' + liveArrow + ' ' + Math.abs(liveChange).toFixed(2) + '%</span></div>';
+    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;" id="dashLiveIndicator">🔴 Live — updates automatically · All % changes are 24h</div>';
     html += '<div style="display:flex;justify-content:center;gap:20px;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">';
     html += '<span>24h High: <strong style="color:var(--text);">$' + fmtNum(d.high24h, 0) + '</strong></span>';
     html += '<span>24h Low: <strong style="color:var(--text);">$' + fmtNum(d.low24h, 0) + '</strong></span>';
@@ -24287,7 +24301,9 @@ function renderDashboard(data) {
     // Current Block Subsidy
     html += metricCard('🪙', 'Block Subsidy', d.subsidy + ' BTC', fmtNum(d.halving) + ' blocks to halving', 'The reward miners receive for finding each new block. Started at 50 BTC in 2009 and halves every 210,000 blocks (~4 years). Currently 3.125 BTC per block.');
     // Hashrate
-    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), '', 'The total computing power securing the Bitcoin network, measured in hashes per second. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
+    var _hrSub = '';
+    if (d.hashrateChange24h != null) { var _hc = d.hashrateChange24h; _hrSub = '<span style="color:' + (_hc >= 0 ? '#22c55e' : '#ef4444') + ';">' + (_hc >= 0 ? '▲' : '▼') + ' ' + Math.abs(_hc).toFixed(1) + '%</span>'; }
+    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), _hrSub, 'The total computing power securing the Bitcoin network, measured in hashes per second. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
     // Difficulty
     html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '', 'How hard it is to mine a new block. Adjusts every 2,016 blocks (~2 weeks) to keep block times at ~10 minutes. If miners join, difficulty goes up. If miners leave, it goes down.');
     // Next Difficulty Adj
@@ -24301,13 +24317,18 @@ function renderDashboard(data) {
     // Supply
     html += metricCard('💰', 'Circulating Supply', fmtSupply(d.supply), fmtPctMined(d.supply) + ' mined', 'How many of the 21 million total Bitcoin have been mined so far. No more than 21 million will ever exist — this is enforced by code and consensus. The last Bitcoin will be mined around the year 2140.');
     // Market Cap
-    html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), '', 'Total value of all Bitcoin in circulation (price × circulating supply). Puts Bitcoin\'s size in perspective compared to gold (~$16T), the S&P 500, or global real estate.');
+    var _mcSub = '';
+    if (d.mktCapChange24h != null) { var _mc = d.mktCapChange24h; _mcSub = '<span style="color:' + (_mc >= 0 ? '#22c55e' : '#ef4444') + ';">' + (_mc >= 0 ? '▲' : '▼') + ' ' + Math.abs(_mc).toFixed(1) + '%</span>'; }
+    html += metricCard('📊', 'Market Cap', '$' + fmtT(d.marketCap), _mcSub, 'Total value of all Bitcoin in circulation (price × circulating supply). Puts Bitcoin\'s size in perspective compared to gold (~$16T), the S&P 500, or global real estate.');
     // 24h Volume
-    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), '', 'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume often signals strong market interest or significant price moves.');
+    var _volSub = '';
+    if (d.volume24h && d.marketCap) { var _vr = (d.volume24h / d.marketCap * 100); _volSub = 'Vol/MCap: ' + _vr.toFixed(2) + '%'; }
+    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), _volSub, 'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume often signals strong market interest or significant price moves.');
     // Lightning Network
     var lnBtc = d.lnCapacity ? (d.lnCapacity / 100000000).toFixed(0) : '—';
     var lnUsd = (d.lnCapacity && d.price) ? '$' + fmtT(d.lnCapacity / 100000000 * d.price) : '';
-    html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? ' · ' + lnUsd : ''), 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
+    var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '');
+    html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', _lnSub, 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
 
     // Fear & Greed
     var fgVal = d.fearGreed || 0;
