@@ -268,14 +268,26 @@ function initRanking() {
                     sessionStorage.removeItem('btc_redirect_auth');
                     loadUser(user.uid);
                 } else if (user && user.isAnonymous) {
-                    // If we're pending a redirect, DON'T load anon yet — wait for redirect result
+                    // If we're pending a redirect, DON'T load anon yet — wait longer for auth to resolve
                     if (_pendingRedirect) {
-                        console.log('[Auth] Anon user but pending redirect — waiting...');
+                        console.log('[Auth] Anon user but pending redirect — waiting 5s for real auth...');
+                        // Give Firebase extra time to restore the redirect session
+                        var _redirectTimeout = setTimeout(function() {
+                            // Check one more time if a real user appeared
+                            if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                                console.log('[Auth] Real user appeared after wait:', auth.currentUser.uid);
+                                loadUser(auth.currentUser.uid);
+                            } else {
+                                console.log('[Auth] No real user after 5s — loading anon');
+                                loadUserLocal(user.uid);
+                            }
+                            localStorage.removeItem('btc_anon_uid');
+                            localStorage.removeItem('btc_anon_data');
+                            sessionStorage.removeItem('btc_redirect_pending');
+                        }, 5000);
+                        // But if getRedirectResult resolves with a user, use that immediately
                         redirectResultPromise.then(function(redirectUser) {
-                            if (redirectUser) return; // redirect handler took care of it
-                            // No redirect user came back — load anonymous
-                            console.log('[Auth] Redirect resolved with no user — loading anon');
-                            loadUserLocal(user.uid);
+                            if (redirectUser) { clearTimeout(_redirectTimeout); return; }
                         });
                     } else {
                         loadUserLocal(user.uid);
