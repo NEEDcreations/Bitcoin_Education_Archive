@@ -188,8 +188,11 @@ function initRanking() {
         // clobbering the redirect auth state on mobile
         redirectResultPromise = auth.getRedirectResult().then(async function(result) {
             redirectResultResolved = true;
+            console.log('[Auth] getRedirectResult:', result ? (result.user ? result.user.uid : 'no user') : 'null');
             if (!result || !result.user) return null;
             const user = result.user;
+            // Mark that we came from a redirect — prevent anonymous sign-in from overwriting
+            sessionStorage.setItem('btc_redirect_auth', '1');
             const existingDoc = await db.collection('users').doc(user.uid).get();
 
             // Recover anonymous data from before redirect
@@ -249,21 +252,38 @@ function initRanking() {
         // This prevents the race condition where anonymous user loads before Google auth restores
         let firstAuthEvent = true;
         let emailLinkHandled = auth.isSignInWithEmailLink(window.location.href);
+        // Detect if we're returning from a social login redirect
+        var _pendingRedirect = !!localStorage.getItem('btc_anon_uid') || sessionStorage.getItem('btc_redirect_pending') === '1';
+        if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
+        
         auth.onAuthStateChanged(user => {
+            console.log('[Auth] onAuthStateChanged:', user ? (user.isAnonymous ? 'anon:' + user.uid : 'real:' + user.uid) : 'null', 'firstEvent:', firstAuthEvent, 'pendingRedirect:', _pendingRedirect);
             if (firstAuthEvent) {
                 firstAuthEvent = false;
                 // If email link sign-in is being handled, skip — handleEmailSignIn manages it
                 if (emailLinkHandled) return;
                 if (user && !user.isAnonymous) {
                     // Real user restored immediately — load them
+                    console.log('[Auth] Real user on first event:', user.uid);
+                    sessionStorage.removeItem('btc_redirect_auth');
                     loadUser(user.uid);
                 } else if (user && user.isAnonymous) {
-                    // Got anonymous on first event — load local immediately
-                    loadUserLocal(user.uid);
+                    // If we're pending a redirect, DON'T load anon yet — wait for redirect result
+                    if (_pendingRedirect) {
+                        console.log('[Auth] Anon user but pending redirect — waiting...');
+                        redirectResultPromise.then(function(redirectUser) {
+                            if (redirectUser) return; // redirect handler took care of it
+                            // No redirect user came back — load anonymous
+                            console.log('[Auth] Redirect resolved with no user — loading anon');
+                            loadUserLocal(user.uid);
+                        });
+                    } else {
+                        loadUserLocal(user.uid);
+                    }
                 } else {
                     // null user — WAIT for getRedirectResult before signing in anonymously
                     // Otherwise we clobber the redirect auth state on mobile
-                    if (redirectResultResolved) {
+                    if (redirectResultResolved && !_pendingRedirect) {
                         // Redirect already resolved (no redirect happened) — safe to go anonymous
                         auth.signInAnonymously().then(() => {});
                     } else {
@@ -858,6 +878,7 @@ async function signInWithProvider(provider) {
                     if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
                 } catch(e2) {}
             }
+            sessionStorage.setItem('btc_redirect_pending', '1');
             await auth.signInWithRedirect(provider);
             return;
         } catch(e) {
