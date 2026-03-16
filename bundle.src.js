@@ -22992,7 +22992,6 @@ window.showNachoStory = function(chapterOverride) {
             setTimeout(function() {
                 // Big completion bonus
                 awardPoints(100, '📖🎉 Completed Nacho\'s Story!');
-                if (typeof showToast === 'function') showToast('🎉📖 +100 BONUS pts — You finished Nacho\'s Story!');
                 // Award 25 orange tickets
                 if (typeof awardOrangeTickets === 'function') {
                     awardOrangeTickets(25, '📖 Nacho\'s Story Complete!');
@@ -23000,11 +22999,25 @@ window.showNachoStory = function(chapterOverride) {
                     var _tix = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
                     localStorage.setItem('btc_orange_tickets', (_tix + 25).toString());
                 }
-                setTimeout(function() {
-                    if (typeof showToast === 'function') showToast('🎟️ +25 Orange Tickets — Story Master!');
-                    if (typeof launchConfetti === 'function') launchConfetti();
-                    if (typeof playBadgeSound === 'function') playBadgeSound();
-                }, 1500);
+                if (typeof launchConfetti === 'function') launchConfetti();
+                if (typeof playBadgeSound === 'function') playBadgeSound();
+                // Full-screen celebration overlay
+                var _celeb = document.createElement('div');
+                _celeb.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeSlideIn 0.5s ease-out;';
+                _celeb.onclick = function() { _celeb.style.opacity = '0'; _celeb.style.transition = 'opacity 0.4s'; setTimeout(function() { _celeb.remove(); }, 400); };
+                _celeb.innerHTML = '<div style="text-align:center;max-width:380px;width:100%;animation:fadeSlideIn 0.6s ease-out;">' +
+                    '<div style="font-size:4rem;margin-bottom:16px;animation:nachoModeBounce 1.5s ease-in-out infinite;">🦌📖🎉</div>' +
+                    '<div style="font-size:1.8rem;font-weight:900;color:#f7931a;margin-bottom:8px;text-shadow:0 0 30px rgba(247,147,26,0.5);">STORY COMPLETE!</div>' +
+                    '<div style="font-size:1rem;color:#e2e8f0;margin-bottom:20px;line-height:1.6;">You\'ve followed Nacho\'s entire Bitcoin journey from the Genesis Block to his mission of education. You\'re officially a Story Master! 🏆</div>' +
+                    '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;">' +
+                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#22c55e;">+100</div><div style="font-size:0.7rem;color:#94a3b8;">BONUS PTS</div></div>' +
+                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#f7931a;">+25</div><div style="font-size:0.7rem;color:#94a3b8;">🎟️ TICKETS</div></div>' +
+                    '</div>' +
+                    '<button onclick="event.stopPropagation();this.closest(\'div[style*=fixed]\').remove()" style="padding:14px 40px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(247,147,26,0.4);">Amazing! 🎉</button>' +
+                    '</div>';
+                document.body.appendChild(_celeb);
+                // Second confetti after a beat
+                setTimeout(function() { if (typeof launchConfetti === 'function') launchConfetti(); }, 1200);
                 // Sync to Firebase
                 if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
                     try { db.collection('users').doc(auth.currentUser.uid).update({
