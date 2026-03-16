@@ -3014,7 +3014,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const isExplorer = isCommunity || (visits >= 3 || exploredCount >= 3);
 
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
-        const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, #authBtn, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
+        const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
 
         // All categories always visible — no tier gating on channel access
         // Users can explore everything; the "Next Goal" banner encourages progression
