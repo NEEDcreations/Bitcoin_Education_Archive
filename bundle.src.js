@@ -22978,12 +22978,42 @@ window.showNachoStory = function(chapterOverride) {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Award points for reading the newest unlocked chapter (first time only)
+    // Award points for each chapter (first time only per chapter)
     var awardedChapters = safeJSON('btc_nacho_story_awarded', []);
-    if (typeof awardPoints === 'function' && awardedChapters.indexOf(chIdx) === -1 && typeof chapterOverride === 'undefined') {
+    if (typeof awardPoints === 'function' && awardedChapters.indexOf(chIdx) === -1) {
         awardedChapters.push(chIdx);
         localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
-        awardPoints(5, '📖 Read Chapter ' + (chIdx + 1));
+        var _chPts = (chIdx === CHAPTERS.length - 1) ? 50 : 15; // Last chapter = 50pts, others = 15pts
+        awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
+        if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' pts — Chapter ' + (chIdx + 1) + ' complete!');
+
+        // Check if ALL 7 chapters are now completed
+        if (awardedChapters.length === CHAPTERS.length) {
+            setTimeout(function() {
+                // Big completion bonus
+                awardPoints(100, '📖🎉 Completed Nacho\'s Story!');
+                if (typeof showToast === 'function') showToast('🎉📖 +100 BONUS pts — You finished Nacho\'s Story!');
+                // Award 25 orange tickets
+                if (typeof awardOrangeTickets === 'function') {
+                    awardOrangeTickets(25, '📖 Nacho\'s Story Complete!');
+                } else {
+                    var _tix = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
+                    localStorage.setItem('btc_orange_tickets', (_tix + 25).toString());
+                }
+                setTimeout(function() {
+                    if (typeof showToast === 'function') showToast('🎟️ +25 Orange Tickets — Story Master!');
+                    if (typeof launchConfetti === 'function') launchConfetti();
+                    if (typeof playBadgeSound === 'function') playBadgeSound();
+                }, 1500);
+                // Sync to Firebase
+                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    try { db.collection('users').doc(auth.currentUser.uid).update({
+                        nachoStoryComplete: true,
+                        nachoStoryCompletedAt: new Date().toISOString()
+                    }).catch(function(){}); } catch(e) {}
+                }
+            }, 800);
+        }
     }
 };
 
