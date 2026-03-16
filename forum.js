@@ -1559,12 +1559,30 @@ window.articleUpdate = async function() {
     
     if (status) status.innerHTML = '<span style="color:var(--text-muted);">Updating...</span>';
     try {
-        await db.collection('articles').doc(articleId).update({
+        // Upload cover image if provided
+        var coverUrl = null;
+        var coverInput = document.getElementById('articleCover');
+        if (coverInput && coverInput.files && coverInput.files[0]) {
+            var file = coverInput.files[0];
+            if (file.size > 3 * 1024 * 1024) { if (status) status.innerHTML = '<span style="color:#ef4444;">Cover too large (max 3MB)</span>'; return; }
+            if (status) status.innerHTML = '<span style="color:var(--text-muted);">Uploading cover...</span>';
+            try {
+                var ref = firebase.storage().ref('articles/' + auth.currentUser.uid + '/' + Date.now() + '_cover');
+                var snap = await ref.put(file);
+                coverUrl = await snap.ref.getDownloadURL();
+            } catch(e) { console.warn('Cover upload failed:', e); }
+        }
+        
+        var updateData = {
             title: title.substring(0, 120), subtitle: subtitle.substring(0, 200),
             body: body.substring(0, 50000), tags: tags.slice(0, 3),
             wordCount: wordCount, readTime: Math.max(1, Math.round(wordCount / 200)),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        if (coverUrl) updateData.coverUrl = coverUrl;
+        
+        if (status) status.innerHTML = '<span style="color:var(--text-muted);">Saving...</span>';
+        await db.collection('articles').doc(articleId).update(updateData);
         localStorage.removeItem('btc_article_draft');
         window._articleEditId = null;
         if (typeof showToast === 'function') showToast('✏️ Article updated!');
