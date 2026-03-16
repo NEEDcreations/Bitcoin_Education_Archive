@@ -461,6 +461,7 @@ function createNacho() {
             flex-shrink: 0;
             z-index: 2;
         }
+        #nacho-avatar { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
         #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-btn-stack {
@@ -1338,15 +1339,15 @@ function _showBubble(text, pose) {
         } catch(e) {}
     });
 
-    // Touch events (mobile)
+    // Touch events (mobile) — passive:false so we can preventDefault to stop scroll/context menu
+    var _nachoDragTimer = null;
     document.addEventListener('touchstart', function(e) {
         var avatar = document.getElementById('nacho-avatar');
         if (!avatar || !avatar.contains(e.target)) return;
-        // Don't drag if touching closet button or name label
-        if (e.target.closest('.nacho-btn-stack') || e.target.closest('.nacho-name')) return;
+        // Don't drag if touching closet button, name label, hide button, or story button
+        if (e.target.closest('.nacho-btn-stack') || e.target.closest('.nacho-name') || e.target.closest('#nachoHideBtn') || e.target.closest('#nachoStoryBtn')) return;
         var c = getContainer();
         if (!c) return;
-        dragging = true;
         hasMoved = false;
         dragTarget = c;
         dragStartX = e.touches[0].clientX;
@@ -1354,8 +1355,11 @@ function _showBubble(text, pose) {
         var rect = c.getBoundingClientRect();
         containerStartLeft = rect.left;
         containerStartTop = rect.top;
-        // Disable transition during drag
+        // Start drag immediately — no long-press delay needed
+        dragging = true;
         c.style.transition = 'none';
+        // Add visual feedback that it's grabbable
+        c.style.opacity = '0.85';
     }, { passive: true });
 
     document.addEventListener('touchmove', function(e) {
@@ -1364,7 +1368,8 @@ function _showBubble(text, pose) {
         var dy = e.touches[0].clientY - dragStartY;
         if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
         hasMoved = true;
-        e.preventDefault();
+        e.preventDefault(); // Stop scrolling while dragging Nacho
+        e.stopPropagation();
         var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
         var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
         dragTarget.style.left = newLeft + 'px';
@@ -1378,6 +1383,7 @@ function _showBubble(text, pose) {
         dragging = false;
         if (dragTarget) {
             dragTarget.style.transition = '';
+            dragTarget.style.opacity = '';
         }
         if (hasMoved && dragTarget) {
             var rect = dragTarget.getBoundingClientRect();
