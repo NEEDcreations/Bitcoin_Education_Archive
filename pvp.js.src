@@ -206,34 +206,44 @@
 
     // Show Nacho bubble popup linking to PVP mode
     var _lastPVPBubbleTime = 0;
-    var PVP_BUBBLE_COOLDOWN = 3600000; // 1 hour between notifications
+    var PVP_BUBBLE_COOLDOWN = 900000; // 15 min between notifications
 
     function showNachoPVPBubble() {
         if (pvpState.active || pvpState.inLobby || pvpState.inMatch) return;
-        if (window._nachoBusy) return;
-        if (window._nachoMode) return;
 
-        // Throttle: only show once per hour
+        // Throttle
         var now = Date.now();
         if (now - _lastPVPBubbleTime < PVP_BUBBLE_COOLDOWN) return;
         _lastPVPBubbleTime = now;
 
+        // Try Nacho bubble first (works on any page where Nacho is visible)
         var bubble = document.getElementById('nacho-bubble');
         var textEl = document.getElementById('nacho-text');
-        if (!bubble || !textEl) return;
+        var usedBubble = false;
 
-        // Don't interrupt interactive bubbles
-        if (bubble.classList.contains('show') && bubble.getAttribute('data-interactive') === 'true') return;
+        if (bubble && textEl && !window._nachoBusy && !window._nachoMode) {
+            // Don't interrupt interactive bubbles
+            if (!(bubble.classList.contains('show') && bubble.getAttribute('data-interactive') === 'true')) {
+                var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--accent);font-size:0.9rem;">⚔️ PVP Challenge!</div>' +
+                    '<div style="color:var(--text);margin-bottom:10px;line-height:1.5;font-size:0.85rem;">Someone is waiting in the PVP arena! Think you know Bitcoin better?</div>' +
+                    '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();enterPVPMode();" style="display:block;width:100%;padding:10px 16px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Enter PVP Battle ⚔️</button>';
 
-        var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--accent);font-size:0.9rem;">⚔️ PVP Challenge!</div>' +
-            '<div style="color:var(--text);margin-bottom:10px;line-height:1.5;font-size:0.85rem;">Someone is waiting in the PVP arena! Think you know Bitcoin better?</div>' +
-            '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();enterPVPMode();" style="display:block;width:100%;padding:10px 16px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Enter PVP Battle ⚔️</button>';
+                textEl.innerHTML = html;
+                bubble.setAttribute('data-interactive', 'true');
+                bubble.classList.add('show');
+                if (typeof clearNachoBubbleTimeout === 'function') clearNachoBubbleTimeout();
+                if (typeof setPose === 'function') setPose('think');
+                usedBubble = true;
+            }
+        }
 
-        textEl.innerHTML = html;
-        bubble.setAttribute('data-interactive', 'true');
-        bubble.classList.add('show');
-        if (typeof clearNachoBubbleTimeout === 'function') clearNachoBubbleTimeout();
-        if (typeof setPose === 'function') setPose('think');
+        // Fallback: always show a toast notification so user knows even if Nacho bubble can't display
+        if (!usedBubble && typeof showToast === 'function') {
+            showToast('⚔️ Someone is waiting in PVP Battle! Tap Explore Apps → PVP to join!', 6000);
+        }
+
+        // Haptic nudge on mobile
+        if (typeof haptic === 'function') haptic('medium');
     }
 
     // =============================================
@@ -2049,10 +2059,11 @@
     // INITIALIZE
     // =============================================
     function initPVP() {
-        // Start lobby ticker listener once Firebase is ready
+        // Start lobby ticker listener once Firebase is ready — for ALL users (including anonymous)
+        // so everyone gets notified when someone enters the PVP lobby
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged(function(user) {
-                if (user && !user.isAnonymous) {
+                if (user) {
                     startLobbyTicker();
 
                     // Check if user was trying to enter PVP before sign-in
@@ -2065,6 +2076,13 @@
                 }
             });
         }
+
+        // Also start lobby ticker after a delay even without auth — covers first-time visitors
+        setTimeout(function() {
+            if (!pvpState.tickerUnsub) {
+                startLobbyTicker();
+            }
+        }, 5000);
 
         // Clean up stale lobby entries on init — delete any without a fresh heartbeat
         setTimeout(function() {
