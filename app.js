@@ -3411,6 +3411,11 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         renderContent(id);
 
+        // Scroll to search result if pending
+        if (window._searchScrollTarget && window._searchScrollTarget.channel === id) {
+            setTimeout(function() { if (typeof window._tryScrollToSearchResult === 'function') window._tryScrollToSearchResult(); }, 200);
+        }
+
         // Trigger fade-in animation
         document.getElementById('hero').classList.add('fade-in');
         document.getElementById('msgs').classList.add('fade-in');
@@ -3621,12 +3626,14 @@ window.nachoQuizAnswer = function(btn, correct) {
                 if (!meta) continue;
                 // Skip if already found by title
                 if (results.some(r => r.key === key)) continue;
-                for (const m of (d.msgs || [])) {
+                const msgs = d.msgs || [];
+                for (let mi = 0; mi < msgs.length; mi++) {
+                    const m = msgs[mi];
                     if (m.text && m.text.toLowerCase().includes(q)) {
                         let idx = m.text.toLowerCase().indexOf(q);
                         let start = Math.max(0, idx - 30);
                         let snippet = (start > 0 ? '...' : '') + m.text.substring(start, idx + q.length + 30).replace(/<[^>]+>/g, '') + '...';
-                        deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet});
+                        deepResults.push({key, title: meta.title, cat: meta.cat, match: snippet, msgIdx: mi});
                         break;
                     }
                 }
@@ -3675,7 +3682,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         }
         sr.innerHTML = results.slice(0, 30).map(r => {
             const isApp = r.key && r.key.startsWith('_');
-            const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "')";
+            const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "'," + (typeof r.msgIdx === 'number' ? r.msgIdx : -1) + ")";
             const style = isApp ? 'border-left:3px solid var(--accent);' : '';
             return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchOverlay\').style.display=\'none\';document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(document.getElementById(\'searchOverlayInput\'))document.getElementById(\'searchOverlayInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
                 '<div class="sr-cat">' + r.cat + '</div>' +
@@ -3694,7 +3701,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         localStorage.setItem('btc_recent_searches', JSON.stringify(recent));
     }
 
-    function selectResult(key) {
+    function selectResult(key, msgIdx) {
         // Save the current search query to recent searches
         var overlayInput = document.getElementById('searchOverlayInput');
         var sideInput = document.getElementById('searchInput');
@@ -3704,8 +3711,50 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (overlayInput) overlayInput.value = '';
         document.getElementById('searchOverlay').style.display = 'none';
         doSearch('');
+        // Store target message index for scroll-after-render
+        if (typeof msgIdx === 'number' && msgIdx >= 0) {
+            window._searchScrollTarget = { channel: key, msgIdx: msgIdx, query: query };
+        }
         go(key);
     }
+
+    // Scroll to search result message after channel renders
+    window._tryScrollToSearchResult = function() {
+        var target = window._searchScrollTarget;
+        if (!target) return;
+        var idx = target.msgIdx;
+        var query = target.query;
+        window._searchScrollTarget = null;
+
+        // If the message is beyond the initial render batch, load more first
+        var initialBatch = (typeof isMobile === 'function' && isMobile()) ? 20 : 50;
+        if (idx >= initialBatch && typeof window.loadMoreMsgs === 'function') {
+            // Keep loading until we have the target message
+            var safety = 0;
+            while (!document.getElementById('msg-' + idx) && document.getElementById('loadMoreBtn') && safety < 50) {
+                window.loadMoreMsgs();
+                safety++;
+            }
+        }
+
+        var el = document.getElementById('msg-' + idx);
+        if (el) {
+            // Scroll to message
+            setTimeout(function() {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Highlight it briefly
+                el.style.transition = 'background 0.3s, box-shadow 0.3s';
+                el.style.background = 'rgba(249,115,22,0.12)';
+                el.style.boxShadow = 'inset 3px 0 0 #f97316';
+                el.style.borderRadius = '8px';
+                setTimeout(function() {
+                    el.style.background = '';
+                    el.style.boxShadow = '';
+                    el.style.borderRadius = '';
+                }, 3000);
+            }, 300);
+        }
+    };
 
     // Unique visit counter via Firebase
     (function() {
