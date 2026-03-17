@@ -24328,18 +24328,30 @@ function fmtPctMined(n) {
 
 // ---- Fetch All Data ----
 async function fetchDashboardData() {
-    if (_dashLoading) return _dashData;
+    // If already loading, wait up to 10s for it, then return whatever we have
+    if (_dashLoading) {
+        await new Promise(function(r) { var _w = setInterval(function() { if (!_dashLoading) { clearInterval(_w); r(); } }, 200); setTimeout(function() { clearInterval(_w); _dashLoading = false; r(); }, 10000); });
+        return _dashData || {};
+    }
     _dashLoading = true;
 
-    // Check cache
+    // Check cache — use it immediately, but still fetch fresh in background
+    var _cachedData = null;
     try {
         var cached = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
-        if (cached && Date.now() - cached.ts < DASH_CACHE_TTL) {
-            _dashData = cached.data;
-            _dashLoading = false;
-            return _dashData;
+        if (cached && cached.data) {
+            _cachedData = cached.data;
+            // If cache is fresh enough, return it
+            if (Date.now() - cached.ts < DASH_CACHE_TTL) {
+                _dashData = cached.data;
+                _dashLoading = false;
+                return _dashData;
+            }
         }
     } catch(e) {}
+    
+    // Start with cached data as baseline so we always have something to render
+    if (_cachedData) _dashData = _cachedData;
 
     var data = _dashData || {};
 
@@ -24486,11 +24498,16 @@ async function fetchDashboardData() {
     data.ts = Date.now();
     _dashData = data;
 
-    // Cache
-    try { localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
+    // Cache — only if we got meaningful data
+    if (data.price || data.blockHeight) {
+        try { localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
+    }
     _dashLoading = false;
     return data;
 }
+
+// Safety: always clear loading flag after 15s max
+setInterval(function() { if (_dashLoading) { console.warn('[Dashboard] Force-clearing stuck loading flag'); _dashLoading = false; } }, 15000);
 
 // ---- Fear/Greed Color ----
 function fgColor(val) {
@@ -24732,9 +24749,22 @@ window.toggleDashboard = async function() {
     // Start real-time price
     startPriceWs();
 
-    // Fetch and render
+    // Show cached data IMMEDIATELY while fetching fresh
+    try {
+        var _quick = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
+        if (_quick && _quick.data && (_quick.data.price || _quick.data.blockHeight)) {
+            card.innerHTML = renderDashboard(_quick.data);
+        }
+    } catch(e) {}
+
+    // Fetch fresh data and re-render
     var data = await fetchDashboardData();
-    card.innerHTML = renderDashboard(data);
+    if (data && (data.price || data.blockHeight)) {
+        card.innerHTML = renderDashboard(data);
+    } else if (card.innerHTML.indexOf('Loading') !== -1) {
+        // All APIs failed and no cache — show error instead of infinite spinner
+        card.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2rem;margin-bottom:12px;">📊</div><div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;">Unable to load metrics right now.</div><div style="color:var(--text-faint);font-size:0.8rem;">API rate limits or network issues. Try again in a minute.</div><button onclick="closeDashboard();setTimeout(toggleDashboard,500)" style="margin-top:16px;padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Retry</button></div>';
+    }
 
     // Auto-refresh every 2 min
     _dashInterval = setInterval(async function() {
