@@ -5340,7 +5340,7 @@ function createNacho() {
         }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -30px;
+            bottom: -46px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.7rem;
@@ -5590,7 +5590,7 @@ function createNacho() {
                 border-radius: 14px;
             }
             #nacho-bubble::before, #nacho-bubble::after { display: none; }
-            #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -28px; padding: 5px 14px; }
+            #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -44px; padding: 5px 14px; }
         }
         @media (max-width: 480px) {
             #nacho-container { bottom: calc(50vh - 40px); left: 10px; }
@@ -5606,7 +5606,7 @@ function createNacho() {
                 font-size: 0.85rem;
                 padding: 14px 16px;
             }
-            #nacho-avatar .nacho-name { font-size: 0.65rem; bottom: -26px; padding: 5px 12px; }
+            #nacho-avatar .nacho-name { font-size: 0.65rem; bottom: -40px; padding: 5px 12px; }
         }
 
         /* Bring-back toggle */
