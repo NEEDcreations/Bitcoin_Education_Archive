@@ -25,38 +25,52 @@
     var ONBOARDING_KEY = 'btc_onboarding_profile';
     var ONBOARDING_COMPLETE_KEY = 'btc_onboarding_done';
 
-    // Recommended starting channels per level
+    // Recommended starting channels per level (6 each)
     var CURATED_CHANNELS = {
         beginner: [
             { id: 'one-stop-shop', reason: 'The best place to start' },
             { id: 'whitepaper', reason: 'The 9 pages that started it all' },
             { id: 'money', reason: 'Why Bitcoin is real money' },
+            { id: 'misconceptions-fud', reason: 'Common myths debunked' },
             { id: 'self-custody', reason: 'How to truly own your Bitcoin' },
+            { id: 'elevator_pitches', reason: 'Quick ways to explain Bitcoin' },
         ],
         intermediate: [
             { id: 'layer-2-lightning', reason: 'Instant Bitcoin payments' },
             { id: 'mining', reason: 'How the network is secured' },
             { id: 'privacy-nonkyc', reason: 'Financial sovereignty' },
             { id: 'investment-strategy', reason: 'DCA, HODL, and beyond' },
+            { id: 'evidence-against-alts', reason: 'Why Bitcoin, not crypto' },
+            { id: 'history', reason: 'How it all began' },
         ],
         advanced: [
             { id: 'maximalism', reason: 'The Bitcoin-only thesis' },
             { id: 'cryptography', reason: 'SHA-256 and elliptic curves' },
             { id: 'developers', reason: 'Build on Bitcoin' },
             { id: 'pow-vs-pos', reason: 'Why proof of work wins' },
+            { id: 'nodes', reason: "Don't trust, verify" },
+            { id: 'core-source-code', reason: 'Bitcoin Core internals' },
         ],
     };
 
-    // Interest tags → channel mapping
+    // Interest tags → channel mapping (16 topics, 145/145 channels covered)
     var INTEREST_CHANNELS = {
-        'Why Bitcoin?': ['one-stop-shop', 'money', 'problems-of-money'],
-        'How to buy': ['investment-strategy', 'self-custody'],
-        'Security & wallets': ['self-custody', 'hardware', 'cryptography'],
-        'Lightning Network': ['layer-2-lightning', 'fedi-ark'],
-        'Mining & energy': ['mining', 'energy', 'difficulty-adjustment'],
-        'Privacy': ['privacy-nonkyc', 'nostr'],
-        'History & culture': ['history', 'satoshi-nakamoto', 'fun-facts'],
-        'Economics': ['money', 'problems-of-money', 'investment-strategy'],
+        'Why Bitcoin?': ['one-stop-shop', 'money', 'misconceptions-fud', 'elevator_pitches', 'orange-pilling', 'analogies', 'dominant', 'faq-glossary', 'whitepaper'],
+        'How to buy & use': ['investment-strategy', 'self-custody', 'apps-tools', '100_sats', 'sats__or__bits', 'swaps'],
+        'Security & wallets': ['self-custody', 'hardware', 'cryptography', 'public_key_vs_private_key', 'derivation_path', 'utxos', 'risks__threats__attack_vectors__weaknes', 'simplified_payment_verification__spv'],
+        'Lightning Network': ['layer-2-lightning', 'fedi-ark', 'lightning_node', 'submarine_swap', 'chaumian-mints', 'fedimints', 'chaumian_e-cash_and_blind_signatures'],
+        'Mining & energy': ['mining', 'energy', 'difficulty-adjustment', 'environment___energy', '0_mining__hashing', 'stratum_v2', 'laws_of_thermodynamics', 'dust', 'vbyte', 'tail_emission'],
+        'Privacy & freedom': ['privacy-nonkyc', 'nostr', 'coin_mixing_coinjoin_coin_control_utxo', 'human_rights__social_justice_and_freedo', 'peaceful'],
+        'History & culture': ['history', 'satoshi-nakamoto', 'fun-facts', 'poems-stories', 'cyles', 'lindy_effect', 'time', 'unpopular_opinions'],
+        'Economics & money': ['money', 'problems-of-money', 'austrian_school_of_economics', 'market_cap', 'bitcoin_vs_real_estate', 'dollar-bitcoin_milkshake_theory', 'time_preference', 'feedback_loops', 'network_effects', 'improved_incentive_structure'],
+        'Geopolitics & adoption': ['news-adoption', 'regulation', 'geopolitics___macroeconomics', 'politics', 'international', 'predictions', 'the_future'],
+        'Technical deep dives': ['blockchain-timechain', 'nodes', 'pow-vs-pos', 'taproot', 'core-source-code', 'consensus', 'scalability', 'block_time-block-size', 'smart-contracts', 'bitvm', 'bip119', 'ctv-covenants', 'discrete_log_contracts__dlcs', 'rbf', 'soft_vs_hard_forks', 'extension-blocks', 'rollups', 'sidechains', 'mev', 'burn_bitcoin', 'byzantine_generals__problem', '2__solved_technical_problems', 'oracle', 'taro'],
+        'Art, memes & media': ['art-inspiration', 'memes-funny', 'movies-tv', 'music', 'graphics', 'charts', 'social-media', 'games', 'ta_tips'],
+        'Books & learning': ['books', 'podcasts', 'videos', 'articles-threads', 'curriculum', 'informational-sites', 'research-theses', 'bitcoin_exam', 'math', 'mathematics'],
+        'Philosophy & ethics': ['philosophy', 'game_theory', 'peace_and_anti-war', 'faith___religion', 'governance', 'toxicity', 'softwar', '1_first_principles'],
+        'Building & DIY': ['developers', 'projects-diy', 'free_and_open_source_software__foss', 'open_source', 'op-codes', 'ham_radio', 'web5', 'layer-3-sidechains', 'ordinals', 'ordinals__nfts_on_bitcoin__and_block_spa'],
+        'Bitcoin properties': ['decentralized', 'scarce', 'secure', 'organic', 'programmable', 'supranational', 'dominant', 'peaceful', 'maximalism'],
+        'Real-world use cases': ['use-cases', 'referral-links', 'jobs-earn', 'swag-merch', 'health', 'stablecoins', 'transaction_fees', 'giga-chad'],
     };
 
     // ─── PROFILE MANAGEMENT ───────────────────────────────
@@ -175,17 +189,26 @@
                 // ── INTERESTS (Nacho asks) ──
                 html += '<div style="font-size:3rem;margin-bottom:12px;">🦌</div>';
                 html += '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What catches your eye?</h1>';
-                html += '<p style="color:#64748b;font-size:0.85rem;margin:0 0 24px;">Pick a few and I\'ll build your starting path — or just dive in!</p>';
+                html += '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick at least 3 topics that interest you!</p>';
+                html += '<div id="interestCount" style="color:' + (state.interests.length >= 3 ? '#22c55e' : '#f97316') + ';font-size:0.75rem;font-weight:700;margin-bottom:16px;">' + state.interests.length + ' of 3 minimum selected</div>';
 
                 var tags = [
                     { label: 'Why Bitcoin?', emoji: '❓' },
-                    { label: 'How to buy', emoji: '🛒' },
+                    { label: 'How to buy & use', emoji: '🛒' },
                     { label: 'Security & wallets', emoji: '🔑' },
                     { label: 'Lightning Network', emoji: '⚡' },
                     { label: 'Mining & energy', emoji: '⛏️' },
-                    { label: 'Privacy', emoji: '🕵️' },
+                    { label: 'Privacy & freedom', emoji: '🕵️' },
                     { label: 'History & culture', emoji: '📜' },
-                    { label: 'Economics', emoji: '💰' },
+                    { label: 'Economics & money', emoji: '💰' },
+                    { label: 'Geopolitics & adoption', emoji: '🌍' },
+                    { label: 'Technical deep dives', emoji: '🔧' },
+                    { label: 'Art, memes & media', emoji: '🎨' },
+                    { label: 'Books & learning', emoji: '📚' },
+                    { label: 'Philosophy & ethics', emoji: '🍎' },
+                    { label: 'Building & DIY', emoji: '🔨' },
+                    { label: 'Bitcoin properties', emoji: '₿' },
+                    { label: 'Real-world use cases', emoji: '✅' },
                 ];
 
                 html += '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
@@ -201,7 +224,7 @@
             html += '</div>'; // End content
 
             // CTA button
-            var canAdvance = state.step === 0 || (state.step === 1 && state.level) || state.step === 2;
+            var canAdvance = state.step === 0 || (state.step === 1 && state.level) || (state.step === 2 && state.interests.length >= 3);
             var isLast = state.step === 2;
 
             html += '<div style="margin-top:36px;width:100%;max-width:480px;">';
@@ -331,23 +354,41 @@
         });
 
         // ── Inject curated "Start Here" section ──
-        var curated = CURATED_CHANNELS[level] || CURATED_CHANNELS.beginner;
+        // Interest channels go FIRST, then level defaults fill remaining slots (max 12)
+        var levelDefaults = CURATED_CHANNELS[level] || CURATED_CHANNELS.beginner;
+        var curated = [];
+        var seenIds = [];
+
+        // Step 1: Add interest-based channels first (up to 6 slots)
         if (profile && profile.interests && profile.interests.length > 0) {
-            // Add interest-based channels
-            var extraIds = [];
+            var interestIds = [];
             profile.interests.forEach(function (interest) {
                 var ids = INTEREST_CHANNELS[interest] || [];
-                ids.forEach(function (id) { if (extraIds.indexOf(id) === -1) extraIds.push(id); });
+                ids.forEach(function (id) { if (interestIds.indexOf(id) === -1) interestIds.push(id); });
             });
-            // Merge, deduplicate, cap at 6
-            var allIds = curated.map(function (c) { return c.id; });
-            extraIds.forEach(function (id) {
-                if (allIds.indexOf(id) === -1 && allIds.length < 6) {
-                    allIds.push(id);
-                    curated.push({ id: id, reason: 'Based on your interests' });
+            interestIds.forEach(function (id) {
+                if (seenIds.indexOf(id) === -1 && curated.length < 6) {
+                    seenIds.push(id);
+                    // Find a matching reason from the interest topic
+                    var reason = 'Based on your interests';
+                    for (var k = 0; k < profile.interests.length; k++) {
+                        if ((INTEREST_CHANNELS[profile.interests[k]] || []).indexOf(id) !== -1) {
+                            reason = profile.interests[k];
+                            break;
+                        }
+                    }
+                    curated.push({ id: id, reason: reason });
                 }
             });
         }
+
+        // Step 2: Fill remaining slots with level defaults (up to 12 total)
+        levelDefaults.forEach(function (ch) {
+            if (seenIds.indexOf(ch.id) === -1 && curated.length < 12) {
+                seenIds.push(ch.id);
+                curated.push(ch);
+            }
+        });
 
         _injectCuratedSection(curated, level);
 

@@ -28248,9 +28248,21 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         renderContent(id);
 
-        // Scroll to search result if pending
+        // Scroll to search result if pending (retry at 200, 600, 1200ms for slow renders)
         if (window._searchScrollTarget && window._searchScrollTarget.channel === id) {
-            setTimeout(function() { if (typeof window._tryScrollToSearchResult === 'function') window._tryScrollToSearchResult(); }, 200);
+            var _scrollAttempts = 0;
+            function _attemptScroll() {
+                _scrollAttempts++;
+                if (window._searchScrollTarget) {
+                    var el = document.getElementById('msg-' + window._searchScrollTarget.msgIdx);
+                    if (el || _scrollAttempts >= 3) {
+                        if (typeof window._tryScrollToSearchResult === 'function') window._tryScrollToSearchResult();
+                    } else {
+                        setTimeout(_attemptScroll, _scrollAttempts * 400);
+                    }
+                }
+            }
+            setTimeout(_attemptScroll, 200);
         }
 
         // Trigger fade-in animation
