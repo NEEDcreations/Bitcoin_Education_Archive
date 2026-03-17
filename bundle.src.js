@@ -26825,7 +26825,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (m.role === 'user') {
                 html += '<div class="nm-msg nm-user"><span>' + escapeHtml(m.text) + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
             } else {
-                html += '<div class="nm-msg nm-nacho"><span>🦌 ' + m.html + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
+                var _nn = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
+                html += '<div class="nm-msg nm-nacho"><span>🦌 <strong style="color:var(--accent);font-size:0.75rem;">' + escapeHtml(_nn) + ':</strong> ' + m.html + '</span><div class="nm-time">' + nmTime(m.ts) + '</div></div>';
             }
         }
         chat.innerHTML = html;
@@ -26862,7 +26863,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (role === 'user') {
             div.innerHTML = '<span>' + escapeHtml(text) + '</span><div class="nm-time">' + ts + '</div>';
         } else {
-            div.innerHTML = '<span>🦌 ' + html + '</span><div class="nm-time">' + ts + '</div>';
+            var _nn2 = (typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho';
+            div.innerHTML = '<span>🦌 <strong style="color:var(--accent);font-size:0.75rem;">' + escapeHtml(_nn2) + ':</strong> ' + html + '</span><div class="nm-time">' + ts + '</div>';
         }
         chat.appendChild(div);
         // User messages: scroll to bottom so they see their sent message
