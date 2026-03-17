@@ -5299,7 +5299,7 @@ function createNacho() {
         #nacho-avatar .nacho-btn-stack {
             position: absolute;
             top: -5px;
-            right: -32px;
+            right: -4px;
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -5633,7 +5633,7 @@ function createNacho() {
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
             NACHO_SVG +
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-4px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
+            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
             '<div class="nacho-btn-stack">' +
                 '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
                 '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
