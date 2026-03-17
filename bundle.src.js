@@ -344,6 +344,9 @@ function initRanking() {
 
 // Handle email magic link return
 async function handleEmailSignIn() {
+    // Save the full URL before any modifications — needed for signInWithEmailLink
+    var _signInUrl = window.location.href;
+    
     // Try to get email from: 1) URL param (works cross-device), 2) localStorage (same device), 3) prompt (last resort)
     let email = null;
     // Check URL parameter first — this is embedded in the magic link
@@ -355,12 +358,15 @@ async function handleEmailSignIn() {
     if (!email) {
         email = localStorage.getItem('btc_signin_email');
     }
-    // Clean the URL parameter so it doesn't persist in the address bar
-    if (urlParams.get('signin_email')) {
-        var cleanUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, '', cleanUrl);
+    // Last resort: prompt the user (cross-device scenario where no email is available)
+    if (!email) {
+        email = prompt('Please enter the email you used to sign up:');
+        if (email) email = email.trim().toLowerCase();
     }
-    if (!email) return;
+    if (!email) {
+        showToast('⚠️ Could not determine your email. Please sign in again from the app.');
+        return;
+    }
 
     try {
         // Save anonymous user info BEFORE sign-in changes auth state
@@ -373,8 +379,8 @@ async function handleEmailSignIn() {
             if (anonDoc.exists) anonData = anonDoc.data();
         }
 
-        // Sign in with email link
-        const result = await auth.signInWithEmailLink(email, window.location.href);
+        // Sign in with email link (use saved URL that still has Firebase params)
+        const result = await auth.signInWithEmailLink(email, _signInUrl);
         localStorage.removeItem('btc_signin_email');
 
         // Check if this email user already has data
@@ -457,8 +463,16 @@ async function handleEmailSignIn() {
             setTimeout(function() { showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!'); }, 2000);
         }
     } catch(e) {
-        console.log('Email sign-in error:', e);
-        showToast('Sign-in error. Please try again.');
+        console.error('Email sign-in error:', e.code, e.message);
+        if (e.code === 'auth/invalid-action-code' || e.code === 'auth/expired-action-code') {
+            showToast('⚠️ This sign-in link has expired. Please request a new one.');
+        } else if (e.code === 'auth/invalid-email') {
+            showToast('⚠️ Email mismatch. Make sure you enter the same email you signed up with.');
+        } else {
+            showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
+        }
+        // Clean URL so the broken link doesn't keep retrying
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
         auth.signInAnonymously();
     }
 }
