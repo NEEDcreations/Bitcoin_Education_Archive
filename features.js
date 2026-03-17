@@ -454,7 +454,22 @@ window.showNachoStory = function(chapterOverride) {
 // ---- Price Prediction Game ----
 window.showPricePrediction = function() {
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-    if (!currentPrice) { if (typeof showToast === 'function') showToast('⏳ Loading price data...'); return; }
+    // Try multiple sources if localStorage is empty
+    if (!currentPrice && typeof _lastWsPrice !== 'undefined' && _lastWsPrice) { currentPrice = _lastWsPrice; localStorage.setItem('btc_last_price', currentPrice.toString()); }
+    if (!currentPrice && typeof _dashData !== 'undefined' && _dashData && _dashData.price) { currentPrice = _dashData.price; localStorage.setItem('btc_last_price', currentPrice.toString()); }
+    if (!currentPrice) {
+        // Quick fetch as last resort
+        if (typeof showToast === 'function') showToast('⏳ Fetching price...');
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d && d.bitcoin && d.bitcoin.usd) {
+                    localStorage.setItem('btc_last_price', d.bitcoin.usd.toString());
+                    showPricePrediction(); // retry
+                } else { if (typeof showToast === 'function') showToast('⚠️ Could not load price. Try opening the dashboard first.'); }
+            }).catch(function() { if (typeof showToast === 'function') showToast('⚠️ Could not load price. Try opening the dashboard first.'); });
+        return;
+    }
 
     var overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.95);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';

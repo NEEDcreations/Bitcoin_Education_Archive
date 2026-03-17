@@ -227,6 +227,7 @@ async function fetchDashboardData() {
         fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true').then(r => r.json()).then(d => {
             if (d.bitcoin) {
                 data.price = d.bitcoin.usd;
+                try { localStorage.setItem('btc_last_price', d.bitcoin.usd.toString()); } catch(e) {}
                 data.change24h = d.bitcoin.usd_24h_change;
                 data.volume24h = d.bitcoin.usd_24h_vol;
                 data.marketCap = d.bitcoin.usd_market_cap;
