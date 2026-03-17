@@ -1389,14 +1389,13 @@ function _showBubble(text, pose) {
         if (handle) { handle.style.background = 'rgba(255,255,255,0.9)'; var hs = handle.querySelector('span'); if (hs) hs.style.color = '#888'; }
         if (hasMoved && dragTarget) {
             var rect = dragTarget.getBoundingClientRect();
-            if (rect.right < 20 || rect.left > window.innerWidth - 20 ||
-                rect.bottom < 20 || rect.top > window.innerHeight - 20) {
-                hideNacho();
-                localStorage.removeItem('btc_nacho_position');
-            } else {
-                localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
-                setTimeout(adjustBubbleForPosition, 50);
-            }
+            // Clamp to viewport edges (don't let it go off-screen)
+            var clampedLeft = Math.max(0, Math.min(Math.round(rect.left), window.innerWidth - 60));
+            var clampedTop = Math.max(0, Math.min(Math.round(rect.top), window.innerHeight - 60));
+            dragTarget.style.left = clampedLeft + 'px';
+            dragTarget.style.top = clampedTop + 'px';
+            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: clampedLeft, top: clampedTop }));
+            setTimeout(adjustBubbleForPosition, 50);
             e.preventDefault();
         }
         dragTarget = null;
@@ -1440,14 +1439,13 @@ function _showBubble(text, pose) {
         if (dragTarget) dragTarget.style.transition = '';
         if (hasMoved && dragTarget) {
             var rect = dragTarget.getBoundingClientRect();
-            if (rect.right < 20 || rect.left > window.innerWidth - 20 ||
-                rect.bottom < 20 || rect.top > window.innerHeight - 20) {
-                hideNacho();
-                localStorage.removeItem('btc_nacho_position');
-            } else {
-                localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
-                setTimeout(adjustBubbleForPosition, 50);
-            }
+            // Clamp to viewport edges (don't let it go off-screen)
+            var clampedLeft = Math.max(0, Math.min(Math.round(rect.left), window.innerWidth - 60));
+            var clampedTop = Math.max(0, Math.min(Math.round(rect.top), window.innerHeight - 60));
+            dragTarget.style.left = clampedLeft + 'px';
+            dragTarget.style.top = clampedTop + 'px';
+            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: clampedLeft, top: clampedTop }));
+            setTimeout(adjustBubbleForPosition, 50);
         }
         dragTarget = null;
     });
