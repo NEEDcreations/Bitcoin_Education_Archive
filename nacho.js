@@ -461,7 +461,7 @@ function createNacho() {
             flex-shrink: 0;
             z-index: 2;
         }
-        #nacho-avatar { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; }
+        #nacho-avatar { -webkit-user-select: none; }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
         #nacho-avatar:active { transform: scale(0.93); }
         #nacho-avatar .nacho-btn-stack {
@@ -806,6 +806,7 @@ function createNacho() {
                 '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
                 '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
             '</div>' +
+            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>' +
         '</div>' +
         '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
             '<div class="nacho-header">' +
@@ -1339,13 +1340,11 @@ function _showBubble(text, pose) {
         } catch(e) {}
     });
 
-    // Touch events (mobile) — passive:false so we can preventDefault to stop scroll/context menu
-    var _nachoDragTimer = null;
+    // Touch events (mobile) — drag ONLY from the drag handle
     document.addEventListener('touchstart', function(e) {
-        var avatar = document.getElementById('nacho-avatar');
-        if (!avatar || !avatar.contains(e.target)) return;
-        // Don't drag if touching closet button, name label, hide button, or story button
-        if (e.target.closest('.nacho-btn-stack') || e.target.closest('.nacho-name') || e.target.closest('#nachoHideBtn') || e.target.closest('#nachoStoryBtn')) return;
+        var handle = document.getElementById('nachoDragHandle');
+        if (!handle || !handle.contains(e.target)) return;
+        e.preventDefault(); // Prevent any other touch behavior
         var c = getContainer();
         if (!c) return;
         hasMoved = false;
@@ -1355,12 +1354,12 @@ function _showBubble(text, pose) {
         var rect = c.getBoundingClientRect();
         containerStartLeft = rect.left;
         containerStartTop = rect.top;
-        // Start drag immediately — no long-press delay needed
         dragging = true;
         c.style.transition = 'none';
-        // Add visual feedback that it's grabbable
         c.style.opacity = '0.85';
-    }, { passive: true });
+        handle.style.background = 'rgba(247,147,26,0.9)';
+        handle.querySelector('span').style.color = '#fff';
+    }, { passive: false });
 
     document.addEventListener('touchmove', function(e) {
         if (!dragging || !dragTarget) return;
@@ -1385,6 +1384,9 @@ function _showBubble(text, pose) {
             dragTarget.style.transition = '';
             dragTarget.style.opacity = '';
         }
+        // Reset drag handle appearance
+        var handle = document.getElementById('nachoDragHandle');
+        if (handle) { handle.style.background = 'rgba(255,255,255,0.9)'; var hs = handle.querySelector('span'); if (hs) hs.style.color = '#888'; }
         if (hasMoved && dragTarget) {
             var rect = dragTarget.getBoundingClientRect();
             if (rect.right < 20 || rect.left > window.innerWidth - 20 ||
@@ -1400,11 +1402,10 @@ function _showBubble(text, pose) {
         dragTarget = null;
     }, { passive: false });
 
-    // Mouse events (desktop)
+    // Mouse events (desktop) — drag ONLY from handle
     document.addEventListener('mousedown', function(e) {
-        var avatar = document.getElementById('nacho-avatar');
-        if (!avatar || !avatar.contains(e.target)) return;
-        if (e.target.closest('.nacho-btn-stack') || e.target.closest('.nacho-name')) return;
+        var handle = document.getElementById('nachoDragHandle');
+        if (!handle || !handle.contains(e.target)) return;
         var c = getContainer();
         if (!c) return;
         dragging = true;
