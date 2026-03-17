@@ -1035,17 +1035,17 @@
                             '<img src="nacho-deer.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
                             '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
                         '</div>' +
-                        '<div>' +
-                            '<div class="nm-hero-title" style="font-size:1rem;font-weight:900;letter-spacing:3px;color:var(--accent);text-transform:uppercase;">' + ((typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho').toUpperCase()) + ' MODE</div>' +
-                            '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.65rem;"></div>' +
+                        '<div style="min-width:0;overflow:hidden;">' +
+                            '<div class="nm-hero-title" style="font-size:0.9rem;font-weight:900;letter-spacing:2px;color:var(--accent);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + ((typeof nachoNickname === 'function' ? nachoNickname() : 'Nacho').toUpperCase()) + ' MODE</div>' +
+                            '<div id="nachoModeFriendship" style="color:var(--text-faint);font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>' +
                         '</div>' +
                     '</div>' +
-                    /* Right: tools */
-                    '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:6px;">' +
-                        '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:28px;height:28px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:1.1rem;" title="ELI5 Mode">🧒</button>' +
-                        '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:28px;height:28px;touch-action:manipulation;font-size:1.1rem;" title="Save chat">💾</button>' +
-                        '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:28px;height:28px;touch-action:manipulation;font-size:1.1rem;" title="Clear chat">🗑️</button>' +
-                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:28px;height:28px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
+                    /* Right: tools — flex-shrink:0 so they don't get squished */
+                    '<div class="nm-hero-bar" style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto;">' +
+                        '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:0.95rem;" title="ELI5 Mode">🧒</button>' +
+                        '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Save chat">💾</button>' +
+                        '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Clear chat">🗑️</button>' +
+                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
