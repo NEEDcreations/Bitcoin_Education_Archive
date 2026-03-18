@@ -6,7 +6,7 @@
 
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
-    authDomain: "bitcoineducation.quest",
+    authDomain: "bitcoin-education-archive.firebaseapp.com",
     projectId: "bitcoin-education-archive",
     storageBucket: "bitcoin-education-archive.firebasestorage.app",
     messagingSenderId: "1055248200518",
