@@ -134,67 +134,43 @@ const HIDDEN_BADGES = [
     ];
 
     async function initActivityTicker() {
-        // PROGRESSIVE DISCLOSURE: Hide the ticker for brand new users
-        // Only show if user has visited 3+ channels or is logged in
         const visitedCount = safeJSON('btc_visited_channels', []).length;
         const isAuth = firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous;
-        
-        if (visitedCount < 3 && !isAuth) {
-            console.log("Ticker hidden: User is too new.");
-            return;
-        }
+        if (visitedCount < 3 && !isAuth) return;
 
         const ticker = document.getElementById('activity-ticker');
         const content = document.getElementById('ticker-content');
         if (!ticker || !content) return;
 
-        // Pull real data if possible
+        // Only show the 3 Signal headlines from newsletter-data.json
+        var signalItems = [];
         try {
-            const db = firebase.firestore();
-            const forumSnap = await db.collection('forum_posts').orderBy('createdAt', 'desc').limit(3).get();
-            forumSnap.forEach(doc => {
-                const data = doc.data();
-                TICKER_ITEMS.push("New Forum: \"" + data.title.substring(0, 30) + "...\" 💬");
-            });
-
-            try {
-                const marketSnap = await db.collection('marketplace').where('status', '==', 'active').orderBy('createdAt', 'desc').limit(2).get();
-                marketSnap.forEach(doc => {
-                    const data = doc.data();
-                    TICKER_ITEMS.push("Market: " + data.title + " for " + (data.priceSats || data.price) + " sats! 🛒");
+            var resp = await fetch('newsletter-data.json?v=' + Date.now());
+            var data = await resp.json();
+            if (data && data.news && data.news.length > 0) {
+                data.news.forEach(function(n) {
+                    var title = (n.title || '').replace(/<[^>]+>/g, '');
+                    var src = n.snippet ? ' — ' + n.snippet : '';
+                    signalItems.push('📡 ' + title + src);
                 });
-            } catch(mktErr) { /* index not ready yet — skip marketplace ticker items */ }
+            }
+        } catch(e) { console.log('Ticker signal fetch skipped:', e); }
 
-            // IRL Sync events
-            try {
-                const irlSnap = await db.collection('irl_events').where('date', '>=', new Date().toISOString()).orderBy('date', 'asc').limit(5).get();
-                irlSnap.forEach(doc => {
-                    const ev = doc.data();
-                    const d = new Date(ev.date);
-                    const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                    const loc = ev.locationName || 'TBD';
-                    TICKER_ITEMS.push("🤝 IRL Meetup: " + (ev.title || 'Bitcoin Meetup').substring(0, 35) + " — " + dateStr + " 📍 " + loc);
-                });
-            } catch(irlErr) { /* index not ready — skip IRL ticker items */ }
-        } catch(e) { console.log("Ticker live data skipped:", e); }
+        if (signalItems.length === 0) return; // no headlines = hide ticker
 
         ticker.style.display = 'flex';
         let currentIdx = 0;
 
         function updateTicker() {
             content.style.animation = 'none';
-            content.offsetHeight; // trigger reflow
-            content.textContent = TICKER_ITEMS[currentIdx];
+            content.offsetHeight;
+            content.textContent = signalItems[currentIdx];
             content.style.animation = 'tickerScroll 12s linear infinite';
-            
-            // Log for debug (optional)
-            // console.log("Ticker update:", TICKER_ITEMS[currentIdx]);
-
-            currentIdx = (currentIdx + 1) % TICKER_ITEMS.length;
+            currentIdx = (currentIdx + 1) % signalItems.length;
         }
 
         updateTicker();
-        setInterval(updateTicker, 12000); // 12s matches animation speed better for full visibility
+        setInterval(updateTicker, 12000);
     }
 
     // 🔗 UI FIX: Ensure ticker content doesn't truncate early
