@@ -2048,6 +2048,141 @@ function applyOLEDTheme() {
 // Initial apply
 document.addEventListener('DOMContentLoaded', applyOLEDTheme);
 
+// ---- Delete Account ----
+window.showDeleteAccountConfirm = function() {
+    var overlay = document.createElement('div');
+    overlay.id = 'deleteAccountOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var username = (currentUser && currentUser.username) ? currentUser.username : 'your account';
+    var pts = currentUser ? (currentUser.points || 0) : 0;
+    var streak = currentUser ? (currentUser.streak || 0) : 0;
+
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;animation:fadeSlideIn 0.3s;">' +
+            '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:3rem;">⚠️</span></div>' +
+            '<h2 style="color:#ef4444;text-align:center;margin:0 0 12px;font-size:1.2rem;">Delete Your Account?</h2>' +
+            '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:16px;text-align:center;">' +
+                'This will <strong style="color:#ef4444;">permanently delete</strong> everything associated with <strong>' + escapeHtml(username) + '</strong>:' +
+            '</div>' +
+            '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">' +
+                '<div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;color:var(--text-muted);">' +
+                    '<div>❌ <strong>' + pts.toLocaleString() + ' points</strong> and all badges</div>' +
+                    (streak > 0 ? '<div>❌ <strong>' + streak + '-day streak</strong></div>' : '') +
+                    '<div>❌ All forum posts and replies</div>' +
+                    '<div>❌ Marketplace listings</div>' +
+                    '<div>❌ DM conversations</div>' +
+                    '<div>❌ Nacho chat history</div>' +
+                    '<div>❌ Leaderboard ranking</div>' +
+                    '<div>❌ Orange Tickets and quest progress</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:16px;">⚠️ This action is IRREVERSIBLE. There is no undo.</div>' +
+            '<div style="margin-bottom:16px;">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Type <strong style="color:#ef4444;">DELETE</strong> to confirm:</label>' +
+                '<input type="text" id="deleteConfirmInput" placeholder="Type DELETE here" autocomplete="off" style="width:100%;padding:12px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;text-align:center;outline:none;box-sizing:border-box;" oninput="var btn=document.getElementById(\'deleteConfirmBtn\');if(btn){if(this.value===\'DELETE\'){btn.disabled=false;btn.style.opacity=1;}else{btn.disabled=true;btn.style.opacity=0.4;}}">' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;">' +
+                '<button onclick="document.getElementById(\'deleteAccountOverlay\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>' +
+                '<button id="deleteConfirmBtn" disabled onclick="confirmDeleteAccount()" style="flex:1;padding:12px;background:#ef4444;border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;opacity:0.4;transition:0.2s;">🗑️ Delete Forever</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+};
+
+window.confirmDeleteAccount = async function() {
+    var input = document.getElementById('deleteConfirmInput');
+    if (!input || input.value !== 'DELETE') return;
+
+    var btn = document.getElementById('deleteConfirmBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+
+    try {
+        var user = auth.currentUser;
+        if (!user) throw new Error('Not signed in');
+        var uid = user.uid;
+
+        // 1. Delete Firestore user document
+        try { await db.collection('users').doc(uid).delete(); } catch(e) { console.warn('User doc delete failed:', e); }
+
+        // 2. Delete forum posts by this user
+        try {
+            var posts = await db.collection('forum_posts').where('authorId', '==', uid).get();
+            var batch1 = db.batch();
+            posts.forEach(function(doc) { batch1.delete(doc.ref); });
+            if (!posts.empty) await batch1.commit();
+        } catch(e) { console.warn('Forum posts delete failed:', e); }
+
+        // 3. Delete forum replies by this user
+        try {
+            var replies = await db.collection('forum_replies').where('authorId', '==', uid).get();
+            var batch2 = db.batch();
+            replies.forEach(function(doc) { batch2.delete(doc.ref); });
+            if (!replies.empty) await batch2.commit();
+        } catch(e) { console.warn('Forum replies delete failed:', e); }
+
+        // 4. Delete marketplace listings
+        try {
+            var listings = await db.collection('marketplace').where('sellerUid', '==', uid).get();
+            var batch3 = db.batch();
+            listings.forEach(function(doc) { batch3.delete(doc.ref); });
+            if (!listings.empty) await batch3.commit();
+        } catch(e) { console.warn('Marketplace delete failed:', e); }
+
+        // 5. Delete DM conversations
+        try {
+            var convos = await db.collection('conversations').where('participants', 'array-contains', uid).get();
+            var batch4 = db.batch();
+            convos.forEach(function(doc) { batch4.delete(doc.ref); });
+            if (!convos.empty) await batch4.commit();
+        } catch(e) { console.warn('DM delete failed:', e); }
+
+        // 6. Delete suggestions
+        try {
+            var suggestions = await db.collection('suggestions').where('uid', '==', uid).get();
+            var batch5 = db.batch();
+            suggestions.forEach(function(doc) { batch5.delete(doc.ref); });
+            if (!suggestions.empty) await batch5.commit();
+        } catch(e) { console.warn('Suggestions delete failed:', e); }
+
+        // 7. Clear all localStorage
+        var keysToRemove = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (key && key.startsWith('btc_')) keysToRemove.push(key);
+        }
+        keysToRemove.forEach(function(k) { localStorage.removeItem(k); });
+        sessionStorage.clear();
+
+        // 8. Delete Firebase Auth account
+        await user.delete();
+
+        // 9. Close overlay and show confirmation
+        var overlay = document.getElementById('deleteAccountOverlay');
+        if (overlay) overlay.remove();
+        
+        // Close settings
+        var settingsEl = document.getElementById('settings-overlay') || document.querySelector('[id*="settings"]');
+        if (settingsEl) settingsEl.remove();
+
+        showToast('👋 Account deleted. We\'re sorry to see you go.');
+        
+        // Reload after brief delay
+        setTimeout(function() { window.location.reload(); }, 2000);
+
+    } catch(e) {
+        console.error('Account deletion error:', e);
+        if (e.code === 'auth/requires-recent-login') {
+            showToast('🔒 For security, please sign out and sign back in, then try again.');
+        } else {
+            showToast('Error deleting account: ' + (e.message || 'Unknown error'));
+        }
+        if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+    }
+};
+
 window.toggleGhostMode = async function() {
     if (!currentUser) return;
     const isGhost = !currentUser.ghostMode;
@@ -3065,6 +3200,15 @@ function showSettingsPage(tab) {
                     });
                 });
             }, 100);
+        }
+
+        // Delete Account — Danger Zone
+        if (!user.isAnonymous) {
+            html += '<div style="background:rgba(239,68,68,0.05);border:2px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-top:24px;">' +
+                '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">⚠️ Danger Zone</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, points, badges, and progress. This action cannot be undone.</div>' +
+                '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete My Account</button>' +
+                '</div>';
         }
 
     } else if (settingsTab === 'data') {
