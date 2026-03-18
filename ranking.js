@@ -807,11 +807,34 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Strategy: ALWAYS try popup first. Redirect loses auth session because
-    // authDomain (firebaseapp.com) ≠ app domain (bitcoineducation.quest).
-    // Popup keeps everything in the same context. Fall back to redirect only if popup fails.
+    // Strategy: Use popup on desktop (reliable), redirect on mobile/PWA.
+    // Redirect loses session cross-domain but at least shows the Google sign-in page.
+    // Popup on Android PWA causes redirect_uri_mismatch errors.
+    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
-    // Try popup first — works on desktop, tablets, and even many PWAs via Chrome Custom Tabs
+    if (isMobileDevice || isStandalone) {
+        try {
+            showToast('⏳ Opening sign-in...');
+            const anonUser = auth.currentUser;
+            if (anonUser && anonUser.isAnonymous) {
+                localStorage.setItem('btc_anon_uid', anonUser.uid);
+                try {
+                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+                    if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+                } catch(e2) {}
+            }
+            sessionStorage.setItem('btc_redirect_pending', '1');
+            await auth.signInWithRedirect(provider);
+            return;
+        } catch(e) {
+            console.error('Redirect sign-in error:', e);
+            showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
+            return;
+        }
+    }
+
+    // Desktop: try popup first
     try {
         const { anonUid, anonData } = await saveAnonData();
 
@@ -823,6 +846,7 @@ async function signInWithProvider(provider) {
         // Popup blocked, closed, or failed — fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
             e.code === 'auth/cancelled-popup-request' ||
+            e.code === 'auth/popup-closed-by-user' ||
             e.code === 'auth/internal-error') {
             try {
                 showToast('⏳ Opening sign-in page...');
