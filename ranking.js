@@ -807,35 +807,11 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Strategy: Try popup first everywhere (works best with cross-domain authDomain).
-    // Only fall back to redirect if popup fails or is blocked.
-    // Redirect flow loses auth session because authDomain (firebaseapp.com) ≠ app domain (bitcoineducation.quest).
-    var isMobilePhone = /Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent || '');
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    // Strategy: ALWAYS try popup first. Redirect loses auth session because
+    // authDomain (firebaseapp.com) ≠ app domain (bitcoineducation.quest).
+    // Popup keeps everything in the same context. Fall back to redirect only if popup fails.
 
-    // Only small mobile phones in standalone PWA mode use redirect (popups truly blocked)
-    if (isMobilePhone && isStandalone) {
-        try {
-            showToast('⏳ Opening sign-in...');
-            const anonUser = auth.currentUser;
-            if (anonUser && anonUser.isAnonymous) {
-                localStorage.setItem('btc_anon_uid', anonUser.uid);
-                try {
-                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                    if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                } catch(e2) {}
-            }
-            sessionStorage.setItem('btc_redirect_pending', '1');
-            await auth.signInWithRedirect(provider);
-            return;
-        } catch(e) {
-            console.error('Redirect sign-in error:', e);
-            showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
-            return;
-        }
-    }
-
-    // Desktop → try popup first
+    // Try popup first — works on desktop, tablets, and even many PWAs via Chrome Custom Tabs
     try {
         const { anonUid, anonData } = await saveAnonData();
 
@@ -847,7 +823,6 @@ async function signInWithProvider(provider) {
         // Popup blocked, closed, or failed — fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
             e.code === 'auth/cancelled-popup-request' ||
-            e.code === 'auth/popup-closed-by-user' ||
             e.code === 'auth/internal-error') {
             try {
                 showToast('⏳ Opening sign-in page...');
