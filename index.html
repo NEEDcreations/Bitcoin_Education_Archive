@@ -947,7 +947,7 @@
             <button onclick="submitUsername()">Start Learning →</button>
             <div id="emailSignInSection" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Already have an account? Sign in with your email:</p>
-                <input type="email" id="returningEmailInput" placeholder="📧 Your email address" style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;" onkeydown="if(event.key==='Enter')sendReturningMagicLink()">
+                <input type="email" id="returningEmailInput" placeholder="📧 Your email address" maxlength="100" onkeydown="if(event.key==='Enter')sendReturningMagicLink()">
                 <button onclick="sendReturningMagicLink()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">📧 Send Magic Link</button>
                 <p style="color:var(--text-faint);font-size:0.7rem;margin:-6px 0 12px;">We'll email you a magic link — no password needed! ✨</p>
             </div>

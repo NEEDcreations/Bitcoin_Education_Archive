@@ -507,7 +507,7 @@ window.injectDashboardButton = function() {
     btn.id = 'dashBtnFixed';
     btn.onclick = function() { toggleDashboard(); };
     btn.style.cssText = 'position:fixed;top:6px;right:6px;z-index:180;display:flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(15,15,35,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--text);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;';
-    btn.innerHTML = '📊 <span style="color:var(--accent);" id="dashBtnPrice">Network</span>';
+    btn.innerHTML = '📊 <span style="color:var(--accent);" id="dashBtnPrice">Network</span> <span style="opacity:0.4;">·</span> <span style="color:var(--text-faint);" id="dashBtnBlock">⛓️</span>';
     btn.title = 'Bitcoin Network Metrics';
     btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.12)'; };
     btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.25)'; this.style.background = 'rgba(15,15,35,0.9)'; };
@@ -528,14 +528,22 @@ window.injectDashboardButton = function() {
 function _updateDashBtnPrice() {
     try {
         var cached = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
-        if (cached && cached.data && cached.data.price) {
-            var el = document.getElementById('dashBtnPrice');
-            if (el) {
-                var p = cached.data.price;
-                var change = cached.data.change24h || 0;
-                var color = change >= 0 ? '#22c55e' : '#ef4444';
-                var arrow = change >= 0 ? '▲' : '▼';
-                el.innerHTML = '$' + fmtNum(p, 0) + ' <span style="color:' + color + ';font-size:0.6rem;">' + arrow + (Math.abs(change)).toFixed(1) + '%</span>';
+        if (cached && cached.data) {
+            if (cached.data.price) {
+                var el = document.getElementById('dashBtnPrice');
+                if (el) {
+                    var p = cached.data.price;
+                    var change = cached.data.change24h || 0;
+                    var color = change >= 0 ? '#22c55e' : '#ef4444';
+                    var arrow = change >= 0 ? '▲' : '▼';
+                    el.innerHTML = '$' + fmtNum(p, 0) + ' <span style="color:' + color + ';font-size:0.6rem;">' + arrow + (Math.abs(change)).toFixed(1) + '%</span>';
+                }
+            }
+            if (cached.data.blockHeight) {
+                var bel = document.getElementById('dashBtnBlock');
+                if (bel) {
+                    bel.innerHTML = '⛓️ ' + fmtNum(cached.data.blockHeight, 0);
+                }
             }
         }
     } catch(e) {}
