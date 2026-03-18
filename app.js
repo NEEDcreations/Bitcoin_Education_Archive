@@ -2302,6 +2302,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         window._nachoSentIdx = -1;
         window._nachoSentDraft = '';
 
+        // Track asked questions so follow-ups don't repeat them
+        if (!window._nachoAskedQuestions) window._nachoAskedQuestions = [];
+        window._nachoAskedQuestions.push(q.toLowerCase());
+        if (window._nachoAskedQuestions.length > 30) window._nachoAskedQuestions = window._nachoAskedQuestions.slice(-20);
+
         // Save to sent history (for ArrowUp recall, max 50)
         window._nachoSentHistory.push(q);
         if (window._nachoSentHistory.length > 50) window._nachoSentHistory.shift();

@@ -306,14 +306,19 @@ window.nachoFollowUps = function(answer) {
         // Default follow-ups for any Bitcoin answer
         candidates = ['What is Bitcoin?', 'How do I get started?', 'What is the Lightning Network?', 'Who created Bitcoin?', 'Why is there only 21 million?', 'What is self-custody?'];
     }
-    // Filter out recently shown
-    var filtered = candidates.filter(function(q) { return _shownFollowUps.indexOf(q) === -1; });
-    if (filtered.length < 2) { _shownFollowUps = []; filtered = candidates; } // reset if exhausted
-    // Shuffle and pick 2
+    // Filter out recently shown AND recently asked by user
+    var _askedRecently = window._nachoAskedQuestions || [];
+    var filtered = candidates.filter(function(q) {
+        return _shownFollowUps.indexOf(q) === -1 && _askedRecently.indexOf(q.toLowerCase()) === -1;
+    });
+    if (filtered.length < 3) { _shownFollowUps = []; filtered = candidates.filter(function(q) { return _askedRecently.indexOf(q.toLowerCase()) === -1; }); }
+    if (filtered.length === 0) filtered = candidates; // absolute fallback
+    // Shuffle and pick 3-5
     filtered.sort(function() { return Math.random() - 0.5; });
-    var picked = filtered.slice(0, 2);
+    var pickCount = Math.min(Math.max(3, filtered.length), 5);
+    var picked = filtered.slice(0, pickCount);
     _shownFollowUps = _shownFollowUps.concat(picked);
-    if (_shownFollowUps.length > 20) _shownFollowUps = _shownFollowUps.slice(-10); // keep last 10
+    if (_shownFollowUps.length > 30) _shownFollowUps = _shownFollowUps.slice(-15);
     return picked;
 };
 
