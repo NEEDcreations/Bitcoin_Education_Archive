@@ -807,13 +807,14 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Strategy: Use redirect on mobile (popups are unreliable in PWAs and many mobile browsers).
-    // Use popup on desktop where it's more seamless.
-    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    // Strategy: Try popup first everywhere (works best with cross-domain authDomain).
+    // Only fall back to redirect if popup fails or is blocked.
+    // Redirect flow loses auth session because authDomain (firebaseapp.com) ≠ app domain (bitcoineducation.quest).
+    var isMobilePhone = /Android.*Mobile|iPhone|iPod/i.test(navigator.userAgent || '');
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
-    // Mobile or PWA → use redirect flow directly
-    if (isMobileDevice || isStandalone) {
+    // Only small mobile phones in standalone PWA mode use redirect (popups truly blocked)
+    if (isMobilePhone && isStandalone) {
         try {
             showToast('⏳ Opening sign-in...');
             const anonUser = auth.currentUser;
