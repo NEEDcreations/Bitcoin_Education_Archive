@@ -827,12 +827,20 @@ function createNacho() {
         function openNachoCloset() {
             window._expanded_closet = true;
             window._pendingClosetScroll = true;
-            // Open settings first (ensures modal is ready), then switch to data/closet tab
             try {
                 if (typeof showSettings === 'function') showSettings();
-                setTimeout(function() {
-                    if (typeof showSettingsPage === 'function') showSettingsPage('data');
-                }, 150);
+                // Wait for the settings modal to actually appear, then switch to data/closet tab
+                var attempts = 0;
+                function tryShowCloset() {
+                    attempts++;
+                    var modal = document.getElementById('usernameModal');
+                    if (modal && modal.classList.contains('open') && typeof showSettingsPage === 'function') {
+                        showSettingsPage('data');
+                    } else if (attempts < 10) {
+                        setTimeout(tryShowCloset, 150);
+                    }
+                }
+                setTimeout(tryShowCloset, 200);
             } catch(err) {}
             if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
         }
