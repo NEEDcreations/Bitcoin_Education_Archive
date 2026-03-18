@@ -1031,6 +1031,31 @@ async function submitGiveawayProvider(uid, displayName) {
     if (banner) banner.style.display = 'none';
 }
 
+// Returning user: send magic link to sign back in
+window.sendReturningMagicLink = async function() {
+    var input = document.getElementById('returningEmailInput');
+    if (!input) return;
+    var email = input.value.trim();
+    if (!email || !email.includes('@')) {
+        showToast('📧 Please enter a valid email address');
+        if (input) input.style.borderColor = '#ef4444';
+        return;
+    }
+    input.disabled = true;
+    var btn = input.nextElementSibling;
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+    var sent = await sendMagicLink(email);
+    if (sent) {
+        showToast('📧 Magic link sent! Check your email to sign in.');
+        if (btn) btn.textContent = '✅ Sent!';
+        hideUsernamePrompt();
+    } else {
+        showToast('❌ Could not send magic link. Try again.');
+        input.disabled = false;
+        if (btn) { btn.disabled = false; btn.textContent = 'Send Link'; }
+    }
+};
+
 // Send magic link email
 async function sendMagicLink(email) {
     const actionCodeSettings = {
