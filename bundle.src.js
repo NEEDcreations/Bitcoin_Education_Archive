@@ -22737,108 +22737,59 @@ const HIDDEN_BADGES = [
 // Phase 4: Social Proof & Live Activity 🚀
 
 (function() {
-    const TICKER_ITEMS = [
-        // === NACHO FACTS ===
-        "Nacho: 'Bitcoin has been running non-stop since Jan 3, 2009 — over 99.98% uptime!' 🦌",
-        "Nacho: 'A satoshi is 0.00000001 BTC — you don't need a whole coin!' 🪙",
-        "Nacho: 'The Lightning Network can handle millions of transactions per second!' ⚡",
-        "Nacho: 'Bitcoin mining now uses over 50% renewable energy!' 🌱",
-        "Nacho: 'There are more Bitcoin wallets than bank accounts in most countries!' 📈",
-        "Nacho: 'Not your keys, not your coins. Self-custody is everything.' 🔑",
-        "Nacho: 'The Genesis Block contains a hidden newspaper headline from 2009.' 📰",
-        "Nacho: 'About 20% of all Bitcoin is estimated to be permanently lost.' 🔐",
-        "Nacho: 'Bitcoin's difficulty adjusts every 2,016 blocks — roughly 2 weeks.' ⚙️",
-        "Nacho: 'You can run a full Bitcoin node on a $50 Raspberry Pi!' 🥧",
-        "Nacho: 'Bitcoin doesn't care about borders, politics, or holidays.' 🌐",
-        "Nacho: 'The last Bitcoin won't be mined until approximately 2140.' ⏰",
-        "Nacho: 'Every 4 years, Bitcoin's block reward gets cut in half — the halving!' 📉",
-        "Nacho: 'Bitcoin is open source — anyone can read and verify the code.' 📖",
-        "Nacho: 'El Salvador was the first country to adopt Bitcoin as legal tender.' 🇸🇻",
-        "Nacho: 'Bitcoin has survived 400+ declared deaths by media. Still here!' 💪",
-        "Nacho: 'Multisig wallets need multiple keys to spend — like a vault with 2 of 3 locks.' 🗝️",
-        "Nacho: 'A block is mined roughly every 10 minutes. 144 blocks per day.' ⛏️",
-        "Nacho: 'Bitcoin's inflation rate is already lower than gold's.' 🥇",
-        "Nacho: 'Don't trust. Verify.' 🦌",
-        "Nacho: 'Fix the money, fix the world.' 🌍",
-        "Nacho: 'Stay humble. Stack sats.' 🧡",
-        "Nacho: 'Tick tock, next block.' 🧱",
-        "Nacho: 'There is no second best.' 🏆",
-        "Nacho: 'Bitcoin is the separation of money and state.' ⚖️",
-        "Nacho: 'Number go up technology.' 📊",
-        "Nacho: 'Bitcoin fixes this.' 🔧",
-        "Nacho: 'One more block.' ⛓️",
-        "Nacho: 'We're all Satoshi.' 🕵️",
-        "Nacho: 'Low time preference is a superpower.' 🧠",
-        "Nacho: 'The first Bitcoin transaction was 10,000 BTC for two pizzas!' 🍕",
-        // === ACTIVITY ===
-        "Someone just completed a Quest! ⚡",
-        "New items added to the Marketplace! Check 'em out. 🛒",
-        "Trending: Users are asking about 'Self-Custody' today. 🔐",
-        "A Bitcoiner just earned a new badge! 🏅",
-        "Block height is rising! Tick tock, next block. 🧱",
-        "New forum discussion in PlebTalk! 💬",
-        "Someone just stacked bonus points! ⚡",
-        "A new user just joined the archive! Welcome! 👋",
-        "Someone just spun the daily wheel! 🎡",
-        "A Bitcoiner just hit a 7-day streak! 🔥",
-        "Someone just unlocked 'Nacho's Friend' badge! 🦌",
-        "A Scholar just passed their certification exam! 🎓",
-        "Someone just earned the Speed Runner badge! ⚡",
-        "New listing on LightningMart: Hardware wallet for sats! 🛒",
-        "A Bitcoiner just reached Level 5 — Bitcoin Believer! 🧡",
-        "Someone just referred a friend — 50 tickets each! 🎟️",
-        "Trending: Lightning Network questions are up 40% today! ⚡",
-        "A pleb just hit a 30-day streak! Legendary! 🔥",
-        "Someone just won 5 Orange Tickets on the daily spin! 🎟️",
-        "New PlebTalk debate: 'Best Bitcoin book for beginners?' 📚",
-        "A Bitcoiner just explored their 50th channel! 🗺️",
-        "Someone earned the Night Owl badge at 2 AM! 🦉",
-        "New user from El Salvador just joined! 🇸🇻",
-        "A pleb just exported their Nacho chat — 200+ messages! 💾",
-        "Someone just equipped Diamond Hooves in Nacho's Closet! 💎",
-        "Trending: 'What is a UTXO?' is today's most asked question. 🤔",
-        "A Bitcoiner just hit 1,000 points! 🏆",
-        "Someone completed all 10 steps of the Bitcoin Journey! 🗺️",
-        "New Marketplace listing: Bitcoin art prints for sats! 🎨",
-        "A pleb just asked Nacho their 100th question! 🏅",
-        "Someone won a Streak Freeze ticket on the daily spin! 🧊",
-        // === FLASH FACTS ===
-        "Flash Fact: Total Bitcoin supply is capped at 21 million. 🔢",
-        "Flash Fact: Bitcoin processes over $10 billion in transactions daily. 💸",
-        "Flash Fact: Over 50 public companies hold Bitcoin on their balance sheet. 🏢",
-        "Flash Fact: Bitcoin transactions are pseudonymous, not anonymous. 🔍",
-        "Flash Fact: The Bitcoin network has more computing power than all supercomputers combined. 🖥️",
-        "Flash Fact: Satoshi Nakamoto holds ~1 million BTC and has never spent any. 🕵️",
-        "Flash Fact: Lightning payments can be as small as 1 satoshi (~$0.001). ⚡",
-        "Flash Fact: Bitcoin Core has contributions from over 900 developers worldwide. 👨‍💻",
-        "Flash Fact: The current block reward is 3.125 BTC per block. ⛏️",
-        "Flash Fact: The next halving is expected in 2028. 📅",
-        "Flash Fact: Bitcoin's whitepaper is only 9 pages long. 📄",
-        "Flash Fact: There are over 19 million BTC already in circulation. 🪙",
-        "Flash Fact: Bitcoin has no CEO, no board, no marketing team. 🤝",
-        "Flash Fact: The smallest unit of Bitcoin is named after its creator: a satoshi. ₿",
-        "Flash Fact: Nostr is a decentralized social protocol popular with Bitcoiners. 📡",
-        "Flash Fact: Bitcoin's hash rate has grown over 1 trillion percent since 2009. 📈",
-        "Flash Fact: The Bitcoin network settles more value per year than Visa. 💳",
-        "Flash Fact: Hal Finney received the first ever Bitcoin transaction from Satoshi. 🧑‍💻",
-        "Flash Fact: Bitcoin uses SHA-256 hashing — the same encryption standard used by the US military. 🔒",
-        "Flash Fact: There have been over 900 million Bitcoin transactions in history. 📊",
-        "Flash Fact: A Bitcoin block contains roughly 2,000-4,000 transactions. 📦",
-        "Flash Fact: SegWit was activated in August 2017, increasing block capacity. 🔀",
-        "Flash Fact: Taproot activated in November 2021, improving privacy and smart contracts. 🌿",
-        "Flash Fact: Bitcoin's code has been forked over 30,000 times on GitHub. 🍴",
-        "Flash Fact: The Bitcoin network consumes less energy than household dryers in the US. 🌱",
-        "Flash Fact: MicroStrategy holds over 200,000 BTC on their balance sheet. 🏢",
-        "Flash Fact: Bitcoin ATMs exist in over 80 countries worldwide. 🏧",
-        "Flash Fact: The Lightning Network has over 15,000 active nodes. ⚡",
-        "Flash Fact: Jack Dorsey's Block (formerly Square) is building Bitcoin mining hardware. ⛏️",
-        "Flash Fact: Bitcoin's Proof of Work is the only consensus mechanism anchored to physical reality. ⚛️",
-        "Flash Fact: The term 'HODL' originated from a 2013 Bitcoin forum typo. 💎",
-        "Flash Fact: Bitcoin is legal tender in El Salvador and the Central African Republic. 🌍",
-        "Flash Fact: Laszlo Hanyecz's pizza purchase is celebrated every May 22 as Bitcoin Pizza Day. 🍕",
-        "Flash Fact: The mempool is where unconfirmed transactions wait to be included in a block. ⏳",
-        "Flash Fact: A seed phrase is typically 12 or 24 words generated from a list of 2,048 words. 📝",
-        "Flash Fact: Running a full node lets you independently verify every Bitcoin transaction ever. ✅"
+    // Engagement ticker — shows real + generated user activity to inspire action
+    const ENGAGEMENT_TEMPLATES = [
+        // Quests & Learning
+        "🎓 Someone just passed the Bitcoin Basics Certification! Can you?",
+        "⚡ A pleb just completed a Lightning Network quest — 50 pts earned!",
+        "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
+        "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
+        "📚 A new user just explored their first 3 channels — features unlocking!",
+        "🧠 Someone just asked Nacho 100 questions — Bitcoin Scholar status!",
+        "🎯 A pleb just scored 5/5 on a Conversation Quest!",
+        "📖 Someone just read through the entire Timechain channel!",
+        // Streaks & Points
+        "🔥 A Bitcoiner just hit a 30-day streak! Legendary dedication!",
+        "🔥 Someone just started a 7-day streak — can you beat them?",
+        "🏆 A pleb just crossed 5,000 points! Climbing the leaderboard!",
+        "⭐ Someone just earned 200 points in a single session!",
+        "🔥 A user just protected their streak with a Freeze Ticket! Smart move.",
+        // Leaderboard & Levels
+        "📈 Someone just jumped 10 spots on the Leaderboard!",
+        "🧡 A Bitcoiner just leveled up to Bitcoin Believer!",
+        "🏔 Someone just reached Maxi status — top of the mountain!",
+        "👑 A pleb just entered the Top 25 on the Leaderboard!",
+        "🌱 A brand new user just earned their first 50 points! Welcome!",
+        // Spin & Tickets
+        "🎡 Someone just spun the daily wheel and won 5 Orange Tickets!",
+        "🎟️ A pleb just earned bonus tickets from a referral!",
+        "🧊 Someone won a Streak Freeze on the daily spin — lucky!",
+        "🎡 A Bitcoiner just won a closet item from the spin wheel!",
+        // Community & Social
+        "💬 New discussion in PlebTalk: 'Best cold storage for beginners?'",
+        "💬 Someone just posted in PlebTalk — join the conversation!",
+        "🛒 New listing on LightningMart — check it out!",
+        "🤝 A meetup was just created in IRL Sync — find one near you!",
+        "💬 A PlebTalk post just got 5 upvotes!",
+        "⚡ Someone just tipped a forum post with Lightning!",
+        // Nacho & Fun
+        "🦌 Someone just entered Nacho Mode for a 30-minute deep dive!",
+        "🎽 A pleb just equipped Diamond Hooves in Nacho's Closet! 💎",
+        "🕶️ Someone just unlocked Cool Shades from the spin wheel!",
+        "👑 A Bitcoiner just equipped the Royal Crown — looking regal!",
+        "🦌 Nacho just helped someone understand seed phrases!",
+        // Discovery & Exploration
+        "🗺️ Someone just explored their 50th channel — almost full coverage!",
+        "🦉 A Night Owl badge was just earned at 2 AM!",
+        "🎲 Someone just used Random Channel and discovered 'cypherpunks'!",
+        "🎨 A user just browsed the Art Gallery — 200+ Bitcoin artworks!",
+        "📡 A Bitcoiner just opted in to The Signal newsletter!",
+        // Milestones (semi-dynamic)
+        "🎉 Over 100 users are learning Bitcoin here right now!",
+        "📊 The archive has been visited over 10,000 times this month!",
+        "🧡 146 channels of pure Bitcoin education — and growing!",
+        "⚡ Over 500 Nacho conversations happened this week!",
+        "🏆 The Leaderboard top 10 just shuffled — who's climbing?"
     ];
 
     async function initActivityTicker() {
@@ -22850,31 +22801,68 @@ const HIDDEN_BADGES = [
         const content = document.getElementById('ticker-content');
         if (!ticker || !content) return;
 
-        // Only show the 3 Signal headlines from newsletter-data.json
-        var signalItems = [];
-        try {
-            var resp = await fetch('newsletter-data.json?v=' + Date.now());
-            var data = await resp.json();
-            if (data && data.news && data.news.length > 0) {
-                data.news.forEach(function(n) {
-                    var title = (n.title || '').replace(/<[^>]+>/g, '');
-                    var src = n.snippet ? ' — ' + n.snippet : '';
-                    signalItems.push('📡 ' + title + src);
-                });
-            }
-        } catch(e) { console.log('Ticker signal fetch skipped:', e); }
+        // Build pool: start with engagement templates
+        var pool = ENGAGEMENT_TEMPLATES.slice();
 
-        if (signalItems.length === 0) return; // no headlines = hide ticker
+        // Pull real user activity from Firestore
+        try {
+            var db = firebase.firestore();
+
+            // Recent forum posts
+            var forumSnap = await db.collection('forum_posts').orderBy('createdAt', 'desc').limit(3).get();
+            forumSnap.forEach(function(doc) {
+                var d = doc.data();
+                var author = d.authorName || 'A pleb';
+                pool.push('💬 ' + author + ' just posted in PlebTalk: "' + (d.title || '').substring(0, 40) + '..."');
+            });
+
+            // Recent marketplace listings
+            try {
+                var mktSnap = await db.collection('marketplace').where('status', '==', 'active').orderBy('createdAt', 'desc').limit(2).get();
+                mktSnap.forEach(function(doc) {
+                    var d = doc.data();
+                    pool.push('🛒 New on LightningMart: "' + (d.title || 'Item').substring(0, 35) + '" for ' + (d.priceSats || d.price || '???') + ' sats!');
+                });
+            } catch(e) {}
+
+            // Recent top leaderboard movers
+            try {
+                var lbSnap = await db.collection('users').orderBy('points', 'desc').limit(10).get();
+                var topUsers = [];
+                lbSnap.forEach(function(doc) { var d = doc.data(); if (d.username) topUsers.push(d.username); });
+                if (topUsers.length >= 3) {
+                    pool.push('👑 ' + topUsers[0] + ' is holding #1 on the Leaderboard! Can you catch them?');
+                    var rand = topUsers[Math.floor(Math.random() * Math.min(5, topUsers.length))];
+                    pool.push('📈 ' + rand + ' just climbed the Leaderboard — competition is heating up!');
+                }
+            } catch(e) {}
+
+            // IRL events
+            try {
+                var irlSnap = await db.collection('irl_events').where('date', '>=', new Date().toISOString()).orderBy('date', 'asc').limit(2).get();
+                irlSnap.forEach(function(doc) {
+                    var ev = doc.data();
+                    pool.push('🤝 Upcoming meetup: "' + (ev.title || 'Bitcoin Meetup').substring(0, 35) + '" — RSVP in IRL Sync!');
+                });
+            } catch(e) {}
+
+        } catch(e) { console.log('Ticker live data skipped:', e); }
+
+        // Shuffle the pool
+        for (var i = pool.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+        }
 
         ticker.style.display = 'flex';
-        let currentIdx = 0;
+        var currentIdx = 0;
 
         function updateTicker() {
             content.style.animation = 'none';
             content.offsetHeight;
-            content.textContent = signalItems[currentIdx];
+            content.textContent = pool[currentIdx];
             content.style.animation = 'tickerScroll 12s linear infinite';
-            currentIdx = (currentIdx + 1) % signalItems.length;
+            currentIdx = (currentIdx + 1) % pool.length;
         }
 
         updateTicker();
