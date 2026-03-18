@@ -2209,7 +2209,7 @@ async function toggleLeaderboard() {
         if (useCache) {
             allUsers = window._lbCache;
         } else {
-            const snap = await db.collection('users').orderBy('points', 'desc').limit(100).get();
+            const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
             snap.forEach(doc => {
                 const d = doc.data();
                 // Ghost Mode: only show if user is visible OR is the current user themselves
@@ -2257,7 +2257,7 @@ async function toggleLeaderboard() {
         });
 
         if (allUsers.length > 10) {
-            html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + Math.min(allUsers.length, 100) + ' Users ▼</button>';
+            html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + Math.min(allUsers.length, 150) + ' Users ▼</button>';
         }
         html += '</div>';
 
