@@ -1911,6 +1911,17 @@ function updateUserDisplay(lv) {
                     '<span style="color:var(--text);font-weight:600;">Anonymous</span>' +
                     '<span style="color:#f7931a;font-weight:800;font-size:0.9rem;">' + pts.toLocaleString() + ' pts</span>' +
                 '</div>' +
+                (function() {
+                    var cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+                    var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
+                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
+                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
+                    if (!cp && !ch) return '';
+                    var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;opacity:0.8;">';
+                    if (cp) s += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cp).toLocaleString() + '</span>';
+                    if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:#aaa;text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + ch.toLocaleString() + '</a>';
+                    return s + '</div>';
+                })() +
                 '<div style="color:#aaa;font-size:0.7rem;">Sign in to keep your points & enter the leaderboard!</div>' +
             '</div>' +
             '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
@@ -1930,9 +1941,25 @@ function updateUserDisplay(lv) {
             iconsHtml = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>';
         }
 
-        el.innerHTML = iconsHtml +
+        var livePriceStr = '';
+        try {
+            var cachedP = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+            var cachedH = parseInt(localStorage.getItem('btc_last_height')) || 0;
+            if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cachedP = nachoLiveData.price;
+            if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) cachedH = nachoLiveData.blockHeight;
+            if (cachedP || cachedH) {
+                livePriceStr = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;margin-top:3px;opacity:0.8;">';
+                if (cachedP) livePriceStr += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cachedP).toLocaleString() + '</span>';
+                if (cachedH) livePriceStr += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + cachedH.toLocaleString() + '</a>';
+                livePriceStr += '</div>';
+            }
+        } catch(e) {}
+
+        el.innerHTML = '<div style="display:flex;flex-direction:column;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' + iconsHtml +
             '<span style="color:var(--text);font-weight:600;">' + escapeHtml(displayName) + '</span>' +
-            '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' + streakBit;
+            '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' + streakBit +
+            '</div>' + livePriceStr + '</div>';
     }
     el.style.display = 'flex';
 
@@ -4778,6 +4805,15 @@ function updateTicker() {
         if (nachoLiveData.blockHeight) {
             blockEls.forEach(el => el.textContent = nachoLiveData.blockHeight.toLocaleString());
             localStorage.setItem('btc_last_height', nachoLiveData.blockHeight);
+        }
+
+        // Update live price/block in userDisplay bar
+        var udLive = document.getElementById('userDisplayLive');
+        if (udLive) {
+            var parts = [];
+            if (nachoLiveData.price) parts.push('<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(nachoLiveData.price).toLocaleString() + '</span>');
+            if (nachoLiveData.blockHeight) parts.push('<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted,#aaa);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + nachoLiveData.blockHeight.toLocaleString() + '</a>');
+            if (parts.length > 0) udLive.innerHTML = parts.join(' ');
         }
     });
 }

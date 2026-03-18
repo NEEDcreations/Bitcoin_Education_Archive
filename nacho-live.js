@@ -177,6 +177,15 @@ function updateTicker() {
             blockEls.forEach(el => el.textContent = nachoLiveData.blockHeight.toLocaleString());
             localStorage.setItem('btc_last_height', nachoLiveData.blockHeight);
         }
+
+        // Update live price/block in userDisplay bar
+        var udLive = document.getElementById('userDisplayLive');
+        if (udLive) {
+            var parts = [];
+            if (nachoLiveData.price) parts.push('<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(nachoLiveData.price).toLocaleString() + '</span>');
+            if (nachoLiveData.blockHeight) parts.push('<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted,#aaa);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + nachoLiveData.blockHeight.toLocaleString() + '</a>');
+            if (parts.length > 0) udLive.innerHTML = parts.join(' ');
+        }
     });
 }
 
