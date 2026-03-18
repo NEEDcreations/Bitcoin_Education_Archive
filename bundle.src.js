@@ -4692,7 +4692,7 @@ function initTicker() {
     scroller.id = 'tickerScroller';
     scroller.style.cssText = 'display:flex;white-space:nowrap;width:max-content;animation:btcTickerScroll 25s linear infinite;will-change:transform;';
     
-    const tickerHtml = "\n        <div class=\"ticker-item-set\" style=\"display:flex;align-items:center;padding-right:50px;\">\n            <span style=\"display:flex;align-items:center;gap:12px;\">\n                <span style=\"display:flex;align-items:center;gap:6px;\">\n                    <span style=\"color:#f7931a;font-weight:900;font-size:1.16rem;\">₿</span>\n                    <span class=\"t-price-val\" style=\"color:#fff;font-weight:800;\">$---,---</span>\n                    <span class=\"t-price-change\" style=\"font-size:0.7rem;font-weight:900;\"></span>\n                </span>\n                <span style=\"color:rgba(255,255,255,0.2);font-weight:100;\">|</span>\n                <span style=\"display:flex;align-items:center;gap:6px;cursor:pointer;\" onclick=\"window.open('https://mempool.space','_blank')\">\n                    <span style=\"color:#f7931a;font-size:0.9rem;\">⛏️</span>\n                    <span class=\"t-block-val\" style=\"color:#fff;font-weight:700;\">---,---</span>\n                </span>\n            </span>\n            <span style=\"color:rgba(255,255,255,0.2);margin-left:25px;margin-right:25px;\">|</span>\n            <span class=\"t-news-items\" style=\"color:#fff;font-weight:600;display:flex;align-items:center;gap:35px;\">\n                <span>📡 LOADING SIGNAL...</span>\n            </span>\n        </div>";
+    const tickerHtml = "\n        <div class=\"ticker-item-set\" style=\"display:flex;align-items:center;padding-right:50px;\">\n            <span class=\"t-news-items\" style=\"color:#fff;font-weight:600;display:flex;align-items:center;gap:35px;\">\n                <span>📡 LOADING SIGNAL...</span>\n            </span>\n        </div>";
     scroller.innerHTML = tickerHtml + tickerHtml + tickerHtml + tickerHtml;
     ticker.innerHTML = '';
     ticker.appendChild(scroller);
@@ -4732,8 +4732,9 @@ function initTicker() {
         ticker.querySelectorAll('.t-news-items').forEach(el => el.innerHTML = '<span>📡 TECHNICAL SIGNAL OFFLINE</span>');
     });
 
-    updateTicker();
-    setInterval(updateTicker, 60000);
+    // Still fetch live data for Nacho answers, dashboard, etc. — just not in the ticker bar
+    fetchLiveData();
+    setInterval(function() { fetchLiveData(); }, 60000);
 
     // Refresh Signal news every 30 minutes — use newsletter-data.json (updated by cron)
     function refreshSignalNews() {
