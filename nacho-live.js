@@ -184,6 +184,7 @@ function updateTicker() {
             var parts = [];
             if (nachoLiveData.price) parts.push('<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(nachoLiveData.price).toLocaleString() + '</span>');
             if (nachoLiveData.blockHeight) parts.push('<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted,#aaa);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + nachoLiveData.blockHeight.toLocaleString() + '</a>');
+            parts.push('<span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;" title="Bitcoin Network Metrics">📊</span>');
             if (parts.length > 0) udLive.innerHTML = parts.join(' ');
         }
     });

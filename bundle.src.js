@@ -1920,6 +1920,7 @@ function updateUserDisplay(lv) {
                     var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;opacity:0.8;">';
                     if (cp) s += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cp).toLocaleString() + '</span>';
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:#aaa;text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + ch.toLocaleString() + '</a>';
+                    s += '<span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;transition:0.2s;" title="Bitcoin Network Metrics" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">📊</span>';
                     return s + '</div>';
                 })() +
                 '<div style="color:#aaa;font-size:0.7rem;">Sign in to keep your points & enter the leaderboard!</div>' +
@@ -1951,6 +1952,7 @@ function updateUserDisplay(lv) {
                 livePriceStr = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;margin-top:3px;opacity:0.8;">';
                 if (cachedP) livePriceStr += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cachedP).toLocaleString() + '</span>';
                 if (cachedH) livePriceStr += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + cachedH.toLocaleString() + '</a>';
+                livePriceStr += '<span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;transition:0.2s;" title="Bitcoin Network Metrics" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">📊</span>';
                 livePriceStr += '</div>';
             }
         } catch(e) {}
@@ -4813,6 +4815,7 @@ function updateTicker() {
             var parts = [];
             if (nachoLiveData.price) parts.push('<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(nachoLiveData.price).toLocaleString() + '</span>');
             if (nachoLiveData.blockHeight) parts.push('<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted,#aaa);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + nachoLiveData.blockHeight.toLocaleString() + '</a>');
+            parts.push('<span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;" title="Bitcoin Network Metrics">📊</span>');
             if (parts.length > 0) udLive.innerHTML = parts.join(' ');
         }
     });
@@ -24774,29 +24777,9 @@ window.showDashTip = function(el, text) {
     }, 50);
 };
 
-// ---- Persistent Dashboard Button (fixed position, visible on ALL pages) ----
+// ---- Dashboard Button now lives in userDisplay bar (ranking.js) — no separate fixed button ----
 window.injectDashboardButton = function() {
-    if (document.getElementById('dashBtnFixed')) return;
-    var btn = document.createElement('button');
-    btn.id = 'dashBtnFixed';
-    btn.onclick = function() { toggleDashboard(); };
-    btn.style.cssText = 'position:fixed;top:6px;right:6px;z-index:180;display:flex;align-items:center;gap:5px;padding:6px 12px;background:rgba(15,15,35,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--text);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;';
-    btn.innerHTML = '📊 <span style="color:var(--accent);" id="dashBtnPrice">Network</span> <span style="opacity:0.4;">·</span> <span style="color:var(--text-faint);" id="dashBtnBlock">⛓️</span>';
-    btn.title = 'Bitcoin Network Metrics';
-    btn.onmouseover = function() { this.style.borderColor = '#f7931a'; this.style.background = 'rgba(247,147,26,0.12)'; };
-    btn.onmouseout = function() { this.style.borderColor = 'rgba(247,147,26,0.25)'; this.style.background = 'rgba(15,15,35,0.9)'; };
-    document.body.appendChild(btn);
-
-    // Add responsive style
-    if (!document.getElementById('dashBtnCSS')) {
-        var css = document.createElement('style');
-        css.id = 'dashBtnCSS';
-        css.textContent = '@media(max-width:900px){#dashBtnFixed{top:4px;right:4px;padding:5px 10px;font-size:0.68rem;}}';
-        document.head.appendChild(css);
-    }
-
-    // Pre-fetch price to show on button
-    _updateDashBtnPrice();
+    // Removed: dashboard access is now via 📊 icon in the user display price/block row
 };
 
 function _updateDashBtnPrice() {
