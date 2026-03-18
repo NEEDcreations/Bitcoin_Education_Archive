@@ -2248,11 +2248,13 @@ async function toggleLeaderboard() {
             var _rowPfp = d.profilePic
                 ? '<img src="' + escapeHtml(d.profilePic) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;border:1px solid var(--border);">'
                 : '';
+            var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
             html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + lv.emoji + '</span>' +
                 '<span class="lb-name">' + (_rowPfp ? _rowPfp + ' ' : '') + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
                 '<span class="lb-score">' + (d.points || 0).toLocaleString() + ' pts</span>' +
+                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
             '</div>';
         });
 
@@ -2312,7 +2314,7 @@ async function _loadPVPLeaderboard() {
             var total = wins + losses;
             if (total === 0) return;
             var winRate = total > 0 ? (wins / total) * 100 : 0;
-            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid };
+            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid, lightningAddress: d.lightningAddress || d.lightning || '' };
         }
         winsSnap.forEach(addPlayer);
         lossSnap.forEach(addPlayer);
@@ -2329,11 +2331,13 @@ async function _loadPVPLeaderboard() {
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
             var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
-            pvpHtml += '<div' + hidden + '>' +
+            var _pvpTipData = JSON.stringify({recipientName: p.username, recipientUid: p.id, lightningAddress: p.lightningAddress, context: 'pvp', label: 'Tip ' + p.username}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+            pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
                 '<span class="lb-name">' + p.username + '</span>' +
                 '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W – ' + p.losses + 'L</span>' +
+                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
             '</div>';
         });
         if (players.length > 10) {
