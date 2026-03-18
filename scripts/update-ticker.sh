@@ -48,12 +48,6 @@ async function main() {
             if (!mustHaveBtc.test(title)) continue;
             // Skip very short titles
             if (title.length < 20) continue;
-            // Skip generic price/block height articles (shown in Network button instead)
-            if (/^current price of bitcoin/i.test(title)) continue;
-            if (/^bitcoin price today/i.test(title)) continue;
-            if (/^bitcoin price for/i.test(title)) continue;
-            if (/^what is the price of bitcoin/i.test(title)) continue;
-            if (/^block height/i.test(title)) continue;
             const pubDate = dateMatch ? new Date(dateMatch[1]) : new Date();
             headlines.push({
                 date: pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
