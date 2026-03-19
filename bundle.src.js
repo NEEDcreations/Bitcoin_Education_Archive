@@ -24957,29 +24957,48 @@ window.toggleDashboard = async function() {
     var card = document.createElement('div');
     card.id = 'btcDashCard';
     card.style.cssText = 'background:var(--bg-side,#0f0f23);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:500px;width:100%;margin:40px auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s ease-out;';
-    card.innerHTML = '<div style="text-align:center;padding:40px;"><div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="color:var(--text-muted);font-size:0.85rem;">Loading Bitcoin metrics...</div></div>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
     // Start real-time price
     startPriceWs();
 
-    // Show cached data IMMEDIATELY while fetching fresh
+    // Show cached/live data IMMEDIATELY — never make user wait
+    var _shown = false;
     try {
         var _quick = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
         if (_quick && _quick.data && (_quick.data.price || _quick.data.blockHeight)) {
             card.innerHTML = renderDashboard(_quick.data);
+            _shown = true;
         }
     } catch(e) {}
-
-    // Fetch fresh data and re-render
-    var data = await fetchDashboardData();
-    if (data && (data.price || data.blockHeight)) {
-        card.innerHTML = renderDashboard(data);
-    } else if (card.innerHTML.indexOf('Loading') !== -1) {
-        // All APIs failed and no cache — show error instead of infinite spinner
-        card.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2rem;margin-bottom:12px;">📊</div><div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;">Unable to load metrics right now.</div><div style="color:var(--text-faint);font-size:0.8rem;">API rate limits or network issues. Try again in a minute.</div><button onclick="closeDashboard();setTimeout(toggleDashboard,500)" style="margin-top:16px;padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Retry</button></div>';
+    if (!_shown) {
+        // Try nachoLiveData as fallback
+        var fallback = {};
+        if (typeof nachoLiveData !== 'undefined') {
+            if (nachoLiveData.price) fallback.price = nachoLiveData.price;
+            if (nachoLiveData.blockHeight) fallback.blockHeight = nachoLiveData.blockHeight;
+        }
+        if (!fallback.price) { try { fallback.price = parseFloat(localStorage.getItem('btc_last_price')) || 0; } catch(e) {} }
+        if (!fallback.blockHeight) { try { fallback.blockHeight = parseInt(localStorage.getItem('btc_last_height')) || 0; } catch(e) {} }
+        if (fallback.price || fallback.blockHeight) {
+            card.innerHTML = renderDashboard(fallback);
+            _shown = true;
+        } else {
+            card.innerHTML = '<div style="text-align:center;padding:40px;"><div style="width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="color:var(--text-muted);font-size:0.85rem;">Loading Bitcoin metrics...</div></div>';
+        }
     }
+
+    // Fetch fresh data in background and re-render
+    fetchDashboardData().then(function(data) {
+        var c = document.getElementById('btcDashCard');
+        if (!c) return;
+        if (data && (data.price || data.blockHeight)) {
+            c.innerHTML = renderDashboard(data);
+        } else if (!_shown) {
+            c.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2rem;margin-bottom:12px;">📊</div><div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;">Unable to load fresh metrics.</div><div style="color:var(--text-faint);font-size:0.8rem;">Showing last known data. Try again later.</div><button onclick="closeDashboard();setTimeout(toggleDashboard,500)" style="margin-top:16px;padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Retry</button></div>';
+        }
+    });
 
     // Auto-refresh every 2 min
     _dashInterval = setInterval(async function() {
