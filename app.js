@@ -4154,6 +4154,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
         else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
+        else if (h === 'dashboard' || h === 'metrics' || h === 'network') { setTimeout(function() { if (typeof toggleDashboard === 'function') toggleDashboard(); }, 1000); }
         else if (h) go(h);
     };
 // =============================================
@@ -4195,6 +4196,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 case 'lightning':
                     if (typeof go === 'function') { go('lightning'); return; }
+                    break;
+                case 'dashboard':
+                case 'metrics':
+                case 'network':
+                    if (typeof toggleDashboard === 'function') { toggleDashboard(); return; }
                     break;
                 default:
                     // Channel direct link (e.g. #mining, #self-custody)
