@@ -404,4 +404,21 @@ window.nachoGetContext = function() {
     return nachoSessionContext;
 };
 
+// Lightning wallet nudge — Nacho suggests connecting a wallet for new signed-in users
+setTimeout(function() {
+    if (localStorage.getItem('btc_ln_prompt_dismissed') === '1') return;
+    var user = typeof currentUser !== 'undefined' ? currentUser : null;
+    if (!user || !user.username) return;
+    if (user.lightning || user.lightningAddress) return;
+    var visited = [];
+    try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+    if (visited.length < 5) return; // wait until they've explored a bit
+    if (typeof forceShowBubble === 'function') {
+        forceShowBubble("⚡ Hey " + (user.username || "friend") + "! Connect a Lightning wallet to tip other users and receive tips! Tap me to learn how. 🦌", function() {
+            go('lightning');
+        });
+        localStorage.setItem('btc_ln_prompt_dismissed', '1');
+    }
+}, 30000); // show after 30 seconds on page
+
 })();
