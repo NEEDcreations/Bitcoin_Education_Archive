@@ -24809,8 +24809,9 @@ function renderDashboard(data) {
     if (d.halvingDays !== undefined) {
         var halvingPct = d.halving ? ((210000 - d.halving) / 210000 * 100).toFixed(1) : 0;
         var etaStr = d.halvingEta ? d.halvingEta.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
-        html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;">';
-        html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + '</div>';
+        var halvingTip = 'Every 210,000 blocks (~4 years), the Bitcoin block reward is cut in half. This is called the "halving." It reduces the rate of new Bitcoin created, enforcing scarcity. The reward started at 50 BTC in 2009 and has halved 4 times: 50 → 25 → 12.5 → 6.25 → 3.125 BTC. After the next halving, miners will receive 1.5625 BTC per block. There will only ever be 21 million Bitcoin.';
+        html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + halvingTip.replace(/'/g, "\\'") + '\')" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.2)\'">';
+        html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
         html += '<div style="display:flex;justify-content:center;gap:16px;margin-bottom:10px;">';
         html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
         html += '<div style="font-size:1.4rem;color:var(--text-faint);font-weight:300;">:</div>';
