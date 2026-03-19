@@ -4068,7 +4068,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
 
             // Close any open overlay instead of navigating away
-            var _overlayIds = ['pvpNameOverlay','pvpOverlay','btcDashOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
+            var _overlayIds = ['pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
                 if (_oel) { _oel.remove(); return; }
@@ -4154,7 +4154,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
         else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
-        else if (h === 'dashboard' || h === 'metrics' || h === 'network') { setTimeout(function() { if (typeof toggleDashboard === 'function') toggleDashboard(); }, 1000); }
+        else if (h === 'dashboard' || h === 'metrics' || h === 'network') { setTimeout(function() { history.replaceState({ home: true }, '', window.location.pathname); if (typeof toggleDashboard === 'function') toggleDashboard(); }, 1500); }
         else if (h) go(h);
     };
 // =============================================
@@ -4200,7 +4200,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 case 'dashboard':
                 case 'metrics':
                 case 'network':
-                    if (typeof toggleDashboard === 'function') { toggleDashboard(); return; }
+                    if (typeof toggleDashboard === 'function') { history.replaceState({ home: true }, '', window.location.pathname); toggleDashboard(); return; }
                     break;
                 default:
                     // Channel direct link (e.g. #mining, #self-custody)
