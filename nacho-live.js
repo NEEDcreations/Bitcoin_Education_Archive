@@ -263,8 +263,8 @@ window.toggleTickerSetting = function() {
         initTicker();
         if (typeof showToast === 'function') showToast('📡 Signal ticker enabled!');
     }
-    // Re-render settings if open
-    if (typeof showSettingsPage === 'function') showSettingsPage('data');
+    // Re-render settings if open (stay on prefs tab)
+    if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
 };
 
 })();
