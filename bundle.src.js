@@ -28358,7 +28358,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -28375,6 +28375,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
             else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
             else if (id === 'dms' && typeof showInbox === 'function') showInbox();
+            else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
             else if (typeof renderForum === 'function') renderForum();
             
             setFloatingElementsVisible(true);
@@ -29214,6 +29215,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
         else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
         else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
+        else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
         else if (h) go(h);
     };
 // =============================================
@@ -29252,6 +29254,9 @@ window.nachoQuizAnswer = function(btn, correct) {
                 case 'dms':
                     if (typeof openDMInbox === 'function') { openDMInbox(); return; }
                     if (typeof showInbox === 'function') { showInbox(); return; }
+                    break;
+                case 'lightning':
+                    if (typeof go === 'function') { go('lightning'); return; }
                     break;
             }
             waited += 200;
