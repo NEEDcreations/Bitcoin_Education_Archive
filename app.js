@@ -4040,9 +4040,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
         // This prevents iOS swipe-back from exiting the app
+        var _savedHash = window.location.hash || '';
         if (!history.state) {
             history.replaceState({ guard: true }, '', window.location.pathname);
-            history.pushState({ home: true }, '', window.location.pathname + window.location.hash);
+            history.pushState({ home: true }, '', window.location.pathname + _savedHash);
         }
 
         window.addEventListener('popstate', function(e) {
@@ -4145,7 +4146,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         });
 
-        const h = location.hash.slice(1);
+        const h = location.hash.slice(1) || _savedHash.replace('#', '');
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h === 'irl-sync') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
