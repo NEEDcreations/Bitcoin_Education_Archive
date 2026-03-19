@@ -29259,6 +29259,10 @@ window.nachoQuizAnswer = function(btn, correct) {
                 case 'lightning':
                     if (typeof go === 'function') { go('lightning'); return; }
                     break;
+                default:
+                    // Channel direct link (e.g. #mining, #self-custody)
+                    if (typeof go === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[hash]) { go(hash); return; }
+                    break;
             }
             waited += 200;
             setTimeout(tryRoute, 200);
