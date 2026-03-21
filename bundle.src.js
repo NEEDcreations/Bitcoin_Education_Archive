@@ -1298,6 +1298,11 @@ async function loadUser(uid, prefetchedDoc) {
             localStorage.setItem('btc_favs', '[]');
             if (typeof renderFavs === 'function') renderFavs();
         }
+        // Cache username in localStorage for PVP and other modules
+        if (currentUser.username) {
+            localStorage.setItem('btc_username', currentUser.username);
+        }
+
         rankingReady = true;
         updateRankUI();
         if (typeof renderProgressRings === 'function') renderProgressRings();
