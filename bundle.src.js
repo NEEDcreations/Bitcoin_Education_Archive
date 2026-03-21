@@ -497,20 +497,10 @@ window.signInWithGoogle = async function() {
 };
 
 async function signInWithGIS() {
+    var saved = await _saveAnonDataGlobal();
     return new Promise(function(resolve, reject) {
-        var { anonUid, anonData } = { anonUid: null, anonData: null };
-        // Save anon data before auth
-        var anonUser = auth.currentUser;
-        if (anonUser && anonUser.isAnonymous) {
-            anonUid = anonUser.uid;
-            try {
-                var cached = localStorage.getItem('btc_user_cache_' + anonUser.uid);
-                if (cached) anonData = JSON.parse(cached);
-            } catch(e) {}
-            if (!anonData && typeof currentUser !== 'undefined' && currentUser) {
-                anonData = Object.assign({}, currentUser);
-            }
-        }
+        var anonUid = saved.anonUid;
+        var anonData = saved.anonData;
 
         google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
@@ -525,7 +515,7 @@ async function signInWithGIS() {
                     // Clean up GIS UI elements
                     var _gsiBtn = document.getElementById('gsi-temp-btn');
                     if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
-                    await handleSignInResult(result.user, anonUid, anonData);
+                    await _handleSignInResultGlobal(result.user, anonUid, anonData);
                     resolve(result.user);
                 } catch(e) {
                     reject(e);
@@ -579,9 +569,9 @@ window.signInWithTwitter = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await saveAnonData();
+            var _ad = await _saveAnonDataGlobal();
             var result = await auth.signInWithPopup(new firebase.auth.TwitterAuthProvider());
-            await handleSignInResult(result.user, _ad.anonUid, _ad.anonData);
+            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
             return;
         } catch(e) {
             if (e.code === 'auth/popup-closed-by-user') return;
@@ -597,9 +587,9 @@ window.signInWithGithub = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await saveAnonData();
+            var _ad = await _saveAnonDataGlobal();
             var result = await auth.signInWithPopup(new firebase.auth.GithubAuthProvider());
-            await handleSignInResult(result.user, _ad.anonUid, _ad.anonData);
+            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
             return;
         } catch(e) {
             if (e.code === 'auth/popup-closed-by-user') return;
@@ -646,18 +636,13 @@ window.signInWithFacebook = async function() {
 }
 
 async function signInWithFBSDK() {
+    var saved = await _saveAnonDataGlobal();
     return new Promise(function(resolve, reject) {
-        var anonUid = null, anonData = null;
-        var anonUser = auth.currentUser;
-        if (anonUser && anonUser.isAnonymous) {
-            anonUid = anonUser.uid;
-            if (typeof currentUser !== 'undefined' && currentUser) anonData = Object.assign({}, currentUser);
-        }
         FB.login(function(response) {
             if (!response.authResponse) { reject(new Error('Facebook login cancelled')); return; }
             var credential = firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
             auth.signInWithCredential(credential).then(async function(result) {
-                await handleSignInResult(result.user, anonUid, anonData);
+                await _handleSignInResultGlobal(result.user, saved.anonUid, saved.anonData);
                 resolve(result.user);
             }).catch(reject);
         }, { scope: 'email,public_profile' });
@@ -960,6 +945,66 @@ function isInAppBrowser() {
     return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|BytedanceWebview|musical_ly|TikTok|Weibo|MicroMessenger|LinkedInApp|Telegram/i.test(ua);
 }
 
+// Module-scope auth helpers (accessible from GIS, FB SDK, and signInWithProvider)
+async function _saveAnonDataGlobal() {
+    var anonUser = auth.currentUser;
+    var anonUid = null, anonData = null;
+    if (anonUser && anonUser.isAnonymous) {
+        anonUid = anonUser.uid;
+        try {
+            var anonDoc = await db.collection('users').doc(anonUid).get();
+            if (anonDoc.exists) anonData = anonDoc.data();
+        } catch(e) {}
+    }
+    return { anonUid: anonUid, anonData: anonData };
+}
+
+async function _handleSignInResultGlobal(user, anonUid, anonData) {
+    var existingDoc = await db.collection('users').doc(user.uid).get();
+    if (!existingDoc.exists) {
+        if (anonData) {
+            anonData.email = user.email || '';
+            if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
+            await db.collection('users').doc(user.uid).set(anonData);
+        } else {
+            await db.collection('users').doc(user.uid).set({
+                username: user.displayName || 'Bitcoiner',
+                email: user.email || '',
+                points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
+                lastVisit: new Date().toISOString().split('T')[0],
+                created: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+    } else {
+        if (anonData) {
+            var existData = existingDoc.data();
+            var _mergedPts = Math.min(anonData.points || 0, 500);
+            if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
+                await existingDoc.ref.update({
+                    points: Math.max(_mergedPts, existData.points || 0),
+                    channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
+                    totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
+                    mergedAnon: true,
+                });
+            }
+        }
+        if (!existingDoc.data().email && user.email) {
+            await existingDoc.ref.update({ email: user.email });
+        }
+    }
+    if (anonUid && anonUid !== user.uid) {
+        try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
+    }
+    loadUser(user.uid);
+    if (!existingDoc.exists) {
+        if (typeof attachReferral === 'function') attachReferral(user.uid);
+        showGiveawayPrompt(user.uid, user.displayName || user.email || 'Bitcoiner');
+    } else {
+        hideUsernamePrompt();
+        showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+    }
+}
+
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
@@ -982,76 +1027,12 @@ async function signInWithProvider(provider) {
         return;
     }
 
-    // Helper: save anonymous user data before auth state changes
-    async function saveAnonData() {
-        const anonUser = auth.currentUser;
-        let anonUid = null;
-        let anonData = null;
-        if (anonUser && anonUser.isAnonymous) {
-            anonUid = anonUser.uid;
-            try {
-                const anonDoc = await db.collection('users').doc(anonUid).get();
-                if (anonDoc.exists) anonData = anonDoc.data();
-            } catch(e) { console.warn('Could not read anon doc:', e); }
-        }
-        return { anonUid, anonData };
-    }
-
-    // Helper: handle successful sign-in (shared by popup and redirect paths)
+    // Delegate to module-scope helper
     async function handleSignInResult(user, anonUid, anonData) {
-        const existingDoc = await db.collection('users').doc(user.uid).get();
-        if (!existingDoc.exists) {
-            if (anonData) {
-                // Migrate anonymous data to the new authenticated account
-                anonData.email = user.email || '';
-                if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
-                await db.collection('users').doc(user.uid).set(anonData);
-            } else {
-                await db.collection('users').doc(user.uid).set({
-                    username: user.displayName || 'Bitcoiner',
-                    email: user.email || '',
-                    points: 0,
-                    channelsVisited: 0,
-                    totalVisits: 1,
-                    streak: 1,
-                    lastVisit: new Date().toISOString().split('T')[0],
-                    created: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
-        } else {
-            // Existing authenticated user — merge points if anon had more (one-time only)
-            if (anonData) {
-                const existData = existingDoc.data();
-                var _mergedPts = Math.min(anonData.points || 0, 500);
-                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
-                    await existingDoc.ref.update({
-                        points: Math.max(_mergedPts, existData.points || 0),
-                        channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
-                        totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
-                        mergedAnon: true,
-                    });
-                }
-            }
-            if (!existingDoc.data().email && user.email) {
-                await existingDoc.ref.update({ email: user.email });
-            }
-        }
-
-        // Delete the old anonymous user document to prevent duplicates on leaderboard
-        if (anonUid && anonUid !== user.uid) {
-            try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
-        }
-
-        loadUser(user.uid);
-
-        // If this is a NEW user, attach referral and show giveaway prompt
-        if (!existingDoc.exists) {
-            if (typeof attachReferral === 'function') attachReferral(user.uid);
-            showGiveawayPrompt(user.uid, user.displayName || user.email || 'Bitcoiner');
-        } else {
-            hideUsernamePrompt();
-            showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
-        }
+        return _handleSignInResultGlobal(user, anonUid, anonData);
+    }
+    async function saveAnonData() {
+        return _saveAnonDataGlobal();
     }
 
     // Strategy: Use popup on desktop (reliable), redirect on mobile/PWA.
