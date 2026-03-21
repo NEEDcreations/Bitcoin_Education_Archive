@@ -284,7 +284,10 @@ window.beatsLoadTracks = function(tab) {
                     '</div>' +
                     '<div style="flex-shrink:0;text-align:right;">' +
                         '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.6rem;display:flex;align-items:center;gap:2px;justify-content:flex-end;" title="' + (t.plays || 0) + ' plays">▶ ' + _formatPlays(t.plays || 0) + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.6rem;display:flex;align-items:center;gap:4px;justify-content:flex-end;">' +
+                            '<span title="' + (t.plays || 0) + ' plays">▶ ' + _formatPlays(t.plays || 0) + '</span>' +
+                            (isPlaying ? '<button onclick="event.stopPropagation();djBroadcast()" style="padding:2px 6px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;color:#6366f1;font-size:0.55rem;font-weight:700;cursor:pointer;font-family:inherit;" title="Broadcast to Global Chat">📡 DJ</button>' : '') +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
                 /* Row 2: action buttons — compact */
@@ -778,6 +781,7 @@ window.beatsShowTrackDetail = function(idx) {
         '</div>' +
         '<div style="display:flex;gap:8px;">' +
             '<button onclick="document.getElementById(\'beatsDetailOverlay\').remove();beatsPlayTrack(' + idx + ')" style="flex:1;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (isPlaying ? '⏸ Now Playing' : '▶ Play') + '</button>' +
+            (isPlaying ? '<button onclick="event.stopPropagation();djBroadcast();document.getElementById(\'beatsDetailOverlay\').remove()" style="padding:14px 18px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;color:#6366f1;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;" title="Broadcast to Global Chat">📡 DJ</button>' : '') +
             '<button onclick="event.stopPropagation();beatsToggleLike(\'' + track.id + '\',this);setTimeout(function(){var o=document.getElementById(\'beatsDetailOverlay\');if(o)o.remove();beatsLoadTracks(window._beatsCurrentTab);},300)" style="padding:14px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';">' + (isLiked ? '❤️' : '🤍') + '</button>' +
             '<button onclick="event.stopPropagation();beatsShowComments(\'' + track.id + '\');document.getElementById(\'beatsDetailOverlay\').remove()" style="padding:14px 18px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:var(--text-faint);">💬</button>' +
         '</div>' +
@@ -974,12 +978,93 @@ window.beatsRenderUpload = function() {
     if (status) status.textContent = 'Processing...';
 };
 
-// ---- Livestream Tab ----
+// ---- Livestream / DJ Tab ----
 window.beatsRenderLivestream = function() {
     var listEl = document.getElementById('beatsTrackList');
     if (!listEl) return;
 
+    var isPlaying = window._beatsAudio && !window._beatsAudio.paused;
+    var hasTrack = window._beatsNowPlaying;
+
+    // Check current DJ status
+    if (typeof db !== 'undefined') {
+        db.collection('global_chat_meta').doc('live_dj').get().then(function(doc) {
+            var data = doc.exists ? doc.data() : null;
+            var activeDJ = data && data.active;
+            var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+            var amDJ = activeDJ && data.djUid === myUid;
+
+            var html = '<div style="animation:fadeSlideIn 0.4s ease-out;">';
+
+            // Header
+            html += '<div style="text-align:center;margin-bottom:24px;">' +
+                '<div style="font-size:3rem;margin-bottom:8px;">🎧</div>' +
+                '<div style="color:var(--heading);font-size:1.3rem;font-weight:800;margin-bottom:4px;">DJ Mode</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;">Play a song and broadcast it live to Global Chat</div>' +
+            '</div>';
+
+            // Current DJ status
+            if (activeDJ) {
+                html += '<div style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(247,147,26,0.1));border:1px solid rgba(99,102,241,0.3);border-radius:16px;padding:16px;margin-bottom:20px;">' +
+                    '<div style="display:flex;align-items:center;gap:12px;">' +
+                        '<div style="font-size:2rem;">🎧</div>' +
+                        '<div style="flex:1;">' +
+                            '<div style="font-size:0.75rem;color:#6366f1;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW LIVE</div>' +
+                            '<div style="color:var(--heading);font-weight:700;font-size:1rem;">@' + (typeof escapeHtml === 'function' ? escapeHtml(data.djName) : data.djName) + '</div>' +
+                            '<div style="color:var(--text-muted);font-size:0.85rem;">♫ ' + (typeof escapeHtml === 'function' ? escapeHtml(data.trackTitle) : data.trackTitle) + ' — ' + (typeof escapeHtml === 'function' ? escapeHtml(data.trackArtist) : data.trackArtist) + '</div>' +
+                            (data.songCount ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Song ' + data.songCount + (data.songCount >= 5 ? '/5' : '') + '</div>' : '') +
+                        '</div>' +
+                        (amDJ ? '<button onclick="djStopBroadcast();beatsRenderLivestream()" style="padding:10px 16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⏹ Stop DJ</button>' : '') +
+                    '</div>' +
+                '</div>';
+            }
+
+            // Go Live button
+            if (!activeDJ || amDJ) {
+                html += '<div style="text-align:center;margin-bottom:20px;">';
+                if (isPlaying && hasTrack) {
+                    html += '<button onclick="djBroadcast()" style="padding:16px 40px;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;border-radius:14px;color:#fff;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);touch-action:manipulation;">📡 Go Live — Broadcast to Chat</button>' +
+                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:8px;">Now playing: ' + (typeof escapeHtml === 'function' ? escapeHtml(window._beatsNowPlaying.title) : window._beatsNowPlaying.title) + '</div>';
+                } else {
+                    html += '<div style="padding:20px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
+                        '<div style="font-size:1.5rem;margin-bottom:8px;">▶</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.85rem;">Play a song from the Discover tab first, then come back here to go live!</div>' +
+                    '</div>';
+                }
+                html += '</div>';
+            } else {
+                // Someone else is DJing — show join queue button
+                html += '<div style="text-align:center;margin-bottom:20px;">' +
+                    '<button onclick="djBroadcast()" style="padding:14px 32px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:14px;color:#6366f1;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">🎤 Join DJ Queue</button>' +
+                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:8px;">You\'ll be notified when the booth opens up</div>' +
+                '</div>';
+            }
+
+            // How it works
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:10px;">How DJ Mode Works</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+                    '1. Play any song from Bitcoin Beats<br>' +
+                    '2. Tap <strong style="color:#6366f1;">📡 Go Live</strong> to broadcast<br>' +
+                    '3. Users in Global Chat see a "Now Playing" bar<br>' +
+                    '4. They can tune in to hear your music live<br>' +
+                    '5. Listeners can ⚡ tip you and the artist<br>' +
+                    '6. 5-song max when others are in the queue' +
+                '</div>' +
+            '</div>';
+
+            html += '</div>';
+            listEl.innerHTML = html;
+        }).catch(function() {
+            listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Unable to load DJ status</div>';
+        });
+    } else {
+        listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">DJ Mode requires sign-in</div>';
+    }
+
+    // Legacy: keep the original livestream content below if needed
     var tweetUrl = 'https://x.com/Bitcoin_Beats_/status/2009432279760711788?s=20';
+    return; // Skip legacy content
 
     listEl.innerHTML =
         '<div style="text-align:center;animation:fadeSlideIn 0.4s ease-out;">' +
