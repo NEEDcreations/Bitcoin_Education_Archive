@@ -1218,25 +1218,32 @@ function djGoLive(uid, username, track) {
             djStopBroadcast();
             return;
         }
+        var updateData = {};
+        // Always broadcast playback position for sync
+        if (window._beatsAudio.currentTime) {
+            updateData.playbackTime = Math.round(window._beatsAudio.currentTime * 10) / 10;
+            updateData.playbackUpdatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        }
         if (window._beatsQueueIdx !== lastTrackIdx) {
             lastTrackIdx = window._beatsQueueIdx;
             _djSongCount++;
             var t = window._beatsQueue[lastTrackIdx];
             if (t) {
-                db.collection('global_chat_meta').doc(DJ_DOC).update({
-                    trackTitle: t.title || 'Untitled',
-                    trackArtist: t.artist || t.authorName || 'Unknown',
-                    trackCoverArt: t.coverArt || '',
-                    trackAudioUrl: t.audioUrl || '',
-                    trackId: t.id || '',
-                    artistUid: t.authorId || '',
-                    songCount: _djSongCount
-                }).catch(function() {});
+                updateData.trackTitle = t.title || 'Untitled';
+                updateData.trackArtist = t.artist || t.authorName || 'Unknown';
+                updateData.trackCoverArt = t.coverArt || '';
+                updateData.trackAudioUrl = t.audioUrl || '';
+                updateData.trackId = t.id || '';
+                updateData.artistUid = t.authorId || '';
+                updateData.songCount = _djSongCount;
+                updateData.playbackTime = 0;
             }
-            // Check 5-song limit if queue has people waiting
             checkDJSongLimit();
         }
-    }, 2000);
+        if (Object.keys(updateData).length > 0) {
+            db.collection('global_chat_meta').doc(DJ_DOC).update(updateData).catch(function() {});
+        }
+    }, 3000);
 }
 
 function checkDJSongLimit() {
@@ -1309,6 +1316,7 @@ window.djTuneIn = function() {
     var npEl = document.getElementById('djNowPlaying');
     if (!npEl) return;
     var url = npEl.getAttribute('data-audio-url');
+    var seekTime = parseFloat(npEl.getAttribute('data-playback-time') || '0');
     if (!url) { if (typeof showToast === 'function') showToast('No audio available for this track'); return; }
     if (window._beatsAudio && !window._beatsAudio.paused) {
         window._beatsAudio.pause();
@@ -1317,6 +1325,12 @@ window.djTuneIn = function() {
     if (_djAudio) { _djAudio.pause(); _djAudio = null; }
     _djAudio = new Audio(url);
     _djAudio.volume = 0.8;
+    // Seek to DJ's current position once audio is ready
+    _djAudio.addEventListener('loadedmetadata', function() {
+        if (seekTime > 0 && seekTime < _djAudio.duration) {
+            _djAudio.currentTime = seekTime;
+        }
+    });
     _djAudio.play().catch(function(e) {
         if (typeof showToast === 'function') showToast('Playback failed: ' + e.message);
     });
@@ -1359,9 +1373,14 @@ function startDJListener() {
             if (_djListening && _djAudio && d.trackAudioUrl) {
                 var currentSrc = _djAudio.src || '';
                 if (currentSrc !== d.trackAudioUrl) {
+                    // Song changed — start new track at DJ's position
                     _djAudio.pause();
                     _djAudio = new Audio(d.trackAudioUrl);
                     _djAudio.volume = 0.8;
+                    var _syncTime = d.playbackTime || 0;
+                    _djAudio.addEventListener('loadedmetadata', function() {
+                        if (_syncTime > 0 && _syncTime < _djAudio.duration) _djAudio.currentTime = _syncTime;
+                    });
                     _djAudio.play().catch(function() {});
                 }
             }
@@ -1397,6 +1416,7 @@ function showDJBar(d) {
     var songInfo = d.songCount ? ' · Song ' + d.songCount + (d.songCount >= DJ_MAX_SONGS_WITH_QUEUE ? '/5' : '') : '';
 
     bar.setAttribute('data-audio-url', d.trackAudioUrl || '');
+    bar.setAttribute('data-playback-time', d.playbackTime || '0');
     bar.innerHTML =
         '<div style="display:flex;align-items:center;gap:10px;">' +
             (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🎧</div>') +
