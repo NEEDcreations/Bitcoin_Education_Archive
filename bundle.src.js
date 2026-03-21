@@ -574,19 +574,94 @@ async function signInWithGIS() {
     });
 }
 
-// Twitter/X Sign-In
+// Twitter/X Sign-In — no client SDK, must use Firebase popup/redirect
 window.signInWithTwitter = async function() {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+        try {
+            var _ad = await saveAnonData();
+            var result = await auth.signInWithPopup(new firebase.auth.TwitterAuthProvider());
+            await handleSignInResult(result.user, _ad.anonUid, _ad.anonData);
+            return;
+        } catch(e) {
+            if (e.code === 'auth/popup-closed-by-user') return;
+            showPWAAuthFallback('Twitter');
+            return;
+        }
+    }
     await signInWithProvider(new firebase.auth.TwitterAuthProvider());
 }
 
 // GitHub Sign-In
 window.signInWithGithub = async function() {
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+        try {
+            var _ad = await saveAnonData();
+            var result = await auth.signInWithPopup(new firebase.auth.GithubAuthProvider());
+            await handleSignInResult(result.user, _ad.anonUid, _ad.anonData);
+            return;
+        } catch(e) {
+            if (e.code === 'auth/popup-closed-by-user') return;
+            showPWAAuthFallback('GitHub');
+            return;
+        }
+    }
     await signInWithProvider(new firebase.auth.GithubAuthProvider());
 }
 
-// Facebook Sign-In
+// PWA auth fallback for providers without client SDKs
+function showPWAAuthFallback(providerName) {
+    var msg = document.createElement('div');
+    msg.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;';
+    msg.onclick = function(e) { if (e.target === msg) msg.remove(); };
+    msg.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;text-align:center;">' +
+        '<div style="font-size:2rem;margin-bottom:12px;">🔐</div>' +
+        '<div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:8px;">' + providerName + ' Sign-In</div>' +
+        '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">' + providerName + ' sign-in requires a browser window. Open the site in your browser to sign in.</div>' +
+        '<button onclick="window.open(\'https://bitcoineducation.quest\',\'_blank\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;width:100%;margin-bottom:8px;">🌐 Open in Browser</button>' +
+        '<button onclick="this.closest(\'div\').parentElement.remove()" style="padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+    '</div>';
+    document.body.appendChild(msg);
+}
+
+// Facebook Sign-In — uses FB SDK for PWA compatibility
+var FB_APP_ID = '1400842698021858';
+
+window.fbAsyncInit = function() {
+    FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v19.0' });
+};
+
 window.signInWithFacebook = async function() {
+    if (typeof FB !== 'undefined') {
+        try {
+            await signInWithFBSDK();
+            return;
+        } catch(fbErr) {
+            if (fbErr.message === 'Facebook login cancelled') return;
+            console.warn('[Auth] FB SDK failed:', fbErr);
+        }
+    }
     await signInWithProvider(new firebase.auth.FacebookAuthProvider());
+}
+
+async function signInWithFBSDK() {
+    return new Promise(function(resolve, reject) {
+        var anonUid = null, anonData = null;
+        var anonUser = auth.currentUser;
+        if (anonUser && anonUser.isAnonymous) {
+            anonUid = anonUser.uid;
+            if (typeof currentUser !== 'undefined' && currentUser) anonData = Object.assign({}, currentUser);
+        }
+        FB.login(function(response) {
+            if (!response.authResponse) { reject(new Error('Facebook login cancelled')); return; }
+            var credential = firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
+            auth.signInWithCredential(credential).then(async function(result) {
+                await handleSignInResult(result.user, anonUid, anonData);
+                resolve(result.user);
+            }).catch(reject);
+        }, { scope: 'email,public_profile' });
+    });
 }
 
 // Nostr sign-in — full modal with extension/nsec/npub options
