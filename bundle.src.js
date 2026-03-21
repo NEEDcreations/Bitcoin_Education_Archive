@@ -253,7 +253,9 @@ function initRanking() {
         let firstAuthEvent = true;
         let emailLinkHandled = auth.isSignInWithEmailLink(window.location.href);
         // Detect if we're returning from a social login redirect
-        var _pendingRedirect = !!localStorage.getItem('btc_anon_uid') || sessionStorage.getItem('btc_redirect_pending') === '1';
+        var _pwaAuthPending = localStorage.getItem('btc_pwa_auth_pending');
+        var _pendingRedirect = !!localStorage.getItem('btc_anon_uid') || sessionStorage.getItem('btc_redirect_pending') === '1' || !!_pwaAuthPending;
+        if (_pwaAuthPending) { localStorage.removeItem('btc_pwa_auth_pending'); console.log('[Auth] PWA auth pending detected'); }
         if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
         
         auth.onAuthStateChanged(user => {
@@ -894,7 +896,36 @@ async function signInWithProvider(provider) {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
     if (isMobileDevice || isStandalone) {
-        // Mobile: try popup first (works on modern mobile browsers), redirect as fallback
+        // PWA standalone: signInWithRedirect goes to system browser and doesn't return.
+        // signInWithPopup can work if the browser supports it.
+        // Try popup — if it fails, show instructions.
+        if (isStandalone) {
+            try {
+                const { anonUid, anonData } = await saveAnonData();
+                const result = await auth.signInWithPopup(provider);
+                await handleSignInResult(result.user, anonUid, anonData);
+                return;
+            } catch(pwaErr) {
+                if (pwaErr.code === 'auth/popup-closed-by-user') return;
+                console.log('[Auth] PWA popup failed:', pwaErr.code);
+                // Show helpful message
+                var pwaMsg = document.createElement('div');
+                pwaMsg.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;';
+                pwaMsg.onclick = function(e) { if (e.target === pwaMsg) pwaMsg.remove(); };
+                pwaMsg.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;text-align:center;">' +
+                    '<div style="font-size:2rem;margin-bottom:12px;">🔐</div>' +
+                    '<div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:8px;">Sign in via Browser</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Google sign-in works best in your browser. Open this link in Safari or Chrome to sign in, then return to the app.</div>' +
+                    '<button onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest\');this.textContent=\'✅ Copied!\';var _s=this;setTimeout(function(){_s.textContent=\'📋 Copy Link\'},2000)" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;width:100%;margin-bottom:8px;">📋 Copy Link</button>' +
+                    '<button onclick="window.open(\'https://bitcoineducation.quest\',\'_blank\')" style="padding:12px 24px;background:rgba(99,102,241,0.15);color:#6366f1;border:1px solid rgba(99,102,241,0.3);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;width:100%;margin-bottom:8px;">🌐 Open in Browser</button>' +
+                    '<button onclick="this.closest(\'div\').parentElement.remove()" style="padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+                '</div>';
+                document.body.appendChild(pwaMsg);
+                return;
+            }
+        }
+
+        // Mobile browser (not PWA): try popup first, redirect as fallback
         try {
             const { anonUid, anonData } = await saveAnonData();
             const result = await auth.signInWithPopup(provider);
@@ -903,7 +934,6 @@ async function signInWithProvider(provider) {
         } catch(popupErr) {
             console.log('[Auth] Mobile popup failed:', popupErr.code, '— falling back to redirect');
             if (popupErr.code === 'auth/popup-closed-by-user') return;
-            // Popup blocked or failed — fall back to redirect
             try {
                 showToast('⏳ Opening sign-in page...');
                 const anonUser = auth.currentUser;
