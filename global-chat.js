@@ -729,29 +729,44 @@ function renderOverlayChat() {
     startChatListener();
 }
 
-// Hide overlay button when in full chat view
+// Keep overlay button visible on ALL pages except full chat hub view
 var _origRenderChatHub = window.renderChatHub;
 window.renderChatHub = function(tab) {
     var btn = document.getElementById('chatOverlayBtn');
     if (btn) btn.style.display = 'none';
-    // Close overlay if open
     if (_overlayOpen) {
         _overlayOpen = false;
         var panel = document.getElementById('chatOverlay');
         if (panel) panel.style.transform = 'translateY(100%)';
+        if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
     }
     return _origRenderChatHub(tab);
 };
 
-// Show overlay button when going home or navigating anywhere
+// Re-show overlay button on ANY navigation (go, goHome, popstate)
+function showOverlayBtn() {
+    var btn = document.getElementById('chatOverlayBtn');
+    if (btn) btn.style.display = 'block';
+}
+
 var _origGoHome2 = window.goHome;
 if (_origGoHome2) {
     window.goHome = function() {
-        var btn = document.getElementById('chatOverlayBtn');
-        if (btn) btn.style.display = 'block';
+        showOverlayBtn();
         return _origGoHome2.apply(this, arguments);
     };
 }
+
+var _origGo2 = window.go;
+if (_origGo2) {
+    window.go = function(id) {
+        // Show button on all pages except full chat hub
+        if (id !== 'chat') showOverlayBtn();
+        return _origGo2.apply(this, arguments);
+    };
+}
+
+window.addEventListener('popstate', showOverlayBtn);
 
 // Init overlay on load + hide old desktop DM button
 function initOverlay() {
