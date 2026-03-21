@@ -31,15 +31,15 @@ var HASH_TARGETS = [
     {tag:'wallet', label:'Wallet'},
     {tag:'settings', label:'Settings'}
 ];
-// Add channels dynamically from window.data if available
+// Add channels dynamically from CHANNELS if available
 function getHashTargets() {
     var targets = HASH_TARGETS.slice();
-    if (typeof window.data === 'object' && window.data) {
-        var seen = {};
-        for (var k in window.data) {
-            if (window.data[k] && window.data[k].title && !seen[k]) {
-                seen[k] = 1;
-                targets.push({tag: k, label: window.data[k].title});
+    if (typeof CHANNELS === 'object' && CHANNELS) {
+        for (var k in CHANNELS) {
+            if (CHANNELS[k] && CHANNELS[k].title) {
+                // Strip emoji prefix for cleaner display
+                var title = CHANNELS[k].title.replace(/^[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}\u2764\u2705\u26A0\u2B50\u2934\u2935\u21A9\u21AA\u2194\u2195\u23F0\u23F3\u231A\u231B\u24C2\u25AA\u25AB\u25B6\u25C0\u25FB-\u25FE\u2611\u2622\u2623\u260E\u2615\u2660\u2663\u2665\u2666\u267B\u267F\u2693\u2696\u2697\u2699\u269B\u269C\u26A1\u26BD\u26BE\u26C4\u26C5\u26CE\u26CF\u26D1\u26D3\u26D4\u26E9\u26EA\u26F0-\u26F5\u26F7\u26F8\u26F9\u26FA\u2702\u2708\u2709\u270A-\u270F\u2712\u2714\u2716\u271D\u2721\u2728\u2733\u2734\u2744\u2747\u274C\u274E\u2753-\u2755\u2757\u2763]+\s*/u, '');
+                targets.push({tag: k, label: title || k});
             }
         }
     }
@@ -309,7 +309,7 @@ function formatChatText(text) {
     text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
     // #channel tags → clickable links
     text = text.replace(/#([a-zA-Z0-9_-]+)/g, function(match, tag) {
-        return '<a href="#' + tag + '" onclick="if(typeof go===\'function\'){go(\'' + tag + '\');return false;}" style="color:#6366f1;font-weight:700;text-decoration:none;">' + match + '</a>';
+        return '<a href="#' + tag + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + tag + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + match + '</a>';
     });
     // @mentions → styled
     text = text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#6366f1;font-weight:700;">@$1</span>');
