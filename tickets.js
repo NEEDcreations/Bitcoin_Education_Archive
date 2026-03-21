@@ -188,6 +188,7 @@ async function checkReferralQualifications() {
             currentUser.orangeTickets = newTotal;
             currentUser.points = (currentUser.points || 0) + bonusPoints;
             showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
+            if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
 
             // Check ticket badges after earning

@@ -791,6 +791,9 @@
                         '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
                         '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
                     '</div>';
+
+                    // Notify spin result
+                    if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
                     
                     // Mark as spun today
                     localStorage.setItem('btc_last_spin_date', today);

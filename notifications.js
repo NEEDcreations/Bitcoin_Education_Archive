@@ -287,7 +287,7 @@ window.renderNotifList = async function() {
         }
 
         var html = '';
-        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧' };
+        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔' };
         snap.forEach(function(doc) {
             var n = doc.data();
             var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
@@ -383,15 +383,16 @@ window.notifySelfQuest = function(questName) {
     }).catch(function() {});
 };
 
-// Notify on tip received
+// Notify on tip received (includes sender name)
 window.notifyTipReceived = function(recipientId, amount, senderName) {
     if (!recipientId || !auth || !auth.currentUser) return;
+    var name = senderName || (typeof currentUser !== 'undefined' && currentUser && currentUser.username) || 'Someone';
     db.collection('notifications').add({
         recipientId: recipientId,
         senderId: auth.currentUser.uid,
-        senderName: senderName || 'Someone',
+        senderName: name,
         type: 'tip',
-        message: '⚡ ' + (senderName || 'Someone') + ' tipped you ' + (amount || '') + ' sats!',
+        message: '⚡ @' + name + ' tipped you ' + (amount ? amount.toLocaleString() + ' sats' : '') + '!',
         targetType: null, targetId: null,
         read: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -424,6 +425,48 @@ window.notifyPredictionResult = function(correct, direction) {
         senderId: 'system', senderName: 'System',
         type: 'prediction',
         message: correct ? '📊 ✅ Your price prediction was correct! Bitcoin went ' + (direction || 'up') + '.' : '📊 ❌ Your price prediction was wrong. Better luck tomorrow!',
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify spin wheel result
+window.notifySelfSpin = function(rewardText) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'spin',
+        message: '🎡 Daily Spin: ' + (rewardText || 'You won a prize!'),
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify referral reward
+window.notifySelfReferral = function(ticketsEarned) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'referral',
+        message: '👥 Referral verified! You earned ' + ticketsEarned + ' Orange Ticket' + (ticketsEarned > 1 ? 's' : '') + '!',
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify Nacho closet item unlock
+window.notifySelfClosetItem = function(itemName, itemEmoji) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'closet',
+        message: (itemEmoji || '👔') + ' New Nacho closet item: ' + (itemName || 'Unknown') + '! Equip it in Settings.',
         targetType: null, targetId: null,
         read: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
