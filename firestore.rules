@@ -369,6 +369,24 @@ service cloud.firestore {
     }
 
     // =============================================
+    // GLOBAL CHAT
+    // =============================================
+    match /global_chat/{msgId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() >= 1
+                    && request.resource.data.text.size() <= 300
+                    && request.resource.data.name is string
+                    && (request.resource.data.uid == request.auth.uid
+                        || request.resource.data.uid == 'nacho-bot');
+      // Admin delete only
+      allow delete: if request.auth != null
+                    && request.auth.token.email == 'needcreations@gmail.com';
+    }
+
+    // =============================================
     // DEFAULT: deny everything else
     // =============================================
     // NOTIFICATIONS
