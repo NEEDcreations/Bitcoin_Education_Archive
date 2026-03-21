@@ -4174,6 +4174,26 @@ const BADGE_DEFS = [
     { id: 'cert_tech', name: 'Protocol Expert', emoji: '🛠️', desc: 'Passed the Technical Protocol Expert Certification', check: () => localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 100 },
     { id: 'nacho_chatterbox', name: 'Nacho Chatterbox', emoji: '🦌', desc: 'Interacted with Nacho 50+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 50, pts: 30 },
     { id: 'nacho_bestie', name: 'Nacho\'s Bestie', emoji: '🧡', desc: 'Interacted with Nacho 250+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 250, pts: 100 },
+
+    // ---- Global Chat Badges ----
+    { id: 'chat_first', name: 'First Words', emoji: '💬', desc: 'Sent your first message in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 1, pts: 10 },
+    { id: 'chat_10', name: 'Chatty', emoji: '🗣️', desc: 'Sent 10 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 10, pts: 15 },
+    { id: 'chat_50', name: 'Conversationalist', emoji: '🎤', desc: 'Sent 50 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 50, pts: 25 },
+    { id: 'chat_100', name: 'Town Crier', emoji: '📢', desc: 'Sent 100 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 100, pts: 50 },
+    { id: 'chat_500', name: 'Chat Legend', emoji: '👑', desc: 'Sent 500 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 500, pts: 100 },
+    { id: 'chat_streak_3', name: 'Regular', emoji: '📅', desc: 'Chatted 3 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 3, pts: 20 },
+    { id: 'chat_streak_7', name: 'Devoted Chatter', emoji: '🔥', desc: 'Chatted 7 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 7, pts: 50 },
+    { id: 'chat_streak_30', name: 'Chat Addict', emoji: '💎', desc: 'Chatted 30 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 30, pts: 150 },
+
+    // ---- DJ Badges ----
+    { id: 'dj_first', name: 'First Set', emoji: '🎧', desc: 'DJed for the first time in Global Chat', check: () => parseInt(localStorage.getItem('btc_dj_sets') || '0') >= 1, pts: 25 },
+    { id: 'dj_5', name: 'Resident DJ', emoji: '🎛️', desc: 'DJed 5 sets in Global Chat', check: () => parseInt(localStorage.getItem('btc_dj_sets') || '0') >= 5, pts: 50 },
+    { id: 'dj_25', name: 'Club Legend', emoji: '🏆', desc: 'DJed 25 sets in Global Chat', check: () => parseInt(localStorage.getItem('btc_dj_sets') || '0') >= 25, pts: 150 },
+    { id: 'dj_songs_10', name: 'Playlist Pro', emoji: '📻', desc: 'Broadcast 10 songs as DJ', check: () => parseInt(localStorage.getItem('btc_dj_songs') || '0') >= 10, pts: 30 },
+    { id: 'dj_songs_50', name: 'Jukebox Hero', emoji: '🎵', desc: 'Broadcast 50 songs as DJ', check: () => parseInt(localStorage.getItem('btc_dj_songs') || '0') >= 50, pts: 75 },
+    { id: 'dj_songs_100', name: 'Vinyl Master', emoji: '💿', desc: 'Broadcast 100 songs as DJ', check: () => parseInt(localStorage.getItem('btc_dj_songs') || '0') >= 100, pts: 200 },
+    { id: 'dj_listener', name: 'Good Listener', emoji: '🔊', desc: 'Tuned in to 10 DJ sets', check: () => parseInt(localStorage.getItem('btc_dj_listens') || '0') >= 10, pts: 20 },
+    { id: 'dj_listener_50', name: 'Groupie', emoji: '🤘', desc: 'Tuned in to 50 DJ sets', check: () => parseInt(localStorage.getItem('btc_dj_listens') || '0') >= 50, pts: 75 },
 ];
 
 let earnedBadges = new Set();
@@ -4451,9 +4471,11 @@ function playBadgeSound() {
 function getBadgeHTML() {
     // Categorize badges
     const categories = {
-        'Discovery': BADGE_DEFS.filter(b => b.id.includes('explorer') || b.id.includes('first')),
+        'Discovery': BADGE_DEFS.filter(b => b.id.includes('explorer') || b.id === 'first_channel'),
         'Knowledge': BADGE_DEFS.filter(b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest')),
-        'Social/Misc': BADGE_DEFS.filter(b => !b.id.includes('explorer') && !b.id.includes('first') && !b.id.includes('builder') && !b.id.includes('diver') && !b.id.includes('librarian') && !b.id.includes('quest'))
+        'Global Chat': BADGE_DEFS.filter(b => b.id.startsWith('chat_')),
+        'DJ Mode': BADGE_DEFS.filter(b => b.id.startsWith('dj_')),
+        'Social/Misc': BADGE_DEFS.filter(b => !b.id.includes('explorer') && b.id !== 'first_channel' && !b.id.includes('builder') && !b.id.includes('diver') && !b.id.includes('librarian') && !b.id.includes('quest') && !b.id.startsWith('chat_') && !b.id.startsWith('dj_'))
     };
 
     let html = '<style>' +

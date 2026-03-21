@@ -563,12 +563,47 @@ window.sendGlobalChat = function() {
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.message || 'Unknown error'));
     });
 
-    // Award points for first chat message of the day
+    // Track total messages sent
+    var totalMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0') + 1;
+    localStorage.setItem('btc_chat_msgs', totalMsgs);
+
+    // Award points for first chat message of the day + streak tracking
+    var today = new Date().toISOString().split('T')[0];
     var chatDay = 'btc_chat_day_' + new Date().toDateString();
     if (!localStorage.getItem(chatDay)) {
         localStorage.setItem(chatDay, '1');
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Global Chat');
+        if (typeof awardTickets === 'function') awardTickets(2, '💬 Daily chat');
+
+        // Update chat streak
+        var lastChatDate = localStorage.getItem('btc_chat_last_date') || '';
+        var streak = parseInt(localStorage.getItem('btc_chat_streak') || '0');
+        if (lastChatDate) {
+            var lastD = new Date(lastChatDate);
+            var todayD = new Date(today);
+            var diff = Math.round((todayD - lastD) / 86400000);
+            if (diff === 1) {
+                streak++;
+            } else if (diff > 1) {
+                streak = 1;
+            }
+        } else {
+            streak = 1;
+        }
+        localStorage.setItem('btc_chat_streak', streak);
+        localStorage.setItem('btc_chat_last_date', today);
+
+        // Bonus points for streaks
+        if (streak === 3 && typeof awardPoints === 'function') awardPoints(10, '🔥 3-day chat streak!');
+        if (streak === 7 && typeof awardPoints === 'function') awardPoints(25, '🔥 7-day chat streak!');
+        if (streak === 30 && typeof awardPoints === 'function') awardPoints(100, '💎 30-day chat streak!');
     }
+
+    // Milestone rewards for total messages
+    if (totalMsgs === 10 && typeof awardPoints === 'function') awardPoints(10, '💬 10 messages sent!');
+    if (totalMsgs === 50 && typeof awardPoints === 'function') awardPoints(15, '💬 50 messages sent!');
+    if (totalMsgs === 100 && typeof awardPoints === 'function') awardPoints(25, '📢 100 messages sent!');
+    if (totalMsgs === 500 && typeof awardPoints === 'function') awardPoints(50, '👑 500 messages sent!');
 
     // Nacho auto-answer: any question (contains ?) gets passed to nachoUnifiedAnswer
     if (text.includes('?') && typeof nachoUnifiedAnswer === 'function') {
@@ -1208,6 +1243,19 @@ function djGoLive(uid, username, track) {
 
     db.collection('global_chat_meta').doc(DJ_DOC).set(djData).then(function() {
         if (typeof showToast === 'function') showToast('🎧 You\'re now DJing! Broadcasting to Global Chat');
+
+        // Track DJ sets
+        var djSets = parseInt(localStorage.getItem('btc_dj_sets') || '0') + 1;
+        localStorage.setItem('btc_dj_sets', djSets);
+        var djSongs = parseInt(localStorage.getItem('btc_dj_songs') || '0') + 1;
+        localStorage.setItem('btc_dj_songs', djSongs);
+
+        // Award points for DJing
+        if (typeof awardPoints === 'function') awardPoints(15, '🎧 DJ Set started!');
+        if (typeof awardTickets === 'function') awardTickets(5, '🎧 DJ Set');
+        if (djSets === 1 && typeof awardPoints === 'function') awardPoints(25, '🎧 First DJ Set!');
+        if (djSets === 5 && typeof awardPoints === 'function') awardPoints(30, '🎛️ Resident DJ — 5 sets!');
+        if (djSets === 25 && typeof awardPoints === 'function') awardPoints(75, '🏆 Club Legend — 25 sets!');
         db.collection(CHAT_COLLECTION).add({
             uid: 'system', name: '🎧 DJ Mode',
             text: '🎶 @' + username + ' is now DJing! Playing: "' + (track.title || 'Untitled') + '" by ' + (track.artist || track.authorName || 'Unknown') + '. Tune in! 🔊',
@@ -1246,6 +1294,14 @@ function djGoLive(uid, username, track) {
                 updateData.artistUid = t.authorId || '';
                 updateData.songCount = _djSongCount;
                 updateData.playbackTime = 0;
+
+                // Track DJ songs broadcast
+                var djSongs = parseInt(localStorage.getItem('btc_dj_songs') || '0') + 1;
+                localStorage.setItem('btc_dj_songs', djSongs);
+                if (typeof awardPoints === 'function') awardPoints(3, '🎵 Song broadcast');
+                if (djSongs === 10 && typeof awardPoints === 'function') awardPoints(15, '📻 10 songs broadcast!');
+                if (djSongs === 50 && typeof awardPoints === 'function') awardPoints(30, '🎵 50 songs broadcast!');
+                if (djSongs === 100 && typeof awardPoints === 'function') awardPoints(75, '💿 100 songs broadcast!');
             }
             checkDJSongLimit();
         }
@@ -1344,6 +1400,14 @@ window.djTuneIn = function() {
         if (typeof showToast === 'function') showToast('Playback failed: ' + e.message);
     });
     _djListening = true;
+
+    // Track tune-ins for listener badge
+    var djListens = parseInt(localStorage.getItem('btc_dj_listens') || '0') + 1;
+    localStorage.setItem('btc_dj_listens', djListens);
+    if (typeof awardPoints === 'function') awardPoints(3, '🔊 Tuned in to DJ');
+    if (djListens === 10 && typeof awardPoints === 'function') awardPoints(15, '🔊 Tuned in to 10 DJ sets!');
+    if (djListens === 50 && typeof awardPoints === 'function') awardPoints(50, '🤘 Groupie — 50 tune-ins!');
+
     var tuneBtn = document.getElementById('djTuneBtn');
     if (tuneBtn) { tuneBtn.textContent = '⏹ Stop'; tuneBtn.onclick = djStopListening; }
 };
