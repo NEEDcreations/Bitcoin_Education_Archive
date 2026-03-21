@@ -1382,15 +1382,41 @@ function startDJListener() {
             if (_djListening && _djAudio && d.trackAudioUrl) {
                 var currentSrc = _djAudio.src || '';
                 if (currentSrc !== d.trackAudioUrl) {
-                    // Song changed — start new track at DJ's position
-                    _djAudio.pause();
+                    // Song changed — crossfade: fade out old, start new at DJ's position
+                    var oldAudio = _djAudio;
+                    var oldVol = oldAudio.volume;
+                    var fadeSteps = 10;
+                    var fadeStep = 0;
+                    var fadeOut = setInterval(function() {
+                        fadeStep++;
+                        oldAudio.volume = Math.max(0, oldVol * (1 - fadeStep / fadeSteps));
+                        if (fadeStep >= fadeSteps) { clearInterval(fadeOut); oldAudio.pause(); }
+                    }, 100);
                     _djAudio = new Audio(d.trackAudioUrl);
-                    _djAudio.volume = 0.8;
+                    _djAudio.volume = 0;
                     var _syncTime = d.playbackTime || 0;
                     _djAudio.addEventListener('loadedmetadata', function() {
                         if (_syncTime > 0 && _syncTime < _djAudio.duration) _djAudio.currentTime = _syncTime;
                     });
-                    _djAudio.play().catch(function() {});
+                    _djAudio.play().then(function() {
+                        // Fade in new track
+                        var newAudio = _djAudio;
+                        var inStep = 0;
+                        var fadeIn = setInterval(function() {
+                            inStep++;
+                            newAudio.volume = Math.min(0.8, 0.8 * (inStep / 10));
+                            if (inStep >= 10) clearInterval(fadeIn);
+                        }, 100);
+                    }).catch(function() {});
+                }
+            }
+
+            // Play SFX from DJ if listener is tuned in
+            if (_djListening && d.sfx && d.sfxAt) {
+                var sfxTime = d.sfxAt.toDate ? d.sfxAt.toDate().getTime() : 0;
+                if (sfxTime > (window._lastDJSfxTime || 0)) {
+                    window._lastDJSfxTime = sfxTime;
+                    if (typeof djPlaySFX === 'function') djPlaySFX(d.sfx);
                 }
             }
         }, function() { hideDJBar(); });
