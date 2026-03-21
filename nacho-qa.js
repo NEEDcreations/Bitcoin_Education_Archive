@@ -2276,7 +2276,35 @@ const NACHO_KB = [
   channel: 'investment-strategy', channelName: 'Investment Strategy' },
 { keys: ['how do i get started','getting started','get started with bitcoin','where do i begin','beginner guide','first steps','new to bitcoin where to start'],
   answer: "Welcome to the rabbit hole, {name}! Here's your starter path: 🦌🟠\n\n1️⃣ **Learn the basics** — read our one-stop-shop channel or ask me 'What is Bitcoin?'\n2️⃣ **Get a wallet** — Blue Wallet (beginner) or Sparrow Wallet (advanced)\n3️⃣ **Buy some sats** — River, Strike, or Cash App\n4️⃣ **Self-custody** — move your sats to YOUR wallet (not your keys, not your coins!)\n5️⃣ **Keep learning** — take a Quest, try Flashcards, or talk to me anytime!\n\nNo rush. Bitcoin isn't going anywhere. It's been here since 2009 and it'll be here in 2109. ⏰",
-  channel: 'one-stop-shop', channelName: 'One Stop Shop' }
+  channel: 'one-stop-shop', channelName: 'One Stop Shop' },
+
+// ---- Global Chat ----
+{ keys: ['global chat','chat room','how to chat','where is the chat','public chat','talk to people','community chat','online users'],
+  answer: "🌍 Global Chat is our live community chat room! You can find it in the bottom nav (Chat tab) or the 💬 button on desktop. It shows how many users are online right now. You earn **5 points + 2 tickets** for your first message each day, and there's a streak system — chat 3, 7, or 30 days in a row for bonus points! Keep chatting and you'll unlock badges like 🗣️ Chatty, 📢 Town Crier, and 👑 Chat Legend! 🦌" },
+{ keys: ['chat badges','chat rewards','chat points','chat streak','chatting rewards','earn points chatting'],
+  answer: "💬 Chat is rewarding, {name}! Here's the breakdown:\n\n📅 **Daily**: 5 points + 2 tickets for your first message each day\n🔥 **Streaks**: +10 at 3 days, +25 at 7 days, +100 at 30 days!\n🏅 **Badges**: First Words (1 msg), Chatty (10), Conversationalist (50), Town Crier (100), Chat Legend (500)\n📅 **Streak Badges**: Regular (3 days), Devoted Chatter (7 days), Chat Addict (30 days)\n\nJust keep showing up and chatting! 🦌" },
+
+// ---- DJ Mode ----
+{ keys: ['dj mode','how to dj','become a dj','dj broadcast','go live','livestream music','dj controls','how do i dj','broadcasting music'],
+  answer: "🎧 DJ Mode lets you broadcast music to everyone in Global Chat! Here's how:\n\n1️⃣ Go to **Bitcoin Beats** and play a song\n2️⃣ Switch to the **Livestream** tab\n3️⃣ Hit **📡 Go Live** to start broadcasting\n\nWhile DJing you get controls: 🎛️ **Crossfader** for smooth transitions, **Volume control**, **Sound effects** (horn, airhorn, scratch, rewind, boom, applause), and **Bitcoin quotes** that play over the stream! Listeners hear everything live. 🦌🎵" },
+{ keys: ['dj badges','dj rewards','dj points','earn points djing','dj achievements'],
+  answer: "🎧 DJing earns serious rewards, {name}!\n\n📡 **Per Set**: 15 points + 5 tickets every time you go live\n🎵 **Per Song**: 3 points each time you broadcast a new song\n🏅 **DJ Badges**: First Set (1 set), Resident DJ (5), Club Legend (25)\n📻 **Song Badges**: Playlist Pro (10 songs), Jukebox Hero (50), Vinyl Master (100)\n🔊 **Listener Badges**: Good Listener (10 tune-ins), Groupie (50 tune-ins)\n\nBroadcast tunes, earn points, collect badges! 🦌🎶" },
+{ keys: ['dj sound effects','sound effects','sfx','horn','airhorn','scratch sound','dj sounds'],
+  answer: "🔊 DJ Sound Effects play over your stream for all listeners to hear! You get:\n\n📯 **Horn** — classic DJ horn\n📢 **Airhorn** — the dramatic one\n💿 **Scratch** — vinyl scratch\n⏪ **Rewind** — tape rewind effect\n💥 **Boom** — bass drop\n👏 **Applause** — crowd cheering\n\nPlus **₿ Bitcoin Quotes** like 'Buy Bitcoin!', 'HODL!', 'Not your keys!', and more — these speak over the music AND post to Global Chat! All synthesized locally, no files needed. 🦌🎛️" },
+{ keys: ['crossfade','crossfader','smooth transition','fade between songs','dj transition'],
+  answer: "🎛️ The crossfader lets you smoothly transition between songs! In the DJ Controls panel, slide it from 0 (off) to 10 seconds. When you switch to the next song, the current one fades out while the new one fades in with overlap. Listeners hear the smooth transition too — no more hard cuts! 🦌🎵" },
+{ keys: ['tune in','listen to dj','how to listen','tune in dj','hearing dj'],
+  answer: "🔊 When someone is DJing, you'll see a 'Now Playing' bar in Global Chat with a **🔊 Tune In** button. Tap it and you'll hear exactly what the DJ is playing, synced to their current position in the song! You even hear their sound effects and get smooth crossfades between tracks. You earn **3 points** every time you tune in! 🦌" },
+
+// ---- Bulk Upload / Albums ----
+{ keys: ['upload album','upload ep','upload multiple songs','bulk upload','upload discography','batch upload','upload many songs','how to upload album'],
+  answer: "📀 You can upload up to **20 songs at once**! Here's how:\n\n1️⃣ Go to **Bitcoin Beats → Upload** tab\n2️⃣ Select multiple audio files (up to 20)\n3️⃣ Choose grouping: **🎵 Singles**, **💿 EP**, or **📀 Album**\n4️⃣ For EP/Album: enter a title and optional year\n5️⃣ Edit track titles, drag to reorder\n6️⃣ Add shared cover art\n7️⃣ Hit Upload — tracks upload sequentially with progress!\n\nYou earn **25 points + 10 tickets per track**! 🦌🎸" },
+{ keys: ['upload music','how to upload','upload a song','upload track','share my music','upload beats'],
+  answer: "🎸 Sharing your music is easy, {name}!\n\n1️⃣ Go to **Bitcoin Beats → Upload** tab\n2️⃣ Select your audio file(s) — MP3, WAV, FLAC, OGG, or AAC (max 50MB each)\n3️⃣ Edit the title, add your artist name, pick a genre\n4️⃣ Optionally add cover art\n5️⃣ Confirm copyright ownership and hit Upload!\n\nUploading multiple? Select up to 20 files and group them as an Album or EP. You earn **25 points + 10 tickets** per track uploaded! 🦌" },
+
+// ---- Online Users Counter ----
+{ keys: ['online users','who is online','how many people','user count','active users','people online'],
+  answer: "🌍 You can see how many users are online right next to the Chat icon! The green counter shows everyone who's been active in the last 3 minutes. You'll see it in the bottom nav, the desktop 💬 button, and inside the Global Chat header. It updates in real-time! 🦌" }
 ];
 
 

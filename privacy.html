@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: March 5, 2026</p>
+    <p class="subtitle">Last updated: March 21, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -97,16 +97,48 @@
     <h3>Bitcoin Beats (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
-        <tr><td>Audio file (base64 MP3)</td><td>Store and play user-uploaded music tracks (max 10MB)</td></tr>
+        <tr><td>Audio file (Firebase Storage or base64)</td><td>Store and play user-uploaded music tracks (max 50MB each via Storage)</td></tr>
         <tr><td>Track metadata (title, artist, genre)</td><td>Display track information in the music player</td></tr>
+        <tr><td>Album/EP metadata (album title, type, year, track number)</td><td>Group tracks into albums or EPs for organized display</td></tr>
+        <tr><td>Cover art (image file)</td><td>Album/track artwork shared across grouped uploads</td></tr>
         <tr><td>Play count</td><td>Track popularity and display play statistics</td></tr>
         <tr><td>Likes</td><td>Track popularity and user preferences</td></tr>
         <tr><td>Author ID & username</td><td>Attribution and track ownership</td></tr>
         <tr><td>Copyright confirmation</td><td>Record that uploader confirmed rights ownership</td></tr>
     </table>
     <div class="warn">
-        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats is visible and playable by all users. You must own the copyright or have permission to upload. See our <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for copyright and takedown policies.
+        <strong>⚠️ Music uploads are public.</strong> Any audio you upload to Bitcoin Beats (including bulk album/EP uploads of up to 20 tracks) is visible and playable by all users. You must own the copyright or have permission to upload. See our <a href="/terms.html#bitcoin-beats" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for copyright and takedown policies.
     </div>
+
+    <h3>Global Chat (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Chat messages</td><td>Display in the public global chat room</td></tr>
+        <tr><td>Sender username & ID</td><td>Attribution and user identification</td></tr>
+        <tr><td>Timestamps</td><td>Message ordering and display</td></tr>
+        <tr><td>Reply references</td><td>Threading replies to specific messages</td></tr>
+    </table>
+    <div class="warn">
+        <strong>⚠️ Global Chat messages are public.</strong> All messages in Global Chat are visible to every user on the site in real time.
+    </div>
+
+    <h3>DJ Mode (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>DJ username & ID</td><td>Display who is currently DJing</td></tr>
+        <tr><td>Current track info (title, artist, audio URL)</td><td>Broadcast now-playing info and stream audio to listeners</td></tr>
+        <tr><td>Playback position</td><td>Sync listener playback to DJ's current position</td></tr>
+        <tr><td>Sound effect events</td><td>Relay DJ sound effects to listeners in real time</td></tr>
+        <tr><td>DJ queue</td><td>Manage turn-based DJ booth access</td></tr>
+    </table>
+
+    <h3>Online Presence (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>User ID & username</td><td>Identify who is online</td></tr>
+        <tr><td>Last seen timestamp</td><td>Determine active users (within last 3 minutes)</td></tr>
+    </table>
+    <p>Presence data is automatically deleted when you leave the site. The online user count is displayed next to the Global Chat icon.</p>
 
     <h3>PVP Battles (stored in Firebase)</h3>
     <table>
@@ -141,6 +173,11 @@
         <tr><td>Visited channels</td><td>Checkmarks and exploration map (also synced to Firebase if signed in)</td></tr>
         <tr><td>BTC price cache</td><td>Cached price for marketplace USD conversion</td></tr>
         <tr><td>Liked tracks (Bitcoin Beats)</td><td>Remember which tracks you hearted</td></tr>
+        <tr><td>Chat message count</td><td>Track total messages for chat badges</td></tr>
+        <tr><td>Chat streak & last chat date</td><td>Daily chat streak tracking for rewards</td></tr>
+        <tr><td>DJ sets count</td><td>Track total DJ sessions for DJ badges</td></tr>
+        <tr><td>DJ songs broadcast count</td><td>Track songs broadcast for DJ badges</td></tr>
+        <tr><td>DJ tune-in count</td><td>Track how many DJ sets you've listened to</td></tr>
     </table>
 
     <p>We do <strong>not</strong> collect your real name, physical location, IP address, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway).</p>
@@ -162,7 +199,10 @@
         <li>Enforce block lists to prevent unwanted communication</li>
         <li>Power the PlebTalk community forum (posts, replies, upvotes)</li>
         <li>Power the LightningMart marketplace (listings, buyer-seller communication)</li>
-        <li>Host and stream user-uploaded music on Bitcoin Beats</li>
+        <li>Host and stream user-uploaded music on Bitcoin Beats (including albums and EPs)</li>
+        <li>Power Global Chat — display messages, online user counts, and enable real-time communication</li>
+        <li>Power DJ Mode — broadcast music, sound effects, and playback position to listeners</li>
+        <li>Track chat activity, DJ sessions, and listener engagement for badge and reward systems</li>
         <li>Facilitate PVP quiz battles between users</li>
         <li>Enable two-factor authentication (TOTP) for account security</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
@@ -212,7 +252,10 @@
         <li>Your <strong>marketplace listings</strong> and seller name on LightningMart</li>
         <li>Your <strong>direct messages</strong> are visible only to you and the recipient</li>
         <li>Your <strong>profile picture</strong> is visible on the leaderboard, PVP, and user profiles</li>
-        <li>Your <strong>uploaded music tracks</strong> on Bitcoin Beats are publicly playable by all users</li>
+        <li>Your <strong>uploaded music tracks</strong> (including albums/EPs) on Bitcoin Beats are publicly playable by all users</li>
+        <li>Your <strong>Global Chat messages</strong> are visible to all users in real time</li>
+        <li>Your <strong>DJ broadcasts</strong> (currently playing track, sound effects) are heard by all listeners</li>
+        <li>Your <strong>online presence</strong> (username, active status) is visible via the online users counter</li>
         <li>Your <strong>PVP battle results</strong> may be displayed on leaderboards</li>
     </ul>
 
