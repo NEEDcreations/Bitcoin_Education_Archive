@@ -369,6 +369,17 @@ service cloud.firestore {
     }
 
     // =============================================
+    // PRESENCE (online users)
+    // =============================================
+    match /presence/{userId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
+
+    // =============================================
     // GLOBAL CHAT META (DJ state, etc.)
     // =============================================
     match /global_chat_meta/{docId} {

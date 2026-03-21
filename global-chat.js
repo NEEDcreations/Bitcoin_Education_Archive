@@ -1491,5 +1491,86 @@ if (document.readyState === 'loading') {
     setTimeout(initOverlay, 2000);
 }
 
+// ---- Online Users Counter ----
+var _presenceInterval = null;
+
+function initPresence() {
+    if (_presenceInterval) return;
+    if (typeof db === 'undefined' || !db) return;
+
+    // Write presence heartbeat every 60s
+    function writePresence() {
+        if (!auth || !auth.currentUser) return;
+        var uid = auth.currentUser.uid;
+        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+        db.collection('presence').doc(uid).set({
+            uid: uid,
+            name: username || 'Anon',
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() {});
+    }
+
+    writePresence();
+    _presenceInterval = setInterval(writePresence, 60000);
+
+    // Count online users (seen in last 3 minutes)
+    var threeMinAgo = new Date(Date.now() - 180000);
+    db.collection('presence')
+        .where('lastSeen', '>', threeMinAgo)
+        .onSnapshot(function(snap) {
+            var count = snap.size;
+            updateOnlineCount(count);
+        }, function() {
+            updateOnlineCount(0);
+        });
+}
+
+function updateOnlineCount(count) {
+    // Update bottom nav Chat label
+    var chatLabel = document.querySelector('#bnavMsg .bnav-label');
+    if (chatLabel) {
+        chatLabel.innerHTML = 'Chat' + (count > 0 ? '<span style="font-size:0.5rem;color:var(--accent);margin-left:2px;">' + count + '</span>' : '');
+    }
+
+    // Update desktop overlay button
+    var chatBtn = document.getElementById('chatOverlayBtn');
+    if (chatBtn) {
+        var badge = document.getElementById('chatOnlineBadge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.id = 'chatOnlineBadge';
+            badge.style.cssText = 'position:absolute;top:-4px;left:-4px;background:#22c55e;color:#fff;font-size:0.5rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;';
+            chatBtn.appendChild(badge);
+        }
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Update chat hub header if visible
+    var globalTab = document.getElementById('chatTabGlobal');
+    if (globalTab) {
+        globalTab.innerHTML = '🌍 Global Chat' + (count > 0 ? ' <span style="font-size:0.65rem;color:#22c55e;font-weight:400;">● ' + count + '</span>' : '');
+    }
+}
+
+// Start presence when auth is ready
+if (typeof auth !== 'undefined' && auth) {
+    auth.onAuthStateChanged(function(user) {
+        if (user) setTimeout(initPresence, 3000);
+    });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (auth && auth.currentUser && typeof db !== 'undefined') {
+        // Mark as offline by setting lastSeen far in the past
+        navigator.sendBeacon && db.collection('presence').doc(auth.currentUser.uid).delete();
+    }
+});
+
 console.log('[CHAT] Global chat module loaded');
 }();
