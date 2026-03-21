@@ -240,7 +240,7 @@ function createNotifOverlay() {
     document.body.appendChild(btn);
 
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#notifOverlayBtn{bottom:20px;left:80px;}}@media(max-width:900px){#notifOverlayBtn{bottom:calc(70px + env(safe-area-inset-bottom,0px));left:72px;}}';
+    style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#notifOverlayBtn{bottom:20px;left:80px;}}@media(max-width:900px){#notifOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
 }
 

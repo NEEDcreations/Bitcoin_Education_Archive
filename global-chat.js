@@ -705,7 +705,7 @@ function createChatOverlay() {
 
     // Style for desktop
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;left:20px;}}@media(max-width:900px){#chatOverlayBtn{bottom:calc(70px + env(safe-area-inset-bottom,0px));left:16px;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;left:20px;}}@media(max-width:900px){#chatOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
 }
 
@@ -806,7 +806,7 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn) btn.style.display = 'block';
+    if (btn && window.innerWidth > 900) btn.style.display = 'block';
 }
 
 var _origGoHome2 = window.goHome;
@@ -1447,11 +1447,14 @@ function addDJButton() {
 var _djBtnObserver = new MutationObserver(function() { addDJButton(); });
 if (document.body) _djBtnObserver.observe(document.body, { childList: true, subtree: true });
 
-// Init overlay on load + hide old desktop DM button
+// Init overlay on load — only show floating button on DESKTOP (mobile uses bottom nav "Chat")
 function initOverlay() {
     createChatOverlay();
     var oldBtn = document.getElementById('desktopDMBtn');
     if (oldBtn) oldBtn.style.display = 'none';
+    // Hide floating button on mobile — bottom nav "Chat" is enough
+    var chatBtn = document.getElementById('chatOverlayBtn');
+    if (chatBtn && window.innerWidth <= 900) chatBtn.style.display = 'none';
 }
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(initOverlay, 2000); });
