@@ -30944,12 +30944,18 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 // ---- Global Error Boundary (#16) ----
 (function() {
     var _errorCount = 0;
+    var _connToastShown = false;
     window.addEventListener('unhandledrejection', function(e) {
         _errorCount++;
-        if (_errorCount > 5) return; // Don't spam
-        console.error('[Error Boundary] Unhandled promise rejection:', e.reason);
-        // Show non-intrusive error only for user-facing failures
-        if (e.reason && e.reason.message && /firestore|permission|network|fetch/i.test(e.reason.message)) {
+        if (_errorCount > 10) return; // Don't spam
+        var msg = e.reason && e.reason.message ? e.reason.message : '';
+        var code = e.reason && e.reason.code ? e.reason.code : '';
+        console.error('[Error Boundary] Unhandled promise rejection:', msg || e.reason);
+        // Suppress permission-denied (normal during auth transitions) and missing index errors
+        if (/permission.denied|Missing or insufficient|requires an index|PERMISSION_DENIED/i.test(msg + code)) return;
+        // Show connection toast only once per session for real network errors
+        if (!_connToastShown && /network|fetch|Failed to fetch|UNAVAILABLE|unavailable/i.test(msg + code)) {
+            _connToastShown = true;
             if (typeof showToast === 'function') showToast('⚠️ Connection issue — some features may not work. Try refreshing.');
         }
     });
