@@ -340,15 +340,15 @@ updateNotifBadge = function() {
 };
 
 // ---- Self-Notifications (local events → Firestore) ----
-// Notify on level up
-window.notifySelfLevelUp = function(newLevel, levelName) {
+// Notify on level up (leaderboard rank)
+window.notifySelfLevelUp = function(minPts, levelName, emoji) {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system',
         senderName: 'System',
         type: 'level_up',
-        message: '🎉 You leveled up to Level ' + newLevel + ': ' + (levelName || '') + '!',
+        message: (emoji || '🎉') + ' You ranked up to ' + (levelName || 'a new level') + '! (' + (minPts || 0) + '+ pts)',
         targetType: null, targetId: null,
         read: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
