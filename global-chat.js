@@ -511,32 +511,24 @@ window.sendGlobalChat = function() {
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Global Chat');
     }
 
-    // Check if message is a question for Nacho — use KB finder to see if we know the answer
-    var isNachoQuestion = false;
-    if (text.includes('?') && typeof findAnswer === 'function') {
-        var match = findAnswer(text);
-        if (match) {
-            isNachoQuestion = true;
-        }
-    }
-
-    // Let Nacho answer in the global chat (async, non-blocking)
-    if (isNachoQuestion && typeof nachoUnifiedAnswer === 'function') {
+    // Nacho auto-answer: any question (contains ?) gets passed to nachoUnifiedAnswer
+    if (text.includes('?') && typeof nachoUnifiedAnswer === 'function') {
         nachoUnifiedAnswer(text, function(result) {
-            result = result || {};
-            var answer = (result.answer || "I can help with Bitcoin questions! Tap my bubble for a full chat. 🦌").replace(/<[^>]+>/g, '');
-            // Wait slightly to avoid spamming immediate replies
+            if (!result || !result.answer) return;
+            // Skip fallback / "I don't know" answers
+            if (result.type === 'fallback') return;
+            var answer = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
+            if (!answer || answer.length < 10) return;
+            // Truncate for chat
+            if (answer.length > MAX_MSG_LENGTH) answer = answer.substring(0, MAX_MSG_LENGTH - 3) + '...';
             setTimeout(function() {
-                var inputEl = document.getElementById('globalChatInput');
-                // Don't answer if user is typing (to avoid duplicated questions)
-                if (inputEl && inputEl.value.trim().length > 0) return;
                 db.collection(CHAT_COLLECTION).add({
                     uid: 'nacho-bot',
                     name: '🦌 Nacho',
-                    text: answer.substring(0, MAX_MSG_LENGTH),
+                    text: answer,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
                 }).catch(function(e) { console.error('[CHAT] Nacho reply failed:', e); });
-            }, 2000 + Math.random() * 2000); // 2-4s delay feels natural
+            }, 2000 + Math.random() * 2000);
         });
     }
 };
@@ -606,6 +598,166 @@ if (_origGo) {
         if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
         return _origGo.apply(this, arguments);
     };
+}
+
+// ---- Overlay Chat Mode ----
+// Floating button + slide-up panel so chat works on top of any page
+var _overlayOpen = false;
+
+function createChatOverlay() {
+    if (document.getElementById('chatOverlay')) return;
+
+    // Floating chat button (bottom-right, above bottom nav)
+    var btn = document.createElement('button');
+    btn.id = 'chatOverlayBtn';
+    btn.innerHTML = '💬';
+    btn.title = 'Open Chat';
+    btn.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:300;width:52px;height:52px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.onclick = toggleChatOverlay;
+    // Hide on desktop (desktop has the fixed button already) and when in chat hub view
+    if (window.innerWidth > 900) btn.style.display = 'none';
+
+    // Overlay panel
+    var panel = document.createElement('div');
+    panel.id = 'chatOverlay';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:65vh;max-height:500px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
+
+    // Header bar with drag handle
+    var header = document.createElement('div');
+    header.style.cssText = 'flex-shrink:0;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);';
+    header.innerHTML = '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 4px;"></div>';
+    header.innerHTML += '<div style="display:flex;width:100%;align-items:center;justify-content:space-between;"><span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🌍 Global Chat</span><button onclick="toggleChatOverlay()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px 8px;">✕</button></div>';
+
+    // Chat content container
+    var body = document.createElement('div');
+    body.id = 'chatOverlayBody';
+    body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
+
+    panel.appendChild(header);
+    panel.appendChild(body);
+    document.body.appendChild(panel);
+    document.body.appendChild(btn);
+
+    // Unread badge on the button
+    var badge = document.createElement('span');
+    badge.id = 'chatOverlayBadge';
+    badge.style.cssText = 'display:none;position:absolute;top:-2px;right:-2px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:2px 5px;border-radius:8px;min-width:14px;text-align:center;';
+    btn.style.position = 'fixed'; // ensure btn is positioned
+    btn.appendChild(badge);
+
+    // Style for desktop
+    var style = document.createElement('style');
+    style.textContent = '@media(min-width:901px){#chatOverlayBtn{display:none!important;}#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}';
+    document.head.appendChild(style);
+}
+
+window.toggleChatOverlay = function() {
+    var panel = document.getElementById('chatOverlay');
+    var btn = document.getElementById('chatOverlayBtn');
+    if (!panel) return;
+
+    _overlayOpen = !_overlayOpen;
+    panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
+
+    if (btn) {
+        btn.innerHTML = _overlayOpen ? '✕' : '💬';
+        btn.style.background = _overlayOpen ? 'var(--card-bg)' : 'var(--accent,#f7931a)';
+        btn.style.color = _overlayOpen ? 'var(--text-faint)' : '#fff';
+    }
+
+    // Clear badge
+    var badge = document.getElementById('chatOverlayBadge');
+    if (badge) badge.style.display = 'none';
+
+    if (_overlayOpen) {
+        renderOverlayChat();
+    } else {
+        // Unsubscribe when closing
+        if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+    }
+};
+
+function renderOverlayChat() {
+    var body = document.getElementById('chatOverlayBody');
+    if (!body) return;
+
+    var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
+
+    body.innerHTML =
+        '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:6px;">' +
+            '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading chat...</div>' +
+        '</div>' +
+        '<div style="flex-shrink:0;padding:8px 14px;border-top:1px solid var(--border);background:var(--bg-side);">' +
+            (hasUsername ?
+                '<div id="chatReplyBanner" style="display:none;padding:4px 10px;background:rgba(99,102,241,0.1);border-left:3px solid #6366f1;border-radius:6px;margin-bottom:4px;font-size:0.7rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:6px;top:2px;cursor:pointer;font-size:0.85rem;color:var(--text-faint);">✕</span></div>' +
+                '<div style="position:relative;">' +
+                    '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:150px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
+                    '<div style="display:flex;gap:6px;align-items:center;">' +
+                        '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;padding:10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
+                        '<button onclick="sendGlobalChat()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;">Send</button>' +
+                    '</div>' +
+                '</div>'
+            :
+                '<div style="text-align:center;padding:6px;color:var(--text-muted);font-size:0.75rem;">' +
+                    (isSignedIn ? 'Set a username in Settings to chat' : 'Sign in to chat') +
+                '</div>'
+            ) +
+        '</div>';
+
+    // Wire up input handlers
+    var input = document.getElementById('globalChatInput');
+    if (input) {
+        input.addEventListener('input', function() {
+            handleAutocomplete(this);
+        });
+        input.addEventListener('keydown', function(e) {
+            var ac = document.getElementById('chatAutocomplete');
+            if (ac && ac.style.display !== 'none') {
+                var items = ac.querySelectorAll('.ac-item');
+                if (e.key === 'ArrowDown') { e.preventDefault(); _acIndex = Math.min(_acIndex + 1, items.length - 1); highlightAC(items); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); _acIndex = Math.max(_acIndex - 1, 0); highlightAC(items); }
+                else if (e.key === 'Enter' || e.key === 'Tab') {
+                    if (items.length > 0) { e.preventDefault(); selectAC(items[_acIndex]); return; }
+                }
+                else if (e.key === 'Escape') { hideAC(); return; }
+            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGlobalChat(); }
+        });
+    }
+
+    startChatListener();
+}
+
+// Hide overlay button when in full chat view
+var _origRenderChatHub = window.renderChatHub;
+window.renderChatHub = function(tab) {
+    var btn = document.getElementById('chatOverlayBtn');
+    if (btn) btn.style.display = 'none';
+    // Close overlay if open
+    if (_overlayOpen) {
+        _overlayOpen = false;
+        var panel = document.getElementById('chatOverlay');
+        if (panel) panel.style.transform = 'translateY(100%)';
+    }
+    return _origRenderChatHub(tab);
+};
+
+// Show overlay button when going home
+var _origGoHome2 = window.goHome;
+if (_origGoHome2) {
+    window.goHome = function() {
+        var btn = document.getElementById('chatOverlayBtn');
+        if (btn && window.innerWidth <= 900) btn.style.display = 'block';
+        return _origGoHome2.apply(this, arguments);
+    };
+}
+
+// Init overlay on load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(createChatOverlay, 2000); });
+} else {
+    setTimeout(createChatOverlay, 2000);
 }
 
 console.log('[CHAT] Global chat module loaded');
