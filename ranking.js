@@ -2892,7 +2892,7 @@ function showSettingsPage(tab) {
         // Lightning wallet prompt (only if no Lightning Address set)
         var _hasLn = currentUser && (currentUser.lightning || currentUser.lightningAddress);
         if (!_hasLn) {
-            html += '<div onclick="go(\'lightning\')" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(234,179,8,0.08),rgba(247,147,26,0.04));border:2px solid rgba(247,147,26,0.25);border-radius:14px;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
+            html += '<div onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},300)" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(234,179,8,0.08),rgba(247,147,26,0.04));border:2px solid rgba(247,147,26,0.25);border-radius:14px;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
                 '<span style="font-size:1.8rem;">⚡</span>' +
                 '<div><div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Connect a Lightning Wallet</div>' +
                 '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.4;">Tip other users and receive tips from the community!</div></div>' +
