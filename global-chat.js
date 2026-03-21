@@ -660,14 +660,14 @@ function createChatOverlay() {
     btn.id = 'chatOverlayBtn';
     btn.innerHTML = '💬';
     btn.title = 'Open Chat';
-    btn.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:300;width:52px;height:52px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleChatOverlay;
     // Start visible on all screen sizes
 
     // Overlay panel
     var panel = document.createElement('div');
     panel.id = 'chatOverlay';
-    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:65vh;max-height:500px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:60vh;max-height:480px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
 
     // Header bar with drag handle
     var header = document.createElement('div');
@@ -694,7 +694,7 @@ function createChatOverlay() {
 
     // Style for desktop
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;right:20px;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;left:20px;}}@media(max-width:900px){#chatOverlayBtn{bottom:calc(70px + env(safe-area-inset-bottom,0px));left:16px;}}';
     document.head.appendChild(style);
 }
 

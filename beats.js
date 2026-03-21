@@ -96,7 +96,7 @@ window.beatsEnsureGlobalPlayer = function() {
     // Create collapsed mini-player pill
     var mini = document.createElement('div');
     mini.id = 'beatsMiniPlayer';
-    mini.style.cssText = 'display:none;position:fixed;bottom:148px;right:12px;z-index:201;background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(247,147,26,0.3);border-radius:28px;padding:6px 12px 6px 6px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:none;align-items:center;gap:8px;transition:transform 0.2s;';
+    mini.style.cssText = 'display:none;position:fixed;bottom:240px;right:12px;z-index:201;background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(247,147,26,0.3);border-radius:28px;padding:6px 12px 6px 6px;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.5);display:none;align-items:center;gap:8px;transition:transform 0.2s;';
     mini.onclick = function() { beatsExpandPlayer(); };
     mini.innerHTML =
         '<div id="beatsMiniArt" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden;flex-shrink:0;">🎵</div>' +
@@ -107,7 +107,7 @@ window.beatsEnsureGlobalPlayer = function() {
     if (!document.getElementById('beatsMiniPlayerCSS')) {
         var mcss = document.createElement('style');
         mcss.id = 'beatsMiniPlayerCSS';
-        mcss.textContent = '@media(min-width:901px){#beatsMiniPlayer{bottom:56px!important;right:12px!important;}}#beatsMiniPlayer:hover{transform:scale(1.05);}';
+        mcss.textContent = '@media(min-width:901px){#beatsMiniPlayer{bottom:70px!important;right:12px!important;}}@media(max-width:900px){#beatsMiniPlayer{bottom:calc(140px + env(safe-area-inset-bottom,0px))!important;right:12px!important;}}#beatsMiniPlayer:hover{transform:scale(1.05);}';
         document.head.appendChild(mcss);
     }
     document.body.appendChild(mini);

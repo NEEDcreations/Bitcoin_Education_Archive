@@ -208,7 +208,7 @@ function createNotifOverlay() {
     btn.id = 'notifOverlayBtn';
     btn.innerHTML = '🔔';
     btn.title = 'Notifications';
-    btn.style.cssText = 'position:fixed;bottom:80px;right:74px;z-index:300;width:44px;height:44px;border-radius:50%;background:var(--card-bg,#1a1a2e);color:#fff;border:1px solid var(--border);font-size:1.2rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;bottom:16px;left:72px;z-index:300;width:44px;height:44px;border-radius:50%;background:var(--card-bg,#1a1a2e);color:#fff;border:1px solid var(--border);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleNotifOverlay;
 
     // Badge
@@ -240,7 +240,7 @@ function createNotifOverlay() {
     document.body.appendChild(btn);
 
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;right:80px;left:auto;border-radius:16px 16px 0 0;}#notifOverlayBtn{bottom:20px;right:80px;}}';
+    style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#notifOverlayBtn{bottom:20px;left:80px;}}@media(max-width:900px){#notifOverlayBtn{bottom:calc(70px + env(safe-area-inset-bottom,0px));left:72px;}}';
     document.head.appendChild(style);
 }
 
