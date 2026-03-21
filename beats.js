@@ -1079,13 +1079,15 @@ window.beatsRenderLivestream = function() {
                         '<button onclick="window.open(\'https://x.com/Bitcoin_Beats_\',\'_blank\')" style="background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;">Follow for Lives</button>' +
                     '</div>' +
                 '</div>' +
-                '<div style="padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;text-align:center;">' +
-                    '<h3 style="color:var(--heading);font-weight:800;font-size:0.85rem;margin-bottom:10px;">Support Bitcoin Lightning Music Platforms!</h3>' +
-                    '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">' +
-                        '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;text-decoration:none;">📻 Noderunners Radio</a>' +
-                        '<a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-weight:700;font-size:0.8rem;text-decoration:none;">🎵 Wavlake</a>' +
-                        '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:10px;color:#eab308;font-weight:700;font-size:0.8rem;text-decoration:none;">⚡ LN Beats</a>' +
-                    '</div>' +
+            '</div>';
+
+            // Music platforms — very bottom
+            html += '<div style="margin-top:20px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;text-align:center;">' +
+                '<h3 style="color:var(--heading);font-weight:800;font-size:0.85rem;margin-bottom:10px;">Support our friends with great Bitcoin Lightning music platforms!</h3>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">' +
+                    '<a href="https://www.twitch.tv/noderunnersradio" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;text-decoration:none;">📻 Noderunners Radio</a>' +
+                    '<a href="https://wavlake.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-weight:700;font-size:0.8rem;text-decoration:none;">🎵 Wavlake</a>' +
+                    '<a href="https://lnbeats.com" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:10px;color:#eab308;font-weight:700;font-size:0.8rem;text-decoration:none;">⚡ LN Beats</a>' +
                 '</div>' +
             '</div>';
 
