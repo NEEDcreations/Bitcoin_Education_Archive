@@ -614,8 +614,7 @@ function createChatOverlay() {
     btn.title = 'Open Chat';
     btn.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:300;width:52px;height:52px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.5rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleChatOverlay;
-    // Hide on desktop (desktop has the fixed button already) and when in chat hub view
-    if (window.innerWidth > 900) btn.style.display = 'none';
+    // Start visible on all screen sizes
 
     // Overlay panel
     var panel = document.createElement('div');
@@ -647,7 +646,7 @@ function createChatOverlay() {
 
     // Style for desktop
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlayBtn{display:none!important;}#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;right:20px;}}';
     document.head.appendChild(style);
 }
 
@@ -743,21 +742,26 @@ window.renderChatHub = function(tab) {
     return _origRenderChatHub(tab);
 };
 
-// Show overlay button when going home
+// Show overlay button when going home or navigating anywhere
 var _origGoHome2 = window.goHome;
 if (_origGoHome2) {
     window.goHome = function() {
         var btn = document.getElementById('chatOverlayBtn');
-        if (btn && window.innerWidth <= 900) btn.style.display = 'block';
+        if (btn) btn.style.display = 'block';
         return _origGoHome2.apply(this, arguments);
     };
 }
 
-// Init overlay on load
+// Init overlay on load + hide old desktop DM button
+function initOverlay() {
+    createChatOverlay();
+    var oldBtn = document.getElementById('desktopDMBtn');
+    if (oldBtn) oldBtn.style.display = 'none';
+}
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { setTimeout(createChatOverlay, 2000); });
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(initOverlay, 2000); });
 } else {
-    setTimeout(createChatOverlay, 2000);
+    setTimeout(initOverlay, 2000);
 }
 
 console.log('[CHAT] Global chat module loaded');
