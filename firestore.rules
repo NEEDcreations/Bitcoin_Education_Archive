@@ -381,9 +381,10 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && (request.resource.data.uid == request.auth.uid
                         || request.resource.data.uid == 'nacho-bot');
-      // Admin delete only
+      // Own messages or admin can delete
       allow delete: if request.auth != null
-                    && request.auth.token.email == 'needcreations@gmail.com';
+                    && (resource.data.uid == request.auth.uid
+                        || request.auth.token.email == 'needcreations@gmail.com');
     }
 
     // =============================================

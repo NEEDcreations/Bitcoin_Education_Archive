@@ -281,8 +281,9 @@ function renderChatMessages(msgs) {
         if (myUid) {
             html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/'/g,'\\&#39;') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/'/g,'\\&#39;') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
-        if (isAdmin && !isMe) {
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;" title="Delete">🗑️</span>';
+        // Delete: own messages OR admin can delete anyone's
+        if (isMe || isAdmin) {
+            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
         // Show reply quote if this message is a reply
