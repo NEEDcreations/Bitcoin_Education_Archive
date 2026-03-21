@@ -769,14 +769,20 @@ if (_origGo2) {
 window.addEventListener('popstate', showOverlayBtn);
 
 // =============================================
-// 🎧 DJ Mode — Broadcast Beats to Global Chat
+// 🎧 DJ Mode — Broadcast Beats to Global Chat (with queue)
 // =============================================
-var DJ_DOC = 'live_dj'; // single doc in global_chat_meta collection
+var DJ_DOC = 'live_dj';
+var DJ_QUEUE_COL = 'dj_queue';
+var DJ_MAX_SONGS_WITH_QUEUE = 5;
 var _djUnsub = null;
-var _djAudio = null; // listener's audio element
+var _djQueueUnsub = null;
+var _djAudio = null;
 var _djListening = false;
+var _djSongCount = 0; // tracks how many songs the current DJ has played
+var _djIsMe = false;
+var _djQueuePosition = -1; // -1 = not in queue
 
-// DJ broadcasts: writes current track info to Firestore
+// DJ broadcasts: go live or join queue
 window.djBroadcast = function() {
     if (!window._beatsNowPlaying || !window._beatsAudio) {
         if (typeof showToast === 'function') showToast('Play a song in Bitcoin Beats first!');
@@ -791,9 +797,30 @@ window.djBroadcast = function() {
 
     var track = window._beatsQueue[window._beatsQueueIdx];
     if (!track) return;
+    var uid = auth.currentUser.uid;
+
+    // Check if someone is already DJing
+    db.collection('global_chat_meta').doc(DJ_DOC).get().then(function(doc) {
+        var data = doc.exists ? doc.data() : null;
+        if (data && data.active && data.djUid !== uid) {
+            // Someone else is DJing — join the queue
+            djJoinQueue(uid, username);
+        } else {
+            // Booth is open (or we're already the DJ) — go live
+            djGoLive(uid, username, track);
+        }
+    }).catch(function() {
+        // If doc doesn't exist, booth is open
+        djGoLive(uid, username, track);
+    });
+};
+
+function djGoLive(uid, username, track) {
+    _djSongCount = 1;
+    _djIsMe = true;
 
     var djData = {
-        djUid: auth.currentUser.uid,
+        djUid: uid,
         djName: username,
         trackTitle: track.title || 'Untitled',
         trackArtist: track.artist || track.authorName || 'Unknown',
@@ -801,34 +828,35 @@ window.djBroadcast = function() {
         trackAudioUrl: track.audioUrl || '',
         trackId: track.id || '',
         artistUid: track.authorId || '',
+        songCount: 1,
         startedAt: firebase.firestore.FieldValue.serverTimestamp(),
         active: true
     };
 
     db.collection('global_chat_meta').doc(DJ_DOC).set(djData).then(function() {
         if (typeof showToast === 'function') showToast('🎧 You\'re now DJing! Broadcasting to Global Chat');
-        // Post announcement to chat
         db.collection(CHAT_COLLECTION).add({
-            uid: 'system',
-            name: '🎧 DJ Mode',
+            uid: 'system', name: '🎧 DJ Mode',
             text: '🎶 @' + username + ' is now DJing! Playing: "' + (track.title || 'Untitled') + '" by ' + (track.artist || track.authorName || 'Unknown') + '. Tune in! 🔊',
             ts: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function() {});
+        // Remove self from queue if was there
+        db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL).doc(uid).delete().catch(function() {});
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to start DJ: ' + e.message);
     });
 
-    // Track changes: when DJ switches songs, update the broadcast
+    // Track watcher: detect song changes + enforce 5-song limit when queue exists
     if (window._djTrackWatcher) clearInterval(window._djTrackWatcher);
     var lastTrackIdx = window._beatsQueueIdx;
     window._djTrackWatcher = setInterval(function() {
         if (!window._beatsAudio || window._beatsAudio.paused) {
-            // DJ stopped playing — end broadcast
             djStopBroadcast();
             return;
         }
         if (window._beatsQueueIdx !== lastTrackIdx) {
             lastTrackIdx = window._beatsQueueIdx;
+            _djSongCount++;
             var t = window._beatsQueue[lastTrackIdx];
             if (t) {
                 db.collection('global_chat_meta').doc(DJ_DOC).update({
@@ -837,18 +865,78 @@ window.djBroadcast = function() {
                     trackCoverArt: t.coverArt || '',
                     trackAudioUrl: t.audioUrl || '',
                     trackId: t.id || '',
-                    artistUid: t.authorId || ''
+                    artistUid: t.authorId || '',
+                    songCount: _djSongCount
                 }).catch(function() {});
             }
+            // Check 5-song limit if queue has people waiting
+            checkDJSongLimit();
         }
     }, 2000);
+}
+
+function checkDJSongLimit() {
+    if (_djSongCount < DJ_MAX_SONGS_WITH_QUEUE) return;
+    db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL)
+        .orderBy('joinedAt').limit(1).get().then(function(snap) {
+            if (!snap.empty) {
+                if (typeof showToast === 'function') showToast('🎧 Your 5-song set is done! Passing the booth to the next DJ. 🎶');
+                djStopBroadcast();
+            }
+            // No one in queue — keep playing unlimited
+        }).catch(function() {});
+}
+
+function djJoinQueue(uid, username) {
+    db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL).doc(uid).set({
+        uid: uid,
+        name: username,
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+        // Get position in queue
+        db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL)
+            .orderBy('joinedAt').get().then(function(snap) {
+                var pos = 0;
+                snap.forEach(function(d, i) { if (d.id === uid) pos = i + 1; });
+                _djQueuePosition = pos;
+                if (typeof showToast === 'function') showToast('🎧 Added to DJ queue! Position: #' + pos + '. You\'ll be notified when the booth opens up.');
+            });
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('Failed to join queue: ' + e.message);
+    });
+}
+
+window.djLeaveQueue = function() {
+    if (!auth || !auth.currentUser) return;
+    db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL)
+        .doc(auth.currentUser.uid).delete().then(function() {
+            _djQueuePosition = -1;
+            if (typeof showToast === 'function') showToast('Left the DJ queue');
+        }).catch(function() {});
 };
 
 window.djStopBroadcast = function() {
     if (window._djTrackWatcher) { clearInterval(window._djTrackWatcher); window._djTrackWatcher = null; }
-    if (typeof db !== 'undefined') {
-        db.collection('global_chat_meta').doc(DJ_DOC).update({ active: false }).catch(function() {});
-    }
+    _djIsMe = false;
+    _djSongCount = 0;
+    if (typeof db === 'undefined') return;
+
+    // Deactivate booth
+    db.collection('global_chat_meta').doc(DJ_DOC).update({ active: false }).then(function() {
+        // Notify next person in queue
+        db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL)
+            .orderBy('joinedAt').limit(1).get().then(function(snap) {
+                if (!snap.empty) {
+                    var next = snap.docs[0].data();
+                    // Post notification in chat
+                    db.collection(CHAT_COLLECTION).add({
+                        uid: 'system', name: '🎧 DJ Mode',
+                        text: '🎤 The DJ booth is open! @' + (next.name || 'Next DJ') + ', you\'re up! Start playing a song and tap 📡 DJ to go live.',
+                        ts: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(function() {});
+                }
+            }).catch(function() {});
+    }).catch(function() {});
     if (typeof showToast === 'function') showToast('🎧 DJ session ended');
 };
 
@@ -858,14 +946,10 @@ window.djTuneIn = function() {
     if (!npEl) return;
     var url = npEl.getAttribute('data-audio-url');
     if (!url) { if (typeof showToast === 'function') showToast('No audio available for this track'); return; }
-
-    // Pause user's own Beats player if playing
     if (window._beatsAudio && !window._beatsAudio.paused) {
         window._beatsAudio.pause();
         if (typeof showToast === 'function') showToast('⏸ Your player paused — listening to DJ');
     }
-
-    // Start streaming
     if (_djAudio) { _djAudio.pause(); _djAudio = null; }
     _djAudio = new Audio(url);
     _djAudio.volume = 0.8;
@@ -873,42 +957,41 @@ window.djTuneIn = function() {
         if (typeof showToast === 'function') showToast('Playback failed: ' + e.message);
     });
     _djListening = true;
-
-    // Update UI
     var tuneBtn = document.getElementById('djTuneBtn');
-    if (tuneBtn) {
-        tuneBtn.textContent = '⏹ Stop Listening';
-        tuneBtn.onclick = djStopListening;
-    }
+    if (tuneBtn) { tuneBtn.textContent = '⏹ Stop'; tuneBtn.onclick = djStopListening; }
 };
 
 window.djStopListening = function() {
     if (_djAudio) { _djAudio.pause(); _djAudio = null; }
     _djListening = false;
     var tuneBtn = document.getElementById('djTuneBtn');
-    if (tuneBtn) {
-        tuneBtn.textContent = '🔊 Tune In';
-        tuneBtn.onclick = djTuneIn;
-    }
+    if (tuneBtn) { tuneBtn.textContent = '🔊 Tune In'; tuneBtn.onclick = djTuneIn; }
 };
 
-// Listen for DJ state changes
+// Listen for DJ state changes + queue notifications
 function startDJListener() {
     if (_djUnsub) { _djUnsub(); _djUnsub = null; }
     if (typeof db === 'undefined' || !db) return;
+    var myUid = auth && auth.currentUser ? auth.currentUser.uid : null;
 
     _djUnsub = db.collection('global_chat_meta').doc(DJ_DOC)
         .onSnapshot(function(doc) {
             if (!doc.exists || !doc.data() || !doc.data().active) {
                 hideDJBar();
-                // Stop listener audio if DJ ended
                 if (_djAudio) { _djAudio.pause(); _djAudio = null; _djListening = false; }
+                // If I'm in the queue, notify me the booth opened
+                if (myUid && _djQueuePosition > 0) {
+                    db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL)
+                        .orderBy('joinedAt').limit(1).get().then(function(snap) {
+                            if (!snap.empty && snap.docs[0].id === myUid) {
+                                if (typeof showToast === 'function') showToast('🎧🎉 The DJ booth is open and YOU\'RE NEXT! Start playing a song in Beats and tap 📡 DJ to go live!');
+                            }
+                        }).catch(function() {});
+                }
                 return;
             }
             var d = doc.data();
             showDJBar(d);
-
-            // Auto-switch track if listening and song changed
             if (_djListening && _djAudio && d.trackAudioUrl) {
                 var currentSrc = _djAudio.src || '';
                 if (currentSrc !== d.trackAudioUrl) {
@@ -919,6 +1002,20 @@ function startDJListener() {
                 }
             }
         }, function() { hideDJBar(); });
+
+    // Also listen to queue changes to update our position
+    if (_djQueueUnsub) { _djQueueUnsub(); _djQueueUnsub = null; }
+    if (myUid) {
+        _djQueueUnsub = db.collection('global_chat_meta').doc(DJ_DOC).collection(DJ_QUEUE_COL)
+            .orderBy('joinedAt').onSnapshot(function(snap) {
+                var pos = 0, found = false;
+                snap.forEach(function(d) { pos++; if (d.id === myUid) { _djQueuePosition = pos; found = true; } });
+                if (!found) _djQueuePosition = -1;
+                // Update queue count on DJ bar
+                var qInfo = document.getElementById('djQueueInfo');
+                if (qInfo) qInfo.textContent = snap.size > 0 ? snap.size + ' in queue' : '';
+            }, function() {});
+    }
 }
 
 function showDJBar(d) {
@@ -933,13 +1030,14 @@ function showDJBar(d) {
     }
     var myUid = auth && auth.currentUser ? auth.currentUser.uid : null;
     var isDJ = d.djUid === myUid;
+    var songInfo = d.songCount ? ' · Song ' + d.songCount + (d.songCount >= DJ_MAX_SONGS_WITH_QUEUE ? '/5' : '') : '';
 
     bar.setAttribute('data-audio-url', d.trackAudioUrl || '');
     bar.innerHTML =
         '<div style="display:flex;align-items:center;gap:10px;">' +
             (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🎧</div>') +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:0.7rem;color:#6366f1;font-weight:700;margin-bottom:2px;">🎧 @' + esc(d.djName) + ' is DJing!</div>' +
+                '<div style="font-size:0.7rem;color:#6366f1;font-weight:700;margin-bottom:2px;">🎧 @' + esc(d.djName) + ' is DJing!' + songInfo + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
                 '<div style="font-size:0.72rem;color:var(--text-muted);cursor:pointer;" onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')">' + esc(d.trackArtist) +
                     (d.artistUid ? ' <span style="color:var(--accent);font-weight:700;">⚡ Tip</span>' : '') +
@@ -948,9 +1046,10 @@ function showDJBar(d) {
             '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;align-items:center;">' +
                 (isDJ ?
                     '<button onclick="djStopBroadcast()" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.7rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;">⏹ Stop DJ</button>' :
-                    '<button id="djTuneBtn" onclick="djTuneIn()" style="padding:6px 10px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_djListening ? '⏹ Stop Listening' : '🔊 Tune In') + '</button>'
+                    '<button id="djTuneBtn" onclick="djTuneIn()" style="padding:6px 10px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>'
                 ) +
                 (d.djUid && !isDJ ? '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>' : '') +
+                (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:4px 8px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.6rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
             '</div>' +
         '</div>';
 }
@@ -981,7 +1080,6 @@ function addDJButton() {
     controls.appendChild(btn);
 }
 
-// Watch for mini-player appearing
 var _djBtnObserver = new MutationObserver(function() { addDJButton(); });
 if (document.body) _djBtnObserver.observe(document.body, { childList: true, subtree: true });
 
