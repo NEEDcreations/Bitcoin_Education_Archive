@@ -3295,7 +3295,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -4152,7 +4152,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
         else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
-        else if (h === 'dms') { setTimeout(function() { if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
+        else if (h === 'chat') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('global'); }, 500); }
+        else if (h === 'dms') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('dms'); else if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
         else if (h === 'dashboard' || h === 'metrics' || h === 'network') { setTimeout(function() { history.replaceState({ home: true }, '', window.location.pathname); if (typeof toggleDashboard === 'function') toggleDashboard(); }, 1500); }
         else if (h) go(h);
@@ -4190,7 +4191,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                 case 'bitcoin-beats':
                     if (typeof go === 'function') { go('bitcoin-beats'); return; }
                     break;
+                case 'chat':
+                    if (typeof renderChatHub === 'function') { renderChatHub('global'); return; }
+                    break;
                 case 'dms':
+                    if (typeof renderChatHub === 'function') { renderChatHub('dms'); return; }
                     if (typeof openDMInbox === 'function') { openDMInbox(); return; }
                     if (typeof showInbox === 'function') { showInbox(); return; }
                     break;
