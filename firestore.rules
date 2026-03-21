@@ -369,6 +369,15 @@ service cloud.firestore {
     }
 
     // =============================================
+    // GLOBAL CHAT META (DJ state, etc.)
+    // =============================================
+    match /global_chat_meta/{docId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+    }
+
+    // =============================================
     // GLOBAL CHAT
     // =============================================
     match /global_chat/{msgId} {
@@ -380,7 +389,8 @@ service cloud.firestore {
                     && request.resource.data.text.size() <= 300
                     && request.resource.data.name is string
                     && (request.resource.data.uid == request.auth.uid
-                        || request.resource.data.uid == 'nacho-bot');
+                        || request.resource.data.uid == 'nacho-bot'
+                        || request.resource.data.uid == 'system');
       // Own messages or admin can delete
       allow delete: if request.auth != null
                     && (resource.data.uid == request.auth.uid

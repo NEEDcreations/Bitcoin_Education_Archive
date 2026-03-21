@@ -768,6 +768,223 @@ if (_origGo2) {
 
 window.addEventListener('popstate', showOverlayBtn);
 
+// =============================================
+// 🎧 DJ Mode — Broadcast Beats to Global Chat
+// =============================================
+var DJ_DOC = 'live_dj'; // single doc in global_chat_meta collection
+var _djUnsub = null;
+var _djAudio = null; // listener's audio element
+var _djListening = false;
+
+// DJ broadcasts: writes current track info to Firestore
+window.djBroadcast = function() {
+    if (!window._beatsNowPlaying || !window._beatsAudio) {
+        if (typeof showToast === 'function') showToast('Play a song in Bitcoin Beats first!');
+        return;
+    }
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to DJ!');
+        return;
+    }
+    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+    if (!username) { if (typeof showToast === 'function') showToast('Set a username first!'); return; }
+
+    var track = window._beatsQueue[window._beatsQueueIdx];
+    if (!track) return;
+
+    var djData = {
+        djUid: auth.currentUser.uid,
+        djName: username,
+        trackTitle: track.title || 'Untitled',
+        trackArtist: track.artist || track.authorName || 'Unknown',
+        trackCoverArt: track.coverArt || '',
+        trackAudioUrl: track.audioUrl || '',
+        trackId: track.id || '',
+        artistUid: track.authorId || '',
+        startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        active: true
+    };
+
+    db.collection('global_chat_meta').doc(DJ_DOC).set(djData).then(function() {
+        if (typeof showToast === 'function') showToast('🎧 You\'re now DJing! Broadcasting to Global Chat');
+        // Post announcement to chat
+        db.collection(CHAT_COLLECTION).add({
+            uid: 'system',
+            name: '🎧 DJ Mode',
+            text: '🎶 @' + username + ' is now DJing! Playing: "' + (track.title || 'Untitled') + '" by ' + (track.artist || track.authorName || 'Unknown') + '. Tune in! 🔊',
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() {});
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('Failed to start DJ: ' + e.message);
+    });
+
+    // Track changes: when DJ switches songs, update the broadcast
+    if (window._djTrackWatcher) clearInterval(window._djTrackWatcher);
+    var lastTrackIdx = window._beatsQueueIdx;
+    window._djTrackWatcher = setInterval(function() {
+        if (!window._beatsAudio || window._beatsAudio.paused) {
+            // DJ stopped playing — end broadcast
+            djStopBroadcast();
+            return;
+        }
+        if (window._beatsQueueIdx !== lastTrackIdx) {
+            lastTrackIdx = window._beatsQueueIdx;
+            var t = window._beatsQueue[lastTrackIdx];
+            if (t) {
+                db.collection('global_chat_meta').doc(DJ_DOC).update({
+                    trackTitle: t.title || 'Untitled',
+                    trackArtist: t.artist || t.authorName || 'Unknown',
+                    trackCoverArt: t.coverArt || '',
+                    trackAudioUrl: t.audioUrl || '',
+                    trackId: t.id || '',
+                    artistUid: t.authorId || ''
+                }).catch(function() {});
+            }
+        }
+    }, 2000);
+};
+
+window.djStopBroadcast = function() {
+    if (window._djTrackWatcher) { clearInterval(window._djTrackWatcher); window._djTrackWatcher = null; }
+    if (typeof db !== 'undefined') {
+        db.collection('global_chat_meta').doc(DJ_DOC).update({ active: false }).catch(function() {});
+    }
+    if (typeof showToast === 'function') showToast('🎧 DJ session ended');
+};
+
+// Listeners: tune in to the DJ's stream
+window.djTuneIn = function() {
+    var npEl = document.getElementById('djNowPlaying');
+    if (!npEl) return;
+    var url = npEl.getAttribute('data-audio-url');
+    if (!url) { if (typeof showToast === 'function') showToast('No audio available for this track'); return; }
+
+    // Pause user's own Beats player if playing
+    if (window._beatsAudio && !window._beatsAudio.paused) {
+        window._beatsAudio.pause();
+        if (typeof showToast === 'function') showToast('⏸ Your player paused — listening to DJ');
+    }
+
+    // Start streaming
+    if (_djAudio) { _djAudio.pause(); _djAudio = null; }
+    _djAudio = new Audio(url);
+    _djAudio.volume = 0.8;
+    _djAudio.play().catch(function(e) {
+        if (typeof showToast === 'function') showToast('Playback failed: ' + e.message);
+    });
+    _djListening = true;
+
+    // Update UI
+    var tuneBtn = document.getElementById('djTuneBtn');
+    if (tuneBtn) {
+        tuneBtn.textContent = '⏹ Stop Listening';
+        tuneBtn.onclick = djStopListening;
+    }
+};
+
+window.djStopListening = function() {
+    if (_djAudio) { _djAudio.pause(); _djAudio = null; }
+    _djListening = false;
+    var tuneBtn = document.getElementById('djTuneBtn');
+    if (tuneBtn) {
+        tuneBtn.textContent = '🔊 Tune In';
+        tuneBtn.onclick = djTuneIn;
+    }
+};
+
+// Listen for DJ state changes
+function startDJListener() {
+    if (_djUnsub) { _djUnsub(); _djUnsub = null; }
+    if (typeof db === 'undefined' || !db) return;
+
+    _djUnsub = db.collection('global_chat_meta').doc(DJ_DOC)
+        .onSnapshot(function(doc) {
+            if (!doc.exists || !doc.data() || !doc.data().active) {
+                hideDJBar();
+                // Stop listener audio if DJ ended
+                if (_djAudio) { _djAudio.pause(); _djAudio = null; _djListening = false; }
+                return;
+            }
+            var d = doc.data();
+            showDJBar(d);
+
+            // Auto-switch track if listening and song changed
+            if (_djListening && _djAudio && d.trackAudioUrl) {
+                var currentSrc = _djAudio.src || '';
+                if (currentSrc !== d.trackAudioUrl) {
+                    _djAudio.pause();
+                    _djAudio = new Audio(d.trackAudioUrl);
+                    _djAudio.volume = 0.8;
+                    _djAudio.play().catch(function() {});
+                }
+            }
+        }, function() { hideDJBar(); });
+}
+
+function showDJBar(d) {
+    var container = document.getElementById('globalChatMessages');
+    if (!container) return;
+    var bar = document.getElementById('djNowPlaying');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'djNowPlaying';
+        bar.style.cssText = 'position:sticky;top:0;z-index:5;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(247,147,26,0.1));border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:10px 14px;margin-bottom:8px;';
+        container.insertBefore(bar, container.firstChild);
+    }
+    var myUid = auth && auth.currentUser ? auth.currentUser.uid : null;
+    var isDJ = d.djUid === myUid;
+
+    bar.setAttribute('data-audio-url', d.trackAudioUrl || '');
+    bar.innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+            (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🎧</div>') +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:0.7rem;color:#6366f1;font-weight:700;margin-bottom:2px;">🎧 @' + esc(d.djName) + ' is DJing!</div>' +
+                '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
+                '<div style="font-size:0.72rem;color:var(--text-muted);cursor:pointer;" onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')">' + esc(d.trackArtist) +
+                    (d.artistUid ? ' <span style="color:var(--accent);font-weight:700;">⚡ Tip</span>' : '') +
+                '</div>' +
+            '</div>' +
+            '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;align-items:center;">' +
+                (isDJ ?
+                    '<button onclick="djStopBroadcast()" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.7rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;">⏹ Stop DJ</button>' :
+                    '<button id="djTuneBtn" onclick="djTuneIn()" style="padding:6px 10px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_djListening ? '⏹ Stop Listening' : '🔊 Tune In') + '</button>'
+                ) +
+                (d.djUid && !isDJ ? '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>' : '') +
+            '</div>' +
+        '</div>';
+}
+
+function hideDJBar() {
+    var bar = document.getElementById('djNowPlaying');
+    if (bar) bar.remove();
+}
+
+// Hook into chat listener to also start DJ listener
+var _origStartChatListener = startChatListener;
+startChatListener = function() {
+    _origStartChatListener();
+    startDJListener();
+};
+
+// Add "Go Live" button to Beats mini-player
+function addDJButton() {
+    var mini = document.getElementById('beatsMiniPlayer');
+    if (!mini || document.getElementById('djGoLiveBtn')) return;
+    var btn = document.createElement('button');
+    btn.id = 'djGoLiveBtn';
+    btn.textContent = '📡 DJ';
+    btn.title = 'Broadcast to Global Chat';
+    btn.style.cssText = 'padding:4px 8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;margin-left:4px;';
+    btn.onclick = function(e) { e.stopPropagation(); djBroadcast(); };
+    var controls = mini.querySelector('div') || mini;
+    controls.appendChild(btn);
+}
+
+// Watch for mini-player appearing
+var _djBtnObserver = new MutationObserver(function() { addDJButton(); });
+if (document.body) _djBtnObserver.observe(document.body, { childList: true, subtree: true });
+
 // Init overlay on load + hide old desktop DM button
 function initOverlay() {
     createChatOverlay();
