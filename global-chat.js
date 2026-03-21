@@ -11,6 +11,40 @@ var MAX_MSGS_DISPLAY = 100;
 var _chatUnsub = null;
 var _lastSendTime = 0;
 var _chatTab = 'global'; // 'global' or 'dms'
+var _replyTo = null; // {_id, name, text} when replying
+var _acType = null; // 'hash' or 'at' for autocomplete
+var _acQuery = ''; // current autocomplete search
+var _acStart = 0; // cursor position where trigger started
+var _chatUsers = {}; // uid -> username cache from messages
+var _acIndex = 0; // keyboard nav index
+
+// Known apps/pages for # autocomplete
+var HASH_TARGETS = [
+    {tag:'forum', label:'PlebTalk Forum'},
+    {tag:'marketplace', label:'Marketplace'},
+    {tag:'bitcoin-beats', label:'Bitcoin Beats'},
+    {tag:'irl-sync', label:'IRL Sync'},
+    {tag:'dms', label:'Direct Messages'},
+    {tag:'lightning', label:'Lightning'},
+    {tag:'nacho', label:'Ask Nacho'},
+    {tag:'pvp', label:'PVP Trivia'},
+    {tag:'wallet', label:'Wallet'},
+    {tag:'settings', label:'Settings'}
+];
+// Add channels dynamically from window.data if available
+function getHashTargets() {
+    var targets = HASH_TARGETS.slice();
+    if (typeof window.data === 'object' && window.data) {
+        var seen = {};
+        for (var k in window.data) {
+            if (window.data[k] && window.data[k].title && !seen[k]) {
+                seen[k] = 1;
+                targets.push({tag: k, label: window.data[k].title});
+            }
+        }
+    }
+    return targets;
+}
 
 // Profanity filter
 var BAD_WORDS = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo','kill yourself','kys'];
@@ -129,9 +163,13 @@ function renderGlobalChat() {
         '</div>' +
         '<div style="flex-shrink:0;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg-side);">' +
             (hasUsername ?
-                '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;padding:12px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')sendGlobalChat()">' +
-                    '<button onclick="sendGlobalChat()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
+                '<div id="chatReplyBanner" style="display:none;padding:6px 12px;background:rgba(99,102,241,0.1);border-left:3px solid #6366f1;border-radius:6px;margin-bottom:6px;font-size:0.75rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:8px;top:4px;cursor:pointer;font-size:0.9rem;color:var(--text-faint);">✕</span></div>' +
+                '<div style="position:relative;">' +
+                    '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
+                    '<div style="display:flex;gap:8px;align-items:center;">' +
+                        '<input type="text" id="globalChatInput" placeholder="Say something... (# for channels, @ for users)" maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;padding:12px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
+                        '<button onclick="sendGlobalChat()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
+                    '</div>' +
                 '</div>' +
                 '<div style="text-align:right;font-size:0.6rem;color:var(--text-faint);margin-top:3px;"><span id="globalChatCharCount">0</span>/' + MAX_MSG_LENGTH + '</div>'
             :
@@ -142,12 +180,26 @@ function renderGlobalChat() {
             ) +
         '</div>';
 
-    // Character counter
+    // Input handling: character counter + autocomplete
     var input = document.getElementById('globalChatInput');
     if (input) {
         input.addEventListener('input', function() {
             var counter = document.getElementById('globalChatCharCount');
             if (counter) counter.textContent = this.value.length;
+            handleAutocomplete(this);
+        });
+        input.addEventListener('keydown', function(e) {
+            var ac = document.getElementById('chatAutocomplete');
+            if (ac && ac.style.display !== 'none') {
+                var items = ac.querySelectorAll('.ac-item');
+                if (e.key === 'ArrowDown') { e.preventDefault(); _acIndex = Math.min(_acIndex + 1, items.length - 1); highlightAC(items); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); _acIndex = Math.max(_acIndex - 1, 0); highlightAC(items); }
+                else if (e.key === 'Enter' || e.key === 'Tab') {
+                    if (items.length > 0) { e.preventDefault(); selectAC(items[_acIndex]); return; }
+                }
+                else if (e.key === 'Escape') { hideAC(); return; }
+            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGlobalChat(); }
         });
     }
 
@@ -196,6 +248,13 @@ function renderChatMessages(msgs) {
         return;
     }
 
+    // Cache usernames for @mention autocomplete
+    for (var u = 0; u < msgs.length; u++) {
+        if (msgs[u].uid && msgs[u].name && msgs[u].uid !== 'nacho-bot') {
+            _chatUsers[msgs[u].uid] = msgs[u].name;
+        }
+    }
+
     var html = '';
     var lastDate = '';
     for (var i = 0; i < msgs.length; i++) {
@@ -218,11 +277,21 @@ function renderChatMessages(msgs) {
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         html += '<span style="font-weight:700;font-size:0.75rem;color:' + nameColor + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + esc(m.name || 'Anon') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
+        // Reply button (for all logged-in users)
+        if (myUid) {
+            html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/'/g,'\\&#39;') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/'/g,'\\&#39;') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
+        }
         if (isAdmin && !isMe) {
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:auto;" title="Delete">🗑️</span>';
+            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;" title="Delete">🗑️</span>';
         }
         html += '</div>';
-        html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + linkify(esc(m.text || '')) + '</div>';
+        // Show reply quote if this message is a reply
+        if (m.replyToName) {
+            html += '<div style="padding:4px 8px;margin-bottom:4px;border-left:2px solid #6366f1;font-size:0.7rem;color:var(--text-faint);border-radius:2px;background:rgba(99,102,241,0.05);">';
+            html += '<span style="font-weight:700;">' + esc(m.replyToName) + '</span>: ' + esc((m.replyToText||'').substring(0,60)) + (m.replyToText && m.replyToText.length > 60 ? '…' : '');
+            html += '</div>';
+        }
+        html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || '')) + '</div>';
         html += '</div></div>';
     }
 
@@ -234,10 +303,135 @@ function renderChatMessages(msgs) {
     }
 }
 
-// Convert URLs to links
-function linkify(text) {
-    return text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
+// Format chat text: links, #channels, @mentions
+function formatChatText(text) {
+    // URLs
+    text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all;">$1</a>');
+    // #channel tags → clickable links
+    text = text.replace(/#([a-zA-Z0-9_-]+)/g, function(match, tag) {
+        return '<a href="#' + tag + '" onclick="if(typeof go===\'function\'){go(\'' + tag + '\');return false;}" style="color:#6366f1;font-weight:700;text-decoration:none;">' + match + '</a>';
+    });
+    // @mentions → styled
+    text = text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#6366f1;font-weight:700;">@$1</span>');
+    return text;
 }
+
+// ---- Autocomplete Engine ----
+function handleAutocomplete(input) {
+    var val = input.value;
+    var cursor = input.selectionStart;
+    // Search backwards from cursor for # or @
+    var triggerPos = -1, triggerChar = '';
+    for (var i = cursor - 1; i >= 0; i--) {
+        if (val[i] === '#' || val[i] === '@') {
+            // Check it's start of word (beginning or preceded by space)
+            if (i === 0 || val[i-1] === ' ') {
+                triggerPos = i;
+                triggerChar = val[i];
+                break;
+            }
+        }
+        if (val[i] === ' ') break; // hit space, stop
+    }
+    if (triggerPos === -1) { hideAC(); return; }
+    var query = val.substring(triggerPos + 1, cursor).toLowerCase();
+    if (query.length === 0 && triggerChar === '@') { showACResults(triggerChar, query); return; }
+    if (query.length === 0 && triggerChar === '#') { showACResults(triggerChar, query); return; }
+    _acType = triggerChar === '#' ? 'hash' : 'at';
+    _acQuery = query;
+    _acStart = triggerPos;
+    showACResults(triggerChar, query);
+}
+
+function showACResults(trigger, query) {
+    var ac = document.getElementById('chatAutocomplete');
+    if (!ac) return;
+    var results = [];
+    if (trigger === '#') {
+        var targets = getHashTargets();
+        for (var i = 0; i < targets.length; i++) {
+            var t = targets[i];
+            if (!query || t.tag.toLowerCase().includes(query) || t.label.toLowerCase().includes(query)) {
+                results.push({value: t.tag, label: '#' + t.tag, desc: t.label});
+            }
+        }
+    } else if (trigger === '@') {
+        for (var uid in _chatUsers) {
+            var name = _chatUsers[uid];
+            if (!query || name.toLowerCase().includes(query)) {
+                results.push({value: name, label: '@' + name, desc: ''});
+            }
+        }
+    }
+    if (results.length === 0) { hideAC(); return; }
+    _acIndex = 0;
+    var html = '';
+    for (var j = 0; j < Math.min(results.length, 8); j++) {
+        var r = results[j];
+        html += '<div class="ac-item" data-value="' + esc(r.value) + '" data-trigger="' + trigger + '" onclick="selectAC(this)" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:0.15s;' + (j === 0 ? 'background:rgba(99,102,241,0.1);' : '') + '" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="if(' + j + '!==window._acIndex)this.style.background=\'none\'">';
+        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--accent);">' + esc(r.label) + '</span>';
+        if (r.desc) html += '<span style="font-size:0.7rem;color:var(--text-faint);">' + esc(r.desc) + '</span>';
+        html += '</div>';
+    }
+    ac.innerHTML = html;
+    ac.style.display = 'block';
+}
+
+function highlightAC(items) {
+    for (var i = 0; i < items.length; i++) {
+        items[i].style.background = i === _acIndex ? 'rgba(99,102,241,0.1)' : 'none';
+    }
+}
+
+window.selectAC = function(el) {
+    if (!el) return;
+    var value = el.getAttribute('data-value');
+    var trigger = el.getAttribute('data-trigger');
+    var input = document.getElementById('globalChatInput');
+    if (!input) return;
+    var val = input.value;
+    var cursor = input.selectionStart;
+    // Find the trigger position
+    var triggerPos = _acStart;
+    var before = val.substring(0, triggerPos);
+    var after = val.substring(cursor);
+    input.value = before + trigger + value + ' ' + after;
+    var newCursor = before.length + trigger.length + value.length + 1;
+    input.setSelectionRange(newCursor, newCursor);
+    input.focus();
+    hideAC();
+    // Update char counter
+    var counter = document.getElementById('globalChatCharCount');
+    if (counter) counter.textContent = input.value.length;
+};
+
+function hideAC() {
+    var ac = document.getElementById('chatAutocomplete');
+    if (ac) ac.style.display = 'none';
+    _acType = null;
+    _acQuery = '';
+}
+
+// ---- Reply Handling ----
+window.setChatReply = function(msgId, name, preview) {
+    _replyTo = {_id: msgId, name: name, text: preview};
+    var banner = document.getElementById('chatReplyBanner');
+    var nameEl = document.getElementById('chatReplyName');
+    var previewEl = document.getElementById('chatReplyPreview');
+    if (banner && nameEl && previewEl) {
+        nameEl.textContent = name;
+        previewEl.textContent = preview.length > 50 ? preview.substring(0, 50) + '…' : preview;
+        banner.style.display = 'block';
+    }
+    var input = document.getElementById('globalChatInput');
+    if (input) input.focus();
+};
+
+window.cancelReply = function() {
+    _replyTo = null;
+    var banner = document.getElementById('chatReplyBanner');
+    if (banner) banner.style.display = 'none';
+};
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
@@ -293,13 +487,19 @@ window.sendGlobalChat = function() {
     var counter = document.getElementById('globalChatCharCount');
     if (counter) counter.textContent = '0';
 
+    // Clear reply banner
+    var replyData = {};
+    if (_replyTo) {
+        replyData = {replyTo: _replyTo._id, replyToName: _replyTo.name, replyToText: _replyTo.text};
+        _replyTo = null;
+        var banner = document.getElementById('chatReplyBanner');
+        if (banner) banner.style.display = 'none';
+    }
+
     // Write to Firestore
-    db.collection(CHAT_COLLECTION).add({
-        uid: uid,
-        name: username,
-        text: text,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function(err) {
+    var msgData = {uid: uid, name: username, text: text, ts: firebase.firestore.FieldValue.serverTimestamp()};
+    if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
+    db.collection(CHAT_COLLECTION).add(msgData).catch(function(err) {
         console.error('[CHAT] Send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.message || 'Unknown error'));
     });
