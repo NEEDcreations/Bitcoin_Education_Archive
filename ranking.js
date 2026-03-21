@@ -399,9 +399,99 @@ async function handleEmailSignIn() {
     }
 }
 
-// Google Sign-In
+// Google Sign-In — uses Google Identity Services (GIS) for PWA compatibility
+var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
+
 window.signInWithGoogle = async function() {
+    // Check if GIS is available
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        try {
+            await signInWithGIS();
+            return;
+        } catch(gisErr) {
+            console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
+        }
+    }
+    // Fallback to Firebase popup/redirect
     await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+};
+
+async function signInWithGIS() {
+    return new Promise(function(resolve, reject) {
+        var { anonUid, anonData } = { anonUid: null, anonData: null };
+        // Save anon data before auth
+        var anonUser = auth.currentUser;
+        if (anonUser && anonUser.isAnonymous) {
+            anonUid = anonUser.uid;
+            try {
+                var cached = localStorage.getItem('btc_user_cache_' + anonUser.uid);
+                if (cached) anonData = JSON.parse(cached);
+            } catch(e) {}
+            if (!anonData && typeof currentUser !== 'undefined' && currentUser) {
+                anonData = Object.assign({}, currentUser);
+            }
+        }
+
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: async function(response) {
+                if (!response || !response.credential) {
+                    reject(new Error('No credential received'));
+                    return;
+                }
+                try {
+                    var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
+                    var result = await auth.signInWithCredential(credential);
+                    // Clean up GIS UI elements
+                    var _gsiBtn = document.getElementById('gsi-temp-btn');
+                    if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
+                    await handleSignInResult(result.user, anonUid, anonData);
+                    resolve(result.user);
+                } catch(e) {
+                    reject(e);
+                }
+            },
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            context: 'signin',
+            ux_mode: 'popup'
+        });
+
+        // Try One Tap first
+        google.accounts.id.prompt(function(notification) {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                // One Tap not available — use the button/popup flow
+                console.log('[Auth] One Tap not shown:', notification.getNotDisplayedReason ? notification.getNotDisplayedReason() : notification.getSkippedReason ? notification.getSkippedReason() : 'unknown');
+                // Render a temporary hidden button and click it
+                var tempDiv = document.createElement('div');
+                tempDiv.id = 'gsi-temp-btn';
+                tempDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99999;';
+                document.body.appendChild(tempDiv);
+                google.accounts.id.renderButton(tempDiv, {
+                    type: 'standard',
+                    theme: 'filled_black',
+                    size: 'large',
+                    text: 'signin_with',
+                    shape: 'pill',
+                    width: 300
+                });
+                // The button is now rendered — user clicks it
+                // Add a backdrop
+                var backdrop = document.createElement('div');
+                backdrop.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
+                backdrop.innerHTML = '<div style="color:#fff;font-size:1rem;font-weight:700;margin-bottom:8px;">Sign in with Google</div>';
+                backdrop.onclick = function(e) {
+                    if (e.target === backdrop) {
+                        tempDiv.remove();
+                        backdrop.remove();
+                        reject(new Error('User cancelled'));
+                    }
+                };
+                document.body.appendChild(backdrop);
+                backdrop.appendChild(tempDiv);
+            }
+        });
+    });
 }
 
 // Twitter/X Sign-In
@@ -816,36 +906,8 @@ async function signInWithProvider(provider) {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
     if (isMobileDevice || isStandalone) {
-        // PWA standalone: signInWithRedirect goes to system browser and doesn't return.
-        // signInWithPopup can work if the browser supports it.
-        // Try popup — if it fails, show instructions.
-        if (isStandalone) {
-            try {
-                const { anonUid, anonData } = await saveAnonData();
-                const result = await auth.signInWithPopup(provider);
-                await handleSignInResult(result.user, anonUid, anonData);
-                return;
-            } catch(pwaErr) {
-                if (pwaErr.code === 'auth/popup-closed-by-user') return;
-                console.log('[Auth] PWA popup failed:', pwaErr.code);
-                // Show helpful message
-                var pwaMsg = document.createElement('div');
-                pwaMsg.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;';
-                pwaMsg.onclick = function(e) { if (e.target === pwaMsg) pwaMsg.remove(); };
-                pwaMsg.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;text-align:center;">' +
-                    '<div style="font-size:2rem;margin-bottom:12px;">🔐</div>' +
-                    '<div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:8px;">Sign in via Browser</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Google sign-in works best in your browser. Open this link in Safari or Chrome to sign in, then return to the app.</div>' +
-                    '<button onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest\');this.textContent=\'✅ Copied!\';var _s=this;setTimeout(function(){_s.textContent=\'📋 Copy Link\'},2000)" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;width:100%;margin-bottom:8px;">📋 Copy Link</button>' +
-                    '<button onclick="window.open(\'https://bitcoineducation.quest\',\'_blank\')" style="padding:12px 24px;background:rgba(99,102,241,0.15);color:#6366f1;border:1px solid rgba(99,102,241,0.3);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;width:100%;margin-bottom:8px;">🌐 Open in Browser</button>' +
-                    '<button onclick="this.closest(\'div\').parentElement.remove()" style="padding:8px;background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
-                '</div>';
-                document.body.appendChild(pwaMsg);
-                return;
-            }
-        }
-
-        // Mobile browser (not PWA): try popup first, redirect as fallback
+        // Mobile browser: try popup first, redirect as fallback
+        // (PWA Google sign-in is handled by GIS above — this path is for Twitter/GitHub on mobile)
         try {
             const { anonUid, anonData } = await saveAnonData();
             const result = await auth.signInWithPopup(provider);
