@@ -2938,6 +2938,57 @@ function checkAltcoin(input) {
     return null;
 }
 
+// Phase 2: Synonym & alias expansion — normalizes different ways of asking the same thing
+function expandSynonyms(input) {
+    var synonyms = {
+        // Verbs
+        'purchase': 'buy', 'acquire': 'buy', 'obtain': 'buy', 'get some': 'buy',
+        'sell off': 'sell', 'dump': 'sell', 'liquidate': 'sell', 'cash out': 'sell',
+        'send': 'transfer', 'transmit': 'transfer', 'move': 'transfer',
+        'hold': 'hodl', 'holding': 'hodling', 'held': 'hodl',
+        'store': 'custody', 'storing': 'custody', 'safeguard': 'custody', 'protect': 'custody', 'keep safe': 'custody',
+        'explain': 'what is', 'describe': 'what is', 'define': 'what is', 'tell me about': 'what is',
+        'how does': 'how', 'how do': 'how', 'how can i': 'how',
+        'understand': 'learn', 'study': 'learn', 'educate': 'learn',
+        'set up': 'setup', 'setting up': 'setup', 'configure': 'setup', 'install': 'setup',
+        // Nouns
+        'coins': 'bitcoin', 'btc': 'bitcoin', 'corn': 'bitcoin', 'sats': 'satoshi',
+        'keys': 'private key', 'secret key': 'private key', 'signing key': 'private key',
+        'passphrase': 'seed phrase', 'recovery phrase': 'seed phrase', 'backup phrase': 'seed phrase', 'mnemonic': 'seed phrase', '12 words': 'seed phrase', '24 words': 'seed phrase',
+        'cold wallet': 'hardware wallet', 'cold storage': 'hardware wallet', 'hw wallet': 'hardware wallet',
+        'hot wallet': 'software wallet', 'mobile wallet': 'software wallet', 'phone wallet': 'software wallet', 'app wallet': 'software wallet',
+        'fees': 'transaction fees', 'tx fee': 'transaction fees', 'gas': 'transaction fees', 'cost to send': 'transaction fees',
+        'block explorer': 'mempool', 'check transaction': 'mempool',
+        'price drop': 'volatility', 'crash': 'volatility', 'dip': 'volatility', 'bear market': 'volatility',
+        'price increase': 'bull market', 'moon': 'bull market', 'pump': 'bull market', 'ath': 'all time high',
+        'dollar cost average': 'dca', 'dollar cost averaging': 'dca', 'recurring buy': 'dca', 'auto buy': 'dca',
+        'proof of work': 'pow', 'proof of stake': 'pos',
+        'layer 2': 'lightning', 'layer two': 'lightning', 'l2': 'lightning', 'ln': 'lightning',
+        'full node': 'node', 'bitcoin node': 'node', 'running a node': 'node',
+        'public key': 'address', 'receiving address': 'address', 'bitcoin address': 'address',
+        'central bank': 'fiat', 'federal reserve': 'fiat', 'money printing': 'fiat', 'qe': 'fiat', 'quantitative easing': 'fiat',
+        'not your keys': 'self custody', 'nyknc': 'self custody',
+        'shitcoin': 'altcoin', 'altcoins': 'altcoin', 'crypto': 'altcoin', 'other coins': 'altcoin',
+        'kyc': 'know your customer', 'no kyc': 'non kyc', 'without kyc': 'non kyc',
+        'trustless': 'decentralized', 'permissionless': 'decentralized', 'censorship resistant': 'decentralized',
+        'whitepaper': 'white paper',
+        'mempool': 'memory pool', 'unconfirmed': 'mempool',
+        'utxo': 'unspent transaction output', 'utxos': 'unspent transaction output',
+        'nwc': 'nostr wallet connect', 'webln': 'web lightning',
+    };
+
+    var result = input;
+    // Sort by phrase length descending so multi-word phrases match first
+    var phrases = Object.keys(synonyms).sort(function(a, b) { return b.length - a.length; });
+    for (var i = 0; i < phrases.length; i++) {
+        var re = new RegExp('\\b' + phrases[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+        if (re.test(result)) {
+            result = result.replace(re, synonyms[phrases[i]]);
+        }
+    }
+    return result;
+}
+
 // Lightweight typo correction — catches common misspellings before KB lookup
 function fixTypos(input) {
     // Common Bitcoin term misspellings → correct form
@@ -3025,6 +3076,7 @@ function _levenshtein(a, b) {
 
 function findAnswer(input) {
     input = fixTypos(input.toLowerCase().trim());
+    input = (typeof expandSynonyms === 'function') ? expandSynonyms(input) : input;
     if (input.length < 2) return null;
 
     // ---- EMERGENCY PRIORITY: Live Data Awareness ----
@@ -3140,6 +3192,21 @@ function findAnswer(input) {
         /\bhow much should i\b|\bis it worth\b|\bam i too late\b.*(?:specific|personally)\b|\bfor a beginner like me\b/i.test(input)
     );
 
+    // Phase 3: N-gram generator for better phrase matching
+    function getNgrams(text, n) {
+        var words = text.split(/\s+/);
+        if (words.length < n) return [text];
+        var grams = [];
+        for (var i = 0; i <= words.length - n; i++) {
+            grams.push(words.slice(i, i + n).join(' '));
+        }
+        return grams;
+    }
+
+    var inputBigrams = getNgrams(input, 2);
+    var inputTrigrams = getNgrams(input, 3);
+    var inputWords = input.split(/\s+/).filter(function(w) { return w.length >= 3; });
+
     let bestMatch = null;
     let bestScore = 0;
 
@@ -3147,21 +3214,46 @@ function findAnswer(input) {
         if (!entry || !entry.keys) continue;
         let score = 0;
         for (const key of entry.keys) {
-            if (input === key) { score = 100; break; } // Exact match
-            if (input.includes(key)) { score = Math.max(score, 50 + key.length); } // Contains match (longer = better)
-            // Word overlap scoring
-            const keyWords = key.split(/\s+/);
-            const inputWords = input.split(/\s+/);
+            // Exact match
+            if (input === key) { score = 100; break; }
+            // Contains full key phrase
+            if (input.includes(key)) { score = Math.max(score, 50 + key.length); continue; }
+            // Key contains full input
+            if (key.includes(input) && input.length >= 4) { score = Math.max(score, 45 + input.length); continue; }
+
+            var keyWords = key.split(/\s+/).filter(function(w) { return w.length >= 3; });
+
+            // N-gram overlap: check if 2-word or 3-word phrases from input match within the key
+            var ngramScore = 0;
+            for (var bi = 0; bi < inputBigrams.length; bi++) {
+                if (key.includes(inputBigrams[bi])) ngramScore += 25;
+            }
+            for (var ti = 0; ti < inputTrigrams.length; ti++) {
+                if (key.includes(inputTrigrams[ti])) ngramScore += 35;
+            }
+            if (ngramScore > 0) { score = Math.max(score, ngramScore); continue; }
+
+            // Word overlap scoring (original + improved)
             let wordMatches = 0;
+            let keyMatchRatio = 0;
             for (const kw of keyWords) {
-                if (kw.length < 3) continue;
                 for (const iw of inputWords) {
                     if (iw === kw) { wordMatches += 2; }
-                    else if (kw.length >= 6 && (iw.includes(kw) || kw.includes(iw))) { wordMatches++; }
+                    else if (kw.length >= 5 && iw.length >= 5) {
+                        // Stem-like matching: if one is a prefix of the other (e.g. "mine" matches "mining")
+                        var shorter = kw.length < iw.length ? kw : iw;
+                        var longer = kw.length < iw.length ? iw : kw;
+                        if (longer.startsWith(shorter) && shorter.length >= 4) { wordMatches += 1.5; }
+                        else if (iw.includes(kw) || kw.includes(iw)) { wordMatches++; }
+                    }
                 }
             }
+            if (keyWords.length > 0) keyMatchRatio = wordMatches / (keyWords.length * 2);
             if (wordMatches > 0) {
-                score = Math.max(score, wordMatches * 15);
+                // Bonus for matching a high % of the key's words
+                var baseScore = wordMatches * 15;
+                if (keyMatchRatio >= 0.7) baseScore += 15; // most key words matched
+                score = Math.max(score, baseScore);
             }
         }
         if (score > bestScore) {
@@ -3170,10 +3262,10 @@ function findAnswer(input) {
         }
     }
 
-    // Threshold: 65 for word-overlap matches, exact/contains matches already score 50+key.length
-    // AI-route questions bypass KB unless we got a very strong match (80+)
-    if (bestScore >= 65) {
-        if (_shouldAIHandle && bestScore < 80) return null; // let AI handle nuanced questions
+    // Threshold: 30 for n-gram matches, 65 for word-overlap, exact/contains already score high
+    if (bestScore >= 30) {
+        // Require stronger match (80+) for AI-routed questions
+        if (_shouldAIHandle && bestScore < 80) return null;
         return bestMatch;
     }
 
@@ -3955,15 +4047,32 @@ window.nachoTrackMiss = function(question) {
     try {
         var misses = JSON.parse(localStorage.getItem('btc_nacho_misses') || '[]');
         var topic = classifyTopic(question);
-        // Store only topic + truncated question (no personal data)
         misses.push({
             topic: topic,
             q: question.substring(0, 80),
             ts: Date.now()
         });
-        // Keep last 50 misses
         if (misses.length > 50) misses = misses.slice(-50);
         localStorage.setItem('btc_nacho_misses', JSON.stringify(misses));
+    } catch(e) {}
+
+    // Phase 1: Aggregate misses to Firestore for review
+    try {
+        if (typeof db !== 'undefined' && db) {
+            var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'anon';
+            db.collection('nacho_misses').add({
+                q: question.substring(0, 120),
+                topic: typeof classifyTopic === 'function' ? classifyTopic(question) : 'unknown',
+                uid: uid,
+                ts: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(function() {});
+
+            // Increment miss counter
+            db.collection('analytics').doc('nacho_misses').set({
+                total: firebase.firestore.FieldValue.increment(1),
+                lastMiss: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).catch(function() {});
+        }
     } catch(e) {}
 };
 
@@ -3987,18 +4096,25 @@ window.nachoRate = function(msgId, rating) {
         localStorage.setItem('btc_nacho_ratings', JSON.stringify(ratings));
     } catch(e) {}
 
-    // Sync rating to Firestore for analytics
+    // Phase 4: Enhanced feedback loop — sync to Firestore with full context
     try {
         if (typeof db !== 'undefined' && db) {
             var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'anon';
-            db.collection('nacho_feedback').add({
+            var feedbackData = {
                 msgId: msgId,
                 rating: rating,
                 uid: uid,
                 question: window._nachoLastQ || '',
                 source: window._nachoLastSource || 'unknown',
                 ts: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(function() {});
+            };
+
+            // On thumbs down, include the answer text so we can see what was wrong
+            if (rating === -1 && window._nachoAnswerData && window._nachoAnswerData[msgId]) {
+                feedbackData.answerSnippet = (window._nachoAnswerData[msgId] || '').replace(/<[^>]+>/g, '').substring(0, 200);
+            }
+
+            db.collection('nacho_feedback').add(feedbackData).catch(function() {});
 
             // Increment global counters
             var counterRef = db.collection('analytics').doc('nacho_feedback');
@@ -4006,6 +4122,17 @@ window.nachoRate = function(msgId, rating) {
             update[rating === 1 ? 'thumbsUp' : 'thumbsDown'] = firebase.firestore.FieldValue.increment(1);
             update.total = firebase.firestore.FieldValue.increment(1);
             counterRef.set(update, { merge: true }).catch(function() {});
+
+            // Phase 4: On thumbs down, also push to nacho_bad_matches for targeted review
+            if (rating === -1 && window._nachoLastQ) {
+                db.collection('nacho_bad_matches').add({
+                    question: window._nachoLastQ,
+                    source: window._nachoLastSource || 'unknown',
+                    answerSnippet: feedbackData.answerSnippet || '',
+                    uid: uid,
+                    ts: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function() {});
+            }
         }
     } catch(e) {}
 
@@ -4170,7 +4297,10 @@ window.nachoTrackTopic = function(question, source) {
 // callback(result) where result = { type, answer, channel, channelName, disclaimer }
 // type: 'safety'|'crisis'|'harm'|'financial'|'profanity'|'offtopic'|'kb'|'ai'|'deepsearch'|'websearch'|'fallback'
 window.nachoUnifiedAnswer = function(question, callback) {
-    var q = (typeof fixTypos === 'function') ? fixTypos(question.trim().toLowerCase()) : question.trim();
+    var q = question.trim().toLowerCase();
+    q = (typeof fixTypos === 'function') ? fixTypos(q) : q;
+    q = (typeof expandSynonyms === 'function') ? expandSynonyms(q) : q;
+    window._nachoLastQ = question.trim(); // store original for feedback
     if (!q) { callback({ type: 'fallback', answer: "Ask me something about Bitcoin! 🦌" }); return; }
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
