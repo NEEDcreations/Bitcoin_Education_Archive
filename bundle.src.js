@@ -894,23 +894,34 @@ async function signInWithProvider(provider) {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
     if (isMobileDevice || isStandalone) {
+        // Mobile: try popup first (works on modern mobile browsers), redirect as fallback
         try {
-            showToast('⏳ Opening sign-in...');
-            const anonUser = auth.currentUser;
-            if (anonUser && anonUser.isAnonymous) {
-                localStorage.setItem('btc_anon_uid', anonUser.uid);
-                try {
-                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                    if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                } catch(e2) {}
+            const { anonUid, anonData } = await saveAnonData();
+            const result = await auth.signInWithPopup(provider);
+            await handleSignInResult(result.user, anonUid, anonData);
+            return;
+        } catch(popupErr) {
+            console.log('[Auth] Mobile popup failed:', popupErr.code, '— falling back to redirect');
+            if (popupErr.code === 'auth/popup-closed-by-user') return;
+            // Popup blocked or failed — fall back to redirect
+            try {
+                showToast('⏳ Opening sign-in page...');
+                const anonUser = auth.currentUser;
+                if (anonUser && anonUser.isAnonymous) {
+                    localStorage.setItem('btc_anon_uid', anonUser.uid);
+                    try {
+                        const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+                        if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+                    } catch(e2) {}
+                }
+                sessionStorage.setItem('btc_redirect_pending', '1');
+                await auth.signInWithRedirect(provider);
+                return;
+            } catch(e) {
+                console.error('Redirect sign-in error:', e);
+                showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
+                return;
             }
-            sessionStorage.setItem('btc_redirect_pending', '1');
-            await auth.signInWithRedirect(provider);
-            return;
-        } catch(e) {
-            console.error('Redirect sign-in error:', e);
-            showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
-            return;
         }
     }
 
