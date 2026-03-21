@@ -1821,6 +1821,7 @@ function updateRankUI() {
     if (levelUpReady && lastLevelName && lastLevelName !== lv.name && lv.min > lastLevelMin && lv.min > highestLevelSeen) {
         showLevelUpCelebration(lv);
         localStorage.setItem('btc_highest_level_seen', lv.min.toString());
+        if (typeof notifySelfLevelUp === 'function') notifySelfLevelUp(lv.idx || 0, lv.name);
     }
     lastLevelName = lv.name;
     lastLevelMin = lv.min;
@@ -4135,6 +4136,9 @@ function checkBadges() {
 const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5'];
 
 function showBadgeToast(badge) {
+    // Notify
+    if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
+
     const isMajor = MAJOR_BADGES.includes(badge.id);
 
     // Minor badges: just a small toast, no fullscreen overlay
@@ -13229,6 +13233,7 @@ async function submitQuest() {
 
     if (pts > 0 && typeof awardPoints === 'function') {
         await awardPoints(pts, 'Quest: ' + currentQuest.title);
+        if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
         // Track daily quest count
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});

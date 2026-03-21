@@ -162,6 +162,9 @@ function checkBadges() {
 const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5'];
 
 function showBadgeToast(badge) {
+    // Notify
+    if (typeof notifySelfBadge === 'function') notifySelfBadge(badge.name, badge.emoji);
+
     const isMajor = MAJOR_BADGES.includes(badge.id);
 
     // Minor badges: just a small toast, no fullscreen overlay

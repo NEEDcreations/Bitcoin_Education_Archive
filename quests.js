@@ -790,6 +790,7 @@ async function submitQuest() {
 
     if (pts > 0 && typeof awardPoints === 'function') {
         await awardPoints(pts, 'Quest: ' + currentQuest.title);
+        if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
         // Track daily quest count
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});

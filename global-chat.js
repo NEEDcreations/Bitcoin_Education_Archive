@@ -521,6 +521,20 @@ window.sendGlobalChat = function() {
     var counter = document.getElementById('globalChatCharCount');
     if (counter) counter.textContent = '0';
 
+    // Notify @mentioned users
+    var mentionRegex = /@([a-zA-Z0-9_]+)/g;
+    var mention;
+    while ((mention = mentionRegex.exec(text)) !== null) {
+        var mentionedName = mention[1];
+        // Find uid from cached users
+        for (var muid in _chatUsers) {
+            if (_chatUsers[muid] === mentionedName && typeof notifyChatMention === 'function') {
+                notifyChatMention(muid, username, text.substring(0, 60));
+                break;
+            }
+        }
+    }
+
     // Clear reply banner
     var replyData = {};
     if (_replyTo) {

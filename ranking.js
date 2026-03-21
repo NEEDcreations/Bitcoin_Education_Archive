@@ -1741,6 +1741,7 @@ function updateRankUI() {
     if (levelUpReady && lastLevelName && lastLevelName !== lv.name && lv.min > lastLevelMin && lv.min > highestLevelSeen) {
         showLevelUpCelebration(lv);
         localStorage.setItem('btc_highest_level_seen', lv.min.toString());
+        if (typeof notifySelfLevelUp === 'function') notifySelfLevelUp(lv.idx || 0, lv.name);
     }
     lastLevelName = lv.name;
     lastLevelMin = lv.min;
