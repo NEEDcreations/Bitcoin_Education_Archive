@@ -17,7 +17,9 @@ var _acQuery = ''; // current autocomplete search
 var _acStart = 0; // cursor position where trigger started
 var _chatUsers = {}; // uid -> username cache from messages
 var _acIndex = 0; // keyboard nav index
-var REACT_EMOJIS = ['👍','❤️','😂','🔥','⚡','🤔','👀','🙌','💯','🦌'];
+var REACT_EMOJIS_DEFAULT = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','💯'];
+var REACT_EMOJIS_EXPANDED = ['👍','👎','❤️','😂','🔥','⚡','🤔','👀','🙌','💯','🦌','🎉','😢','😡','🤣','💀','🙏','💪','🤯','😱','🥳','😎','🤡','💎','🚀','⛏️','🧡','₿','🫡','👑','🐋','❌','✅','⬆️','⬇️','🍿','☠️','🫂','🤝','💩'];
+var _reactExpanded = false;
 var IMG_REGEX = /https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(\?[^\s<]*)?/i;
 var GIF_HOSTS = /tenor\.com|giphy\.com|imgur\.com|gfycat\.com/i;
 
@@ -171,7 +173,8 @@ function renderGlobalChat() {
                     '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
                     '<div style="display:flex;gap:8px;align-items:center;">' +
                         '<input type="text" id="globalChatInput" placeholder="Say something... (# for channels, @ for users)" maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;padding:12px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
-                        '<button onclick="showGifPicker()" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;font-size:0.85rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send GIF">GIF</button>' +
+                        '<button onclick="chatUploadImage()" style="padding:8px;background:none;border:1px solid var(--border);border-radius:50%;font-size:1rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);width:38px;height:38px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;" title="Upload Image">📷</button>' +
+                        '<button onclick="showGifPicker()" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;font-size:0.85rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send GIF">GIF</button>' +
                         '<button onclick="sendGlobalChat()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">Send</button>' +
                     '</div>' +
                 '</div>' +
@@ -296,8 +299,8 @@ function renderChatMessages(msgs) {
             html += '<span style="font-weight:700;">' + esc(m.replyToName) + '</span>: ' + esc((m.replyToText||'').substring(0,60)) + (m.replyToText && m.replyToText.length > 60 ? '…' : '');
             html += '</div>';
         }
-        // GIF messages render as images; text messages use formatChatText
-        if (m.isGif && m.text && IMG_REGEX.test(m.text)) {
+        // GIF/image messages render as images; text messages use formatChatText
+        if (m.isGif && m.text && (IMG_REGEX.test(m.text) || m.text.startsWith('data:image/'))) {
             html += '<img src="' + esc(m.text) + '" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" loading="lazy">';
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || '')) + '</div>';
@@ -740,8 +743,10 @@ function renderOverlayChat() {
                 '<div id="chatReplyBanner" style="display:none;padding:4px 10px;background:rgba(99,102,241,0.1);border-left:3px solid #6366f1;border-radius:6px;margin-bottom:4px;font-size:0.7rem;color:var(--text-muted);position:relative;">Replying to <strong id="chatReplyName"></strong>: <span id="chatReplyPreview"></span><span onclick="cancelReply()" style="position:absolute;right:6px;top:2px;cursor:pointer;font-size:0.85rem;color:var(--text-faint);">✕</span></div>' +
                 '<div style="position:relative;">' +
                     '<div id="chatAutocomplete" style="display:none;position:absolute;bottom:100%;left:0;right:0;max-height:150px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);z-index:10;"></div>' +
-                    '<div style="display:flex;gap:6px;align-items:center;">' +
+                    '<div style="display:flex;gap:4px;align-items:center;">' +
                         '<input type="text" id="globalChatInput" placeholder="Say something..." maxlength="' + MAX_MSG_LENGTH + '" style="flex:1;padding:10px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" autocomplete="off">' +
+                        '<button onclick="chatUploadImage()" style="padding:8px;background:none;border:1px solid var(--border);border-radius:50%;font-size:0.85rem;cursor:pointer;flex-shrink:0;color:var(--text-faint);width:34px;height:34px;display:flex;align-items:center;justify-content:center;" title="Upload Image">📷</button>' +
+                        '<button onclick="showGifPicker()" style="padding:4px 8px;background:none;border:1px solid var(--border);border-radius:16px;font-size:0.7rem;font-weight:700;cursor:pointer;flex-shrink:0;color:var(--text-faint);" title="Send GIF">GIF</button>' +
                         '<button onclick="sendGlobalChat()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;">Send</button>' +
                     '</div>' +
                 '</div>'
@@ -817,36 +822,38 @@ window.addEventListener('popstate', showOverlayBtn);
 
 // ---- Emoji Reaction System ----
 window.showReactPicker = function(msgId, btnEl) {
-    // Remove existing picker
     var old = document.getElementById('reactPicker');
-    if (old) old.remove();
+    if (old) { old.remove(); return; }
 
+    _reactExpanded = false;
     var picker = document.createElement('div');
     picker.id = 'reactPicker';
-    picker.style.cssText = 'position:absolute;z-index:20;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:6px 8px;box-shadow:0 4px 16px rgba(0,0,0,0.4);display:flex;gap:2px;flex-wrap:wrap;max-width:220px;';
+    picker.style.cssText = 'position:fixed;z-index:500;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:280px;';
 
-    var html = '';
-    for (var i = 0; i < REACT_EMOJIS.length; i++) {
-        html += '<button onclick="toggleReaction(\'' + msgId + '\',\'' + REACT_EMOJIS[i] + '\');document.getElementById(\'reactPicker\').remove()" style="padding:4px 6px;font-size:1.1rem;cursor:pointer;background:none;border:none;border-radius:6px;transition:0.15s;touch-action:manipulation;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + REACT_EMOJIS[i] + '</button>';
+    function renderEmojis() {
+        var emojis = _reactExpanded ? REACT_EMOJIS_EXPANDED : REACT_EMOJIS_DEFAULT;
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:2px;">';
+        for (var i = 0; i < emojis.length; i++) {
+            html += '<button onclick="toggleReaction(\'' + msgId + '\',\'' + emojis[i] + '\');document.getElementById(\'reactPicker\').remove()" style="padding:5px 6px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.15s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + emojis[i] + '</button>';
+        }
+        html += '</div>';
+        html += '<button onclick="window._reactExpanded=!window._reactExpanded;window._rerenderReactPicker(\'' + msgId + '\')" style="width:100%;padding:4px;margin-top:4px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;font-family:inherit;">' + (_reactExpanded ? '▲ Less' : '▼ More emojis') + '</button>';
+        picker.innerHTML = html;
     }
-    picker.innerHTML = html;
 
-    // Position near the button
+    window._rerenderReactPicker = function() { renderEmojis(); };
+    renderEmojis();
+
+    // Position near button
     var rect = btnEl.getBoundingClientRect();
-    var chatEl = document.getElementById('globalChatMessages') || document.body;
-    var chatRect = chatEl.getBoundingClientRect();
-    picker.style.bottom = (chatRect.bottom - rect.top + 4) + 'px';
-    picker.style.left = Math.max(0, rect.left - chatRect.left - 60) + 'px';
-    chatEl.style.position = 'relative';
-    chatEl.appendChild(picker);
+    picker.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+    picker.style.left = Math.max(8, Math.min(rect.left - 40, window.innerWidth - 290)) + 'px';
+    document.body.appendChild(picker);
 
-    // Auto-dismiss on outside click
     setTimeout(function() {
         document.addEventListener('click', function dismissPicker(e) {
-            if (!picker.contains(e.target)) {
-                if (picker.parentNode) picker.remove();
-                document.removeEventListener('click', dismissPicker);
-            }
+            var p = document.getElementById('reactPicker');
+            if (p && !p.contains(e.target)) { p.remove(); document.removeEventListener('click', dismissPicker); }
         });
     }, 50);
 };
@@ -1009,6 +1016,113 @@ window.sendGifUrl = function() {
     }
     sendGifMessage(url);
 };
+
+// ---- Image Upload ----
+window.chatUploadImage = function() {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('Sign in to upload images!');
+        return;
+    }
+    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+    if (!username) { if (typeof showToast === 'function') showToast('Set a username first!'); return; }
+
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.gif';
+    input.style.display = 'none';
+    input.onchange = function() {
+        var file = input.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            if (typeof showToast === 'function') showToast('Image too large (max 2MB)');
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            if (typeof showToast === 'function') showToast('Only images are allowed');
+            return;
+        }
+
+        // Compress if not a GIF
+        if (file.type === 'image/gif') {
+            readAndSend(file);
+        } else {
+            compressAndSend(file);
+        }
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(function() { input.remove(); }, 60000);
+};
+
+function compressAndSend(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var maxDim = 800;
+            var w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                else { w = Math.round(w * maxDim / h); h = maxDim; }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            sendImageMessage(dataUrl);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function readAndSend(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var dataUrl = e.target.result;
+        if (dataUrl.length > 900000) {
+            if (typeof showToast === 'function') showToast('Image too large after encoding. Try a smaller image.');
+            return;
+        }
+        sendImageMessage(dataUrl);
+    };
+    reader.readAsDataURL(file);
+}
+
+function sendImageMessage(dataUrl) {
+    if (!auth || !auth.currentUser) return;
+    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
+    var now = Date.now();
+    if (now - _lastSendTime < RATE_LIMIT_MS) {
+        if (typeof showToast === 'function') showToast('Slow down!');
+        return;
+    }
+    _lastSendTime = now;
+
+    var msgData = {
+        uid: auth.currentUser.uid,
+        name: username,
+        text: dataUrl,
+        isGif: true,
+        ts: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (_replyTo) {
+        msgData.replyTo = _replyTo._id;
+        msgData.replyToName = _replyTo.name;
+        msgData.replyToText = _replyTo.text;
+        _replyTo = null;
+        var banner = document.getElementById('chatReplyBanner');
+        if (banner) banner.style.display = 'none';
+    }
+
+    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+        if (typeof showToast === 'function') showToast('📷 Image sent!');
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || ''));
+    });
+}
 
 // =============================================
 // 🎧 DJ Mode — Broadcast Beats to Global Chat (with queue)

@@ -397,7 +397,8 @@ service cloud.firestore {
                     && request.resource.data.text is string
                     && request.resource.data.text.size() >= 1
                     && (request.resource.data.text.size() <= 300
-                        || request.resource.data.get('isGif', false) == true)
+                        || (request.resource.data.get('isGif', false) == true
+                            && request.resource.data.text.size() <= 1000000))
                     && request.resource.data.name is string
                     && (request.resource.data.uid == request.auth.uid
                         || request.resource.data.uid == 'nacho-bot'
