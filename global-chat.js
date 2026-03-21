@@ -313,9 +313,13 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + emoji + '\')" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + emoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
-        // Add reaction button (emoji picker trigger)
+        // Add reaction + tip buttons
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+            // Tip button (don't show on own messages or system/bot messages)
+            if (!isMe && m.uid !== 'nacho-bot' && m.uid !== 'system') {
+                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/'/g, '\\&#39;') + '\',recipientUid:\'' + (m.uid || '') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+            }
         }
         html += '</div>';
         html += '</div></div>';
