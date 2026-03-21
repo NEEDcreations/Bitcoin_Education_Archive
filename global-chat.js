@@ -806,8 +806,17 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn && window.innerWidth > 900) btn.style.display = 'block';
+    if (btn) btn.style.display = (window.innerWidth > 900) ? 'block' : 'none';
 }
+// Periodically check button visibility on desktop (catches app navigations that don't call go())
+setInterval(function() {
+    if (window.innerWidth > 900) {
+        var btn = document.getElementById('chatOverlayBtn');
+        if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
+            btn.style.display = 'block';
+        }
+    }
+}, 3000);
 
 var _origGoHome2 = window.goHome;
 if (_origGoHome2) {

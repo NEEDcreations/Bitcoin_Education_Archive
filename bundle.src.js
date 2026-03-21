@@ -23004,6 +23004,60 @@ window.beatsRenderLivestream = function() {
                 '</div>';
             }
 
+            // DJ Controls (only when actively DJing)
+            if (amDJ && isPlaying) {
+                html += '<div style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(247,147,26,0.05));border:1px solid rgba(99,102,241,0.2);border-radius:16px;padding:16px;margin-bottom:16px;">' +
+                    '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:12px;">🎛️ DJ Controls</div>' +
+
+                    // Crossfader
+                    '<div style="margin-bottom:14px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                            '<span style="color:var(--text-faint);font-size:0.7rem;">Crossfade</span>' +
+                            '<span id="djFadeLabel" style="color:var(--text-muted);font-size:0.65rem;">Off</span>' +
+                        '</div>' +
+                        '<input type="range" id="djCrossfade" min="0" max="10" value="0" style="width:100%;accent-color:#6366f1;" oninput="window._djCrossfadeSec=parseInt(this.value);document.getElementById(\'djFadeLabel\').textContent=this.value==0?\'Off\':this.value+\'s\'">' +
+                        '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-faint);"><span>Off</span><span>10s fade</span></div>' +
+                    '</div>' +
+
+                    // Volume
+                    '<div style="margin-bottom:14px;">' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:6px;">Volume</div>' +
+                        '<input type="range" id="djVolume" min="0" max="100" value="' + Math.round((window._beatsAudio ? window._beatsAudio.volume : 0.8) * 100) + '" style="width:100%;accent-color:var(--accent);" oninput="if(window._beatsAudio)window._beatsAudio.volume=this.value/100">' +
+                    '</div>' +
+
+                    // Sound Effects
+                    '<div style="margin-bottom:14px;">' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:8px;">🔊 Sound Effects</div>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+                            '<button onclick="djPlaySFX(\'horn\')" style="padding:8px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📯 Horn</button>' +
+                            '<button onclick="djPlaySFX(\'airhorn\')" style="padding:8px 14px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:10px;color:#eab308;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📢 Airhorn</button>' +
+                            '<button onclick="djPlaySFX(\'scratch\')" style="padding:8px 14px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:10px;color:#6366f1;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">💿 Scratch</button>' +
+                            '<button onclick="djPlaySFX(\'rewind\')" style="padding:8px 14px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;color:#22c55e;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">⏪ Rewind</button>' +
+                            '<button onclick="djPlaySFX(\'boom\')" style="padding:8px 14px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:10px;color:#a855f7;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">💥 Boom</button>' +
+                            '<button onclick="djPlaySFX(\'applause\')" style="padding:8px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">👏 Applause</button>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Bitcoin Quotes
+                    '<div>' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:8px;">₿ Bitcoin Quotes (plays over stream)</div>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+                            '<button onclick="djPlayQuote(0)" style="padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">₿ "Buy Bitcoin"</button>' +
+                            '<button onclick="djPlayQuote(1)" style="padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">💎 "HODL"</button>' +
+                            '<button onclick="djPlayQuote(2)" style="padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">🔑 "Not your keys"</button>' +
+                            '<button onclick="djPlayQuote(3)" style="padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">⚡ "Stack sats"</button>' +
+                            '<button onclick="djPlayQuote(4)" style="padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">🚀 "To the moon"</button>' +
+                            '<button onclick="djPlayQuote(5)" style="padding:6px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">🏦 "Fix the money"</button>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // Open Chat button for DJ
+                    '<div style="margin-top:14px;text-align:center;">' +
+                        '<button onclick="if(typeof renderChatHub===\'function\')renderChatHub(\'global\');else if(typeof toggleChatOverlay===\'function\')toggleChatOverlay()" style="padding:10px 20px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:10px;color:#6366f1;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">💬 Open Global Chat</button>' +
+                    '</div>' +
+                '</div>';
+            }
+
             // How it works
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:10px;">How DJ Mode Works</div>' +
@@ -23087,6 +23141,196 @@ window.beatsRenderLivestream = function() {
         listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">DJ Mode requires sign-in</div>';
     }
 };
+
+// ---- DJ Sound Effects & Quotes ----
+window._djCrossfadeSec = 0;
+
+window.djPlaySFX = function(type) {
+    try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var osc, gain;
+
+        if (type === 'horn' || type === 'airhorn') {
+            // DJ horn — frequency sweep
+            osc = ctx.createOscillator();
+            gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = type === 'airhorn' ? 'sawtooth' : 'square';
+            osc.frequency.setValueAtTime(400, ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(type === 'airhorn' ? 800 : 600, ctx.currentTime + 0.15);
+            osc.frequency.linearRampToValueAtTime(type === 'airhorn' ? 600 : 400, ctx.currentTime + 0.3);
+            if (type === 'airhorn') { osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.5); osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.8); }
+            gain.gain.setValueAtTime(0.4, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + (type === 'airhorn' ? 0.8 : 0.4));
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + (type === 'airhorn' ? 0.8 : 0.4));
+        } else if (type === 'scratch') {
+            osc = ctx.createOscillator();
+            gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.1);
+            osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+            osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.3);
+            osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.4);
+        } else if (type === 'rewind') {
+            osc = ctx.createOscillator();
+            gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(3000, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.6);
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.6);
+        } else if (type === 'boom') {
+            osc = ctx.createOscillator();
+            gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.6, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.5);
+            // Add noise burst
+            var bufSize = ctx.sampleRate * 0.15;
+            var buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+            var data = buf.getChannelData(0);
+            for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+            var noise = ctx.createBufferSource();
+            noise.buffer = buf;
+            var ng = ctx.createGain();
+            ng.gain.setValueAtTime(0.4, ctx.currentTime);
+            ng.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+            noise.connect(ng);
+            ng.connect(ctx.destination);
+            noise.start(ctx.currentTime);
+        } else if (type === 'applause') {
+            // White noise burst shaped like applause
+            var duration = 1.5;
+            var bufLen = ctx.sampleRate * duration;
+            var buf2 = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+            var ch = buf2.getChannelData(0);
+            for (var j = 0; j < bufLen; j++) ch[j] = (Math.random() * 2 - 1) * 0.2;
+            var src = ctx.createBufferSource();
+            src.buffer = buf2;
+            var env = ctx.createGain();
+            env.gain.setValueAtTime(0, ctx.currentTime);
+            env.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
+            env.gain.setValueAtTime(0.3, ctx.currentTime + 0.8);
+            env.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+            // Bandpass for applause character
+            var bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = 3000;
+            bp.Q.value = 0.5;
+            src.connect(bp);
+            bp.connect(env);
+            env.connect(ctx.destination);
+            src.start(ctx.currentTime);
+        }
+
+        // Broadcast SFX event to listeners
+        if (typeof db !== 'undefined') {
+            db.collection('global_chat_meta').doc('live_dj').update({
+                sfx: type,
+                sfxAt: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(function() {});
+        }
+    } catch(e) { console.log('[DJ] SFX error:', e); }
+};
+
+var DJ_QUOTES = [
+    'Buy Bitcoin.',
+    'HODL! Diamond hands forever!',
+    'Not your keys, not your coins!',
+    'Stack sats every day!',
+    'To the moon! Number go up!',
+    'Fix the money, fix the world.'
+];
+
+window.djPlayQuote = function(idx) {
+    var quote = DJ_QUOTES[idx] || DJ_QUOTES[0];
+    // Use speech synthesis for quotes
+    if ('speechSynthesis' in window) {
+        var utter = new SpeechSynthesisUtterance(quote);
+        utter.rate = 0.9;
+        utter.pitch = 0.8;
+        utter.volume = 0.7;
+        // Try to find a deep voice
+        var voices = speechSynthesis.getVoices();
+        for (var i = 0; i < voices.length; i++) {
+            if (/male|daniel|james|david|alex/i.test(voices[i].name) && voices[i].lang.startsWith('en')) {
+                utter.voice = voices[i];
+                break;
+            }
+        }
+        speechSynthesis.speak(utter);
+    }
+    // Post quote to chat
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'DJ';
+        db.collection('global_chat').add({
+            uid: 'system',
+            name: '🎧 DJ ' + username,
+            text: '🎙️ "' + quote + '"',
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() {});
+    }
+    if (typeof showToast === 'function') showToast('🎙️ ' + quote);
+};
+
+// Handle crossfade when DJ switches tracks
+var _origBeatsPlayTrack = window.beatsPlayTrack;
+if (_origBeatsPlayTrack) {
+    window.beatsPlayTrack = function(idx) {
+        var fadeSec = window._djCrossfadeSec || 0;
+        if (fadeSec > 0 && window._beatsAudio && !window._beatsAudio.paused) {
+            // Fade out current track
+            var oldAudio = window._beatsAudio;
+            var fadeSteps = 20;
+            var stepMs = (fadeSec * 1000) / fadeSteps;
+            var origVol = oldAudio.volume;
+            var step = 0;
+            var fadeOut = setInterval(function() {
+                step++;
+                oldAudio.volume = Math.max(0, origVol * (1 - step / fadeSteps));
+                if (step >= fadeSteps) {
+                    clearInterval(fadeOut);
+                    oldAudio.pause();
+                }
+            }, stepMs);
+            // Small delay then start new track with fade in
+            setTimeout(function() {
+                _origBeatsPlayTrack(idx);
+                if (window._beatsAudio) {
+                    var newAudio = window._beatsAudio;
+                    newAudio.volume = 0;
+                    var step2 = 0;
+                    var fadeIn = setInterval(function() {
+                        step2++;
+                        newAudio.volume = Math.min(origVol, origVol * (step2 / fadeSteps));
+                        if (step2 >= fadeSteps) clearInterval(fadeIn);
+                    }, stepMs);
+                }
+            }, fadeSec * 300); // Start new track 30% into the fade for overlap
+        } else {
+            _origBeatsPlayTrack(idx);
+        }
+    };
+}
 
 // (legacy embed code removed — now inline in DJ tab above)
 
