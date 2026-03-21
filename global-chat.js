@@ -163,7 +163,7 @@ function renderGlobalChat() {
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
 
     content.innerHTML =
-        '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px;display:flex;flex-direction:column;gap:6px;">' +
+        '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px;display:flex;flex-direction:column;gap:6px;min-height:0;">' +
             '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading chat...</div>' +
         '</div>' +
         '<div style="flex-shrink:0;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg-side);">' +
@@ -248,7 +248,7 @@ function renderChatMessages(msgs) {
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email === 'needcreations@gmail.com';
-    var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
 
     if (msgs.length === 0) {
         el.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🌍</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet. Be the first to say something!</div></div>';
@@ -332,7 +332,15 @@ function renderChatMessages(msgs) {
 
     // Auto-scroll to bottom if user was near bottom
     if (wasAtBottom) {
-        el.scrollTop = el.scrollHeight;
+        setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
+    }
+    // Always scroll to bottom on first render (no user scroll yet)
+    if (!el._userScrolled) {
+        setTimeout(function() { el.scrollTop = el.scrollHeight; }, 100);
+    }
+    if (!el._scrollListenerAdded) {
+        el._scrollListenerAdded = true;
+        el.addEventListener('scroll', function() { el._userScrolled = true; });
     }
 }
 
@@ -681,7 +689,7 @@ function createChatOverlay() {
     // Chat content container
     var body = document.createElement('div');
     body.id = 'chatOverlayBody';
-    body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;';
+    body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;';
 
     panel.appendChild(header);
     panel.appendChild(body);
@@ -735,7 +743,7 @@ function renderOverlayChat() {
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
 
     body.innerHTML =
-        '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:6px;">' +
+        '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:6px;min-height:0;">' +
             '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading chat...</div>' +
         '</div>' +
         '<div style="flex-shrink:0;padding:8px 14px;border-top:1px solid var(--border);background:var(--bg-side);">' +
