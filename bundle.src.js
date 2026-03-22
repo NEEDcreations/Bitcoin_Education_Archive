@@ -25236,11 +25236,22 @@ var _deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     _deferredInstallPrompt = e;
-    // Show install banner after 3s if not already installed
+    // Hybrid trigger: 90s on app + 3 channels visited
     if (!window.matchMedia('(display-mode: standalone)').matches) {
         var dismissed = localStorage.getItem('btc_pwa_dismissed');
-        if (dismissed && Date.now() - parseInt(dismissed) < 7 * 86400000) return; // Don't show for 7 days after dismiss
-        setTimeout(showPWAInstallBanner, 300000); // 5 minutes
+        if (dismissed && Date.now() - parseInt(dismissed) < 7 * 86400000) return;
+        window._pwaLoadTime = Date.now();
+        // Check every 10s once the 90s floor is met
+        window._pwaCheckInterval = setInterval(function() {
+            var elapsed = Date.now() - (window._pwaLoadTime || Date.now());
+            if (elapsed < 90000) return; // 90 second floor
+            var visited = [];
+            try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+            if (visited.length >= 3) {
+                clearInterval(window._pwaCheckInterval);
+                showPWAInstallBanner();
+            }
+        }, 10000);
     }
 });
 
