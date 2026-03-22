@@ -188,10 +188,15 @@ window.showOnboardingWizard = function() {
 
         } else if (state.step === 1) {
             // ---- STEP 2: Interest Picker ----
+            var intCount = state.interests.length;
+            var intValid = intCount >= 3 && intCount <= 5;
+            var intColor = intValid ? '#22c55e' : intCount > 5 ? '#ef4444' : '#f97316';
+            var intMsg = intCount === 0 ? 'Pick 3-5 topics' : intCount < 3 ? (3 - intCount) + ' more needed' : intCount <= 5 ? '✓ ' + intCount + ' selected' : 'Max 5 — remove ' + (intCount - 5);
+
             html += '<div style="font-size:3rem;margin-bottom:8px;">🎯</div>' +
                 '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What interests you?</h1>' +
-                '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick topics and we\'ll highlight the best channels for you.</p>' +
-                '<div style="color:' + (state.interests.length >= 1 ? '#22c55e' : '#f97316') + ';font-size:0.75rem;font-weight:700;margin-bottom:14px;">' + state.interests.length + ' selected</div>' +
+                '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick 3-5 topics and we\'ll highlight the best channels for you.</p>' +
+                '<div style="color:' + intColor + ';font-size:0.75rem;font-weight:700;margin-bottom:14px;">' + intMsg + '</div>' +
                 '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
 
             INTEREST_TOPICS.forEach(function(topic) {
@@ -202,7 +207,7 @@ window.showOnboardingWizard = function() {
 
             html += '</div>' +
                 '<div style="margin-top:18px;">' +
-                    '<button onclick="window._obFinishWithInterests()" style="width:100%;padding:16px 0;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.05rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(249,115,22,0.3);">Start Exploring →</button>' +
+                    '<button onclick="window._obFinishWithInterests()" ' + (intValid ? '' : 'disabled') + ' style="width:100%;padding:16px 0;background:' + (intValid ? 'linear-gradient(135deg,#f97316,#ea580c)' : '#1e293b') + ';color:' + (intValid ? '#fff' : '#475569') + ';border:none;border-radius:14px;font-size:1.05rem;font-weight:800;cursor:' + (intValid ? 'pointer' : 'default') + ';font-family:inherit;box-shadow:' + (intValid ? '0 8px 30px rgba(249,115,22,0.3)' : 'none') + ';transition:all 0.3s;">Start Exploring →</button>' +
                     '<button onclick="window._obBack()" style="width:100%;margin-top:10px;padding:12px 0;background:none;border:1px solid #1e293b;border-radius:12px;color:#475569;font-size:0.85rem;cursor:pointer;font-family:inherit;">← Back</button>' +
                     '<button onclick="window._obSkipInterests()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.78rem;cursor:pointer;font-family:inherit;">Skip — just show me everything</button>' +
                 '</div>';
@@ -218,7 +223,8 @@ window.showOnboardingWizard = function() {
     window._obBack = function() { state.step = 0; render(); overlay.scrollTop = 0; };
     window._obToggleInterest = function(label) {
         var idx = state.interests.indexOf(label);
-        if (idx !== -1) state.interests.splice(idx, 1); else state.interests.push(label);
+        if (idx !== -1) { state.interests.splice(idx, 1); }
+        else if (state.interests.length < 5) { state.interests.push(label); }
         render();
     };
     window._obFinishWithInterests = function() { finish(state.level, state.interests); };
