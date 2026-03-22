@@ -706,7 +706,7 @@ function createChatOverlay() {
     btn.id = 'chatOverlayBtn';
     btn.innerHTML = '💬';
     btn.title = 'Open Chat';
-    btn.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;bottom:90px;right:74px;z-index:300;width:50px;height:50px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleChatOverlay;
     // Start visible on all screen sizes
 
@@ -738,9 +738,9 @@ function createChatOverlay() {
     btn.style.position = 'fixed'; // ensure btn is positioned
     btn.appendChild(badge);
 
-    // Style for desktop
+    // Style for desktop — chat btn bottom-right, left of search magnifying glass
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;left:20px;}}@media(max-width:900px){#chatOverlayBtn{display:none!important;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:90px;right:74px;}#mobileSearchBtn{display:flex!important;}}@media(max-width:900px){#chatOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
 }
 
