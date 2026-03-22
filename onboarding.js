@@ -62,7 +62,9 @@ window.getUserSimplificationLevel = function() {
     return p.level || 'beginner';
 };
 
-// ---- Single-Screen Onboarding Wizard ----
+// ---- Two-Step Onboarding Wizard ----
+// Step 1: Welcome + pick level
+// Step 2: Interest picker (optional) — highlights channels for you
 window.showOnboardingWizard = function() {
     if (window.isOnboardingComplete()) return false;
     var visited = [];
@@ -77,13 +79,33 @@ window.showOnboardingWizard = function() {
         return false;
     }
 
-    // Build one-screen wizard
     var overlay = document.createElement('div');
     overlay.id = 'onboardingOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#020617;display:flex;flex-direction:column;align-items:center;padding:20px;font-family:inherit;overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:30px;';
 
-    function finish(level) {
-        window.setOnboardingProfile({ level: level || 'beginner', interests: [], completedAt: Date.now() });
+    var state = { step: 0, level: null, interests: [] };
+
+    var INTEREST_TOPICS = [
+        { label: 'Why Bitcoin?', emoji: '❓' },
+        { label: 'How to buy & use', emoji: '🛒' },
+        { label: 'Security & wallets', emoji: '🔑' },
+        { label: 'Lightning Network', emoji: '⚡' },
+        { label: 'Mining & energy', emoji: '⛏️' },
+        { label: 'Privacy & freedom', emoji: '🕵️' },
+        { label: 'History & culture', emoji: '📜' },
+        { label: 'Economics & money', emoji: '💰' },
+        { label: 'Geopolitics & adoption', emoji: '🌍' },
+        { label: 'Technical deep dives', emoji: '🔧' },
+        { label: 'Art, memes & media', emoji: '🎨' },
+        { label: 'Books & learning', emoji: '📚' },
+        { label: 'Philosophy & ethics', emoji: '🍎' },
+        { label: 'Building & DIY', emoji: '🔨' },
+        { label: 'Bitcoin properties', emoji: '₿' },
+        { label: 'Real-world use cases', emoji: '✅' }
+    ];
+
+    function finish(level, interests) {
+        window.setOnboardingProfile({ level: level || 'beginner', interests: interests || [], completedAt: Date.now() });
         overlay.style.transition = 'opacity 0.4s';
         overlay.style.opacity = '0';
         setTimeout(function() {
@@ -92,73 +114,116 @@ window.showOnboardingWizard = function() {
         }, 400);
     }
 
-    function goChannel(id, level) {
-        finish(level || 'beginner');
-        setTimeout(function() { if (typeof go === 'function') go(id); }, 500);
+    function render() {
+        var html = '';
+
+        // Step dots
+        html += '<div style="display:flex;gap:8px;margin-bottom:24px;">';
+        for (var d = 0; d < 2; d++) {
+            var active = d === state.step;
+            html += '<div style="width:' + (active ? '24' : '8') + 'px;height:8px;border-radius:4px;background:' + (d <= state.step ? '#f97316' : '#1e293b') + ';transition:all 0.4s;"></div>';
+        }
+        html += '</div>';
+
+        html += '<div style="max-width:440px;width:100%;text-align:center;">';
+
+        if (state.step === 0) {
+            // ---- STEP 1: Welcome + Level Pick ----
+            html += '<div style="font-size:4rem;margin-bottom:8px;">🦌</div>' +
+                '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 6px;">Welcome to Bitcoin Education</h1>' +
+                '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of Bitcoin knowledge. Read channels, earn points, level up.</p>' +
+                '<p style="color:#475569;font-size:0.8rem;margin:0 0 20px;">Free forever. No account needed. No ads.</p>' +
+
+                // How it works
+                '<div style="display:flex;gap:10px;margin-bottom:20px;text-align:center;">' +
+                    '<div style="flex:1;padding:12px 8px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15);border-radius:12px;">' +
+                        '<div style="font-size:1.3rem;">📖</div>' +
+                        '<div style="color:#f97316;font-size:0.7rem;font-weight:800;margin-top:4px;">READ</div>' +
+                        '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Tap a channel</div>' +
+                    '</div>' +
+                    '<div style="flex:1;padding:12px 8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;">' +
+                        '<div style="font-size:1.3rem;">⭐</div>' +
+                        '<div style="color:#22c55e;font-size:0.7rem;font-weight:800;margin-top:4px;">EARN</div>' +
+                        '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Get points & badges</div>' +
+                    '</div>' +
+                    '<div style="flex:1;padding:12px 8px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;">' +
+                        '<div style="font-size:1.3rem;">🏆</div>' +
+                        '<div style="color:#6366f1;font-size:0.7rem;font-weight:800;margin-top:4px;">LEVEL UP</div>' +
+                        '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Climb the ranks</div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">How deep in the rabbit hole are you?</div>';
+
+            var levels = [
+                { value: 'beginner', emoji: '🌱', label: 'New to Bitcoin', desc: "I'll start you with the basics" },
+                { value: 'intermediate', emoji: '📘', label: 'I know some Bitcoin', desc: "I'll skip the intro stuff" },
+                { value: 'advanced', emoji: '🔥', label: "I'm a Bitcoiner", desc: 'Full access — show me everything' }
+            ];
+
+            levels.forEach(function(lv) {
+                var sel = state.level === lv.value;
+                html += '<button onclick="window._obSelectLevel(\'' + lv.value + '\')" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:' + (sel ? 'rgba(249,115,22,0.1)' : 'rgba(255,255,255,0.03)') + ';border:2px solid ' + (sel ? '#f97316' : '#1e293b') + ';border-radius:14px;cursor:pointer;width:100%;text-align:left;color:#e2e8f0;font-family:inherit;margin-bottom:8px;transition:all 0.2s;">' +
+                    '<span style="font-size:1.5rem;flex-shrink:0;">' + lv.emoji + '</span>' +
+                    '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;">' + lv.label + '</div>' +
+                    '<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">' + lv.desc + '</div></div>' +
+                    (sel ? '<span style="color:#f97316;font-size:1.2rem;">✓</span>' : '') +
+                '</button>';
+            });
+
+            // Continue button
+            var canContinue = !!state.level;
+            html += '<div style="margin-top:14px;">' +
+                '<button id="onboardingCTA" onclick="window._obAdvance()" ' + (canContinue ? '' : 'disabled') + ' style="width:100%;padding:16px 0;background:' + (canContinue ? 'linear-gradient(135deg,#f97316,#ea580c)' : '#1e293b') + ';color:' + (canContinue ? '#fff' : '#475569') + ';border:none;border-radius:14px;font-size:1.05rem;font-weight:800;cursor:' + (canContinue ? 'pointer' : 'default') + ';font-family:inherit;transition:all 0.3s;box-shadow:' + (canContinue ? '0 8px 30px rgba(249,115,22,0.3)' : 'none') + ';">Continue</button>' +
+                '<button onclick="window._obSignIn()" style="width:100%;margin-top:10px;padding:13px 0;background:none;border:1.5px solid #334155;border-radius:12px;color:#94a3b8;font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;">🔐 Already have an account? Sign in</button>' +
+                '<button onclick="window._obSkip()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.78rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>' +
+            '</div>';
+
+        } else if (state.step === 1) {
+            // ---- STEP 2: Interest Picker ----
+            html += '<div style="font-size:3rem;margin-bottom:8px;">🎯</div>' +
+                '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What interests you?</h1>' +
+                '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick topics and we\'ll highlight the best channels for you.</p>' +
+                '<div style="color:' + (state.interests.length >= 1 ? '#22c55e' : '#f97316') + ';font-size:0.75rem;font-weight:700;margin-bottom:14px;">' + state.interests.length + ' selected</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
+
+            INTEREST_TOPICS.forEach(function(topic) {
+                var sel = state.interests.indexOf(topic.label) !== -1;
+                html += '<button onclick="window._obToggleInterest(\'' + topic.label.replace(/'/g, "\\'") + '\')" style="padding:9px 14px;border-radius:20px;background:' + (sel ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)') + ';border:1.5px solid ' + (sel ? '#f97316' : '#1e293b') + ';color:' + (sel ? '#f97316' : '#e2e8f0') + ';cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:5px;">' +
+                    topic.emoji + ' ' + topic.label + '</button>';
+            });
+
+            html += '</div>' +
+                '<div style="margin-top:18px;">' +
+                    '<button onclick="window._obFinishWithInterests()" style="width:100%;padding:16px 0;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.05rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(249,115,22,0.3);">Start Exploring →</button>' +
+                    '<button onclick="window._obBack()" style="width:100%;margin-top:10px;padding:12px 0;background:none;border:1px solid #1e293b;border-radius:12px;color:#475569;font-size:0.85rem;cursor:pointer;font-family:inherit;">← Back</button>' +
+                    '<button onclick="window._obSkipInterests()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.78rem;cursor:pointer;font-family:inherit;">Skip — just show me everything</button>' +
+                '</div>';
+        }
+
+        html += '</div>';
+        overlay.innerHTML = html;
     }
 
-    var html = '<div style="max-width:440px;width:100%;text-align:center;">' +
-        '<div style="font-size:4rem;margin-bottom:8px;">🦌</div>' +
-        '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 6px;">Welcome to Bitcoin Education</h1>' +
-        '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of Bitcoin knowledge. Read channels, earn points, level up.</p>' +
-        '<p style="color:#475569;font-size:0.8rem;margin:0 0 24px;">Free forever. No account needed. No ads.</p>' +
-
-        // HOW IT WORKS — 3 simple steps
-        '<div style="display:flex;gap:10px;margin-bottom:24px;text-align:center;">' +
-            '<div style="flex:1;padding:12px 8px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15);border-radius:12px;">' +
-                '<div style="font-size:1.3rem;">📖</div>' +
-                '<div style="color:#f97316;font-size:0.7rem;font-weight:800;margin-top:4px;">READ</div>' +
-                '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Tap a channel</div>' +
-            '</div>' +
-            '<div style="flex:1;padding:12px 8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;">' +
-                '<div style="font-size:1.3rem;">⭐</div>' +
-                '<div style="color:#22c55e;font-size:0.7rem;font-weight:800;margin-top:4px;">EARN</div>' +
-                '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Get points & badges</div>' +
-            '</div>' +
-            '<div style="flex:1;padding:12px 8px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;">' +
-                '<div style="font-size:1.3rem;">🏆</div>' +
-                '<div style="color:#6366f1;font-size:0.7rem;font-weight:800;margin-top:4px;">LEVEL UP</div>' +
-                '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Climb the ranks</div>' +
-            '</div>' +
-        '</div>' +
-
-        // PICK YOUR LEVEL — tapping auto-starts
-        '<div style="font-size:0.7rem;color:var(--text-faint,#64748b);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">Pick your level & start exploring</div>';
-
-    var levels = [
-        { value: 'beginner', emoji: '🌱', label: 'New to Bitcoin', channel: 'one-stop-shop', channelName: 'One Stop Shop', desc: 'Start with the basics' },
-        { value: 'intermediate', emoji: '📘', label: 'I know some Bitcoin', channel: 'mining', channelName: 'Mining', desc: 'Skip ahead to deeper topics' },
-        { value: 'advanced', emoji: '🔥', label: "I'm a Bitcoiner", channel: 'maximalism', channelName: 'Maximalism', desc: 'Show me everything' }
-    ];
-
-    levels.forEach(function(lv) {
-        html += '<button onclick="window._obGoLevel(\'' + lv.value + '\',\'' + lv.channel + '\')" style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:rgba(255,255,255,0.03);border:2px solid #1e293b;border-radius:14px;cursor:pointer;width:100%;text-align:left;color:#e2e8f0;font-family:inherit;margin-bottom:8px;transition:all 0.2s;">' +
-            '<span style="font-size:1.5rem;flex-shrink:0;">' + lv.emoji + '</span>' +
-            '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;">' + lv.label + '</div>' +
-            '<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">' + lv.desc + '</div></div>' +
-            '<span style="color:#f97316;font-size:0.8rem;font-weight:700;white-space:nowrap;">Start →</span>' +
-        '</button>';
-    });
-
-    html += '<div style="margin-top:16px;">' +
-        '<button onclick="window._obSignIn()" style="width:100%;padding:13px 0;background:none;border:1.5px solid #334155;border-radius:12px;color:#94a3b8;font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;">🔐 Already have an account? Sign in</button>' +
-        '<button onclick="window._obSkip()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.78rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>' +
-    '</div></div>';
-
-    overlay.innerHTML = html;
-    document.body.appendChild(overlay);
-
-    window._obGoLevel = function(level, channel) {
-        goChannel(channel, level);
+    // Event handlers
+    window._obSelectLevel = function(level) { state.level = level; render(); };
+    window._obAdvance = function() { if (state.level) { state.step = 1; render(); overlay.scrollTop = 0; } };
+    window._obBack = function() { state.step = 0; render(); overlay.scrollTop = 0; };
+    window._obToggleInterest = function(label) {
+        var idx = state.interests.indexOf(label);
+        if (idx !== -1) state.interests.splice(idx, 1); else state.interests.push(label);
+        render();
     };
+    window._obFinishWithInterests = function() { finish(state.level, state.interests); };
+    window._obSkipInterests = function() { finish(state.level, []); };
     window._obSignIn = function() {
-        finish('intermediate');
+        finish('intermediate', []);
         setTimeout(function() { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }, 500);
     };
-    window._obSkip = function() {
-        finish('intermediate');
-    };
+    window._obSkip = function() { finish('intermediate', []); };
 
+    render();
+    document.body.appendChild(overlay);
     return true;
 };
 
