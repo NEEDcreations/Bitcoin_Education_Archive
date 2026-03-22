@@ -2751,11 +2751,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    history.pushState({ modal: 'settings' }, '', '#settings');
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        history.pushState({ modal: 'settings' }, '', '#settings');
+        history.pushState({ modal: 'settings' }, '', '#settings');
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings error: ' + e.message);
         console.error('showUsernamePrompt error:', e);
@@ -2775,6 +2778,7 @@ window.showSignInOnly = function() {
     var modal = document.getElementById('usernameModal');
     if (!modal) return;
     modal.classList.add('open');
+    history.pushState({ modal: 'settings' }, '', '#settings');
 
     // Hide signup-only fields
     setTimeout(function() {
@@ -2907,6 +2911,7 @@ function showSettingsPage(tab) {
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
         modal.classList.add('open');
+        if (!history.state || history.state.modal !== 'settings') history.pushState({ modal: 'settings' }, '', '#settings');
         return;
     }
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
@@ -3771,6 +3776,7 @@ function showSettingsPage(tab) {
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+    if (!history.state || history.state.modal !== 'settings') history.pushState({ modal: 'settings' }, '', '#settings');
 
     // Render Nacho's Closet if on Stats/Nacho tab
     if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
@@ -4031,7 +4037,13 @@ async function signOutUser() {
 // --- RESTORING DELETED GLOBAL HANDLERS ---
 window.hideUsernamePrompt = function() {
     const modal = document.getElementById('usernameModal');
-    if (modal) modal.classList.remove('open');
+    if (modal && modal.classList.contains('open')) {
+        modal.classList.remove('open');
+        // Go back if we pushed a settings state
+        if (history.state && history.state.modal === 'settings') {
+            history.back();
+        }
+    }
 };
 
 window.submitUsername = async function() {
@@ -30181,8 +30193,17 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // Close settings/username modal if open
+            var _settingsModal = document.getElementById('usernameModal');
+            if (_settingsModal && _settingsModal.classList.contains('open')) {
+                _settingsModal.classList.remove('open');
+                // Restore sign-up form if in sign-in-only mode
+                if (typeof window._restoreSignUpForm === 'function') window._restoreSignUpForm();
+                return;
+            }
+
             // Close any open overlay instead of navigating away
-            var _overlayIds = ['pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
+            var _overlayIds = ['onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
                 if (_oel) { _oel.remove(); return; }
@@ -30191,6 +30212,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Exit Nacho Mode if we're leaving it (skip goHome since popstate handles navigation)
             if (window._nachoMode && hash !== 'nacho' && !state.nachoMode) {
                 exitNachoMode(true);
+            }
+
+            // Settings modal handled above — if hash is #settings just return
+            if (hash === 'settings' || (state && state.modal === 'settings')) {
+                return;
             }
 
             // Nacho Mode

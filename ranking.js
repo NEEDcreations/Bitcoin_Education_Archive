@@ -2671,11 +2671,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    history.pushState({ modal: 'settings' }, '', '#settings');
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        history.pushState({ modal: 'settings' }, '', '#settings');
+        history.pushState({ modal: 'settings' }, '', '#settings');
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings error: ' + e.message);
         console.error('showUsernamePrompt error:', e);
@@ -2695,6 +2698,7 @@ window.showSignInOnly = function() {
     var modal = document.getElementById('usernameModal');
     if (!modal) return;
     modal.classList.add('open');
+    history.pushState({ modal: 'settings' }, '', '#settings');
 
     // Hide signup-only fields
     setTimeout(function() {
@@ -2827,6 +2831,7 @@ function showSettingsPage(tab) {
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
         modal.classList.add('open');
+        if (!history.state || history.state.modal !== 'settings') history.pushState({ modal: 'settings' }, '', '#settings');
         return;
     }
     const lvl = getLevel(currentUser ? currentUser.points || 0 : 0);
@@ -3691,6 +3696,7 @@ function showSettingsPage(tab) {
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+    if (!history.state || history.state.modal !== 'settings') history.pushState({ modal: 'settings' }, '', '#settings');
 
     // Render Nacho's Closet if on Stats/Nacho tab
     if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
@@ -3951,7 +3957,13 @@ async function signOutUser() {
 // --- RESTORING DELETED GLOBAL HANDLERS ---
 window.hideUsernamePrompt = function() {
     const modal = document.getElementById('usernameModal');
-    if (modal) modal.classList.remove('open');
+    if (modal && modal.classList.contains('open')) {
+        modal.classList.remove('open');
+        // Go back if we pushed a settings state
+        if (history.state && history.state.modal === 'settings') {
+            history.back();
+        }
+    }
 };
 
 window.submitUsername = async function() {
