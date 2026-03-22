@@ -40,7 +40,14 @@ var INTEREST_MAP = {
     "Privacy & freedom": ["privacy-nonkyc","nostr","coin_mixing_coinjoin_coin_control_utxo","human_rights__social_justice_and_freedo","peaceful"],
     "History & culture": ["history","satoshi-nakamoto","fun-facts","poems-stories"],
     "Economics & money": ["money","problems-of-money","austrian_school_of_economics","market_cap","bitcoin_vs_real_estate"],
-    "Technical deep dives": ["blockchain-timechain","nodes","pow-vs-pos","taproot","core-source-code","consensus","scalability"]
+    "Geopolitics & adoption": ["geopolitics___macroeconomics","regulation","news-adoption","politics","international","predictions"],
+    "Technical deep dives": ["blockchain-timechain","nodes","pow-vs-pos","taproot","core-source-code","consensus","scalability"],
+    "Art, memes & media": ["art-inspiration","memes-funny","graphics","music","movies-tv","videos","poems-stories"],
+    "Books & learning": ["books","articles-threads","curriculum","podcasts","informational-sites","research-theses"],
+    "Philosophy & ethics": ["philosophy","faith___religion","time_preference","game_theory","peace_and_anti-war","feedback_loops"],
+    "Building & DIY": ["projects-diy","hardware","developers","nodes","free_and_open_source_software__foss","ham_radio"],
+    "Bitcoin properties": ["scarce","secure","decentralized","organic","programmable","supranational","peaceful","dominant"],
+    "Real-world use cases": ["use-cases","jobs-earn","swag-merch","referral-links","apps-tools","layer-2-lightning"]
 };
 
 // ---- Helpers ----
