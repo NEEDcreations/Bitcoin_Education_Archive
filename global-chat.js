@@ -719,7 +719,12 @@ function createChatOverlay() {
     var header = document.createElement('div');
     header.style.cssText = 'flex-shrink:0;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);';
     header.innerHTML = '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 4px;"></div>';
-    header.innerHTML += '<div style="display:flex;width:100%;align-items:center;justify-content:space-between;"><span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🌍 Global Chat</span><button onclick="toggleChatOverlay()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px 8px;">✕</button></div>';
+    header.innerHTML += '<div style="display:flex;width:100%;align-items:center;justify-content:space-between;">' +
+        '<span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🌍 Global Chat</span>' +
+        '<div style="display:flex;align-items:center;gap:4px;">' +
+            '<button onclick="toggleChatOverlay();setTimeout(function(){if(typeof renderChatHub===\'function\')renderChatHub(\'dms\');},300)" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
+            '<button onclick="toggleChatOverlay()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px 8px;">✕</button>' +
+        '</div></div>';
 
     // Chat content container
     var body = document.createElement('div');
