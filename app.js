@@ -4073,16 +4073,14 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
-            // Close settings/username modal if open
+            // Close any open overlay instead of navigating away
             var _settingsModal = document.getElementById('usernameModal');
             if (_settingsModal && _settingsModal.classList.contains('open')) {
                 _settingsModal.classList.remove('open');
-                // Restore sign-up form if in sign-in-only mode
                 if (typeof window._restoreSignUpForm === 'function') window._restoreSignUpForm();
                 return;
             }
 
-            // Close any open overlay instead of navigating away
             var _overlayIds = ['onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
@@ -4092,11 +4090,6 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Exit Nacho Mode if we're leaving it (skip goHome since popstate handles navigation)
             if (window._nachoMode && hash !== 'nacho' && !state.nachoMode) {
                 exitNachoMode(true);
-            }
-
-            // Settings modal handled above — if hash is #settings just return
-            if (hash === 'settings' || (state && state.modal === 'settings')) {
-                return;
             }
 
             // Nacho Mode
