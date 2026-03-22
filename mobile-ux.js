@@ -13,6 +13,40 @@
 
 // ---- #1: Pull-to-Refresh ----
 var pullStartY = 0, pullDist = 0, pullEl = null;
+
+// Check if any overlay/modal/panel is open — block pull-to-refresh when true
+function isAnyOverlayOpen() {
+    // Global chat overlay
+    if (typeof _overlayOpen !== 'undefined' && _overlayOpen) return true;
+    // Notification panel
+    if (typeof _notifOverlayOpen !== 'undefined' && _notifOverlayOpen) return true;
+    // Settings/username modal
+    var um = document.getElementById('usernameModal');
+    if (um && um.classList.contains('open')) return true;
+    // Quest modal
+    var qm = document.getElementById('questModal');
+    if (qm && qm.style.display === 'flex') return true;
+    // Search overlay
+    var so = document.getElementById('searchOverlay');
+    if (so && so.style.display === 'flex') return true;
+    // Sidebar open on mobile
+    var sb = document.getElementById('sidebar');
+    if (sb && sb.classList.contains('open')) return true;
+    // Nacho live chat
+    var nl = document.getElementById('nachoLiveOverlay');
+    if (nl && nl.style.display !== 'none' && nl.style.display !== '') return true;
+    // Forum post overlay
+    var fo = document.getElementById('forumPostOverlay');
+    if (fo && fo.style.display === 'flex') return true;
+    // Marketplace overlay
+    var mo = document.getElementById('marketOverlay');
+    if (mo && mo.style.display === 'flex') return true;
+    // DM panel
+    var dm = document.getElementById('dmPanel');
+    if (dm && dm.style.display === 'flex') return true;
+    return false;
+}
+
 function initPullToRefresh() {
     var main = document.getElementById('main');
     if (!main) return;
@@ -26,12 +60,13 @@ function initPullToRefresh() {
     main.insertBefore(pullEl, main.firstChild);
 
     main.addEventListener('touchstart', function(e) {
+        if (isAnyOverlayOpen()) { pullStartY = 0; return; }
         if (main.scrollTop <= 0) pullStartY = e.touches[0].clientY;
         else pullStartY = 0;
     }, { passive: true });
 
     main.addEventListener('touchmove', function(e) {
-        if (!pullStartY) return;
+        if (!pullStartY || isAnyOverlayOpen()) return;
         pullDist = e.touches[0].clientY - pullStartY;
         if (pullDist > 0 && pullDist < 150 && main.scrollTop <= 0) {
             pullEl.style.top = Math.min(pullDist - 50, 20) + 'px';
@@ -41,6 +76,7 @@ function initPullToRefresh() {
     }, { passive: true });
 
     main.addEventListener('touchend', function() {
+        if (isAnyOverlayOpen()) { pullStartY = 0; pullDist = 0; return; }
         if (pullDist > 80 && main.scrollTop <= 0) {
             pullEl.textContent = '🔄 Refreshing...';
             pullEl.style.top = '10px';
