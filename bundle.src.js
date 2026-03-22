@@ -25240,7 +25240,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
     if (!window.matchMedia('(display-mode: standalone)').matches) {
         var dismissed = localStorage.getItem('btc_pwa_dismissed');
         if (dismissed && Date.now() - parseInt(dismissed) < 7 * 86400000) return; // Don't show for 7 days after dismiss
-        setTimeout(showPWAInstallBanner, 120000); // 2 minutes
+        setTimeout(showPWAInstallBanner, 300000); // 5 minutes
     }
 });
 
