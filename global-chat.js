@@ -219,7 +219,14 @@ function startChatListener() {
 
     if (typeof db === 'undefined' || !db) {
         var el = document.getElementById('globalChatMessages');
-        if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Chat unavailable — reconnecting...</div>';
+        if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Connecting to chat...</div>';
+        // Retry when Firestore loads
+        var _chatRetries = 0;
+        var _chatRetryTimer = setInterval(function() {
+            _chatRetries++;
+            if (typeof db !== 'undefined' && db) { clearInterval(_chatRetryTimer); startChatListener(); }
+            else if (_chatRetries > 15) { clearInterval(_chatRetryTimer); if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Chat unavailable — please refresh the page.</div>'; }
+        }, 2000);
         return;
     }
 
@@ -706,7 +713,7 @@ function createChatOverlay() {
     btn.id = 'chatOverlayBtn';
     btn.innerHTML = '💬';
     btn.title = 'Open Chat';
-    btn.style.cssText = 'position:fixed;bottom:90px;right:74px;z-index:300;width:50px;height:50px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleChatOverlay;
     // Start visible on all screen sizes
 
@@ -745,7 +752,7 @@ function createChatOverlay() {
 
     // Style for desktop — chat btn bottom-right, left of search magnifying glass
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:90px;right:74px;}#mobileSearchBtn{display:flex!important;}}@media(max-width:900px){#chatOverlayBtn{display:none!important;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;right:20px;}}@media(max-width:900px){#chatOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
 }
 
