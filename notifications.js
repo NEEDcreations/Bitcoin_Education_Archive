@@ -240,8 +240,27 @@ function createNotifOverlay() {
     document.body.appendChild(btn);
 
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#notifOverlayBtn{bottom:20px;left:80px;}}@media(max-width:900px){#notifOverlayBtn{display:none!important;}}';
+    style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#notifOverlayBtn{bottom:auto;left:auto;top:48px;right:auto;position:fixed;}}@media(max-width:900px){#notifOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
+
+    // Position notif bell next to userDisplay on desktop
+    function positionNotifBell() {
+        if (window.innerWidth <= 900) return;
+        var ud = document.getElementById('userDisplay');
+        var nb = document.getElementById('notifOverlayBtn');
+        if (!nb) return;
+        if (ud && ud.style.display !== 'none' && ud.offsetWidth > 0) {
+            var rect = ud.getBoundingClientRect();
+            nb.style.top = (rect.top + (rect.height / 2) - 22) + 'px';
+            nb.style.right = (window.innerWidth - rect.left + 8) + 'px';
+        } else {
+            nb.style.top = '48px';
+            nb.style.right = '20px';
+        }
+    }
+    // Re-position periodically (userDisplay loads async)
+    setInterval(positionNotifBell, 2000);
+    setTimeout(positionNotifBell, 1500);
 }
 
 window.toggleNotifOverlay = function() {
