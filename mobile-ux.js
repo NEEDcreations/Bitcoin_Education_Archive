@@ -657,11 +657,98 @@ window.toggleMobileFlashcards = function() {
     }
 };
 
+// ---- Floating Action Group (Search, Notifications, Chat) ----
+function initFloatingActions() {
+    if (window.innerWidth > 900 && !('ontouchstart' in window)) return;
+
+    var group = document.createElement('div');
+    group.id = 'floatingActionGroup';
+    group.style.cssText = 'position:fixed;bottom:calc(72px + env(safe-area-inset-bottom,0px));right:16px;z-index:160;display:flex;gap:10px;align-items:center;';
+
+    var btnStyle = 'width:42px;height:42px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.15);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,0.4);touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform 0.2s,box-shadow 0.2s;';
+
+    // Search
+    var searchBtn = document.createElement('button');
+    searchBtn.id = 'fabSearch';
+    searchBtn.innerHTML = '🔍';
+    searchBtn.title = 'Search';
+    searchBtn.style.cssText = btnStyle + 'background:rgba(15,23,42,0.9);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);';
+    searchBtn.onclick = function() {
+        var so = document.getElementById('searchOverlay');
+        if (so) { so.style.display = 'flex'; var inp = document.getElementById('searchOverlayInput'); if (inp) inp.focus(); }
+    };
+
+    // Notifications
+    var notifBtn = document.createElement('button');
+    notifBtn.id = 'fabNotif';
+    notifBtn.innerHTML = '🔔';
+    notifBtn.title = 'Notifications';
+    notifBtn.style.cssText = btnStyle + 'background:rgba(15,23,42,0.9);color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:relative;';
+    notifBtn.onclick = function() {
+        if (typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
+    };
+    // Badge
+    var notifBadge = document.createElement('span');
+    notifBadge.id = 'fabNotifBadge';
+    notifBadge.style.cssText = 'display:none;position:absolute;top:-3px;right:-3px;background:#ef4444;color:#fff;font-size:0.5rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;';
+    notifBtn.appendChild(notifBadge);
+
+    // Chat
+    var chatBtn = document.createElement('button');
+    chatBtn.id = 'fabChat';
+    chatBtn.innerHTML = '💬';
+    chatBtn.title = 'Global Chat';
+    chatBtn.style.cssText = btnStyle + 'background:var(--accent,#f7931a);color:#fff;position:relative;';
+    chatBtn.onclick = function() {
+        if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+        else if (typeof renderChatHub === 'function') renderChatHub('global');
+    };
+    // Chat badge
+    var chatBadge = document.createElement('span');
+    chatBadge.id = 'fabChatBadge';
+    chatBadge.style.cssText = 'display:none;position:absolute;top:-3px;right:-3px;background:#ef4444;color:#fff;font-size:0.5rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;';
+    chatBtn.appendChild(chatBadge);
+
+    group.appendChild(searchBtn);
+    group.appendChild(notifBtn);
+    group.appendChild(chatBtn);
+    document.body.appendChild(group);
+
+    // Mirror badge state from notification overlay badge
+    setInterval(function() {
+        var srcBadge = document.getElementById('notifOverlayBadge');
+        var fabBadge = document.getElementById('fabNotifBadge');
+        if (srcBadge && fabBadge) {
+            fabBadge.style.display = srcBadge.style.display;
+            fabBadge.textContent = srcBadge.textContent;
+        }
+        var srcChat = document.getElementById('chatOverlayBadge');
+        var fabChat = document.getElementById('fabChatBadge');
+        if (srcChat && fabChat) {
+            fabChat.style.display = srcChat.style.display;
+            fabChat.textContent = srcChat.textContent;
+        }
+    }, 2000);
+
+    // Style: hide on desktop, adjust scroll arrows to not overlap
+    var style = document.createElement('style');
+    style.textContent =
+        '@media(min-width:901px){#floatingActionGroup{display:none!important;}}' +
+        '@media(max-width:900px){' +
+            '#mobileSearchBtn{display:none!important;}' +
+            '#chatOverlayBtn{display:none!important;}' +
+            '#notifOverlayBtn{display:none!important;}' +
+            '.back-to-top{right:12px;}' +
+        '}';
+    document.head.appendChild(style);
+}
+
 function initMobileUX() {
     console.log('[MobileUX] Initializing...');
     initPullToRefresh();
     initBottomNav();
     initReadingProgress();
+    initFloatingActions();
 
     // Wait for user data to load
     setTimeout(function() {
