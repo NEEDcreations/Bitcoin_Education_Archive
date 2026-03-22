@@ -1,1 +1,449 @@
-!function(){"use strict";var e="btc_onboarding_profile",t="btc_onboarding_done",n={beginner:[{id:"one-stop-shop",reason:"The best place to start"},{id:"whitepaper",reason:"The 9 pages that started it all"},{id:"money",reason:"Why Bitcoin is real money"},{id:"misconceptions-fud",reason:"Common myths debunked"},{id:"self-custody",reason:"How to truly own your Bitcoin"},{id:"elevator_pitches",reason:"Quick ways to explain Bitcoin"}],intermediate:[{id:"layer-2-lightning",reason:"Instant Bitcoin payments"},{id:"mining",reason:"How the network is secured"},{id:"privacy-nonkyc",reason:"Financial sovereignty"},{id:"investment-strategy",reason:"DCA, HODL, and beyond"},{id:"evidence-against-alts",reason:"Why Bitcoin, not crypto"},{id:"history",reason:"How it all began"}],advanced:[{id:"maximalism",reason:"The Bitcoin-only thesis"},{id:"cryptography",reason:"SHA-256 and elliptic curves"},{id:"developers",reason:"Build on Bitcoin"},{id:"pow-vs-pos",reason:"Why proof of work wins"},{id:"nodes",reason:"Don't trust, verify"},{id:"core-source-code",reason:"Bitcoin Core internals"}]},i={"Why Bitcoin?":["one-stop-shop","money","misconceptions-fud","elevator_pitches","orange-pilling","analogies","dominant","faq-glossary","whitepaper"],"How to buy & use":["investment-strategy","self-custody","apps-tools","100_sats","sats__or__bits","swaps"],"Security & wallets":["self-custody","hardware","cryptography","public_key_vs_private_key","derivation_path","utxos","risks__threats__attack_vectors__weaknes","simplified_payment_verification__spv"],"Lightning Network":["layer-2-lightning","fedi-ark","lightning_node","submarine_swap","chaumian-mints","fedimints","chaumian_e-cash_and_blind_signatures"],"Mining & energy":["mining","energy","difficulty-adjustment","environment___energy","0_mining__hashing","stratum_v2","laws_of_thermodynamics","dust","vbyte","tail_emission"],"Privacy & freedom":["privacy-nonkyc","nostr","coin_mixing_coinjoin_coin_control_utxo","human_rights__social_justice_and_freedo","peaceful"],"History & culture":["history","satoshi-nakamoto","fun-facts","poems-stories","cyles","lindy_effect","time","unpopular_opinions"],"Economics & money":["money","problems-of-money","austrian_school_of_economics","market_cap","bitcoin_vs_real_estate","dollar-bitcoin_milkshake_theory","time_preference","feedback_loops","network_effects","improved_incentive_structure"],"Geopolitics & adoption":["news-adoption","regulation","geopolitics___macroeconomics","politics","international","predictions","the_future"],"Technical deep dives":["blockchain-timechain","nodes","pow-vs-pos","taproot","core-source-code","consensus","scalability","block_time-block-size","smart-contracts","bitvm","bip119","ctv-covenants","discrete_log_contracts__dlcs","rbf","soft_vs_hard_forks","extension-blocks","rollups","sidechains","mev","burn_bitcoin","byzantine_generals__problem","2__solved_technical_problems","oracle","taro"],"Art, memes & media":["art-inspiration","memes-funny","movies-tv","music","graphics","charts","social-media","games","ta_tips"],"Books & learning":["books","podcasts","videos","articles-threads","curriculum","informational-sites","research-theses","bitcoin_exam","math","mathematics"],"Philosophy & ethics":["philosophy","game_theory","peace_and_anti-war","faith___religion","governance","toxicity","softwar","1_first_principles"],"Building & DIY":["developers","projects-diy","free_and_open_source_software__foss","open_source","op-codes","ham_radio","web5","layer-3-sidechains","ordinals","ordinals__nfts_on_bitcoin__and_block_spa"],"Bitcoin properties":["decentralized","scarce","secure","organic","programmable","supranational","dominant","peaceful","maximalism"],"Real-world use cases":["use-cases","referral-links","jobs-earn","swag-merch","health","stablecoins","transaction_fees","giga-chad"]};function o(){window.showOnboardingWizard()||window.applySimplifiedHome(),setTimeout(function(){"function"==typeof window.showProgressBreadcrumb&&window.showProgressBreadcrumb()},1e3);var e=window.go;"function"==typeof e&&(window.go=function(){var t=e.apply(this,arguments);return setTimeout(window.checkProgressiveReveal,1e3),setTimeout(function(){var e=document.getElementById("progressBreadcrumb");e&&e.remove(),"function"==typeof window.showProgressBreadcrumb&&window.showProgressBreadcrumb()},1200),t})}window.getOnboardingProfile=function(){try{var t=localStorage.getItem(e);return t?JSON.parse(t):null}catch(e){return null}},window.setOnboardingProfile=function(n){try{localStorage.setItem(e,JSON.stringify(n)),localStorage.setItem(t,"true")}catch(e){}},window.isOnboardingComplete=function(){return"true"===localStorage.getItem(t)},window.getUserSimplificationLevel=function(){var e=window.getOnboardingProfile();if(!e)return"beginner";var t=[];try{t=JSON.parse(localStorage.getItem("btc_visited_channels")||"[]")}catch(e){}return t.length>=15||t.length>=8&&"beginner"!==e.level?"full":e.level||"beginner"},window.showOnboardingWizard=function(){if(window.isOnboardingComplete())return!1;var e=[];try{e=JSON.parse(localStorage.getItem("btc_visited_channels")||"[]")}catch(e){}if(e.length>=3)return window.setOnboardingProfile({level:"intermediate",interests:[],skipped:!0}),!1;var t=window.location.hash.replace("#","");return t&&t.length>0?(window.setOnboardingProfile({level:"intermediate",interests:[],skipped:!0,directLink:t}),!1):(function(){var e=document.createElement("div");e.id="onboardingOverlay",e.style.cssText="position:fixed;inset:0;z-index:99999;background:#020617;display:flex;flex-direction:column;align-items:center;padding:20px;font-family:inherit;overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:40px;";var t={step:0,level:null,interests:[]};function n(){var n="";n+='<div style="display:flex;gap:8px;margin-bottom:30px;">';for(var i=0;i<3;i++){var o=i<=t.step,r=i===t.step;n+='<div style="width:'+(r?"24":"8")+"px;height:8px;border-radius:4px;background:"+(o?"#f97316":"#1e293b")+';transition:all 0.4s;"></div>'}if(n+="</div>",n+='<div id="onboardingContent" style="max-width:480px;width:100%;text-align:center;">',0===t.step)n+='<div style="font-size:4rem;margin-bottom:12px;">🦌</div>',n+='<h1 style="color:#fff;font-size:1.6rem;font-weight:900;margin:0 0 8px;letter-spacing:-0.5px;">Hey! I\'m Nacho.</h1>',n+='<p style="color:#94a3b8;font-size:1rem;line-height:1.6;margin:0 0 24px;">I\'ll be your Bitcoin guide! This archive has 146 channels of Bitcoin education — and I know all of it. 🧡</p>',n+='<p style="color:#475569;font-size:0.85rem;margin:0;">No account needed. Free forever. No ads. Just Bitcoin.</p>';else if(1===t.step){n+='<div style="font-size:3rem;margin-bottom:12px;">🦌</div>',n+='<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">How deep in the rabbit hole are you?</h1>',n+='<p style="color:#64748b;font-size:0.85rem;margin:0 0 24px;">I\'ll customize your experience based on this.</p>',[{value:"beginner",emoji:"🌱",label:"Brand new to Bitcoin",desc:"I'll start you with the basics"},{value:"intermediate",emoji:"📘",label:"I know a little",desc:"I'll skip the intro stuff"},{value:"advanced",emoji:"🔥",label:"I'm a Bitcoiner",desc:"Full access — show me everything"}].forEach(function(e){var i=t.level===e.value;n+="<button onclick=\"window._onboardingSelectLevel('"+e.value+'\')" style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:'+(i?"rgba(249,115,22,0.1)":"rgba(255,255,255,0.04)")+";border:2px solid "+(i?"#f97316":"#1e293b")+';border-radius:14px;cursor:pointer;width:100%;text-align:left;color:#e2e8f0;font-family:inherit;margin-bottom:10px;transition:all 0.2s;">',n+='<span style="font-size:1.5rem;flex-shrink:0;">'+e.emoji+"</span>",n+='<div><div style="font-weight:700;font-size:0.95rem;">'+e.label+"</div>",n+='<div style="color:#64748b;font-size:0.8rem;margin-top:2px;">'+e.desc+"</div></div>",i&&(n+='<span style="margin-left:auto;color:#f97316;font-size:1.2rem;">✓</span>'),n+="</button>"})}else if(2===t.step){n+='<div style="font-size:3rem;margin-bottom:12px;">🦌</div>',n+='<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What catches your eye?</h1>',n+='<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick at least 3 topics that interest you!</p>',n+='<div id="interestCount" style="color:'+(t.interests.length>=3?"#22c55e":"#f97316")+';font-size:0.75rem;font-weight:700;margin-bottom:16px;">'+t.interests.length+' of 3 minimum selected</div>',n+='<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">',[{label:"Why Bitcoin?",emoji:"❓"},{label:"How to buy & use",emoji:"🛒"},{label:"Security & wallets",emoji:"🔑"},{label:"Lightning Network",emoji:"⚡"},{label:"Mining & energy",emoji:"⛏️"},{label:"Privacy & freedom",emoji:"🕵️"},{label:"History & culture",emoji:"📜"},{label:"Economics & money",emoji:"💰"},{label:"Geopolitics & adoption",emoji:"🌍"},{label:"Technical deep dives",emoji:"🔧"},{label:"Art, memes & media",emoji:"🎨"},{label:"Books & learning",emoji:"📚"},{label:"Philosophy & ethics",emoji:"🍎"},{label:"Building & DIY",emoji:"🔨"},{label:"Bitcoin properties",emoji:"₿"},{label:"Real-world use cases",emoji:"✅"}].forEach(function(e){var i=-1!==t.interests.indexOf(e.label);n+="<button onclick=\"window._onboardingToggleInterest('"+e.label+'\')" style="padding:10px 16px;border-radius:20px;background:'+(i?"rgba(249,115,22,0.15)":"rgba(255,255,255,0.04)")+";border:1.5px solid "+(i?"#f97316":"#1e293b")+";color:"+(i?"#f97316":"#e2e8f0")+';cursor:pointer;font-size:0.85rem;font-weight:600;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:6px;">',n+=e.emoji+" "+e.label,n+="</button>"}),n+="</div>"}n+="</div>";var a=0===t.step||1===t.step&&t.level||(2===t.step&&t.interests.length>=3),l=2===t.step;n+='<div style="margin-top:20px;width:100%;max-width:480px;padding-bottom:40px;">',n+='<button id="onboardingCTA" onclick="window._onboardingAdvance()" '+(a?"":"disabled")+' style="width:100%;padding:16px 0;background:'+(a?"linear-gradient(135deg,#f97316,#ea580c)":"#1e293b")+";color:"+(a?"#fff":"#475569")+";border:none;border-radius:14px;font-size:1.05rem;font-weight:800;cursor:"+(a?"pointer":"default")+";font-family:inherit;transition:all 0.3s;letter-spacing:0.3px;box-shadow:"+(a?"0 8px 30px rgba(249,115,22,0.3)":"none")+';">',n+=l?"Start Exploring →":"Continue",n+="</button>",t.step>0&&(n+='<button onclick="window._onboardingBack()" style="width:100%;margin-top:10px;padding:12px 0;background:none;border:1px solid #1e293b;border-radius:12px;color:#475569;font-size:0.85rem;cursor:pointer;font-family:inherit;">← Back</button>'),0===t.step&&(n+='<button onclick="window._onboardingSkip();setTimeout(function(){if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()},500)" style="width:100%;margin-top:10px;padding:14px 0;background:none;border:1.5px solid #334155;border-radius:12px;color:#94a3b8;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s;">🔐 Already have an account? Sign in</button>'),n+='<button onclick="window._onboardingSkip()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.8rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>',n+="</div>",e.innerHTML=n}function i(t){window.setOnboardingProfile({level:t.level||"beginner",interests:t.interests||[],completedAt:Date.now()}),e.style.transition="opacity 0.4s",e.style.opacity="0",setTimeout(function(){e.remove(),"function"==typeof window.applySimplifiedHome&&window.applySimplifiedHome(),delete window._onboardingSelectLevel,delete window._onboardingToggleInterest,delete window._onboardingAdvance,delete window._onboardingSkip},400)}window._onboardingBack=function(){t.step>0&&(t.step--,n())},window._onboardingSelectLevel=function(e){t.level=e,n()},window._onboardingToggleInterest=function(e){var i=t.interests.indexOf(e);-1!==i?t.interests.splice(i,1):t.interests.push(e),n()},window._onboardingAdvance=function(){t.step<2?(t.step++,n()):i(t)},window._onboardingSkip=function(){i({step:0,level:"intermediate",interests:[],skipped:!0})},n(),document.body.appendChild(e)}(),!0)},window.applySimplifiedHome=function(){var e=window.getUserSimplificationLevel(),t=window.getOnboardingProfile();if("full"!==e&&"advanced"!==e){({beginner:["#giveawayBanner","#dailySpinBanner","#welcomeBanner","#progressRings","#appStatsPanel","#dailyChallengeCard","#quoteOfDay","#explorationMap","#donateSection",'[onclick*="showSpinWheel"]','[onclick*="showPricePrediction"]',".desktop-only-apps","[onclick*=\"toggleSidebarMenu('homeSupportMenu')\"]","#homeSupportMenu","#lbFloatBtn","#desktopDMBtn","#rankBar","#activity-ticker","#continueReading"],intermediate:["#giveawayBanner","#dailySpinBanner","#progressRings","#explorationMap","#activity-ticker"]}[e]||[]).forEach(function(e){document.querySelectorAll(e).forEach(function(e){e.setAttribute("data-simplified-hidden","true"),e.style.display="none"})});var o=n[e]||n.beginner;var _curated=[],_seen=[];if(t&&t.interests&&t.interests.length>0){var r=[];t.interests.forEach(function(e){(i[e]||[]).forEach(function(e){-1===r.indexOf(e)&&r.push(e)})});r.forEach(function(e){if(-1===_seen.indexOf(e)&&_curated.length<6){_seen.push(e);var _reason="Based on your interests";for(var k=0;k<t.interests.length;k++){if((i[t.interests[k]]||[]).indexOf(e)!==-1){_reason=t.interests[k];break}}_curated.push({id:e,reason:_reason})}})}o.forEach(function(e){if(-1===_seen.indexOf(e.id)&&_curated.length<12){_seen.push(e.id);_curated.push(e)}});o=_curated.length>0?_curated:o;!function(e,t){var n=document.getElementById("home");if(!n)return;if(document.getElementById("curatedStartSection"))return;var i=document.createElement("div");i.id="curatedStartSection",i.style.cssText="width:100%;max-width:480px;margin:0 auto 28px;text-align:left;";var o="beginner"===t?"🟢 Start here":"📌 Recommended for you",r='<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:12px;">'+o+"</div>";e.forEach(function(e,t){var n="undefined"!=typeof CHANNELS?CHANNELS[e.id]:null;if(n){var i=n.title?n.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u):null,o=i?i[1]:"📄",a=e.id.replace(/-/g," ").replace(/\b\w/g,function(e){return e.toUpperCase()});r+="<button onclick=\"go('"+e.id+'\')" style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-align:left;font-family:inherit;color:var(--text);width:100%;margin-bottom:8px;transition:all 0.2s;animation:obSlideIn 0.4s ease-out '+.08*t+"s both;\" onmouseover=\"this.style.borderColor='rgba(249,115,22,0.4)';this.style.background='rgba(249,115,22,0.05)'\" onmouseout=\"this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,0.03)'\">",r+='<span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+o+"</span>",r+='<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.95rem;">'+a+"</div>",r+='<div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">'+(e.reason||"")+"</div></div>",r+='<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>',r+="</button>"}}),r+='<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:20px;background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(249,115,22,0.02));border:1px dashed rgba(249,115,22,0.25);border-radius:16px;margin-top:20px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.5)\'" onmouseout="this.style.borderColor=\'rgba(249,115,22,0.25)\'">',r+='<span style="font-size:2rem;">🦌</span>',r+='<div><div style="font-weight:700;font-size:0.9rem;color:var(--heading);">Ask Nacho anything</div>',r+='<div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">Our AI tutor explains Bitcoin in plain language</div></div>',r+="</div>";var _hasLnAddr=typeof currentUser!=="undefined"&&currentUser&&(currentUser.lightning||currentUser.lightningAddress);if(!_hasLnAddr) {r+='<div onclick="go(\'lightning\')" style="padding:16px 18px;background:rgba(234,179,8,0.04);border:1px solid rgba(234,179,8,0.2);border-radius:14px;margin-top:10px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'rgba(234,179,8,0.5)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.2)\'">';r+='<span style="font-size:1.8rem;">⚡</span>';r+='<div><div style="font-weight:700;font-size:0.88rem;color:var(--heading);">Connect a Lightning Wallet</div>';r+='<div style="color:var(--text-muted);font-size:0.78rem;margin-top:2px;">Tip other users and receive tips from the community!</div></div>';r+='<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>';r+="</div>";}i.innerHTML=r;var a=n.querySelector(".home-subtitle");a&&a.parentNode.insertBefore(i,a.nextSibling);if(!document.getElementById("obAnimStyle")){var l=document.createElement("style");l.id="obAnimStyle",l.textContent="@keyframes obSlideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }",document.head.appendChild(l)}}(o,e);var l=document.getElementById("authBtn"),_au=typeof auth!=="undefined"&&auth&&auth.currentUser,_isReal=_au&&!_au.isAnonymous;l&&"beginner"===e&&!_isReal&&(l.style.background="none",l.style.border="1px solid var(--border)",l.style.color="var(--text-muted)",l.style.fontSize="0.85rem",l.style.fontWeight="600",l.textContent="🔐 Create account to save progress"),"beginner"===e&&document.querySelectorAll(".cat-toggle").forEach(function(e){e.setAttribute("data-expanded","false");var t=e.nextElementSibling;t&&t.classList.contains("cat-group")&&(t.style.display="none");var n=e.querySelector(".cat-arrow");n&&(n.textContent="▶")});var s=document.querySelector('[onclick*="Sponsorship"]');if(s){var d=s.closest('div[style*="dashed"]');d&&(d.style.display="none")}}},window.checkProgressiveReveal=function(){var e=[];try{e=JSON.parse(localStorage.getItem("btc_visited_channels")||"[]")}catch(e){}e.length>=5&&["#lbFloatBtn",'[onclick*="showSpinWheel"]'].forEach(function(e){document.querySelectorAll(e).forEach(function(e){e.getAttribute("data-simplified-hidden")&&(e.style.display="",e.removeAttribute("data-simplified-hidden"))})}),e.length>=10&&document.querySelectorAll("[data-simplified-hidden]").forEach(function(e){e.style.display="",e.removeAttribute("data-simplified-hidden")})},window.showProgressBreadcrumb=function(){var e=document.getElementById("home");if(e&&!document.getElementById("progressBreadcrumb")){var t=window.getOnboardingProfile();if(t){var o=[];try{o=JSON.parse(localStorage.getItem("btc_visited_channels")||"[]")}catch(e){}if(!(o.length>=15)){for(var r=t.level||"beginner",a=n[r]||n.beginner,l=null,s=0;s<a.length;s++)if(-1===o.indexOf(a[s].id)){l=a[s];break}if(!l&&t.interests&&t.interests.length>0)for(var d=0;d<t.interests.length;d++){for(var c=i[t.interests[d]]||[],p=0;p<c.length;p++)if(-1===o.indexOf(c[p])){l={id:c[p],reason:"Based on your interests"};break}if(l)break}if(l){var g="undefined"!=typeof CHANNELS?CHANNELS[l.id]:null;if(g){var u=g.title?(g.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u)||["📄"])[0]:"📄",f=l.id.replace(/-/g," ").replace(/\b\w/g,function(e){return e.toUpperCase()}),m=Math.min(o.length,a.length),y=document.createElement("div");y.id="progressBreadcrumb",y.style.cssText="max-width:480px;margin:0 auto 20px;cursor:pointer;",y.innerHTML="<div onclick=\"go('"+l.id+'\')" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(249,115,22,0.02));border:1px solid rgba(249,115,22,0.2);border-radius:14px;transition:0.2s;" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.5)\'" onmouseout="this.style.borderColor=\'rgba(249,115,22,0.2)\'"><span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+u+'</span><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">📍 Up next for you</div><div style="font-weight:700;font-size:0.95rem;color:var(--heading);margin-top:2px;">'+f+'</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:1px;">'+(l.reason||"")+'</div></div><span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span></div><div style="margin-top:8px;display:flex;align-items:center;gap:6px;"><div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:var(--accent);width:'+Math.round(m/a.length*100)+'%;border-radius:2px;transition:0.3s;"></div></div><span style="font-size:0.65rem;color:var(--text-faint);white-space:nowrap;">'+m+"/"+a.length+" done</span></div>";var b=document.getElementById("curatedStartSection")||e.querySelector(".home-subtitle");b&&b.parentNode.insertBefore(y,b.nextSibling)}}}}}},"loading"===document.readyState?document.addEventListener("DOMContentLoaded",function(){setTimeout(o,500)}):setTimeout(o,500),console.log("[ONBOARDING] System loaded")}();
+!function() {
+"use strict";
+
+var PROFILE_KEY = 'btc_onboarding_profile';
+var DONE_KEY = 'btc_onboarding_done';
+
+var STARTER_CHANNELS = {
+    beginner: [
+        { id: 'one-stop-shop', reason: 'The best place to start' },
+        { id: 'whitepaper', reason: 'The 9 pages that started it all' },
+        { id: 'money', reason: 'Why Bitcoin is real money' },
+        { id: 'misconceptions-fud', reason: 'Common myths debunked' },
+        { id: 'self-custody', reason: 'How to truly own your Bitcoin' },
+        { id: 'elevator_pitches', reason: 'Quick ways to explain Bitcoin' }
+    ],
+    intermediate: [
+        { id: 'layer-2-lightning', reason: 'Instant Bitcoin payments' },
+        { id: 'mining', reason: 'How the network is secured' },
+        { id: 'privacy-nonkyc', reason: 'Financial sovereignty' },
+        { id: 'investment-strategy', reason: 'DCA, HODL, and beyond' },
+        { id: 'evidence-against-alts', reason: 'Why Bitcoin, not crypto' },
+        { id: 'history', reason: 'How it all began' }
+    ],
+    advanced: [
+        { id: 'maximalism', reason: 'The Bitcoin-only thesis' },
+        { id: 'cryptography', reason: 'SHA-256 and elliptic curves' },
+        { id: 'developers', reason: 'Build on Bitcoin' },
+        { id: 'pow-vs-pos', reason: 'Why proof of work wins' },
+        { id: 'nodes', reason: "Don't trust, verify" },
+        { id: 'core-source-code', reason: 'Bitcoin Core internals' }
+    ]
+};
+
+var INTEREST_MAP = {
+    "Why Bitcoin?": ["one-stop-shop","money","misconceptions-fud","elevator_pitches","orange-pilling","analogies","dominant","faq-glossary","whitepaper"],
+    "How to buy & use": ["investment-strategy","self-custody","apps-tools","100_sats","sats__or__bits","swaps"],
+    "Security & wallets": ["self-custody","hardware","cryptography","public_key_vs_private_key","derivation_path","utxos"],
+    "Lightning Network": ["layer-2-lightning","fedi-ark","lightning_node","submarine_swap","chaumian-mints"],
+    "Mining & energy": ["mining","energy","difficulty-adjustment","environment___energy","0_mining__hashing"],
+    "Privacy & freedom": ["privacy-nonkyc","nostr","coin_mixing_coinjoin_coin_control_utxo","human_rights__social_justice_and_freedo","peaceful"],
+    "History & culture": ["history","satoshi-nakamoto","fun-facts","poems-stories"],
+    "Economics & money": ["money","problems-of-money","austrian_school_of_economics","market_cap","bitcoin_vs_real_estate"],
+    "Technical deep dives": ["blockchain-timechain","nodes","pow-vs-pos","taproot","core-source-code","consensus","scalability"]
+};
+
+// ---- Helpers ----
+window.getOnboardingProfile = function() {
+    try { var s = localStorage.getItem(PROFILE_KEY); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+};
+window.setOnboardingProfile = function(p) {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); localStorage.setItem(DONE_KEY, 'true'); } catch(e) {}
+};
+window.isOnboardingComplete = function() {
+    return localStorage.getItem(DONE_KEY) === 'true';
+};
+window.getUserSimplificationLevel = function() {
+    var p = window.getOnboardingProfile();
+    if (!p) return 'beginner';
+    var v = [];
+    try { v = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+    if (v.length >= 15 || (v.length >= 8 && p.level !== 'beginner')) return 'full';
+    return p.level || 'beginner';
+};
+
+// ---- Single-Screen Onboarding Wizard ----
+window.showOnboardingWizard = function() {
+    if (window.isOnboardingComplete()) return false;
+    var visited = [];
+    try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+    if (visited.length >= 3) {
+        window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true });
+        return false;
+    }
+    var hash = window.location.hash.replace('#', '');
+    if (hash && hash.length > 0) {
+        window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true, directLink: hash });
+        return false;
+    }
+
+    // Build one-screen wizard
+    var overlay = document.createElement('div');
+    overlay.id = 'onboardingOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#020617;display:flex;flex-direction:column;align-items:center;padding:20px;font-family:inherit;overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:30px;';
+
+    function finish(level) {
+        window.setOnboardingProfile({ level: level || 'beginner', interests: [], completedAt: Date.now() });
+        overlay.style.transition = 'opacity 0.4s';
+        overlay.style.opacity = '0';
+        setTimeout(function() {
+            overlay.remove();
+            if (typeof window.applySimplifiedHome === 'function') window.applySimplifiedHome();
+        }, 400);
+    }
+
+    function goChannel(id, level) {
+        finish(level || 'beginner');
+        setTimeout(function() { if (typeof go === 'function') go(id); }, 500);
+    }
+
+    var html = '<div style="max-width:440px;width:100%;text-align:center;">' +
+        '<div style="font-size:4rem;margin-bottom:8px;">🦌</div>' +
+        '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 6px;">Welcome to Bitcoin Education</h1>' +
+        '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of Bitcoin knowledge. Read channels, earn points, level up.</p>' +
+        '<p style="color:#475569;font-size:0.8rem;margin:0 0 24px;">Free forever. No account needed. No ads.</p>' +
+
+        // HOW IT WORKS — 3 simple steps
+        '<div style="display:flex;gap:10px;margin-bottom:24px;text-align:center;">' +
+            '<div style="flex:1;padding:12px 8px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15);border-radius:12px;">' +
+                '<div style="font-size:1.3rem;">📖</div>' +
+                '<div style="color:#f97316;font-size:0.7rem;font-weight:800;margin-top:4px;">READ</div>' +
+                '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Tap a channel</div>' +
+            '</div>' +
+            '<div style="flex:1;padding:12px 8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:12px;">' +
+                '<div style="font-size:1.3rem;">⭐</div>' +
+                '<div style="color:#22c55e;font-size:0.7rem;font-weight:800;margin-top:4px;">EARN</div>' +
+                '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Get points & badges</div>' +
+            '</div>' +
+            '<div style="flex:1;padding:12px 8px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:12px;">' +
+                '<div style="font-size:1.3rem;">🏆</div>' +
+                '<div style="color:#6366f1;font-size:0.7rem;font-weight:800;margin-top:4px;">LEVEL UP</div>' +
+                '<div style="color:#64748b;font-size:0.65rem;margin-top:2px;">Climb the ranks</div>' +
+            '</div>' +
+        '</div>' +
+
+        // PICK YOUR LEVEL — tapping auto-starts
+        '<div style="font-size:0.7rem;color:var(--text-faint,#64748b);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">Pick your level & start exploring</div>';
+
+    var levels = [
+        { value: 'beginner', emoji: '🌱', label: 'New to Bitcoin', channel: 'one-stop-shop', channelName: 'One Stop Shop', desc: 'Start with the basics' },
+        { value: 'intermediate', emoji: '📘', label: 'I know some Bitcoin', channel: 'mining', channelName: 'Mining', desc: 'Skip ahead to deeper topics' },
+        { value: 'advanced', emoji: '🔥', label: "I'm a Bitcoiner", channel: 'maximalism', channelName: 'Maximalism', desc: 'Show me everything' }
+    ];
+
+    levels.forEach(function(lv) {
+        html += '<button onclick="window._obGoLevel(\'' + lv.value + '\',\'' + lv.channel + '\')" style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:rgba(255,255,255,0.03);border:2px solid #1e293b;border-radius:14px;cursor:pointer;width:100%;text-align:left;color:#e2e8f0;font-family:inherit;margin-bottom:8px;transition:all 0.2s;">' +
+            '<span style="font-size:1.5rem;flex-shrink:0;">' + lv.emoji + '</span>' +
+            '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;">' + lv.label + '</div>' +
+            '<div style="color:#64748b;font-size:0.78rem;margin-top:2px;">' + lv.desc + '</div></div>' +
+            '<span style="color:#f97316;font-size:0.8rem;font-weight:700;white-space:nowrap;">Start →</span>' +
+        '</button>';
+    });
+
+    html += '<div style="margin-top:16px;">' +
+        '<button onclick="window._obSignIn()" style="width:100%;padding:13px 0;background:none;border:1.5px solid #334155;border-radius:12px;color:#94a3b8;font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;">🔐 Already have an account? Sign in</button>' +
+        '<button onclick="window._obSkip()" style="width:100%;margin-top:8px;padding:10px 0;background:none;border:none;color:#475569;font-size:0.78rem;cursor:pointer;font-family:inherit;">Skip — I\'ll explore on my own</button>' +
+    '</div></div>';
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+
+    window._obGoLevel = function(level, channel) {
+        goChannel(channel, level);
+    };
+    window._obSignIn = function() {
+        finish('intermediate');
+        setTimeout(function() { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }, 500);
+    };
+    window._obSkip = function() {
+        finish('intermediate');
+    };
+
+    return true;
+};
+
+// ---- Simplified Home (after onboarding) ----
+window.applySimplifiedHome = function() {
+    var level = window.getUserSimplificationLevel();
+    var profile = window.getOnboardingProfile();
+    if (level === 'full' || level === 'advanced') return;
+
+    // Hide elements based on level
+    var hideSelectors = {
+        beginner: [
+            '#giveawayBanner', '#dailySpinBanner', '#welcomeBanner', '#progressRings',
+            '#appStatsPanel', '#dailyChallengeCard', '#quoteOfDay', '#explorationMap',
+            '#donateSection', '[onclick*="showSpinWheel"]', '[onclick*="showPricePrediction"]',
+            '.desktop-only-apps', "[onclick*=\"toggleSidebarMenu('homeSupportMenu')\"]",
+            '#homeSupportMenu', '#lbFloatBtn', '#desktopDMBtn', '#rankBar',
+            '#activity-ticker', '#continueReading'
+        ],
+        intermediate: ['#giveawayBanner', '#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker']
+    };
+
+    (hideSelectors[level] || []).forEach(function(sel) {
+        document.querySelectorAll(sel).forEach(function(el) {
+            el.setAttribute('data-simplified-hidden', 'true');
+            el.style.display = 'none';
+        });
+    });
+
+    // For beginners: also hide Nacho floating sprite (less distraction)
+    if (level === 'beginner') {
+        var nachoC = document.getElementById('nacho-container');
+        if (nachoC) { nachoC.setAttribute('data-simplified-hidden', 'true'); nachoC.style.display = 'none'; }
+
+        // Simplify bottom nav: only Home, Learn, Settings for first few channels
+        var visited = [];
+        try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+        if (visited.length < 5) {
+            var bnavApps = document.getElementById('bnavApps');
+            var bnavMsg = document.getElementById('bnavMsg');
+            if (bnavApps) { bnavApps.setAttribute('data-simplified-hidden', 'true'); bnavApps.style.display = 'none'; }
+            if (bnavMsg) { bnavMsg.setAttribute('data-simplified-hidden', 'true'); bnavMsg.style.display = 'none'; }
+        }
+    }
+
+    // Build curated channel list
+    var channels = STARTER_CHANNELS[level] || STARTER_CHANNELS.beginner;
+    var curated = [];
+    var seen = [];
+
+    // Add interest-based channels if available
+    if (profile && profile.interests && profile.interests.length > 0) {
+        var interestChannels = [];
+        profile.interests.forEach(function(interest) {
+            (INTEREST_MAP[interest] || []).forEach(function(ch) {
+                if (interestChannels.indexOf(ch) === -1) interestChannels.push(ch);
+            });
+        });
+        interestChannels.forEach(function(ch) {
+            if (seen.indexOf(ch) === -1 && curated.length < 6) {
+                seen.push(ch);
+                var reason = 'Based on your interests';
+                for (var k = 0; k < profile.interests.length; k++) {
+                    if ((INTEREST_MAP[profile.interests[k]] || []).indexOf(ch) !== -1) { reason = profile.interests[k]; break; }
+                }
+                curated.push({ id: ch, reason: reason });
+            }
+        });
+    }
+    channels.forEach(function(ch) {
+        if (seen.indexOf(ch.id) === -1 && curated.length < 8) { seen.push(ch.id); curated.push(ch); }
+    });
+    if (curated.length > 0) channels = curated;
+
+    // Render curated section
+    var home = document.getElementById('home');
+    if (!home || document.getElementById('curatedStartSection')) return;
+
+    var section = document.createElement('div');
+    section.id = 'curatedStartSection';
+    section.style.cssText = 'width:100%;max-width:480px;margin:0 auto 28px;text-align:left;';
+
+    var visited = [];
+    try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+
+    // Mission card for beginners
+    var shtml = '';
+    if (level === 'beginner' && visited.length < 3) {
+        shtml += '<div style="background:linear-gradient(135deg,rgba(249,115,22,0.08),rgba(249,115,22,0.02));border:2px solid rgba(249,115,22,0.3);border-radius:16px;padding:16px 18px;margin-bottom:16px;text-align:center;">' +
+            '<div style="font-size:1.8rem;margin-bottom:6px;">📖 → ⭐ → 🏆</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:0.95rem;">Read channels. Earn points. Level up.</div>' +
+            '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">Tap any channel below to start your journey!</div>' +
+            '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center;">' +
+                '<div style="flex:1;max-width:200px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">' +
+                    '<div style="height:100%;background:var(--accent);width:' + Math.round((visited.length / 6) * 100) + '%;border-radius:3px;transition:0.3s;"></div>' +
+                '</div>' +
+                '<span style="font-size:0.7rem;color:var(--text-faint);">' + visited.length + '/6 started</span>' +
+            '</div>' +
+        '</div>';
+    }
+
+    var heading = (level === 'beginner') ? '🟢 START HERE — tap your first channel' : '📌 Recommended for you';
+    shtml += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">' + heading + '</div>';
+
+    channels.forEach(function(ch, idx) {
+        var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[ch.id] : null;
+        if (!meta) return;
+        var emojiMatch = meta.title ? meta.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u) : null;
+        var emoji = emojiMatch ? emojiMatch[1] : '📄';
+        var name = ch.id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        var isRead = visited.indexOf(ch.id) !== -1;
+        var highlight = idx === 0 && !isRead && level === 'beginner';
+
+        shtml += '<button onclick="go(\'' + ch.id + '\')" style="display:flex;align-items:center;gap:14px;padding:16px 18px;background:' +
+            (highlight ? 'rgba(249,115,22,0.08)' : 'rgba(255,255,255,0.03)') + ';border:' +
+            (highlight ? '2px solid rgba(249,115,22,0.5)' : '1px solid var(--border)') +
+            ';border-radius:14px;cursor:pointer;text-align:left;font-family:inherit;color:var(--text);width:100%;margin-bottom:8px;transition:all 0.2s;animation:obSlideIn 0.4s ease-out ' + (0.06 * idx) + 's both;' +
+            (highlight ? 'box-shadow:0 0 20px rgba(249,115,22,0.15);' : '') + '">' +
+            '<span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + emoji + '</span>' +
+            '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.95rem;">' + name + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">' + (ch.reason || '') + '</div></div>' +
+            (isRead ? '<span style="color:#22c55e;font-size:1rem;flex-shrink:0;">✓</span>' : '<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>') +
+        '</button>';
+    });
+
+    // Ask Nacho card (less prominent for beginners)
+    if (level !== 'beginner' || visited.length >= 2) {
+        shtml += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:16px;background:linear-gradient(135deg,rgba(249,115,22,0.04),rgba(249,115,22,0.01));border:1px dashed rgba(249,115,22,0.2);border-radius:14px;margin-top:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:0.2s;">' +
+            '<span style="font-size:1.5rem;">🦌</span>' +
+            '<div><div style="font-weight:700;font-size:0.85rem;color:var(--heading);">Ask Nacho anything</div>' +
+            '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">AI tutor — explains Bitcoin in plain language</div></div></div>';
+    }
+
+    section.innerHTML = shtml;
+    var anchor = home.querySelector('.home-subtitle');
+    if (anchor) anchor.parentNode.insertBefore(section, anchor.nextSibling);
+
+    if (!document.getElementById('obAnimStyle')) {
+        var style = document.createElement('style');
+        style.id = 'obAnimStyle';
+        style.textContent = '@keyframes obSlideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }';
+        document.head.appendChild(style);
+    }
+
+    // Dim the auth button for beginners
+    var authBtn = document.getElementById('authBtn');
+    var au = typeof auth !== 'undefined' && auth && auth.currentUser;
+    var isReal = au && !au.isAnonymous;
+    if (authBtn && level === 'beginner' && !isReal) {
+        authBtn.style.background = 'none';
+        authBtn.style.border = '1px solid var(--border)';
+        authBtn.style.color = 'var(--text-muted)';
+        authBtn.style.fontSize = '0.85rem';
+        authBtn.style.fontWeight = '600';
+        authBtn.textContent = '🔐 Create account to save progress';
+    }
+
+    // Collapse all channel categories for beginners
+    if (level === 'beginner') {
+        document.querySelectorAll('.cat-toggle').forEach(function(el) {
+            el.setAttribute('data-expanded', 'false');
+            var group = el.nextElementSibling;
+            if (group && group.classList.contains('cat-group')) group.style.display = 'none';
+            var arrow = el.querySelector('.cat-arrow');
+            if (arrow) arrow.textContent = '▶';
+        });
+    }
+
+    // Hide sponsorship
+    var sponsor = document.querySelector('[onclick*="Sponsorship"]');
+    if (sponsor) { var d = sponsor.closest('div[style*="dashed"]'); if (d) d.style.display = 'none'; }
+};
+
+// ---- Progressive reveal ----
+window.checkProgressiveReveal = function() {
+    var v = [];
+    try { v = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+
+    // After 3 channels: show Nacho, Explore Apps, Chat
+    if (v.length >= 3) {
+        ['#nacho-container', '#bnavApps', '#bnavMsg'].forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                if (el.getAttribute('data-simplified-hidden')) {
+                    el.style.display = '';
+                    el.removeAttribute('data-simplified-hidden');
+                }
+            });
+        });
+    }
+
+    // After 5: leaderboard, spin
+    if (v.length >= 5) {
+        ['#lbFloatBtn', '[onclick*="showSpinWheel"]'].forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                if (el.getAttribute('data-simplified-hidden')) { el.style.display = ''; el.removeAttribute('data-simplified-hidden'); }
+            });
+        });
+    }
+
+    // After 10: show everything
+    if (v.length >= 10) {
+        document.querySelectorAll('[data-simplified-hidden]').forEach(function(el) {
+            el.style.display = '';
+            el.removeAttribute('data-simplified-hidden');
+        });
+    }
+};
+
+// ---- Progress breadcrumb ----
+window.showProgressBreadcrumb = function() {
+    var home = document.getElementById('home');
+    if (!home || document.getElementById('progressBreadcrumb')) return;
+    var profile = window.getOnboardingProfile();
+    if (!profile) return;
+    var visited = [];
+    try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
+    if (visited.length >= 15) return;
+
+    var level = profile.level || 'beginner';
+    var starters = STARTER_CHANNELS[level] || STARTER_CHANNELS.beginner;
+    var next = null;
+    for (var i = 0; i < starters.length; i++) {
+        if (visited.indexOf(starters[i].id) === -1) { next = starters[i]; break; }
+    }
+    if (!next) return;
+
+    var meta = (typeof CHANNELS !== 'undefined') ? CHANNELS[next.id] : null;
+    if (!meta) return;
+
+    var emoji = meta.title ? (meta.title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}]+)/u) || ['📄'])[0] : '📄';
+    var name = next.id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    var done = Math.min(visited.length, starters.length);
+
+    var bc = document.createElement('div');
+    bc.id = 'progressBreadcrumb';
+    bc.style.cssText = 'max-width:480px;margin:0 auto 20px;cursor:pointer;';
+    bc.innerHTML =
+        '<div onclick="go(\'' + next.id + '\')" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:linear-gradient(135deg,rgba(249,115,22,0.06),rgba(249,115,22,0.02));border:1px solid rgba(249,115,22,0.2);border-radius:14px;transition:0.2s;">' +
+            '<span style="font-size:1.4rem;width:44px;height:44px;border-radius:12px;background:rgba(249,115,22,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + emoji + '</span>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;">📍 Up next for you</div>' +
+                '<div style="font-weight:700;font-size:0.95rem;color:var(--heading);margin-top:2px;">' + name + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;margin-top:1px;">' + (next.reason || '') + '</div>' +
+            '</div>' +
+            '<span style="color:var(--text-faint);font-size:1rem;flex-shrink:0;">→</span>' +
+        '</div>' +
+        '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;">' +
+            '<div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">' +
+                '<div style="height:100%;background:var(--accent);width:' + Math.round(done / starters.length * 100) + '%;border-radius:2px;transition:0.3s;"></div>' +
+            '</div>' +
+            '<span style="font-size:0.65rem;color:var(--text-faint);white-space:nowrap;">' + done + '/' + starters.length + ' done</span>' +
+        '</div>';
+
+    var anchor = document.getElementById('curatedStartSection') || home.querySelector('.home-subtitle');
+    if (anchor) anchor.parentNode.insertBefore(bc, anchor.nextSibling);
+};
+
+// ---- Init ----
+function init() {
+    window.showOnboardingWizard() || window.applySimplifiedHome();
+    setTimeout(function() {
+        if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb();
+    }, 1000);
+
+    // Wrap go() to update progressive reveal on navigation
+    var origGo = window.go;
+    if (typeof origGo === 'function') {
+        window.go = function() {
+            var result = origGo.apply(this, arguments);
+            setTimeout(window.checkProgressiveReveal, 1000);
+            setTimeout(function() {
+                var bc = document.getElementById('progressBreadcrumb');
+                if (bc) bc.remove();
+                if (typeof window.showProgressBreadcrumb === 'function') window.showProgressBreadcrumb();
+            }, 1200);
+            return result;
+        };
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 500); });
+} else {
+    setTimeout(init, 500);
+}
+
+console.log('[ONBOARDING] System loaded');
+}();
