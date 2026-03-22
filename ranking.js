@@ -2686,6 +2686,116 @@ function showAccountInfo() {
     showSettingsPage('account');
 }
 
+// Sign-in only mode — hides signup fields, shows only sign-in options
+window.showSignInOnly = function() {
+    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        showAccountInfo();
+        return;
+    }
+    var modal = document.getElementById('usernameModal');
+    if (!modal) return;
+    modal.classList.add('open');
+
+    // Hide signup-only fields
+    setTimeout(function() {
+        var box = modal.querySelector('.username-box');
+        if (!box) return;
+        // Hide: h2, first p, username input, email input, email note, giveaway section, Start Learning button
+        var h2 = box.querySelector('h2');
+        var firstP = box.querySelector('p');
+        var usernameInput = document.getElementById('usernameInput');
+        var emailInput = document.getElementById('emailInput');
+        var giveawaySection = document.getElementById('giveawaySection');
+        var submitBtn = box.querySelector('button[onclick="submitUsername()"]');
+
+        // Find the email note (p after emailInput)
+        var emailNote = emailInput ? emailInput.nextElementSibling : null;
+        if (emailNote && emailNote.tagName === 'P') emailNote.style.display = 'none';
+
+        if (h2) h2.style.display = 'none';
+        if (firstP) firstP.style.display = 'none';
+        if (usernameInput) usernameInput.style.display = 'none';
+        if (emailInput) emailInput.style.display = 'none';
+        if (giveawaySection) giveawaySection.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'none';
+
+        // Also hide the giveaway script checkbox handler
+        var giveawayScript = giveawaySection ? giveawaySection.nextElementSibling : null;
+        if (giveawayScript && giveawayScript.tagName === 'SCRIPT') giveawayScript.style.display = 'none';
+
+        // Add a sign-in header
+        var signInHeader = document.getElementById('signInOnlyHeader');
+        if (!signInHeader) {
+            signInHeader = document.createElement('div');
+            signInHeader.id = 'signInOnlyHeader';
+            signInHeader.innerHTML = '<div style="text-align:center;margin-bottom:20px;">' +
+                '<div style="font-size:2.5rem;margin-bottom:8px;">🔐</div>' +
+                '<h2 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">Welcome Back!</h2>' +
+                '<p style="color:#64748b;font-size:0.9rem;margin:0;">Sign in to your account</p>' +
+            '</div>';
+            box.insertBefore(signInHeader, box.firstChild);
+        }
+
+        // Rename the "Already have an account?" text
+        var emailSignIn = document.getElementById('emailSignInSection');
+        if (emailSignIn) {
+            var label = emailSignIn.querySelector('p');
+            if (label) label.innerHTML = '<span style="color:var(--text);font-size:0.85rem;font-weight:600;">Sign in with your email:</span>';
+        }
+
+        // Add a "New here?" link at the bottom
+        var newHereLink = document.getElementById('signInOnlyNewHere');
+        if (!newHereLink) {
+            newHereLink = document.createElement('div');
+            newHereLink.id = 'signInOnlyNewHere';
+            newHereLink.innerHTML = '<div style="text-align:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
+                '<button onclick="window._restoreSignUpForm()" style="background:none;border:none;color:var(--accent);font-size:0.85rem;cursor:pointer;font-family:inherit;">New here? Create an account →</button>' +
+            '</div>';
+            var skipBtn = box.querySelector('.skip');
+            if (skipBtn) box.insertBefore(newHereLink, skipBtn);
+            else box.appendChild(newHereLink);
+        }
+    }, 50);
+};
+
+// Restore signup form (from sign-in only mode)
+window._restoreSignUpForm = function() {
+    var modal = document.getElementById('usernameModal');
+    if (!modal) return;
+    var box = modal.querySelector('.username-box');
+    if (!box) return;
+
+    // Remove sign-in only additions
+    var header = document.getElementById('signInOnlyHeader');
+    if (header) header.remove();
+    var newHere = document.getElementById('signInOnlyNewHere');
+    if (newHere) newHere.remove();
+
+    // Restore hidden elements
+    var h2 = box.querySelector('h2');
+    var firstP = box.querySelector('p');
+    var usernameInput = document.getElementById('usernameInput');
+    var emailInput = document.getElementById('emailInput');
+    var giveawaySection = document.getElementById('giveawaySection');
+    var submitBtn = box.querySelector('button[onclick="submitUsername()"]');
+    var emailNote = emailInput ? emailInput.nextElementSibling : null;
+    if (emailNote && emailNote.tagName === 'P') emailNote.style.display = '';
+
+    if (h2) h2.style.display = '';
+    if (firstP) firstP.style.display = '';
+    if (usernameInput) usernameInput.style.display = '';
+    if (emailInput) emailInput.style.display = '';
+    if (giveawaySection) giveawaySection.style.display = '';
+    if (submitBtn) submitBtn.style.display = '';
+
+    // Restore email sign in label
+    var emailSignIn = document.getElementById('emailSignInSection');
+    if (emailSignIn) {
+        var label = emailSignIn.querySelector('p');
+        if (label) label.innerHTML = 'Already have an account? Sign in with your email:';
+    }
+};
+
 let settingsTab = 'account';
 
 function shortcutRow(key, desc) {

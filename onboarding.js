@@ -218,7 +218,7 @@ window.showOnboardingWizard = function() {
     window._obSkipInterests = function() { finish(state.level, []); };
     window._obSignIn = function() {
         finish('intermediate', []);
-        setTimeout(function() { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }, 500);
+        setTimeout(function() { if (typeof showSignInOnly === 'function') showSignInOnly(); else if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }, 500);
     };
     window._obSkip = function() { finish('intermediate', []); };
 
