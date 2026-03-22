@@ -281,24 +281,33 @@ window.applySimplifiedHome = function() {
     var curated = [];
     var seen = [];
 
-    // Add interest-based channels if available
+    // Add interest-based channels — round-robin across interests for equal representation
     if (profile && profile.interests && profile.interests.length > 0) {
-        var interestChannels = [];
+        var perInterest = [];
         profile.interests.forEach(function(interest) {
-            (INTEREST_MAP[interest] || []).forEach(function(ch) {
-                if (interestChannels.indexOf(ch) === -1) interestChannels.push(ch);
-            });
+            perInterest.push({ name: interest, channels: (INTEREST_MAP[interest] || []).slice() });
         });
-        interestChannels.forEach(function(ch) {
-            if (seen.indexOf(ch) === -1 && curated.length < 6) {
-                seen.push(ch);
-                var reason = 'Based on your interests';
-                for (var k = 0; k < profile.interests.length; k++) {
-                    if ((INTEREST_MAP[profile.interests[k]] || []).indexOf(ch) !== -1) { reason = profile.interests[k]; break; }
+        // Round-robin: take 1 channel per interest at a time
+        var maxPerInterest = Math.max(2, Math.ceil(8 / perInterest.length));
+        var round = 0;
+        while (curated.length < 8 && round < 10) {
+            var added = false;
+            for (var i = 0; i < perInterest.length; i++) {
+                if (curated.length >= 8) break;
+                var ch = null;
+                while (perInterest[i].channels.length > 0) {
+                    var candidate = perInterest[i].channels.shift();
+                    if (seen.indexOf(candidate) === -1) { ch = candidate; break; }
                 }
-                curated.push({ id: ch, reason: reason });
+                if (ch) {
+                    seen.push(ch);
+                    curated.push({ id: ch, reason: perInterest[i].name });
+                    added = true;
+                }
             }
-        });
+            if (!added) break;
+            round++;
+        }
     }
     channels.forEach(function(ch) {
         if (seen.indexOf(ch.id) === -1 && curated.length < 8) { seen.push(ch.id); curated.push(ch); }
