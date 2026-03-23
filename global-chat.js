@@ -487,6 +487,15 @@ window.cancelReply = function() {
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
+    // Check for pending image — send it
+    if (window._chatPendingImage) {
+        var imgData = window._chatPendingImage;
+        window._chatPendingImage = null;
+        document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
+        sendImageMessage(imgData);
+        return;
+    }
+
     var input = document.getElementById('globalChatInput');
     if (!input) return;
     var text = input.value.trim();
@@ -1123,11 +1132,11 @@ window.chatUploadImage = function() {
             return;
         }
 
-        // Compress if not a GIF
+        // Stage image for preview (don't send yet)
         if (file.type === 'image/gif') {
-            readAndSend(file);
+            readAndPreview(file);
         } else {
-            compressAndSend(file);
+            compressAndPreview(file);
         }
     };
     document.body.appendChild(input);
@@ -1135,7 +1144,10 @@ window.chatUploadImage = function() {
     setTimeout(function() { input.remove(); }, 60000);
 };
 
-function compressAndSend(file) {
+// Stage image data for preview
+window._chatPendingImage = null;
+
+function compressAndPreview(file) {
     var reader = new FileReader();
     reader.onload = function(e) {
         var img = new Image();
@@ -1151,14 +1163,14 @@ function compressAndSend(file) {
             canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
             var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            sendImageMessage(dataUrl);
+            showImagePreview(dataUrl);
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-function readAndSend(file) {
+function readAndPreview(file) {
     var reader = new FileReader();
     reader.onload = function(e) {
         var dataUrl = e.target.result;
@@ -1166,10 +1178,38 @@ function readAndSend(file) {
             if (typeof showToast === 'function') showToast('Image too large after encoding. Try a smaller image.');
             return;
         }
-        sendImageMessage(dataUrl);
+        showImagePreview(dataUrl);
     };
     reader.readAsDataURL(file);
 }
+
+function showImagePreview(dataUrl) {
+    window._chatPendingImage = dataUrl;
+    // Remove existing preview
+    var old = document.getElementById('chatImagePreview');
+    if (old) old.remove();
+    // Insert preview above the input area
+    var preview = document.createElement('div');
+    preview.id = 'chatImagePreview';
+    preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.3);border-radius:10px;margin-bottom:6px;';
+    preview.innerHTML =
+        '<img src="' + dataUrl + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
+        '<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:0.8rem;font-weight:600;">📷 Image ready</div><div style="color:var(--text-faint);font-size:0.7rem;">Press Send to share</div></div>' +
+        '<button onclick="cancelImagePreview()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;">✕</button>';
+    // Find the input container to insert before it
+    var containers = document.querySelectorAll('#globalChatInput');
+    containers.forEach(function(inp) {
+        var wrap = inp.closest('div');
+        if (wrap && wrap.parentElement) {
+            wrap.parentElement.insertBefore(preview.cloneNode(true), wrap);
+        }
+    });
+}
+
+window.cancelImagePreview = function() {
+    window._chatPendingImage = null;
+    document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
+};
 
 function sendImageMessage(dataUrl) {
     if (!auth || !auth.currentUser) return;
