@@ -269,6 +269,7 @@ window.toggleNotifOverlay = function() {
     if (!panel) return;
 
     _notifOverlayOpen = !_notifOverlayOpen;
+    window._notifOverlayOpen = _notifOverlayOpen;
     panel.style.transform = _notifOverlayOpen ? 'translateY(0)' : 'translateY(100%)';
 
     if (btn) {

@@ -24784,9 +24784,13 @@ var pullStartY = 0, pullDist = 0, pullEl = null;
 // Check if any overlay/modal/panel is open — block pull-to-refresh when true
 function isAnyOverlayOpen() {
     // Global chat overlay
-    if (typeof _overlayOpen !== 'undefined' && _overlayOpen) return true;
+    if (window._chatOverlayOpen) return true;
+    var chatPanel = document.getElementById('chatOverlay');
+    if (chatPanel && chatPanel.style.transform === 'translateY(0)') return true;
     // Notification panel
-    if (typeof _notifOverlayOpen !== 'undefined' && _notifOverlayOpen) return true;
+    if (window._notifOverlayOpen) return true;
+    var notifPanel = document.getElementById('notifPanel');
+    if (notifPanel && notifPanel.style.transform === 'translateY(0)') return true;
     // Settings/username modal
     var um = document.getElementById('usernameModal');
     if (um && um.classList.contains('open')) return true;

@@ -738,7 +738,6 @@ function createChatOverlay() {
     header.innerHTML += '<div style="display:flex;width:100%;align-items:center;justify-content:space-between;">' +
         '<span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🌍 Global Chat</span>' +
         '<div style="display:flex;align-items:center;gap:4px;">' +
-            '<button onclick="toggleChatOverlay();setTimeout(function(){if(typeof renderChatHub===\'function\')renderChatHub(\'dms\');},300)" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
             '<button onclick="toggleChatOverlay()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
         '</div></div>';
 
@@ -771,6 +770,7 @@ window.toggleChatOverlay = function() {
     if (!panel) return;
 
     _overlayOpen = !_overlayOpen;
+    window._chatOverlayOpen = _overlayOpen;
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
 
     if (btn) {
@@ -805,14 +805,38 @@ window.toggleChatOverlay = function() {
     }
 };
 
+var _overlayTab = 'global';
+
 function renderOverlayChat() {
     var body = document.getElementById('chatOverlayBody');
     if (!body) return;
 
+    _overlayTab = _overlayTab || 'global';
+
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
 
-    body.innerHTML =
+    // Tab bar
+    var tabHtml = '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;">' +
+        '<button onclick="window._switchOverlayTab(\'global\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + (_overlayTab === 'global' ? 'var(--accent)' : 'transparent') + ';color:' + (_overlayTab === 'global' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🌍 Global</button>' +
+        '<button onclick="window._switchOverlayTab(\'dms\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + (_overlayTab === 'dms' ? 'var(--accent)' : 'transparent') + ';color:' + (_overlayTab === 'dms' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
+    '</div>';
+
+    if (_overlayTab === 'dms') {
+        body.innerHTML = tabHtml +
+            '<div id="overlayDMsBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;min-height:0;">' +
+                '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Loading DMs...</div>' +
+            '</div>';
+        setTimeout(function() {
+            var dmBody = document.getElementById('overlayDMsBody');
+            if (!dmBody) return;
+            if (!isSignedIn) { dmBody.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);">Sign in to use DMs</div>'; return; }
+            dmBody.innerHTML = '<div style="text-align:center;padding:20px;"><button onclick="toggleChatOverlay();setTimeout(function(){if(typeof showInbox===\'function\')showInbox();},300)" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">Open DMs →</button></div>';
+        }, 100);
+        return;
+    }
+
+    body.innerHTML = tabHtml +
         '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:6px;min-height:0;">' +
             '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading chat...</div>' +
         '</div>' +
@@ -859,6 +883,12 @@ function renderOverlayChat() {
     startChatListener();
 }
 
+window._switchOverlayTab = function(tab) {
+    _overlayTab = tab;
+    if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+    renderOverlayChat();
+};
+
 // Keep overlay button visible on ALL pages except full chat hub view
 var _origRenderChatHub = window.renderChatHub;
 window.renderChatHub = function(tab) {
@@ -866,6 +896,7 @@ window.renderChatHub = function(tab) {
     if (btn) btn.style.display = 'none';
     if (_overlayOpen) {
         _overlayOpen = false;
+        window._chatOverlayOpen = false;
         var panel = document.getElementById('chatOverlay');
         if (panel) panel.style.transform = 'translateY(100%)';
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
