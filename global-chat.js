@@ -730,7 +730,7 @@ function createChatOverlay() {
         '<span style="font-weight:700;font-size:0.85rem;color:var(--heading,#fff);">🌍 Global Chat</span>' +
         '<div style="display:flex;align-items:center;gap:4px;">' +
             '<button onclick="toggleChatOverlay();setTimeout(function(){if(typeof renderChatHub===\'function\')renderChatHub(\'dms\');},300)" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
-            '<button onclick="toggleChatOverlay()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px 8px;">✕</button>' +
+            '<button onclick="toggleChatOverlay()" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
         '</div></div>';
 
     // Chat content container
@@ -768,6 +768,20 @@ window.toggleChatOverlay = function() {
         btn.innerHTML = _overlayOpen ? '✕' : '💬';
         btn.style.background = _overlayOpen ? 'var(--card-bg)' : 'var(--accent,#f7931a)';
         btn.style.color = _overlayOpen ? 'var(--text-faint)' : '#fff';
+    }
+
+    // Click-outside backdrop
+    var backdrop = document.getElementById('chatOverlayBackdrop');
+    if (_overlayOpen) {
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'chatOverlayBackdrop';
+            backdrop.style.cssText = 'position:fixed;inset:0;z-index:298;background:transparent;';
+            backdrop.onclick = function() { toggleChatOverlay(); };
+            document.body.appendChild(backdrop);
+        }
+    } else {
+        if (backdrop) backdrop.remove();
     }
 
     // Clear badge
@@ -846,6 +860,8 @@ window.renderChatHub = function(tab) {
         var panel = document.getElementById('chatOverlay');
         if (panel) panel.style.transform = 'translateY(100%)';
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
+        var bd = document.getElementById('chatOverlayBackdrop');
+        if (bd) bd.remove();
     }
     return _origRenderChatHub(tab);
 };
@@ -1001,8 +1017,8 @@ window.searchGifs = function(query) {
     el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Searching...</div>';
 
     _gifSearchTimer = setTimeout(function() {
-        // Use Tenor API v2 (free, no key needed for basic search via web endpoint)
-        fetch('https://tenor.googleapis.com/v2/search?q=' + encodeURIComponent(query) + '&key=AIzaSyA4p9DZ5FHOBPHkDYR0WYrZJfEOBPMBhfo&limit=20&media_filter=tinygif')
+        // Use Tenor v1 API (free, anonymous key)
+        fetch('https://g.tenor.com/v1/search?q=' + encodeURIComponent(query) + '&key=LIVDSRZULELA&limit=20&media_filter=minimal')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data.results || data.results.length === 0) {
@@ -1012,12 +1028,13 @@ window.searchGifs = function(query) {
                 var html = '';
                 for (var i = 0; i < data.results.length; i++) {
                     var gif = data.results[i];
-                    var url = gif.media_formats && gif.media_formats.tinygif ? gif.media_formats.tinygif.url : '';
-                    var fullUrl = gif.media_formats && gif.media_formats.gif ? gif.media_formats.gif.url : url;
+                    var media = gif.media && gif.media[0] ? gif.media[0] : {};
+                    var url = media.tinygif ? media.tinygif.url : (media.nanogif ? media.nanogif.url : '');
+                    var fullUrl = media.gif ? media.gif.url : (media.mediumgif ? media.mediumgif.url : url);
                     if (!url) continue;
                     html += '<img src="' + url + '" onclick="sendGifMessage(\'' + fullUrl.replace(/'/g, "\\'") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
-                el.innerHTML = html;
+                el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
             .catch(function() {
                 el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Search failed — try pasting a URL instead</div>';
