@@ -778,9 +778,10 @@ window.toggleChatOverlay = function() {
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
 
     if (btn) {
-        btn.innerHTML = _overlayOpen ? '✕' : '💬';
-        btn.style.background = _overlayOpen ? 'var(--card-bg)' : 'var(--accent,#f7931a)';
-        btn.style.color = _overlayOpen ? 'var(--text-faint)' : '#fff';
+        btn.innerHTML = '💬';
+        btn.style.background = 'var(--accent,#f7931a)';
+        btn.style.color = '#fff';
+        btn.style.display = _overlayOpen ? 'none' : 'block';
     }
 
     // Click-outside backdrop
@@ -1027,7 +1028,10 @@ window.showReactPicker = function(msgId, btnEl) {
         picker.innerHTML = html;
     }
 
-    window._rerenderReactPicker = function() { renderEmojis(); };
+    window._rerenderReactPicker = function() {
+        // Delay re-render to avoid click event bubbling to dismiss handler
+        setTimeout(renderEmojis, 10);
+    };
     renderEmojis();
 
     // Position near button
