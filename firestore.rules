@@ -431,7 +431,10 @@ service cloud.firestore {
     match /notifications/{notifId} {
       allow read: if request.auth != null
                   && request.auth.uid == resource.data.recipientId;
-      allow create: if request.auth != null;
+      // [AUDIT FIX M3] Require senderId matches auth uid or is 'system'
+      allow create: if request.auth != null
+                    && (request.resource.data.senderId == request.auth.uid
+                        || request.resource.data.senderId == 'system');
       allow update: if request.auth != null
                     && request.auth.uid == resource.data.recipientId;
       allow delete: if request.auth != null

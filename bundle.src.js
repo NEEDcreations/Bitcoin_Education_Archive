@@ -18992,9 +18992,17 @@ window.forumNewPost = function() {
 };
 
 // ---- Submit Post ----
+var _lastForumPostTime = 0;
 window.forumSubmitPost = async function() {
     // [AUDIT FIX] Double-submit protection
     if (window._forumSubmitting) return;
+    // [AUDIT FIX M1] Rate limit: 30s between posts
+    var _now = Date.now();
+    if (_now - _lastForumPostTime < 30000) {
+        if (typeof showToast === 'function') showToast('⏳ Wait 30 seconds between posts');
+        return;
+    }
+    _lastForumPostTime = _now;
     window._forumSubmitting = true;
     var status = document.getElementById('forumPostStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
@@ -20680,9 +20688,17 @@ window.showCreateListing = function() {
 };
 
 // ---- Submit Listing to Firestore ----
+var _lastMktListingTime = 0;
 window.submitListing = function() {
     // [AUDIT FIX] Double-submit protection
     if (window._mktSubmitting) return;
+    // [AUDIT FIX M2] Rate limit: 60s between listings
+    var _mktNow = Date.now();
+    if (_mktNow - _lastMktListingTime < 60000) {
+        if (typeof showToast === 'function') showToast('⏳ Wait 60 seconds between listings');
+        return;
+    }
+    _lastMktListingTime = _mktNow;
     var title = (document.getElementById('mktTitle').value || '').trim();
     var price = parseInt(document.getElementById('mktPrice').value);
     var category = document.getElementById('mktCategory').value;

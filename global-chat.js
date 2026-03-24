@@ -365,6 +365,8 @@ function formatChatText(text) {
     });
     // @mentions
     text = text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#6366f1;font-weight:700;">@$1</span>');
+    // H1: Strip any tags except our safe ones (a, span, img)
+    text = text.replace(/<(?!\/?(?:a |a>|span |span>|img |br))[^>]*>/gi, '');
     return text;
 }
 
@@ -1345,6 +1347,11 @@ window.cancelImagePreview = function() {
 
 function sendImageMessage(dataUrl) {
     if (!auth || !auth.currentUser) return;
+    // C2: Validate data URL is actually an image
+    if (dataUrl.startsWith('data:') && !dataUrl.startsWith('data:image/')) {
+        if (typeof showToast === 'function') showToast('Invalid image format');
+        return;
+    }
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
     var now = Date.now();
     if (now - _lastSendTime < RATE_LIMIT_MS) {

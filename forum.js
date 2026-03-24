@@ -520,9 +520,17 @@ window.forumNewPost = function() {
 };
 
 // ---- Submit Post ----
+var _lastForumPostTime = 0;
 window.forumSubmitPost = async function() {
     // [AUDIT FIX] Double-submit protection
     if (window._forumSubmitting) return;
+    // [AUDIT FIX M1] Rate limit: 30s between posts
+    var _now = Date.now();
+    if (_now - _lastForumPostTime < 30000) {
+        if (typeof showToast === 'function') showToast('⏳ Wait 30 seconds between posts');
+        return;
+    }
+    _lastForumPostTime = _now;
     window._forumSubmitting = true;
     var status = document.getElementById('forumPostStatus');
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
