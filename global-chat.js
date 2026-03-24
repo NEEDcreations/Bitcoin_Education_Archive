@@ -1520,7 +1520,7 @@ function djGoLive(uid, username, track) {
         if (Object.keys(updateData).length > 0) {
             db.collection('global_chat_meta').doc(DJ_DOC).update(updateData).catch(function() {});
         }
-    }, 3000);
+    }, 1500); // Broadcast every 1.5s for tighter sync
 }
 
 function checkDJSongLimit() {
@@ -1684,6 +1684,14 @@ function startDJListener() {
                             if (inStep >= 10) clearInterval(fadeIn);
                         }, 100);
                     }).catch(function() {});
+                }
+            }
+
+            // Periodic drift correction for listeners — nudge if >2s off
+            if (_djListening && _djAudio && !_djAudio.paused && d.playbackTime && d.playbackTime > 0) {
+                var drift = Math.abs(_djAudio.currentTime - d.playbackTime);
+                if (drift > 2 && drift < _djAudio.duration - 5) {
+                    _djAudio.currentTime = d.playbackTime;
                 }
             }
 
