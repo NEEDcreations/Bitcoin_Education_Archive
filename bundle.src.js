@@ -2142,7 +2142,9 @@ function updateUserDisplay(lv) {
         var chosenBadge = currentUser.displayBadge;
         var mobileIcons = displayEmoji;
         if (chosenBadge) mobileIcons += ' ' + lv.emoji;
-        mobileInfo.textContent = mobileIcons + ' ' + (currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + streak;
+        var pts = (currentUser.points || 0);
+        var ptsStr = pts > 0 ? ' · ' + pts.toLocaleString() + 'pts' : '';
+        mobileInfo.textContent = mobileIcons + ' ' + (currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + ptsStr + streak;
         mobileInfo.style.display = 'inline';
     }
 
