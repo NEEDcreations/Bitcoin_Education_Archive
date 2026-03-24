@@ -1520,6 +1520,7 @@ function updateAuthButton() {
 function sanitizeInput(str) {
     return str.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '').trim();
 }
+window.sanitizeInput = sanitizeInput;
 
 // Profanity filter
 const PROFANITY_LIST = [
@@ -2407,6 +2408,8 @@ window.confirmDeleteAccount = async function() {
         }
         keysToRemove.forEach(function(k) { localStorage.removeItem(k); });
         sessionStorage.clear();
+        // [AUDIT FIX M5] Clear SW caches on account deletion
+        if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
         // 8. Delete Firebase Auth account
         await user.delete();
@@ -4030,6 +4033,10 @@ async function saveProfile() {
 }
 
 async function signOutUser() {
+    // [AUDIT FIX M5] Clear caches on sign-out for shared device security
+    if ('caches' in window) {
+        try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
+    }
     await auth.signOut();
     location.reload();
 }
@@ -19027,6 +19034,8 @@ window.forumSubmitPost = async function() {
     var body = (document.getElementById('forumNewBody').value || '').trim();
     var link = (document.getElementById('forumNewLink').value || '').trim();
     var category = document.getElementById('forumNewCat').value;
+    // [AUDIT FIX L2] Sanitize all user input
+    if (typeof sanitizeInput === 'function') { title = sanitizeInput(title); body = sanitizeInput(body); }
 
     if (!title || title.length < 5) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Title must be at least 5 characters</span>';
@@ -20704,6 +20713,8 @@ window.submitListing = function() {
     var category = document.getElementById('mktCategory').value;
     var condition = document.getElementById('mktCondition').value;
     var desc = (document.getElementById('mktDesc').value || '').trim();
+    // [AUDIT FIX L2] Sanitize user input
+    if (typeof sanitizeInput === 'function') { title = sanitizeInput(title); desc = sanitizeInput(desc); }
     var imageUrl = window._mktUploadedImage || (document.getElementById('mktImage').value || '').trim();
     var lightning = (document.getElementById('mktLightning').value || '').trim();
     var shipping = document.getElementById('mktShipping').checked;

@@ -607,6 +607,8 @@ window.submitListing = function() {
     var category = document.getElementById('mktCategory').value;
     var condition = document.getElementById('mktCondition').value;
     var desc = (document.getElementById('mktDesc').value || '').trim();
+    // [AUDIT FIX L2] Sanitize user input
+    if (typeof sanitizeInput === 'function') { title = sanitizeInput(title); desc = sanitizeInput(desc); }
     var imageUrl = window._mktUploadedImage || (document.getElementById('mktImage').value || '').trim();
     var lightning = (document.getElementById('mktLightning').value || '').trim();
     var shipping = document.getElementById('mktShipping').checked;

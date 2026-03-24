@@ -1440,6 +1440,7 @@ function updateAuthButton() {
 function sanitizeInput(str) {
     return str.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '').trim();
 }
+window.sanitizeInput = sanitizeInput;
 
 // Profanity filter
 const PROFANITY_LIST = [
@@ -2327,6 +2328,8 @@ window.confirmDeleteAccount = async function() {
         }
         keysToRemove.forEach(function(k) { localStorage.removeItem(k); });
         sessionStorage.clear();
+        // [AUDIT FIX M5] Clear SW caches on account deletion
+        if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
         // 8. Delete Firebase Auth account
         await user.delete();
@@ -3950,6 +3953,10 @@ async function saveProfile() {
 }
 
 async function signOutUser() {
+    // [AUDIT FIX M5] Clear caches on sign-out for shared device security
+    if ('caches' in window) {
+        try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
+    }
     await auth.signOut();
     location.reload();
 }

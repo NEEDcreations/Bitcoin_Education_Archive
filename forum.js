@@ -555,6 +555,8 @@ window.forumSubmitPost = async function() {
     var body = (document.getElementById('forumNewBody').value || '').trim();
     var link = (document.getElementById('forumNewLink').value || '').trim();
     var category = document.getElementById('forumNewCat').value;
+    // [AUDIT FIX L2] Sanitize all user input
+    if (typeof sanitizeInput === 'function') { title = sanitizeInput(title); body = sanitizeInput(body); }
 
     if (!title || title.length < 5) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Title must be at least 5 characters</span>';
