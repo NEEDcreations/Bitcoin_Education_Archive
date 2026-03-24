@@ -30243,6 +30243,15 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // Close Learn menu / Apps menu if open
+            var _learnMenu = document.getElementById('mobileLearnMenu');
+            if (_learnMenu) { _learnMenu.remove(); return; }
+            var _appsMenu = document.getElementById('appsMenu');
+            if (_appsMenu && _appsMenu.style.display === 'block') { _appsMenu.style.display = 'none'; return; }
+            // Close quest/scholar modal if open
+            var _questModal = document.getElementById('questModal');
+            if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
+
             var _overlayIds = ['onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
