@@ -353,6 +353,7 @@ async function handleEmailSignIn() {
                 created: firebase.firestore.FieldValue.serverTimestamp()
             };
             if (pendingGiveaway) {
+                userData.lightningAddress = pendingGiveaway;
                 userData.giveaway = {
                     entered: true,
                     lightningAddress: pendingGiveaway,
@@ -1086,12 +1087,14 @@ async function submitGiveawayProvider(uid, displayName) {
         // Save giveaway entry
         try {
             await db.collection('users').doc(uid).update({
+                lightningAddress: lnAddress,
                 giveaway: {
                     entered: true,
                     lightningAddress: lnAddress,
                     enteredAt: new Date().toISOString()
                 }
             });
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.lightningAddress = lnAddress;
             await db.collection('giveaway_entries').doc(uid).set({
                 username: displayName,
                 lightningAddress: lnAddress,
@@ -1513,6 +1516,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     };
     if (email) userData.email = email;
     if (enteredGiveaway && giveawayLnAddress) {
+        userData.lightningAddress = giveawayLnAddress;
         userData.giveaway = {
             entered: true,
             lightningAddress: giveawayLnAddress,
@@ -3972,6 +3976,13 @@ window.submitUsername = async function() {
         var giveawayLn = document.getElementById('giveawayLnAddress');
         var enteredGiveaway = giveawayCheckbox && giveawayCheckbox.checked;
         var lnAddress = giveawayLn ? giveawayLn.value.trim() : '';
+
+        // Require Lightning address if giveaway is checked
+        if (enteredGiveaway && !lnAddress) {
+            if (giveawayLn) { giveawayLn.style.borderColor = '#ef4444'; giveawayLn.focus(); }
+            showToast('⚡ Enter a Lightning address to enter the giveaway, or uncheck the box to skip.');
+            return;
+        }
 
         if (email) {
             // Email provided — send magic link for verification
