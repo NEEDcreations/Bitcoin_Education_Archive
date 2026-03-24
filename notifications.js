@@ -357,6 +357,16 @@ updateNotifBadge = function() {
             badge.style.display = 'none';
         }
     }
+    // Mirror to bottom nav badge
+    var bnavBadge = document.getElementById('bnavNotifBadge');
+    if (bnavBadge) {
+        if (count > 0 && !_notifOverlayOpen) {
+            bnavBadge.textContent = count > 9 ? '9+' : count;
+            bnavBadge.style.display = 'block';
+        } else {
+            bnavBadge.style.display = 'none';
+        }
+    }
 };
 
 // ---- Self-Notifications (local events → Firestore) ----

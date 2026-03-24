@@ -276,7 +276,7 @@ window.applySimplifiedHome = function() {
         try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
         if (visited.length < 5) {
             var bnavApps = document.getElementById('bnavApps');
-            var bnavMsg = document.getElementById('bnavMsg');
+            var bnavMsg = document.getElementById('bnavMsg') || document.getElementById('bnavNotif');
             if (bnavApps) { bnavApps.setAttribute('data-simplified-hidden', 'true'); bnavApps.style.display = 'none'; }
             if (bnavMsg) { bnavMsg.setAttribute('data-simplified-hidden', 'true'); bnavMsg.style.display = 'none'; }
         }
@@ -426,7 +426,7 @@ window.checkProgressiveReveal = function() {
 
     // After 3 channels: show Nacho, Explore Apps, Chat
     if (v.length >= 3) {
-        ['#nacho-container', '#bnavApps', '#bnavMsg'].forEach(function(sel) {
+        ['#nacho-container', '#bnavApps', '#bnavNotif'].forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(el) {
                 if (el.getAttribute('data-simplified-hidden')) {
                     el.style.display = '';
