@@ -26185,6 +26185,8 @@ if (document.readyState === 'loading') {
         localStorage.setItem('theme', isDark ? 'light' : 'dark');
         const icon = document.getElementById('themeBtn');
         if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+        const mIcon = document.getElementById('mobileThemeBtn');
+        if (mIcon) mIcon.textContent = isDark ? '☀️' : '🌙';
     }
 
     function toggleMenu() {

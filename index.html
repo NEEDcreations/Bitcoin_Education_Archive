@@ -534,6 +534,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
             <span id="mobileUserInfo" onclick="if(auth&&auth.currentUser&&!auth.currentUser.isAnonymous){showUsernamePrompt()}else{toggleMenu()}" style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;display:none;"></span>
+            <button onclick="toggleTheme()" id="mobileThemeBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;" title="Light/Dark mode"><script>document.write(localStorage.getItem('theme')==='light'?'☀️':'🌙')</script></button>
             <button onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:var(--accent);color:#fff;border:none;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;">🔍</button>
             <button onclick="toggleMenu()">☰ Channels</button>
         </div>
