@@ -308,7 +308,7 @@ function renderChatMessages(msgs) {
         }
         // GIF/image messages render as images; text messages use formatChatText
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || m.text.startsWith('data:image/'))) {
-            html += '<img src="' + esc(m.text) + '" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" loading="lazy">';
+            html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || '')) + '</div>';
         }
@@ -487,12 +487,14 @@ window.cancelReply = function() {
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
-    // Check for pending image — send it
+    // Check for pending image/GIF — send it
     if (window._chatPendingImage) {
         var imgData = window._chatPendingImage;
+        var isGif = window._chatPendingIsGif;
         window._chatPendingImage = null;
+        window._chatPendingIsGif = false;
         document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
-        sendImageMessage(imgData);
+        if (isGif) { sendGifMessage(imgData); } else { sendImageMessage(imgData); }
         return;
     }
 
@@ -1072,7 +1074,7 @@ window.searchGifs = function(query) {
                     var url = media.tinygif ? media.tinygif.url : (media.nanogif ? media.nanogif.url : '');
                     var fullUrl = media.gif ? media.gif.url : (media.mediumgif ? media.mediumgif.url : url);
                     if (!url) continue;
-                    html += '<img src="' + url + '" onclick="sendGifMessage(\'' + fullUrl.replace(/'/g, "\\'") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    html += '<img src="' + url + '" onclick="previewGifBeforeSend(\'' + fullUrl.replace(/'/g, "\\'") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
@@ -1080,6 +1082,43 @@ window.searchGifs = function(query) {
                 el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Search failed — try pasting a URL instead</div>';
             });
     }, 400);
+};
+
+window.previewGifBeforeSend = function(url) {
+    if (!url) return;
+    // Close the GIF picker
+    var picker = document.getElementById('gifPicker');
+    if (picker) picker.remove();
+    // Stage like image preview
+    window._chatPendingImage = url;
+    window._chatPendingIsGif = true;
+    var old = document.getElementById('chatImagePreview');
+    if (old) old.remove();
+    var preview = document.createElement('div');
+    preview.id = 'chatImagePreview';
+    preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;margin-bottom:6px;';
+    preview.innerHTML =
+        '<img src="' + url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
+        '<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:0.8rem;font-weight:600;">GIF ready</div><div style="color:var(--text-faint);font-size:0.7rem;">Press Send to share</div></div>' +
+        '<button onclick="cancelImagePreview()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;">✕</button>';
+    var containers = document.querySelectorAll('#globalChatInput');
+    containers.forEach(function(inp) {
+        var wrap = inp.closest('div');
+        if (wrap && wrap.parentElement) {
+            wrap.parentElement.insertBefore(preview.cloneNode(true), wrap);
+        }
+    });
+};
+
+window.enlargeChatImage = function(src) {
+    var old = document.getElementById('chatImageLightbox');
+    if (old) { old.remove(); return; }
+    var lb = document.createElement('div');
+    lb.id = 'chatImageLightbox';
+    lb.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+    lb.onclick = function() { lb.remove(); };
+    lb.innerHTML = '<img src="' + src + '" style="max-width:95%;max-height:90vh;border-radius:12px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5);pointer-events:none;">';
+    document.body.appendChild(lb);
 };
 
 window.sendGifMessage = function(url) {
@@ -1135,7 +1174,7 @@ window.sendGifUrl = function() {
         if (typeof showToast === 'function') showToast('Must be a direct image URL (.gif, .png, .jpg, .webp)');
         return;
     }
-    sendGifMessage(url);
+    previewGifBeforeSend(url);
 };
 
 // ---- Image Upload ----
@@ -1154,8 +1193,8 @@ window.chatUploadImage = function() {
     input.onchange = function() {
         var file = input.files[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            if (typeof showToast === 'function') showToast('Image too large (max 2MB)');
+        if (file.size > 10 * 1024 * 1024) {
+            if (typeof showToast === 'function') showToast('Image too large (max 10MB)');
             return;
         }
         if (!file.type.startsWith('image/')) {
@@ -1184,7 +1223,7 @@ function compressAndPreview(file) {
         var img = new Image();
         img.onload = function() {
             var canvas = document.createElement('canvas');
-            var maxDim = 800;
+            var maxDim = 1200;
             var w = img.width, h = img.height;
             if (w > maxDim || h > maxDim) {
                 if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
@@ -1193,7 +1232,7 @@ function compressAndPreview(file) {
             canvas.width = w;
             canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.65);
             showImagePreview(dataUrl);
         };
         img.src = e.target.result;
