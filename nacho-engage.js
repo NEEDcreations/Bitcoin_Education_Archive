@@ -55,6 +55,7 @@ window.nachoCheckMilestone = function() {
         if (pts >= m && !celebrated.includes(m)) {
             celebrated.push(m);
             localStorage.setItem('btc_nacho_milestones', JSON.stringify(celebrated));
+            if (typeof syncCelebratedState === 'function') syncCelebratedState();
             var lvl = typeof getLevel === 'function' ? getLevel(pts) : null;
             var rank = lvl ? ' You\'re now rank: ' + lvl.emoji + ' ' + lvl.name + '!' : '';
             return { pose: 'celebrate', text: "🎉 " + m.toLocaleString() + " points" + n + "!" + rank + " Incredible progress! 🦌💪" };
@@ -86,6 +87,7 @@ window.nachoCategoryCheck = function(channelId) {
         if (allVisited) {
             celebrated.push(cat);
             localStorage.setItem('btc_nacho_cat_complete', JSON.stringify(celebrated));
+            if (typeof syncCelebratedState === 'function') syncCelebratedState();
             return { pose: 'celebrate', text: "🏆 You've read every channel in " + cat + n + "! You're a true Bitcoin scholar in that area! 🦌🎓" };
         }
     }

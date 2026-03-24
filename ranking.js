@@ -1251,6 +1251,17 @@ async function loadUser(uid, prefetchedDoc) {
             if (currentUser.scholarPassed) {
                 localStorage.setItem('btc_scholar_passed', 'true');
             }
+            // Restore milestone/celebration state from Firestore (prevents re-triggering)
+            if (currentUser.nachoMilestones) {
+                localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(currentUser.nachoMilestones));
+            }
+            if (currentUser.celebratedState) {
+                var cs = currentUser.celebratedState;
+                if (cs.nachoMilestones) localStorage.setItem('btc_nacho_milestones', JSON.stringify(cs.nachoMilestones));
+                if (cs.nachoCatComplete) localStorage.setItem('btc_nacho_cat_complete', JSON.stringify(cs.nachoCatComplete));
+                if (cs.nachoLevelCelebrated) localStorage.setItem('btc_nacho_level_celebrated', JSON.stringify(cs.nachoLevelCelebrated));
+                if (cs.nachoItemsNotified) localStorage.setItem('btc_nacho_items_notified', JSON.stringify(cs.nachoItemsNotified));
+            }
             // Restore Nacho interaction counts — use max of Firebase vs localStorage
             if (currentUser.nachoInteractions) {
                 var localInteractions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
@@ -1441,6 +1452,18 @@ function sanitizeInput(str) {
     return str.replace(/<[^>]*>/g, '').replace(/[<>"'&]/g, '').trim();
 }
 window.sanitizeInput = sanitizeInput;
+
+// Sync all celebration/milestone state to Firestore (prevents re-triggering on re-login)
+window.syncCelebratedState = function() {
+    if (typeof db === 'undefined' || !auth || !auth.currentUser) return;
+    var state = {
+        nachoMilestones: safeJSON('btc_nacho_milestones', []),
+        nachoCatComplete: safeJSON('btc_nacho_cat_complete', []),
+        nachoLevelCelebrated: safeJSON('btc_nacho_level_celebrated', []),
+        nachoItemsNotified: safeJSON('btc_nacho_items_notified', [])
+    };
+    db.collection('users').doc(auth.currentUser.uid).update({ celebratedState: state }).catch(function() {});
+};
 
 // Profanity filter
 const PROFANITY_LIST = [

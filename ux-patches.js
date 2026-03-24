@@ -475,6 +475,7 @@
                 if (celebrated.indexOf(newLevel.level) === -1) {
                     celebrated.push(newLevel.level);
                     localStorage.setItem('btc_nacho_level_celebrated', JSON.stringify(celebrated));
+                    if (typeof syncCelebratedState === 'function') syncCelebratedState();
 
                     // Show celebration
                     setTimeout(function() {

@@ -1782,6 +1782,10 @@
             if (interactions >= parseInt(count) && shown.indexOf(count) === -1 && shown.indexOf(parseInt(count)) === -1) {
                 shown.push(count);
                 localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(shown));
+                // Persist to Firestore so milestones don't re-trigger on re-login
+                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser) {
+                    db.collection('users').doc(auth.currentUser.uid).update({ nachoMilestones: shown }).catch(function() {});
+                }
                 var msgs = {
                     10: "🎉 10 questions! You're officially a Bitcoin Beginner! Keep going — there's so much to learn! 🦌",
                     25: "🎉 25 questions! You've leveled up to Bitcoin Explorer! You're asking the right questions! 💪",
