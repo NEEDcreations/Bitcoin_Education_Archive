@@ -826,14 +826,77 @@ function renderOverlayChat() {
 
     if (_overlayTab === 'dms') {
         body.innerHTML = tabHtml +
-            '<div id="overlayDMsBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;min-height:0;">' +
+            '<div id="overlayDMsBody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;min-height:0;">' +
                 '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Loading DMs...</div>' +
             '</div>';
         setTimeout(function() {
             var dmBody = document.getElementById('overlayDMsBody');
             if (!dmBody) return;
-            if (!isSignedIn) { dmBody.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);">Sign in to use DMs</div>'; return; }
-            dmBody.innerHTML = '<div style="text-align:center;padding:20px;"><button onclick="toggleChatOverlay();setTimeout(function(){if(typeof showInbox===\'function\')showInbox();},300)" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">Open DMs →</button></div>';
+            if (!isSignedIn) {
+                dmBody.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">📬</div><div style="color:var(--text-faint);font-size:0.85rem;">Sign in to see messages</div></div>';
+                return;
+            }
+            var myUid = auth.currentUser.uid;
+            db.collection('dm_conversations')
+                .where('participants', 'array-contains', myUid)
+                .orderBy('lastMessageTime', 'desc')
+                .limit(30)
+                .get()
+                .then(function(snap) {
+                    if (!document.getElementById('overlayDMsBody')) return;
+                    if (snap.empty) {
+                        dmBody.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">📬</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet</div><div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Tap a user on the leaderboard to start chatting!</div></div>';
+                        return;
+                    }
+                    var html = '';
+                    snap.forEach(function(doc) {
+                        var c = doc.data();
+                        var otherUid = c.participants.find(function(p) { return p !== myUid; });
+                        var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+                        var unread = c['unread_' + myUid] || 0;
+                        var lastMsg = c.lastMessage || '';
+                        if (lastMsg.length > 40) lastMsg = lastMsg.substring(0, 40) + '...';
+                        var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
+                        var isFromMe = c.lastSenderUid === myUid;
+                        html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/'/g, "\\'") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
+                            '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
+                            '<div style="flex:1;min-width:0;">' +
+                                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                                    '<div style="font-weight:' + (unread > 0 ? '700' : '500') + ';color:var(--heading);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName) + '</div>' +
+                                    '<div style="font-size:0.6rem;color:var(--text-faint);flex-shrink:0;">' + lastTime + '</div>' +
+                                '</div>' +
+                                '<div style="font-size:0.75rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + (typeof escapeHtml === 'function' ? escapeHtml(lastMsg) : lastMsg) + '</div>' +
+                            '</div>' +
+                            (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px;flex-shrink:0;">' + unread + '</div>' : '') +
+                        '</div>';
+                    });
+                    dmBody.innerHTML = html;
+                })
+                .catch(function(err) {
+                    console.error('Overlay DM load error:', err);
+                    if (err.code === 'failed-precondition') {
+                        // Retry without orderBy
+                        db.collection('dm_conversations').where('participants', 'array-contains', myUid).limit(30).get().then(function(snap) {
+                            if (!document.getElementById('overlayDMsBody')) return;
+                            if (snap.empty) { dmBody.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);">No messages yet</div>'; return; }
+                            var html = '';
+                            snap.forEach(function(doc) {
+                                var c = doc.data();
+                                var otherUid = c.participants.find(function(p) { return p !== myUid; });
+                                var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
+                                var unread = c['unread_' + myUid] || 0;
+                                html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/'/g, "\\'") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
+                                    '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
+                                    '<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--heading);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName) + '</div></div>' +
+                                    (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px;">' + unread + '</div>' : '') +
+                                '</div>';
+                            });
+                            dmBody.innerHTML = html;
+                        }).catch(function() { dmBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load messages</div>'; });
+                    } else {
+                        dmBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load messages</div>';
+                    }
+                });
         }, 100);
         return;
     }
