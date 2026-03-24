@@ -372,7 +372,7 @@ updateNotifBadge = function() {
 // ---- Self-Notifications (local events → Firestore) ----
 // Notify on level up (leaderboard rank)
 window.notifySelfLevelUp = function(minPts, levelName, emoji) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system',
@@ -387,7 +387,7 @@ window.notifySelfLevelUp = function(minPts, levelName, emoji) {
 
 // Notify on badge unlock
 window.notifySelfBadge = function(badgeName, badgeEmoji) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
@@ -401,7 +401,7 @@ window.notifySelfBadge = function(badgeName, badgeEmoji) {
 
 // Notify on quest complete
 window.notifySelfQuest = function(questName) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
@@ -431,7 +431,7 @@ window.notifyTipReceived = function(recipientId, amount, senderName) {
 
 // Notify spin available
 window.notifySpinAvailable = function() {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     // Check if we already notified today
     var key = 'btc_spin_notif_' + new Date().toDateString();
     if (localStorage.getItem(key)) return;
@@ -449,7 +449,7 @@ window.notifySpinAvailable = function() {
 
 // Notify price prediction result
 window.notifyPredictionResult = function(correct, direction) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
@@ -463,7 +463,7 @@ window.notifyPredictionResult = function(correct, direction) {
 
 // Notify spin wheel result
 window.notifySelfSpin = function(rewardText) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
@@ -477,7 +477,7 @@ window.notifySelfSpin = function(rewardText) {
 
 // Notify referral reward
 window.notifySelfReferral = function(ticketsEarned) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
@@ -491,7 +491,7 @@ window.notifySelfReferral = function(ticketsEarned) {
 
 // Notify Nacho closet item unlock
 window.notifySelfClosetItem = function(itemName, itemEmoji) {
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!auth || !auth.currentUser) return;
     db.collection('notifications').add({
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
