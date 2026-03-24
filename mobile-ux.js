@@ -65,6 +65,14 @@ function initPullToRefresh() {
 
     main.addEventListener('touchstart', function(e) {
         if (isAnyOverlayOpen()) { pullStartY = 0; return; }
+        // Don't trigger if touch is inside a fixed overlay
+        var t = e.target;
+        while (t && t !== main) {
+            if (t.id === 'chatOverlay' || t.id === 'notifPanel' || t.id === 'chatOverlayBtn' || t.id === 'usernameModal' || t.id === 'searchOverlay' || t.id === 'onboardingOverlay') { pullStartY = 0; return; }
+            var pos = window.getComputedStyle(t).position;
+            if (pos === 'fixed' || pos === 'absolute') { pullStartY = 0; return; }
+            t = t.parentElement;
+        }
         if (main.scrollTop <= 0) pullStartY = e.touches[0].clientY;
         else pullStartY = 0;
     }, { passive: true });

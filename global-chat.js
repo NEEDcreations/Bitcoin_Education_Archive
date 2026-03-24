@@ -724,7 +724,7 @@ function createChatOverlay() {
     btn.id = 'chatOverlayBtn';
     btn.innerHTML = '💬';
     btn.title = 'Open Chat';
-    btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;bottom:calc(70px + env(safe-area-inset-bottom,0px));right:16px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleChatOverlay;
     // Start visible on all screen sizes
 
@@ -762,7 +762,7 @@ function createChatOverlay() {
 
     // Style for desktop — chat btn bottom-right, left of search magnifying glass
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:80px;right:20px;}}@media(max-width:900px){#chatOverlayBtn{display:none!important;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:80px;right:20px;}}';
     document.head.appendChild(style);
 }
 
@@ -911,15 +911,14 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn) btn.style.display = (window.innerWidth > 900) ? 'block' : 'none';
+    // Show on all screen sizes (unless full chat hub is open)
+    if (btn && !document.getElementById('chatContent')) btn.style.display = 'block';
 }
-// Periodically check button visibility on desktop (catches app navigations that don't call go())
+// Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
-    if (window.innerWidth > 900) {
-        var btn = document.getElementById('chatOverlayBtn');
-        if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
-            btn.style.display = 'block';
-        }
+    var btn = document.getElementById('chatOverlayBtn');
+    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
+        btn.style.display = 'block';
     }
 }, 3000);
 
