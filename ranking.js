@@ -180,6 +180,15 @@ function initRanking() {
         
         auth.onAuthStateChanged(user => {
             console.log('[Auth] onAuthStateChanged:', user ? (user.isAnonymous ? 'anon:' + user.uid : 'real:' + user.uid) : 'null', 'firstEvent:', firstAuthEvent, 'pendingRedirect:', _pendingRedirect);
+            // Detect account switch: if a real user signs in and it's a different UID, clear old data
+            if (user && !user.isAnonymous) {
+                var prevUid = localStorage.getItem('btc_last_auth_uid');
+                if (prevUid && prevUid !== user.uid) {
+                    console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '— clearing localStorage');
+                    clearUserLocalStorage();
+                }
+                localStorage.setItem('btc_last_auth_uid', user.uid);
+            }
             if (firstAuthEvent) {
                 firstAuthEvent = false;
                 // If email link sign-in is being handled, skip — handleEmailSignIn manages it
@@ -3975,11 +3984,28 @@ async function saveProfile() {
     }
 }
 
+// Clear all user-specific localStorage to prevent cross-account leakage
+function clearUserLocalStorage() {
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid'];
+    var toRemove = [];
+    for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf('btc_') === 0 && preserve.indexOf(key) === -1) {
+            toRemove.push(key);
+        }
+    }
+    for (var j = 0; j < toRemove.length; j++) {
+        localStorage.removeItem(toRemove[j]);
+    }
+}
+window.clearUserLocalStorage = clearUserLocalStorage;
+
 async function signOutUser() {
     // [AUDIT FIX M5] Clear caches on sign-out for shared device security
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
+    clearUserLocalStorage();
     await auth.signOut();
     location.reload();
 }

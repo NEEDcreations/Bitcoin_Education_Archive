@@ -7,7 +7,9 @@
 var CHAT_COLLECTION = 'global_chat';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
-var MAX_MSGS_DISPLAY = 100;
+var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
+var CHAT_INITIAL_SHOW = 20; // Render initially
+var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
 var _lastSendTime = 0;
 var _chatTab = 'global'; // 'global' or 'dms'
@@ -230,9 +232,10 @@ function startChatListener() {
         return;
     }
 
+    window._chatShowCount = 0; // Reset on fresh load
     _chatUnsub = db.collection(CHAT_COLLECTION)
         .orderBy('ts', 'desc')
-        .limit(MAX_MSGS_DISPLAY)
+        .limit(CHAT_INITIAL_SHOW)
         .onSnapshot(function(snapshot) {
             var msgs = [];
             snapshot.forEach(function(doc) {
@@ -249,9 +252,23 @@ function startChatListener() {
         });
 }
 
+window._chatAllMsgs = [];
+window._chatShowCount = 0;
+
 function renderChatMessages(msgs) {
     var el = document.getElementById('globalChatMessages');
     if (!el) return;
+
+    window._chatAllMsgs = msgs;
+    // On first render or new messages, show last CHAT_INITIAL_SHOW
+    // If user already loaded more, keep their expanded view
+    if (!window._chatShowCount || window._chatShowCount < CHAT_INITIAL_SHOW) {
+        window._chatShowCount = CHAT_INITIAL_SHOW;
+    }
+    // If new messages came in, keep showing at least what we had
+    var showCount = Math.min(window._chatShowCount, msgs.length);
+    var visibleMsgs = msgs.slice(Math.max(0, msgs.length - showCount));
+    var hasMore = msgs.length > showCount;
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email === 'needcreations@gmail.com';
@@ -263,16 +280,22 @@ function renderChatMessages(msgs) {
     }
 
     // Cache usernames for @mention autocomplete
-    for (var u = 0; u < msgs.length; u++) {
-        if (msgs[u].uid && msgs[u].name && msgs[u].uid !== 'nacho-bot') {
-            _chatUsers[msgs[u].uid] = msgs[u].name;
+    for (var u = 0; u < visibleMsgs.length; u++) {
+        if (visibleMsgs[u].uid && visibleMsgs[u].name && visibleMsgs[u].uid !== 'nacho-bot') {
+            _chatUsers[visibleMsgs[u].uid] = visibleMsgs[u].name;
         }
     }
 
     var html = '';
+
+    // "Load earlier" button at top
+    if (hasMore) {
+        html += '<div id="chatLoadMore" onclick="loadEarlierMessages()" style="padding:12px;text-align:center;cursor:pointer;color:var(--accent);font-size:0.8rem;font-weight:600;border-bottom:1px solid var(--border);opacity:0.8;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">↑ Load earlier messages</div>';
+    }
+
     var lastDate = '';
-    for (var i = 0; i < msgs.length; i++) {
-        var m = msgs[i];
+    for (var i = 0; i < visibleMsgs.length; i++) {
+        var m = visibleMsgs[i];
         var isMe = m.uid === myUid;
         var dateStr = m.ts ? (m.ts.toDate ? m.ts.toDate() : new Date(m.ts)).toLocaleDateString() : '';
 
@@ -291,28 +314,23 @@ function renderChatMessages(msgs) {
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         html += '<span style="font-weight:700;font-size:0.75rem;color:' + nameColor + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + esc(m.name || 'Anon') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
-        // Reply button (for all logged-in users)
         if (myUid) {
             html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/'/g,'\\&#39;') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/'/g,'\\&#39;') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
-        // Delete: own messages OR admin can delete anyone's
         if (isMe || isAdmin) {
             html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
-        // Show reply quote if this message is a reply
         if (m.replyToName) {
             html += '<div style="padding:4px 8px;margin-bottom:4px;border-left:2px solid #6366f1;font-size:0.7rem;color:var(--text-faint);border-radius:2px;background:rgba(99,102,241,0.05);">';
             html += '<span style="font-weight:700;">' + esc(m.replyToName) + '</span>: ' + esc((m.replyToText||'').substring(0,60)) + (m.replyToText && m.replyToText.length > 60 ? '…' : '');
             html += '</div>';
         }
-        // GIF/image messages render as images; text messages use formatChatText
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || m.text.startsWith('data:image/'))) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || '')) + '</div>';
         }
-        // Reactions display
         var reactions = m.reactions || {};
         var hasReactions = Object.keys(reactions).length > 0;
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:' + (hasReactions ? '4px' : '0') + ';">';
@@ -323,10 +341,8 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + emoji + '\')" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + emoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
-        // Add reaction + tip buttons
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
-            // Tip button (don't show on own messages or system/bot messages)
             if (!isMe && m.uid !== 'nacho-bot' && m.uid !== 'system') {
                 html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/'/g, '\\&#39;') + '\',recipientUid:\'' + (m.uid || '') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
@@ -350,6 +366,46 @@ function renderChatMessages(msgs) {
         el.addEventListener('scroll', function() { el._userScrolled = true; });
     }
 }
+
+// Load earlier messages from Firestore
+window.loadEarlierMessages = function() {
+    var btn = document.getElementById('chatLoadMore');
+    if (btn) btn.innerHTML = '⏳ Loading...';
+    if (!window._chatAllMsgs || window._chatAllMsgs.length === 0) return;
+    var oldest = window._chatAllMsgs[0];
+    if (!oldest || !oldest.ts) return;
+    var el = document.getElementById('globalChatMessages');
+    var oldHeight = el ? el.scrollHeight : 0;
+
+    db.collection(CHAT_COLLECTION)
+        .orderBy('ts', 'desc')
+        .startAfter(oldest.ts)
+        .limit(CHAT_LOAD_MORE_COUNT)
+        .get().then(function(snap) {
+            var older = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                d._id = doc.id;
+                older.push(d);
+            });
+            older.reverse(); // oldest first
+            if (older.length > 0) {
+                window._chatAllMsgs = older.concat(window._chatAllMsgs);
+                window._chatShowCount = window._chatAllMsgs.length;
+                renderChatMessages(window._chatAllMsgs);
+                // Preserve scroll position
+                if (el) {
+                    setTimeout(function() {
+                        el.scrollTop = el.scrollHeight - oldHeight;
+                    }, 50);
+                }
+            } else {
+                if (btn) btn.innerHTML = '— Beginning of chat —';
+            }
+        }).catch(function() {
+            if (btn) btn.innerHTML = '↑ Load earlier messages';
+        });
+};
 
 // Format chat text: links, #channels, @mentions, inline images/GIFs
 function formatChatText(text) {
