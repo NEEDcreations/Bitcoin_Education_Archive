@@ -836,7 +836,7 @@ function createChatOverlay() {
 
     // Style for desktop — chat btn bottom-right, left of search magnifying glass
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;left:20px;right:auto;}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;left:16px;right:auto;border-radius:16px 16px 0 0;}#chatOverlayBtn{bottom:20px;left:20px;right:auto;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
 }
 
@@ -1821,7 +1821,7 @@ function showDJBar(d) {
             '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;align-items:center;">' +
                 (isDJ ?
                     '<button onclick="djStopBroadcast()" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.7rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;">⏹ Stop DJ</button>' :
-                    '<button id="djTuneBtn" onclick="djTuneIn()" style="padding:6px 10px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>'
+                    '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>'
                 ) +
                 (d.djUid && !isDJ ? '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>' : '') +
                 (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:4px 8px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.6rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
