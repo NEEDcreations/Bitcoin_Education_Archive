@@ -289,11 +289,39 @@ async function handleEmailSignIn() {
     if (!email) {
         email = localStorage.getItem('btc_signin_email');
     }
-    // Last resort: prompt the user (cross-device scenario where no email is available)
+    // Last resort: show a friendly inline prompt (cross-device scenario)
     if (!email) {
-        email = prompt('Please enter the email you used to sign up:');
-        if (email) email = email.trim().toLowerCase();
+        return new Promise(function(resolve) {
+            var ov = document.createElement('div');
+            ov.id = 'emailConfirmOverlay';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+            ov.innerHTML = '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
+                '<div style="font-size:2rem;margin-bottom:12px;">📧</div>' +
+                '<div style="font-size:1.1rem;font-weight:800;color:var(--heading,#fff);margin-bottom:8px;">Confirm Your Email</div>' +
+                '<div style="font-size:0.85rem;color:var(--text-muted,#999);margin-bottom:20px;line-height:1.5;">It looks like you opened this link on a different device. Enter the email you used to sign up:</div>' +
+                '<input id="crossDeviceEmail" type="email" placeholder="your@email.com" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:10px;color:var(--text,#fff);font-size:1rem;text-align:center;font-family:inherit;box-sizing:border-box;margin-bottom:12px;" autofocus>' +
+                '<button id="crossDeviceSubmit" style="width:100%;padding:14px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In</button>' +
+                '<div onclick="this.closest(\'#emailConfirmOverlay\').remove()" style="margin-top:12px;font-size:0.8rem;color:var(--text-faint,#666);cursor:pointer;">Cancel</div>' +
+            '</div>';
+            document.body.appendChild(ov);
+            var inp = document.getElementById('crossDeviceEmail');
+            var btn = document.getElementById('crossDeviceSubmit');
+            function submit() {
+                var val = inp.value.trim().toLowerCase();
+                if (!val || !val.includes('@')) { if (typeof showToast === 'function') showToast('Please enter a valid email'); return; }
+                ov.remove();
+                email = val;
+                resolve(finishEmailSignIn(email, _signInUrl));
+            }
+            btn.onclick = submit;
+            inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') submit(); });
+            setTimeout(function() { inp.focus(); }, 100);
+        });
     }
+    return finishEmailSignIn(email, _signInUrl);
+}
+
+async function finishEmailSignIn(email, _signInUrl) {
     if (!email) {
         showToast('⚠️ Could not determine your email. Please sign in again from the app.');
         return;
@@ -3986,7 +4014,7 @@ async function saveProfile() {
 
 // Clear all user-specific localStorage to prevent cross-account leakage
 function clearUserLocalStorage() {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid'];
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_giveaway'];
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
