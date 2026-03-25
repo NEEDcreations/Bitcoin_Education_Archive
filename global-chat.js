@@ -633,6 +633,22 @@ window.sendGlobalChat = function() {
             if (result.type === 'fallback') return;
             var answer = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
             if (!answer || answer.length < 10) return;
+            // Append channel link if Nacho's answer references a channel
+            if (result.channel && typeof CHANNELS !== 'undefined' && CHANNELS[result.channel]) {
+                answer += ' 👉 #' + result.channel;
+            }
+            // Add links for common app/navigation references
+            var lowerAnswer = answer.toLowerCase();
+            if (!result.channel) {
+                if (/\bhome\b/.test(lowerAnswer) && !/#/.test(answer)) answer += ' 👉 Go to Home by tapping the ₿ logo!';
+                else if (/\bnacho mode\b/.test(lowerAnswer) && !/#nacho/.test(answer)) answer += ' 👉 #nacho';
+                else if (/\bbeats\b|\bmusic\b|\bdj\b/.test(lowerAnswer) && !/#bitcoin-beats/.test(answer)) answer += ' 👉 #bitcoin-beats';
+                else if (/\bforum\b|\bpleb\s*talk\b/.test(lowerAnswer) && !/#forum/.test(answer)) answer += ' 👉 #forum';
+                else if (/\bmarketplace\b|\blightning\s*mart\b/.test(lowerAnswer) && !/#marketplace/.test(answer)) answer += ' 👉 #marketplace';
+                else if (/\bmeetup\b|\birl\b|\bevent\b/.test(lowerAnswer) && !/#irl-sync/.test(answer)) answer += ' 👉 #irl-sync';
+                else if (/\bleaderboard\b|\branking\b/.test(lowerAnswer)) answer += ' 👉 Check the 🏆 Leaderboard!';
+                else if (/\bsettings\b|\bprofile\b|\baccount\b/.test(lowerAnswer)) answer += ' 👉 Tap ⚙️ Settings!';
+            }
             // Truncate for chat
             if (answer.length > MAX_MSG_LENGTH) answer = answer.substring(0, MAX_MSG_LENGTH - 3) + '...';
             setTimeout(function() {
