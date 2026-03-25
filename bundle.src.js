@@ -30404,12 +30404,20 @@ window.nachoQuizAnswer = function(btn, correct) {
     function handleHash() {
         var hash = window.location.hash.replace('#', '');
         if (!hash) return;
+        console.log('[HASH] Routing to:', hash);
         
-        // Wait for app to be ready (up to 5 seconds)
-        var maxWait = 5000;
+        // Wait for app to be ready (up to 8 seconds)
+        var maxWait = 8000;
         var waited = 0;
         function tryRoute() {
-            if (waited > maxWait) return;
+            if (waited > maxWait) { console.warn('[HASH] Gave up routing to:', hash); return; }
+            
+            // Wait for DOM essentials
+            if (!document.getElementById('msgs') || !document.getElementById('home')) {
+                waited += 200;
+                setTimeout(tryRoute, 200);
+                return;
+            }
             
             switch(hash) {
                 case 'nacho':
@@ -30460,6 +30468,18 @@ window.nachoQuizAnswer = function(btn, correct) {
     
     // Handle on page load
     handleHash();
+    
+    // Fallback: also try after window.onload in case deferred scripts delayed routing
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            var h = window.location.hash.replace('#', '');
+            // Only re-route if we're still on the home page (hash wasn't consumed)
+            if (h && document.getElementById('home') && !document.getElementById('home').classList.contains('hidden')) {
+                console.log('[HASH] Post-load fallback routing to:', h);
+                handleHash();
+            }
+        }, 800);
+    });
     
     // Handle hash changes while on the page
     window.addEventListener('hashchange', handleHash);
