@@ -2205,7 +2205,8 @@ function updateUserDisplay(lv) {
         if (chosenBadge) mobileIcons += ' ' + lv.emoji;
         var pts = (currentUser.points || 0);
         var ptsStr = pts > 0 ? ' · ' + pts.toLocaleString() + 'pts' : '';
-        mobileInfo.textContent = mobileIcons + ' ' + (currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + ptsStr + streak;
+        mobileInfo.innerHTML = mobileIcons + ' ' + escapeHtml(currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + ptsStr + streak +
+            ' <span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;margin-left:4px;" title="Bitcoin Network Metrics">📊</span>';
         mobileInfo.style.display = 'inline';
     }
 
