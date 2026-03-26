@@ -2113,6 +2113,26 @@ function updateUserDisplay(lv) {
     }
     el.style.display = 'flex';
 
+    // Standalone dashboard button (survives userDisplay dismiss)
+    var dashBtn = document.getElementById('dashboardFloatBtn');
+    if (!dashBtn) {
+        dashBtn = document.createElement('div');
+        dashBtn.id = 'dashboardFloatBtn';
+        dashBtn.onclick = function() { if (typeof toggleDashboard === 'function') toggleDashboard(); };
+        document.body.appendChild(dashBtn);
+    }
+    // Position below userDisplay on desktop, hidden on mobile (mobile has it in top bar)
+    dashBtn.style.cssText = 'position:fixed;top:44px;right:20px;z-index:129;width:36px;height:36px;border-radius:10px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:0.2s;';
+    dashBtn.innerHTML = '📊';
+    dashBtn.title = 'Bitcoin Network Metrics';
+    // If userDisplay is visible, tuck dashboard button below it
+    if (el.style.display !== 'none' && el.offsetHeight > 0) {
+        var elRect = el.getBoundingClientRect();
+        dashBtn.style.top = (elRect.bottom + 8) + 'px';
+    }
+    // Hide on mobile — mobile top bar already has it
+    if (window.innerWidth <= 900) dashBtn.style.display = 'none';
+
     // Update mobile top bar user info
     const mobileInfo = document.getElementById('mobileUserInfo');
     if (mobileInfo) {
