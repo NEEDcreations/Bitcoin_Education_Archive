@@ -197,9 +197,8 @@
         .back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
         .back-to-top:hover { transform: translateY(-3px); box-shadow: 0 8px 25px var(--accent-glow); }
         .scroll-to-bottom { bottom: 130px; }
-        #desktopSearchBtn { position: fixed; bottom: 40px; right: 20px; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.3rem; cursor: pointer; z-index: 150; box-shadow: 0 4px 15px var(--accent-glow); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        #desktopSearchBtn:hover { transform: translateY(-3px); }
-        @media (max-width: 900px) { #desktopSearchBtn { display: none !important; } .desktop-only-apps { display: none !important; } }
+        #desktopSearchBtn { display: none !important; }
+        @media (max-width: 900px) { .desktop-only-apps { display: none !important; } }
 
         /* Reading progress bar */
         .progress-bar { position: fixed; top: 0; left: 0; width: 0%; height: 3px; background: linear-gradient(90deg, #eab308, #f97316); z-index: 300; transition: width 0.15s; pointer-events: none; }
