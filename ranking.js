@@ -2070,7 +2070,6 @@ function updateUserDisplay(lv) {
                     var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;opacity:0.8;">';
                     if (cp) s += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cp).toLocaleString() + '</span>';
                     if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:#aaa;text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + ch.toLocaleString() + '</a>';
-                    s += '<span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;transition:0.2s;" title="Bitcoin Network Metrics" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">📊</span>';
                     return s + '</div>';
                 })() +
                 '<div style="color:#aaa;font-size:0.7rem;">Sign in to keep your points & enter the leaderboard!</div>' +
@@ -2101,7 +2100,6 @@ function updateUserDisplay(lv) {
             livePriceStr = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;margin-top:3px;opacity:0.8;">';
             if (cachedP) livePriceStr += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cachedP).toLocaleString() + '</span>';
             if (cachedH) livePriceStr += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + cachedH.toLocaleString() + '</a>';
-            livePriceStr += '<span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;transition:0.2s;" title="Bitcoin Network Metrics" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">📊</span>';
             livePriceStr += '</div>';
         } catch(e) {}
 
