@@ -1576,7 +1576,7 @@ window.showDJControlPanel = function() {
 
             // Volume
             '<div style="margin-bottom:12px;">' +
-                '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:4px;">🔊 Volume</div>' +
+                '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:4px;">🔊 My Volume <span style="opacity:0.6;font-size:0.6rem;">(local only — listeners have their own)</span></div>' +
                 '<input type="range" min="0" max="100" value="' + Math.round((window._beatsAudio ? window._beatsAudio.volume : 0.8) * 100) + '" style="width:100%;accent-color:var(--accent);" oninput="if(window._beatsAudio)window._beatsAudio.volume=this.value/100">' +
             '</div>' +
 
