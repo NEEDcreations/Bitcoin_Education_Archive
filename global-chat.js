@@ -563,14 +563,19 @@ window.cancelReply = function() {
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
-    // Check for pending image/GIF — send it
+    // Check for pending image/GIF — send it (with optional caption text)
     if (window._chatPendingImage) {
         var imgData = window._chatPendingImage;
         var isGif = window._chatPendingIsGif;
+        var captionInput = document.getElementById('globalChatInput');
+        var caption = captionInput ? captionInput.value.trim() : '';
         window._chatPendingImage = null;
         window._chatPendingIsGif = false;
+        if (captionInput) captionInput.value = '';
+        var counter = document.getElementById('globalChatCharCount');
+        if (counter) counter.textContent = '0';
         document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
-        if (isGif) { sendGifMessage(imgData); } else { sendImageMessage(imgData); }
+        if (isGif) { sendGifMessage(imgData, caption); } else { sendImageMessage(imgData, caption); }
         return;
     }
 
@@ -726,8 +731,8 @@ window.sendGlobalChat = function() {
                 else if (/\bleaderboard\b|\branking\b/.test(lowerAnswer)) answer += ' 👉 Check the 🏆 Leaderboard!';
                 else if (/\bsettings\b|\bprofile\b|\baccount\b/.test(lowerAnswer)) answer += ' 👉 Tap ⚙️ Settings!';
             }
-            // Nacho gets a longer limit than users (600 vs 300)
-            if (answer.length > 600) answer = answer.substring(0, 597) + '...';
+            // Nacho gets a longer limit than users (1000 vs 300)
+            if (answer.length > 1000) answer = answer.substring(0, 997) + '...';
             setTimeout(function() {
                 db.collection(CHAT_COLLECTION).add({
                     uid: 'nacho-bot',
@@ -1285,7 +1290,7 @@ window.enlargeChatImage = function(src) {
     document.body.appendChild(lb);
 };
 
-window.sendGifMessage = function(url) {
+window.sendGifMessage = function(url, caption) {
     if (!url) return;
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
         if (typeof showToast === 'function') showToast('Sign in to send GIFs!');
@@ -1447,7 +1452,7 @@ window.cancelImagePreview = function() {
     document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
 };
 
-function sendImageMessage(dataUrl) {
+function sendImageMessage(dataUrl, caption) {
     if (!auth || !auth.currentUser) return;
     // C2: Validate data URL is actually an image
     if (dataUrl.startsWith('data:') && !dataUrl.startsWith('data:image/')) {
@@ -1469,6 +1474,7 @@ function sendImageMessage(dataUrl) {
         isGif: true,
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (caption) msgData.caption = caption;
 
     if (_replyTo) {
         msgData.replyTo = _replyTo._id;
@@ -1479,13 +1485,21 @@ function sendImageMessage(dataUrl) {
         if (banner) banner.style.display = 'none';
     }
 
+    // If there's a caption, also send it as a separate text message so it shows in chat
+    if (caption) {
+        db.collection(CHAT_COLLECTION).add({
+            uid: auth.currentUser.uid, name: username, text: caption,
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() {});
+    }
+
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         if (typeof showToast === 'function') showToast('📷 Image sent!');
-        // Bridge image to Telegram (skip if > 500KB base64 to avoid worker limits)
+        // Bridge image to Telegram
         if (dataUrl && dataUrl.startsWith('http')) {
-            bridgeToTelegram({ user: username, text: '', imageUrl: dataUrl });
+            bridgeToTelegram({ user: username, text: caption || '', imageUrl: dataUrl });
         } else if (dataUrl && dataUrl.startsWith('data:') && dataUrl.length < 500000) {
-            bridgeToTelegram({ user: username, text: '', imageBase64: dataUrl });
+            bridgeToTelegram({ user: username, text: caption || '', imageBase64: dataUrl });
         }
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || ''));
