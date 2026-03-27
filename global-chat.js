@@ -1593,6 +1593,15 @@ window.showDJControlPanel = function() {
                 '</div>' +
             '</div>' +
 
+            // Up Next Queue
+            '<div style="margin-bottom:12px;">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+                    '<span style="color:var(--text-faint);font-size:0.7rem;">🎵 Up Next</span>' +
+                    '<button onclick="djShowTrackPicker()" style="padding:3px 8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:6px;color:#6366f1;font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">+ Add Track</button>' +
+                '</div>' +
+                '<div id="djUpNextList" style="display:flex;flex-direction:column;gap:4px;"></div>' +
+            '</div>' +
+
             // Stop Button
             '<button onclick="djStopBroadcast();var p=document.getElementById(\'djControlPanel\');if(p)p.remove();" style="width:100%;padding:10px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:10px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">⏹ Stop Broadcasting</button>' +
         '</div>';
@@ -1609,6 +1618,127 @@ window.showDJControlPanel = function() {
     updateDJPanel();
     window._djPanelInterval = setInterval(updateDJPanel, 3000);
 };
+
+// ---- DJ Queue (up to 3 tracks) ----
+window._djUpNext = [];
+
+function djRenderUpNext() {
+    var el = document.getElementById('djUpNextList');
+    if (!el) return;
+    if (window._djUpNext.length === 0) {
+        el.innerHTML = '<div style="color:var(--text-faint);font-size:0.7rem;font-style:italic;padding:4px;">No tracks queued. Add up to 3.</div>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < window._djUpNext.length; i++) {
+        var t = window._djUpNext[i];
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:8px;">' +
+            '<span style="color:var(--accent);font-weight:700;font-size:0.7rem;">' + (i + 1) + '</span>' +
+            '<div style="flex:1;min-width:0;overflow:hidden;">' +
+                '<div style="font-size:0.75rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.title || 'Untitled') : (t.title || 'Untitled')) + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);">' + (typeof escapeHtml === 'function' ? escapeHtml(t.artist || t.authorName || '') : (t.artist || t.authorName || '')) + '</div>' +
+            '</div>' +
+            '<span onclick="window._djUpNext.splice(' + i + ',1);djRenderUpNext()" style="cursor:pointer;font-size:0.7rem;color:#ef4444;padding:2px 4px;" title="Remove">✕</span>' +
+        '</div>';
+    }
+    el.innerHTML = html;
+}
+
+window.djShowTrackPicker = function() {
+    if (window._djUpNext.length >= 3) {
+        if (typeof showToast === 'function') showToast('Queue is full (max 3 tracks)');
+        return;
+    }
+    var existing = document.getElementById('djTrackPicker');
+    if (existing) { existing.remove(); return; }
+
+    var tracks = window._beatsQueue || [];
+    if (tracks.length === 0) {
+        if (typeof showToast === 'function') showToast('No tracks loaded. Open Bitcoin Beats first.');
+        return;
+    }
+
+    var picker = document.createElement('div');
+    picker.id = 'djTrackPicker';
+    picker.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:320;width:280px;max-height:300px;background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;';
+
+    var searchHtml = '<div style="padding:8px;border-bottom:1px solid var(--border);">' +
+        '<input id="djTrackSearch" type="text" placeholder="Search tracks..." style="width:100%;padding:8px 10px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;outline:none;box-sizing:border-box;" oninput="djFilterTracks(this.value)">' +
+    '</div>';
+
+    var listHtml = '<div id="djTrackPickerList" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:240px;">';
+    for (var i = 0; i < tracks.length; i++) {
+        var t = tracks[i];
+        var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
+        listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" onclick="djAddToQueue(' + i + ')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'none\'">' +
+            '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(t.title || 'Untitled') + '</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(t.artist || t.authorName || 'Unknown') + '</div>' +
+        '</div>';
+    }
+    listHtml += '</div>';
+
+    picker.innerHTML = searchHtml + listHtml;
+    document.body.appendChild(picker);
+    setTimeout(function() { var s = document.getElementById('djTrackSearch'); if (s) s.focus(); }, 100);
+};
+
+window.djFilterTracks = function(query) {
+    var q = query.toLowerCase();
+    var items = document.querySelectorAll('.djPickerItem');
+    items.forEach(function(el) {
+        el.style.display = (el.getAttribute('data-search') || '').indexOf(q) >= 0 ? '' : 'none';
+    });
+};
+
+window.djAddToQueue = function(idx) {
+    if (window._djUpNext.length >= 3) {
+        if (typeof showToast === 'function') showToast('Queue full (max 3)');
+        return;
+    }
+    var tracks = window._beatsQueue || [];
+    var t = tracks[idx];
+    if (!t) return;
+    // Don't add duplicates
+    for (var i = 0; i < window._djUpNext.length; i++) {
+        if (window._djUpNext[i].id === t.id) {
+            if (typeof showToast === 'function') showToast('Already in queue');
+            return;
+        }
+    }
+    window._djUpNext.push(t);
+    djRenderUpNext();
+    if (typeof showToast === 'function') showToast('🎵 Added: ' + (t.title || 'Untitled'));
+    var picker = document.getElementById('djTrackPicker');
+    if (picker) picker.remove();
+};
+
+// Auto-play next from DJ queue when current song ends
+var _origBeatsOnEnded = null;
+function hookDJAutoQueue() {
+    if (!window._beatsAudio || _origBeatsOnEnded) return;
+    _origBeatsOnEnded = window._beatsAudio.onended;
+    window._beatsAudio.onended = function() {
+        if (_djIsMe && window._djUpNext.length > 0) {
+            var next = window._djUpNext.shift();
+            djRenderUpNext();
+            // Find track index in queue
+            var tracks = window._beatsQueue || [];
+            for (var i = 0; i < tracks.length; i++) {
+                if (tracks[i].id === next.id) {
+                    if (typeof beatsPlayTrack === 'function') beatsPlayTrack(i);
+                    return;
+                }
+            }
+            // Track not in current list — try playing by URL
+            if (next.audioUrl && typeof beatsPlayTrack === 'function') {
+                window._beatsQueue.push(next);
+                beatsPlayTrack(window._beatsQueue.length - 1);
+            }
+        } else if (_origBeatsOnEnded) {
+            _origBeatsOnEnded();
+        }
+    };
+}
 
 // Hide DJ panel on stop
 var _origDjStop = window.djStopBroadcast;
@@ -1633,7 +1763,10 @@ function djGoLive(uid, username, track) {
 
     db.collection('global_chat_meta').doc(DJ_DOC).set(djData).then(function() {
         if (typeof showToast === 'function') showToast('🎧 You\'re now DJing! Broadcasting to Global Chat');
+        window._djUpNext = [];
         showDJControlPanel();
+        djRenderUpNext();
+        setTimeout(hookDJAutoQueue, 500);
 
         // Track DJ sets
         var djSets = parseInt(localStorage.getItem('btc_dj_sets') || '0') + 1;
@@ -1765,10 +1898,14 @@ window.djStopBroadcast = function() {
             }).catch(function() {});
     }).catch(function() {});
     if (typeof showToast === 'function') showToast('🎧 DJ session ended');
-    // Remove DJ control panel
+    // Remove DJ control panel + queue
     var djPanel = document.getElementById('djControlPanel');
     if (djPanel) djPanel.remove();
+    var djPicker = document.getElementById('djTrackPicker');
+    if (djPicker) djPicker.remove();
     if (window._djPanelInterval) { clearInterval(window._djPanelInterval); window._djPanelInterval = null; }
+    window._djUpNext = [];
+    _origBeatsOnEnded = null;
 };
 
 // Listeners: tune in to the DJ's stream
