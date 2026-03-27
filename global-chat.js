@@ -18,6 +18,11 @@ function bridgeToTelegram(data) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + BRIDGE_SECRET },
             body: JSON.stringify(data)
+        }).then(function(r) {
+            if (!r.ok) console.warn('[BRIDGE] HTTP', r.status);
+            return r.json();
+        }).then(function(j) {
+            if (j && !j.ok) console.warn('[BRIDGE] Response:', JSON.stringify(j));
         }).catch(function(e) { console.log('[BRIDGE] Send failed:', e); });
     } catch(e) {}
 }
@@ -729,6 +734,8 @@ window.sendGlobalChat = function() {
                     name: '🦌 Nacho',
                     text: answer,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(function() {
+                    bridgeToTelegram({ user: '🦌 Nacho', text: answer });
                 }).catch(function(e) { console.error('[CHAT] Nacho reply failed:', e); });
             }, 2000 + Math.random() * 2000);
         });
@@ -1473,10 +1480,10 @@ function sendImageMessage(dataUrl) {
 
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         if (typeof showToast === 'function') showToast('📷 Image sent!');
-        // Bridge image to Telegram
+        // Bridge image to Telegram (skip if > 500KB base64 to avoid worker limits)
         if (dataUrl && dataUrl.startsWith('http')) {
             bridgeToTelegram({ user: username, text: '', imageUrl: dataUrl });
-        } else if (dataUrl && dataUrl.startsWith('data:')) {
+        } else if (dataUrl && dataUrl.startsWith('data:') && dataUrl.length < 500000) {
             bridgeToTelegram({ user: username, text: '', imageBase64: dataUrl });
         }
     }).catch(function(e) {
