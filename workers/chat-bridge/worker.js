@@ -1,28 +1,138 @@
 /**
  * Cloudflare Worker: Global Chat ↔ Telegram Bridge
- * 
- * Two endpoints:
- *   POST /webhook/telegram  — Telegram → Firestore (bot webhook)
- *   POST /webhook/firestore — Firestore → Telegram (called from client)
- * 
- * Environment variables (secrets):
- *   TG_BOT_TOKEN    — Telegram bot token
- *   TG_CHAT_ID      — Telegram group chat ID
- *   FIREBASE_API_KEY — Firebase Web API key
- *   BRIDGE_SECRET    — shared secret for firestore→telegram calls
+ * Uses Firebase Admin (service account) for Firestore writes.
+ *
+ * Secrets (via wrangler secret put):
+ *   TG_BOT_TOKEN         — Telegram bot token
+ *   FIREBASE_SA_EMAIL     — service account email
+ *   FIREBASE_SA_KEY       — PEM private key (with \n literals)
+ *   BRIDGE_SECRET         — shared secret for app→telegram calls
+ *
+ * Vars:
+ *   TG_CHAT_ID            — Telegram group chat ID
+ *   FIREBASE_PROJECT_ID   — Firebase project ID
  */
 
 const TG_API = 'https://api.telegram.org/bot';
+const SCOPES = 'https://www.googleapis.com/auth/datastore';
+const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+// In-memory token cache
+var _accessToken = null;
+var _tokenExpiry = 0;
+
+// ---- Google OAuth2 via Service Account JWT ----
+async function getAccessToken(env) {
+  var now = Math.floor(Date.now() / 1000);
+  if (_accessToken && now < _tokenExpiry) return _accessToken;
+
+  var header = { alg: 'RS256', typ: 'JWT' };
+  var payload = {
+    iss: env.FIREBASE_SA_EMAIL,
+    scope: SCOPES,
+    aud: TOKEN_URL,
+    iat: now,
+    exp: now + 3600
+  };
+
+  var jwt = await signJWT(header, payload, env.FIREBASE_SA_KEY);
+
+  var resp = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + jwt
+  });
+
+  var data = await resp.json();
+  if (data.access_token) {
+    _accessToken = data.access_token;
+    _tokenExpiry = now + (data.expires_in || 3600) - 60;
+    return _accessToken;
+  }
+  console.error('OAuth failed:', JSON.stringify(data));
+  return null;
+}
+
+async function signJWT(header, payload, pemKey) {
+  var enc = new TextEncoder();
+
+  // Base64url encode header and payload
+  var headerB64 = b64url(JSON.stringify(header));
+  var payloadB64 = b64url(JSON.stringify(payload));
+  var signingInput = headerB64 + '.' + payloadB64;
+
+  // Import PEM private key
+  var key = await importPEM(pemKey);
+
+  // Sign
+  var sig = await crypto.subtle.sign(
+    { name: 'RSASSA-PKCS1-v1_5' },
+    key,
+    enc.encode(signingInput)
+  );
+
+  return signingInput + '.' + b64url(sig);
+}
+
+async function importPEM(pem) {
+  // Handle escaped newlines from env var
+  pem = pem.replace(/\\n/g, '\n');
+  var lines = pem.split('\n').filter(l => l && !l.startsWith('-----'));
+  var der = Uint8Array.from(atob(lines.join('')), c => c.charCodeAt(0));
+
+  return crypto.subtle.importKey(
+    'pkcs8', der,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+}
+
+function b64url(input) {
+  var str;
+  if (typeof input === 'string') {
+    str = btoa(input);
+  } else {
+    // ArrayBuffer
+    var bytes = new Uint8Array(input);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    str = btoa(binary);
+  }
+  return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// ---- Firestore Admin Write ----
+async function writeToFirestore(env, doc) {
+  var token = await getAccessToken(env);
+  if (!token) { console.error('No access token'); return false; }
+
+  var projectId = env.FIREBASE_PROJECT_ID || 'bitcoin-education-archive';
+  var url = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/global_chat';
+
+  var resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify(doc)
+  });
+
+  if (!resp.ok) {
+    var err = await resp.text();
+    console.error('Firestore write failed (' + resp.status + '):', err);
+    return false;
+  }
+  return true;
+}
+
+// ---- Main Router ----
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    var url = new URL(request.url);
 
-    // CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        headers: corsHeaders()
-      });
+      return new Response(null, { headers: corsHeaders() });
     }
 
     try {
@@ -45,196 +155,154 @@ export default {
 
 // ---- Telegram → Firestore ----
 async function handleTelegramWebhook(request, env) {
-  const update = await request.json();
+  var update = await request.json();
 
-  // Handle channel posts from broadcast channel (one-way: broadcast → Global Chat)
+  // Handle channel posts from broadcast channel (one-way)
   if (update.channel_post) {
     return handleBroadcastPost(update.channel_post, env);
   }
 
-  // Only handle messages (not edits, reactions, etc. for now)
-  const msg = update.message;
+  var msg = update.message;
   if (!msg) return new Response('OK');
 
-  // Skip service messages (join/leave/etc)
+  // Skip service messages
   if (msg.new_chat_members || msg.left_chat_member || msg.new_chat_participant || msg.left_chat_participant) {
     return new Response('OK');
   }
 
-  // Skip messages from the bot itself (prevent loops)
+  // Skip bot's own messages (prevent loops)
   if (msg.from && msg.from.id === parseInt(env.TG_BOT_TOKEN.split(':')[0])) {
     return new Response('OK');
   }
 
-  // Also skip if sender_chat is the group itself (anonymous admin = could be bot posting)
-  // We mark bridged messages with a tag to detect loops
+  // Skip bridged messages from Global Chat (they start with [🌐)
   if (msg.text && msg.text.startsWith('[🌐')) {
-    return new Response('OK'); // This is a bridged message from Global Chat, ignore
+    return new Response('OK');
   }
 
-  // Extract sender info
+  // Skip auto-forwarded posts from the broadcast channel (handled by channel_post)
+  if (msg.is_automatic_forward) {
+    return new Response('OK');
+  }
+  if (msg.forward_origin && msg.forward_origin.type === 'channel') {
+    return new Response('OK');
+  }
+  if (msg.sender_chat && String(msg.sender_chat.id) === '-1003745860336') {
+    return new Response('OK');
+  }
+
+  // Sender info
   var senderName = 'Telegram User';
   if (msg.from && !msg.from.is_bot) {
     senderName = msg.from.first_name || 'User';
     if (msg.from.last_name) senderName += ' ' + msg.from.last_name;
+  } else if (msg.from && msg.from.is_bot && msg.from.username === 'GroupAnonymousBot' && msg.sender_chat) {
+    // Anonymous admin posting — use a cleaner name
+    senderName = 'Telegram';
   } else if (msg.sender_chat) {
     senderName = msg.sender_chat.title || msg.sender_chat.username || 'Channel';
   }
-  
-  var senderUsername = '';
-  if (msg.from && msg.from.username) {
-    senderUsername = msg.from.username;
-  }
 
-  // Build message content
+  var senderUsername = (msg.from && msg.from.username) ? msg.from.username : '';
+
+  // Content
   var text = msg.text || msg.caption || '';
   var imageUrl = null;
   var gifUrl = null;
 
-  // Handle photos
   if (msg.photo && msg.photo.length > 0) {
-    var photo = msg.photo[msg.photo.length - 1]; // largest size
+    var photo = msg.photo[msg.photo.length - 1];
     var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-    if (fileInfo.ok) {
-      imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
-    }
+    if (fileInfo.ok) imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
   }
 
-  // Handle GIFs/animations
   if (msg.animation) {
-    var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.animation.file_id });
-    if (fileInfo.ok) {
-      gifUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
-    }
+    var fileInfo2 = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.animation.file_id });
+    if (fileInfo2.ok) gifUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo2.result.file_path;
   }
 
-  // Handle stickers
   if (msg.sticker) {
     if (msg.sticker.is_animated || msg.sticker.is_video) {
       text = '(sticker: ' + (msg.sticker.emoji || '🎭') + ')';
     } else {
-      var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.sticker.file_id });
-      if (fileInfo.ok) {
-        imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
-      }
+      var fi = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.sticker.file_id });
+      if (fi.ok) imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fi.result.file_path;
       if (!text) text = msg.sticker.emoji || '';
     }
   }
 
-  // Skip if no content
   if (!text && !imageUrl && !gifUrl) return new Response('OK');
 
-  // Write to Firestore via REST API
   var firestoreDoc = {
     fields: {
       text: { stringValue: text || '' },
       name: { stringValue: senderName },
-      user: { stringValue: senderName },
       userTag: { stringValue: senderUsername ? '@' + senderUsername : '' },
       uid: { stringValue: 'tg_' + (msg.from ? msg.from.id : 'anon') },
       ts: { timestampValue: new Date(msg.date * 1000).toISOString() },
       source: { stringValue: 'telegram' },
-      tgMsgId: { integerValue: String(msg.message_id) },
-      avatar: { stringValue: '📱' }
+      tgMsgId: { integerValue: String(msg.message_id) }
     }
   };
 
   if (imageUrl) firestoreDoc.fields.imageUrl = { stringValue: imageUrl };
   if (gifUrl) firestoreDoc.fields.gifUrl = { stringValue: gifUrl };
 
-  // Reply context
   if (msg.reply_to_message) {
-    var replyName = 'User';
-    if (msg.reply_to_message.from) {
-      replyName = msg.reply_to_message.from.first_name || 'User';
-    }
+    var replyName = msg.reply_to_message.from ? (msg.reply_to_message.from.first_name || 'User') : 'User';
     var replyText = msg.reply_to_message.text || msg.reply_to_message.caption || '';
     firestoreDoc.fields.replyToName = { stringValue: replyName };
     firestoreDoc.fields.replyToText = { stringValue: replyText.substring(0, 100) };
   }
 
-  var projectId = 'bitcoin-education-archive';
-  var fsUrl = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/global_chat?key=' + env.FIREBASE_API_KEY;
-  
-  var fsResp = await fetch(fsUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(firestoreDoc)
-  });
-
-  if (!fsResp.ok) {
-    console.error('Firestore write failed:', await fsResp.text());
-  }
-
+  await writeToFirestore(env, firestoreDoc);
   return new Response('OK');
 }
 
 // ---- Broadcast Channel → Firestore (one-way) ----
 async function handleBroadcastPost(post, env) {
-  // Only handle posts from the broadcast channel
   var BROADCAST_ID = '-1003745860336';
   if (String(post.chat.id) !== BROADCAST_ID) return new Response('OK');
 
-  // Skip service messages
   if (!post.text && !post.caption && !post.photo && !post.animation) return new Response('OK');
 
   var text = post.text || post.caption || '';
   var imageUrl = null;
 
-  // Handle photos
   if (post.photo && post.photo.length > 0) {
     var photo = post.photo[post.photo.length - 1];
     var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-    if (fileInfo.ok) {
-      imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
-    }
+    if (fileInfo.ok) imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
   }
 
   if (!text && !imageUrl) return new Response('OK');
 
-  // Write to Firestore as a broadcast announcement
   var firestoreDoc = {
     fields: {
       text: { stringValue: (imageUrl && !text) ? '📢 [Image]' : text },
       name: { stringValue: '📢 603BTC Updates' },
-      user: { stringValue: '603BTC Updates' },
       uid: { stringValue: 'tg_broadcast' },
       ts: { timestampValue: new Date(post.date * 1000).toISOString() },
       source: { stringValue: 'telegram' },
-      tgMsgId: { integerValue: String(post.message_id) },
-      avatar: { stringValue: '📢' }
+      tgMsgId: { integerValue: String(post.message_id) }
     }
   };
 
   if (imageUrl) firestoreDoc.fields.imageUrl = { stringValue: imageUrl };
 
-  var projectId = 'bitcoin-education-archive';
-  var fsUrl = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/global_chat?key=' + env.FIREBASE_API_KEY;
-
-  var fsResp = await fetch(fsUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(firestoreDoc)
-  });
-
-  if (!fsResp.ok) {
-    console.error('Broadcast Firestore write failed:', await fsResp.text());
-  }
-
+  await writeToFirestore(env, firestoreDoc);
   return new Response('OK');
 }
 
-// ---- Firestore → Telegram ----
+// ---- Firestore → Telegram (called from app) ----
 async function handleFirestoreWebhook(request, env) {
-  // Verify shared secret
   var authHeader = request.headers.get('Authorization') || '';
   if (authHeader !== 'Bearer ' + env.BRIDGE_SECRET) {
     return corsResponse({ error: 'unauthorized' }, 401);
   }
 
   var data = await request.json();
-  
-  // Skip if this message came FROM telegram (prevent loops)
+
   if (data.source === 'telegram') {
     return corsResponse({ ok: true, skipped: 'from_telegram' });
   }
@@ -242,35 +310,37 @@ async function handleFirestoreWebhook(request, env) {
   var username = data.user || 'Anonymous';
   var text = data.text || '';
   var imageUrl = data.imageUrl || null;
+  var imageBase64 = data.imageBase64 || null;
   var gifUrl = data.gifUrl || null;
 
-  // Format message for Telegram
   var tgText = '[🌐 ' + username + ']\n' + text;
-  
-  // Handle reply context
+  var caption = '[🌐 ' + username + ']' + (text ? '\n' + text : '');
+
   if (data.replyToName) {
     tgText = '[🌐 ' + username + ']\n↩️ ' + data.replyToName + ': ' + (data.replyToText || '').substring(0, 60) + '\n\n' + text;
   }
 
   var result;
-  
+
   if (gifUrl) {
     result = await tgApi(env.TG_BOT_TOKEN, 'sendAnimation', {
       chat_id: env.TG_CHAT_ID,
       animation: gifUrl,
-      caption: '[🌐 ' + username + ']' + (text ? '\n' + text : '')
+      caption: caption
     });
+  } else if (imageBase64) {
+    // Upload base64 image via multipart form
+    result = await tgSendPhotoBase64(env.TG_BOT_TOKEN, env.TG_CHAT_ID, imageBase64, caption);
   } else if (imageUrl) {
     result = await tgApi(env.TG_BOT_TOKEN, 'sendPhoto', {
       chat_id: env.TG_CHAT_ID,
       photo: imageUrl,
-      caption: '[🌐 ' + username + ']' + (text ? '\n' + text : '')
+      caption: caption
     });
   } else if (text) {
     result = await tgApi(env.TG_BOT_TOKEN, 'sendMessage', {
       chat_id: env.TG_CHAT_ID,
       text: tgText,
-      parse_mode: 'HTML',
       disable_web_page_preview: true
     });
   }
@@ -279,6 +349,37 @@ async function handleFirestoreWebhook(request, env) {
 }
 
 // ---- Helpers ----
+async function tgSendPhotoBase64(token, chatId, dataUrl, caption) {
+  // Convert data URL to binary
+  var base64 = dataUrl.replace(/^data:[^;]+;base64,/, '');
+  var binary = Uint8Array.from(atob(base64), function(c) { return c.charCodeAt(0); });
+  var mime = (dataUrl.match(/^data:([^;]+)/) || [])[1] || 'image/jpeg';
+  var ext = mime === 'image/png' ? 'png' : 'jpg';
+
+  // Build multipart form
+  var boundary = '----ChatBridge' + Date.now();
+  var body = '';
+  body += '--' + boundary + '\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n' + chatId + '\r\n';
+  body += '--' + boundary + '\r\nContent-Disposition: form-data; name="caption"\r\n\r\n' + caption + '\r\n';
+  body += '--' + boundary + '\r\nContent-Disposition: form-data; name="photo"; filename="image.' + ext + '"\r\nContent-Type: ' + mime + '\r\n\r\n';
+  var footer = '\r\n--' + boundary + '--\r\n';
+
+  var enc = new TextEncoder();
+  var headerBytes = enc.encode(body);
+  var footerBytes = enc.encode(footer);
+  var combined = new Uint8Array(headerBytes.length + binary.length + footerBytes.length);
+  combined.set(headerBytes, 0);
+  combined.set(binary, headerBytes.length);
+  combined.set(footerBytes, headerBytes.length + binary.length);
+
+  var resp = await fetch(TG_API + token + '/sendPhoto', {
+    method: 'POST',
+    headers: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+    body: combined
+  });
+  return resp.json();
+}
+
 async function tgApi(token, method, params) {
   var resp = await fetch(TG_API + token + '/' + method, {
     method: 'POST',
@@ -299,9 +400,6 @@ function corsHeaders() {
 function corsResponse(body, status) {
   return new Response(JSON.stringify(body), {
     status: status || 200,
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders()
-    }
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() }
   });
 }

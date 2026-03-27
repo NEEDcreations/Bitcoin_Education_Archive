@@ -1473,9 +1473,11 @@ function sendImageMessage(dataUrl) {
 
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         if (typeof showToast === 'function') showToast('📷 Image sent!');
-        // Bridge image to Telegram (data URLs are too large, skip for now — only bridge if it's an HTTP URL)
+        // Bridge image to Telegram
         if (dataUrl && dataUrl.startsWith('http')) {
             bridgeToTelegram({ user: username, text: '', imageUrl: dataUrl });
+        } else if (dataUrl && dataUrl.startsWith('data:')) {
+            bridgeToTelegram({ user: username, text: '', imageBase64: dataUrl });
         }
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || ''));

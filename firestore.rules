@@ -417,13 +417,13 @@ service cloud.firestore {
                         || request.resource.data.uid == 'nacho-bot'
                         || request.resource.data.uid == 'system')
                     ) || (
-                    // Telegram bridge messages (unauthenticated, from CF Worker)
-                    request.resource.data.source == 'telegram'
+                    // Telegram bridge messages (anonymous auth from CF Worker)
+                    request.auth != null
+                    && request.resource.data.source == 'telegram'
                     && request.resource.data.text is string
                     && request.resource.data.text.size() <= 500
-                    && request.resource.data.user is string
+                    && request.resource.data.name is string
                     && request.resource.data.uid is string
-                    && request.resource.data.uid.matches('tg_.*')
                     );
       // Allow reactions update by any authenticated user
       allow update: if request.auth != null
