@@ -726,8 +726,8 @@ window.sendGlobalChat = function() {
                 else if (/\bleaderboard\b|\branking\b/.test(lowerAnswer)) answer += ' 👉 Check the 🏆 Leaderboard!';
                 else if (/\bsettings\b|\bprofile\b|\baccount\b/.test(lowerAnswer)) answer += ' 👉 Tap ⚙️ Settings!';
             }
-            // Truncate for chat
-            if (answer.length > MAX_MSG_LENGTH) answer = answer.substring(0, MAX_MSG_LENGTH - 3) + '...';
+            // Nacho gets a longer limit than users (600 vs 300)
+            if (answer.length > 600) answer = answer.substring(0, 597) + '...';
             setTimeout(function() {
                 db.collection(CHAT_COLLECTION).add({
                     uid: 'nacho-bot',
@@ -735,6 +735,7 @@ window.sendGlobalChat = function() {
                     text: answer,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
                 }).then(function() {
+                    console.log('[BRIDGE] Sending Nacho answer to Telegram, length:', answer.length);
                     bridgeToTelegram({ user: '🦌 Nacho', text: answer });
                 }).catch(function(e) { console.error('[CHAT] Nacho reply failed:', e); });
             }, 2000 + Math.random() * 2000);
