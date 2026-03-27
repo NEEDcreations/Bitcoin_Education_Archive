@@ -1553,6 +1553,66 @@ window.djBroadcast = function() {
     });
 };
 
+// ---- Floating DJ Controls Panel ----
+window.showDJControlPanel = function() {
+    var existing = document.getElementById('djControlPanel');
+    if (existing) { existing.style.display = 'flex'; return; }
+
+    var panel = document.createElement('div');
+    panel.id = 'djControlPanel';
+    panel.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid #6366f1;border-radius:16px;box-shadow:0 8px 32px rgba(99,102,241,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
+
+    panel.innerHTML =
+        '<div onclick="var body=document.getElementById(\'djControlBody\');var arrow=document.getElementById(\'djControlArrow\');if(body.style.display===\'none\'){body.style.display=\'block\';arrow.textContent=\'▼\'}else{body.style.display=\'none\';arrow.textContent=\'▶\'}" style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid var(--border);">' +
+            '<span style="font-weight:700;font-size:0.85rem;color:#6366f1;">🎛️ DJ Controls</span>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span id="djControlArrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
+                '<span onclick="event.stopPropagation();document.getElementById(\'djControlPanel\').style.display=\'none\'" style="color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 6px;">✕</span>' +
+            '</div>' +
+        '</div>' +
+        '<div id="djControlBody" style="padding:12px;max-height:50vh;overflow-y:auto;">' +
+            // Now Playing
+            '<div id="djControlNowPlaying" style="font-size:0.8rem;color:var(--heading);font-weight:600;margin-bottom:10px;">♫ Broadcasting...</div>' +
+
+            // Volume
+            '<div style="margin-bottom:12px;">' +
+                '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:4px;">🔊 Volume</div>' +
+                '<input type="range" min="0" max="100" value="' + Math.round((window._beatsAudio ? window._beatsAudio.volume : 0.8) * 100) + '" style="width:100%;accent-color:var(--accent);" oninput="if(window._beatsAudio)window._beatsAudio.volume=this.value/100">' +
+            '</div>' +
+
+            // Sound Effects
+            '<div style="margin-bottom:12px;">' +
+                '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:6px;">🔊 Sound Effects</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:5px;">' +
+                    '<button onclick="djPlaySFX(\'horn\')" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📯 Horn</button>' +
+                    '<button onclick="djPlaySFX(\'airhorn\')" style="padding:6px 10px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:8px;color:#eab308;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📢 Airhorn</button>' +
+                    '<button onclick="djPlaySFX(\'scratch\')" style="padding:6px 10px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;color:#6366f1;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">💿 Scratch</button>' +
+                    '<button onclick="djPlaySFX(\'rewind\')" style="padding:6px 10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:#22c55e;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">⏪ Rewind</button>' +
+                    '<button onclick="djPlaySFX(\'boom\')" style="padding:6px 10px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:8px;color:#a855f7;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">💥 Boom</button>' +
+                    '<button onclick="djPlaySFX(\'applause\')" style="padding:6px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">👏 Applause</button>' +
+                '</div>' +
+            '</div>' +
+
+            // Stop Button
+            '<button onclick="djStopBroadcast();var p=document.getElementById(\'djControlPanel\');if(p)p.remove();" style="width:100%;padding:10px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:10px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">⏹ Stop Broadcasting</button>' +
+        '</div>';
+
+    document.body.appendChild(panel);
+
+    // Update now playing text
+    function updateDJPanel() {
+        var np = document.getElementById('djControlNowPlaying');
+        if (!np) return;
+        var track = window._beatsQueue && window._beatsQueue[window._beatsQueueIdx];
+        if (track) np.textContent = '♫ ' + (track.title || 'Untitled') + ' — ' + (track.artist || track.authorName || 'Unknown');
+    }
+    updateDJPanel();
+    window._djPanelInterval = setInterval(updateDJPanel, 3000);
+};
+
+// Hide DJ panel on stop
+var _origDjStop = window.djStopBroadcast;
+
 function djGoLive(uid, username, track) {
     _djSongCount = 1;
     _djIsMe = true;
@@ -1573,6 +1633,7 @@ function djGoLive(uid, username, track) {
 
     db.collection('global_chat_meta').doc(DJ_DOC).set(djData).then(function() {
         if (typeof showToast === 'function') showToast('🎧 You\'re now DJing! Broadcasting to Global Chat');
+        showDJControlPanel();
 
         // Track DJ sets
         var djSets = parseInt(localStorage.getItem('btc_dj_sets') || '0') + 1;
@@ -1704,6 +1765,10 @@ window.djStopBroadcast = function() {
             }).catch(function() {});
     }).catch(function() {});
     if (typeof showToast === 'function') showToast('🎧 DJ session ended');
+    // Remove DJ control panel
+    var djPanel = document.getElementById('djControlPanel');
+    if (djPanel) djPanel.remove();
+    if (window._djPanelInterval) { clearInterval(window._djPanelInterval); window._djPanelInterval = null; }
 };
 
 // Listeners: tune in to the DJ's stream
