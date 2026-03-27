@@ -1009,8 +1009,8 @@ function renderOverlayChat() {
                     '</div>' +
                 '</div>'
             :
-                '<div style="text-align:center;padding:6px;color:var(--text-muted);font-size:0.75rem;">' +
-                    (isSignedIn ? 'Set a username in Settings to chat' : 'Sign in to chat') +
+                '<div onclick="' + (isSignedIn ? 'if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')' : 'if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()') + '" style="text-align:center;padding:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;">' +
+                    (isSignedIn ? '⚙️ Set a username in Settings to chat' : '🔐 Sign in to chat') +
                 '</div>'
             ) +
         '</div>';

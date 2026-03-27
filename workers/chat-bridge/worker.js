@@ -47,6 +47,11 @@ export default {
 async function handleTelegramWebhook(request, env) {
   const update = await request.json();
 
+  // Handle channel posts from broadcast channel (one-way: broadcast → Global Chat)
+  if (update.channel_post) {
+    return handleBroadcastPost(update.channel_post, env);
+  }
+
   // Only handle messages (not edits, reactions, etc. for now)
   const msg = update.message;
   if (!msg) return new Response('OK');
@@ -123,6 +128,7 @@ async function handleTelegramWebhook(request, env) {
   var firestoreDoc = {
     fields: {
       text: { stringValue: text || '' },
+      name: { stringValue: senderName },
       user: { stringValue: senderName },
       userTag: { stringValue: senderUsername ? '@' + senderUsername : '' },
       uid: { stringValue: 'tg_' + (msg.from ? msg.from.id : 'anon') },
@@ -158,6 +164,61 @@ async function handleTelegramWebhook(request, env) {
 
   if (!fsResp.ok) {
     console.error('Firestore write failed:', await fsResp.text());
+  }
+
+  return new Response('OK');
+}
+
+// ---- Broadcast Channel → Firestore (one-way) ----
+async function handleBroadcastPost(post, env) {
+  // Only handle posts from the broadcast channel
+  var BROADCAST_ID = '-1003745860336';
+  if (String(post.chat.id) !== BROADCAST_ID) return new Response('OK');
+
+  // Skip service messages
+  if (!post.text && !post.caption && !post.photo && !post.animation) return new Response('OK');
+
+  var text = post.text || post.caption || '';
+  var imageUrl = null;
+
+  // Handle photos
+  if (post.photo && post.photo.length > 0) {
+    var photo = post.photo[post.photo.length - 1];
+    var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
+    if (fileInfo.ok) {
+      imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
+    }
+  }
+
+  if (!text && !imageUrl) return new Response('OK');
+
+  // Write to Firestore as a broadcast announcement
+  var firestoreDoc = {
+    fields: {
+      text: { stringValue: (imageUrl && !text) ? '📢 [Image]' : text },
+      name: { stringValue: '📢 603BTC Updates' },
+      user: { stringValue: '603BTC Updates' },
+      uid: { stringValue: 'tg_broadcast' },
+      ts: { timestampValue: new Date(post.date * 1000).toISOString() },
+      source: { stringValue: 'telegram' },
+      tgMsgId: { integerValue: String(post.message_id) },
+      avatar: { stringValue: '📢' }
+    }
+  };
+
+  if (imageUrl) firestoreDoc.fields.imageUrl = { stringValue: imageUrl };
+
+  var projectId = 'bitcoin-education-archive';
+  var fsUrl = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/global_chat?key=' + env.FIREBASE_API_KEY;
+
+  var fsResp = await fetch(fsUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(firestoreDoc)
+  });
+
+  if (!fsResp.ok) {
+    console.error('Broadcast Firestore write failed:', await fsResp.text());
   }
 
   return new Response('OK');

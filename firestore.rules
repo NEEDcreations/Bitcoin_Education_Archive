@@ -403,7 +403,9 @@ service cloud.firestore {
     // =============================================
     match /global_chat/{msgId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if (
+                    // Normal authenticated user messages
+                    request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.text is string
                     && request.resource.data.text.size() >= 1
@@ -413,7 +415,16 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && (request.resource.data.uid == request.auth.uid
                         || request.resource.data.uid == 'nacho-bot'
-                        || request.resource.data.uid == 'system');
+                        || request.resource.data.uid == 'system')
+                    ) || (
+                    // Telegram bridge messages (unauthenticated, from CF Worker)
+                    request.resource.data.source == 'telegram'
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() <= 500
+                    && request.resource.data.user is string
+                    && request.resource.data.uid is string
+                    && request.resource.data.uid.matches('tg_.*')
+                    );
       // Allow reactions update by any authenticated user
       allow update: if request.auth != null
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
