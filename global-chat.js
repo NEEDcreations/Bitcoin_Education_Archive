@@ -706,8 +706,8 @@ window.sendGlobalChat = function() {
     if (text.includes('?') && typeof nachoUnifiedAnswer === 'function') {
         nachoUnifiedAnswer(text, function(result) {
             if (!result || !result.answer) return;
-            // Skip fallback / "I don't know" answers
-            if (result.type === 'fallback') return;
+            // Skip fallback, web search, and deep search answers (contain HTML, not suitable for chat)
+            if (result.type === 'fallback' || result.type === 'websearch' || result.type === 'deepsearch') return;
             var answer = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
             if (!answer || answer.length < 10) return;
             // Append channel link if Nacho's answer references a channel
