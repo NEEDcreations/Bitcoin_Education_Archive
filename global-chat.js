@@ -8,6 +8,19 @@ var CHAT_COLLECTION = 'global_chat';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
 var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
+var BRIDGE_URL = 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
+var BRIDGE_SECRET = '27b6920be2ac9acdbdb18b16d110c48db414afa4510611956ad9854435131a95';
+
+// Bridge: forward message to Telegram via CF Worker
+function bridgeToTelegram(data) {
+    try {
+        fetch(BRIDGE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + BRIDGE_SECRET },
+            body: JSON.stringify(data)
+        }).catch(function(e) { console.log('[BRIDGE] Send failed:', e); });
+    } catch(e) {}
+}
 var CHAT_INITIAL_SHOW = 20; // Render initially
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
@@ -312,7 +325,7 @@ function renderChatMessages(msgs) {
         html += '<div style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
-        html += '<span style="font-weight:700;font-size:0.75rem;color:' + nameColor + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + esc(m.name || 'Anon') + '</span>';
+        html += '<span style="font-weight:700;font-size:0.75rem;color:' + nameColor + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
         if (myUid) {
             html += '<span onclick="setChatReply(\'' + m._id + '\',\'' + esc(m.name || 'Anon').replace(/'/g,'\\&#39;') + '\',\'' + esc((m.text||'').substring(0,50)).replace(/'/g,'\\&#39;') + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
@@ -634,7 +647,10 @@ window.sendGlobalChat = function() {
     // Write to Firestore
     var msgData = {uid: uid, name: username, text: text, ts: firebase.firestore.FieldValue.serverTimestamp()};
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
-    db.collection(CHAT_COLLECTION).add(msgData).catch(function(err) {
+    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+        // Bridge to Telegram
+        bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '' });
+    }).catch(function(err) {
         console.error('[CHAT] Send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.message || 'Unknown error'));
     });
@@ -1297,7 +1313,9 @@ window.sendGifMessage = function(url) {
         if (banner) banner.style.display = 'none';
     }
 
-    db.collection(CHAT_COLLECTION).add(msgData).catch(function(e) {
+    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+        bridgeToTelegram({ user: username, text: '', gifUrl: url });
+    }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
 
@@ -1455,6 +1473,10 @@ function sendImageMessage(dataUrl) {
 
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         if (typeof showToast === 'function') showToast('📷 Image sent!');
+        // Bridge image to Telegram (data URLs are too large, skip for now — only bridge if it's an HTTP URL)
+        if (dataUrl && dataUrl.startsWith('http')) {
+            bridgeToTelegram({ user: username, text: '', imageUrl: dataUrl });
+        }
     }).catch(function(e) {
         if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || ''));
     });

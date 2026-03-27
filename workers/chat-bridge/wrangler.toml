@@ -1,0 +1,11 @@
+name = "chat-bridge"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+TG_CHAT_ID = "-1003827558565"
+
+# Secrets (set via `wrangler secret put`):
+# TG_BOT_TOKEN
+# FIREBASE_API_KEY
+# BRIDGE_SECRET
