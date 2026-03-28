@@ -924,7 +924,7 @@
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
     <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:110px;z-index:140;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆 Leaderboard</button>
     <div id="leaderboard"></div>
-    <button onclick="if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:20px;z-index:139;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px 18px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;" id="desktopDMBtn">💬 Chat</button>
+    <button onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:20px;z-index:139;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px 18px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;" id="desktopDMBtn">💬 Chat</button>
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
@@ -1001,7 +1001,7 @@
     <script src="nacho-closet.js?v=20260306a" defer></script>
     <script src="lightning.js?v=20260308" defer></script>
     <script src="lightning-tips.js?v=20260308" defer></script>
-    <script src="global-chat.js?v=20260328" defer></script>
+    <script src="global-chat.js?v=20260328b" defer></script>
     <script src="tips-integrations.js?v=20260307" defer></script>
     <script src="wallet-router.js?v=20260307a" defer></script>
     <script src="lightning-prompt.js?v=20260307" defer></script>
