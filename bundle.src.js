@@ -32145,6 +32145,26 @@ window.playSpinWin = function() {
                             (newLevel.level >= 3 ? "New closet items are now available! Check the Closet! 👔✨" : "Keep chatting with me to unlock more! 🦌");
                         if (typeof forceShowBubble === 'function') {
                             forceShowBubble(msg);
+                            // Set click handler to open closet tab
+                            if (newLevel.level >= 3) {
+                                setTimeout(function() {
+                                    var bubble = document.getElementById('nacho-bubble');
+                                    if (bubble) {
+                                        bubble.style.cursor = 'pointer';
+                                        bubble.onclick = function() {
+                                            bubble.classList.remove('show');
+                                            if (typeof showSettings === 'function') showSettings();
+                                            setTimeout(function() {
+                                                if (typeof showSettingsPage === 'function') showSettingsPage('data');
+                                                setTimeout(function() {
+                                                    var nachoBtn = document.querySelector('[onclick*="nacho"], [onclick*="closet"]');
+                                                    if (nachoBtn) nachoBtn.click();
+                                                }, 300);
+                                            }, 300);
+                                        };
+                                    }
+                                }, 100);
+                            }
                         } else if (typeof showToast === 'function') {
                             showToast('🦌 Friendship Level Up: ' + newLevel.emoji + ' ' + newLevel.name + '!');
                         }
