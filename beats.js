@@ -24,11 +24,10 @@ window.renderBitcoinBeats = function() {
 
         <!-- Tab Bar -->
         <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;">
-            <button onclick="beatsTab('discover')" id="beatsTabDiscover" class="beats-tab active" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🔥 Discover</button>
-            <button onclick="beatsTab('upload')" id="beatsTabUpload" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">🎸 Upload</button>
-            <button onclick="beatsTab('mymusic')" id="beatsTabMymusic" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">📚 My Music</button>
-            <button onclick="beatsTab('likes')" id="beatsTabLikes" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">❤️ Liked</button>
-            <button onclick="beatsTab('livestream')" id="beatsTabLivestream" class="beats-tab" style="padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">📡 Livestream</button>
+            <button onclick="beatsTab('discover')" id="beatsTabDiscover" class="beats-tab active" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">🔥 Discover</button>
+            <button onclick="beatsTab('library')" id="beatsTabLibrary" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">📚 Library</button>
+            <button onclick="beatsTab('upload')" id="beatsTabUpload" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">🎸 Upload</button>
+            <button onclick="beatsTab('livestream')" id="beatsTabLivestream" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">📡 Live</button>
         </div>
 
         <!-- Track List -->
@@ -207,7 +206,9 @@ window.beatsSetMediaSession = function(track) {
 // ---- Tab switching ----
 window.beatsTab = function(tab) {
     window._beatsCurrentTab = tab;
-    ['discover','upload','mymusic','likes','livestream'].forEach(function(t) {
+    // Remove old sort bar when leaving discover
+    if (tab !== 'discover') { var sb = document.getElementById('beatsSortBar'); if (sb) sb.remove(); }
+    ['discover','library','upload','livestream'].forEach(function(t) {
         var btn = document.getElementById('beatsTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) {
             btn.style.borderBottomColor = (t === tab) ? 'var(--accent)' : 'transparent';
@@ -218,6 +219,8 @@ window.beatsTab = function(tab) {
         beatsRenderUpload();
     } else if (tab === 'livestream') {
         beatsRenderLivestream();
+    } else if (tab === 'library') {
+        beatsRenderLibrary();
     } else {
         beatsLoadTracks(tab);
     }
@@ -2128,17 +2131,8 @@ window.beatsShareTrack = function(trackId, title) {
 };
 
 // ================================================================
-// FEATURE 5: Artist Earnings Dashboard (in My Music tab)
+// FEATURE 5: Artist Earnings Dashboard (shown in Library tab)
 // ================================================================
-(function() {
-    var _origTab = window.beatsTab;
-    window.beatsTab = function(tab) {
-        _origTab(tab);
-        if (tab === 'mymusic') {
-            setTimeout(function() { beatsInjectArtistDashboard(); }, 500);
-        }
-    };
-})();
 
 window.beatsInjectArtistDashboard = function() {
     var listEl = document.getElementById('beatsTrackList');
@@ -2185,6 +2179,383 @@ window.beatsInjectArtistDashboard = function() {
     }, 300);
     // Safety timeout
     setTimeout(function() { clearInterval(checkInterval); }, 5000);
+};
+
+// ================================================================
+// LIBRARY TAB — Liked, Playlists, My Uploads, Recently Played
+// ================================================================
+window._beatsLibrarySection = 'liked';
+
+window.beatsRenderLibrary = function() {
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) return;
+
+    var section = window._beatsLibrarySection || 'liked';
+    var hasUploads = auth && auth.currentUser;
+    var btnStyle = 'padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:0.2s;color:var(--text-muted);';
+
+    var html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">';
+    [
+        { id: 'liked', label: '❤️ Liked', show: true },
+        { id: 'playlists', label: '📋 Playlists', show: true },
+        { id: 'uploads', label: '🎸 My Uploads', show: !!hasUploads },
+        { id: 'recent', label: '🕐 Recent', show: true }
+    ].forEach(function(s) {
+        if (!s.show) return;
+        var active = section === s.id;
+        html += '<button onclick="window._beatsLibrarySection=\'' + s.id + '\';beatsRenderLibrary()" style="' + btnStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + s.label + '</button>';
+    });
+    html += '</div>';
+
+    if (section === 'liked') {
+        html += '<div id="beatsLibContent"></div>';
+        listEl.innerHTML = html;
+        beatsLoadLikedTracks();
+    } else if (section === 'playlists') {
+        html += '<div id="beatsLibContent"></div>';
+        listEl.innerHTML = html;
+        beatsLoadPlaylists();
+    } else if (section === 'uploads') {
+        html += '<div id="beatsLibContent"></div>';
+        listEl.innerHTML = html;
+        beatsLoadMyUploads();
+    } else if (section === 'recent') {
+        html += '<div id="beatsLibContent"></div>';
+        listEl.innerHTML = html;
+        beatsLoadRecentlyPlayed();
+    }
+};
+
+// --- Liked Songs ---
+window.beatsLoadLikedTracks = function() {
+    var el = document.getElementById('beatsLibContent');
+    if (!el) return;
+    var liked = safeJSON('btc_beats_liked', []);
+    if (liked.length === 0) {
+        el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">❤️</div><div style="color:var(--text-muted);font-weight:600;">No liked tracks yet</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Hit the ❤️ on tracks you love!</div></div>';
+        return;
+    }
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading ' + liked.length + ' liked tracks...</div>';
+    var batch = liked.slice(0, 30);
+    db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', batch).get().then(function(snap) {
+        var tracks = [];
+        snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
+        window._beatsQueue = tracks;
+        beatsRenderTrackList(el, tracks, true);
+    }).catch(function() { el.innerHTML = '<div style="padding:20px;color:var(--text-faint);">Error loading liked tracks</div>'; });
+};
+
+// --- My Uploads ---
+window.beatsLoadMyUploads = function() {
+    var el = document.getElementById('beatsLibContent');
+    if (!el || !auth || !auth.currentUser) { if (el) el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);">Sign in to see uploads</div>'; return; }
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading...</div>';
+    db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(50).get().then(function(snap) {
+        var tracks = [];
+        snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
+        window._beatsQueue = tracks;
+        // Artist dashboard
+        if (tracks.length > 0) {
+            var totalPlays = 0, totalLikes = 0, topTrack = tracks[0];
+            tracks.forEach(function(t) { totalPlays += (t.plays || 0); totalLikes += (t.likes || 0); if ((t.plays || 0) > (topTrack.plays || 0)) topTrack = t; });
+            var dashHtml = '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-weight:800;color:var(--heading);font-size:0.9rem;margin-bottom:10px;">📊 Your Stats</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">' +
+                    '<div style="text-align:center;padding:8px;background:var(--card-bg);border-radius:8px;"><div style="font-weight:900;color:var(--accent);font-size:1rem;">' + tracks.length + '</div><div style="color:var(--text-faint);font-size:0.6rem;">Tracks</div></div>' +
+                    '<div style="text-align:center;padding:8px;background:var(--card-bg);border-radius:8px;"><div style="font-weight:900;color:var(--accent);font-size:1rem;">' + _formatPlays(totalPlays) + '</div><div style="color:var(--text-faint);font-size:0.6rem;">Plays</div></div>' +
+                    '<div style="text-align:center;padding:8px;background:var(--card-bg);border-radius:8px;"><div style="font-weight:900;color:#ef4444;font-size:1rem;">' + totalLikes + '</div><div style="color:var(--text-faint);font-size:0.6rem;">Likes</div></div>' +
+                '</div>' +
+                '<div style="font-size:0.75rem;color:var(--text-muted);">🏆 Top: <strong>' + escapeHtml(topTrack.title || '') + '</strong> — ' + _formatPlays(topTrack.plays || 0) + ' plays</div>' +
+            '</div>';
+            el.innerHTML = dashHtml;
+            var trackDiv = document.createElement('div');
+            el.appendChild(trackDiv);
+            beatsRenderTrackList(trackDiv, tracks, true);
+        } else {
+            el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">🎸</div><div style="color:var(--text-muted);font-weight:600;">No uploads yet</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Go to the Upload tab to share your music!</div></div>';
+        }
+    }).catch(function() { el.innerHTML = '<div style="padding:20px;color:var(--text-faint);">Error loading uploads</div>'; });
+};
+
+// --- Recently Played ---
+window.beatsLoadRecentlyPlayed = function() {
+    var el = document.getElementById('beatsLibContent');
+    if (!el) return;
+    var recent = safeJSON('btc_beats_recent', []);
+    if (recent.length === 0) {
+        el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">🕐</div><div style="color:var(--text-muted);font-weight:600;">No recently played tracks</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Start listening to build your history!</div></div>';
+        return;
+    }
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading...</div>';
+    var ids = recent.slice(0, 30);
+    db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', ids).get().then(function(snap) {
+        var trackMap = {};
+        snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; });
+        // Preserve order (most recent first)
+        var tracks = [];
+        ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
+        window._beatsQueue = tracks;
+        beatsRenderTrackList(el, tracks, false);
+    }).catch(function() { el.innerHTML = '<div style="padding:20px;color:var(--text-faint);">Error loading recent tracks</div>'; });
+};
+
+// Track recently played (called when a track starts playing)
+(function() {
+    var _origPlay = window.beatsPlayTrack;
+    window.beatsPlayTrack = function(idx) {
+        _origPlay(idx);
+        var track = window._beatsQueue && window._beatsQueue[idx];
+        if (track && track.id) {
+            try {
+                var recent = safeJSON('btc_beats_recent', []);
+                recent = recent.filter(function(id) { return id !== track.id; });
+                recent.unshift(track.id);
+                if (recent.length > 50) recent = recent.slice(0, 50);
+                localStorage.setItem('btc_beats_recent', JSON.stringify(recent));
+            } catch(e) {}
+        }
+    };
+})();
+
+// --- Shared track list renderer ---
+window.beatsRenderTrackList = function(el, tracks, showTip) {
+    if (tracks.length === 0) { el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-faint);">No tracks</div>'; return; }
+    var liked = safeJSON('btc_beats_liked', []);
+    var html = '';
+    tracks.forEach(function(t, idx) {
+        var isLiked = liked.indexOf(t.id) !== -1;
+        var isPlaying = window._beatsQueueIdx === idx;
+        html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:6px;display:flex;align-items:center;gap:10px;">' +
+            '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + (t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                '<div style="color:var(--text-faint);font-size:0.68rem;">' + escapeHtml(t.artist || t.authorName || 'Unknown') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
+                '<span style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + '</span>' +
+                '<button onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:2px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+                '<button onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.7rem;cursor:pointer;padding:2px;color:var(--text-faint);" title="Add to playlist">➕</button>' +
+            '</div>' +
+        '</div>';
+    });
+    el.innerHTML = html;
+};
+
+// ================================================================
+// PLAYLIST SYSTEM
+// ================================================================
+window.beatsLoadPlaylists = function() {
+    var el = document.getElementById('beatsLibContent');
+    if (!el) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">📋</div><div style="color:var(--text-muted);font-weight:600;">Sign in to create playlists</div></div>';
+        return;
+    }
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading playlists...</div>';
+
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').orderBy('createdAt', 'desc').limit(20).get().then(function(snap) {
+        var playlists = [];
+        snap.forEach(function(doc) { playlists.push({ id: doc.id, ...doc.data() }); });
+
+        var html = '<button onclick="beatsCreatePlaylist()" style="width:100%;padding:14px;background:var(--accent-bg);border:2px dashed var(--accent);border-radius:12px;color:var(--accent);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'var(--accent-bg)\';this.style.color=\'var(--accent)\'">➕ Create New Playlist</button>';
+
+        if (playlists.length === 0) {
+            html += '<div style="text-align:center;padding:20px;color:var(--text-faint);">No playlists yet. Create one!</div>';
+        } else {
+            playlists.forEach(function(p) {
+                var count = p.trackIds ? p.trackIds.length : 0;
+                html += '<div onclick="beatsOpenPlaylist(\'' + p.id + '\')" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;margin-bottom:8px;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                    '<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#1e293b,#2d1f4e);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">📋</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.name || 'Untitled Playlist') + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.72rem;">' + count + ' track' + (count !== 1 ? 's' : '') + '</div>' +
+                    '</div>' +
+                    '<button onclick="event.stopPropagation();beatsDeletePlaylist(\'' + p.id + '\',\'' + escapeHtml(p.name || '').replace(/'/g, "\\'") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:4px;" title="Delete">🗑️</button>' +
+                '</div>';
+            });
+        }
+        el.innerHTML = html;
+    }).catch(function(e) { console.error('Playlist load error:', e); el.innerHTML = '<div style="padding:20px;color:var(--text-faint);">Error loading playlists</div>'; });
+};
+
+window.beatsCreatePlaylist = function() {
+    var name = prompt('Playlist name:');
+    if (!name || !name.trim()) return;
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').add({
+        name: name.trim().substring(0, 60),
+        trackIds: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('📋 Playlist "' + name.trim() + '" created!');
+        beatsLoadPlaylists();
+    }).catch(function(e) { if (typeof showToast === 'function') showToast('Error: ' + e.message); });
+};
+
+window.beatsDeletePlaylist = function(id, name) {
+    if (!confirm('Delete playlist "' + name + '"?')) return;
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').doc(id).delete().then(function() {
+        if (typeof showToast === 'function') showToast('🗑️ Playlist deleted');
+        beatsLoadPlaylists();
+    });
+};
+
+window.beatsOpenPlaylist = function(playlistId) {
+    if (!auth || !auth.currentUser) return;
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading playlist...</div>';
+
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').doc(playlistId).get().then(function(doc) {
+        if (!doc.exists) { beatsLoadPlaylists(); return; }
+        var pl = doc.data();
+        var ids = pl.trackIds || [];
+
+        var header = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+            '<button onclick="beatsRenderLibrary()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;">←</button>' +
+            '<div style="flex:1;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;">' + escapeHtml(pl.name || 'Playlist') + '</div><div style="color:var(--text-faint);font-size:0.75rem;">' + ids.length + ' tracks</div></div>' +
+            '<button onclick="beatsPlayPlaylist(\'' + playlistId + '\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Play All</button>' +
+            '<button onclick="beatsShufflePlaylist(\'' + playlistId + '\')" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;cursor:pointer;font-family:inherit;color:var(--text-muted);">🎲</button>' +
+            '<button onclick="beatsSharePlaylistLink(\'' + playlistId + '\',\'' + escapeHtml(pl.name || 'Playlist').replace(/'/g, "\\'") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;" title="Share">🔗</button>' +
+        '</div>';
+
+        if (ids.length === 0) {
+            listEl.innerHTML = header + '<div style="text-align:center;padding:30px;color:var(--text-faint);">Empty playlist. Use ➕ on any track to add it here!</div>';
+            return;
+        }
+
+        // Fetch tracks
+        var batches = [];
+        for (var i = 0; i < ids.length; i += 30) batches.push(ids.slice(i, i + 30));
+        Promise.all(batches.map(function(b) {
+            return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
+        })).then(function(results) {
+            var trackMap = {};
+            results.forEach(function(snap) { snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; }); });
+            var tracks = [];
+            ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
+            window._beatsQueue = tracks;
+            var trackEl = document.createElement('div');
+            listEl.innerHTML = header;
+            listEl.appendChild(trackEl);
+            beatsRenderTrackList(trackEl, tracks, true);
+        });
+    });
+};
+
+window.beatsPlayPlaylist = function(playlistId) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').doc(playlistId).get().then(function(doc) {
+        if (!doc.exists) return;
+        var ids = doc.data().trackIds || [];
+        if (ids.length === 0) return;
+        var batches = [];
+        for (var i = 0; i < ids.length; i += 30) batches.push(ids.slice(i, i + 30));
+        Promise.all(batches.map(function(b) {
+            return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
+        })).then(function(results) {
+            var trackMap = {};
+            results.forEach(function(snap) { snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; }); });
+            var tracks = [];
+            ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
+            window._beatsQueue = tracks;
+            beatsPlayTrack(0);
+        });
+    });
+};
+
+window.beatsShufflePlaylist = function(playlistId) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').doc(playlistId).get().then(function(doc) {
+        if (!doc.exists) return;
+        var ids = doc.data().trackIds || [];
+        if (ids.length === 0) return;
+        // Shuffle
+        for (var i = ids.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = ids[i]; ids[i] = ids[j]; ids[j] = t; }
+        var batches = [];
+        for (var k = 0; k < ids.length; k += 30) batches.push(ids.slice(k, k + 30));
+        Promise.all(batches.map(function(b) {
+            return db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', b).get();
+        })).then(function(results) {
+            var trackMap = {};
+            results.forEach(function(snap) { snap.forEach(function(doc) { trackMap[doc.id] = { id: doc.id, ...doc.data() }; }); });
+            var tracks = [];
+            ids.forEach(function(id) { if (trackMap[id]) tracks.push(trackMap[id]); });
+            window._beatsQueue = tracks;
+            beatsPlayTrack(0);
+        });
+    });
+};
+
+window.beatsSharePlaylistLink = function(playlistId, name) {
+    if (!auth || !auth.currentUser) return;
+    var url = 'https://bitcoineducation.quest/#beats/playlist/' + auth.currentUser.uid + '/' + playlistId;
+    if (navigator.share) {
+        navigator.share({ title: name + ' — Bitcoin Beats Playlist', url: url }).catch(function() {});
+    } else {
+        navigator.clipboard.writeText(url).then(function() { if (typeof showToast === 'function') showToast('🔗 Playlist link copied!'); });
+    }
+};
+
+// Add to playlist picker
+window.beatsAddToPlaylistPicker = function(trackId) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to create playlists');
+        return;
+    }
+    var existing = document.getElementById('beatsPlaylistPicker');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'beatsPlaylistPicker';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;padding:16px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:2px solid var(--border);border-radius:20px 20px 0 0;padding:20px;max-width:400px;width:100%;"><div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div><div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:12px;">Add to Playlist</div><div id="playlistPickerList" style="max-height:300px;overflow-y:auto;"><div style="text-align:center;color:var(--text-faint);padding:12px;">Loading...</div></div><button onclick="beatsQuickCreateAndAdd(\'' + trackId + '\')" style="width:100%;margin-top:12px;padding:12px;background:var(--accent-bg);border:2px dashed var(--accent);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">➕ New Playlist</button><button onclick="document.getElementById(\'beatsPlaylistPicker\').remove()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button></div>';
+    document.body.appendChild(overlay);
+
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').orderBy('createdAt', 'desc').limit(20).get().then(function(snap) {
+        var list = document.getElementById('playlistPickerList');
+        if (!list) return;
+        if (snap.empty) { list.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:12px;">No playlists yet</div>'; return; }
+        var html = '';
+        snap.forEach(function(doc) {
+            var p = doc.data();
+            var count = p.trackIds ? p.trackIds.length : 0;
+            var already = p.trackIds && p.trackIds.indexOf(trackId) !== -1;
+            html += '<button onclick="beatsAddTrackToPlaylist(\'' + doc.id + '\',\'' + trackId + '\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;background:' + (already ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (already ? '#22c55e' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:6px;text-align:left;transition:0.2s;">' +
+                '<span style="font-size:1.2rem;">📋</span>' +
+                '<div style="flex:1;min-width:0;"><div style="color:var(--heading);font-weight:600;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.name || 'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.68rem;">' + count + ' tracks' + (already ? ' · ✅ Added' : '') + '</div></div>' +
+            '</button>';
+        });
+        list.innerHTML = html;
+    });
+};
+
+window.beatsAddTrackToPlaylist = function(playlistId, trackId) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').doc(playlistId).update({
+        trackIds: firebase.firestore.FieldValue.arrayUnion(trackId)
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('✅ Added to playlist!');
+        var picker = document.getElementById('beatsPlaylistPicker');
+        if (picker) picker.remove();
+    }).catch(function(e) { if (typeof showToast === 'function') showToast('Error: ' + e.message); });
+};
+
+window.beatsQuickCreateAndAdd = function(trackId) {
+    var name = prompt('New playlist name:');
+    if (!name || !name.trim()) return;
+    if (!auth || !auth.currentUser) return;
+    db.collection('users').doc(auth.currentUser.uid).collection('playlists').add({
+        name: name.trim().substring(0, 60),
+        trackIds: [trackId],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+        if (typeof showToast === 'function') showToast('📋 Created "' + name.trim() + '" with track!');
+        var picker = document.getElementById('beatsPlaylistPicker');
+        if (picker) picker.remove();
+    });
 };
 
 // ================================================================

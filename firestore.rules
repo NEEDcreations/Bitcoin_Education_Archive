@@ -21,6 +21,19 @@ service cloud.firestore {
                             && request.resource.data.username.size() <= 20));
       allow delete: if request.auth != null
                     && request.auth.uid == userId;
+
+      // Playlists subcollection
+      match /playlists/{playlistId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && request.resource.data.name is string
+                      && request.resource.data.name.size() <= 60;
+        allow update: if request.auth != null
+                      && request.auth.uid == userId;
+        allow delete: if request.auth != null
+                      && request.auth.uid == userId;
+      }
     }
 
     // =============================================

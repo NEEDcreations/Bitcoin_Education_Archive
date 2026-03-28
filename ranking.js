@@ -2921,9 +2921,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'artist', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', artist: '🎸', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', artist: 'Artist', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -3094,9 +3094,12 @@ function showSettingsPage(tab) {
                 '<span style="color:var(--accent);font-size:1.1rem;margin-left:auto;">→</span></div>';
         }
 
+        // Artist Profile button
+        html += '<button onclick="showArtistProfileModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--accent);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">🎸 Artist Profile</button>';
+
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
-    } else if (settingsTab === 'artist') {
+    } else if (settingsTab === '_artist_removed') {
         // Artist Profile
         var ap = currentUser ? (currentUser.artistProfile || {}) : {};
         var hasUploads = false;
@@ -4104,7 +4107,71 @@ async function saveProfile() {
 }
 
 // Clear all user-specific localStorage to prevent cross-account leakage
-// ---- Artist Profile Save ----
+// ---- Artist Profile Modal ----
+window.showArtistProfileModal = function() {
+    if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
+    var existing = document.getElementById('artistProfileModal');
+    if (existing) existing.remove();
+
+    var ap = currentUser ? (currentUser.artistProfile || {}) : {};
+    var uid = auth.currentUser.uid;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'artistProfileModal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;max-width:440px;width:100%;margin:40px auto;animation:fadeSlideIn 0.3s ease-out;">' +
+        '<button onclick="document.getElementById(\'artistProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
+        '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🎸</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">Artist Profile</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;">Set up your artist presence on Bitcoin Beats</div>' +
+        '</div>' +
+        // Stage Name
+        '<div style="margin-bottom:12px;">' +
+            '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🎤 Stage Name</div>' +
+            '<input type="text" id="artistStageName" maxlength="40" placeholder="Your artist or stage name" value="' + escapeHtml(ap.stageName || '') + '" style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
+            '<div style="font-size:0.68rem;color:var(--text-faint);margin-top:3px;">Leave blank to use your username.</div>' +
+        '</div>' +
+        // Artist Bio
+        '<div style="margin-bottom:12px;">' +
+            '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📝 Artist Bio</div>' +
+            '<textarea id="artistBio" maxlength="500" rows="3" placeholder="Tell listeners about your music..." style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;resize:vertical;">' + escapeHtml(ap.bio || '') + '</textarea>' +
+        '</div>' +
+        // Genres
+        '<div style="margin-bottom:12px;">' +
+            '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🎵 Genres</div>' +
+            '<input type="text" id="artistGenres" maxlength="100" placeholder="e.g. hip-hop, lo-fi, bitcoin anthems" value="' + escapeHtml(ap.genres || '') + '" style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
+        '</div>' +
+        // Music Links
+        '<div style="margin-bottom:16px;">' +
+            '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🔗 Music Links</div>' +
+            '<div style="display:flex;flex-direction:column;gap:6px;">' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🌊</span><input type="url" id="artistLinkWavlake" placeholder="Wavlake" value="' + escapeHtml(ap.wavlake || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🟢</span><input type="url" id="artistLinkSpotify" placeholder="Spotify" value="' + escapeHtml(ap.spotify || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🎵</span><input type="url" id="artistLinkSoundcloud" placeholder="SoundCloud" value="' + escapeHtml(ap.soundcloud || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">📺</span><input type="url" id="artistLinkYoutube" placeholder="YouTube" value="' + escapeHtml(ap.youtube || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🔗</span><input type="url" id="artistLinkOther" placeholder="Other (Bandcamp, website...)" value="' + escapeHtml(ap.otherLink || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+            '</div>' +
+        '</div>' +
+        // Lightning reminder
+        '<div style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">' +
+            '<span style="font-size:1.1rem;">⚡</span>' +
+            '<div style="flex:1;font-size:0.78rem;color:var(--text-muted);">' +
+                (currentUser && (currentUser.lightningAddress || currentUser.lightning)
+                    ? '✅ Lightning: <strong style="color:#eab308;">' + escapeHtml(currentUser.lightningAddress || currentUser.lightning) + '</strong>'
+                    : '⚠️ Set a Lightning Address in Account or Wallet to receive tips!') +
+            '</div>' +
+        '</div>' +
+        // Save + Preview
+        '<button onclick="saveArtistProfile()" id="artistSaveBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);margin-bottom:8px;">💾 Save Artist Profile</button>' +
+        '<button onclick="document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + uid + '\')" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
+    '</div>';
+
+    document.body.appendChild(overlay);
+};
+
 window.saveArtistProfile = function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') {
         if (typeof showToast === 'function') showToast('Sign in to save your artist profile');
