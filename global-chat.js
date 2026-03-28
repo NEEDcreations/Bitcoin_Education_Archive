@@ -1540,11 +1540,11 @@ window.djBroadcast = function() {
     // Check if someone is already DJing
     db.collection('global_chat_meta').doc(DJ_DOC).get().then(function(doc) {
         var data = doc.exists ? doc.data() : null;
-        if (data && data.active && data.djUid !== uid) {
-            // Someone else is DJing — join the queue
+        if (data && data.active && data.djUid !== uid && data.djUid !== 'nacho-dj') {
+            // A real DJ is playing — join the queue
             djJoinQueue(uid, username);
         } else {
-            // Booth is open (or we're already the DJ) — go live
+            // Booth is open, Nacho is playing, or we're already the DJ — go live
             djGoLive(uid, username, track);
         }
     }).catch(function() {
@@ -1914,6 +1914,12 @@ window.djTuneIn = function() {
     if (!npEl) return;
     var url = npEl.getAttribute('data-audio-url');
     var seekTime = parseFloat(npEl.getAttribute('data-playback-time') || '0');
+    // For Nacho DJ, calculate position from trackStartedAt
+    var startedAt = npEl.getAttribute('data-track-started-at');
+    if (startedAt && npEl.getAttribute('data-is-nacho') === 'true') {
+        var elapsed = (Date.now() - new Date(startedAt).getTime()) / 1000;
+        if (elapsed > 0) seekTime = elapsed;
+    }
     if (!url) { if (typeof showToast === 'function') showToast('No audio available for this track'); return; }
     if (window._beatsAudio && !window._beatsAudio.paused) {
         window._beatsAudio.pause();
@@ -2052,26 +2058,49 @@ function showDJBar(d) {
     }
     var myUid = auth && auth.currentUser ? auth.currentUser.uid : null;
     var isDJ = d.djUid === myUid;
-    var songInfo = d.songCount ? ' · Song ' + d.songCount + (d.songCount >= DJ_MAX_SONGS_WITH_QUEUE ? '/5' : '') : '';
+    var isNacho = d.djUid === 'nacho-dj' || d.isNachoDJ === true;
+    var songInfo = (!isNacho && d.songCount) ? ' · Song ' + d.songCount + (d.songCount >= DJ_MAX_SONGS_WITH_QUEUE ? '/5' : '') : '';
 
     bar.setAttribute('data-audio-url', d.trackAudioUrl || '');
     bar.setAttribute('data-playback-time', d.playbackTime || '0');
+    bar.setAttribute('data-is-nacho', isNacho ? 'true' : 'false');
+    if (d.trackStartedAt) {
+        var tsa = d.trackStartedAt.toDate ? d.trackStartedAt.toDate().toISOString() : (typeof d.trackStartedAt === 'string' ? d.trackStartedAt : '');
+        bar.setAttribute('data-track-started-at', tsa);
+    }
+
+    // Tip button: Nacho → donate modal, real DJ → user profile
+    var tipBtn = '';
+    if (isNacho) {
+        tipBtn = '<button onclick="if(typeof showDonateModal===\'function\')showDonateModal()" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">💛 Donate</button>';
+    } else if (d.djUid && !isDJ) {
+        tipBtn = '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>';
+    }
+
+    // DJ button: if Nacho is playing, let users take over
+    var djActionBtn = '';
+    if (isDJ) {
+        djActionBtn = '<button onclick="djStopBroadcast()" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.7rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;">⏹ Stop DJ</button>';
+    } else if (isNacho) {
+        djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
+    } else {
+        djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
+    }
+
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 @' + esc(d.djName) + ' is DJing!' + songInfo;
+
     bar.innerHTML =
         '<div style="display:flex;align-items:center;gap:10px;">' +
-            (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">🎧</div>') +
+            (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:0.7rem;color:#6366f1;font-weight:700;margin-bottom:2px;">🎧 @' + esc(d.djName) + ' is DJing!' + songInfo + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
+                '<div style="font-size:0.7rem;color:#6366f1;font-weight:700;margin-bottom:2px;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
                 '<div style="font-size:0.72rem;color:var(--text-muted);cursor:pointer;" onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')">' + esc(d.trackArtist) +
-                    (d.artistUid ? ' <span style="color:var(--accent);font-weight:700;">⚡ Tip</span>' : '') +
+                    (d.artistUid ? ' <span style="color:var(--accent);font-weight:700;">⚡ Tip Artist</span>' : '') +
                 '</div>' +
             '</div>' +
             '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;align-items:center;">' +
-                (isDJ ?
-                    '<button onclick="djStopBroadcast()" style="padding:6px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:#ef4444;font-size:0.7rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;">⏹ Stop DJ</button>' :
-                    '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>'
-                ) +
-                (d.djUid && !isDJ ? '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>' : '') +
+                djActionBtn + tipBtn +
                 (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:4px 8px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.6rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
             '</div>' +
         '</div>';

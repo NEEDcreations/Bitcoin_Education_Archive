@@ -2,6 +2,9 @@ name = "chat-bridge"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
+[triggers]
+crons = ["* * * * *"]
+
 [vars]
 TG_CHAT_ID = "-1003827558565"
 FIREBASE_PROJECT_ID = "bitcoin-education-archive"

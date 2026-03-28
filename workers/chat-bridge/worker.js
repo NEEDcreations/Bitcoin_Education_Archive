@@ -126,6 +126,124 @@ async function writeToFirestore(env, doc) {
   return true;
 }
 
+// ---- Firestore Admin Read ----
+async function readFirestoreDoc(env, path) {
+  var token = await getAccessToken(env);
+  if (!token) return null;
+  var projectId = env.FIREBASE_PROJECT_ID || 'bitcoin-education-archive';
+  var url = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/' + path;
+  var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+async function updateFirestoreDoc(env, path, fields) {
+  var token = await getAccessToken(env);
+  if (!token) return false;
+  var projectId = env.FIREBASE_PROJECT_ID || 'bitcoin-education-archive';
+  var fieldPaths = Object.keys(fields).map(function(k) { return 'updateMask.fieldPaths=' + k; }).join('&');
+  var url = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents/' + path + '?' + fieldPaths;
+  var doc = { fields: {} };
+  for (var k in fields) doc.fields[k] = fields[k];
+  var resp = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(doc)
+  });
+  return resp.ok;
+}
+
+async function queryFirestore(env, collection, limit) {
+  var token = await getAccessToken(env);
+  if (!token) return [];
+  var projectId = env.FIREBASE_PROJECT_ID || 'bitcoin-education-archive';
+  var url = 'https://firestore.googleapis.com/v1/projects/' + projectId + '/databases/(default)/documents:runQuery';
+  var resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: collection }], limit: limit || 100 } })
+  });
+  if (!resp.ok) return [];
+  var results = await resp.json();
+  return results.filter(function(r) { return r.document; }).map(function(r) {
+    var f = r.document.fields || {};
+    var obj = { _id: r.document.name.split('/').pop() };
+    for (var k in f) {
+      if (f[k].stringValue !== undefined) obj[k] = f[k].stringValue;
+      else if (f[k].integerValue !== undefined) obj[k] = parseInt(f[k].integerValue);
+      else if (f[k].doubleValue !== undefined) obj[k] = f[k].doubleValue;
+      else if (f[k].booleanValue !== undefined) obj[k] = f[k].booleanValue;
+      else if (f[k].timestampValue !== undefined) obj[k] = f[k].timestampValue;
+    }
+    return obj;
+  });
+}
+
+// ---- Nacho DJ ----
+async function nachoDJCheck(env) {
+  // Read current DJ state
+  var djDoc = await readFirestoreDoc(env, 'global_chat_meta/live_dj');
+  var djData = djDoc ? djDoc.fields || {} : {};
+
+  var isActive = djData.active && djData.active.booleanValue === true;
+  var djUid = djData.djUid ? djData.djUid.stringValue : '';
+  var isNacho = djUid === 'nacho-dj';
+
+  // If a real DJ is active, do nothing
+  if (isActive && !isNacho) return { status: 'real_dj_active', dj: djUid };
+
+  // Get all tracks from beats
+  var tracks = await queryFirestore(env, 'beats_tracks', 200);
+  if (tracks.length === 0) return { status: 'no_tracks' };
+
+  // Filter tracks that have an audioUrl
+  tracks = tracks.filter(function(t) { return t.audioUrl; });
+  if (tracks.length === 0) return { status: 'no_playable_tracks' };
+
+  // If Nacho is already DJing, check if current track has expired
+  if (isNacho && isActive) {
+    var startedAt = djData.trackStartedAt ? djData.trackStartedAt.timestampValue : null;
+    var duration = djData.trackDuration ? (parseInt(djData.trackDuration.integerValue) || 240) : 240;
+
+    if (startedAt) {
+      var elapsed = (Date.now() - new Date(startedAt).getTime()) / 1000;
+      if (elapsed < duration) {
+        return { status: 'nacho_playing', elapsed: Math.round(elapsed), duration: duration };
+      }
+    }
+    // Track expired — pick a new one
+  }
+
+  // Pick a random track
+  var idx = Math.floor(Math.random() * tracks.length);
+  var track = tracks[idx];
+
+  // Estimate duration (default 4 min if unknown)
+  var dur = track.duration || 240;
+
+  var now = new Date().toISOString();
+
+  await updateFirestoreDoc(env, 'global_chat_meta/live_dj', {
+    djUid: { stringValue: 'nacho-dj' },
+    djName: { stringValue: '🦌 Nacho' },
+    trackTitle: { stringValue: track.title || 'Untitled' },
+    trackArtist: { stringValue: track.artist || track.authorName || 'Unknown' },
+    trackCoverArt: { stringValue: track.coverArt || '' },
+    trackAudioUrl: { stringValue: track.audioUrl || '' },
+    trackId: { stringValue: track._id || '' },
+    artistUid: { stringValue: track.authorId || '' },
+    trackDuration: { integerValue: String(dur) },
+    trackStartedAt: { timestampValue: now },
+    playbackTime: { doubleValue: 0 },
+    songCount: { integerValue: '1' },
+    startedAt: { timestampValue: now },
+    active: { booleanValue: true },
+    isNachoDJ: { booleanValue: true }
+  });
+
+  return { status: 'nacho_new_track', track: track.title, artist: track.artist || track.authorName };
+}
+
 // ---- Main Router ----
 export default {
   async fetch(request, env) {
@@ -142,6 +260,10 @@ export default {
       if (url.pathname === '/webhook/firestore' && request.method === 'POST') {
         return handleFirestoreWebhook(request, env);
       }
+      if (url.pathname === '/nacho-dj') {
+        var result = await nachoDJCheck(env);
+        return corsResponse(result);
+      }
       if (url.pathname === '/health') {
         return corsResponse({ ok: true, ts: Date.now() });
       }
@@ -150,6 +272,10 @@ export default {
       console.error('Worker error:', e);
       return corsResponse({ error: e.message }, 500);
     }
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(nachoDJCheck(env));
   }
 };
 
