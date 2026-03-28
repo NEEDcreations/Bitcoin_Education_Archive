@@ -1097,7 +1097,10 @@ function showGiveawayPrompt(uid, displayName) {
                 '<input type="checkbox" id="giveawayCheckboxProvider" checked style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">' +
                 '<span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>' +
             '</label>' +
-            '<input type="text" id="giveawayLnProvider" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" style="width:100%;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;">' +
+            '<div style="display:flex;gap:6px;align-items:center;">' +
+                '<input type="text" id="giveawayLnProvider" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
+                '<button onclick="pasteToField(\'giveawayLnProvider\')" style="padding:10px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">📋 Paste</button>' +
+            '</div>' +
             '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
         '</div>' +
         '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
@@ -1106,7 +1109,7 @@ function showGiveawayPrompt(uid, displayName) {
 
     // Toggle lightning address visibility
     document.getElementById('giveawayCheckboxProvider').addEventListener('change', function() {
-        document.getElementById('giveawayLnProvider').style.display = this.checked ? 'block' : 'none';
+        document.getElementById('giveawayLnProvider').parentElement.style.display = this.checked ? 'flex' : 'none';
     });
 }
 
@@ -4198,6 +4201,25 @@ window.saveArtistProfile = function() {
         if (typeof showToast === 'function') showToast('Error saving: ' + (e.message || 'Unknown'));
         if (btn) { btn.disabled = false; btn.textContent = '💾 Save Artist Profile'; }
     });
+};
+
+// ---- Paste helper for iOS ----
+window.pasteToField = function(fieldId) {
+    var field = document.getElementById(fieldId);
+    if (!field) return;
+    if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(function(text) {
+            field.value = text;
+            field.style.borderColor = 'var(--accent)';
+            if (typeof showToast === 'function') showToast('📋 Pasted!');
+        }).catch(function() {
+            if (typeof showToast === 'function') showToast('Long-press the field to paste');
+            field.focus();
+        });
+    } else {
+        if (typeof showToast === 'function') showToast('Long-press the field to paste');
+        field.focus();
+    }
 };
 
 window.minimizeSignUpBanner = function() {
