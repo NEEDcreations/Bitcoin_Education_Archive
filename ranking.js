@@ -2055,7 +2055,7 @@ function updateUserDisplay(lv) {
         el.style.cssText = 'position:fixed;' + (_isMob ? 'bottom:70px;left:12px;right:12px;' : 'top:44px;right:20px;') + 'z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:' + (_isMob ? 'none' : '380px') + ';';
         el.onclick = function() { showSettingsPage('account'); };
         el.innerHTML =
-            '<button onclick="event.stopPropagation();var ud=document.getElementById(\'userDisplay\');ud.style.cssText=\'position:fixed;top:44px;right:20px;z-index:200;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;\';ud.innerHTML=\'<span style=\\\"font-size:0.8rem;font-weight:700;color:#f7931a;\\\">🔐 Sign Up</span>\';ud.onclick=function(){showUsernamePrompt();};" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">▼</button>' +
+            '<button onclick="event.stopPropagation();minimizeSignUpBanner();" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">▼</button>' +
             '<div style="display:flex;flex-direction:column;gap:2px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
@@ -4035,6 +4035,14 @@ async function saveProfile() {
 }
 
 // Clear all user-specific localStorage to prevent cross-account leakage
+window.minimizeSignUpBanner = function() {
+    var ud = document.getElementById('userDisplay');
+    if (!ud) return;
+    ud.style.cssText = 'position:fixed;top:44px;right:20px;z-index:200;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+    ud.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
+    ud.onclick = function() { showUsernamePrompt(); };
+};
+
 function clearUserLocalStorage() {
     var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_giveaway'];
     var toRemove = [];
