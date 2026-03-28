@@ -22915,6 +22915,14 @@ window.beatsToggleLike = function(trackId, btn) {
         if (btn) { btn.textContent = '❤️'; btn.style.color = '#ef4444'; }
         if (typeof db !== 'undefined') {
             db.collection('beats_tracks').doc(trackId).update({ likes: firebase.firestore.FieldValue.increment(1) }).catch(function() {});
+            // Notify the artist
+            db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
+                if (doc.exists && doc.data().authorId && typeof sendNotification === 'function') {
+                    var t = doc.data();
+                    var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                    sendNotification(t.authorId, 'like', _un + ' liked your track "' + (t.title || '').substring(0, 40) + '" ❤️', 'beats_track', trackId);
+                }
+            }).catch(function() {});
         }
     } else {
         liked.splice(idx, 1);
@@ -24210,9 +24218,16 @@ window.beatsPostComment = function(trackId) {
                 sessionStorage.setItem('_ch_beats_comment', '1');
             }
         }
-        // Increment comment count on track
+        // Increment comment count on track + notify artist
         db.collection('beats_tracks').doc(trackId).update({
             commentCount: firebase.firestore.FieldValue.increment(1)
+        }).catch(function() {});
+        // Notify track author
+        db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
+            if (doc.exists && doc.data().authorId && typeof sendNotification === 'function') {
+                var t = doc.data();
+                sendNotification(t.authorId, 'comment', authorName + ' commented on your track "' + (t.title || '').substring(0, 40) + '" 💬', 'beats_track', trackId);
+            }
         }).catch(function() {});
     }).catch(function(e) {
         console.error('Post comment error:', e);
@@ -24990,6 +25005,14 @@ window.beatsAddTrackToPlaylist = function(playlistId, trackId) {
         if (typeof showToast === 'function') showToast('✅ Added to playlist!');
         var picker = document.getElementById('beatsPlaylistPicker');
         if (picker) picker.remove();
+        // Notify the artist
+        db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
+            if (doc.exists && doc.data().authorId && typeof sendNotification === 'function') {
+                var t = doc.data();
+                var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                sendNotification(t.authorId, 'like', _un + ' added your track "' + (t.title || '').substring(0, 40) + '" to a playlist 📋', 'beats_track', trackId);
+            }
+        }).catch(function() {});
     }).catch(function(e) { if (typeof showToast === 'function') showToast('Error: ' + e.message); });
 };
 
