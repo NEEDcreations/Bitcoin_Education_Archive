@@ -2143,8 +2143,9 @@ if (document.body) _djBtnObserver.observe(document.body, { childList: true, subt
 // Init overlay on load — only show floating button on DESKTOP (mobile uses bottom nav "Chat")
 function initOverlay() {
     createChatOverlay();
-    var oldBtn = document.getElementById('desktopDMBtn');
-    if (oldBtn) oldBtn.style.display = 'none';
+    // Keep desktopDMBtn visible on desktop — it now triggers toggleChatOverlay
+    // var oldBtn = document.getElementById('desktopDMBtn');
+    // if (oldBtn) oldBtn.style.display = 'none';
     // Hide floating button on mobile — bottom nav "Chat" is enough
     var chatBtn = document.getElementById('chatOverlayBtn');
     if (chatBtn && window.innerWidth <= 900) chatBtn.style.display = 'none';
