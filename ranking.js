@@ -4148,11 +4148,9 @@ window.showArtistProfileModal = function() {
         '<div style="margin-bottom:16px;">' +
             '<div style="font-size:0.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🔗 Music Links</div>' +
             '<div style="display:flex;flex-direction:column;gap:6px;">' +
-                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🌊</span><input type="url" id="artistLinkWavlake" placeholder="Wavlake" value="' + escapeHtml(ap.wavlake || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
-                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🟢</span><input type="url" id="artistLinkSpotify" placeholder="Spotify" value="' + escapeHtml(ap.spotify || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
-                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🎵</span><input type="url" id="artistLinkSoundcloud" placeholder="SoundCloud" value="' + escapeHtml(ap.soundcloud || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
-                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">📺</span><input type="url" id="artistLinkYoutube" placeholder="YouTube" value="' + escapeHtml(ap.youtube || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
-                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🔗</span><input type="url" id="artistLinkOther" placeholder="Other (Bandcamp, website...)" value="' + escapeHtml(ap.otherLink || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">🌐</span><input type="url" id="artistLinkWebsite" placeholder="Website" value="' + escapeHtml(ap.website || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">𝕏</span><input type="text" id="artistLinkX" placeholder="X handle (e.g. @artist)" maxlength="50" value="' + escapeHtml(ap.x || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:6px;"><span style="width:18px;text-align:center;font-size:0.85rem;">📸</span><input type="text" id="artistLinkInstagram" placeholder="Instagram handle (e.g. @artist)" maxlength="50" value="' + escapeHtml(ap.instagram || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;box-sizing:border-box;"></div>' +
             '</div>' +
         '</div>' +
         // Lightning reminder
@@ -4184,11 +4182,9 @@ window.saveArtistProfile = function() {
         stageName: (document.getElementById('artistStageName').value || '').trim().substring(0, 40),
         bio: (document.getElementById('artistBio').value || '').trim().substring(0, 500),
         genres: (document.getElementById('artistGenres').value || '').trim().substring(0, 100),
-        wavlake: (document.getElementById('artistLinkWavlake').value || '').trim().substring(0, 200),
-        spotify: (document.getElementById('artistLinkSpotify').value || '').trim().substring(0, 200),
-        soundcloud: (document.getElementById('artistLinkSoundcloud').value || '').trim().substring(0, 200),
-        youtube: (document.getElementById('artistLinkYoutube').value || '').trim().substring(0, 200),
-        otherLink: (document.getElementById('artistLinkOther').value || '').trim().substring(0, 200)
+        website: (document.getElementById('artistLinkWebsite').value || '').trim().substring(0, 200),
+        x: (document.getElementById('artistLinkX').value || '').trim().substring(0, 50),
+        instagram: (document.getElementById('artistLinkInstagram').value || '').trim().substring(0, 50)
     };
 
     db.collection('users').doc(auth.currentUser.uid).update({

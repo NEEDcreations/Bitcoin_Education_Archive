@@ -2020,12 +2020,10 @@ window.beatsShowArtistPage = function(uid) {
 
         // Collect music links
         var musicLinks = [];
-        if (ap.wavlake) musicLinks.push({ emoji: '🌊', label: 'Wavlake', url: ap.wavlake });
-        if (ap.spotify) musicLinks.push({ emoji: '🟢', label: 'Spotify', url: ap.spotify });
-        if (ap.soundcloud) musicLinks.push({ emoji: '🎵', label: 'SoundCloud', url: ap.soundcloud });
-        if (ap.youtube) musicLinks.push({ emoji: '📺', label: 'YouTube', url: ap.youtube });
-        if (ap.otherLink) musicLinks.push({ emoji: '🔗', label: 'Website', url: ap.otherLink });
-        if (u.twitter) musicLinks.push({ emoji: '𝕏', label: '@' + u.twitter.replace('@', ''), url: 'https://x.com/' + u.twitter.replace('@', '') });
+        if (ap.website) musicLinks.push({ emoji: '🌐', label: 'Website', url: ap.website });
+        if (ap.x) { var xHandle = ap.x.replace('@', ''); musicLinks.push({ emoji: '𝕏', label: '@' + xHandle, url: 'https://x.com/' + xHandle }); }
+        else if (u.twitter) musicLinks.push({ emoji: '𝕏', label: '@' + u.twitter.replace('@', ''), url: 'https://x.com/' + u.twitter.replace('@', '') });
+        if (ap.instagram) { var igHandle = ap.instagram.replace('@', ''); musicLinks.push({ emoji: '📸', label: '@' + igHandle, url: 'https://instagram.com/' + igHandle }); }
 
         var html = '<div style="max-width:500px;margin:40px auto;background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;animation:fadeSlideIn 0.3s ease-out;">' +
             '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
