@@ -13587,6 +13587,7 @@ function playWarriorDrum() {
 function showQuest(quest, retry) {
     currentQuest = quest;
     isRetry = retry;
+    window._questSubmitted = false;
     playWarriorDrum();
 
     const modal = document.getElementById('questModal');
@@ -13633,6 +13634,12 @@ function selectAnswer(btn, qIdx, aIdx) {
 }
 
 async function submitQuest() {
+    // Prevent double-submit
+    if (window._questSubmitted) return;
+    window._questSubmitted = true;
+    var btn = document.getElementById('questSubmitBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Grading...'; }
+
     const answers = window._questAnswers;
     const correct = window._questCorrect;
     let score = 0;
@@ -13722,9 +13729,12 @@ async function submitQuest() {
             '<button class="quest-done" onclick="showQuestFinalResults()" style="margin-bottom:8px;">Show What You\'ve Earned! →</button>';
     }
 
-    // Scroll modal to top so user sees the header, then can scroll through answers
+    // Scroll modal to top so user sees the results
     const inner = document.getElementById('questInner');
-    if (inner) inner.scrollTop = 0;
+    if (inner) inner.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Also show a quick results toast for visibility
+    if (typeof showToast === 'function') showToast(msg);
 }
 
 function playHooraySound() {
