@@ -50,18 +50,36 @@ window.nachoCheckMilestone = function() {
     var name = typeof nachoUserName === 'function' ? nachoUserName() : '';
     var n = name ? ', ' + name : '';
 
-    for (var i = POINT_MILESTONES.length - 1; i >= 0; i--) {
+    // Collect all uncelebrated milestones (lowest first)
+    var pending = [];
+    for (var i = 0; i < POINT_MILESTONES.length; i++) {
         var m = POINT_MILESTONES[i];
         if (pts >= m && !celebrated.includes(m)) {
+            pending.push(m);
             celebrated.push(m);
-            localStorage.setItem('btc_nacho_milestones', JSON.stringify(celebrated));
-            if (typeof syncCelebratedState === 'function') syncCelebratedState();
-            var lvl = typeof getLevel === 'function' ? getLevel(pts) : null;
-            var rank = lvl ? ' You\'re now rank: ' + lvl.emoji + ' ' + lvl.name + '!' : '';
-            return { pose: 'celebrate', text: "🎉 " + m.toLocaleString() + " points" + n + "!" + rank + " Incredible progress! 🦌💪" };
         }
     }
-    return null;
+    if (pending.length === 0) return null;
+    localStorage.setItem('btc_nacho_milestones', JSON.stringify(celebrated));
+    if (typeof syncCelebratedState === 'function') syncCelebratedState();
+
+    // Show the lowest uncelebrated milestone first
+    var first = pending[0];
+    var lvl = typeof getLevel === 'function' ? getLevel(pts) : null;
+    var rank = lvl ? ' You\'re now rank: ' + lvl.emoji + ' ' + lvl.name + '!' : '';
+
+    // Queue remaining milestones for delayed display
+    if (pending.length > 1 && typeof forceShowBubble === 'function') {
+        for (var j = 1; j < pending.length; j++) {
+            (function(milestone, delay) {
+                setTimeout(function() {
+                    forceShowBubble("🎉 " + milestone.toLocaleString() + " points" + n + "! Keep going! 🦌💪");
+                }, delay);
+            })(pending[j], j * 4000);
+        }
+    }
+
+    return { pose: 'celebrate', text: "🎉 " + first.toLocaleString() + " points" + n + "!" + rank + " Incredible progress! 🦌💪" };
 };
 
 // ---- Category Completion Celebrations ----
