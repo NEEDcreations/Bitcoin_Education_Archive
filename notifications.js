@@ -208,7 +208,7 @@ function createNotifOverlay() {
     btn.id = 'notifOverlayBtn';
     btn.innerHTML = '🔔';
     btn.title = 'Notifications';
-    btn.style.cssText = 'position:fixed;top:48px;right:20px;z-index:300;width:44px;height:44px;border-radius:50%;background:var(--card-bg,#1a1a2e);color:#fff;border:1px solid var(--border);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;top:12px;right:20px;z-index:300;width:44px;height:44px;border-radius:50%;background:var(--card-bg,#1a1a2e);color:#fff;border:1px solid var(--border);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleNotifOverlay;
 
     // Badge
@@ -243,18 +243,17 @@ function createNotifOverlay() {
     style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}@media(max-width:900px){#notifOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
 
-    // Position notif bell next to userDisplay on desktop
+    // Position notif bell to left of userDisplay on desktop
     function positionNotifBell() {
         if (window.innerWidth <= 900) return;
         var ud = document.getElementById('userDisplay');
         var nb = document.getElementById('notifOverlayBtn');
         if (!nb) return;
         if (ud && ud.style.display !== 'none' && ud.offsetWidth > 0) {
-            var rect = ud.getBoundingClientRect();
-            nb.style.top = (rect.top + (rect.height / 2) - 22) + 'px';
-            nb.style.right = (window.innerWidth - rect.left + 8) + 'px';
+            nb.style.top = ud.style.top || '12px';
+            nb.style.right = (parseInt(ud.style.right || '20') + ud.offsetWidth + 12) + 'px';
         } else {
-            nb.style.top = '48px';
+            nb.style.top = '12px';
             nb.style.right = '20px';
         }
     }
