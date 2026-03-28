@@ -834,7 +834,7 @@ function createChatOverlay() {
     // Overlay panel
     var panel = document.createElement('div');
     panel.id = 'chatOverlay';
-    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:60vh;max-height:480px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:70vh;max-height:600px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
 
     // Header bar with drag handle
     var header = document.createElement('div');
@@ -2090,19 +2090,24 @@ function showDJBar(d) {
     var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 @' + esc(d.djName) + ' is DJing!' + songInfo;
 
     bar.innerHTML =
-        '<div style="display:flex;align-items:center;gap:10px;">' +
-            (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:44px;height:44px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
+        // Row 1: DJ label
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+            '<div style="font-size:0.72rem;color:#6366f1;font-weight:700;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
+        '</div>' +
+        // Row 2: Cover art + track info
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
+            (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:40px;height:40px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
             '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size:0.7rem;color:#6366f1;font-weight:700;margin-bottom:2px;">' + djLabel + ' <span id="djQueueInfo" style="color:var(--text-faint);font-weight:400;"></span></div>' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
-                '<div style="font-size:0.72rem;color:var(--text-muted);cursor:pointer;" onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')">' + esc(d.trackArtist) +
-                    (d.artistUid ? ' <span style="color:var(--accent);font-weight:700;">⚡ Tip Artist</span>' : '') +
-                '</div>' +
+                '<div style="font-size:0.72rem;color:var(--text-muted);">' + esc(d.trackArtist) + '</div>' +
             '</div>' +
-            '<div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;align-items:center;">' +
-                djActionBtn + tipBtn +
-                (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:4px 8px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.6rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
-            '</div>' +
+        '</div>' +
+        // Row 3: Action buttons
+        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+            djActionBtn +
+            (d.artistUid ? '<button onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            tipBtn +
+            (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
 }
 
