@@ -2010,7 +2010,19 @@ window.beatsShowArtistPage = function(uid) {
         tracks.forEach(function(t) { totalPlays += (t.plays || 0); totalLikes += (t.likes || 0); });
 
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🌱', name: 'Newbie' };
-        var artistName = u.username || tracks[0] && (tracks[0].artist || tracks[0].authorName) || 'Unknown Artist';
+        var ap = u.artistProfile || {};
+        var artistName = ap.stageName || u.username || tracks[0] && (tracks[0].artist || tracks[0].authorName) || 'Unknown Artist';
+        var artistBio = ap.bio || u.bio || '';
+        var artistGenres = ap.genres ? ap.genres.split(',').map(function(g) { return g.trim(); }).filter(Boolean) : [];
+
+        // Collect music links
+        var musicLinks = [];
+        if (ap.wavlake) musicLinks.push({ emoji: '🌊', label: 'Wavlake', url: ap.wavlake });
+        if (ap.spotify) musicLinks.push({ emoji: '🟢', label: 'Spotify', url: ap.spotify });
+        if (ap.soundcloud) musicLinks.push({ emoji: '🎵', label: 'SoundCloud', url: ap.soundcloud });
+        if (ap.youtube) musicLinks.push({ emoji: '📺', label: 'YouTube', url: ap.youtube });
+        if (ap.otherLink) musicLinks.push({ emoji: '🔗', label: 'Website', url: ap.otherLink });
+        if (u.twitter) musicLinks.push({ emoji: '𝕏', label: '@' + u.twitter.replace('@', ''), url: 'https://x.com/' + u.twitter.replace('@', '') });
 
         var html = '<div style="max-width:500px;margin:40px auto;background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;animation:fadeSlideIn 0.3s ease-out;">' +
             '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
@@ -2018,16 +2030,24 @@ window.beatsShowArtistPage = function(uid) {
                 '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>' +
                 '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + escapeHtml(artistName) + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' pts</div>' +
+                // Genre tags
+                (artistGenres.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px;">' +
+                    artistGenres.map(function(g) { return '<span style="padding:2px 10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);border-radius:12px;font-size:0.7rem;color:var(--accent);font-weight:600;">' + escapeHtml(g) + '</span>'; }).join('') +
+                '</div>' : '') +
             '</div>' +
             // Stats
-            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;">' +
+            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">' +
                 '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);font-size:1rem;">' + tracks.length + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Tracks</div></div>' +
                 '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);font-size:1rem;">' + _formatPlays(totalPlays) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Plays</div></div>' +
                 '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);font-size:1rem;">' + totalLikes + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Likes</div></div>' +
                 '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);font-size:1rem;">' + (u.streak || 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Streak</div></div>' +
             '</div>' +
-            // Bio
-            (u.bio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;"><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About</div><div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + escapeHtml(u.bio) + '</div></div>' : '') +
+            // Artist Bio
+            (artistBio ? '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;"><div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">About the Artist</div><div style="color:var(--text);font-size:0.85rem;line-height:1.5;">' + escapeHtml(artistBio) + '</div></div>' : '') +
+            // Music links
+            (musicLinks.length > 0 ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
+                musicLinks.map(function(l) { return '<a href="' + escapeHtml(l.url) + '" target="_blank" rel="noopener" style="padding:6px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.75rem;text-decoration:none;font-weight:600;transition:0.2s;display:flex;align-items:center;gap:4px;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + l.emoji + ' ' + escapeHtml(l.label) + '</a>'; }).join('') +
+            '</div>' : '') +
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
                 ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/'/g, "\\'") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/'/g, "\\'") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +

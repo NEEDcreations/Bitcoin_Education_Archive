@@ -2921,9 +2921,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'artist', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', artist: '🎸', scholar: '🎓', signal: '📡', tickets: '🎟️', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', artist: 'Artist', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -3095,6 +3095,75 @@ function showSettingsPage(tab) {
         }
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
+
+    } else if (settingsTab === 'artist') {
+        // Artist Profile
+        var ap = currentUser ? (currentUser.artistProfile || {}) : {};
+        var hasUploads = false;
+        // Check if user has uploaded tracks
+        if (typeof db !== 'undefined' && auth && auth.currentUser) {
+            var _artistUid = auth.currentUser.uid;
+        }
+
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🎸</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">Artist Profile</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;">Set up your artist presence on Bitcoin Beats</div>' +
+        '</div>';
+
+        // Artist / Stage Name
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎤 Stage Name</div>' +
+            '<input type="text" id="artistStageName" maxlength="40" placeholder="Your artist or stage name" value="' + escapeHtml(ap.stageName || '') + '" style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:4px;">Shows on your tracks and artist page. Leave blank to use your username.</div>' +
+        '</div>';
+
+        // Artist Bio
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📝 Artist Bio</div>' +
+            '<textarea id="artistBio" maxlength="500" rows="4" placeholder="Tell listeners about your music, influences, and style..." style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;resize:vertical;">' + escapeHtml(ap.bio || '') + '</textarea>' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:4px;">Music-specific bio. Your general bio is in Account tab.</div>' +
+        '</div>';
+
+        // Genres
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎵 Genres</div>' +
+            '<input type="text" id="artistGenres" maxlength="100" placeholder="e.g. hip-hop, lo-fi, bitcoin anthems" value="' + escapeHtml(ap.genres || '') + '" style="width:100%;padding:10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:4px;">Comma-separated. Shows as tags on your artist page.</div>' +
+        '</div>';
+
+        // Music Links
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔗 Music Links</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;text-align:center;">🌊</span><input type="url" id="artistLinkWavlake" placeholder="Wavlake URL" value="' + escapeHtml(ap.wavlake || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;text-align:center;">🟢</span><input type="url" id="artistLinkSpotify" placeholder="Spotify URL" value="' + escapeHtml(ap.spotify || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;text-align:center;">🎵</span><input type="url" id="artistLinkSoundcloud" placeholder="SoundCloud URL" value="' + escapeHtml(ap.soundcloud || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;text-align:center;">📺</span><input type="url" id="artistLinkYoutube" placeholder="YouTube URL" value="' + escapeHtml(ap.youtube || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;"><span style="width:20px;text-align:center;">🔗</span><input type="url" id="artistLinkOther" placeholder="Other link (Bandcamp, website, etc.)" value="' + escapeHtml(ap.otherLink || '') + '" style="flex:1;padding:8px 12px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;box-sizing:border-box;"></div>' +
+            '</div>' +
+        '</div>';
+
+        // Lightning tip reminder
+        html += '<div style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:1.2rem;">⚡</span>' +
+                '<div style="flex:1;">' +
+                    '<div style="color:#eab308;font-weight:700;font-size:0.85rem;">Lightning Tips</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.78rem;margin-top:2px;">' +
+                        (currentUser && (currentUser.lightningAddress || currentUser.lightning)
+                            ? '✅ Lightning Address set: <strong>' + escapeHtml(currentUser.lightningAddress || currentUser.lightning) + '</strong>'
+                            : '⚠️ No Lightning Address set. Go to <strong>Account</strong> tab or set up in <strong>⚡ Wallet</strong> to receive tips!') +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+        // Save button
+        html += '<button onclick="saveArtistProfile()" id="artistSaveBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);margin-bottom:12px;">💾 Save Artist Profile</button>';
+
+        // View artist page button
+        html += '<button onclick="hideUsernamePrompt();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + (auth && auth.currentUser ? auth.currentUser.uid : '') + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>';
 
     } else if (settingsTab === 'scholar') {
         // Scholar — Quests, Certifications, Flashcards
@@ -4035,6 +4104,39 @@ async function saveProfile() {
 }
 
 // Clear all user-specific localStorage to prevent cross-account leakage
+// ---- Artist Profile Save ----
+window.saveArtistProfile = function() {
+    if (!auth || !auth.currentUser || typeof db === 'undefined') {
+        if (typeof showToast === 'function') showToast('Sign in to save your artist profile');
+        return;
+    }
+    var btn = document.getElementById('artistSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    var profile = {
+        stageName: (document.getElementById('artistStageName').value || '').trim().substring(0, 40),
+        bio: (document.getElementById('artistBio').value || '').trim().substring(0, 500),
+        genres: (document.getElementById('artistGenres').value || '').trim().substring(0, 100),
+        wavlake: (document.getElementById('artistLinkWavlake').value || '').trim().substring(0, 200),
+        spotify: (document.getElementById('artistLinkSpotify').value || '').trim().substring(0, 200),
+        soundcloud: (document.getElementById('artistLinkSoundcloud').value || '').trim().substring(0, 200),
+        youtube: (document.getElementById('artistLinkYoutube').value || '').trim().substring(0, 200),
+        otherLink: (document.getElementById('artistLinkOther').value || '').trim().substring(0, 200)
+    };
+
+    db.collection('users').doc(auth.currentUser.uid).update({
+        artistProfile: profile
+    }).then(function() {
+        if (currentUser) currentUser.artistProfile = profile;
+        if (typeof showToast === 'function') showToast('🎸 Artist profile saved!');
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Save Artist Profile'; }
+    }).catch(function(e) {
+        console.error('Artist profile save error:', e);
+        if (typeof showToast === 'function') showToast('Error saving: ' + (e.message || 'Unknown'));
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Save Artist Profile'; }
+    });
+};
+
 window.minimizeSignUpBanner = function() {
     var ud = document.getElementById('userDisplay');
     if (!ud) return;
