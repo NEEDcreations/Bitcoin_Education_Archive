@@ -834,7 +834,7 @@ function createChatOverlay() {
     // Overlay panel
     var panel = document.createElement('div');
     panel.id = 'chatOverlay';
-    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:70vh;max-height:600px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:80vh;max-height:700px;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
 
     // Header bar with drag handle
     var header = document.createElement('div');
@@ -2053,8 +2053,11 @@ function showDJBar(d) {
     if (!bar) {
         bar = document.createElement('div');
         bar.id = 'djNowPlaying';
-        bar.style.cssText = 'position:sticky;top:0;z-index:5;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(247,147,26,0.1));border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:10px 14px;margin-bottom:8px;';
-        container.insertBefore(bar, container.firstChild);
+        bar.style.cssText = 'position:relative;z-index:5;background:var(--bg-side,#0a0a0f);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:10px 14px;margin-bottom:8px;flex-shrink:0;';
+        // Insert before the messages container, not inside it
+        var chatPanel = container.parentElement;
+        if (chatPanel) chatPanel.insertBefore(bar, container);
+        else container.insertBefore(bar, container.firstChild);
     }
     var myUid = auth && auth.currentUser ? auth.currentUser.uid : null;
     var isDJ = d.djUid === myUid;
@@ -2113,7 +2116,7 @@ function showDJBar(d) {
 
 function hideDJBar() {
     var bar = document.getElementById('djNowPlaying');
-    if (bar) bar.remove();
+    if (bar) { bar.remove(); }
 }
 
 // Hook into chat listener to also start DJ listener
