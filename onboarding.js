@@ -413,9 +413,7 @@ window.applySimplifiedHome = function() {
         });
     }
 
-    // Hide sponsorship
-    var sponsor = document.querySelector('[onclick*="Sponsorship"]');
-    if (sponsor) { var d = sponsor.closest('div[style*="dashed"]'); if (d) d.style.display = 'none'; }
+    // Sponsor is now a collapsible button — no need to hide
 };
 
 // ---- Progressive reveal ----
