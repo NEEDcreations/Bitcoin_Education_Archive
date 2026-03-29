@@ -2076,7 +2076,7 @@ function showDJBar(d) {
     // Tip button: Nacho → donate modal, real DJ → user profile
     var tipBtn = '';
     if (isNacho) {
-        tipBtn = '<button onclick="if(typeof showDonateModal===\'function\')showDonateModal()" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">💛 Donate</button>';
+        tipBtn = '';
     } else if (d.djUid && !isDJ) {
         tipBtn = '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>';
     }
