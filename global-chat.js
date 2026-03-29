@@ -2073,13 +2073,8 @@ function showDJBar(d) {
         bar.setAttribute('data-track-started-at', tsa);
     }
 
-    // Tip button: Nacho → donate modal, real DJ → user profile
+    // Tip button: removed Tip DJ entirely. DJ name is clickable instead.
     var tipBtn = '';
-    if (isNacho) {
-        tipBtn = '';
-    } else if (d.djUid && !isDJ) {
-        tipBtn = '<button onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="padding:4px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip DJ</button>';
-    }
 
     // DJ button: if Nacho is playing, let users take over
     var djActionBtn = '';
@@ -2091,7 +2086,9 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 @' + esc(d.djName) + ' is DJing!' + songInfo;
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
+
+    var artistHtml = d.artistUid ? '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
 
     bar.innerHTML =
         // Row 1: DJ label
@@ -2103,7 +2100,7 @@ function showDJBar(d) {
             (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:40px;height:40px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
-                '<div style="font-size:0.72rem;color:var(--text-muted);">' + esc(d.trackArtist) + '</div>' +
+                '<div style="font-size:0.72rem;color:var(--text-muted);">' + artistHtml + '</div>' +
             '</div>' +
         '</div>' +
         // Row 3: Action buttons
