@@ -33,6 +33,16 @@ fi
 echo ""
 echo "✅ All tests passed — committing"
 
+# Auto-bump SW cache version on every deploy
+if [ -f sw.js ]; then
+    CURRENT_V=$(grep -oP 'btc-archive-v\K[0-9]+' sw.js)
+    if [ -n "$CURRENT_V" ]; then
+        NEW_V=$((CURRENT_V + 1))
+        sed -i "s/btc-archive-v${CURRENT_V}/btc-archive-v${NEW_V}/" sw.js
+        echo "🔄 SW cache bumped: v${CURRENT_V} → v${NEW_V}"
+    fi
+fi
+
 # Copy index to 404
 cp index.html 404.html
 
