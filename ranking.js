@@ -2102,6 +2102,19 @@ function updateUserDisplay(lv) {
             var cachedH = parseInt(localStorage.getItem('btc_last_height')) || 0;
             if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cachedP = nachoLiveData.price;
             if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) cachedH = nachoLiveData.blockHeight;
+            // Fetch block height if not cached
+            if (!cachedH) {
+                fetch('https://mempool.space/api/blocks/tip/height').then(function(r) { return r.text(); }).then(function(h) {
+                    var height = parseInt(h);
+                    if (height) {
+                        localStorage.setItem('btc_last_height', height.toString());
+                        var el = document.getElementById('userDisplayLive');
+                        if (el && !el.querySelector('[href*="mempool"]')) {
+                            el.insertAdjacentHTML('beforeend', '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + height.toLocaleString() + '</a>');
+                        }
+                    }
+                }).catch(function() {});
+            }
             livePriceStr = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;margin-top:3px;opacity:0.8;">';
             if (cachedP) livePriceStr += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cachedP).toLocaleString() + '</span>';
             if (cachedH) livePriceStr += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + cachedH.toLocaleString() + '</a>';

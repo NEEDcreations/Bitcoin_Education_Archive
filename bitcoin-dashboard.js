@@ -177,7 +177,7 @@ async function fetchDashboardData() {
 
     // 1. mempool.space — block height, fees, hashrate, difficulty, mempool
     promises.push(
-        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => { data.blockHeight = parseInt(h); }).catch(() => {})
+        fetch('https://mempool.space/api/blocks/tip/height').then(r => r.text()).then(h => { data.blockHeight = parseInt(h); try { localStorage.setItem('btc_last_height', data.blockHeight.toString()); } catch(e) {} }).catch(() => {})
     );
     promises.push(
         fetch('https://mempool.space/api/v1/fees/recommended').then(r => r.json()).then(f => {
