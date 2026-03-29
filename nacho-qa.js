@@ -4322,6 +4322,138 @@ window.nachoTrackTopic = function(question, source) {
 // 🧠 UNIFIED ANSWER PIPELINE
 // Single function used by both Nacho Mode AND regular bubble
 // =============================================
+// ---- Bitcoin Math Calculator ----
+// Handles calculation-based questions about blocks, sats, halvings, time, etc.
+function nachoMathAnswer(q) {
+    var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+    var greeting = name ? (', ' + name) : '';
+    var height = (window._btcData && window._btcData.height) ? window._btcData.height : null;
+    var price = (window._btcData && window._btcData.price) ? window._btcData.price : null;
+
+    // Blocks per time period: "how many blocks in X hours/days/weeks/months/years"
+    var blockTimeMatch = q.match(/how many blocks?\s+(?:are there\s+)?(?:in|per|every)\s+(\d*\.?\d+)?\s*(an?\s+)?(minute|min|hour|hr|day|week|month|year|decade)/i);
+    if (!blockTimeMatch && /blocks?\s+(?:per|in|every)\s+(minute|hour|day|week|month|year)/i.test(q)) {
+        blockTimeMatch = q.match(/blocks?\s+(?:per|in|every)\s+(?:a\s+)?(\d*\.?\d+)?\s*(an?\s+)?(minute|min|hour|hr|day|week|month|year|decade)/i);
+    }
+    if (blockTimeMatch) {
+        var num = parseFloat(blockTimeMatch[1]) || 1;
+        var unit = (blockTimeMatch[3] || '').toLowerCase().replace(/s$/, '');
+        var minutesMap = { minute: 1, min: 1, hour: 60, hr: 60, day: 1440, week: 10080, month: 43200, year: 525600, decade: 5256000 };
+        var totalMinutes = (minutesMap[unit] || 1440) * num;
+        var blocks = Math.round(totalMinutes / 10);
+        var unitLabel = num === 1 ? unit : num + ' ' + unit + 's';
+        return {
+            answer: "There are approximately **" + blocks.toLocaleString() + " blocks** in " + unitLabel + greeting + "! 🧱🦌 Bitcoin targets 1 block every 10 minutes on average, so it's " + (totalMinutes).toLocaleString() + " minutes ÷ 10 = " + blocks.toLocaleString() + " blocks. The difficulty adjustment keeps this remarkably consistent! ⏱️",
+            channel: 'mining', channelName: 'Mining'
+        };
+    }
+
+    // Time for N blocks: "how long for 1000 blocks"
+    var timeForBlocks = q.match(/how (?:long|much time).*?(\d+)\s*blocks?/i);
+    if (timeForBlocks) {
+        var nBlocks = parseInt(timeForBlocks[1]);
+        var totalMins = nBlocks * 10;
+        var days = Math.floor(totalMins / 1440);
+        var hours = Math.floor((totalMins % 1440) / 60);
+        var mins = totalMins % 60;
+        var timeStr = '';
+        if (days > 0) timeStr += days + ' day' + (days !== 1 ? 's' : '') + ', ';
+        if (hours > 0) timeStr += hours + ' hour' + (hours !== 1 ? 's' : '') + ', ';
+        if (mins > 0) timeStr += mins + ' minute' + (mins !== 1 ? 's' : '');
+        timeStr = timeStr.replace(/, $/, '');
+        return {
+            answer: nBlocks.toLocaleString() + " blocks takes approximately **" + timeStr + "**" + greeting + "! ⏱️🦌 At Bitcoin's target of 1 block every 10 minutes, that's " + nBlocks.toLocaleString() + " × 10 = " + totalMins.toLocaleString() + " minutes total.",
+            channel: 'mining', channelName: 'Mining'
+        };
+    }
+
+    // Sats to BTC: "how many sats in X bitcoin"
+    var satsBtcMatch = q.match(/how many (?:sats|satoshi|satoshis)\s+(?:in|per|are in)\s+(\d*\.?\d+)?\s*(?:a\s+)?(?:btc|bitcoin)/i);
+    if (satsBtcMatch) {
+        var btcAmt = parseFloat(satsBtcMatch[1]) || 1;
+        var sats = Math.round(btcAmt * 100000000);
+        return {
+            answer: "There are **" + sats.toLocaleString() + " satoshis** in " + btcAmt + " BTC" + greeting + "! 🦌 1 Bitcoin = 100,000,000 satoshis (100 million). A satoshi is the smallest unit of Bitcoin — named after Satoshi Nakamoto! Fun fact: at today's price, 1 sat = " + (price ? '$' + (price / 100000000).toFixed(6) : 'a fraction of a cent') + ". ⚡",
+            channel: 'scarce', channelName: 'Scarce'
+        };
+    }
+
+    // BTC to sats: "how many bitcoin in X sats"
+    var btcSatsMatch = q.match(/how (?:many|much)\s+(?:btc|bitcoin)\s+(?:is|in|are)\s+(\d[\d,]*)\s*(?:sats|satoshi|satoshis)/i);
+    if (btcSatsMatch) {
+        var satsAmt = parseInt(btcSatsMatch[1].replace(/,/g, ''));
+        var btcVal = satsAmt / 100000000;
+        return {
+            answer: satsAmt.toLocaleString() + " satoshis = **" + btcVal.toFixed(8) + " BTC**" + greeting + "! 🦌 Just divide by 100,000,000 (10^8). " + (price ? "At today's price, that's about $" + (btcVal * price).toFixed(2) + "." : "") + " Every sat counts! ⚡",
+            channel: 'scarce', channelName: 'Scarce'
+        };
+    }
+
+    // USD to sats: "how many sats is $X" or "how many sats for $X"
+    var usdSatsMatch = q.match(/how many (?:sats|satoshi|satoshis)\s+(?:is|for|in|can i get for|do i get for)\s+\$?([\d,]+\.?\d*)\s*(?:dollars?|usd)?/i);
+    if (!usdSatsMatch) usdSatsMatch = q.match(/\$?([\d,]+\.?\d*)\s+(?:dollars?|usd)\s+(?:in|to|=)\s+(?:sats|satoshi)/i);
+    if (usdSatsMatch && price) {
+        var usdAmt = parseFloat(usdSatsMatch[1].replace(/,/g, ''));
+        var satsForUsd = Math.round((usdAmt / price) * 100000000);
+        return {
+            answer: "$" + usdAmt.toLocaleString() + " gets you approximately **" + satsForUsd.toLocaleString() + " sats**" + greeting + "! ⚡🦌 At the current price of $" + Math.round(price).toLocaleString() + "/BTC. Stack sats! Every sat you save today could be worth much more tomorrow. 🚀",
+            channel: 'investment-strategy', channelName: 'Investment Strategy'
+        };
+    }
+
+    // Sats to USD: "how much is X sats worth"
+    var satsUsdMatch = q.match(/(?:how much|what)\s+(?:is|are)\s+(\d[\d,]*)\s*(?:sats|satoshi|satoshis)\s+(?:worth|in (?:dollars?|usd))/i);
+    if (satsUsdMatch && price) {
+        var satsVal = parseInt(satsUsdMatch[1].replace(/,/g, ''));
+        var usdVal = (satsVal / 100000000) * price;
+        return {
+            answer: satsVal.toLocaleString() + " sats is worth approximately **$" + usdVal.toFixed(2) + "**" + greeting + "! 💰🦌 At the current BTC price of $" + Math.round(price).toLocaleString() + ". Remember, think in sats — not dollars! ⚡",
+            channel: 'investment-strategy', channelName: 'Investment Strategy'
+        };
+    }
+
+    // Halving math: "when is the next halving" (calculated from block height)
+    if (height && /how (?:many|long|far).*(?:blocks?|days?|time).*(?:until|till|before|to).*halving/i.test(q)) {
+        var blocksToHalving = 210000 - (height % 210000);
+        var daysToHalving = Math.round(blocksToHalving * 10 / 1440);
+        var monthsToHalving = Math.round(daysToHalving / 30.4);
+        return {
+            answer: "There are approximately **" + blocksToHalving.toLocaleString() + " blocks** until the next halving" + greeting + "! 🔥🦌 That's roughly " + daysToHalving.toLocaleString() + " days (~" + monthsToHalving + " months) at 10 min/block. Current block: " + height.toLocaleString() + ". Next halving at block " + (height + blocksToHalving).toLocaleString() + "! The reward will drop from 3.125 to 1.5625 BTC per block. Tick tock! ⏰",
+            channel: 'scarce', channelName: 'Scarce'
+        };
+    }
+
+    // Block reward: "what is the current block reward"
+    if (height && /(?:current|today|now).*block\s*(?:reward|subsidy)/i.test(q)) {
+        var epoch = Math.floor(height / 210000);
+        var reward = 50 / Math.pow(2, epoch);
+        return {
+            answer: "The current block reward is **" + reward + " BTC**" + greeting + "! ⛏️🦌 We're in halving epoch #" + epoch + " (block " + height.toLocaleString() + "). The reward started at 50 BTC and halves every 210,000 blocks. After the next halving, it'll drop to " + (reward / 2) + " BTC! 📉",
+            channel: 'mining', channelName: 'Mining'
+        };
+    }
+
+    // Total supply mined: "how many bitcoin have been mined"
+    if (height && /how (?:many|much)\s+(?:btc|bitcoin)\s+(?:have been|has been|are|is|were)\s+(?:mined|created|exist|in circulation|circulating)/i.test(q)) {
+        // Approximate: sum of block rewards across epochs
+        var totalSats = 0;
+        var h = height;
+        for (var ep = 0; ep <= 32 && h > 0; ep++) {
+            var epochBlocks = Math.min(h, 210000);
+            totalSats += epochBlocks * Math.floor(5000000000 / Math.pow(2, ep));
+            h -= epochBlocks;
+        }
+        var totalBtc = totalSats / 100000000;
+        var pctMined = ((totalBtc / 20999999.9769) * 100).toFixed(2);
+        return {
+            answer: "Approximately **" + Math.round(totalBtc).toLocaleString() + " BTC** have been mined so far" + greeting + " — that's " + pctMined + "% of the total supply! 🦌⛏️ Only about " + Math.round(20999999.9769 - totalBtc).toLocaleString() + " BTC left to mine, and they won't all be mined until ~2140. The scarcity is REAL! 🔒",
+            channel: 'scarce', channelName: 'Scarce'
+        };
+    }
+
+    return null; // No math question detected
+}
+
 // callback(result) where result = { type, answer, channel, channelName, disclaimer }
 // type: 'safety'|'crisis'|'harm'|'financial'|'profanity'|'offtopic'|'kb'|'ai'|'deepsearch'|'websearch'|'fallback'
 window.nachoUnifiedAnswer = function(question, callback) {
@@ -4369,6 +4501,13 @@ window.nachoUnifiedAnswer = function(question, callback) {
             channel: altcoinMatch.channel, 
             channelName: altcoinMatch.channelName 
         });
+        return;
+    }
+
+    // ---- STEP 2b: Bitcoin Math Calculator ----
+    var mathResult = nachoMathAnswer(q);
+    if (mathResult) {
+        callback({ type: 'math', answer: pq(mathResult.answer), channel: mathResult.channel || null, channelName: mathResult.channelName || null });
         return;
     }
 
