@@ -766,13 +766,7 @@
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
                 <p class="home-subtitle">A curated library of Bitcoin education — complete with Quests to test your knowledge. Start your Quest today!</p>
-                <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▶':'▼'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:inline-flex;align-items:center;gap:6px;">📊 App Stats <span>▶</span></button>
-                <div id="appStatsPanel" class="home-stats" style="display:none;">
-                    <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
-                    <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
-                    <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
-                    <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
-                </div>
+                <!-- App Stats moved to bottom -->
                 
                 <div id="giveawayBanner" style="margin-bottom:16px;padding:20px;background:linear-gradient(135deg,#f7931a 0%,#ea580c 100%);border-radius:16px;text-align:center;cursor:pointer;box-shadow:0 4px 20px rgba(247,147,26,0.3);position:relative;overflow:hidden;" onclick="showUsernamePrompt()">
                     <div style="position:absolute;top:-20px;right:-20px;font-size:5rem;opacity:0.15;pointer-events:none;">⚡</div>
@@ -832,24 +826,7 @@
                             </div>
                         </div>
 
-                        <!-- Support dropdown -->
-                        <button onclick="toggleSidebarMenu('homeSupportMenu')" style="display:block;padding:12px 30px;width:100%;max-width:340px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📧 Support ▼</button>
-                        <div id="homeSupportMenu" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
-                            <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
-                                <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
-                                <button onclick="navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
-                            </div>
-                            <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
-                                <div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:4px;">💡 Suggest a Topic or Leave Feedback</div>
-                                <div style="color:var(--text-muted);font-size:0.8rem;">Want to see something added? Let us know!</div>
-                                <div id="suggestFields" style="display:none;margin-top:12px;">
-                                    <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
-                                    <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
-                                    <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
-                                    <div id="suggestStatus"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Support moved to bottom -->
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;margin-bottom:16px;">
                     <button onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
@@ -912,6 +889,33 @@
                 <div class="home-credits">
                     <p><strong>Lead Curator:</strong> Pleb "<a href="https://x.com/NEEDcreations" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">NEEDcreations</a>" Phil</p>
                     <p><strong>Other Contributors:</strong> Hundreds of Bitcoiners from Bitcoin Twitter, Bitcoin X, and the Bitcoin Education Discord community</p>
+                </div>
+                <!-- App Stats & Support (below credits) -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:16px;">
+                    <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▶':'▼'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;">📊 App Stats <span>▶</span></button>
+                    <div id="appStatsPanel" class="home-stats" style="display:none;">
+                        <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
+                        <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
+                        <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
+                        <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
+                    </div>
+                    <button onclick="toggleSidebarMenu('homeSupportMenu')" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;">📧 Support <span>▼</span></button>
+                    <div id="homeSupportMenu" style="display:none;width:100%;max-width:340px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;animation:nachoPop 0.2s ease-out;">
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
+                            <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
+                            <button onclick="navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
+                        </div>
+                        <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
+                            <div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:4px;">💡 Suggest a Topic or Leave Feedback</div>
+                            <div style="color:var(--text-muted);font-size:0.8rem;">Want to see something added? Let us know!</div>
+                            <div id="suggestFields" style="display:none;margin-top:12px;">
+                                <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
+                                <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
+                                <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
+                                <div id="suggestStatus"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <p class="home-footer">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span></p>
             </div>
