@@ -837,22 +837,21 @@
                 <div class="daily-channel" id="dailyChannel"></div>
                 <div id="quoteOfDay" style="margin-top:16px;"></div>
                 <div id="explorationMap" style="margin-top:16px;"></div>
-                <div style="margin-top:20px;">
-                    <!-- 2x2 Grid: Sponsor|Contributors / Support Archive|App Stats -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                    <button onclick="var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:4px;">📣 Sponsor <span>▼</span></button>
-                    <div id="sponsorPanel" style="display:none;margin-top:12px;padding:20px;background:linear-gradient(135deg,rgba(247,147,26,0.05),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.3);border-radius:12px;text-align:center;">
+                <div style="margin-top:20px;max-width:500px;margin-left:auto;margin-right:auto;">
+                    <!-- 2x2 Grid -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <button onclick="var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📣 Sponsor</button>
+                        <button onclick="var s=document.getElementById('creditsPanel');s.style.display=s.style.display==='none'?'block':'none'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">👥 Contributors</button>
+                        <button onclick="var s=document.getElementById('donatePanelInner');s.style.display=s.style.display==='none'?'block':'none'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">❤️ Support Archive</button>
+                        <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📊 App Stats</button>
+                    </div>
+                    <!-- Expanded panels below grid -->
+                    <div id="sponsorPanel" style="display:none;margin-top:10px;padding:20px;background:linear-gradient(135deg,rgba(247,147,26,0.05),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.3);border-radius:12px;text-align:center;">
                         <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">Advertise your Bitcoin company here and reach thousands of Bitcoiners.</p>
                         <a href="mailto:info.603btc@gmail.com?subject=Sponsorship%20Inquiry%20-%20Bitcoin%20Education%20Archive" style="display:inline-block;padding:10px 24px;background:var(--accent);color:#fff;border-radius:10px;font-size:0.9rem;font-weight:700;text-decoration:none;font-family:inherit;">Inquire Now →</a>
                         <div style="color:var(--text-faint);font-size:0.8rem;margin-top:8px;">info.603btc@gmail.com</div>
                     </div>
-                </div>
-                    <button onclick="var s=document.getElementById('creditsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:4px;">👥 Contributors <span>▼</span></button>
-                    <button onclick="var s=document.getElementById('donatePanelInner');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:4px;">❤️ Support <span>▼</span></button>
-                    <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'flex':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:4px;">📊 App Stats <span>▼</span></button>
-                    </div>
-                    <!-- Expanded panels (full width below grid) -->
-                <div id="donateSection"><div id="donatePanelInner" style="display:none;margin-top:12px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
+                <div id="donateSection"><div id="donatePanelInner" style="display:none;margin-top:10px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>
                     <img src="donation-qr.jpg" alt="Bitcoin Donation QR Code" style="width:200px;height:auto;margin-bottom:12px;border:2px solid var(--border);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">
                     <div style="color:var(--accent);font-weight:600;font-size:0.95rem;margin-bottom:8px;">spontaneousleopard54@zeuspay.com</div>
@@ -892,37 +891,36 @@
                     </div>
                     <p style="color:var(--text-faint);font-size:0.85rem;margin-top:10px;margin-bottom:0;">⚠️ Donations are non-refundable</p>
                 </div></div></div>
-                <!-- Panel contents (expand below grid) -->
-                <div id="creditsPanel" style="display:none;margin-top:8px;" class="home-credits">
-                    <p><strong>Lead Curator:</strong> Pleb "<a href="https://x.com/NEEDcreations" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">NEEDcreations</a>" Phil</p>
-                    <p><strong>Other Contributors:</strong> Hundreds of Bitcoiners from Bitcoin Twitter, Bitcoin X, and the Bitcoin Education Discord community</p>
-                </div>
-                <div id="appStatsPanel" class="home-stats" style="display:none;margin-top:8px;">
-                    <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
-                    <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
-                    <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
-                    <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
-                </div>
-                <!-- Support button (full width below grid) -->
-                <div style="text-align:center;margin-top:8px;">
-                    <button onclick="toggleSidebarMenu('homeSupportMenu')" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 20px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;">📧 Support <span>▼</span></button>
-                </div>
-                <div id="homeSupportMenu" style="display:none;width:100%;max-width:400px;margin:8px auto 0;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;">
-                    <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
-                        <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
-                        <button onclick="navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
+                    <div id="creditsPanel" style="display:none;margin-top:10px;" class="home-credits">
+                        <p><strong>Lead Curator:</strong> Pleb "<a href="https://x.com/NEEDcreations" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">NEEDcreations</a>" Phil</p>
+                        <p><strong>Other Contributors:</strong> Hundreds of Bitcoiners from Bitcoin Twitter, Bitcoin X, and the Bitcoin Education Discord community</p>
                     </div>
-                    <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
-                        <div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:4px;">💡 Suggest a Topic or Leave Feedback</div>
-                        <div style="color:var(--text-muted);font-size:0.8rem;">Want to see something added? Let us know!</div>
-                        <div id="suggestFields" style="display:none;margin-top:12px;">
-                            <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
-                            <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
-                            <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
-                            <div id="suggestStatus"></div>
+                    <div id="appStatsPanel" class="home-stats" style="display:none;margin-top:10px;">
+                        <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
+                        <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
+                        <div class="home-stat"><span class="home-stat-num">3,000+</span><span class="home-stat-label">Images</span></div>
+                        <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
+                    </div>
+                    <!-- Contact/Support below grid -->
+                    <div style="text-align:center;margin-top:10px;">
+                        <button onclick="toggleSidebarMenu('homeSupportMenu')" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:10px 20px;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;">📧 Contact & Feedback <span>▼</span></button>
+                    </div>
+                    <div id="homeSupportMenu" style="display:none;margin-top:8px;flex-direction:column;gap:10px;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;">
+                        <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
+                            <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
+                            <button onclick="navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
+                        </div>
+                        <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
+                            <div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:4px;">💡 Suggest a Topic or Leave Feedback</div>
+                            <div style="color:var(--text-muted);font-size:0.8rem;">Want to see something added? Let us know!</div>
+                            <div id="suggestFields" style="display:none;margin-top:12px;">
+                                <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
+                                <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
+                                <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
+                                <div id="suggestStatus"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
                 </div>
                 <p class="home-footer">Open source · Free forever · Built on GitHub Pages<br><a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Privacy Policy</a> · <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.75rem;">Terms of Service</a><br><span style="font-size:0.7rem;color:var(--text-faint);margin-top:6px;display:inline-block;">© 2026 603BTC LLC · Bitcoin Education Archive™</span></p>
             </div>
