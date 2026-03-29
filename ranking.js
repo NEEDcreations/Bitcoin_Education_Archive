@@ -3483,6 +3483,10 @@ function showSettingsPage(tab) {
             '<input type="range" min="0" max="1" step="0.05" value="' + vol + '" oninput="setVolume(this.value)" style="flex:1;accent-color:#f7931a;cursor:pointer;">' +
             '</div></div>';
 
+        // Advanced Prefs
+        html += '<button onclick="var p=document.getElementById(\'advPrefsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Prefs <span>▼</span></button>';
+        html += '<div id="advPrefsPanel" style="display:none;">';
+
         // Nacho mascot toggle
         const nachoOn = localStorage.getItem('btc_nacho_hidden') !== 'true';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -3598,8 +3602,19 @@ function showSettingsPage(tab) {
         } // end expanded_shortcuts
 
         // (Theme moved above)
+        html += '</div>'; // close advPrefsPanel
 
     } else if (settingsTab === 'security') {
+        // Basic security info
+        html += '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div style="font-size:2.5rem;margin-bottom:8px;">🔒</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">Security</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;">Protect your account</div></div>';
+
+        // Advanced Security button
+        html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Email, 2FA & Linked Accounts <span>▼</span></button>';
+        html += '<div id="advSecPanel" style="display:none;">';
+
         // Email verification status
         const emailVerified = user.emailVerified;
         const hasEmail = user.email || (user.providerData && user.providerData.some(function(p) { return p.providerId === 'password'; }));
@@ -3709,6 +3724,7 @@ function showSettingsPage(tab) {
                 '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete My Account</button>' +
                 '</div>';
         }
+        html += '</div>'; // close advSecPanel
 
     } else if (settingsTab === 'data') {
         // Refresh data from Firebase — cache for 2 minutes
