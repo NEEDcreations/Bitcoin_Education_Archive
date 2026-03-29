@@ -4351,7 +4351,7 @@ window.minimizeSignUpBanner = function() {
             pill.id = 'mobileSignUpPill';
             document.body.appendChild(pill);
         }
-        pill.style.cssText = 'position:fixed;bottom:70px;right:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+        pill.style.cssText = 'position:fixed;bottom:70px;left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
         pill.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
         pill.onclick = function() { pill.remove(); showUsernamePrompt(); };
     } else {
