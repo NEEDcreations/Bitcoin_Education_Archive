@@ -2598,6 +2598,7 @@ window.updateNachoNameUI = function(name) {
 
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
+    if (!lb) return;
     const fab = document.getElementById('lbFloatBtn');
     if (lb.classList.contains('open') && !lb.classList.contains('minimized')) {
         lb.classList.remove('open');
