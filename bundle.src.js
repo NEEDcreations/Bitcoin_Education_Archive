@@ -3692,9 +3692,7 @@ function showSettingsPage(tab) {
             '<div style="color:var(--heading);font-weight:800;font-size:1.2rem;">Security</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;">Protect your account</div></div>';
 
-        // Advanced Security button
-        html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Email, 2FA & Linked Accounts <span>▼</span></button>';
-        html += '<div id="advSecPanel" style="display:none;">';
+        // Email, 2FA, Linked Accounts shown by default
 
         // Email verification status
         const emailVerified = user.emailVerified;
@@ -3758,6 +3756,10 @@ function showSettingsPage(tab) {
                 '<button onclick="sendPasswordReset()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Send Password Reset Email</button>' +
                 '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
         }
+
+        // Advanced Security (Blocked Users + Danger Zone)
+        html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Security <span>▼</span></button>';
+        html += '<div id="advSecPanel" style="display:none;">';
 
         // Blocked Users
         var blockedList = typeof getBlockedUsers === 'function' ? getBlockedUsers() : [];
