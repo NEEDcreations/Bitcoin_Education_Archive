@@ -3007,9 +3007,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'signal', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', signal: '📡', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'scholar', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', scholar: 'Scholar', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -3311,6 +3311,45 @@ function showSettingsPage(tab) {
             html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/'/g, "\\'") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
         });
         html += '</div></div></div>';
+
+        // The Signal section (collapsible, moved from its own tab)
+        html += '<button onclick="var p=document.getElementById(\'signalPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\';if(p.style.display!==\'none\')loadSignalContent()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">📡 The Weekly Signal <span>▼</span></button>';
+        html += '<div id="signalPanel" style="display:none;">';
+
+        // Ticker toggle
+        var _sigTickerOn = localStorage.getItem('btc_ticker_enabled') === 'true';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1rem;">📊</span><span style="color:var(--text);font-size:0.85rem;font-weight:600;">Live Ticker on Home</span></div>' +
+            '<button onclick="localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'scholar\');" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (_sigTickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (_sigTickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (_sigTickerOn ? 'ON' : 'OFF') + '</button></div>';
+
+        // Signal headlines container
+        html += '<div id="signalLiveNews" style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:16px;"><div style="display:flex;gap:12px;padding:4px 0;min-width:min-content;"></div></div>';
+        html += '<style>#signalLiveNews::-webkit-scrollbar{display:none;}</style>';
+
+        // Featured deep dives
+        var signalPosts = [
+            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But energy IS the point.', channel: 'pow-vs-pos' },
+            { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Why we don\'t need thousands of stocks if we have one form of hard money.', channel: 'problems-of-money' },
+            { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Even if every miner wanted to change the supply, they couldn\'t.', channel: 'scarce' }
+        ];
+        signalPosts.forEach(function(n) {
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;text-align:left;">' +
+                '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + n.date.toUpperCase() + '</div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">' + n.title + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.4;margin-bottom:8px;">' + n.snippet + '</div>' +
+                '<button onclick="hideUsernamePrompt();go(\'' + n.channel + '\')" style="padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read →</button></div>';
+        });
+
+        // Subscribe
+        var isOptedIn = (currentUser && currentUser.newsletterOptIn);
+        if (!isOptedIn) {
+            html += '<div style="padding:16px;background:var(--accent-bg);border-radius:12px;text-align:center;border:1px dashed var(--accent);">' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.85rem;margin-bottom:8px;">📧 Get The Signal via Email</div>' +
+                '<button onclick="if(typeof optInNewsletter===\'function\')optInNewsletter();showSettingsPage(\'scholar\')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.8rem;">Subscribe</button></div>';
+        } else {
+            html += '<div style="text-align:center;padding:12px;color:#22c55e;font-size:0.8rem;">✅ Subscribed to The Signal!</div>';
+        }
+        html += '</div>'; // close signalPanel
 
     } else if (settingsTab === 'signal') {
         // The Weekly Signal — Newsletter
@@ -4339,6 +4378,28 @@ window.pasteToField = function(fieldId) {
         if (typeof showToast === 'function') showToast('Long-press the field to paste');
         field.focus();
     }
+};
+
+// Load Signal live news content
+window.loadSignalContent = function() {
+    var container = document.getElementById('signalLiveNews');
+    if (!container || container.getAttribute('data-loaded')) return;
+    container.setAttribute('data-loaded', '1');
+    fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data || !data.news || data.news.length === 0) return;
+        var inner = container.querySelector('div') || container;
+        var cardsHtml = '';
+        data.news.slice(0, 3).forEach(function(n, i) {
+            var title = (n.title || '').replace(/<[^>]+>/g, '');
+            var link = n.link || '';
+            cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
+                (link ? 'onclick="window.open(\'' + link.replace(/'/g, "\\'") + '\',\'_blank\')"' : '') +
+                '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
+                (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
+        });
+        inner.innerHTML = cardsHtml;
+    }).catch(function() {});
 };
 
 window.minimizeSignUpBanner = function() {
@@ -30963,7 +31024,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_spin', title: '🎡 Daily Spin', desc: 'Spin the wheel for free Orange Tickets', keywords: 'spin wheel daily reward ticket prize free', action: 'showSpinWheel()' },
         { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar & Protocol Expert Certifications', keywords: 'scholar certification exam test certificate diploma bitcoin technical protocol', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
-        { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('signal')},100)" },
+        { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
