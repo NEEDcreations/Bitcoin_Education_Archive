@@ -2989,9 +2989,8 @@ function showSettingsPage(tab) {
         }
         html += '</div>';
 
-        // Advanced Account section
-        html += '<button onclick="var p=document.getElementById(\'advAcctPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Account <span>▼</span></button>';
-        html += '<div id="advAcctPanel" style="display:none;">';
+        // --- START: content that goes inside Advanced Account ---
+        html += '<div id="advAcctContent" style="display:none;">';
         // Display Badge chooser (collapsible)
         if (!isAnon) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
@@ -3092,10 +3091,9 @@ function showSettingsPage(tab) {
         html += '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
             '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
             '</div>';
+        html += '</div>'; // close advAcctContent
 
-                html += '</div>'; // close advAcctPanel
-
-        // Lightning wallet prompt (only if no Lightning Address set)
+                // Lightning wallet prompt (only if no Lightning Address set)
         var _hasLn = currentUser && (currentUser.lightning || currentUser.lightningAddress);
         if (!_hasLn) {
             html += '<div onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},300)" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(234,179,8,0.08),rgba(247,147,26,0.04));border:2px solid rgba(247,147,26,0.25);border-radius:14px;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
@@ -3107,6 +3105,9 @@ function showSettingsPage(tab) {
 
         // Artist Profile button
         html += '<button onclick="showArtistProfileModal()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--accent);font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">🎸 Artist Profile</button>';
+
+        // Advanced Account toggle (content is rendered above but hidden)
+        html += '<button onclick="var p=document.getElementById(\'advAcctContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Account <span>▼</span></button>';
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
