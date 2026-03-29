@@ -2135,6 +2135,7 @@ function updateUserDisplay(lv) {
         }
         // Anonymous user — eye-catching banner with points + sign up nudge
         var _isMob = window.innerWidth <= 900;
+        el.setAttribute('data-anon', '1');
         el.style.cssText = 'position:fixed;' + (_isMob ? 'bottom:70px;left:12px;right:12px;' : 'top:12px;right:20px;') + 'z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:' + (_isMob ? 'none' : '380px') + ';';
         el.onclick = function() { showSettingsPage('account'); };
         el.innerHTML =
@@ -2160,6 +2161,7 @@ function updateUserDisplay(lv) {
             '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
     } else {
         // Signed in user (with username or real account) — clean display
+        el.removeAttribute('data-anon');
         el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;max-width:320px;';
         el.onclick = function() { showSettingsPage('account'); };
         var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
@@ -4305,10 +4307,25 @@ window.pasteToField = function(fieldId) {
 
 window.minimizeSignUpBanner = function() {
     var ud = document.getElementById('userDisplay');
-    if (!ud) return;
-    ud.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
-    ud.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
-    ud.onclick = function() { showUsernamePrompt(); };
+    var isMob = window.innerWidth <= 900;
+    if (isMob) {
+        // On mobile, #userDisplay is hidden by CSS !important, so create a separate pill
+        if (ud) ud.style.display = 'none';
+        var pill = document.getElementById('mobileSignUpPill');
+        if (!pill) {
+            pill = document.createElement('div');
+            pill.id = 'mobileSignUpPill';
+            document.body.appendChild(pill);
+        }
+        pill.style.cssText = 'position:fixed;bottom:70px;right:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+        pill.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
+        pill.onclick = function() { pill.remove(); showUsernamePrompt(); };
+    } else {
+        if (!ud) return;
+        ud.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+        ud.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
+        ud.onclick = function() { showUsernamePrompt(); };
+    }
 };
 
 function clearUserLocalStorage() {
