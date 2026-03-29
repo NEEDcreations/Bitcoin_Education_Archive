@@ -24853,7 +24853,7 @@ window.beatsLoadPlaylists = function() {
     var el = document.getElementById('beatsLibContent');
     if (!el) return;
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">📋</div><div style="color:var(--text-muted);font-weight:600;">Sign in to create playlists</div></div>';
+        el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">📋</div><div style="color:var(--text-muted);font-weight:600;margin-bottom:12px;">Sign in to create playlists</div><button onclick="if(typeof showUsernamePrompt===\'function\')showUsernamePrompt()" style="padding:12px 28px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">🔐 Sign In</button></div>';
         return;
     }
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading playlists...</div>';
