@@ -250,10 +250,9 @@ window.applySimplifiedHome = function() {
     var hideSelectors = {
         beginner: [
             '#giveawayBanner', '#dailySpinBanner', '#welcomeBanner', '#progressRings',
-            '#appStatsPanel', '#dailyChallengeCard', '#quoteOfDay', '#explorationMap',
+            '#dailyChallengeCard', '#quoteOfDay', '#explorationMap',
             '#donateSection', '[onclick*="showSpinWheel"]', '[onclick*="showPricePrediction"]',
-            '.desktop-only-apps', "[onclick*=\"toggleSidebarMenu('homeSupportMenu')\"]",
-            '#homeSupportMenu', '#lbFloatBtn', '#desktopDMBtn', '#rankBar',
+            '.desktop-only-apps', '#lbFloatBtn', '#desktopDMBtn', '#rankBar',
             '#activity-ticker', '#continueReading'
         ],
         intermediate: ['#giveawayBanner', '#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker']
