@@ -492,13 +492,11 @@
                                         bubble.style.cursor = 'pointer';
                                         bubble.onclick = function() {
                                             bubble.classList.remove('show');
+                                            window._expanded_closet = true;
+                                            window._pendingClosetScroll = true;
                                             if (typeof showSettings === 'function') showSettings();
                                             setTimeout(function() {
                                                 if (typeof showSettingsPage === 'function') showSettingsPage('data');
-                                                setTimeout(function() {
-                                                    var nachoBtn = document.querySelector('[onclick*="nacho"], [onclick*="closet"]');
-                                                    if (nachoBtn) nachoBtn.click();
-                                                }, 300);
                                             }, 300);
                                         };
                                     }

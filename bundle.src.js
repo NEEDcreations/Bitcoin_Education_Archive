@@ -3962,7 +3962,8 @@ function showSettingsPage(tab) {
 
         // Nacho's Closet (collapsible)
         if (typeof renderNachoClosetUI === 'function') {
-            if (typeof window._expanded_closet === 'undefined') window._expanded_closet = true;
+            if (typeof window._expanded_closet === 'undefined') window._expanded_closet = false;
+            if (window._pendingClosetScroll) window._expanded_closet = true;
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                 '<div onclick="window._expanded_closet=!window._expanded_closet;showSettingsPage(\'data\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
                 '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">👗 ' + escapeHtml(nickname) + '\'s Closet</div>' +
@@ -32332,13 +32333,11 @@ window.playSpinWin = function() {
                                         bubble.style.cursor = 'pointer';
                                         bubble.onclick = function() {
                                             bubble.classList.remove('show');
+                                            window._expanded_closet = true;
+                                            window._pendingClosetScroll = true;
                                             if (typeof showSettings === 'function') showSettings();
                                             setTimeout(function() {
                                                 if (typeof showSettingsPage === 'function') showSettingsPage('data');
-                                                setTimeout(function() {
-                                                    var nachoBtn = document.querySelector('[onclick*="nacho"], [onclick*="closet"]');
-                                                    if (nachoBtn) nachoBtn.click();
-                                                }, 300);
                                             }, 300);
                                         };
                                     }
