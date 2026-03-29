@@ -2927,9 +2927,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'signal', 'tickets', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', signal: '📡', tickets: '<span style="filter:hue-rotate(30deg) saturate(1.5);">🎟️</span>', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', tickets: 'Tickets', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'scholar', 'signal', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', signal: '📡', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', scholar: 'Scholar', signal: 'Signal', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -2989,6 +2989,9 @@ function showSettingsPage(tab) {
         }
         html += '</div>';
 
+        // Advanced Account section
+        html += '<button onclick="var p=document.getElementById(\'advAcctPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Account <span>▼</span></button>';
+        html += '<div id="advAcctPanel" style="display:none;">';
         // Display Badge chooser (collapsible)
         if (!isAnon) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
@@ -3089,6 +3092,8 @@ function showSettingsPage(tab) {
         html += '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
             '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
             '</div>';
+
+                html += '</div>'; // close advAcctPanel
 
         // Lightning wallet prompt (only if no Lightning Address set)
         var _hasLn = currentUser && (currentUser.lightning || currentUser.lightningAddress);
@@ -3208,11 +3213,11 @@ function showSettingsPage(tab) {
             '<button onclick="hideUsernamePrompt(); startScholarQuest(\'technical\');" style="width:100%;padding:12px;background:'+(techPassed ? '#22c55e' : '#3b82f6')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(techPassed ? '✅ View Certificate' : '🛠️ Start Technical Exam')+'</button>' +
             '</div>';
 
-        // Flashcards
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px;">' +
-            '<div style="text-align:center;margin-bottom:12px;"><div style="font-size:1.8rem;margin-bottom:4px;">📚</div>' +
-            '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;">Study Flashcards</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Prepare for quests and exams with interactive flashcards.</p></div>' +
+        // Flashcards (collapsible)
+        html += '<div style="margin-bottom:16px;text-align:center;">' +
+            '<button onclick="var p=document.getElementById(\'flashcardsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">📚 Study Flashcards <span>▼</span></button>' +
+            '<div id="flashcardsPanel" style="display:none;margin-top:12px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">Prepare for quests and exams with interactive flashcards.</p>' +
             '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">';
         var flashTopics = [
             {name:'Bitcoin Basics', emoji:'₿'}, {name:'Security & Storage', emoji:'🔑'}, {name:'Lightning Network', emoji:'⚡'},
@@ -3225,7 +3230,7 @@ function showSettingsPage(tab) {
         flashTopics.forEach(function(t) {
             html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/'/g, "\\'") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
         });
-        html += '</div></div>';
+        html += '</div></div></div>';
 
     } else if (settingsTab === 'signal') {
         // The Weekly Signal — Newsletter
@@ -3849,17 +3854,48 @@ function showSettingsPage(tab) {
             '<strong style="color:#22c55e;">We do not sell, share, or monetize your data. Ever.</strong><br>' +
             'The only data we store is your username, points, and progress — just enough to power your experience. No tracking, no ads, no third-party analytics. Your data is yours.</div></div>';
 
+        // Orange Tickets section (collapsible)
+        html += '<button onclick="var p=document.getElementById(\'ticketsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:10px;color:var(--accent);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;"><span style="filter:hue-rotate(30deg) saturate(1.5);">🎟️</span> Orange Tickets & Referrals <span>▼</span></button>';
+        html += '<div id="ticketsPanel" style="display:none;">';
+        if (!user || user.isAnonymous) {
+            html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem;">Sign in to start earning Orange Tickets!</div>';
+        } else {
+            html += typeof renderTicketsSection === 'function' ? renderTicketsSection() : '';
+            html += typeof renderReferralSection === 'function' ? renderReferralSection() : '';
+            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">How to Earn Tickets</div>' +
+                '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
+                '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
+                '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank.<br>' +
+                '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
+                '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
+                '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
+                '</div></div>';
+        }
+        html += '</div>';
+
+        // Advanced Stats section
+        html += '<button onclick="var p=document.getElementById(\'advStatsPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Stats <span>▼</span></button>';
+        html += '<div id="advStatsPanel" style="display:none;">';
+
         // Export data
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Data</div>' +
             '<button onclick="exportUserData()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">📥 Export My Data</button>' +
             '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
+        html += '</div>'; // close advStatsPanel
     }
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+
+    // Load referral stats if on data tab (tickets are now here)
+    if (settingsTab === 'data' && typeof loadReferralStatsUI === 'function' && user && !user.isAnonymous) {
+        setTimeout(loadReferralStatsUI, 100);
+    }
 
     // Render Nacho's Closet if on Stats/Nacho tab
     if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
