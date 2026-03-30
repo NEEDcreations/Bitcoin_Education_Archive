@@ -910,28 +910,33 @@ function loadTopIndicators() {
         });
     }
 
-// 17. Bitcoin Rainbow Chart Band (log regression)
+// 17. Bitcoin Rainbow Chart Band (exact RainbowChart.com formula)
     if (price) {
-        var _dsg_r = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        // Rainbow chart uses: log10(price) = a * log10(days)^2 + b * log10(days) + c
-        // Calibrated to match current bands (~$83K = band 3-4 "Still Cheap/HODL")
-        var logDays = Math.log10(_dsg_r);
-        // Use power law as center band (HODL zone)
-        var rainbowCenter = Math.pow(10, 5.82 * logDays - 17.01);
-        // Each band is ~0.25 in log10 space (wider bands for full range)
-        var bandWidth = 0.25;
-        var logRatio = rainbowCenter > 0 ? (Math.log10(price) - Math.log10(rainbowCenter)) / bandWidth : 0;
-        var rainbowBand = Math.round(logRatio + 5); // center = band 5
-        rainbowBand = Math.max(1, Math.min(9, rainbowBand));
-        var bandNames = ['', 'Fire Sale 🔵', 'BUY! 🟢', 'Accumulate 🟢', 'Still Cheap 💚', 'HODL 🟡', 'Is this a bubble? 🟠', 'FOMO 🟠', 'Sell. Seriously. 🔴', 'Max Bubble 🔴'];
-        var bandColors = ['', '#3b82f6', '#22c55e', '#4ade80', '#84cc16', '#eab308', '#f97316', '#f97316', '#ef4444', '#ef4444'];
+        // Source: rainbowchart.com/javascripts/charts/rainbow.js
+        // x = ln(dayIndex + 1400), dayIndex = days since ~2010-07-18 (first price data)
+        var _dataStart = new Date('2010-07-18');
+        var _dayIdx = Math.floor((Date.now() - _dataStart.getTime()) / 86400000);
+        var _rx = Math.log(_dayIdx + 1400);
+        var _rIntercept = 19.863; // 19.463 + 0.4 adjustment
+        // Band boundaries (slopes from source): each band = 10^(slope * x - intercept)
+        var _rSlopes = [2.775, 2.788, 2.801, 2.815, 2.8295, 2.8445, 2.859, 2.872, 2.886, 2.90];
+        var _rNames = ['Bitcoin is dead 💀', 'Fire Sale 🔵', 'BUY! 🟢', 'Accumulate 🟢', 'Still Cheap 💚', 'HODL 🟡', 'Is this a bubble? 🟠', 'FOMO 🟠', 'Sell. Seriously. 🔴', 'Max Bubble 🔴'];
+        var _rColors = ['#9568db', '#4472c4', '#54989f', '#63be7b', '#b1d580', '#ffeb84', '#f6b45a', '#ed7d31', '#d64018', '#c00000'];
+        var rainbowBand = 10; // default to top
+        for (var _rb = 0; _rb < _rSlopes.length; _rb++) {
+            var _bandTop = Math.pow(10, _rSlopes[_rb] * _rx - _rIntercept);
+            if (price < _bandTop) { rainbowBand = _rb + 1; break; }
+        }
+        rainbowBand = Math.max(1, Math.min(10, rainbowBand));
+        var _bandName = _rNames[rainbowBand - 1] || 'Max Bubble 🔴';
+        var _bandColor = _rColors[rainbowBand - 1] || '#c00000';
         indicators.push({
             emoji: '🌈', name: 'Rainbow Band',
-            value: rainbowBand + ' / 9',
-            color: bandColors[rainbowBand] || 'var(--heading)',
-            sub: bandNames[rainbowBand] || 'Unknown',
-            tip: 'Bitcoin Rainbow Chart logarithmic regression bands. Band 1 (blue) = extreme bottom. Band 9 (red) = extreme top / max bubble. Historically, cycle tops reach band 7-9. Current band: ' + rainbowBand + ' — ' + (bandNames[rainbowBand] || '') + '. Top threshold: ≥ 8.',
-            flashing: rainbowBand >= 8
+            value: rainbowBand + ' / 10',
+            color: _bandColor,
+            sub: _bandName,
+            tip: 'Bitcoin Rainbow Chart (RainbowChart.com formula). Band 1 (purple) = Bitcoin is dead. Band 10 (dark red) = Max Bubble. Cycle tops reach band 8-10. Top threshold: ≥ 9.',
+            flashing: rainbowBand >= 9
         });
     }
 
