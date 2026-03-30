@@ -739,21 +739,21 @@ function loadTopIndicators() {
             emoji: '🌡️', name: 'Thermo Multiple',
             value: thermoMultiple + 'x',
             sub: 'Market Cap / Thermocap',
-            tip: 'Thermocap Multiple compares market cap to total miner revenue (a proxy for "energy spent"). Values >40x historically signal overheating. <10x = accumulation zone.'
+            tip: 'Thermocap Multiple compares market cap to total miner revenue (a proxy for "energy spent"). Values >5x historically signal overheating (cycle tops hit 4-8x). <10x = accumulation zone.'
         });
     }
 
     // 9. NVT Ratio (Network Value to Transactions)
     if (price && supply && d.volume24h) {
         var marketCapNVT = price * supply;
-        var nvt = d.volume24h > 0 ? (marketCapNVT / (d.volume24h * 365)).toFixed(1) : '—';
-        var nvtColor = nvt < 20 ? '#22c55e' : nvt > 65 ? '#ef4444' : 'var(--heading)';
+        var nvt = d.volume24h > 0 ? (marketCapNVT / d.volume24h).toFixed(1) : '—';
+        var nvtColor = nvt < 30 ? '#22c55e' : nvt > 150 ? '#ef4444' : 'var(--heading)';
         indicators.push({
             emoji: '📡', name: 'NVT Ratio',
             value: nvt,
             color: nvtColor,
-            sub: nvt < 20 ? 'Undervalued zone' : nvt > 65 ? 'Overvalued zone' : 'Normal range',
-            tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 20 = network is undervalued relative to usage. Above 65 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
+            sub: nvt < 30 ? 'Undervalued zone' : nvt > 150 ? 'Overvalued zone' : 'Normal range',
+            tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 30 = undervalued relative to usage. Above 150 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
         });
     }
 
@@ -772,30 +772,14 @@ function loadTopIndicators() {
         });
     }
 
-    // 12. Realized Price Estimate
-    if (height && supply) {
-        // Rough realized price: weighted average cost basis of all coins
-        // Simplified: use thermocap / supply
-        var thermocapBTC = 0;
-        var _h = height;
-        for (var _ep = 0; _ep <= Math.floor(height / 210000) && _h > 0; _ep++) {
-            var _epBlocks = Math.min(_h, 210000);
-            thermocapBTC += _epBlocks * (50 / Math.pow(2, _ep));
-            _h -= _epBlocks;
-        }
-        // Rough avg price ~$30k
-        var realizedCap = thermocapBTC * 30000;
-        var realizedPrice = supply > 0 ? Math.round(realizedCap / supply) : 0;
-        var rpRatio = realizedPrice > 0 ? (price / realizedPrice).toFixed(2) : '—';
-        var rpColor = rpRatio < 1 ? '#22c55e' : rpRatio > 3.0 ? '#ef4444' : 'var(--heading)';
-        indicators.push({
-            emoji: '💎', name: 'MVRV Estimate',
-            value: rpRatio + 'x',
-            color: rpColor,
-            sub: 'Est. Realized Price: ~$' + fmtNum(realizedPrice),
-            tip: 'Market Value to Realized Value ratio estimate. Below 1x = market price is below the average cost basis of all holders (historically a great buying opportunity). Above 3.0x = overheated. This is a simplified estimate based on thermocap.'
-        });
-    }
+    // MVRV Z-Score (loaded from CBBI API)
+    indicators.push({
+        emoji: '💎', name: 'MVRV Z-Score',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading from CBBI...',
+        tip: 'Market Value to Realized Value ratio. Compares market cap to realized cap (sum of each coin valued at its last move price). Above 3.0 historically marks cycle tops. Below 1.0 marks bottoms. Data from CBBI open-source API. Top threshold: normalized \u2265 0.7 (\u2248 MVRV 3+).',
+        id: 'mvrvScore'
+    });
 
     // 13. Power Law Deviation
     if (price) {
@@ -852,24 +836,6 @@ function loadTopIndicators() {
         });
     }
 
-    // 16. Reserve Risk (simplified HODL confidence / price)
-    if (price && height) {
-        // Reserve Risk = Price / (HODL Bank × 365-day MA)
-        // Simplified: lower when price is cheap relative to HODLer conviction
-        var _daysSG2 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        // HODL Bank accumulates as coins are held longer — rough proxy
-        var hodlBank = Math.pow(_daysSG2, 1.5) * 0.000001;
-        var reserveRisk = hodlBank > 0 ? (price / (hodlBank * 30000000)).toFixed(6) : '—';
-        var rrNum = parseFloat(reserveRisk);
-        indicators.push({
-            emoji: '🔒', name: 'Reserve Risk',
-            value: rrNum > 0.01 ? rrNum.toFixed(4) : rrNum.toFixed(6),
-            color: rrNum >= 0.006 ? '#ef4444' : rrNum < 0.002 ? '#22c55e' : 'var(--heading)',
-            sub: rrNum >= 0.006 ? 'High risk — top zone ⚠️' : rrNum < 0.002 ? 'Low risk — accumulate 🟢' : 'Moderate',
-            tip: 'Reserve Risk assesses the confidence of long-term holders relative to price. High = HODLers are selling (overheated). Low = HODLers are accumulating (undervalued). Top threshold: ≥ 0.006.',
-            flashing: rrNum >= 0.006
-        });
-    }
 
 // 17. Bitcoin Rainbow Chart Band (exact RainbowChart.com formula)
     if (price) {
@@ -926,32 +892,14 @@ function loadTopIndicators() {
         });
     }
 
-    // 19. NUPL (Net Unrealized P&L estimate)
-    if (price && supply) {
-        // NUPL = (Market Cap - Realized Cap) / Market Cap
-        // Using our thermocap-based realized cap estimate
-        var _thermBTC2 = 0;
-        var _h2 = height;
-        for (var _ep2 = 0; _ep2 <= Math.floor(height / 210000) && _h2 > 0; _ep2++) {
-            var _epB2 = Math.min(_h2, 210000);
-            _thermBTC2 += _epB2 * (50 / Math.pow(2, _ep2));
-            _h2 -= _epB2;
-        }
-        var realizedCap2 = _thermBTC2 * 30000;
-        var mktCap2 = price * supply;
-        var nupl = mktCap2 > 0 ? ((mktCap2 - realizedCap2) / mktCap2 * 100).toFixed(1) : '—';
-        var nuplNum = parseFloat(nupl);
-        var nuplColor = nuplNum >= 70 ? '#ef4444' : nuplNum >= 50 ? '#f97316' : nuplNum < 0 ? '#22c55e' : 'var(--heading)';
-        var nuplLabel = nuplNum >= 70 ? 'Euphoria — top zone ⚠️' : nuplNum >= 50 ? 'Greed' : nuplNum >= 25 ? 'Optimism' : nuplNum >= 0 ? 'Hope' : 'Capitulation 🟢';
-        indicators.push({
-            emoji: '💰', name: 'NUPL Estimate',
-            value: nupl + '%',
-            color: nuplColor,
-            sub: nuplLabel,
-            tip: 'Net Unrealized Profit/Loss. Shows what percentage of the market cap is unrealized profit. Above 70% = euphoria/top zone (most holders are in massive profit). Below 0% = capitulation (most holders are underwater). Top threshold: ≥ 70%.',
-            flashing: nuplNum >= 70
-        });
-    }
+    // NUPL (loaded from CBBI API — RUPL metric)
+    indicators.push({
+        emoji: '💰', name: 'NUPL',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading from CBBI...',
+        tip: 'Net Unrealized Profit/Loss. Shows aggregate profit/loss of all Bitcoin holders. Above 75% = euphoria (top zone). Below 0% = capitulation (bottom zone). Data from CBBI open-source API. Top threshold: normalized \u2265 0.75.',
+        id: 'nuplScore'
+    });
 
     // 20. Altcoin Season Index (BTC dominance inverse — estimated)
     // Moved from simple dominance to include flashing at <40% (alt season = BTC top risk)
@@ -1131,33 +1079,6 @@ function loadTopIndicators() {
         id: 'macroOsc'
     });
 
-    // Bitcoin Trend Indicator (calculated from multiple MAs)
-    if (price) {
-        // Trend = percentage of key MAs (20d, 50d, 100d, 200d) that price is above
-        // We estimate using power law proxies
-        var _dTrend = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        var _maProxies = [20, 50, 100, 200];
-        var _aboveCount = 0;
-        _maProxies.forEach(function(period) {
-            var _sum = 0;
-            for (var _t = 0; _t < period; _t++) {
-                var _dd = _dTrend - _t;
-                if (_dd > 365) _sum += Math.pow(10, 5.82 * Math.log10(_dd) - 17.01);
-            }
-            var _ma = _sum / period;
-            if (price > _ma) _aboveCount++;
-        });
-        var trendScore = (_aboveCount / 4 * 100).toFixed(0);
-        var trendNum = parseInt(trendScore);
-        indicators.push({
-            emoji: '📈', name: 'Trend Score',
-            value: trendScore + '%',
-            color: trendNum >= 100 ? '#22c55e' : trendNum <= 25 ? '#ef4444' : 'var(--heading)',
-            sub: _aboveCount + '/4 key MAs above price' + (trendNum >= 100 ? ' · Full bull 🟢' : trendNum <= 25 ? ' · Full bear 🔴' : ''),
-            tip: 'Percentage of key moving averages (20d, 50d, 100d, 200d) that Bitcoin\'s price is above. 100% = strong uptrend. 0% = strong downtrend. Top signals come when price is above ALL MAs and starts losing them. Top threshold: reversal from 100% (loses an MA).',
-            flashing: false // informational, async update would be better
-        });
-    }
 
     // Smithson's Forecast (quantile regression model)
     if (price) {
@@ -1176,22 +1097,6 @@ function loadTopIndicators() {
         });
     }
 
-    // USDT Savings Rate (proxy for stablecoin demand)
-    // When USDT savings rate is very low (<2%), it means capital is deployed (euphoria)
-    // When high (>10%), capital is parked in safety (fear)
-    // We estimate from market conditions — low Fear & Greed = high savings demand
-    if (fearGreed !== undefined) {
-        var usdtRate = fearGreed < 20 ? '8-12%' : fearGreed < 40 ? '5-8%' : fearGreed < 60 ? '3-5%' : fearGreed < 80 ? '2-3%' : '<2%';
-        var usdtSignal = fearGreed >= 80;
-        indicators.push({
-            emoji: '💵', name: 'Stablecoin Yield',
-            value: usdtRate,
-            color: usdtSignal ? '#ef4444' : fearGreed < 30 ? '#22c55e' : 'var(--heading)',
-            sub: usdtSignal ? 'Capital deployed — euphoria ⚠️' : fearGreed < 30 ? 'Capital parked — accumulate 🟢' : 'Moderate',
-            tip: 'Estimated stablecoin flexible savings yield. When yields are very low (<2%), capital is being deployed into risk assets (euphoria/top signal). When high (>8%), money is parked safely (fear/bottom signal). Inversely correlated with Fear & Greed. Top threshold: estimated yield < 2% (extreme greed).',
-            flashing: usdtSignal
-        });
-    }
 
     // LTH/STH Supply Ratio (estimated from CBBI metrics)
     indicators.push({
@@ -1260,10 +1165,11 @@ function loadTopIndicators() {
         else if (n === 'Mayer Multiple') ind.flashing = false; // updated async later
         else if (n === 'Halving Cycle') ind.flashing = ind.sub && ind.sub.indexOf('Peak Window') !== -1;
                 else if (n === 'ATH Drawdown') ind.flashing = parseFloat(ind.value) > -5; // within 5% of ATH
-        else if (n === 'Thermo Multiple') ind.flashing = parseFloat(ind.value) > 40;
-        else if (n === 'NVT Ratio') ind.flashing = parseFloat(ind.value) > 65;
+        else if (n === 'Thermo Multiple') ind.flashing = parseFloat(ind.value) > 5;
+        else if (n === 'NVT Ratio') ind.flashing = parseFloat(ind.value) > 150;
                 else if (n === 'BTC Dominance') ind.flashing = false; // updated async
-        else if (n === 'MVRV Estimate') ind.flashing = parseFloat(ind.value) > 3.5;
+        else if (n === 'MVRV Z-Score') ind.flashing = false; // updated async from CBBI
+        else if (n === 'NUPL') ind.flashing = false; // updated async from CBBI
                 else ind.flashing = false;
     });
 
@@ -1507,6 +1413,41 @@ function loadTopIndicators() {
                     var lc = lthEl.closest('div[style*="border-radius:12px"]'); if (lc) { lc.style.borderColor = 'rgba(239,68,68,0.5)'; lc.style.background = 'rgba(239,68,68,0.04)'; var lb = lc.querySelector('div[style*="OK"]'); if (lb) { lb.innerHTML = '\ud83d\udd34 TOP'; lb.style.color = '#ef4444'; lb.style.background = 'rgba(239,68,68,0.15)'; lb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
                 }
             }
+
+            // MVRV Z-Score from CBBI
+            var mvrvEl = document.getElementById('mvrvScore');
+            if (mvrvEl) {
+                var mvrvPct = (mvrvVal * 100).toFixed(0);
+                mvrvEl.textContent = mvrvPct + '%';
+                mvrvEl.style.color = mvrvVal >= 0.7 ? '#ef4444' : mvrvVal <= 0.2 ? '#22c55e' : 'var(--heading)';
+                var mvrvSub = mvrvEl.nextElementSibling;
+                if (mvrvSub) mvrvSub.textContent = mvrvVal >= 0.7 ? 'Overvalued — top zone \u26a0\ufe0f' : mvrvVal <= 0.2 ? 'Undervalued — accumulate \ud83d\udfe2' : 'Normalized: ' + mvrvPct + '%';
+                if (mvrvVal >= 0.7) {
+                    var mvc = mvrvEl.closest('div[style*="border-radius:12px"]'); if (mvc) { mvc.style.borderColor = 'rgba(239,68,68,0.5)'; mvc.style.background = 'rgba(239,68,68,0.04)'; var mvb = mvc.querySelector('div[style*="OK"]'); if (mvb) { mvb.innerHTML = '\ud83d\udd34 TOP'; mvb.style.color = '#ef4444'; mvb.style.background = 'rgba(239,68,68,0.15)'; mvb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
+                }
+            }
+
+            // NUPL from CBBI (RUPL metric)
+            var ruplTs = Object.keys(cbbi.RUPL).sort();
+            var ruplVal = cbbi.RUPL[ruplTs[ruplTs.length - 1]];
+            var nuplEl = document.getElementById('nuplScore');
+            if (nuplEl) {
+                var nuplPct = (ruplVal * 100).toFixed(0);
+                nuplEl.textContent = nuplPct + '%';
+                nuplEl.style.color = ruplVal >= 0.75 ? '#ef4444' : ruplVal <= 0.2 ? '#22c55e' : 'var(--heading)';
+                var nuplSub = nuplEl.nextElementSibling;
+                if (nuplSub) nuplSub.textContent = ruplVal >= 0.75 ? 'Euphoria \u26a0\ufe0f' : ruplVal <= 0.2 ? 'Capitulation zone \ud83d\udfe2' : 'Normalized: ' + nuplPct + '%';
+                if (ruplVal >= 0.75) {
+                    var nc = nuplEl.closest('div[style*="border-radius:12px"]'); if (nc) { nc.style.borderColor = 'rgba(239,68,68,0.5)'; nc.style.background = 'rgba(239,68,68,0.04)'; var nb = nc.querySelector('div[style*="OK"]'); if (nb) { nb.innerHTML = '\ud83d\udd34 TOP'; nb.style.color = '#ef4444'; nb.style.background = 'rgba(239,68,68,0.15)'; nb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
+                }
+            }
+
+            // Reserve Risk from CBBI
+            var rrTs = Object.keys(cbbi.ReserveRisk).sort();
+            var rrVal = cbbi.ReserveRisk[rrTs[rrTs.length - 1]];
+            // Note: We removed the fake calculated Reserve Risk.
+            // CBBI's ReserveRisk is already one of the card indicators (id already exists in RHODL/etc flow)
+            // This data is available for anyone who wants to add it back as a separate card.
 
             // Cache CBBI data
             try { localStorage.setItem('cbbi_cache', JSON.stringify({ ts: Date.now(), confidence: confidence, rhodl: rhodlVal, woobull: wooVal, mvrv: mvrvVal, puell: puellVal })); } catch(e) {}
