@@ -706,19 +706,6 @@ function loadTopIndicators() {
         });
     }
 
-    // 5. Network Hash Value (price per TH/s/day)
-    if (d.hashrate && price) {
-        var thPerDay = d.hashrate / 1e12;
-        var dailyReward = (d.subsidy ? parseFloat(d.subsidy) : 3.125) * 144;
-        var hashValue = thPerDay > 0 ? ((dailyReward * price) / thPerDay).toFixed(4) : '—';
-        indicators.push({
-            emoji: '⛏️', name: 'Hash Value',
-            value: '$' + hashValue + '/TH/d',
-            sub: 'Daily revenue per TH/s',
-            tip: 'How much USD a miner earns per terahash per day. Lower = miners under pressure (potential capitulation). Higher = healthy mining economics.'
-        });
-    }
-
     // 6. Days Since ATH
     if (d.ath && d.athDate) {
         var athDate = new Date(d.athDate);
@@ -756,18 +743,6 @@ function loadTopIndicators() {
         });
     }
 
-    // 8. Sats per Dollar trend (informational, never flashes)
-    if (price) {
-        var satsPerDollar = Math.round(100000000 / price);
-        indicators.push({
-            emoji: '⚡', name: 'Moscow Time',
-            value: fmtNum(satsPerDollar),
-            sub: 'sats per $1 USD',
-            tip: 'How many satoshis you get for $1. This number only goes down long-term as Bitcoin appreciates. Track it daily — stack sats when it\'s high!',
-            flashing: false, noFlashLogic: true
-        });
-    }
-
     // 9. NVT Ratio (Network Value to Transactions)
     if (price && supply && d.volume24h) {
         var marketCapNVT = price * supply;
@@ -779,20 +754,6 @@ function loadTopIndicators() {
             color: nvtColor,
             sub: nvt < 20 ? 'Undervalued zone' : nvt > 65 ? 'Overvalued zone' : 'Normal range',
             tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 20 = network is undervalued relative to usage. Above 65 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
-        });
-    }
-
-    // 10. Mining Difficulty Ribbon (simplified — using diff change)
-    if (d.diffChange !== undefined) {
-        var diffPct = d.diffChange || 0;
-        var diffColor = diffPct > 5 ? '#22c55e' : diffPct < -5 ? '#ef4444' : 'var(--heading)';
-        var diffSignal = diffPct < -5 ? 'Miner capitulation ⚠️' : diffPct > 10 ? 'Miners expanding 📈' : 'Stable';
-        indicators.push({
-            emoji: '⚙️', name: 'Difficulty Change',
-            value: (diffPct >= 0 ? '+' : '') + diffPct.toFixed(2) + '%',
-            color: diffColor,
-            sub: diffSignal + ' · Next adj. in ' + fmtNum(d.diffRemaining || 0) + ' blocks',
-            tip: 'Upcoming difficulty adjustment. Negative = miners leaving (potential capitulation/buy signal). Positive = miners joining (network growing). The difficulty ribbon compression historically signals great buying opportunities.'
         });
     }
 
@@ -1141,7 +1102,35 @@ function loadTopIndicators() {
         });
     }
 
-    // 28. Bitcoin ETF Net Flows (fetched async from data/etf-flows.json)
+    // 28. RSI-22 Day (loaded async with Mayer Multiple from 350d CoinGecko data)
+    indicators.push({
+        emoji: '📉', name: 'RSI-22 Day',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading...',
+        tip: 'Relative Strength Index over 22 days. Above 80 = overbought (potential top signal). Below 30 = oversold (potential bottom). 22-day RSI smooths out short-term noise. Top threshold: ≥ 80.',
+        id: 'rsi22d'
+    });
+
+    // 29. AHR999x Escape Top Indicator
+    // Uses price / 200d MA — when above 8, historically marks top territory
+    indicators.push({
+        emoji: '🚨', name: 'AHR999x',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading 200d MA...',
+        tip: 'AHR999x Escape Top indicator. Calculated as (price / 200-day MA)². When above 8, signals extreme overvaluation. Above 3.5 = elevated. A complement to the AHR999 DCA indicator. Top threshold: ≥ 8.',
+        id: 'ahr999x'
+    });
+
+    // 30. ETF-to-BTC Ratio (ETF AUM / BTC market cap)
+    indicators.push({
+        emoji: '🏦', name: 'ETF/BTC Ratio',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading ETF data...',
+        tip: 'Bitcoin spot ETF total AUM divided by BTC market cap. Shows how much of Bitcoin\'s value is held in ETFs. High ratios (>8%) could indicate institutional overexposure. Low ratios = room to grow. Top threshold: ≥ 8%.',
+        id: 'etfBtcRatio'
+    });
+
+    // 31. Bitcoin ETF Net Flows (fetched async from data/etf-flows.json)
     indicators.push({
         emoji: '📊', name: 'ETF Net Flow',
         value: '...', color: 'var(--heading)',
@@ -1159,20 +1148,7 @@ function loadTopIndicators() {
         flashing: false, id: 'etf5dFlow'
     });
 
-    // Blocks Until Sunday (next weekly close)
-    if (height) {
-        var now = new Date();
-        var dayOfWeek = now.getUTCDay(); // 0=Sun
-        var daysUntilSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek;
-        var hoursUntilClose = daysUntilSunday * 24 - now.getUTCHours();
-        var blocksUntilClose = Math.round(hoursUntilClose * 6);
-        indicators.push({
-            emoji: '📅', name: 'Weekly Close',
-            value: daysUntilSunday + 'd ' + (hoursUntilClose % 24) + 'h',
-            sub: '~' + fmtNum(blocksUntilClose) + ' blocks until Sunday UTC close',
-            tip: 'Time until the next weekly candle close (Sunday midnight UTC). Weekly closes are important for technical analysis — a strong weekly close above key levels signals continuation.'
-        });
-    }
+    
 
     // Determine flashing status for each indicator (signaling potential top)
     indicators.forEach(function(ind) {
@@ -1183,15 +1159,12 @@ function loadTopIndicators() {
         else if (n === 'Fear & Greed') ind.flashing = fearGreed >= 75;
         else if (n === 'Mayer Multiple') ind.flashing = false; // updated async later
         else if (n === 'Halving Cycle') ind.flashing = ind.sub && ind.sub.indexOf('Peak Window') !== -1;
-        else if (n === 'Hash Value') ind.flashing = false; // not a top signal
-        else if (n === 'ATH Drawdown') ind.flashing = parseFloat(ind.value) > -5; // within 5% of ATH
+                else if (n === 'ATH Drawdown') ind.flashing = parseFloat(ind.value) > -5; // within 5% of ATH
         else if (n === 'Thermo Multiple') ind.flashing = parseFloat(ind.value) > 40;
         else if (n === 'NVT Ratio') ind.flashing = parseFloat(ind.value) > 65;
-        else if (n === 'Difficulty Change') ind.flashing = false; // informational
-        else if (n === 'BTC Dominance') ind.flashing = false; // updated async
+                else if (n === 'BTC Dominance') ind.flashing = false; // updated async
         else if (n === 'MVRV Estimate') ind.flashing = parseFloat(ind.value) > 3.5;
-        else if (n === 'Weekly Close') { ind.flashing = false; ind.noFlashLogic = true; }
-        else ind.flashing = false;
+                else ind.flashing = false;
     });
 
     var flashingCount = indicators.filter(function(i) { return i.flashing; }).length;
@@ -1289,6 +1262,58 @@ function loadTopIndicators() {
                         }
                     }
                 }
+
+                // RSI-22 Day calculation
+                if (pLen >= 23) {
+                    var gains = 0, losses = 0;
+                    for (var ri = pLen - 22; ri < pLen; ri++) {
+                        var change = prices[ri][1] - prices[ri - 1][1];
+                        if (change > 0) gains += change;
+                        else losses -= change;
+                    }
+                    var avgGain = gains / 22;
+                    var avgLoss = losses / 22;
+                    var rsi22 = avgLoss === 0 ? 100 : (100 - (100 / (1 + avgGain / avgLoss)));
+                    var rsi22Str = rsi22.toFixed(1);
+                    var rsiEl = document.getElementById('rsi22d');
+                    if (rsiEl) {
+                        var rsiFlash = rsi22 >= 80;
+                        rsiEl.textContent = rsi22Str;
+                        rsiEl.style.color = rsi22 >= 80 ? '#ef4444' : rsi22 <= 30 ? '#22c55e' : 'var(--heading)';
+                        var rsiSub = rsiEl.nextElementSibling;
+                        if (rsiSub) rsiSub.textContent = rsi22 >= 80 ? 'Overbought \u26a0\ufe0f' : rsi22 <= 30 ? 'Oversold \u2705' : rsi22 >= 60 ? 'Bullish' : rsi22 <= 40 ? 'Bearish' : 'Neutral';
+                        if (rsiFlash) {
+                            var rsiCard = rsiEl.closest('div[style*="border-radius:12px"]');
+                            if (rsiCard) {
+                                rsiCard.style.borderColor = 'rgba(239,68,68,0.5)';
+                                rsiCard.style.background = 'rgba(239,68,68,0.04)';
+                                var rsiBadge = rsiCard.querySelector('div[style*="OK"]');
+                                if (rsiBadge) { rsiBadge.innerHTML = '\ud83d\udd34 TOP'; rsiBadge.style.color = '#ef4444'; rsiBadge.style.background = 'rgba(239,68,68,0.15)'; rsiBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                            }
+                        }
+                    }
+                }
+
+                // AHR999x Escape Top = (price / 200d MA)^2
+                var ahr999x = Math.pow(currentPrice / ma200, 2).toFixed(2);
+                var ahrxEl = document.getElementById('ahr999x');
+                if (ahrxEl) {
+                    var ahrxNum = parseFloat(ahr999x);
+                    var ahrxFlash = ahrxNum >= 8;
+                    ahrxEl.textContent = ahr999x;
+                    ahrxEl.style.color = ahrxNum >= 8 ? '#ef4444' : ahrxNum >= 3.5 ? '#f97316' : 'var(--heading)';
+                    var ahrxSub = ahrxEl.nextElementSibling;
+                    if (ahrxSub) ahrxSub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (ahrxNum >= 8 ? ' \xb7 Extreme top \u26a0\ufe0f' : ahrxNum >= 3.5 ? ' \xb7 Elevated' : ahrxNum < 1 ? ' \xb7 Below MA' : ' \xb7 Normal');
+                    if (ahrxFlash) {
+                        var ahrxCard = ahrxEl.closest('div[style*="border-radius:12px"]');
+                        if (ahrxCard) {
+                            ahrxCard.style.borderColor = 'rgba(239,68,68,0.5)';
+                            ahrxCard.style.background = 'rgba(239,68,68,0.04)';
+                            var ahrxBadge = ahrxCard.querySelector('div[style*="OK"]');
+                            if (ahrxBadge) { ahrxBadge.innerHTML = '\ud83d\udd34 TOP'; ahrxBadge.style.color = '#ef4444'; ahrxBadge.style.background = 'rgba(239,68,68,0.15)'; ahrxBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                        }
+                    }
+                }
             }
         }).catch(function() {
             var mayerEl = document.getElementById('mayerMultiple');
@@ -1350,6 +1375,31 @@ function loadTopIndicators() {
                         card5.style.background = 'rgba(239,68,68,0.04)';
                         var badge5 = card5.querySelector('div[style*="OK"]');
                         if (badge5) { badge5.innerHTML = '\ud83d\udd34 TOP'; badge5.style.color = '#ef4444'; badge5.style.background = 'rgba(239,68,68,0.15)'; badge5.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                    }
+                }
+            }
+            // ETF/BTC Ratio: ETF AUM / BTC market cap
+            // Estimate AUM from total BTC held (~709K BTC * current price)
+            // CoinGlass shows ~709K BTC total; use that as baseline
+            var etfBtcHeld = 709000; // update periodically
+            var btcPrice = parseFloat(localStorage.getItem('btc_last_price')) || 83000;
+            var etfAum = etfBtcHeld * btcPrice;
+            var btcMktCap = btcPrice * 19840000; // supply
+            var etfRatio = btcMktCap > 0 ? ((etfAum / btcMktCap) * 100).toFixed(1) : '—';
+            var etfRatioEl = document.getElementById('etfBtcRatio');
+            if (etfRatioEl) {
+                var erNum = parseFloat(etfRatio);
+                etfRatioEl.textContent = etfRatio + '%';
+                etfRatioEl.style.color = erNum >= 8 ? '#ef4444' : 'var(--heading)';
+                var erSub = etfRatioEl.nextElementSibling;
+                if (erSub) erSub.textContent = 'ETF AUM: ~$' + (etfAum / 1e9).toFixed(0) + 'B / Mkt Cap: ~$' + (btcMktCap / 1e12).toFixed(2) + 'T' + (erNum >= 8 ? ' · High exposure ⚠️' : '');
+                if (erNum >= 8) {
+                    var erCard = etfRatioEl.closest('div[style*="border-radius:12px"]');
+                    if (erCard) {
+                        erCard.style.borderColor = 'rgba(239,68,68,0.5)';
+                        erCard.style.background = 'rgba(239,68,68,0.04)';
+                        var erBadge = erCard.querySelector('div[style*="OK"]');
+                        if (erBadge) { erBadge.innerHTML = '\ud83d\udd34 TOP'; erBadge.style.color = '#ef4444'; erBadge.style.background = 'rgba(239,68,68,0.15)'; erBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
                     }
                 }
             }
