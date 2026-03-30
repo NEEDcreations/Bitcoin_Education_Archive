@@ -909,10 +909,10 @@
                             <span style="color:var(--text-muted);font-size:0.85rem;flex:1;">info.603btc@gmail.com</span>
                             <button onclick="navigator.clipboard.writeText('info.603btc@gmail.com');if(typeof showToast==='function')showToast('📋 Email copied!')" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;">Copy</button>
                         </div>
-                        <div class="suggest-box" onclick="expandSuggest()" id="suggestBox" style="cursor:pointer;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
+                        <div class="suggest-box" id="suggestBox" style="padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;">
                             <div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:4px;">💡 Suggest a Topic or Leave Feedback</div>
                             <div style="color:var(--text-muted);font-size:0.8rem;">Want to see something added? Let us know!</div>
-                            <div id="suggestFields" style="display:none;margin-top:12px;">
+                            <div id="suggestFields" style="display:block;margin-top:12px;">
                                 <textarea id="suggestText" placeholder="What topic should we add? Or share your feedback!" class="suggest-input" rows="3" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
                                 <input type="email" id="suggestEmail" placeholder="📧 Email for follow-up (optional)" onclick="event.stopPropagation()" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
                                 <button class="suggest-submit" onclick="event.stopPropagation();submitSuggestion()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Submit</button>
