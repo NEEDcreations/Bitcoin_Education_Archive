@@ -27777,11 +27777,20 @@ window.toggleTopIndicators = function() {
 };
 
 var _topIndLoaded = false;
+var TOP_IND_CACHE_KEY = 'btc_top_indicators_cache';
 function loadTopIndicators() {
     if (_topIndLoaded) return;
     _topIndLoaded = true;
     var el = document.getElementById('topIndContent');
     if (!el) return;
+
+    // Try to show cached data immediately while fresh data loads
+    try {
+        var cached = JSON.parse(localStorage.getItem(TOP_IND_CACHE_KEY));
+        if (cached && cached.html && (Date.now() - cached.ts < 3600000)) { // 1 hour cache
+            el.innerHTML = cached.html;
+        }
+    } catch(e) {}
 
     var d = _dashData || {};
     var price = d.price || 0;
@@ -27879,8 +27888,8 @@ function loadTopIndicators() {
             thermocap += epochBlocks * reward;
             h -= epochBlocks;
         }
-        // Very rough — assumes avg price over time was ~$15k
-        var thermocapUSD = thermocap * 15000;
+        // Very rough — assumes avg price over time ~$30k
+        var thermocapUSD = thermocap * 30000;
         var marketCap = price * supply;
         var thermoMultiple = thermocapUSD > 0 ? (marketCap / thermocapUSD).toFixed(1) : '—';
         indicators.push({
@@ -27957,17 +27966,17 @@ function loadTopIndicators() {
             thermocapBTC += _epBlocks * (50 / Math.pow(2, _ep));
             _h -= _epBlocks;
         }
-        // Rough avg price over Bitcoin's life ~$15k
-        var realizedCap = thermocapBTC * 15000;
+        // Rough avg price ~$30k
+        var realizedCap = thermocapBTC * 30000;
         var realizedPrice = supply > 0 ? Math.round(realizedCap / supply) : 0;
         var rpRatio = realizedPrice > 0 ? (price / realizedPrice).toFixed(2) : '—';
-        var rpColor = rpRatio < 1 ? '#22c55e' : rpRatio > 3.5 ? '#ef4444' : 'var(--heading)';
+        var rpColor = rpRatio < 1 ? '#22c55e' : rpRatio > 3.0 ? '#ef4444' : 'var(--heading)';
         indicators.push({
             emoji: '💎', name: 'MVRV Estimate',
             value: rpRatio + 'x',
             color: rpColor,
             sub: 'Est. Realized Price: ~$' + fmtNum(realizedPrice),
-            tip: 'Market Value to Realized Value ratio estimate. Below 1x = market price is below the average cost basis of all holders (historically a great buying opportunity). Above 3.5x = overheated. This is a simplified estimate based on thermocap.'
+            tip: 'Market Value to Realized Value ratio estimate. Below 1x = market price is below the average cost basis of all holders (historically a great buying opportunity). Above 3.0x = overheated. This is a simplified estimate based on thermocap.'
         });
     }
 
@@ -28026,31 +28035,37 @@ function loadTopIndicators() {
         });
     }
 
-    // 16. Reserve Risk (simplified — confidence / price)
+    // 16. Reserve Risk (simplified HODL confidence / price)
     if (price && height) {
-        // Simplified: HODL confidence grows with time, reserve risk = opportunity cost / price
-        // Using rough approximation based on days since genesis
-        var _daysSG = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        var hodlBank = _daysSG * 0.0001; // simplified accumulation
-        var reserveRisk = price > 0 ? (hodlBank / (price / 100000)).toFixed(5) : '—';
+        // Reserve Risk = Price / (HODL Bank × 365-day MA)
+        // Simplified: lower when price is cheap relative to HODLer conviction
+        var _daysSG2 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        // HODL Bank accumulates as coins are held longer — rough proxy
+        var hodlBank = Math.pow(_daysSG2, 1.5) * 0.000001;
+        var reserveRisk = hodlBank > 0 ? (price / (hodlBank * 30000000)).toFixed(6) : '—';
         var rrNum = parseFloat(reserveRisk);
         indicators.push({
             emoji: '🔒', name: 'Reserve Risk',
-            value: reserveRisk,
-            color: rrNum >= 0.005 ? '#ef4444' : rrNum < 0.001 ? '#22c55e' : 'var(--heading)',
-            sub: rrNum >= 0.005 ? 'High risk — top zone ⚠️' : rrNum < 0.001 ? 'Low risk — accumulate 🟢' : 'Moderate',
-            tip: 'Reserve Risk assesses the confidence of long-term holders relative to price. High = HODLers are selling (overheated). Low = HODLers are accumulating (undervalued). Top threshold: ≥ 0.005.',
-            flashing: rrNum >= 0.005
+            value: rrNum > 0.01 ? rrNum.toFixed(4) : rrNum.toFixed(6),
+            color: rrNum >= 0.006 ? '#ef4444' : rrNum < 0.002 ? '#22c55e' : 'var(--heading)',
+            sub: rrNum >= 0.006 ? 'High risk — top zone ⚠️' : rrNum < 0.002 ? 'Low risk — accumulate 🟢' : 'Moderate',
+            tip: 'Reserve Risk assesses the confidence of long-term holders relative to price. High = HODLers are selling (overheated). Low = HODLers are accumulating (undervalued). Top threshold: ≥ 0.006.',
+            flashing: rrNum >= 0.006
         });
     }
 
-    // 17. Bitcoin Rainbow Chart Band (log regression band 1-8)
+// 17. Bitcoin Rainbow Chart Band (log regression)
     if (price) {
-        var _dsg = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        // Rainbow uses log regression: log10(price) = a * ln(days) + b
-        // Simplified band calculation
-        var rainbowFair = Math.pow(10, 2.66167155005961 * Math.log(_dsg) / Math.log(10) - 11.0464);
-        var rainbowBand = rainbowFair > 0 ? Math.round((Math.log(price / rainbowFair) / Math.log(2)) + 4) : 4;
+        var _dsg_r = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        // Rainbow chart uses: log10(price) = a * log10(days)^2 + b * log10(days) + c
+        // Calibrated to match current bands (~$83K = band 3-4 "Still Cheap/HODL")
+        var logDays = Math.log10(_dsg_r);
+        // Use power law as center band (HODL zone)
+        var rainbowCenter = Math.pow(10, 5.82 * logDays - 17.01);
+        // Each band is ~0.25 in log10 space (wider bands for full range)
+        var bandWidth = 0.25;
+        var logRatio = rainbowCenter > 0 ? (Math.log10(price) - Math.log10(rainbowCenter)) / bandWidth : 0;
+        var rainbowBand = Math.round(logRatio + 5); // center = band 5
         rainbowBand = Math.max(1, Math.min(9, rainbowBand));
         var bandNames = ['', 'Fire Sale 🔵', 'BUY! 🟢', 'Accumulate 🟢', 'Still Cheap 💚', 'HODL 🟡', 'Is this a bubble? 🟠', 'FOMO 🟠', 'Sell. Seriously. 🔴', 'Max Bubble 🔴'];
         var bandColors = ['', '#3b82f6', '#22c55e', '#4ade80', '#84cc16', '#eab308', '#f97316', '#f97316', '#ef4444', '#ef4444'];
@@ -28064,7 +28079,7 @@ function loadTopIndicators() {
         });
     }
 
-    // 18. 4-Year MA Multiplier
+// 18. 4-Year MA Multiplier
     if (price) {
         // The 4-year (1460-day) moving average × 3.5 has historically caught tops
         // We estimate the 4-year MA from the power law fair value
@@ -28100,7 +28115,7 @@ function loadTopIndicators() {
             _thermBTC2 += _epB2 * (50 / Math.pow(2, _ep2));
             _h2 -= _epB2;
         }
-        var realizedCap2 = _thermBTC2 * 15000;
+        var realizedCap2 = _thermBTC2 * 30000;
         var mktCap2 = price * supply;
         var nupl = mktCap2 > 0 ? ((mktCap2 - realizedCap2) / mktCap2 * 100).toFixed(1) : '—';
         var nuplNum = parseFloat(nupl);
@@ -28197,7 +28212,7 @@ function loadTopIndicators() {
             _thermBTC3 += _epB3 * (50 / Math.pow(2, _ep3));
             _h3 -= _epB3;
         }
-        var transferredPrice = supply > 0 ? (_thermBTC3 * 15000 / supply) : 0;
+        var transferredPrice = supply > 0 ? (_thermBTC3 * 30000 / supply) : 0;
         var terminalPrice = transferredPrice * 21;
         var termPct = terminalPrice > 0 ? ((price / terminalPrice) * 100).toFixed(0) : '—';
         indicators.push({
@@ -28306,8 +28321,9 @@ function loadTopIndicators() {
     // Render indicators
     var html = '';
     // Top signal counter
-    var counterColor = flashingCount === 0 ? '#22c55e' : flashingCount <= 3 ? '#eab308' : flashingCount <= 6 ? '#f97316' : '#ef4444';
-    var counterLabel = flashingCount === 0 ? 'No top signals — Accumulate 🟢' : flashingCount <= 3 ? 'Few signals — Monitor 🟡' : flashingCount <= 6 ? 'Multiple signals — Caution 🟠' : 'Many signals — Extreme caution 🔴';
+    var pctFlashing = topSignalIndicators > 0 ? Math.round((flashingCount / topSignalIndicators) * 100) : 0;
+    var counterColor = flashingCount === 0 ? '#22c55e' : pctFlashing < 15 ? '#eab308' : pctFlashing < 40 ? '#f97316' : '#ef4444';
+    var counterLabel = flashingCount === 0 ? 'No top signals — Accumulate 🟢' : pctFlashing < 15 ? 'Few signals — Monitor 🟡' : pctFlashing < 40 ? 'Multiple signals — Caution 🟠' : 'Many signals — Extreme caution 🔴';
     html += '<div style="grid-column:1/-1;padding:12px 16px;background:rgba(' + (flashingCount === 0 ? '34,197,94' : flashingCount <= 3 ? '234,179,8' : flashingCount <= 6 ? '249,115,22' : '239,68,68') + ',0.08);border:1px solid rgba(' + (flashingCount === 0 ? '34,197,94' : flashingCount <= 3 ? '234,179,8' : flashingCount <= 6 ? '249,115,22' : '239,68,68') + ',0.25);border-radius:12px;text-align:center;margin-bottom:4px;">';
     html += '<div style="font-size:1.5rem;font-weight:900;color:' + counterColor + ';">' + flashingCount + ' / ' + topSignalIndicators + '</div>';
     html += '<div style="font-size:0.72rem;color:' + counterColor + ';font-weight:700;">' + counterLabel + '</div>';
@@ -28335,6 +28351,9 @@ function loadTopIndicators() {
     html += '<div style="grid-column:1/-1;text-align:center;padding:10px;"><a href="https://www.coinglass.com/pro/i/top-indicators" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.75rem;font-weight:600;text-decoration:none;">View all indicators on CoinGlass →</a></div>';
 
     el.innerHTML = html;
+
+    // Cache the rendered indicators HTML
+    try { localStorage.setItem(TOP_IND_CACHE_KEY, JSON.stringify({ html: html, ts: Date.now() })); } catch(e) {}
 
     // Fetch Mayer Multiple (200-day MA from CoinGecko)
     fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily')
