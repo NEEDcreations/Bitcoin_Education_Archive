@@ -27891,14 +27891,15 @@ function loadTopIndicators() {
         });
     }
 
-    // 8. Sats per Dollar trend
+    // 8. Sats per Dollar trend (informational, never flashes)
     if (price) {
         var satsPerDollar = Math.round(100000000 / price);
         indicators.push({
             emoji: '⚡', name: 'Moscow Time',
             value: fmtNum(satsPerDollar),
             sub: 'sats per $1 USD',
-            tip: 'How many satoshis you get for $1. This number only goes down long-term as Bitcoin appreciates. Track it daily — stack sats when it\'s high!'
+            tip: 'How many satoshis you get for $1. This number only goes down long-term as Bitcoin appreciates. Track it daily — stack sats when it\'s high!',
+            flashing: false, noFlashLogic: true
         });
     }
 
@@ -27985,10 +27986,51 @@ function loadTopIndicators() {
         });
     }
 
+    // Determine flashing status for each indicator (signaling potential top)
+    indicators.forEach(function(ind) {
+        if (ind.noFlashLogic) return;
+        if (ind.flashing !== undefined) return; // already set
+        var n = ind.name;
+        if (n === 'Stock-to-Flow') ind.flashing = price > 0 && s2fModelPrice > 0 && price > s2fModelPrice * 1.5;
+        else if (n === 'Fear & Greed') ind.flashing = fearGreed >= 75;
+        else if (n === 'Mayer Multiple') ind.flashing = false; // updated async later
+        else if (n === 'Halving Cycle') ind.flashing = ind.sub && ind.sub.indexOf('Peak Window') !== -1;
+        else if (n === 'Hash Value') ind.flashing = false; // not a top signal
+        else if (n === 'ATH Drawdown') ind.flashing = parseFloat(ind.value) > -5; // within 5% of ATH
+        else if (n === 'Thermo Multiple') ind.flashing = parseFloat(ind.value) > 40;
+        else if (n === 'NVT Ratio') ind.flashing = parseFloat(ind.value) > 65;
+        else if (n === 'Difficulty Change') ind.flashing = false; // informational
+        else if (n === 'BTC Dominance') ind.flashing = false; // updated async
+        else if (n === 'MVRV Estimate') ind.flashing = parseFloat(ind.value) > 3.5;
+        else if (n === 'Weekly Close') { ind.flashing = false; ind.noFlashLogic = true; }
+        else ind.flashing = false;
+    });
+
+    var flashingCount = indicators.filter(function(i) { return i.flashing; }).length;
+    var topSignalIndicators = indicators.filter(function(i) { return !i.noFlashLogic; }).length;
+
     // Render indicators
     var html = '';
+    // Top signal counter
+    var counterColor = flashingCount === 0 ? '#22c55e' : flashingCount <= 3 ? '#eab308' : flashingCount <= 6 ? '#f97316' : '#ef4444';
+    var counterLabel = flashingCount === 0 ? 'No top signals — Accumulate 🟢' : flashingCount <= 3 ? 'Few signals — Monitor 🟡' : flashingCount <= 6 ? 'Multiple signals — Caution 🟠' : 'Many signals — Extreme caution 🔴';
+    html += '<div style="grid-column:1/-1;padding:12px 16px;background:rgba(' + (flashingCount === 0 ? '34,197,94' : flashingCount <= 3 ? '234,179,8' : flashingCount <= 6 ? '249,115,22' : '239,68,68') + ',0.08);border:1px solid rgba(' + (flashingCount === 0 ? '34,197,94' : flashingCount <= 3 ? '234,179,8' : flashingCount <= 6 ? '249,115,22' : '239,68,68') + ',0.25);border-radius:12px;text-align:center;margin-bottom:4px;">';
+    html += '<div style="font-size:1.5rem;font-weight:900;color:' + counterColor + ';">' + flashingCount + ' / ' + topSignalIndicators + '</div>';
+    html += '<div style="font-size:0.72rem;color:' + counterColor + ';font-weight:700;">' + counterLabel + '</div>';
+    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;">Top indicators flashing 🔴 = potential cycle top signal</div>';
+    html += '</div>';
     indicators.forEach(function(ind) {
-        html += '<div' + (ind.tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + ind.tip.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"') + '>';
+        var borderCol = ind.flashing ? 'rgba(239,68,68,0.5)' : 'var(--border)';
+        var bgExtra = ind.flashing ? 'background:rgba(239,68,68,0.04);' : '';
+        html += '<div' + (ind.tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + ind.tip.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + borderCol + '\'"' : ' style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;position:relative;"') + '>';
+        // Flashing badge
+        if (!ind.noFlashLogic) {
+            if (ind.flashing) {
+                html += '<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;padding:2px 5px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:4px;color:#ef4444;font-weight:700;">🔴 TOP</div>';
+            } else {
+                html += '<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;padding:2px 5px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:4px;color:#22c55e;font-weight:700;">🟢 OK</div>';
+            }
+        }
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + ind.emoji + ' ' + ind.name + (ind.tip ? ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span>' : '') + '</div>';
         html += '<div id="' + (ind.id || '') + '" style="font-size:1.15rem;font-weight:900;color:' + (ind.color || 'var(--heading)') + ';margin-top:4px;letter-spacing:-0.3px;">' + (ind.value || '—') + '</div>';
         if (ind.sub) html += '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">' + ind.sub + '</div>';
@@ -28017,6 +28059,14 @@ function loadTopIndicators() {
                     mayerEl.textContent = mayer + 'x';
                     var sub = mayerEl.nextElementSibling;
                     if (sub) sub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (mayer < 1 ? ' · Below MA ✅' : mayer > 2.4 ? ' · Overheated ⚠️' : '');
+                    // Update flashing badge for Mayer
+                    var mayerCard = mayerEl.closest('div[style*="border-radius:12px"]');
+                    if (mayerCard && mayer > 2.4) {
+                        mayerCard.style.borderColor = 'rgba(239,68,68,0.5)';
+                        mayerCard.style.background = 'rgba(239,68,68,0.04)';
+                        var badge = mayerCard.querySelector('div[style*="OK"]');
+                        if (badge) { badge.innerHTML = '🔴 TOP'; badge.style.color = '#ef4444'; badge.style.background = 'rgba(239,68,68,0.15)'; badge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                    }
                 }
             }
         }).catch(function() {
