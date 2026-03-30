@@ -30871,6 +30871,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         var curIdx = tiers.indexOf(curTier);
         if (curIdx > prevIdx) {
             localStorage.setItem('btc_unlocked_tier', curTier);
+            // Close any stale apps menu so next open reflects new tier
+            var _staleMenu = document.getElementById('appsMenu');
+            if (_staleMenu) _staleMenu.remove();
             if (curTier === 'explorer' && typeof showToast === 'function') showToast('🎉 🎵 Bitcoin Beats & 🤝 IRL Sync unlocked! Check Explore Apps!');
             if (curTier === 'community' && typeof showToast === 'function') showToast('🎉 🗣️ Pleb Talk unlocked! Join the community!');
             if (curTier === 'full' && typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
@@ -30905,7 +30908,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     // Call updates
     updateSidebarTiers();
-    window._sidebarTierInterval = setInterval(updateSidebarTiers, 10000);
+    window._sidebarTierInterval = setInterval(updateSidebarTiers, 5000);
 
     // Audio system
     window.audioEnabled = localStorage.getItem('btc_audio') !== 'false';
@@ -31245,7 +31248,12 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Save visited channels locally
         let visited = safeJSON('btc_visited_channels', []);
-        if (!visited.includes(id)) { visited.push(id); localStorage.setItem('btc_visited_channels', JSON.stringify(visited)); }
+        if (!visited.includes(id)) {
+            visited.push(id);
+            localStorage.setItem('btc_visited_channels', JSON.stringify(visited));
+            // Immediately check tier unlocks when a new channel is visited
+            if (typeof updateSidebarTiers === 'function') updateSidebarTiers();
+        }
 
         // --- SENTIMENT RATING ---
         if (d.msgs && d.msgs.length > 0) {
