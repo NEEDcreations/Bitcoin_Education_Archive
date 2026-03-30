@@ -1837,7 +1837,7 @@
             '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">🛡️ Feature Rewards System</div>' +
             '<p style="margin:0;color:var(--text);">The Archive unlocks more powerful features as you learn to prevent Normie overload! 🦌</p>' +
             '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🎵 Beats & 🤝 IRL Sync</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🤝 IRL Sync</strong></div>' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (isCommunity ? '0.5' : '1') + '"><span>🔹 5 Channels:</span> <strong>🗣️ Pleb Talk</strong></div>' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (isFull ? '0.5' : '1') + '"><span>🔹 10 Channels:</span> <strong>⚡ Lightning Mart</strong></div>' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (_a && !_a.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
@@ -3024,7 +3024,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
 
         // Tier Logic — progressive unlock
-        // Explorer (3ch): Beats, IRL Sync | Community (5ch): PlebTalk | Full (10ch or signed in): Marketplace
+        // Explorer (3ch): IRL Sync | Community (5ch): PlebTalk | Full (10ch or signed in): Marketplace | Beats: always unlocked
         const isFull = _isAdvanced || isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         const isCommunity = isFull || (visits >= 5 || exploredCount >= 5);
         const isExplorer = isCommunity || (visits >= 3 || exploredCount >= 3);
@@ -3122,7 +3122,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close any stale apps menu so next open reflects new tier
             var _staleMenu = document.getElementById('appsMenu');
             if (_staleMenu) _staleMenu.remove();
-            if (curTier === 'explorer' && typeof showToast === 'function') showToast('🎉 🎵 Bitcoin Beats & 🤝 IRL Sync unlocked! Check Explore Apps!');
+            if (curTier === 'explorer' && typeof showToast === 'function') showToast('🎉 🤝 IRL Sync unlocked! Check Explore Apps!');
             if (curTier === 'community' && typeof showToast === 'function') showToast('🎉 🗣️ Pleb Talk unlocked! Join the community!');
             if (curTier === 'full' && typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
         }
@@ -3139,7 +3139,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         
         if (!isExplorer) {
             const cLeft = Math.max(0, 3 - exploredCount);
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' to unlock 🎵 Beats & 🤝 IRL Sync! 🦌';
+            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' to unlock 🤝 IRL Sync! 🦌';
             milestoneEl.style.display = '';
         } else if (!isCommunity) {
             const cLeft = Math.max(0, 5 - exploredCount);
@@ -3986,7 +3986,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<span style="font-size:1.8rem;">' + emoji + '</span><span>' + label + '</span></button>';
         }
 
-        var beatsLock = !_isExplorer;
+        var beatsLock = false;
         var irlLock = !_isExplorer;
         var forumLock = !_isCommunity;
         var marketLock = !_isFull;

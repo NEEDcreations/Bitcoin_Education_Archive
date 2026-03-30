@@ -97,7 +97,7 @@
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
                 unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked) +
-                unlockTier('🎵', 'Bitcoin Beats', 'Read 3 channels to unlock', beatsLocked) +
+                unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false) +
                 unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked) +
                 unlockTier('⚡', 'Lightning Tipping', 'Connect a Lightning wallet', true) +
                 unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true) +
