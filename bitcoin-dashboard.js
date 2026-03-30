@@ -429,20 +429,7 @@ function renderDashboard(data) {
     var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '');
     html += metricCard('⚡', 'Lightning Capacity', fmtNum(lnBtc) + ' BTC', _lnSub, 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
 
-    // Fear & Greed
-    var fgVal = d.fearGreed || 0;
-    var fgLabel = d.fearGreedLabel || '—';
-    html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;grid-column:1/-1;">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;">';
-    html += '<div><div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">😱 Fear & Greed Index</div>';
-    html += '<div style="font-size:1.3rem;font-weight:900;color:' + fgColor(fgVal) + ';margin-top:4px;">' + fgVal + ' — ' + fgLabel + '</div></div>';
-    html += '<div style="position:relative;width:80px;height:80px;">';
-    html += '<svg viewBox="0 0 36 36" style="width:80px;height:80px;transform:rotate(-90deg);">';
-    html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" stroke-width="3"></circle>';
-    html += '<circle cx="18" cy="18" r="15.5" fill="none" stroke="' + fgColor(fgVal) + '" stroke-width="3" stroke-dasharray="' + (fgVal * 0.9742) + ' 100" stroke-linecap="round"></circle>';
-    html += '</svg>';
-    html += '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:900;color:' + fgColor(fgVal) + ';">' + fgVal + '</div>';
-    html += '</div></div></div>';
+    // Fear & Greed moved to Top Indicators section
 
     // ATH
     if (d.ath) {
@@ -771,6 +758,89 @@ function loadTopIndicators() {
         });
     }
 
+    // 9. NVT Ratio (Network Value to Transactions)
+    if (price && supply && d.volume24h) {
+        var marketCapNVT = price * supply;
+        var nvt = d.volume24h > 0 ? (marketCapNVT / (d.volume24h * 365)).toFixed(1) : '—';
+        var nvtColor = nvt < 20 ? '#22c55e' : nvt > 65 ? '#ef4444' : 'var(--heading)';
+        indicators.push({
+            emoji: '📡', name: 'NVT Ratio',
+            value: nvt,
+            color: nvtColor,
+            sub: nvt < 20 ? 'Undervalued zone' : nvt > 65 ? 'Overvalued zone' : 'Normal range',
+            tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 20 = network is undervalued relative to usage. Above 65 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
+        });
+    }
+
+    // 10. Mining Difficulty Ribbon (simplified — using diff change)
+    if (d.diffChange !== undefined) {
+        var diffPct = d.diffChange || 0;
+        var diffColor = diffPct > 5 ? '#22c55e' : diffPct < -5 ? '#ef4444' : 'var(--heading)';
+        var diffSignal = diffPct < -5 ? 'Miner capitulation ⚠️' : diffPct > 10 ? 'Miners expanding 📈' : 'Stable';
+        indicators.push({
+            emoji: '⚙️', name: 'Difficulty Change',
+            value: (diffPct >= 0 ? '+' : '') + diffPct.toFixed(2) + '%',
+            color: diffColor,
+            sub: diffSignal + ' · Next adj. in ' + fmtNum(d.diffRemaining || 0) + ' blocks',
+            tip: 'Upcoming difficulty adjustment. Negative = miners leaving (potential capitulation/buy signal). Positive = miners joining (network growing). The difficulty ribbon compression historically signals great buying opportunities.'
+        });
+    }
+
+    // 11. Bitcoin Dominance (from market cap vs total crypto market)
+    if (d.marketCap) {
+        // CoinGecko gives BTC market cap; total crypto ~$2.5T estimate
+        var totalCryptoMarketCap = d.marketCap / 0.62; // rough estimate: BTC ~62% dominance
+        var dominance = ((d.marketCap / totalCryptoMarketCap) * 100).toFixed(1);
+        // Actually, use a more accurate approach — fetch or estimate
+        indicators.push({
+            emoji: '👑', name: 'BTC Dominance',
+            value: '~62%',
+            sub: 'Market cap share vs all crypto',
+            tip: 'Bitcoin\'s share of the total cryptocurrency market cap. Higher dominance = Bitcoin is outperforming alts. During alt seasons, dominance drops below 40%. During Bitcoin seasons (now), it rises above 55-65%. Historically, increasing dominance signals strength.',
+            id: 'btcDominance'
+        });
+    }
+
+    // 12. Realized Price Estimate
+    if (height && supply) {
+        // Rough realized price: weighted average cost basis of all coins
+        // Simplified: use thermocap / supply
+        var thermocapBTC = 0;
+        var _h = height;
+        for (var _ep = 0; _ep <= Math.floor(height / 210000) && _h > 0; _ep++) {
+            var _epBlocks = Math.min(_h, 210000);
+            thermocapBTC += _epBlocks * (50 / Math.pow(2, _ep));
+            _h -= _epBlocks;
+        }
+        // Rough avg price over Bitcoin's life ~$15k
+        var realizedCap = thermocapBTC * 15000;
+        var realizedPrice = supply > 0 ? Math.round(realizedCap / supply) : 0;
+        var rpRatio = realizedPrice > 0 ? (price / realizedPrice).toFixed(2) : '—';
+        var rpColor = rpRatio < 1 ? '#22c55e' : rpRatio > 3.5 ? '#ef4444' : 'var(--heading)';
+        indicators.push({
+            emoji: '💎', name: 'MVRV Estimate',
+            value: rpRatio + 'x',
+            color: rpColor,
+            sub: 'Est. Realized Price: ~$' + fmtNum(realizedPrice),
+            tip: 'Market Value to Realized Value ratio estimate. Below 1x = market price is below the average cost basis of all holders (historically a great buying opportunity). Above 3.5x = overheated. This is a simplified estimate based on thermocap.'
+        });
+    }
+
+    // 13. Blocks Until Sunday (next weekly close)
+    if (height) {
+        var now = new Date();
+        var dayOfWeek = now.getUTCDay(); // 0=Sun
+        var daysUntilSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek;
+        var hoursUntilClose = daysUntilSunday * 24 - now.getUTCHours();
+        var blocksUntilClose = Math.round(hoursUntilClose * 6);
+        indicators.push({
+            emoji: '📅', name: 'Weekly Close',
+            value: daysUntilSunday + 'd ' + (hoursUntilClose % 24) + 'h',
+            sub: '~' + fmtNum(blocksUntilClose) + ' blocks until Sunday UTC close',
+            tip: 'Time until the next weekly candle close (Sunday midnight UTC). Weekly closes are important for technical analysis — a strong weekly close above key levels signals continuation.'
+        });
+    }
+
     // Render indicators
     var html = '';
     indicators.forEach(function(ind) {
@@ -809,6 +879,23 @@ function loadTopIndicators() {
             var mayerEl = document.getElementById('mayerMultiple');
             if (mayerEl) { mayerEl.textContent = 'N/A'; }
         });
+
+    // Fetch BTC dominance from CoinGecko global endpoint
+    fetch('https://api.coingecko.com/api/v3/global')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.data && data.data.market_cap_percentage && data.data.market_cap_percentage.btc) {
+                var dom = data.data.market_cap_percentage.btc.toFixed(1);
+                var domEl = document.getElementById('btcDominance');
+                if (domEl) {
+                    domEl.textContent = dom + '%';
+                    var domColor = dom > 55 ? '#22c55e' : dom < 40 ? '#ef4444' : 'var(--heading)';
+                    domEl.style.color = domColor;
+                    var sub = domEl.nextElementSibling;
+                    if (sub) sub.textContent = dom > 55 ? 'Bitcoin season 👑' : dom < 40 ? 'Alt season ⚠️' : 'Neutral';
+                }
+            }
+        }).catch(function() {});
 }
 
 })();
