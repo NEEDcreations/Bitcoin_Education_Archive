@@ -457,6 +457,15 @@ function renderDashboard(data) {
 
     html += '</div>'; // end grid
 
+    // Top Indicators (expandable)
+    html += '<div style="margin-top:16px;">';
+    html += '<button id="topIndicatorsBtn" onclick="toggleTopIndicators()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+    html += '📊 Top Indicators <span id="topIndArrow">▼</span></button>';
+    html += '<div id="topIndicatorsPanel" style="display:none;margin-top:10px;animation:fadeSlideIn 0.3s;">';
+    html += '<div id="topIndContent" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    html += '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);font-size:0.8rem;"><div style="width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 8px;"></div>Loading indicators...</div>';
+    html += '</div></div></div>';
+
     // Sources
     html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:0.6rem;color:var(--text-faint);line-height:1.6;">';
     html += '<strong>Data Sources:</strong> ';
@@ -619,6 +628,187 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 2000); });
 } else {
     setTimeout(init, 2000);
+}
+
+// ---- Top Indicators ----
+window.toggleTopIndicators = function() {
+    var panel = document.getElementById('topIndicatorsPanel');
+    var arrow = document.getElementById('topIndArrow');
+    if (!panel) return;
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        arrow.textContent = '▲';
+        loadTopIndicators();
+    } else {
+        panel.style.display = 'none';
+        arrow.textContent = '▼';
+    }
+};
+
+var _topIndLoaded = false;
+function loadTopIndicators() {
+    if (_topIndLoaded) return;
+    _topIndLoaded = true;
+    var el = document.getElementById('topIndContent');
+    if (!el) return;
+
+    var d = _dashData || {};
+    var price = d.price || 0;
+    var height = d.blockHeight || 0;
+    var supply = d.supply || 0;
+    var fearGreed = d.fearGreed || 0;
+    var fearLabel = d.fearGreedLabel || '—';
+
+    // Calculate indicators from available data
+    var indicators = [];
+
+    // 1. Stock-to-Flow
+    if (height) {
+        var epoch = Math.floor(height / 210000);
+        var blockReward = 50 / Math.pow(2, epoch);
+        var annualFlow = blockReward * 6 * 24 * 365;
+        var currentSupply = supply || 19800000;
+        var s2f = annualFlow > 0 ? currentSupply / annualFlow : 0;
+        var s2fModelPrice = Math.pow(10, 3.31954 * Math.log10(s2f) - 1.32093); // simplified S2F model
+        var s2fRatio = price > 0 ? (price / s2fModelPrice).toFixed(2) : '—';
+        indicators.push({
+            emoji: '📈', name: 'Stock-to-Flow',
+            value: s2f.toFixed(1),
+            sub: 'Model: $' + formatNum(Math.round(s2fModelPrice)) + ' · Ratio: ' + s2fRatio + 'x',
+            tip: 'Stock-to-Flow measures scarcity. Higher S2F = scarcer asset. Bitcoin\'s S2F increases with each halving. Gold is ~62, Silver ~22. A ratio below 1x suggests undervalued vs the model.'
+        });
+    }
+
+    // 2. Fear & Greed (already fetched)
+    if (fearGreed) {
+        var fgColor = fearGreed <= 25 ? '#ef4444' : fearGreed <= 45 ? '#f97316' : fearGreed <= 55 ? '#eab308' : fearGreed <= 75 ? '#84cc16' : '#22c55e';
+        indicators.push({
+            emoji: '😱', name: 'Fear & Greed',
+            value: fearGreed,
+            color: fgColor,
+            sub: fearLabel,
+            tip: 'Crypto Fear & Greed Index. 0 = Extreme Fear (potential buy), 100 = Extreme Greed (potential sell). Aggregates volatility, momentum, social media, and surveys.'
+        });
+    }
+
+    // 3. Mayer Multiple (price / 200-day MA) — we'll estimate from ATH
+    // We can't get 200-day MA without historical data, but we can show placeholder and fetch
+    indicators.push({ emoji: '📐', name: 'Mayer Multiple', value: '...', sub: 'Loading...', tip: 'Price divided by 200-day moving average. Below 1.0 = historically cheap. Above 2.4 = overheated. Named after Trace Mayer.', id: 'mayerMultiple' });
+
+    // 4. Halving Cycle Position
+    if (height) {
+        var blocksInEpoch = height % 210000;
+        var epochPct = ((blocksInEpoch / 210000) * 100).toFixed(1);
+        var daysInEpoch = Math.round(blocksInEpoch * 10 / 1440);
+        var cyclePeakWindow = daysInEpoch >= 365 && daysInEpoch <= 730;
+        indicators.push({
+            emoji: '🔄', name: 'Halving Cycle',
+            value: epochPct + '%',
+            sub: 'Day ' + daysInEpoch + '/~1460' + (cyclePeakWindow ? ' · 🔥 Peak Window' : ''),
+            color: cyclePeakWindow ? '#f97316' : null,
+            tip: 'Position in the current 4-year halving cycle (210,000 blocks). Historically, price peaks occur 12-24 months after a halving (Day 365-730). We are at day ' + daysInEpoch + '.'
+        });
+    }
+
+    // 5. Network Hash Value (price per TH/s/day)
+    if (d.hashrate && price) {
+        var thPerDay = d.hashrate / 1e12;
+        var dailyReward = (d.subsidy ? parseFloat(d.subsidy) : 3.125) * 144;
+        var hashValue = thPerDay > 0 ? ((dailyReward * price) / thPerDay).toFixed(4) : '—';
+        indicators.push({
+            emoji: '⛏️', name: 'Hash Value',
+            value: '$' + hashValue + '/TH/d',
+            sub: 'Daily revenue per TH/s',
+            tip: 'How much USD a miner earns per terahash per day. Lower = miners under pressure (potential capitulation). Higher = healthy mining economics.'
+        });
+    }
+
+    // 6. Days Since ATH
+    if (d.ath && d.athDate) {
+        var athDate = new Date(d.athDate);
+        var daysSinceATH = Math.floor((Date.now() - athDate.getTime()) / 86400000);
+        var drawdown = d.athChange ? Math.abs(d.athChange).toFixed(1) : '—';
+        indicators.push({
+            emoji: '🏔️', name: 'ATH Drawdown',
+            value: '-' + drawdown + '%',
+            sub: daysSinceATH + ' days since ATH ($' + formatNum(Math.round(d.ath)) + ')',
+            tip: 'Current drawdown from the all-time high. In previous cycles, bear markets saw -70% to -85% drawdowns. Recovery to new ATH has always followed.'
+        });
+    }
+
+    // 7. Thermocap Multiple (rough estimate)
+    if (price && supply && height) {
+        var epoch = Math.floor(height / 210000);
+        // Rough total miner revenue estimate
+        var thermocap = 0;
+        var h = height;
+        for (var i = 0; i <= epoch && h > 0; i++) {
+            var epochBlocks = Math.min(h, 210000);
+            var reward = 50 / Math.pow(2, i);
+            thermocap += epochBlocks * reward;
+            h -= epochBlocks;
+        }
+        // Very rough — assumes avg price over time was ~$15k
+        var thermocapUSD = thermocap * 15000;
+        var marketCap = price * supply;
+        var thermoMultiple = thermocapUSD > 0 ? (marketCap / thermocapUSD).toFixed(1) : '—';
+        indicators.push({
+            emoji: '🌡️', name: 'Thermo Multiple',
+            value: thermoMultiple + 'x',
+            sub: 'Market Cap / Thermocap',
+            tip: 'Thermocap Multiple compares market cap to total miner revenue (a proxy for "energy spent"). Values >40x historically signal overheating. <10x = accumulation zone.'
+        });
+    }
+
+    // 8. Sats per Dollar trend
+    if (price) {
+        var satsPerDollar = Math.round(100000000 / price);
+        indicators.push({
+            emoji: '⚡', name: 'Moscow Time',
+            value: formatNum(satsPerDollar),
+            sub: 'sats per $1 USD',
+            tip: 'How many satoshis you get for $1. This number only goes down long-term as Bitcoin appreciates. Track it daily — stack sats when it\'s high!'
+        });
+    }
+
+    // Render indicators
+    var html = '';
+    indicators.forEach(function(ind) {
+        html += '<div' + (ind.tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + ind.tip.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"') + '>';
+        html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + ind.emoji + ' ' + ind.name + (ind.tip ? ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span>' : '') + '</div>';
+        html += '<div id="' + (ind.id || '') + '" style="font-size:1.15rem;font-weight:900;color:' + (ind.color || 'var(--heading)') + ';margin-top:4px;letter-spacing:-0.3px;">' + (ind.value || '—') + '</div>';
+        if (ind.sub) html += '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">' + ind.sub + '</div>';
+        html += '</div>';
+    });
+
+    // Add link to Coinglass for full indicators
+    html += '<div style="grid-column:1/-1;text-align:center;padding:10px;"><a href="https://www.coinglass.com/pro/i/top-indicators" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.75rem;font-weight:600;text-decoration:none;">View all indicators on CoinGlass →</a></div>';
+
+    el.innerHTML = html;
+
+    // Fetch Mayer Multiple (200-day MA from CoinGecko)
+    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=200&interval=daily')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.prices && data.prices.length >= 200) {
+                var sum = 0;
+                for (var i = 0; i < data.prices.length; i++) sum += data.prices[i][1];
+                var ma200 = sum / data.prices.length;
+                var currentPrice = data.prices[data.prices.length - 1][1];
+                var mayer = (currentPrice / ma200).toFixed(2);
+                var mayerEl = document.getElementById('mayerMultiple');
+                if (mayerEl) {
+                    var mayerColor = mayer < 1 ? '#22c55e' : mayer > 2.4 ? '#ef4444' : 'var(--heading)';
+                    mayerEl.style.color = mayerColor;
+                    mayerEl.textContent = mayer + 'x';
+                    var sub = mayerEl.nextElementSibling;
+                    if (sub) sub.textContent = '200d MA: $' + formatNum(Math.round(ma200)) + (mayer < 1 ? ' · Below MA ✅' : mayer > 2.4 ? ' · Overheated ⚠️' : '');
+                }
+            }
+        }).catch(function() {
+            var mayerEl = document.getElementById('mayerMultiple');
+            if (mayerEl) { mayerEl.textContent = 'N/A'; }
+        });
 }
 
 })();
