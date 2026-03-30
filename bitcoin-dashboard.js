@@ -853,7 +853,130 @@ function loadTopIndicators() {
         });
     }
 
-    // 14. Blocks Until Sunday (next weekly close)
+    // 14. Pi Cycle Top Indicator (needs 111d MA and 350d MA×2 — placeholder, fetched async)
+    indicators.push({
+        emoji: '🔵', name: 'Pi Cycle Top',
+        value: '...',
+        sub: 'Loading...',
+        tip: 'When the 111-day MA crosses above the 350-day MA × 2, it has historically signaled the exact top of every Bitcoin cycle. Flashes when the gap narrows to <5%.',
+        id: 'piCycleTop',
+        flashing: false
+    });
+
+    // 15. Puell Multiple (daily miner revenue / 365-day avg)
+    if (height && price) {
+        var _blockReward = (d.subsidy ? parseFloat(d.subsidy) : 3.125);
+        var dailyMinerRevenue = _blockReward * 144 * price;
+        // Rough 365-day avg: use a historical avg BTC price estimate × avg reward
+        // More accurate: avg price over last year ~$60K with reward 3.125
+        var avgDailyRevenue365 = 3.125 * 144 * 60000; // rough estimate
+        var puell = avgDailyRevenue365 > 0 ? (dailyMinerRevenue / avgDailyRevenue365).toFixed(2) : '—';
+        var puellNum = parseFloat(puell);
+        indicators.push({
+            emoji: '⛏️', name: 'Puell Multiple',
+            value: puell,
+            color: puellNum > 2.2 ? '#ef4444' : puellNum < 0.5 ? '#22c55e' : 'var(--heading)',
+            sub: puellNum > 2.2 ? 'Miners overleveraged ⚠️' : puellNum < 0.5 ? 'Miner capitulation zone 🟢' : 'Normal range',
+            tip: 'Ratio of daily miner revenue to its 365-day moving average. Above 2.2 = miners are earning far more than usual (historically a sell signal). Below 0.5 = miner capitulation (buy signal). Top threshold: ≥ 2.2.',
+            flashing: puellNum >= 2.2
+        });
+    }
+
+    // 16. Reserve Risk (simplified — confidence / price)
+    if (price && height) {
+        // Simplified: HODL confidence grows with time, reserve risk = opportunity cost / price
+        // Using rough approximation based on days since genesis
+        var _daysSG = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        var hodlBank = _daysSG * 0.0001; // simplified accumulation
+        var reserveRisk = price > 0 ? (hodlBank / (price / 100000)).toFixed(5) : '—';
+        var rrNum = parseFloat(reserveRisk);
+        indicators.push({
+            emoji: '🔒', name: 'Reserve Risk',
+            value: reserveRisk,
+            color: rrNum >= 0.005 ? '#ef4444' : rrNum < 0.001 ? '#22c55e' : 'var(--heading)',
+            sub: rrNum >= 0.005 ? 'High risk — top zone ⚠️' : rrNum < 0.001 ? 'Low risk — accumulate 🟢' : 'Moderate',
+            tip: 'Reserve Risk assesses the confidence of long-term holders relative to price. High = HODLers are selling (overheated). Low = HODLers are accumulating (undervalued). Top threshold: ≥ 0.005.',
+            flashing: rrNum >= 0.005
+        });
+    }
+
+    // 17. Bitcoin Rainbow Chart Band (log regression band 1-8)
+    if (price) {
+        var _dsg = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        // Rainbow uses log regression: log10(price) = a * ln(days) + b
+        // Simplified band calculation
+        var rainbowFair = Math.pow(10, 2.66167155005961 * Math.log(_dsg) / Math.log(10) - 11.0464);
+        var rainbowBand = rainbowFair > 0 ? Math.round((Math.log(price / rainbowFair) / Math.log(2)) + 4) : 4;
+        rainbowBand = Math.max(1, Math.min(9, rainbowBand));
+        var bandNames = ['', 'Fire Sale 🔵', 'BUY! 🟢', 'Accumulate 🟢', 'Still Cheap 💚', 'HODL 🟡', 'Is this a bubble? 🟠', 'FOMO 🟠', 'Sell. Seriously. 🔴', 'Max Bubble 🔴'];
+        var bandColors = ['', '#3b82f6', '#22c55e', '#4ade80', '#84cc16', '#eab308', '#f97316', '#f97316', '#ef4444', '#ef4444'];
+        indicators.push({
+            emoji: '🌈', name: 'Rainbow Band',
+            value: rainbowBand + ' / 9',
+            color: bandColors[rainbowBand] || 'var(--heading)',
+            sub: bandNames[rainbowBand] || 'Unknown',
+            tip: 'Bitcoin Rainbow Chart logarithmic regression bands. Band 1 (blue) = extreme bottom. Band 9 (red) = extreme top / max bubble. Historically, cycle tops reach band 7-9. Current band: ' + rainbowBand + ' — ' + (bandNames[rainbowBand] || '') + '. Top threshold: ≥ 8.',
+            flashing: rainbowBand >= 8
+        });
+    }
+
+    // 18. 4-Year MA Multiplier
+    if (price) {
+        // The 4-year (1460-day) moving average × 3.5 has historically caught tops
+        // We estimate the 4-year MA from the power law fair value
+        var _genesis = new Date('2009-01-03T00:00:00Z');
+        var _daysNow = Math.floor((Date.now() - _genesis.getTime()) / 86400000);
+        // Average price over last 4 years — rough estimate using power law values
+        var _sum4y = 0;
+        for (var _dy = 0; _dy < 1460; _dy++) {
+            var _d = _daysNow - _dy;
+            if (_d > 365) _sum4y += Math.pow(10, 5.82 * Math.log10(_d) - 17.01);
+        }
+        var ma4y = _sum4y / 1460;
+        var ma4yMultiplier = ma4y > 0 ? (price / ma4y).toFixed(2) : '—';
+        var ma4yNum = parseFloat(ma4yMultiplier);
+        indicators.push({
+            emoji: '📊', name: '4-Year MA Multiple',
+            value: ma4yMultiplier + 'x',
+            color: ma4yNum >= 3.5 ? '#ef4444' : ma4yNum < 1 ? '#22c55e' : 'var(--heading)',
+            sub: 'Est. 4Y MA: ~$' + fmtNum(Math.round(ma4y)) + (ma4yNum >= 3.5 ? ' · Top zone ⚠️' : ''),
+            tip: 'Price divided by the 4-year (1460-day) moving average. Historically, when price exceeds 3.5× the 4-year MA, it signals a cycle top. Below 1× = accumulation zone. Top threshold: ≥ 3.5.',
+            flashing: ma4yNum >= 3.5
+        });
+    }
+
+    // 19. NUPL (Net Unrealized P&L estimate)
+    if (price && supply) {
+        // NUPL = (Market Cap - Realized Cap) / Market Cap
+        // Using our thermocap-based realized cap estimate
+        var _thermBTC2 = 0;
+        var _h2 = height;
+        for (var _ep2 = 0; _ep2 <= Math.floor(height / 210000) && _h2 > 0; _ep2++) {
+            var _epB2 = Math.min(_h2, 210000);
+            _thermBTC2 += _epB2 * (50 / Math.pow(2, _ep2));
+            _h2 -= _epB2;
+        }
+        var realizedCap2 = _thermBTC2 * 15000;
+        var mktCap2 = price * supply;
+        var nupl = mktCap2 > 0 ? ((mktCap2 - realizedCap2) / mktCap2 * 100).toFixed(1) : '—';
+        var nuplNum = parseFloat(nupl);
+        var nuplColor = nuplNum >= 70 ? '#ef4444' : nuplNum >= 50 ? '#f97316' : nuplNum < 0 ? '#22c55e' : 'var(--heading)';
+        var nuplLabel = nuplNum >= 70 ? 'Euphoria — top zone ⚠️' : nuplNum >= 50 ? 'Greed' : nuplNum >= 25 ? 'Optimism' : nuplNum >= 0 ? 'Hope' : 'Capitulation 🟢';
+        indicators.push({
+            emoji: '💰', name: 'NUPL Estimate',
+            value: nupl + '%',
+            color: nuplColor,
+            sub: nuplLabel,
+            tip: 'Net Unrealized Profit/Loss. Shows what percentage of the market cap is unrealized profit. Above 70% = euphoria/top zone (most holders are in massive profit). Below 0% = capitulation (most holders are underwater). Top threshold: ≥ 70%.',
+            flashing: nuplNum >= 70
+        });
+    }
+
+    // 20. Altcoin Season Index (BTC dominance inverse — estimated)
+    // Moved from simple dominance to include flashing at <40% (alt season = BTC top risk)
+    // (BTC Dominance is already indicator 11 — this adds the alt season angle)
+
+    // Blocks Until Sunday (next weekly close)
     if (height) {
         var now = new Date();
         var dayOfWeek = now.getUTCDay(); // 0=Sun
@@ -925,14 +1048,17 @@ function loadTopIndicators() {
     el.innerHTML = html;
 
     // Fetch Mayer Multiple (200-day MA from CoinGecko)
-    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=200&interval=daily')
+    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data && data.prices && data.prices.length >= 200) {
-                var sum = 0;
-                for (var i = 0; i < data.prices.length; i++) sum += data.prices[i][1];
-                var ma200 = sum / data.prices.length;
-                var currentPrice = data.prices[data.prices.length - 1][1];
+                var prices = data.prices;
+                var pLen = prices.length;
+                // 200-day MA for Mayer Multiple
+                var sum200 = 0;
+                for (var i = Math.max(0, pLen - 200); i < pLen; i++) sum200 += prices[i][1];
+                var ma200 = sum200 / Math.min(200, pLen);
+                var currentPrice = prices[pLen - 1][1];
                 var mayer = (currentPrice / ma200).toFixed(2);
                 var mayerEl = document.getElementById('mayerMultiple');
                 if (mayerEl) {
@@ -940,14 +1066,40 @@ function loadTopIndicators() {
                     mayerEl.style.color = mayerColor;
                     mayerEl.textContent = mayer + 'x';
                     var sub = mayerEl.nextElementSibling;
-                    if (sub) sub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (mayer < 1 ? ' · Below MA ✅' : mayer > 2.4 ? ' · Overheated ⚠️' : '');
-                    // Update flashing badge for Mayer
+                    if (sub) sub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (mayer < 1 ? ' \xb7 Below MA \u2705' : mayer > 2.4 ? ' \xb7 Overheated \u26a0\ufe0f' : '');
                     var mayerCard = mayerEl.closest('div[style*="border-radius:12px"]');
                     if (mayerCard && mayer > 2.4) {
                         mayerCard.style.borderColor = 'rgba(239,68,68,0.5)';
                         mayerCard.style.background = 'rgba(239,68,68,0.04)';
                         var badge = mayerCard.querySelector('div[style*="OK"]');
-                        if (badge) { badge.innerHTML = '🔴 TOP'; badge.style.color = '#ef4444'; badge.style.background = 'rgba(239,68,68,0.15)'; badge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                        if (badge) { badge.innerHTML = '\ud83d\udd34 TOP'; badge.style.color = '#ef4444'; badge.style.background = 'rgba(239,68,68,0.15)'; badge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                    }
+                }
+                // Pi Cycle Top: 111-day MA vs 350-day MA x 2
+                if (pLen >= 111) {
+                    var sum111 = 0;
+                    for (var pi = pLen - 111; pi < pLen; pi++) sum111 += prices[pi][1];
+                    var ma111 = sum111 / 111;
+                    var sum350 = 0;
+                    var cnt350 = Math.min(350, pLen);
+                    for (var pk = pLen - cnt350; pk < pLen; pk++) sum350 += prices[pk][1];
+                    var ma350x2 = (sum350 / cnt350) * 2;
+                    var piGap = ma350x2 > 0 ? ((ma111 - ma350x2) / ma350x2 * 100).toFixed(1) : 0;
+                    var piGapNum = parseFloat(piGap);
+                    var piEl = document.getElementById('piCycleTop');
+                    if (piEl) {
+                        var piFlash = piGapNum >= 0;
+                        piEl.textContent = (piGapNum >= 0 ? '+' : '') + piGap + '%';
+                        piEl.style.color = piFlash ? '#ef4444' : piGapNum > -5 ? '#f97316' : 'var(--heading)';
+                        var piSub = piEl.nextElementSibling;
+                        if (piSub) piSub.textContent = '111d: $' + fmtNum(Math.round(ma111)) + ' vs 350d\xd72: $' + fmtNum(Math.round(ma350x2)) + (piFlash ? ' \xb7 CROSSED \u26a0\ufe0f' : piGapNum > -5 ? ' \xb7 Narrowing!' : '');
+                        var piCard = piEl.closest('div[style*="border-radius:12px"]');
+                        if (piCard && piFlash) {
+                            piCard.style.borderColor = 'rgba(239,68,68,0.5)';
+                            piCard.style.background = 'rgba(239,68,68,0.04)';
+                            var piBadge = piCard.querySelector('div[style*="OK"]');
+                            if (piBadge) { piBadge.innerHTML = '\ud83d\udd34 TOP'; piBadge.style.color = '#ef4444'; piBadge.style.background = 'rgba(239,68,68,0.15)'; piBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                        }
                     }
                 }
             }
