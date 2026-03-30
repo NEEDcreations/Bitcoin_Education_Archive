@@ -560,12 +560,7 @@
                 <div id="ticker-content" style="flex:1;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
             <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)" onfocus="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();">
-            <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;">
-                <button class="random-btn" onclick="goRandom()" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
-                <button class="random-btn" onclick="goRandomArt()" title="Random Art"><span>🎨</span><span class="random-label">Art</span></button>
-                <button class="random-btn" onclick="goRandomGraphic()" title="Random Graphic"><span>📊</span><span class="random-label">Graphic</span></button>
-                <button class="random-btn" onclick="goRandomMeme()" title="Random Meme"><span>😂</span><span class="random-label">Meme</span></button>
-            </div>
+
         </div>
         <div class="channels" id="channelList">
             <div id="favsSection" style="display:none;">
@@ -745,7 +740,11 @@
             <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
             </div>
-            <div style="padding:4px 0 12px;">
+            <div style="display:flex;gap:8px;margin-top:12px;margin-bottom:12px;justify-content:center;padding:0 8px;">
+                <button class="random-btn" onclick="goRandom()" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
+                <button class="random-btn" onclick="goRandomArt()" title="Random Art"><span>🎨</span><span class="random-label">Art</span></button>
+                <button class="random-btn" onclick="goRandomGraphic()" title="Random Graphic"><span>📊</span><span class="random-label">Graphic</span></button>
+                <button class="random-btn" onclick="goRandomMeme()" title="Random Meme"><span>😂</span><span class="random-label">Meme</span></button>
             </div>
         </div>
         <a href="https://603btc.com" target="_blank" rel="noopener noreferrer" class="sidebar-promo">⚡ Powered by 603btc.com</a>
