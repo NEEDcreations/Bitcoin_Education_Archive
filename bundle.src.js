@@ -31079,6 +31079,10 @@ window.nachoQuizAnswer = function(btn, correct) {
             else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
             else if (typeof renderForum === 'function') renderForum();
             
+            // Scroll to top after rendering app pages
+            document.getElementById('main').scrollTop = 0;
+            if (fc) fc.scrollTop = 0;
+            
             setFloatingElementsVisible(true);
             if (typeof nachoOnPage === 'function') nachoOnPage(id);
             return;
@@ -31911,6 +31915,12 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (fc) fc.style.display = 'block';
                     forumViewPost(postId, true);
                 }
+                return;
+            }
+
+            // Lightning wallet
+            if (hash === 'lightning' || state.channel === 'lightning') {
+                go('lightning', null, true);
                 return;
             }
 
