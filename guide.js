@@ -49,7 +49,7 @@
 
         // Check what's unlocked
         var forumLocked = channelsRead < 3;
-        var beatsLocked = channelsRead < 3;
+        var irlLocked = channelsRead < 5;
         var marketLocked = channelsRead < 10;
 
         var overlay = document.createElement('div');
@@ -96,8 +96,9 @@
             '<div style="margin-bottom:12px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
-                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked) +
                 unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false) +
+                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked) +
+                unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked) +
                 unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked) +
                 unlockTier('⚡', 'Lightning Tipping', 'Connect a Lightning wallet', true) +
                 unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true) +
