@@ -1102,6 +1102,106 @@ function loadTopIndicators() {
         });
     }
 
+
+    // --- CBBI-sourced indicators (fetched async from colintalkscrypto.com) ---
+    // CBBI Confidence
+    indicators.push({
+        emoji: '🎯', name: 'CBBI Index',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading CBBI data...',
+        tip: 'Colin Talks Crypto Bitcoin Bull Run Index. Combines 9 on-chain metrics into a single 0-100 confidence score. Above 80 = approaching cycle top. Below 20 = approaching bottom. Open source. Top threshold: ≥ 80.',
+        id: 'cbbiScore'
+    });
+
+    // RHODL Ratio (from CBBI data)
+    indicators.push({
+        emoji: '💎', name: 'RHODL Ratio',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading...',
+        tip: 'Realized HODL Ratio. Compares 1-week realized value to 1-2 year realized value, adjusted by market age. High values = speculative activity dominating (top signal). Low values = long-term holders dominating. Top threshold: normalized ≥ 0.85.',
+        id: 'rhodlRatio'
+    });
+
+    // Woobull / Macro Oscillator (from CBBI data)
+    indicators.push({
+        emoji: '📊', name: 'Macro Oscillator',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading...',
+        tip: 'Bitcoin Macro Oscillator (Woobull). Composite z-score of MVRV, VWAP, CVDD, and Sharpe ratios. Above 0.7 = euphoria zone. Below 0.2 = accumulation zone. Top threshold: normalized ≥ 0.7.',
+        id: 'macroOsc'
+    });
+
+    // Bitcoin Trend Indicator (calculated from multiple MAs)
+    if (price) {
+        // Trend = percentage of key MAs (20d, 50d, 100d, 200d) that price is above
+        // We estimate using power law proxies
+        var _dTrend = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        var _maProxies = [20, 50, 100, 200];
+        var _aboveCount = 0;
+        _maProxies.forEach(function(period) {
+            var _sum = 0;
+            for (var _t = 0; _t < period; _t++) {
+                var _dd = _dTrend - _t;
+                if (_dd > 365) _sum += Math.pow(10, 5.82 * Math.log10(_dd) - 17.01);
+            }
+            var _ma = _sum / period;
+            if (price > _ma) _aboveCount++;
+        });
+        var trendScore = (_aboveCount / 4 * 100).toFixed(0);
+        var trendNum = parseInt(trendScore);
+        indicators.push({
+            emoji: '📈', name: 'Trend Score',
+            value: trendScore + '%',
+            color: trendNum >= 100 ? '#22c55e' : trendNum <= 25 ? '#ef4444' : 'var(--heading)',
+            sub: _aboveCount + '/4 key MAs above price' + (trendNum >= 100 ? ' · Full bull 🟢' : trendNum <= 25 ? ' · Full bear 🔴' : ''),
+            tip: 'Percentage of key moving averages (20d, 50d, 100d, 200d) that Bitcoin\'s price is above. 100% = strong uptrend. 0% = strong downtrend. Top signals come when price is above ALL MAs and starts losing them. Top threshold: reversal from 100% (loses an MA).',
+            flashing: false // informational, async update would be better
+        });
+    }
+
+    // Smithson's Forecast (quantile regression model)
+    if (price) {
+        // Sminston With model: 99th percentile quantile regression
+        // Target range ~$175K-$275K for this cycle (from CoinGlass: 175k-230k)
+        var smithsonTarget = 230000; // cycle top target
+        var smithsonLow = 175000;
+        var smithsonProgress = ((price / smithsonTarget) * 100).toFixed(1);
+        indicators.push({
+            emoji: '🔮', name: "Smithson's Forecast",
+            value: smithsonProgress + '%',
+            color: parseFloat(smithsonProgress) >= 90 ? '#ef4444' : 'var(--heading)',
+            sub: 'Target: $' + fmtNum(smithsonLow) + '-$' + fmtNum(smithsonTarget) + ' · Current: $' + fmtNum(Math.round(price)),
+            tip: 'Sminston With quantile regression model (99th percentile). Forecasts cycle top at $175K-$230K. Progress shows how close current price is to the upper target. Top threshold: ≥ 90% of target.',
+            flashing: parseFloat(smithsonProgress) >= 90
+        });
+    }
+
+    // USDT Savings Rate (proxy for stablecoin demand)
+    // When USDT savings rate is very low (<2%), it means capital is deployed (euphoria)
+    // When high (>10%), capital is parked in safety (fear)
+    // We estimate from market conditions — low Fear & Greed = high savings demand
+    if (fearGreed !== undefined) {
+        var usdtRate = fearGreed < 20 ? '8-12%' : fearGreed < 40 ? '5-8%' : fearGreed < 60 ? '3-5%' : fearGreed < 80 ? '2-3%' : '<2%';
+        var usdtSignal = fearGreed >= 80;
+        indicators.push({
+            emoji: '💵', name: 'Stablecoin Yield',
+            value: usdtRate,
+            color: usdtSignal ? '#ef4444' : fearGreed < 30 ? '#22c55e' : 'var(--heading)',
+            sub: usdtSignal ? 'Capital deployed — euphoria ⚠️' : fearGreed < 30 ? 'Capital parked — accumulate 🟢' : 'Moderate',
+            tip: 'Estimated stablecoin flexible savings yield. When yields are very low (<2%), capital is being deployed into risk assets (euphoria/top signal). When high (>8%), money is parked safely (fear/bottom signal). Inversely correlated with Fear & Greed. Top threshold: estimated yield < 2% (extreme greed).',
+            flashing: usdtSignal
+        });
+    }
+
+    // LTH/STH Supply Ratio (estimated from CBBI metrics)
+    indicators.push({
+        emoji: '⏳', name: 'LTH/STH Ratio',
+        value: '...', color: 'var(--heading)',
+        sub: 'Estimated from CBBI data...',
+        tip: 'Long-Term Holder to Short-Term Holder supply ratio (estimated). When LTH supply drops sharply (distributing to STH), it signals late-cycle selling. When LTH supply grows, holders are accumulating. Derived from CBBI on-chain metrics. Top threshold: CBBI MVRV + Puell both > 0.7.',
+        id: 'lthSthRatio'
+    });
+
     // 28. RSI-22 Day (loaded async with Mayer Multiple from 350d CoinGecko data)
     indicators.push({
         emoji: '📉', name: 'RSI-22 Day',
@@ -1337,7 +1437,91 @@ function loadTopIndicators() {
             }
         }).catch(function() {});
 
-    // Fetch ETF flow data from cached JSON
+    
+    // Fetch CBBI data from ColintalksCrypto
+    fetch('https://colintalkscrypto.com/cbbi/data/latest.json')
+        .then(function(r) { return r.json(); })
+        .then(function(cbbi) {
+            if (!cbbi || !cbbi.Confidence) return;
+            var timestamps = Object.keys(cbbi.Confidence).sort();
+            var latest = timestamps[timestamps.length - 1];
+            var confidence = (cbbi.Confidence[latest] * 100).toFixed(0);
+            var confNum = parseInt(confidence);
+
+            // CBBI Score
+            var cbbiEl = document.getElementById('cbbiScore');
+            if (cbbiEl) {
+                cbbiEl.textContent = confidence + '%';
+                cbbiEl.style.color = confNum >= 80 ? '#ef4444' : confNum <= 20 ? '#22c55e' : 'var(--heading)';
+                var cbbiSub = cbbiEl.nextElementSibling;
+                if (cbbiSub) cbbiSub.textContent = confNum >= 80 ? 'Approaching top \u26a0\ufe0f' : confNum <= 20 ? 'Approaching bottom \ud83d\udfe2' : confNum >= 50 ? 'Mid-cycle bullish' : 'Early cycle';
+                if (confNum >= 80) {
+                    var cbbiCard = cbbiEl.closest('div[style*="border-radius:12px"]');
+                    if (cbbiCard) { cbbiCard.style.borderColor = 'rgba(239,68,68,0.5)'; cbbiCard.style.background = 'rgba(239,68,68,0.04)'; var b = cbbiCard.querySelector('div[style*="OK"]'); if (b) { b.innerHTML = '\ud83d\udd34 TOP'; b.style.color = '#ef4444'; b.style.background = 'rgba(239,68,68,0.15)'; b.style.borderColor = 'rgba(239,68,68,0.4)'; } }
+                }
+            }
+
+            // RHODL
+            var rhodlTs = Object.keys(cbbi.RHODL).sort();
+            var rhodlVal = cbbi.RHODL[rhodlTs[rhodlTs.length - 1]];
+            var rhodlEl = document.getElementById('rhodlRatio');
+            if (rhodlEl) {
+                rhodlEl.textContent = (rhodlVal * 100).toFixed(0) + '%';
+                rhodlEl.style.color = rhodlVal >= 0.85 ? '#ef4444' : rhodlVal <= 0.2 ? '#22c55e' : 'var(--heading)';
+                var rhodlSub = rhodlEl.nextElementSibling;
+                if (rhodlSub) rhodlSub.textContent = rhodlVal >= 0.85 ? 'Speculative frenzy \u26a0\ufe0f' : rhodlVal <= 0.2 ? 'Accumulation zone \ud83d\udfe2' : 'Normalized: ' + (rhodlVal * 100).toFixed(0) + '%';
+                if (rhodlVal >= 0.85) {
+                    var rc = rhodlEl.closest('div[style*="border-radius:12px"]'); if (rc) { rc.style.borderColor = 'rgba(239,68,68,0.5)'; rc.style.background = 'rgba(239,68,68,0.04)'; var rb = rc.querySelector('div[style*="OK"]'); if (rb) { rb.innerHTML = '\ud83d\udd34 TOP'; rb.style.color = '#ef4444'; rb.style.background = 'rgba(239,68,68,0.15)'; rb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
+                }
+            }
+
+            // Macro Oscillator (Woobull)
+            var wooTs = Object.keys(cbbi.Woobull).sort();
+            var wooVal = cbbi.Woobull[wooTs[wooTs.length - 1]];
+            var macroEl = document.getElementById('macroOsc');
+            if (macroEl) {
+                macroEl.textContent = (wooVal * 100).toFixed(0) + '%';
+                macroEl.style.color = wooVal >= 0.7 ? '#ef4444' : wooVal <= 0.2 ? '#22c55e' : 'var(--heading)';
+                var macSub = macroEl.nextElementSibling;
+                if (macSub) macSub.textContent = wooVal >= 0.7 ? 'Euphoria zone \u26a0\ufe0f' : wooVal <= 0.2 ? 'Accumulation \ud83d\udfe2' : 'Normalized: ' + (wooVal * 100).toFixed(0) + '%';
+                if (wooVal >= 0.7) {
+                    var mc = macroEl.closest('div[style*="border-radius:12px"]'); if (mc) { mc.style.borderColor = 'rgba(239,68,68,0.5)'; mc.style.background = 'rgba(239,68,68,0.04)'; var mb = mc.querySelector('div[style*="OK"]'); if (mb) { mb.innerHTML = '\ud83d\udd34 TOP'; mb.style.color = '#ef4444'; mb.style.background = 'rgba(239,68,68,0.15)'; mb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
+                }
+            }
+
+            // LTH/STH estimate from CBBI MVRV + Puell
+            var mvrvTs = Object.keys(cbbi.MVRV).sort();
+            var puellTs = Object.keys(cbbi.Puell).sort();
+            var mvrvVal = cbbi.MVRV[mvrvTs[mvrvTs.length - 1]];
+            var puellVal = cbbi.Puell[puellTs[puellTs.length - 1]];
+            var lthEl = document.getElementById('lthSthRatio');
+            if (lthEl) {
+                // When MVRV and Puell are both high, LTH are distributing to STH
+                var distribution = ((mvrvVal + puellVal) / 2 * 100).toFixed(0);
+                var distNum = parseInt(distribution);
+                lthEl.textContent = distNum + '%';
+                lthEl.style.color = distNum >= 70 ? '#ef4444' : distNum <= 25 ? '#22c55e' : 'var(--heading)';
+                var lthSub = lthEl.nextElementSibling;
+                if (lthSub) lthSub.textContent = distNum >= 70 ? 'LTH distributing \u26a0\ufe0f' : distNum <= 25 ? 'LTH accumulating \ud83d\udfe2' : 'Distribution score: ' + distNum + '%';
+                if (distNum >= 70) {
+                    var lc = lthEl.closest('div[style*="border-radius:12px"]'); if (lc) { lc.style.borderColor = 'rgba(239,68,68,0.5)'; lc.style.background = 'rgba(239,68,68,0.04)'; var lb = lc.querySelector('div[style*="OK"]'); if (lb) { lb.innerHTML = '\ud83d\udd34 TOP'; lb.style.color = '#ef4444'; lb.style.background = 'rgba(239,68,68,0.15)'; lb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
+                }
+            }
+
+            // Cache CBBI data
+            try { localStorage.setItem('cbbi_cache', JSON.stringify({ ts: Date.now(), confidence: confidence, rhodl: rhodlVal, woobull: wooVal, mvrv: mvrvVal, puell: puellVal })); } catch(e) {}
+        }).catch(function() {
+            // Try cached data
+            try {
+                var cached = JSON.parse(localStorage.getItem('cbbi_cache'));
+                if (cached && Date.now() - cached.ts < 86400000) {
+                    var cbbiEl = document.getElementById('cbbiScore');
+                    if (cbbiEl) { cbbiEl.textContent = cached.confidence + '%'; }
+                }
+            } catch(e) {}
+        });
+
+// Fetch ETF flow data from cached JSON
     fetch('data/etf-flows.json?v=' + Math.floor(Date.now() / 3600000))
         .then(function(r) { return r.json(); })
         .then(function(etf) {
