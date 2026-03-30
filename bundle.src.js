@@ -27971,7 +27971,33 @@ function loadTopIndicators() {
         });
     }
 
-    // 13. Blocks Until Sunday (next weekly close)
+    // 13. Power Law Deviation
+    if (price) {
+        var genesisDate = new Date('2009-01-03T00:00:00Z');
+        var daysSinceGenesis = Math.floor((Date.now() - genesisDate.getTime()) / 86400000);
+        // Power law model: log10(price) = a * log10(days) + b
+        // Fitted params (commonly used): a ≈ 5.82, b ≈ -17.01
+        var plA = 5.82, plB = -17.01;
+        var logFairPrice = plA * Math.log10(daysSinceGenesis) + plB;
+        var fairPrice = Math.pow(10, logFairPrice);
+        var plDeviation = ((price - fairPrice) / fairPrice * 100).toFixed(0);
+        var plDeviationNum = parseFloat(plDeviation);
+        // Upper band (~3x fair value historically = cycle top zone)
+        var plTopThreshold = 200; // >200% above = extreme top territory
+        var plColor = plDeviationNum > plTopThreshold ? '#ef4444' : plDeviationNum > 100 ? '#f97316' : plDeviationNum < -30 ? '#22c55e' : 'var(--heading)';
+        var plFlashing = plDeviationNum > plTopThreshold;
+        var plLabel = plDeviationNum > plTopThreshold ? 'Far above — extreme ⚠️' : plDeviationNum > 100 ? 'Above trend — elevated' : plDeviationNum > 0 ? 'Above fair value' : plDeviationNum > -30 ? 'Near fair value' : 'Below trend — deep value 🟢';
+        indicators.push({
+            emoji: '📏', name: 'Power Law',
+            value: (plDeviationNum >= 0 ? '+' : '') + plDeviation + '%',
+            color: plColor,
+            sub: 'Fair value: ~$' + fmtNum(Math.round(fairPrice)) + ' · ' + plLabel,
+            tip: 'Bitcoin Power Law model tracks the long-term price trend using a log-log regression since genesis (Jan 3, 2009). Parameters: P = 10^(5.82 × log₁₀(days) - 17.01). Above +200% = historically extreme (cycle top zone). Below -30% = deep value accumulation. Current: ' + daysSinceGenesis + ' days since genesis.',
+            flashing: plFlashing
+        });
+    }
+
+    // 14. Blocks Until Sunday (next weekly close)
     if (height) {
         var now = new Date();
         var dayOfWeek = now.getUTCDay(); // 0=Sun
