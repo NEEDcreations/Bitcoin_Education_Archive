@@ -480,6 +480,16 @@ window.showUserProfile = function(uid) {
                 profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
+            // Prediction Stats (only show if they've made predictions)
+            (u.predictions && u.predictions.total ? (function() {
+                var ps = u.predictions;
+                var pPct = ps.total > 0 ? Math.round((ps.correct / ps.total) * 100) : 0;
+                return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                    profileStat('📈', ps.total, 'Predictions') +
+                    profileStat('🎯', pPct + '%', 'Accuracy') +
+                    profileStat('🔥', ps.bestStreak || ps.streak || 0, 'Best Streak') +
+                '</div>';
+            })() : '') +
             // Lightning Address & Tip button
             ((u.lightningAddress || u.lightning) ? '<div style="margin-bottom:12px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +

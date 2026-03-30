@@ -3806,6 +3806,17 @@ function showSettingsPage(tab) {
         } else {
             html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
+        // Prediction Stats
+        if (typeof getPredictionStats === 'function') {
+            var predStats = getPredictionStats(currentUser);
+            if (predStats) {
+                html += statRow('Predictions', predStats.total + ' total · ' + predStats.correct + ' correct', '📈');
+                html += statRow('Prediction Accuracy', predStats.percentage + '%', '🎯');
+                if (predStats.bestStreak > 0) html += statRow('Best Prediction Streak', predStats.bestStreak + ' in a row', '🔥');
+            } else {
+                html += statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
+            }
+        }
         if (typeof getNachoFriendship === 'function') {
             var f = getNachoFriendship();
             var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');

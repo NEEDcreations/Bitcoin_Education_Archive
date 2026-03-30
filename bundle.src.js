@@ -3886,6 +3886,17 @@ function showSettingsPage(tab) {
         } else {
             html += statRow('PVP Record', 'No battles yet — <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
+        // Prediction Stats
+        if (typeof getPredictionStats === 'function') {
+            var predStats = getPredictionStats(currentUser);
+            if (predStats) {
+                html += statRow('Predictions', predStats.total + ' total · ' + predStats.correct + ' correct', '📈');
+                html += statRow('Prediction Accuracy', predStats.percentage + '%', '🎯');
+                if (predStats.bestStreak > 0) html += statRow('Best Prediction Streak', predStats.bestStreak + ' in a row', '🔥');
+            } else {
+                html += statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
+            }
+        }
         if (typeof getNachoFriendship === 'function') {
             var f = getNachoFriendship();
             var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
@@ -22245,6 +22256,16 @@ window.showUserProfile = function(uid) {
                 profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
+            // Prediction Stats (only show if they've made predictions)
+            (u.predictions && u.predictions.total ? (function() {
+                var ps = u.predictions;
+                var pPct = ps.total > 0 ? Math.round((ps.correct / ps.total) * 100) : 0;
+                return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                    profileStat('📈', ps.total, 'Predictions') +
+                    profileStat('🎯', pPct + '%', 'Accuracy') +
+                    profileStat('🔥', ps.bestStreak || ps.streak || 0, 'Best Streak') +
+                '</div>';
+            })() : '') +
             // Lightning Address & Tip button
             ((u.lightningAddress || u.lightning) ? '<div style="margin-bottom:12px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
@@ -25887,10 +25908,13 @@ window.showPricePrediction = function() {
 
 window._savePrediction = function(direction) {
     var price = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-    localStorage.setItem('btc_price_prediction', JSON.stringify({ direction: direction, price: price, time: Date.now(), resolved: false }));
+    var prediction = { direction: direction, price: price, time: Date.now(), resolved: false };
+    localStorage.setItem('btc_price_prediction', JSON.stringify(prediction));
     if (typeof showToast === 'function') showToast('🎯 Prediction saved! Check back tomorrow to see if you were right.');
     // Award points for making a prediction
     if (typeof awardPoints === 'function') awardPoints(5, '📈 Price prediction made');
+    // Sync to Firestore
+    _syncPredictionToFirestore(prediction);
 };
 
 // ---- Check prediction result on login/load ----
@@ -25912,6 +25936,9 @@ window.checkPredictionResult = function() {
     saved.finalPrice = currentPrice;
     localStorage.setItem('btc_price_prediction', JSON.stringify(saved));
 
+    // Update prediction stats in Firestore
+    _updatePredictionStats(correct);
+
     // Award bonus points for correct prediction
     if (correct) {
         if (typeof awardPoints === 'function') awardPoints(25, '🎯 Correct price prediction!');
@@ -25932,6 +25959,82 @@ window.checkPredictionResult = function() {
             }
         }, 2000);
     }
+};
+
+// ---- Prediction Stats Firestore Sync ----
+function _syncPredictionToFirestore(prediction) {
+    try {
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        if (typeof db === 'undefined') return;
+        var uid = auth.currentUser.uid;
+        db.collection('users').doc(uid).set({
+            predictions: {
+                lastPrediction: {
+                    direction: prediction.direction,
+                    price: prediction.price,
+                    time: prediction.time
+                }
+            }
+        }, { merge: true }).catch(function() {});
+    } catch(e) {}
+}
+
+function _updatePredictionStats(correct) {
+    try {
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
+        var uid = auth.currentUser.uid;
+        var inc = firebase.firestore.FieldValue.increment;
+        var streak = parseInt(localStorage.getItem('btc_predict_streak') || '0');
+        var bestStreak = parseInt(localStorage.getItem('btc_predict_best_streak') || '0');
+
+        var updateData = {
+            'predictions.total': inc(1),
+            'predictions.lastResolved': Date.now()
+        };
+        if (correct) {
+            updateData['predictions.correct'] = inc(1);
+            var newStreak = streak + 1;
+            updateData['predictions.streak'] = newStreak;
+            if (newStreak > bestStreak) {
+                updateData['predictions.bestStreak'] = newStreak;
+                localStorage.setItem('btc_predict_best_streak', newStreak.toString());
+            }
+        } else {
+            updateData['predictions.streak'] = 0;
+        }
+
+        db.collection('users').doc(uid).set(updateData, { merge: true }).catch(function() {});
+
+        // Also update local currentUser for immediate display
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            if (!currentUser.predictions) currentUser.predictions = { total: 0, correct: 0, streak: 0, bestStreak: 0 };
+            currentUser.predictions.total = (currentUser.predictions.total || 0) + 1;
+            if (correct) {
+                currentUser.predictions.correct = (currentUser.predictions.correct || 0) + 1;
+                currentUser.predictions.streak = (currentUser.predictions.streak || 0) + 1;
+                if (currentUser.predictions.streak > (currentUser.predictions.bestStreak || 0)) {
+                    currentUser.predictions.bestStreak = currentUser.predictions.streak;
+                }
+            } else {
+                currentUser.predictions.streak = 0;
+            }
+        }
+    } catch(e) {}
+}
+
+// Get prediction stats (for profile display)
+window.getPredictionStats = function(user) {
+    var stats = (user && user.predictions) ? user.predictions : null;
+    if (!stats || !stats.total) return null;
+    var pct = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+    return {
+        total: stats.total || 0,
+        correct: stats.correct || 0,
+        percentage: pct,
+        streak: stats.streak || 0,
+        bestStreak: stats.bestStreak || 0
+    };
 };
 
 // ---- EXPLORATION MAP ----
