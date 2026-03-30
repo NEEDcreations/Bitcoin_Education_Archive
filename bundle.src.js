@@ -28285,6 +28285,24 @@ function loadTopIndicators() {
         });
     }
 
+    // 28. Bitcoin ETF Net Flows (fetched async from data/etf-flows.json)
+    indicators.push({
+        emoji: '📊', name: 'ETF Net Flow',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading ETF data...',
+        tip: 'Daily Bitcoin spot ETF net inflows/outflows. Sustained outflows (7+ days) can signal institutional selling. Sustained inflows signal demand. Data from Bitbo/BitcoinTreasuries. Top threshold: 7+ consecutive outflow days.',
+        flashing: false, id: 'etfNetFlow'
+    });
+
+    // 29. ETF 5-Day Flow
+    indicators.push({
+        emoji: '📈', name: 'ETF 5-Day Flow',
+        value: '...', color: 'var(--heading)',
+        sub: 'Loading...',
+        tip: 'Sum of last 5 trading days of ETF flows. Large negative = sustained selling pressure. Large positive = accumulation. Top threshold: 5-day sum below -$500M.',
+        flashing: false, id: 'etf5dFlow'
+    });
+
     // Blocks Until Sunday (next weekly close)
     if (height) {
         var now = new Date();
@@ -28437,6 +28455,52 @@ function loadTopIndicators() {
                 }
             }
         }).catch(function() {});
+
+    // Fetch ETF flow data from cached JSON
+    fetch('data/etf-flows.json?v=' + Math.floor(Date.now() / 3600000))
+        .then(function(r) { return r.json(); })
+        .then(function(etf) {
+            if (!etf || !etf.latestFlow) return;
+            var flowEl = document.getElementById('etfNetFlow');
+            if (flowEl) {
+                var f = etf.latestFlow;
+                var fStr = (f >= 0 ? '+' : '') + f.toFixed(1) + 'M';
+                flowEl.textContent = fStr;
+                flowEl.style.color = f > 0 ? '#22c55e' : f < -100 ? '#ef4444' : f < 0 ? '#f97316' : 'var(--heading)';
+                var sub = flowEl.nextElementSibling;
+                if (sub) sub.textContent = etf.latestDate + ' · ' + etf.outflowDays + '/' + etf.totalDays + ' outflow days' + (etf.outflowDays >= 7 ? ' ⚠️' : '');
+                // Flash if 7+ outflow days in last 10
+                if (etf.outflowDays >= 7) {
+                    var card = flowEl.closest('div[style*="border-radius:12px"]');
+                    if (card) {
+                        card.style.borderColor = 'rgba(239,68,68,0.5)';
+                        card.style.background = 'rgba(239,68,68,0.04)';
+                        var badge = card.querySelector('div[style*="OK"]');
+                        if (badge) { badge.innerHTML = '\ud83d\udd34 TOP'; badge.style.color = '#ef4444'; badge.style.background = 'rgba(239,68,68,0.15)'; badge.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                    }
+                }
+            }
+            var flow5El = document.getElementById('etf5dFlow');
+            if (flow5El) {
+                var s5 = etf.sum5d;
+                flow5El.textContent = (s5 >= 0 ? '+' : '') + s5.toFixed(1) + 'M';
+                flow5El.style.color = s5 > 100 ? '#22c55e' : s5 < -500 ? '#ef4444' : s5 < 0 ? '#f97316' : 'var(--heading)';
+                var sub5 = flow5El.nextElementSibling;
+                if (sub5) sub5.textContent = '5-day total' + (s5 < -500 ? ' · Heavy selling ⚠️' : s5 > 500 ? ' · Strong inflows 🟢' : '');
+                if (s5 < -500) {
+                    var card5 = flow5El.closest('div[style*="border-radius:12px"]');
+                    if (card5) {
+                        card5.style.borderColor = 'rgba(239,68,68,0.5)';
+                        card5.style.background = 'rgba(239,68,68,0.04)';
+                        var badge5 = card5.querySelector('div[style*="OK"]');
+                        if (badge5) { badge5.innerHTML = '\ud83d\udd34 TOP'; badge5.style.color = '#ef4444'; badge5.style.background = 'rgba(239,68,68,0.15)'; badge5.style.borderColor = 'rgba(239,68,68,0.4)'; }
+                    }
+                }
+            }
+        }).catch(function() {
+            var flowEl = document.getElementById('etfNetFlow');
+            if (flowEl) { flowEl.textContent = 'N/A'; }
+        });
 }
 
 })();
