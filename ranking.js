@@ -957,6 +957,14 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
     if (!existingDoc.exists) {
         if (typeof attachReferral === 'function') attachReferral(user.uid);
         showGiveawayPrompt(user.uid, user.displayName || user.email || 'Bitcoiner');
+        // Show Quest Guide for brand new provider sign-ups
+        try {
+            localStorage.removeItem('guide_dismissed');
+            localStorage.removeItem('guide_seen');
+            if (typeof showGuide === 'function') {
+                setTimeout(function() { showGuide(); }, 1500);
+            }
+        } catch(e) {}
     } else {
         hideUsernamePrompt();
         showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
@@ -1607,6 +1615,14 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
+    // Show Quest Guide for new accounts (reset dismiss so they see it fresh)
+    try {
+        localStorage.removeItem('guide_dismissed');
+        localStorage.removeItem('guide_seen');
+        if (typeof showGuide === 'function') {
+            setTimeout(function() { showGuide(); }, 800);
+        }
+    } catch(e) {}
     // Hide giveaway banner after registration
     var banner = document.getElementById('giveawayBanner');
     if (banner) banner.style.display = 'none';
