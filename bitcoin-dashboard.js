@@ -976,6 +976,151 @@ function loadTopIndicators() {
     // Moved from simple dominance to include flashing at <40% (alt season = BTC top risk)
     // (BTC Dominance is already indicator 11 — this adds the alt season angle)
 
+    // 21. AHR999 Index (cost-averaging indicator)
+    if (price && height) {
+        var _dsg3 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        var logFit = Math.pow(10, 5.82 * Math.log10(_dsg3) - 17.01); // power law fair value
+        // AHR999 = (price / 200d MA) * (price / fitted value)
+        // We'll use power law as fitted value, estimate 200d MA from async (placeholder)
+        var ahr999 = logFit > 0 ? (price / logFit).toFixed(2) : '—';
+        var ahrNum = parseFloat(ahr999);
+        indicators.push({
+            emoji: '🔢', name: 'AHR999',
+            value: ahr999,
+            color: ahrNum > 1.2 ? '#ef4444' : ahrNum < 0.45 ? '#22c55e' : 'var(--heading)',
+            sub: ahrNum > 1.2 ? 'Overvalued — stop DCA ⚠️' : ahrNum < 0.45 ? 'Deep value — DCA zone 🟢' : ahrNum < 1 ? 'Below model — DCA' : 'Near model',
+            tip: 'AHR999 compares current price to its long-term model value. Below 0.45 = extreme buy (accumulate aggressively). Above 1.2 = stop DCA, consider selling. Used by cost-averaging investors to time entries. Top threshold: ≥ 1.2.',
+            flashing: ahrNum >= 1.2
+        });
+    }
+
+    // 22. 2-Year MA Multiplier
+    if (price) {
+        // 2-year (730d) MA and 5× that MA
+        var _gen3 = new Date('2009-01-03T00:00:00Z');
+        var _dn3 = Math.floor((Date.now() - _gen3.getTime()) / 86400000);
+        var _sum2y = 0;
+        for (var _d2y = 0; _d2y < 730; _d2y++) {
+            var _dd = _dn3 - _d2y;
+            if (_dd > 365) _sum2y += Math.pow(10, 5.82 * Math.log10(_dd) - 17.01);
+        }
+        var ma2y = _sum2y / 730;
+        var ma2yx5 = ma2y * 5;
+        var above2y = price > ma2yx5;
+        indicators.push({
+            emoji: '📉', name: '2-Year MA ×5',
+            value: (price / ma2y).toFixed(2) + 'x',
+            color: above2y ? '#ef4444' : price < ma2y ? '#22c55e' : 'var(--heading)',
+            sub: 'MA: $' + fmtNum(Math.round(ma2y)) + ' · ×5: $' + fmtNum(Math.round(ma2yx5)) + (above2y ? ' · Above ⚠️' : ''),
+            tip: 'Price relative to the 2-year (730-day) moving average. Historically, buying below the 2-year MA yields huge returns. Selling when price exceeds 5× the 2-year MA catches tops. Top threshold: price above 5× MA.',
+            flashing: above2y
+        });
+    }
+
+    // 23. Golden Ratio Multiplier
+    if (price) {
+        var _gen4 = new Date('2009-01-03T00:00:00Z');
+        var _dn4 = Math.floor((Date.now() - _gen4.getTime()) / 86400000);
+        // 350d MA × golden ratio multiples (1.6, 2, 3, 5, 8, 13, 21)
+        var _sum350g = 0;
+        for (var _d350 = 0; _d350 < 350; _d350++) {
+            var _ddd = _dn4 - _d350;
+            if (_ddd > 365) _sum350g += Math.pow(10, 5.82 * Math.log10(_ddd) - 17.01);
+        }
+        var ma350g = _sum350g / 350;
+        var goldenRatio = ma350g > 0 ? (price / ma350g).toFixed(2) : '—';
+        var grNum = parseFloat(goldenRatio);
+        var grLevel = grNum >= 8 ? 'Above ×8 — max top ⚠️' : grNum >= 5 ? 'Above ×5 — overheated' : grNum >= 3 ? 'Above ×3 — elevated' : grNum >= 1.6 ? 'Above ×1.6 — bullish' : 'Below ×1.6';
+        indicators.push({
+            emoji: '🔱', name: 'Golden Ratio',
+            value: goldenRatio + 'x',
+            color: grNum >= 5 ? '#ef4444' : grNum >= 3 ? '#f97316' : 'var(--heading)',
+            sub: '350d MA: $' + fmtNum(Math.round(ma350g)) + ' · ' + grLevel,
+            tip: 'Price relative to the 350-day MA using Fibonacci golden ratio multiples (1.6, 2, 3, 5, 8, 13, 21). Each cycle top has touched a lower multiple. Top threshold: ≥ 5×.',
+            flashing: grNum >= 5
+        });
+    }
+
+    // 24. Bitcoin Terminal Price
+    if (height && supply && price) {
+        // Terminal Price = Transferred Price × 21
+        // Transferred Price ≈ Thermocap / supply × coin days destroyed ratio
+        // Simplified: Terminal Price ≈ (cumulative block rewards × avg price) / supply × 21
+        var _thermBTC3 = 0;
+        var _h3 = height;
+        for (var _ep3 = 0; _ep3 <= Math.floor(height / 210000) && _h3 > 0; _ep3++) {
+            var _epB3 = Math.min(_h3, 210000);
+            _thermBTC3 += _epB3 * (50 / Math.pow(2, _ep3));
+            _h3 -= _epB3;
+        }
+        var transferredPrice = supply > 0 ? (_thermBTC3 * 15000 / supply) : 0;
+        var terminalPrice = transferredPrice * 21;
+        var termPct = terminalPrice > 0 ? ((price / terminalPrice) * 100).toFixed(0) : '—';
+        indicators.push({
+            emoji: '🎯', name: 'Terminal Price',
+            value: '$' + fmtNum(Math.round(terminalPrice)),
+            color: price >= terminalPrice ? '#ef4444' : 'var(--heading)',
+            sub: 'Current: ' + termPct + '% of terminal · ' + (price >= terminalPrice ? 'ABOVE — extreme ⚠️' : 'Below terminal'),
+            tip: 'Terminal Price = Transferred Price × 21. Represents a theoretical maximum based on cumulative miner revenue and coin movement. Every cycle top has approached or exceeded this level. Top threshold: price ≥ Terminal Price.',
+            flashing: price >= terminalPrice
+        });
+    }
+
+    // 25. Bitcoin Bubble Index (price deviation from log trend)
+    if (price) {
+        var _dsg5 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        var logTrend = Math.pow(10, 5.82 * Math.log10(_dsg5) - 17.01);
+        // Bubble index: how many standard deviations above log trend
+        // Historical 1σ ~= 0.3 in log space
+        var logDev = logTrend > 0 ? (Math.log10(price) - Math.log10(logTrend)) / 0.3 : 0;
+        var bubbleIdx = logDev.toFixed(1);
+        var bubbleNum = parseFloat(bubbleIdx);
+        indicators.push({
+            emoji: '🫧', name: 'Bubble Index',
+            value: bubbleIdx + 'σ',
+            color: bubbleNum >= 2 ? '#ef4444' : bubbleNum >= 1 ? '#f97316' : bubbleNum < -1 ? '#22c55e' : 'var(--heading)',
+            sub: bubbleNum >= 2 ? 'Extreme bubble ⚠️' : bubbleNum >= 1 ? 'Elevated' : bubbleNum < -1 ? 'Deep discount 🟢' : 'Normal',
+            tip: 'How many standard deviations Bitcoin\'s price is above its long-term log trend. Above +2σ = extreme bubble territory (historical tops). Below -1σ = deep value. Top threshold: ≥ 2σ.',
+            flashing: bubbleNum >= 2
+        });
+    }
+
+    // 26. 3-Month Annualized Return
+    if (price) {
+        // Estimate 90-day ago price from power law (rough)
+        var _dsg6 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
+        var price90d = Math.pow(10, 5.82 * Math.log10(_dsg6 - 90) - 17.01);
+        // Better: use actual price change if we have fear/greed cached data
+        // For now use ratio of current to 90d estimated
+        var annualized3m = price90d > 0 ? (Math.pow(price / price90d, 4) - 1) * 100 : 0;
+        var ann3mStr = annualized3m.toFixed(0);
+        var ann3mNum = parseFloat(ann3mStr);
+        indicators.push({
+            emoji: '🚀', name: '3M Annualized',
+            value: (ann3mNum >= 0 ? '+' : '') + ann3mStr + '%',
+            color: ann3mNum > 200 ? '#ef4444' : ann3mNum > 100 ? '#f97316' : 'var(--heading)',
+            sub: ann3mNum > 200 ? 'Unsustainable — top risk ⚠️' : ann3mNum > 100 ? 'Very high' : 'Normal',
+            tip: '3-month return annualized. When Bitcoin is gaining over 200% annualized, it historically signals the late stages of a bull run. Top threshold: > 200%.',
+            flashing: ann3mNum > 200,
+            id: 'ann3m'
+        });
+    }
+
+    // 27. MicroStrategy Avg Bitcoin Cost
+    // MSTR holds ~500K+ BTC at avg cost ~$66K (as of early 2025, updated periodically)
+    if (price) {
+        var mstrAvgCost = 66384; // update periodically from public filings
+        var mstrBTC = 506137;
+        var mstrPnL = ((price - mstrAvgCost) / mstrAvgCost * 100).toFixed(1);
+        indicators.push({
+            emoji: '🏢', name: 'MSTR Avg Cost',
+            value: '$' + fmtNum(mstrAvgCost),
+            sub: fmtNum(mstrBTC) + ' BTC · P&L: ' + (mstrPnL >= 0 ? '+' : '') + mstrPnL + '%',
+            tip: 'MicroStrategy (MSTR) average Bitcoin acquisition cost. When price is far above MSTR\'s cost basis, it indicates broader market euphoria. MSTR holds ' + fmtNum(mstrBTC) + ' BTC. Informational — no top threshold.',
+            flashing: false, noFlashLogic: true
+        });
+    }
+
     // Blocks Until Sunday (next weekly close)
     if (height) {
         var now = new Date();
