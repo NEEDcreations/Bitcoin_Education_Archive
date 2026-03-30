@@ -674,7 +674,7 @@ function loadTopIndicators() {
         indicators.push({
             emoji: '📈', name: 'Stock-to-Flow',
             value: s2f.toFixed(1),
-            sub: 'Model: $' + formatNum(Math.round(s2fModelPrice)) + ' · Ratio: ' + s2fRatio + 'x',
+            sub: 'Model: $' + fmtNum(Math.round(s2fModelPrice)) + ' · Ratio: ' + s2fRatio + 'x',
             tip: 'Stock-to-Flow measures scarcity. Higher S2F = scarcer asset. Bitcoin\'s S2F increases with each halving. Gold is ~62, Silver ~22. A ratio below 1x suggests undervalued vs the model.'
         });
     }
@@ -731,7 +731,7 @@ function loadTopIndicators() {
         indicators.push({
             emoji: '🏔️', name: 'ATH Drawdown',
             value: '-' + drawdown + '%',
-            sub: daysSinceATH + ' days since ATH ($' + formatNum(Math.round(d.ath)) + ')',
+            sub: daysSinceATH + ' days since ATH ($' + fmtNum(Math.round(d.ath)) + ')',
             tip: 'Current drawdown from the all-time high. In previous cycles, bear markets saw -70% to -85% drawdowns. Recovery to new ATH has always followed.'
         });
     }
@@ -765,7 +765,7 @@ function loadTopIndicators() {
         var satsPerDollar = Math.round(100000000 / price);
         indicators.push({
             emoji: '⚡', name: 'Moscow Time',
-            value: formatNum(satsPerDollar),
+            value: fmtNum(satsPerDollar),
             sub: 'sats per $1 USD',
             tip: 'How many satoshis you get for $1. This number only goes down long-term as Bitcoin appreciates. Track it daily — stack sats when it\'s high!'
         });
@@ -802,7 +802,7 @@ function loadTopIndicators() {
                     mayerEl.style.color = mayerColor;
                     mayerEl.textContent = mayer + 'x';
                     var sub = mayerEl.nextElementSibling;
-                    if (sub) sub.textContent = '200d MA: $' + formatNum(Math.round(ma200)) + (mayer < 1 ? ' · Below MA ✅' : mayer > 2.4 ? ' · Overheated ⚠️' : '');
+                    if (sub) sub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (mayer < 1 ? ' · Below MA ✅' : mayer > 2.4 ? ' · Overheated ⚠️' : '');
                 }
             }
         }).catch(function() {
