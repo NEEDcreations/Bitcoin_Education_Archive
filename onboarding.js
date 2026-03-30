@@ -118,6 +118,10 @@ window.showOnboardingWizard = function() {
         setTimeout(function() {
             overlay.remove();
             if (typeof window.applySimplifiedHome === 'function') window.applySimplifiedHome();
+            // Show the Quest Guide after onboarding
+            if (typeof window.showGuide === 'function') {
+                setTimeout(function() { window.showGuide(); }, 500);
+            }
         }, 400);
     }
 
