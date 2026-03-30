@@ -107,7 +107,7 @@
             guideSection('✨ More Features', [
                 guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
                 guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "if(typeof go==='function'){minimizeGuide();go('bitcoin-dashboard');}"),
-                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Pleb → Node Runner → Whale → Bitcoin Scholar.', null, null, "if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
+                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
             ]) +
 
             // Nacho tip
