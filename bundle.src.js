@@ -12109,6 +12109,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
         }
     }
 
+    html += '<a href="#" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();hideBubble(true);if(typeof enterNachoMode===\'function\')enterNachoMode();" style="display:block;width:100%;margin-top:6px;padding:7px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent,#f7931a);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:center;text-decoration:none;">🦌 Dive deeper in Nacho Mode →</a>';
     html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
     textEl.innerHTML = html;
     window._nachoBusy = false;
@@ -12191,8 +12192,10 @@ window.nachoAnswer = function() {
                     html += '<br><button onclick="event.preventDefault();hideBubble(true);' + result.siteAction + '" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
                 }
 
+                // "Dive deeper" link to Nacho Mode
+                html += '<a href="#" onclick="event.preventDefault();hideBubble(true);if(typeof enterNachoMode===\'function\')enterNachoMode();" style="display:block;width:100%;margin-top:6px;padding:7px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:center;text-decoration:none;">🦌 Dive deeper in Nacho Mode →</a>';
                 // "Ask another" button
-                html += '<button onclick="showNachoInput()" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
+                html += '<button onclick="showNachoInput()" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Ask another question</button>';
 
                 textEl.innerHTML = html;
                 window._nachoBusy = false;
