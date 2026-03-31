@@ -1896,6 +1896,14 @@ const GENERIC_NACHO_QUIZ = [
 ];
 
 window.nachoQuizMe = function(topic) {
+    // If not in Nacho Mode, enter it first then quiz
+    if (!window._nachoMode) {
+        if (typeof enterNachoMode === 'function') {
+            enterNachoMode();
+            setTimeout(function() { nachoQuizMe(topic); }, 500);
+        }
+        return;
+    }
     let pool = [];
     var qBank = (typeof QUESTION_BANK !== 'undefined') ? QUESTION_BANK : (typeof QUEST_QUESTIONS !== 'undefined' ? QUEST_QUESTIONS : null);
     if (qBank && typeof qBank === 'object' && Object.keys(qBank).length > 0) {
