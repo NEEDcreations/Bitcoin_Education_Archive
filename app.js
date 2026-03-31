@@ -3338,6 +3338,15 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Scroll to top after rendering app pages
             document.getElementById('main').scrollTop = 0;
             if (fc) fc.scrollTop = 0;
+            window.scrollTo(0, 0);
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+            // Belt-and-suspenders: also scroll after render completes
+            setTimeout(function() {
+                document.getElementById('main').scrollTop = 0;
+                if (document.getElementById('forumContainer')) document.getElementById('forumContainer').scrollTop = 0;
+                window.scrollTo(0, 0);
+            }, 50);
             
             setFloatingElementsVisible(true);
             if (typeof nachoOnPage === 'function') nachoOnPage(id);
