@@ -4635,6 +4635,21 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
         try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name }); } catch(e) { console.warn('Username Firestore save failed:', e); }
     }
     showToast('✅ Username updated to ' + name);
+    // Update the "Current username" label and button to confirm
+    var curLabel = document.querySelector('[id="currentUsernameLabel"]');
+    if (!curLabel) {
+        // Find the label by content
+        document.querySelectorAll('div, span').forEach(function(el) {
+            if (el.textContent.indexOf('Current username:') !== -1 && !curLabel) curLabel = el;
+        });
+    }
+    if (curLabel) curLabel.innerHTML = 'Current username: <strong style="color:var(--accent);">' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong>';
+    var btn = document.querySelector('button[onclick*="changeUsername"]');
+    if (btn) {
+        btn.textContent = '✅ Saved!';
+        btn.style.background = '#22c55e';
+        setTimeout(function() { btn.textContent = 'Save New Username'; btn.style.background = 'var(--accent)'; }, 2000);
+    }
 };
 window.togglePushNotifications = async function() { try { if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; } var permission = await Notification.requestPermission(); if (permission === 'granted') { localStorage.setItem('btc_push_enabled', 'true'); showToast('🔔 Notifications Enabled!'); } else { localStorage.setItem('btc_push_enabled', 'false'); showToast('❌ Notification permission denied'); } showSettingsPage('prefs'); } catch(e) { console.error(e); } };
 if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
