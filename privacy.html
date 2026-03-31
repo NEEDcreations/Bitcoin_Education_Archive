@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: March 21, 2026</p>
+    <p class="subtitle">Last updated: March 31, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -140,6 +140,32 @@
     </table>
     <p>Presence data is automatically deleted when you leave the site. The online user count is displayed next to the Global Chat icon.</p>
 
+    <h3>IRL Sync Events (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Event title, date, location</td><td>Display and search for meetups</td></tr>
+        <tr><td>Event description & link</td><td>Provide event details to attendees</td></tr>
+        <tr><td>Cover photo (Firebase Storage)</td><td>Display event imagery (max 3MB)</td></tr>
+        <tr><td>Host user ID & display name</td><td>Attribution and event management</td></tr>
+        <tr><td>Attendee list (user IDs)</td><td>RSVP tracking and attendance count</td></tr>
+    </table>
+    <div class="warn">
+        <strong>⚠️ IRL Sync events are public.</strong> Event details (title, date, location, description, host name, attendee count) are visible to all users. Your user ID is added to the attendee list when you RSVP. 603BTC LLC is not responsible for events organized by users — see our <a href="/terms.html#irl-sync" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for liability details.
+    </div>
+
+    <h3>Price Predictions (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Prediction (up/down), price at time</td><td>Track daily prediction accuracy</td></tr>
+        <tr><td>Accuracy stats (total, correct, streak)</td><td>Display prediction stats on profile</td></tr>
+    </table>
+
+    <h3>Telegram Bridge (via Cloud Function)</h3>
+    <p>Global Chat messages may be forwarded to a linked Telegram group via a secure Cloud Function. Messages from Telegram users are also displayed in Global Chat. The bridge transmits: username, message text, and image/GIF URLs. No personal data beyond your chosen username is shared with Telegram.</p>
+
+    <h3>Bitcoin Dashboard / Top Indicators</h3>
+    <p>The Bitcoin Dashboard fetches public market data from third-party APIs including CoinGecko, ColintalksCrypto (CBBI), alternative.me (Fear & Greed), mempool.space, and Bitbo.io. No user data is sent in these requests — they are read-only public API calls. Indicator data may be cached in your browser's localStorage for up to 1 hour.</p>
+
     <h3>PVP Battles (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
@@ -204,6 +230,10 @@
         <li>Power DJ Mode — broadcast music, sound effects, and playback position to listeners</li>
         <li>Track chat activity, DJ sessions, and listener engagement for badge and reward systems</li>
         <li>Facilitate PVP quiz battles between users</li>
+        <li>Power IRL Sync — display events, manage RSVPs, and coordinate meetups</li>
+        <li>Track daily price prediction accuracy for user profiles</li>
+        <li>Forward Global Chat messages to/from a linked Telegram group via Cloud Function</li>
+        <li>Display Bitcoin market indicators from public third-party APIs (no user data sent)</li>
         <li>Enable two-factor authentication (TOTP) for account security</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
     </ul>
@@ -241,6 +271,13 @@
         <tr><td>Cloudflare Workers</td><td>Nacho AI proxy (question answering)</td><td>Question text (no user identity)</td></tr>
         <tr><td>mempool.space API</td><td>Live BTC price, block height, fees</td><td>None (read-only public API)</td></tr>
         <tr><td>GitHub Pages</td><td>Website hosting</td><td>Standard web server logs</td></tr>
+        <tr><td>CoinGecko API</td><td>Market data, price charts, dominance</td><td>None (read-only public API)</td></tr>
+        <tr><td>ColintalksCrypto (CBBI)</td><td>On-chain indicator data</td><td>None (read-only public API)</td></tr>
+        <tr><td>alternative.me</td><td>Fear & Greed Index</td><td>None (read-only public API)</td></tr>
+        <tr><td>Bitbo.io</td><td>ETF flow data</td><td>None (read-only public data)</td></tr>
+        <tr><td>RainbowChart.com</td><td>Rainbow chart formula reference</td><td>None (formula only, no API calls)</td></tr>
+        <tr><td>Firebase Cloud Functions</td><td>Secure Telegram bridge, server-side operations</td><td>Chat messages (username + text)</td></tr>
+        <tr><td>Telegram Bot API</td><td>Bridge Global Chat to Telegram group</td><td>Username and message text</td></tr>
     </table>
     <p>We do <strong>not</strong> use Google Analytics, Facebook Pixel, ad networks, or any tracking/analytics services.</p>
 
