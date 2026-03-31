@@ -1108,3 +1108,62 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
     
     return { clean: true };
 });
+
+
+// =============================================
+// [C1] SECURE TELEGRAM BRIDGE
+// Bridge secret lives here, NOT in client code
+// =============================================
+exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (!data.text && !data.gifUrl && !data.imageUrl) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing content');
+    }
+
+    // Rate limit: 1 bridge call per 3 seconds per user
+    const uid = context.auth.uid;
+    const rateLimitRef = db.collection('rate_limits').doc('bridge_' + uid);
+    const rateLimitDoc = await rateLimitRef.get();
+    if (rateLimitDoc.exists) {
+        const lastCall = rateLimitDoc.data().lastCall;
+        if (lastCall && Date.now() - lastCall.toDate().getTime() < 3000) {
+            throw new functions.https.HttpsError('resource-exhausted', 'Too fast — wait 3 seconds');
+        }
+    }
+    await rateLimitRef.set({ lastCall: admin.firestore.FieldValue.serverTimestamp() });
+
+    // Secret lives ONLY in server-side environment variables (.env)
+    const BRIDGE_URL = process.env.BRIDGE_URL || 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
+    const BRIDGE_SECRET = process.env.BRIDGE_SECRET;
+
+    if (!BRIDGE_SECRET) {
+        console.error('[BRIDGE] No bridge secret configured — run: firebase functions:config:set bridge.secret="YOUR_SECRET"');
+        return { ok: false, error: 'Bridge not configured' };
+    }
+
+    try {
+        const fetch = require('node-fetch');
+        const resp = await fetch(BRIDGE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + BRIDGE_SECRET
+            },
+            body: JSON.stringify({
+                name: (data.name || 'Anon').substring(0, 50),
+                text: (data.text || '').substring(0, 500),
+                gifUrl: data.gifUrl || '',
+                imageUrl: data.imageUrl || '',
+                replyToName: (data.replyToName || '').substring(0, 50),
+                replyToText: (data.replyToText || '').substring(0, 200),
+                uid: uid,
+                source: 'web'
+            })
+        });
+        const json = await resp.json();
+        return { ok: json.ok || false };
+    } catch(e) {
+        console.error('[BRIDGE] Error:', e.message);
+        return { ok: false };
+    }
+});

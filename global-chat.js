@@ -8,22 +8,21 @@ var CHAT_COLLECTION = 'global_chat';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
 var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
-var BRIDGE_URL = 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
-var BRIDGE_SECRET = '27b6920be2ac9acdbdb18b16d110c48db414afa4510611956ad9854435131a95';
-
-// Bridge: forward message to Telegram via CF Worker
+// Bridge: forward message to Telegram via Cloud Function (secret is server-side only)
 function bridgeToTelegram(data) {
     try {
-        fetch(BRIDGE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + BRIDGE_SECRET },
-            body: JSON.stringify(data)
-        }).then(function(r) {
-            if (!r.ok) console.warn('[BRIDGE] HTTP', r.status);
-            return r.json();
-        }).then(function(j) {
-            if (j && !j.ok) console.warn('[BRIDGE] Response:', JSON.stringify(j));
-        }).catch(function(e) { console.log('[BRIDGE] Send failed:', e); });
+        if (typeof firebase !== 'undefined' && firebase.functions) {
+            var bridgeMsg = firebase.functions().httpsCallable('bridgeToTelegram');
+            bridgeMsg({
+                name: data.user || data.name || 'Anon',
+                text: data.text || '',
+                gifUrl: data.gifUrl || '',
+                imageUrl: data.imageUrl || '',
+                replyToName: data.replyToName || '',
+                replyToText: data.replyToText || '',
+                source: 'web'
+            }).catch(function(e) { console.warn('[BRIDGE] Cloud Function call failed:', e.message); });
+        }
     } catch(e) {}
 }
 var CHAT_INITIAL_SHOW = 20; // Render initially
@@ -344,7 +343,7 @@ function renderChatMessages(msgs) {
             html += '<span style="font-weight:700;">' + esc(m.replyToName) + '</span>: ' + esc((m.replyToText||'').substring(0,60)) + (m.replyToText && m.replyToText.length > 60 ? '…' : '');
             html += '</div>';
         }
-        if (m.isGif && m.text && (IMG_REGEX.test(m.text) || m.text.startsWith('data:image/'))) {
+        if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || '')) + '</div>';
@@ -439,8 +438,13 @@ function formatChatText(text) {
     });
     // @mentions
     text = text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#6366f1;font-weight:700;">@$1</span>');
-    // H1: Strip any tags except our safe ones (a, span, img)
-    text = text.replace(/<(?!\/?(?:a |a>|span |span>|img |br))[^>]*>/gi, '');
+    // H1: Post-transform sanitization
+    // Block javascript:/data:/vbscript: in href/src attributes
+    text = text.replace(/(?:href|src)\s*=\s*["']?\s*(?:javascript|data|vbscript):/gi, 'href="about:blank" data-blocked="');
+    // Strip tags except safe allowlist (a, span, img, strong, em, br)
+    text = text.replace(/<(?!\/?(?:a\b|span\b|img\b|strong\b|em\b|br\b))[^>]*>/gi, '');
+    // Remove on* event handlers
+    text = text.replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
     return text;
 }
 
