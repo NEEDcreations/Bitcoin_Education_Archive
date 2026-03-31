@@ -4212,7 +4212,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         const h = location.hash.slice(1) || _savedHash.replace('#', '');
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
-        else if (h === 'irl-sync') { go('irl-sync', null, true); }
+        else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
         else if (h === 'bitcoin-beats') { setTimeout(function() { go('bitcoin-beats', null, true); }, 500); }
@@ -4258,6 +4258,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (typeof go === 'function') { go('marketplace'); return; }
                     break;
                 case 'irl-sync':
+                case 'meet':
                     if (typeof go === 'function') { go('irl-sync'); return; }
                     break;
                 case 'bitcoin-beats':
