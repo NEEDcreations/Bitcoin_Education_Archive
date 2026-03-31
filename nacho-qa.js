@@ -4459,6 +4459,72 @@ function nachoMathAnswer(q) {
 
 // callback(result) where result = { type, answer, channel, channelName, disclaimer }
 // type: 'safety'|'crisis'|'harm'|'financial'|'profanity'|'offtopic'|'kb'|'ai'|'deepsearch'|'websearch'|'fallback'
+// ELI5 post-processor: simplify complex answers for 5-year-olds
+function _eli5Simplify(text) {
+    if (!text || !window._nachoEli5) return text;
+    // Strip HTML to work with plain text, then re-wrap
+    var plain = text.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+
+    // Replace jargon with kid-friendly language
+    var swaps = [
+        [/\bblockchain\b/gi, 'special notebook that everyone shares'],
+        [/\btimechain\b/gi, 'time notebook'],
+        [/\bhash(ing|ed|es)?\b/gi, 'secret code scrambl$1'],
+        [/\bSHA-256\b/gi, 'a secret code machine'],
+        [/\bcryptograph(y|ic)\b/gi, 'secret code magic'],
+        [/\bprivate key\b/gi, 'secret password'],
+        [/\bpublic key\b/gi, 'mailbox address'],
+        [/\bseed phrase\b/gi, 'special secret words (like a treasure map)'],
+        [/\bUTXO(s)?\b/gi, 'coin piece$1'],
+        [/\bnonce\b/gi, 'lucky number guess'],
+        [/\bconsensus\b/gi, 'everyone agreeing'],
+        [/\bdecentralized\b/gi, 'not controlled by anyone'],
+        [/\bnode(s)?\b/gi, 'helper computer$1'],
+        [/\bfull node\b/gi, 'helper computer that checks everything'],
+        [/\bminer(s)?\b/gi, 'puzzle solver$1'],
+        [/\bmining\b/gi, 'puzzle solving'],
+        [/\bproof[- ]of[- ]work\b/gi, 'showing you did the hard work'],
+        [/\bdifficulty adjustment\b/gi, 'the puzzles getting harder or easier automatically'],
+        [/\bblock reward\b/gi, 'prize for solving the puzzle'],
+        [/\bblock subsidy\b/gi, 'prize for solving the puzzle'],
+        [/\bhalving\b/gi, 'the prize getting cut in half'],
+        [/\bfiat( money| currency)?\b/gi, 'regular paper money'],
+        [/\binflation\b/gi, 'money losing its buying power'],
+        [/\bdeflationary\b/gi, 'getting more valuable over time'],
+        [/\bvolatil(e|ity)\b/gi, 'price going up and down a lot'],
+        [/\bliquidity\b/gi, 'how easy it is to trade'],
+        [/\bimmutable\b/gi, 'impossible to change'],
+        [/\bpermissionless\b/gi, 'anyone can use it without asking'],
+        [/\btrustless\b/gi, 'you don\'t have to trust anyone'],
+        [/\bsatoshi(s)?\b/gi, 'tiny piece$1 of Bitcoin'],
+        [/\bLightning Network\b/gi, 'super fast Bitcoin payment trick'],
+        [/\bsidechain(s)?\b/gi, 'helper chain$1'],
+        [/\bsmart contract(s)?\b/gi, 'automatic rule$1'],
+        [/\bmempool\b/gi, 'waiting room for payments'],
+        [/\bgenesis block\b/gi, 'the very first block ever'],
+        [/\bCantillon Effect\b/gi, 'rich people getting new money first (not fair!)'],
+        [/\bstore of value\b/gi, 'digital piggy bank'],
+        [/\bself[- ]custody\b/gi, 'keeping your own Bitcoin safe'],
+        [/\bcold storage\b/gi, 'super safe offline piggy bank'],
+        [/\bhardware wallet\b/gi, 'special safe device for Bitcoin'],
+        [/\bprotocol\b/gi, 'set of rules everyone follows'],
+        [/\bfungib(le|ility)\b/gi, 'every piece being equal'],
+        [/\bscalab(le|ility)\b/gi, 'being able to handle more people using it'],
+        [/\blatency\b/gi, 'waiting time'],
+        [/\bthroughput\b/gi, 'how many things it can do at once'],
+        [/\bBIP\b/g, 'improvement idea'],
+    ];
+    for (var i = 0; i < swaps.length; i++) {
+        plain = plain.replace(swaps[i][0], swaps[i][1]);
+    }
+
+    // Add a kid-friendly prefix
+    plain = '🧒 ' + plain;
+
+    // Convert newlines back to <br>
+    return plain.replace(/\n/g, '<br>');
+}
+
 window.nachoUnifiedAnswer = function(question, callback) {
     var q = question.trim().toLowerCase();
     q = (typeof fixTypos === 'function') ? fixTypos(q) : q;
@@ -4467,6 +4533,15 @@ window.nachoUnifiedAnswer = function(question, callback) {
     if (!q) { callback({ type: 'fallback', answer: "Ask me something about Bitcoin! 🦌" }); return; }
 
     var pq = typeof personalize === 'function' ? function(t) { return personalize(t); } : function(t) { return t; };
+
+    // Wrap callback to apply ELI5 simplification
+    var _origCallback = callback;
+    callback = function(result) {
+        if (result && result.answer && window._nachoEli5 && result.type !== 'crisis' && result.type !== 'harm' && result.type !== 'profanity') {
+            result.answer = _eli5Simplify(result.answer);
+        }
+        _origCallback(result);
+    };
 
     // Note: conversation history is passed to AI for context continuity,
     // but we don't prepend memory prefixes — answers should be direct and conversational.
