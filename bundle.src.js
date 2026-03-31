@@ -8029,7 +8029,216 @@ if (document.readyState === 'loading') {
     createNacho();
 }
 
+// =============================================
+// 🦌 NACHO DRAG TO REPOSITION
+// Click+drag or press+hold+drag to move the deer
+// Position saved to localStorage
+// =============================================
+(function initNachoDrag() {
+    var STORAGE_KEY = 'btc_nacho_position';
+    var container = null;
+    var handle = null;
+    var isDragging = false;
+    var startX = 0, startY = 0;
+    var startLeft = 0, startBottom = 0;
+    var dragMoved = false;
+    var dragThreshold = 8; // px before counting as drag
 
+    function getContainer() {
+        if (!container) container = document.getElementById('nacho-container');
+        return container;
+    }
+    function getHandle() {
+        if (!handle) handle = document.getElementById('nachoDragHandle');
+        return handle;
+    }
+
+    // Restore saved position
+    function restorePosition() {
+        try {
+            var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+            if (saved && typeof saved.left === 'number' && typeof saved.bottom === 'number') {
+                var c = getContainer();
+                if (c) {
+                    // Clamp to viewport
+                    var maxLeft = window.innerWidth - 80;
+                    var maxBottom = window.innerHeight - 80;
+                    var left = Math.max(0, Math.min(saved.left, maxLeft));
+                    var bottom = Math.max(0, Math.min(saved.bottom, maxBottom));
+                    c.style.left = left + 'px';
+                    c.style.bottom = bottom + 'px';
+                    c.style.right = 'auto';
+                    c.style.top = 'auto';
+                    c.style.position = 'fixed';
+                }
+            }
+        } catch(e) {}
+    }
+
+    function savePosition(left, bottom) {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: left, bottom: bottom }));
+        } catch(e) {}
+    }
+
+    function onDragStart(clientX, clientY) {
+        var c = getContainer();
+        if (!c) return;
+        isDragging = true;
+        dragMoved = false;
+        startX = clientX;
+        startY = clientY;
+        var rect = c.getBoundingClientRect();
+        startLeft = rect.left;
+        startBottom = window.innerHeight - rect.bottom;
+        c.style.transition = 'none';
+        c.style.cursor = 'grabbing';
+        var h = getHandle();
+        if (h) h.style.cursor = 'grabbing';
+    }
+
+    function onDragMove(clientX, clientY) {
+        if (!isDragging) return;
+        var dx = clientX - startX;
+        var dy = clientY - startY;
+        if (!dragMoved && Math.abs(dx) + Math.abs(dy) < dragThreshold) return;
+        dragMoved = true;
+        var c = getContainer();
+        if (!c) return;
+        var newLeft = startLeft + dx;
+        var newBottom = startBottom - dy;
+        // Clamp
+        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - 80));
+        newBottom = Math.max(0, Math.min(newBottom, window.innerHeight - 80));
+        c.style.left = newLeft + 'px';
+        c.style.bottom = newBottom + 'px';
+        c.style.right = 'auto';
+        c.style.top = 'auto';
+        c.style.position = 'fixed';
+    }
+
+    function onDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        var c = getContainer();
+        if (c) {
+            c.style.transition = '';
+            c.style.cursor = '';
+            if (dragMoved) {
+                var rect = c.getBoundingClientRect();
+                var left = rect.left;
+                var bottom = window.innerHeight - rect.bottom;
+                savePosition(left, bottom);
+            }
+        }
+        var h = getHandle();
+        if (h) h.style.cursor = 'grab';
+    }
+
+    // Also allow dragging from the nacho-toggle button
+    function initToggleDrag() {
+        var toggle = document.getElementById('nacho-toggle');
+        if (!toggle || toggle._dragInit) return;
+        toggle._dragInit = true;
+        var tDragging = false, tStartX = 0, tStartY = 0, tStartLeft = 0, tStartBottom = 0, tMoved = false;
+
+        toggle.addEventListener('mousedown', function(e) {
+            tDragging = true; tMoved = false;
+            tStartX = e.clientX; tStartY = e.clientY;
+            var rect = toggle.getBoundingClientRect();
+            tStartLeft = rect.left; tStartBottom = window.innerHeight - rect.bottom;
+            toggle.style.transition = 'none';
+        });
+        toggle.addEventListener('touchstart', function(e) {
+            if (e.touches.length !== 1) return;
+            tDragging = true; tMoved = false;
+            tStartX = e.touches[0].clientX; tStartY = e.touches[0].clientY;
+            var rect = toggle.getBoundingClientRect();
+            tStartLeft = rect.left; tStartBottom = window.innerHeight - rect.bottom;
+            toggle.style.transition = 'none';
+        }, { passive: true });
+
+        function tMove(cx, cy) {
+            if (!tDragging) return;
+            var dx = cx - tStartX, dy = cy - tStartY;
+            if (!tMoved && Math.abs(dx) + Math.abs(dy) < dragThreshold) return;
+            tMoved = true;
+            var nl = Math.max(0, Math.min(tStartLeft + dx, window.innerWidth - 50));
+            var nb = Math.max(0, Math.min(tStartBottom - dy, window.innerHeight - 50));
+            toggle.style.left = nl + 'px';
+            toggle.style.bottom = nb + 'px';
+            toggle.style.right = 'auto';
+            toggle.style.top = 'auto';
+        }
+        document.addEventListener('mousemove', function(e) { tMove(e.clientX, e.clientY); });
+        document.addEventListener('touchmove', function(e) { if (tDragging && e.touches.length === 1) tMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+
+        function tEnd() {
+            if (!tDragging) return;
+            tDragging = false;
+            toggle.style.transition = '';
+            if (tMoved) {
+                var rect = toggle.getBoundingClientRect();
+                savePosition(rect.left, window.innerHeight - rect.bottom);
+            }
+        }
+        document.addEventListener('mouseup', tEnd);
+        document.addEventListener('touchend', tEnd);
+    }
+
+    // Wait for DOM then init
+    function init() {
+        var h = getHandle();
+        if (!h) { setTimeout(init, 1000); return; }
+        if (h._dragInit) return;
+        h._dragInit = true;
+
+        // Mouse events on handle
+        h.addEventListener('mousedown', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            onDragStart(e.clientX, e.clientY);
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) { e.preventDefault(); onDragMove(e.clientX, e.clientY); }
+        });
+        document.addEventListener('mouseup', onDragEnd);
+
+        // Touch events on handle
+        h.addEventListener('touchstart', function(e) {
+            if (e.touches.length !== 1) return;
+            e.stopPropagation();
+            onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        document.addEventListener('touchmove', function(e) {
+            if (isDragging && e.touches.length === 1) {
+                onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, { passive: true });
+        document.addEventListener('touchend', function() { if (isDragging) onDragEnd(); });
+
+        // Suppress click on avatar when drag happened
+        var avatar = document.getElementById('nacho-avatar');
+        if (avatar) {
+            avatar.addEventListener('click', function(e) {
+                if (dragMoved) { e.stopPropagation(); e.preventDefault(); dragMoved = false; }
+            }, true);
+        }
+
+        restorePosition();
+        initToggleDrag();
+
+        // Re-restore on resize (clamp to new viewport)
+        window.addEventListener('resize', function() {
+            restorePosition();
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 500); });
+    } else {
+        setTimeout(init, 500);
+    }
+})();
 
 })();
 // © 2024-2026 603BTC LLC. All rights reserved.
