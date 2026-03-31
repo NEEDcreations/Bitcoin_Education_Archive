@@ -286,7 +286,8 @@ function renderChatMessages(msgs) {
     // If new messages came in, keep showing at least what we had
     var showCount = Math.min(window._chatShowCount, msgs.length);
     var visibleMsgs = msgs.slice(Math.max(0, msgs.length - showCount));
-    var hasMore = msgs.length > showCount;
+    // Show "load more" if we haven't hit the beginning yet
+    var hasMore = !window._chatReachedBeginning && (msgs.length >= CHAT_INITIAL_SHOW || msgs.length > showCount);
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email === 'needcreations@gmail.com';
@@ -385,9 +386,9 @@ function renderChatMessages(msgs) {
         el.addEventListener('scroll', function() {
             el._userScrolled = true;
             // Auto-load earlier messages when scrolled near top
-            if (el.scrollTop < 80 && !el._loadingMore && typeof loadEarlierMessages === 'function') {
+            if (el.scrollTop < 80 && !el._loadingMore && !window._chatReachedBeginning && typeof loadEarlierMessages === 'function') {
                 var btn = document.getElementById('chatLoadMore');
-                if (btn && btn.textContent.indexOf('Beginning') === -1) {
+                if (btn) {
                     el._loadingMore = true;
                     loadEarlierMessages();
                     setTimeout(function() { el._loadingMore = false; }, 1500);
@@ -430,6 +431,7 @@ window.loadEarlierMessages = function() {
                     }, 50);
                 }
             } else {
+                window._chatReachedBeginning = true;
                 if (btn) btn.innerHTML = '— Beginning of chat —';
             }
         }).catch(function() {
