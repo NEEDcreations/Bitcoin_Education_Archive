@@ -436,12 +436,16 @@ const NACHO_KB = [
 
     // === SITE SPECIFIC ===
     { keys: ['how to use','how does this site','help','navigate','where do i start','tutorial','guide me'],
-      answer: "Start with the 'One Stop Shop' channel for beginners, {name}! Use the sidebar to browse channels by category. Earn points by reading, take quests to test knowledge, and collect badges!",
-      channel: 'one-stop-shop', channelName: 'One Stop Shop' },
+      answer: "Start with <strong>Nacho's Trails</strong> — guided learning modules that walk you through Bitcoin step by step! 🦌🗺️ The Meadow (intro), The Mountain (intermediate), and The Summit (advanced). Each trail has curated channels to read and a 25-question exam at the end. Or browse the sidebar to explore channels by category. Earn points, take quests, collect badges!",
+      siteAction: "go('trails')", siteLabel: '🦌 Open Nacho\'s Trails', isSiteNav: true },
+
+    { keys: ['trails','trail','modules','module','learning path','learning module','guided learning','meadow','mountain','summit','nacho trail','nachos trail'],
+      answer: "Nacho's Trails are guided learning modules, {name}! 🦌🗺️<br><br>🌿 <strong>The Meadow</strong> — Start here! 7 channels covering Bitcoin basics<br>⛰️ <strong>The Mountain</strong> — 8 channels going deeper into mining, Lightning, custody<br>🏔️ <strong>The Summit</strong> — 8 channels for advanced topics like cryptography and maximalism<br><br>Read every channel in a trail, then pass the 25-question exam (80%) to earn badges, points, and tickets! Each trail unlocks the next. 🧡",
+      siteAction: "go('trails')", siteLabel: '🗺️ Start a Trail', isSiteNav: true },
 
     { keys: ['quest','quests','test','quiz','certification','exam','scholar'],
-      answer: "Hit 'Start a Quest' in the sidebar for quick knowledge tests, or try the Bitcoin Scholar Certification for the ultimate challenge! Pass it for the 🎓 badge + 300 points!",
-      channel: null, channelName: null },
+      answer: "Try <strong>Nacho's Trails</strong> for guided learning modules with exams! 🦌🗺️ Or hit 'Start a Quest' in the sidebar for quick knowledge tests. The Bitcoin Scholar Certification is the ultimate challenge — pass it for the 🎓 badge + 300 points!",
+      siteAction: "go('trails')", siteLabel: '🗺️ Open Trails', isSiteNav: true },
 
     { keys: ['points','ranking','level','rank','how to earn','earn points','leaderboard'],
       answer: "Earn points by: visiting daily (+5), opening new channels (+10), reading for 30sec (+15), quest bonuses, badges (25-1000), and Orange Tickets (5 pts each)! Check the leaderboard!",

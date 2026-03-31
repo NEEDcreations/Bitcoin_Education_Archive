@@ -1,0 +1,510 @@
+// © 2024-2026 603BTC LLC. All rights reserved.
+// =============================================
+// 🦌 Nacho's Trails — Guided Learning Modules
+// The Meadow (Intro) → The Mountain (Intermediate) → The Summit (Advanced)
+// =============================================
+
+(function() {
+'use strict';
+
+var MODULES = [
+    {
+        id: 'meadow',
+        name: 'The Meadow',
+        emoji: '🌿',
+        subtitle: 'Where every Bitcoiner begins',
+        desc: 'Learn the fundamentals: what Bitcoin is, why it matters, and what makes it different from everything before it.',
+        color: '#22c55e',
+        passingScore: 80,
+        questionsNeeded: 25,
+        pointsReward: 200,
+        ticketReward: 25,
+        badgeId: 'trail_meadow',
+        badgeName: '🌿 Meadow Walker',
+        channels: [
+            { id: 'one-stop-shop', name: 'One-Stop Shop', why: 'The big picture — everything you need in one place' },
+            { id: 'whitepaper', name: 'Whitepaper', why: 'The 9 pages that started it all' },
+            { id: 'money', name: 'Money', why: 'What money actually IS and why Bitcoin does it better' },
+            { id: 'scarce', name: 'Scarce', why: 'Why 21 million matters — the scarcest asset ever created' },
+            { id: 'decentralized', name: 'Decentralized', why: 'No CEO, no company, no single point of failure' },
+            { id: 'secure', name: 'Secure', why: 'Protected by more computing power than anything on Earth' },
+            { id: 'use-cases', name: 'Use Cases', why: 'Real-world uses: savings, payments, remittances, and more' },
+        ]
+    },
+    {
+        id: 'mountain',
+        name: 'The Mountain',
+        emoji: '⛰️',
+        subtitle: 'The climb gets real',
+        desc: 'Go deeper: mining, Lightning, self-custody, privacy, and the broken system Bitcoin is replacing.',
+        color: '#f97316',
+        passingScore: 80,
+        questionsNeeded: 25,
+        pointsReward: 400,
+        ticketReward: 50,
+        badgeId: 'trail_mountain',
+        badgeName: '⛰️ Mountain Climber',
+        requires: 'meadow',
+        channels: [
+            { id: 'mining', name: 'Mining', why: 'How SHA-256 hashing secures the network' },
+            { id: 'layer-2-lightning', name: 'Lightning Network', why: 'Instant, nearly-free payments at scale' },
+            { id: 'self-custody', name: 'Self Custody', why: 'Not your keys, not your coins' },
+            { id: 'problems-of-money', name: 'Problems of Money', why: 'The broken fiat system Bitcoin is fixing' },
+            { id: 'investment-strategy', name: 'Investment Strategy', why: 'DCA, HODL, and thinking long-term' },
+            { id: 'blockchain-timechain', name: 'Blockchain & Timechain', why: 'How the immutable ledger works' },
+            { id: 'privacy-nonkyc', name: 'Privacy & KYC', why: 'Financial privacy as a human right' },
+            { id: 'energy', name: 'Energy', why: 'The truth about Bitcoin and energy' },
+        ]
+    },
+    {
+        id: 'summit',
+        name: 'The Summit',
+        emoji: '🏔️',
+        subtitle: 'Only for the committed',
+        desc: 'Master-level topics: cryptography, nodes, proof of work, protocol upgrades, and the maximalist case.',
+        color: '#a855f7',
+        passingScore: 80,
+        questionsNeeded: 25,
+        pointsReward: 750,
+        ticketReward: 100,
+        badgeId: 'trail_summit',
+        badgeName: '🏔️ Summit Conqueror',
+        requires: 'mountain',
+        channels: [
+            { id: 'cryptography', name: 'Cryptography', why: 'SHA-256, elliptic curves, and the cypherpunk legacy' },
+            { id: 'nodes', name: 'Nodes', why: 'Don\'t trust, verify — run your own node' },
+            { id: 'pow-vs-pos', name: 'Proof of Work vs Stake', why: 'Why PoW is fundamentally superior' },
+            { id: 'difficulty-adjustment', name: 'Difficulty Adjustment', why: 'The most elegant part of Bitcoin\'s design' },
+            { id: 'taproot', name: 'Taproot', why: 'Schnorr signatures and protocol upgrades' },
+            { id: 'maximalism', name: 'Maximalism', why: 'The case for Bitcoin-only' },
+            { id: 'evidence-against-alts', name: 'Evidence Against Alts', why: 'Why every altcoin fails' },
+            { id: 'core-source-code', name: 'Core Source Code', why: 'Bitcoin Core development and forks' },
+        ]
+    }
+];
+
+var STORAGE_KEY = 'btc_trail_progress';
+var STORAGE_PASSED = 'btc_trail_passed';
+
+function getProgress() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveProgress(p) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    // Sync to Firestore
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ trailProgress: p }).catch(function(){});
+    }
+}
+function getPassed() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_PASSED) || '[]'); } catch(e) { return []; }
+}
+function savePassed(arr) {
+    localStorage.setItem(STORAGE_PASSED, JSON.stringify(arr));
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ trailsPassed: arr }).catch(function(){});
+    }
+}
+
+// Mark a channel as visited for a module
+function markChannelVisited(channelId) {
+    var progress = getProgress();
+    MODULES.forEach(function(mod) {
+        mod.channels.forEach(function(ch) {
+            if (ch.id === channelId) {
+                if (!progress[mod.id]) progress[mod.id] = [];
+                if (progress[mod.id].indexOf(channelId) === -1) {
+                    progress[mod.id].push(channelId);
+                    saveProgress(progress);
+                }
+            }
+        });
+    });
+}
+
+// Hook into go() to track visits
+var _origGoForModules = window.go;
+if (_origGoForModules) {
+    var _realGoMod = window.go;
+    window.go = async function(id) {
+        var result = await _realGoMod.apply(this, arguments);
+        if (id) markChannelVisited(id);
+        return result;
+    };
+}
+
+function getModuleStatus(mod) {
+    var progress = getProgress();
+    var passed = getPassed();
+    var visited = progress[mod.id] || [];
+    var totalChannels = mod.channels.length;
+    var visitedCount = mod.channels.filter(function(ch) { return visited.indexOf(ch.id) !== -1; }).length;
+    var isComplete = visitedCount >= totalChannels;
+    var isPassed = passed.indexOf(mod.id) !== -1;
+    var isLocked = mod.requires && passed.indexOf(mod.requires) === -1;
+    return { visited: visited, visitedCount: visitedCount, totalChannels: totalChannels, isComplete: isComplete, isPassed: isPassed, isLocked: isLocked };
+}
+
+// ---- RENDER MODULE HUB ----
+window.renderModules = function(container) {
+    var fc = container || document.getElementById('forumContainer');
+    if (!fc) return;
+
+    var html = '<div onclick="if(event.target===this)goHome()" style="min-height:100vh;padding:20px 0;cursor:default;">' +
+        '<div style="max-width:600px;margin:0 auto;padding:20px 16px 120px;cursor:auto;" onclick="event.stopPropagation()">';
+
+    // Header
+    html += '<div style="text-align:center;margin-bottom:24px;animation:fadeSlideIn 0.4s ease-out;">' +
+        '<div onclick="goHome()" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--text-muted);font-size:0.8rem;">← Back to Archive</div>' +
+        '<div style="font-size:2.5rem;margin-bottom:6px;">🦌🗺️</div>' +
+        '<h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0 0 4px;">Nacho\'s Trails</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">Guided learning paths through Bitcoin · Complete channels · Pass the exam</p>' +
+    '</div>';
+
+    // Overall progress
+    var totalPassed = getPassed().length;
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:20px;">' +
+        '<div style="font-size:1.5rem;">' + (totalPassed === 3 ? '👑' : totalPassed >= 2 ? '🏔️' : totalPassed >= 1 ? '⛰️' : '🌱') + '</div>' +
+        '<div style="flex:1;">' +
+            '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">' + totalPassed + ' of 3 Trails Complete</div>' +
+            '<div style="background:rgba(255,255,255,0.1);border-radius:4px;height:6px;margin-top:4px;overflow:hidden;">' +
+                '<div style="background:var(--accent);height:100%;width:' + Math.round(totalPassed / 3 * 100) + '%;border-radius:4px;transition:0.3s;"></div>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+
+    // Module cards
+    MODULES.forEach(function(mod, idx) {
+        var status = getModuleStatus(mod);
+        var pct = Math.round(status.visitedCount / status.totalChannels * 100);
+
+        html += '<div style="background:var(--card-bg);border:1px solid ' + (status.isPassed ? mod.color : 'var(--border)') + ';border-radius:18px;padding:20px;margin-bottom:16px;' +
+            (status.isLocked ? 'opacity:0.5;' : '') +
+            'animation:fadeSlideIn ' + (0.3 + idx * 0.15) + 's ease-out;">';
+
+        // Module header
+        html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+            '<div style="width:48px;height:48px;background:' + (status.isPassed ? mod.color : 'rgba(255,255,255,0.05)') + ';border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">' +
+                (status.isPassed ? '✅' : (status.isLocked ? '🔒' : mod.emoji)) +
+            '</div>' +
+            '<div style="flex:1;">' +
+                '<div style="color:var(--heading);font-weight:800;font-size:1.05rem;">' + mod.name + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;">' + mod.subtitle + '</div>' +
+            '</div>' +
+            (status.isPassed ? '<span style="color:' + mod.color + ';font-size:0.7rem;font-weight:700;padding:4px 10px;border:1px solid ' + mod.color + ';border-radius:8px;">PASSED ✅</span>' : '') +
+        '</div>';
+
+        // Description
+        html += '<p style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin:0 0 12px;">' + mod.desc + '</p>';
+
+        if (status.isLocked) {
+            var reqMod = MODULES.find(function(m) { return m.id === mod.requires; });
+            html += '<div style="text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:10px;color:var(--text-faint);font-size:0.82rem;">' +
+                '🔒 Complete <strong>' + (reqMod ? reqMod.name : 'previous trail') + '</strong> to unlock this trail</div>';
+        } else {
+            // Progress bar
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+                '<div style="flex:1;background:rgba(255,255,255,0.1);border-radius:4px;height:8px;overflow:hidden;">' +
+                    '<div style="background:' + mod.color + ';height:100%;width:' + pct + '%;border-radius:4px;transition:0.3s;"></div>' +
+                '</div>' +
+                '<span style="color:var(--text-muted);font-size:0.75rem;font-weight:700;flex-shrink:0;">' + status.visitedCount + '/' + status.totalChannels + '</span>' +
+            '</div>';
+
+            // Channel list
+            html += '<div style="margin-bottom:12px;">';
+            mod.channels.forEach(function(ch) {
+                var done = status.visited.indexOf(ch.id) !== -1;
+                html += '<div onclick="goHome();setTimeout(function(){go(\'' + ch.id + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid transparent;" ' +
+                    'onmouseover="this.style.background=\'rgba(255,255,255,0.03)\';this.style.borderColor=\'var(--border)\'" ' +
+                    'onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' +
+                    '<span style="font-size:1rem;flex-shrink:0;">' + (done ? '✅' : '⬜') + '</span>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="color:' + (done ? 'var(--text-faint)' : 'var(--text)') + ';font-size:0.85rem;font-weight:600;' + (done ? 'text-decoration:line-through;' : '') + '">' + ch.name + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.7rem;">' + ch.why + '</div>' +
+                    '</div>' +
+                '</div>';
+            });
+            html += '</div>';
+
+            // Action button
+            if (status.isPassed) {
+                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">🔄 Retake Exam</button>';
+            } else if (status.isComplete) {
+                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:14px;background:' + mod.color + ';border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px ' + mod.color + '40;">⚡ Take the ' + mod.name + ' Exam (25 Questions)</button>';
+            } else {
+                var nextChannel = mod.channels.find(function(ch) { return status.visited.indexOf(ch.id) === -1; });
+                html += '<button onclick="goHome();setTimeout(function(){go(\'' + (nextChannel ? nextChannel.id : mod.channels[0].id) + '\')},300)" style="width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Continue: ' + (nextChannel ? nextChannel.name : mod.channels[0].name) + ' →</button>';
+            }
+        }
+
+        html += '</div>';
+    });
+
+    // Footer tip
+    html += '<div style="text-align:center;padding:16px;color:var(--text-faint);font-size:0.75rem;line-height:1.6;">' +
+        '🦌 <strong>Tip:</strong> Read each channel thoroughly before taking the exam.<br>' +
+        'You need 80% (20/25) to pass. Questions are pulled from the channels you studied.' +
+    '</div>';
+
+    html += '</div></div>';
+    fc.innerHTML = html;
+};
+
+// ---- TRAIL EXAM ----
+window.startTrailExam = function(moduleId) {
+    var mod = MODULES.find(function(m) { return m.id === moduleId; });
+    if (!mod) return;
+
+    var status = getModuleStatus(mod);
+    if (status.isLocked) {
+        if (typeof showToast === 'function') showToast('🔒 Complete ' + (MODULES.find(function(m) { return m.id === mod.requires; }) || {}).name + ' first!');
+        return;
+    }
+    if (!status.isComplete && !status.isPassed) {
+        if (typeof showToast === 'function') showToast('📖 Read all ' + mod.channels.length + ' channels first!');
+        return;
+    }
+
+    // Collect questions from QUESTION_BANK for this module's channels
+    var pool = [];
+    var QB = typeof QUESTION_BANK !== 'undefined' ? QUESTION_BANK : null;
+    if (QB) {
+        mod.channels.forEach(function(ch) {
+            var questions = QB[ch.id];
+            if (questions && Array.isArray(questions)) {
+                questions.forEach(function(q) {
+                    pool.push({ q: q.q, a: q.a, wrong: q.wrong || q.w || [], category: ch.id });
+                });
+            }
+        });
+    }
+
+    // If not enough questions, pull from general pool
+    if (pool.length < mod.questionsNeeded && QB && QB['_general']) {
+        QB['_general'].forEach(function(q) {
+            pool.push({ q: q.q, a: q.a, wrong: q.wrong || q.w || [], category: '_general' });
+        });
+    }
+
+    // Shuffle and pick
+    pool = fisherYatesFull(pool);
+    var examQuestions = pool.slice(0, mod.questionsNeeded);
+
+    if (examQuestions.length < 10) {
+        if (typeof showToast === 'function') showToast('⚠️ Not enough questions available for this exam. Keep exploring!');
+        return;
+    }
+
+    // Store exam state
+    window._trailExam = {
+        moduleId: moduleId,
+        questions: examQuestions,
+        current: 0,
+        score: 0,
+        total: examQuestions.length,
+        answers: []
+    };
+
+    renderTrailExamQuestion();
+};
+
+function fisherYatesFull(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+}
+
+function renderTrailExamQuestion() {
+    var exam = window._trailExam;
+    if (!exam) return;
+    var mod = MODULES.find(function(m) { return m.id === exam.moduleId; });
+    if (!mod) return;
+
+    var fc = document.getElementById('forumContainer');
+    if (!fc) return;
+
+    if (exam.current >= exam.total) {
+        renderTrailExamResults();
+        return;
+    }
+
+    var q = exam.questions[exam.current];
+    var options = fisherYatesFull([q.a].concat(q.wrong || []).slice(0, 4));
+    var pct = Math.round((exam.current / exam.total) * 100);
+
+    var html = '<div style="max-width:500px;margin:0 auto;padding:20px 16px 120px;">';
+
+    // Header
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+        '<span style="font-size:1.3rem;">' + mod.emoji + '</span>' +
+        '<div style="flex:1;">' +
+            '<div style="color:var(--heading);font-weight:800;font-size:0.9rem;">' + mod.name + ' Exam</div>' +
+            '<div style="color:var(--text-faint);font-size:0.7rem;">Question ' + (exam.current + 1) + ' of ' + exam.total + '</div>' +
+        '</div>' +
+        '<span style="color:' + mod.color + ';font-weight:700;font-size:0.85rem;">' + exam.score + '/' + exam.total + '</span>' +
+    '</div>';
+
+    // Progress bar
+    html += '<div style="background:rgba(255,255,255,0.1);border-radius:4px;height:6px;margin-bottom:20px;overflow:hidden;">' +
+        '<div style="background:' + mod.color + ';height:100%;width:' + pct + '%;border-radius:4px;transition:0.3s;"></div></div>';
+
+    // Question
+    html += '<div style="color:var(--text);font-size:1rem;font-weight:700;line-height:1.5;margin-bottom:16px;">' +
+        (typeof escapeHtml === 'function' ? escapeHtml(q.q) : q.q) + '</div>';
+
+    // Options
+    options.forEach(function(opt) {
+        var isCorrect = opt === q.a;
+        html += '<button data-trail-correct="' + (isCorrect ? '1' : '0') + '" onclick="trailExamAnswer(this,' + isCorrect + ')" ' +
+            'style="display:block;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.88rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;line-height:1.4;touch-action:manipulation;" ' +
+            'onmouseover="this.style.borderColor=\'' + mod.color + '\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+            (typeof escapeHtml === 'function' ? escapeHtml(opt) : opt) +
+        '</button>';
+    });
+
+    html += '</div>';
+    fc.innerHTML = html;
+    fc.scrollTop = 0;
+}
+
+window.trailExamAnswer = function(btn, correct) {
+    var exam = window._trailExam;
+    if (!exam) return;
+
+    var buttons = btn.parentElement.querySelectorAll('button[data-trail-correct]');
+    buttons.forEach(function(b) {
+        b.disabled = true;
+        b.style.cursor = 'default';
+        b.style.opacity = '0.6';
+        b.onmouseover = null; b.onmouseout = null;
+    });
+
+    if (correct) {
+        btn.style.background = '#22c55e';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#22c55e';
+        btn.style.opacity = '1';
+        exam.score++;
+    } else {
+        btn.style.background = '#ef4444';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#ef4444';
+        btn.style.opacity = '1';
+        buttons.forEach(function(b) {
+            if (b.getAttribute('data-trail-correct') === '1') {
+                b.style.borderColor = '#22c55e';
+                b.style.color = '#22c55e';
+                b.style.opacity = '1';
+                b.style.fontWeight = '700';
+            }
+        });
+    }
+
+    exam.current++;
+    setTimeout(renderTrailExamQuestion, 1200);
+};
+
+function renderTrailExamResults() {
+    var exam = window._trailExam;
+    if (!exam) return;
+    var mod = MODULES.find(function(m) { return m.id === exam.moduleId; });
+    if (!mod) return;
+
+    var fc = document.getElementById('forumContainer');
+    if (!fc) return;
+
+    var pct = Math.round((exam.score / exam.total) * 100);
+    var passed = pct >= mod.passingScore;
+
+    if (passed) {
+        var passedList = getPassed();
+        if (passedList.indexOf(mod.id) === -1) {
+            passedList.push(mod.id);
+            savePassed(passedList);
+
+            // Award points & tickets
+            if (typeof awardPoints === 'function') awardPoints(mod.pointsReward, mod.emoji + ' ' + mod.name + ' Trail Complete!');
+            if (typeof awardOrangeTickets === 'function') awardOrangeTickets(mod.ticketReward, mod.emoji + ' ' + mod.name + ' Trail');
+
+            // Award badge
+            if (typeof awardHiddenBadge === 'function') awardHiddenBadge(mod.badgeId, mod.badgeName + ' — Completed ' + mod.name + '!');
+
+            // Confetti!
+            if (typeof launchConfetti === 'function') launchConfetti();
+            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts + 🎟️' + mod.ticketReward + ' tickets!');
+        }
+    }
+
+    var html = '<div style="max-width:500px;margin:0 auto;padding:40px 16px 120px;text-align:center;">';
+
+    html += '<div style="font-size:4rem;margin-bottom:16px;">' + (passed ? '🎉' : '📚') + '</div>';
+    html += '<h2 style="color:var(--heading);font-size:1.5rem;font-weight:900;margin:0 0 8px;">' +
+        (passed ? mod.name + ' Complete!' : 'Not quite there yet') + '</h2>';
+
+    html += '<div style="font-size:2rem;font-weight:900;color:' + (passed ? '#22c55e' : '#ef4444') + ';margin-bottom:8px;">' +
+        exam.score + ' / ' + exam.total + ' (' + pct + '%)</div>';
+
+    html += '<p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px;line-height:1.6;">';
+    if (passed) {
+        html += 'You\'ve earned the <strong style="color:' + mod.color + ';">' + mod.badgeName + '</strong> badge!<br>' +
+            '+' + mod.pointsReward + ' points · +🎟️ ' + mod.ticketReward + ' tickets';
+    } else {
+        html += 'You need ' + mod.passingScore + '% to pass. Re-read the channels and try again!<br>' +
+            'You got ' + pct + '% — so close! Review what you missed.';
+    }
+    html += '</p>';
+
+    // Buttons
+    html += '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">';
+    if (!passed) {
+        html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="padding:14px 28px;background:' + mod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🔄 Retry Exam</button>';
+    }
+    html += '<button onclick="renderModules()" style="padding:14px 28px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🗺️ Back to Trails</button>';
+
+    // Next trail button if passed
+    if (passed) {
+        var nextMod = MODULES.find(function(m) { return m.requires === mod.id; });
+        if (nextMod) {
+            html += '<button onclick="renderModules()" style="padding:14px 28px;background:' + nextMod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + nextMod.emoji + ' Start ' + nextMod.name + '</button>';
+        }
+    }
+    html += '</div></div>';
+
+    fc.innerHTML = html;
+    fc.scrollTop = 0;
+}
+
+// ---- EXPOSE MODULES DATA for Nacho integration ----
+window.NACHO_TRAILS = MODULES;
+window.getTrailProgress = getModuleStatus;
+window.getTrailsPassed = getPassed;
+
+// ---- ROUTE: go('trails') ----
+// Patch go() to handle 'trails' as a special route
+var _realGoTrails = window.go;
+if (_realGoTrails) {
+    window.go = async function(id) {
+        if (id === 'trails') {
+            if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+            document.getElementById('home').classList.add('hidden');
+            document.getElementById('hero').innerHTML = '';
+            document.getElementById('hero').style.display = 'none';
+            document.getElementById('msgs').innerHTML = '';
+            document.getElementById('msgs').style.display = 'none';
+            var fc = document.getElementById('forumContainer');
+            if (fc) fc.style.display = 'block';
+            history.pushState({ channel: 'trails' }, '', '#trails');
+            if (typeof isMobile === 'function' && isMobile()) document.getElementById('sidebar').classList.remove('open');
+            renderModules(fc);
+            document.getElementById('main').scrollTop = 0;
+            return;
+        }
+        return _realGoTrails.apply(this, arguments);
+    };
+}
+
+console.log('[MODULES] Nacho\'s Trails loaded — 3 learning modules with ' + MODULES.reduce(function(s,m){return s+m.channels.length},0) + ' curated channels');
+})();

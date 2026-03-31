@@ -4212,6 +4212,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         const h = location.hash.slice(1) || _savedHash.replace('#', '');
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
+        else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
         else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
@@ -4256,6 +4257,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 case 'marketplace':
                     if (typeof go === 'function') { go('marketplace'); return; }
+                    break;
+                case 'trails':
+                case 'learn':
+                case 'modules':
+                    if (typeof go === 'function') { go('trails'); return; }
                     break;
                 case 'irl-sync':
                 case 'meet':

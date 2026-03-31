@@ -8688,12 +8688,16 @@ const NACHO_KB = [
 
     // === SITE SPECIFIC ===
     { keys: ['how to use','how does this site','help','navigate','where do i start','tutorial','guide me'],
-      answer: "Start with the 'One Stop Shop' channel for beginners, {name}! Use the sidebar to browse channels by category. Earn points by reading, take quests to test knowledge, and collect badges!",
-      channel: 'one-stop-shop', channelName: 'One Stop Shop' },
+      answer: "Start with <strong>Nacho's Trails</strong> — guided learning modules that walk you through Bitcoin step by step! 🦌🗺️ The Meadow (intro), The Mountain (intermediate), and The Summit (advanced). Each trail has curated channels to read and a 25-question exam at the end. Or browse the sidebar to explore channels by category. Earn points, take quests, collect badges!",
+      siteAction: "go('trails')", siteLabel: '🦌 Open Nacho\'s Trails', isSiteNav: true },
+
+    { keys: ['trails','trail','modules','module','learning path','learning module','guided learning','meadow','mountain','summit','nacho trail','nachos trail'],
+      answer: "Nacho's Trails are guided learning modules, {name}! 🦌🗺️<br><br>🌿 <strong>The Meadow</strong> — Start here! 7 channels covering Bitcoin basics<br>⛰️ <strong>The Mountain</strong> — 8 channels going deeper into mining, Lightning, custody<br>🏔️ <strong>The Summit</strong> — 8 channels for advanced topics like cryptography and maximalism<br><br>Read every channel in a trail, then pass the 25-question exam (80%) to earn badges, points, and tickets! Each trail unlocks the next. 🧡",
+      siteAction: "go('trails')", siteLabel: '🗺️ Start a Trail', isSiteNav: true },
 
     { keys: ['quest','quests','test','quiz','certification','exam','scholar'],
-      answer: "Hit 'Start a Quest' in the sidebar for quick knowledge tests, or try the Bitcoin Scholar Certification for the ultimate challenge! Pass it for the 🎓 badge + 300 points!",
-      channel: null, channelName: null },
+      answer: "Try <strong>Nacho's Trails</strong> for guided learning modules with exams! 🦌🗺️ Or hit 'Start a Quest' in the sidebar for quick knowledge tests. The Bitcoin Scholar Certification is the ultimate challenge — pass it for the 🎓 badge + 300 points!",
+      siteAction: "go('trails')", siteLabel: '🗺️ Open Trails', isSiteNav: true },
 
     { keys: ['points','ranking','level','rank','how to earn','earn points','leaderboard'],
       answer: "Earn points by: visiting daily (+5), opening new channels (+10), reading for 30sec (+15), quest bonuses, badges (25-1000), and Orange Tickets (5 pts each)! Check the leaderboard!",
@@ -27375,6 +27379,8 @@ window.toggleMobileLearnMenu = function() {
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            // Nacho's Trails
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🦌 Nacho\'s Trails — Guided Learning</button>' +
             // New to Bitcoin
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:12px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🟢 New to Bitcoin?</button>' +
             // Flashcards
@@ -33218,6 +33224,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         const h = location.hash.slice(1) || _savedHash.replace('#', '');
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
+        else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
         else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
@@ -33262,6 +33269,11 @@ window.nachoQuizAnswer = function(btn, correct) {
                     break;
                 case 'marketplace':
                     if (typeof go === 'function') { go('marketplace'); return; }
+                    break;
+                case 'trails':
+                case 'learn':
+                case 'modules':
+                    if (typeof go === 'function') { go('trails'); return; }
                     break;
                 case 'irl-sync':
                 case 'meet':
