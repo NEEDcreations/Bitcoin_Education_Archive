@@ -1116,7 +1116,7 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
 // =============================================
 exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.text && !data.gifUrl && !data.imageUrl) {
+    if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64 && !data.user) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing content');
     }
 
@@ -1150,10 +1150,11 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
                 'Authorization': 'Bearer ' + BRIDGE_SECRET
             },
             body: JSON.stringify({
-                name: (data.name || 'Anon').substring(0, 50),
+                user: (data.user || data.name || 'Anon').substring(0, 50),
                 text: (data.text || '').substring(0, 500),
                 gifUrl: data.gifUrl || '',
                 imageUrl: data.imageUrl || '',
+                imageBase64: data.imageBase64 || '',
                 replyToName: (data.replyToName || '').substring(0, 50),
                 replyToText: (data.replyToText || '').substring(0, 200),
                 uid: uid,

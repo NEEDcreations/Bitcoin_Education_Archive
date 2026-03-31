@@ -14,10 +14,11 @@ function bridgeToTelegram(data) {
         if (typeof firebase !== 'undefined' && firebase.functions) {
             var bridgeMsg = firebase.functions().httpsCallable('bridgeToTelegram');
             bridgeMsg({
-                name: data.user || data.name || 'Anon',
+                user: data.user || data.name || 'Anon',
                 text: data.text || '',
                 gifUrl: data.gifUrl || '',
                 imageUrl: data.imageUrl || '',
+                imageBase64: data.imageBase64 || '',
                 replyToName: data.replyToName || '',
                 replyToText: data.replyToText || '',
                 source: 'web'
