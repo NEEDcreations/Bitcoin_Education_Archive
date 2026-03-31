@@ -381,7 +381,19 @@ function renderChatMessages(msgs) {
     }
     if (!el._scrollListenerAdded) {
         el._scrollListenerAdded = true;
-        el.addEventListener('scroll', function() { el._userScrolled = true; });
+        el._loadingMore = false;
+        el.addEventListener('scroll', function() {
+            el._userScrolled = true;
+            // Auto-load earlier messages when scrolled near top
+            if (el.scrollTop < 80 && !el._loadingMore && typeof loadEarlierMessages === 'function') {
+                var btn = document.getElementById('chatLoadMore');
+                if (btn && btn.textContent.indexOf('Beginning') === -1) {
+                    el._loadingMore = true;
+                    loadEarlierMessages();
+                    setTimeout(function() { el._loadingMore = false; }, 1500);
+                }
+            }
+        });
     }
 }
 
