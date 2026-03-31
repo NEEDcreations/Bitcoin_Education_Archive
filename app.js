@@ -3333,6 +3333,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
             else if (id === 'dms' && typeof showInbox === 'function') showInbox();
             else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
+            else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
             else if (typeof renderForum === 'function') renderForum();
             
             // Scroll to top after rendering app pages
