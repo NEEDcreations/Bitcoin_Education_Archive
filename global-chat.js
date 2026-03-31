@@ -677,6 +677,8 @@ window.sendGlobalChat = function() {
     var msgData = {uid: uid, name: username, text: text, ts: firebase.firestore.FieldValue.serverTimestamp()};
     if (replyData.replyTo) { msgData.replyTo = replyData.replyTo; msgData.replyToName = replyData.replyToName; msgData.replyToText = replyData.replyToText; }
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+        // Track for daily challenge
+        sessionStorage.setItem('btc_chat_sent', 'true');
         // Bridge to Telegram
         bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '' });
     }).catch(function(err) {
