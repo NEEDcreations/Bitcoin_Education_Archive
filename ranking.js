@@ -4392,6 +4392,7 @@ window.loadSignalContent = function() {
 };
 
 window.minimizeSignUpBanner = function() {
+    sessionStorage.setItem('btc_signin_banner_dismissed', '1');
     var ud = document.getElementById('userDisplay');
     var isMob = window.innerWidth <= 900;
     if (isMob) {
