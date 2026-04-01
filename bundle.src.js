@@ -33371,8 +33371,16 @@ window.nachoQuizAnswer = function(btn, correct) {
             setTimeout(function() { if (typeof hideNacho === 'function') hideNacho(); }, 2500);
             // Minimize sign-in banner
             sessionStorage.setItem('btc_signin_banner_dismissed', '1');
-            // Clear direct link mode after 120s
+            // Gradually re-enable features after cooldown (staggered)
+            // 120s: toasts resume
             setTimeout(function() { window._directLinkMode = false; }, 120000);
+            // 150s: show user display / sign-in (if applicable)
+            setTimeout(function() {
+                sessionStorage.removeItem('btc_signin_banner_dismissed');
+                if (typeof updateUserDisplay === 'function') updateUserDisplay();
+            }, 150000);
+            // 180s: allow Nacho bubble
+            setTimeout(function() { window._nachoDirectLinkCooldown = 0; }, 180000);
         }
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
