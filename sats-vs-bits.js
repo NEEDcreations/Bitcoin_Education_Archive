@@ -5,7 +5,7 @@
 (function() {
 'use strict';
 
-var FIRESTORE_DOC = 'global_chat_meta/sats_vs_bits';
+var FIRESTORE_DOC = 'polls/sats_vs_bits';
 var DAILY_LIMIT = 100;
 var STORAGE_KEY = 'btc_svb_today';
 var DEBOUNCE_MS = 300;
