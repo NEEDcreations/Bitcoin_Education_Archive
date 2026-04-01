@@ -5,6 +5,20 @@
 (function() {
 'use strict';
 
+function _mbResource(emoji, title, url, desc) {
+    var linkStart = url ? '<a href="' + url + '" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:block;">' : '<div>';
+    var linkEnd = url ? '</a>' : '</div>';
+    return linkStart +
+        '<div style="display:flex;gap:10px;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;transition:0.2s;' + (url ? 'cursor:pointer;' : '') + '" ' +
+            (url ? 'onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : '') + '>' +
+            '<span style="font-size:1.2rem;flex-shrink:0;margin-top:2px;">' + emoji + '</span>' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="color:var(--heading);font-weight:700;font-size:0.85rem;">' + title + (url ? ' <span style="color:var(--accent);font-size:0.7rem;">↗</span>' : '') + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;margin-top:2px;">' + desc + '</div>' +
+            '</div>' +
+        '</div>' + linkEnd;
+}
+
 // Wait for IRL Sync to render, then inject Meetup Builder section
 var _origRenderIRL = window.renderIRLSync;
 if (_origRenderIRL) {
@@ -34,6 +48,59 @@ function injectMeetupBuilder() {
             '<div style="text-align:center;padding:40px;opacity:0.5;grid-column:1/-1;"><span style="font-size:2rem;">📡</span><br>Loading community resources...</div>' +
         '</div>' +
         '<button onclick="showMeetupBuilderSubmit()" style="width:100%;padding:14px;background:none;border:2px dashed var(--accent);color:var(--accent);border-radius:14px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'none\'">📤 Share Your Meetup Experience</button>';
+
+    // Curated Resources
+    var resources = document.createElement('div');
+    resources.style.cssText = 'margin-bottom:30px;';
+    resources.innerHTML =
+        '<div onclick="var c=document.getElementById(\'mbResourcesContent\');var a=document.getElementById(\'mbResourcesArrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem;">🧰</span><span style="color:var(--heading);font-weight:700;font-size:0.9rem;">Resources for Meetup Organizers</span></div>' +
+            '<span id="mbResourcesArrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
+        '</div>' +
+        '<div id="mbResourcesContent" style="display:none;margin-top:12px;">' +
+
+            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">📱 Platforms & Promotion</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+                _mbResource('🟠', 'Club Orange', 'https://www.cluborange.org', 'The #1 app for finding and hosting Bitcoin meetups. Create events, RSVP, group chats, discover local Bitcoiners. Active in 71+ countries with 19K+ members. $3.99/mo.') +
+                _mbResource('📅', 'Meetup.com', 'https://www.meetup.com', 'The largest event platform. Great for reaching normies who aren\'t on Bitcoin apps yet. Free to join, organizers pay ~$25/mo for groups.') +
+                _mbResource('⚡', 'Geyser Fund', 'https://geyser.fund', 'Bitcoin-native crowdfunding. Raise sats for your meetup via Lightning. Apply for Bitcoin education grants (up to 1 BTC). Non-custodial.') +
+                _mbResource('📣', 'Nostr', 'https://primal.net', 'Post meetup announcements on Nostr — the censorship-resistant social network Bitcoiners use. No algorithm, no gatekeeping.') +
+                _mbResource('🗓️', 'Bitcoin Events', 'https://www.bitcoinevents.co.za', 'Bitcoin-focused event listing site. Submit your meetup to get visibility in the broader Bitcoin community.') +
+                _mbResource('💬', 'Telegram / Signal', null, 'Create a group chat for your local community. Most successful meetups have an always-on chat where members connect between events.') +
+            '</div>' +
+
+            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">🏠 Free Venue Ideas</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+                _mbResource('📚', 'Public Libraries', null, 'Most libraries offer free meeting rooms for community groups. Reserve online or ask at the front desk. Great for educational meetups.') +
+                _mbResource('🏛️', 'Community Centers', null, 'Recreation centers, senior centers, and town halls often have free rooms. Contact your local parks & recreation department.') +
+                _mbResource('💻', 'Coworking Spaces', null, 'Many coworking spaces offer free event rooms during off-hours or for community tech groups. WeWork, Industrious, local spaces.') +
+                _mbResource('🍺', 'Breweries & Pubs', null, 'Approach the owner about hosting on a slow night (Tuesday/Wednesday). "Bitcoin nerds discussing over beers" — no rental cost, they get the bar tab.') +
+                _mbResource('☕', 'Coffee Shops', null, 'Many cafes welcome regular meetup groups, especially if your group buys drinks. Ask about their back room or quiet hours.') +
+                _mbResource('🏢', 'Bitcoin Companies', null, 'Local Bitcoin/tech companies may donate conference room space. It\'s good PR for them and free for you. Just ask!') +
+            '</div>' +
+
+            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">📖 Guides & Education</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+                _mbResource('📕', 'How to Start a Bitcoin Meetup', 'https://www.whatisbitcoin.com/guides/start-your-own-bitcoin-meetup', 'Comprehensive guide covering venues, promotion, format, content ideas, and growing your community from zero.') +
+                _mbResource('🎓', 'Mi Primer Bitcoin', 'https://miprimerbitcoin.io/en/', 'Free open-source Bitcoin education curriculum. Perfect for structured meetup presentations — tested in El Salvador schools.') +
+                _mbResource('📚', 'Bitcoin Only Resources', 'https://bitcoin-only.com/learning', 'Curated list of Bitcoin-only books, articles, and videos. Great for creating meetup reading lists and discussion topics.') +
+                _mbResource('🦌', 'This Archive!', null, 'Use the 146 channels in the Bitcoin Education Archive as meetup discussion topics. One channel per meetup = 2+ years of weekly content!') +
+            '</div>' +
+
+            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">💡 Pro Tips</div>' +
+            '<div style="padding:14px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--text);font-size:0.82rem;line-height:1.7;">' +
+                '• <strong>Start small</strong> — 3 people is a meetup. Don\'t wait for 30.<br>' +
+                '• <strong>Be consistent</strong> — Same day, same time, every month. Predictability builds attendance.<br>' +
+                '• <strong>Bitcoin only</strong> — Keep it focused. No altcoin talk, no trading tips.<br>' +
+                '• <strong>Welcome beginners</strong> — Your #1 job is making normies feel safe asking questions.<br>' +
+                '• <strong>Bring a node</strong> — Show don\'t tell. Let people see a real Bitcoin node running.<br>' +
+                '• <strong>Practice Lightning</strong> — Have everyone install a wallet and send sats to each other.<br>' +
+                '• <strong>Document everything</strong> — Take photos (with consent), share on Nostr/Twitter, grow your reach.<br>' +
+                '• <strong>Ask for help</strong> — Find a co-organizer. Burnout is the #1 killer of meetups.' +
+            '</div>' +
+        '</div>';
+
+    section.insertBefore(resources, document.getElementById('meetupBuilderGrid'));
 
     view.appendChild(section);
     loadMeetupBuilderPosts();
