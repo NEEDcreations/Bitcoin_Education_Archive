@@ -3908,7 +3908,76 @@ function startScholarTimer() {
     }, 1000);
 }
 
+// Anti-cheat: inject protection styles once
+function _injectExamProtection() {
+    if (document.getElementById('examProtectStyles')) return;
+    var style = document.createElement('style');
+    style.id = 'examProtectStyles';
+    style.textContent = [
+        // Prevent text selection on exam content
+        '#questInner { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }',
+        '#questInner h3, #questInner button, #questInner div { -webkit-user-select: none; user-select: none; }',
+        // Screenshot disruption: overlay that renders invisible on screen but may confuse capture
+        '#examScreenGuard { position: fixed; inset: 0; z-index: 99998; pointer-events: none; mix-blend-mode: difference; background: #fff; opacity: 0; transition: opacity 0.1s; }',
+        '#examScreenGuard.active { opacity: 1; }',
+        // Print protection
+        '@media print { #questInner { display: none !important; } body::after { content: "Exam content cannot be printed."; display: block; padding: 40px; font-size: 2rem; text-align: center; } }',
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Block right-click on exam
+    document.addEventListener('contextmenu', function(e) {
+        if (e.target.closest && e.target.closest('#questInner')) { e.preventDefault(); }
+    });
+
+    // Block copy/cut
+    document.addEventListener('copy', function(e) {
+        if (e.target.closest && e.target.closest('#questInner')) {
+            e.preventDefault();
+            if (e.clipboardData) e.clipboardData.setData('text/plain', 'Exam content is protected.');
+        }
+    });
+    document.addEventListener('cut', function(e) {
+        if (e.target.closest && e.target.closest('#questInner')) { e.preventDefault(); }
+    });
+
+    // Detect Print Screen / screenshot shortcuts
+    document.addEventListener('keyup', function(e) {
+        if (window._scholarExamActive && (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p'))) {
+            e.preventDefault();
+            // Flash the screen guard to blank the capture
+            var guard = document.getElementById('examScreenGuard');
+            if (guard) {
+                guard.classList.add('active');
+                setTimeout(function() { guard.classList.remove('active'); }, 600);
+            }
+            if (typeof showToast === 'function') showToast('📸 Screenshots are disabled during the exam');
+        }
+    });
+
+    // Visibility change detection (tab switching to paste elsewhere)
+    document.addEventListener('visibilitychange', function() {
+        if (window._scholarExamActive && document.hidden) {
+            window._scholarTabSwitches = (window._scholarTabSwitches || 0) + 1;
+            if (window._scholarTabSwitches >= 3 && typeof showToast === 'function') {
+                showToast('⚠️ Multiple tab switches detected during exam');
+            }
+        }
+    });
+}
+
 function renderScholarQuestion(idx) {
+    _injectExamProtection();
+    window._scholarExamActive = true;
+    window._scholarTabSwitches = 0;
+
+    // Ensure screen guard overlay exists
+    if (!document.getElementById('examScreenGuard')) {
+        var guard = document.createElement('div');
+        guard.id = 'examScreenGuard';
+        document.body.appendChild(guard);
+    }
+
     const q = scholarQuestions[idx];
     const inner = document.getElementById('questInner');
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
@@ -3936,7 +4005,7 @@ function renderScholarQuestion(idx) {
             '<span id="scholarTimer">' + timeStr + '</span>' +
         '</div>' +
         '<div style="margin-bottom:10px;color:var(--text-muted);font-size:0.8rem;">Question ' + (idx + 1) + ' of 25</div>' +
-        '<h3 style="margin-bottom:20px;line-height:1.4;">' + q.q + '</h3>' +
+        '<canvas id="examQCanvas" width="600" height="120" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;"></canvas>' +
         '<div style="display:flex;flex-direction:column;gap:10px;">';
     
         choices.forEach(val => {
@@ -3951,6 +4020,50 @@ function renderScholarQuestion(idx) {
     '</div>';
     
     inner.innerHTML = html;
+
+    // Render question text as canvas (anti-copy)
+    var canvas = document.getElementById('examQCanvas');
+    if (canvas) {
+        var ctx = canvas.getContext('2d');
+        var isDark = document.body.getAttribute('data-theme') !== 'light';
+        var textColor = isDark ? '#e2e8f0' : '#1a1a2e';
+        var dpr = window.devicePixelRatio || 1;
+        var maxW = Math.min(600, inner.clientWidth - 40);
+        canvas.style.width = maxW + 'px';
+        canvas.width = maxW * dpr;
+
+        ctx.scale(dpr, dpr);
+        ctx.font = '700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = textColor;
+        ctx.textBaseline = 'top';
+
+        // Word-wrap
+        var words = q.q.split(' ');
+        var lines = [];
+        var currentLine = '';
+        for (var wi = 0; wi < words.length; wi++) {
+            var testLine = currentLine ? currentLine + ' ' + words[wi] : words[wi];
+            if (ctx.measureText(testLine).width > maxW - 10) {
+                if (currentLine) lines.push(currentLine);
+                currentLine = words[wi];
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        var lineHeight = 24;
+        var totalHeight = lines.length * lineHeight + 10;
+        canvas.height = totalHeight * dpr;
+        canvas.style.height = totalHeight + 'px';
+        ctx.scale(dpr, dpr);
+        ctx.font = '700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = textColor;
+        ctx.textBaseline = 'top';
+        for (var li = 0; li < lines.length; li++) {
+            ctx.fillText(lines[li], 0, li * lineHeight + 5);
+        }
+    }
 }
 
 function selectScholarAnswer(idx, val) {
@@ -3966,6 +4079,7 @@ function selectScholarAnswer(idx, val) {
 
 async function submitScholarQuest() {
     window._scholarExamActive = false;
+    var _g = document.getElementById('examScreenGuard'); if (_g) _g.remove();
     if (scholarTimer) clearInterval(scholarTimer);
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     sessionStorage.removeItem('btc_scholar_session_' + keyPrefix);
@@ -4015,6 +4129,7 @@ function cancelScholar() {
     if (!confirmed) return;
 
     window._scholarExamActive = false;
+    var _g = document.getElementById('examScreenGuard'); if (_g) _g.remove();
     if (scholarTimer) clearInterval(scholarTimer);
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     const today = new Date().toISOString().split('T')[0];

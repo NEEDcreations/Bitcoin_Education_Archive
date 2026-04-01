@@ -335,6 +335,10 @@ function renderTrailExamQuestion() {
     var options = fisherYatesFull([q.a].concat(q.wrong || []).slice(0, 4));
     var pct = Math.round((exam.current / exam.total) * 100);
 
+    // Anti-cheat protection
+    if (typeof _injectExamProtection === 'function') _injectExamProtection();
+    window._scholarExamActive = true;
+
     var html = '<div style="max-width:500px;margin:0 auto;padding:20px 16px 120px;">';
 
     // Header
@@ -351,9 +355,8 @@ function renderTrailExamQuestion() {
     html += '<div style="background:rgba(255,255,255,0.1);border-radius:4px;height:6px;margin-bottom:20px;overflow:hidden;">' +
         '<div style="background:' + mod.color + ';height:100%;width:' + pct + '%;border-radius:4px;transition:0.3s;"></div></div>';
 
-    // Question
-    html += '<div style="color:var(--text);font-size:1rem;font-weight:700;line-height:1.5;margin-bottom:16px;">' +
-        (typeof escapeHtml === 'function' ? escapeHtml(q.q) : q.q) + '</div>';
+    // Question (rendered as canvas for anti-copy)
+    html += '<canvas id="trailQCanvas" width="500" height="80" style="width:100%;max-width:500px;height:auto;margin-bottom:16px;-webkit-user-select:none;user-select:none;"></canvas>';
 
     // Options
     options.forEach(function(opt) {
@@ -368,6 +371,37 @@ function renderTrailExamQuestion() {
     html += '</div>';
     fc.innerHTML = html;
     fc.scrollTop = 0;
+
+    // Render question text as canvas
+    var tCanvas = document.getElementById('trailQCanvas');
+    if (tCanvas && q) {
+        var tCtx = tCanvas.getContext('2d');
+        var tDark = document.body.getAttribute('data-theme') !== 'light';
+        var tColor = tDark ? '#e2e8f0' : '#1a1a2e';
+        var tDpr = window.devicePixelRatio || 1;
+        var tMaxW = Math.min(500, fc.clientWidth - 40);
+        tCanvas.style.width = tMaxW + 'px';
+        tCanvas.width = tMaxW * tDpr;
+        tCtx.scale(tDpr, tDpr);
+        tCtx.font = '700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        tCtx.fillStyle = tColor;
+        tCtx.textBaseline = 'top';
+        var tWords = q.q.split(' '), tLines = [], tCur = '';
+        for (var twi = 0; twi < tWords.length; twi++) {
+            var tTest = tCur ? tCur + ' ' + tWords[twi] : tWords[twi];
+            if (tCtx.measureText(tTest).width > tMaxW - 10) { if (tCur) tLines.push(tCur); tCur = tWords[twi]; }
+            else tCur = tTest;
+        }
+        if (tCur) tLines.push(tCur);
+        var tLH = 24, tTH = tLines.length * tLH + 10;
+        tCanvas.height = tTH * tDpr;
+        tCanvas.style.height = tTH + 'px';
+        tCtx.scale(tDpr, tDpr);
+        tCtx.font = '700 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        tCtx.fillStyle = tColor;
+        tCtx.textBaseline = 'top';
+        for (var tli = 0; tli < tLines.length; tli++) tCtx.fillText(tLines[tli], 0, tli * tLH + 5);
+    }
 }
 
 window.trailExamAnswer = function(btn, correct) {
@@ -408,6 +442,8 @@ window.trailExamAnswer = function(btn, correct) {
 };
 
 function renderTrailExamResults() {
+    window._scholarExamActive = false;
+    var _g = document.getElementById('examScreenGuard'); if (_g) _g.remove();
     var exam = window._trailExam;
     if (!exam) return;
     var mod = MODULES.find(function(m) { return m.id === exam.moduleId; });
