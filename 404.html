@@ -568,6 +568,9 @@
                 <div id="favsList"></div>
                 <div id="bookmarksList" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;"></div>
             </div>
+            <div style="padding:8px 12px;margin-bottom:8px;">
+                <button onclick="go('trails')" style="width:100%;padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,88,12,0.06));border:1px solid var(--accent);border-radius:10px;color:var(--accent);font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,88,12,0.06))';this.style.color='var(--accent)'">🦌🗺️ Nacho's Trails: Guided Learning</button>
+            </div>
             <div style="padding:8px 12px;margin-bottom:4px;">
                 <button onclick="var msg=document.getElementById('contentNote');if(msg.style.display==='none'){msg.style.display='block';this.textContent='📌 A note about the content in our channels ▲'}else{msg.style.display='none';this.textContent='📌 A note about the content in our channels ▼'}" style="padding:6px 12px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;width:100%;text-align:left;">📌 A note about the content in our channels ▼</button>
                 <div id="contentNote" style="display:none;margin-top:8px;padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;line-height:1.5;">
