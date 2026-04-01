@@ -1178,6 +1178,10 @@ function forceShowBubble(text, pose) {
 }
 
 function _showBubble(text, pose) {
+    // ---- DIRECT LINK COOLDOWN ----
+    // Suppress bubbles for 120s when user arrives via direct link
+    if (window._nachoDirectLinkCooldown && Date.now() < window._nachoDirectLinkCooldown) return;
+
     // ---- ANTI-INTERRUPTION SHIELD ----
     // Never interrupt the user during important actions
     if (window._nachoBusy) return;
