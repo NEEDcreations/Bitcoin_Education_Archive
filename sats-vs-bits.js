@@ -189,7 +189,11 @@ function toggleSvbPanel() {
                 '<div style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">BITS</div>' +
             '</div>' +
         '</div>' +
-        '<div id="svbBar" style="height:5px;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;margin-top:6px;overflow:hidden;"></div>' +
+        '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;">' +
+            '<span style="font-size:0.5rem;color:#f7931a;font-weight:700;">SATS</span>' +
+            '<div id="svbBar" style="flex:1;height:8px;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;overflow:hidden;"></div>' +
+            '<span style="font-size:0.5rem;color:#3b82f6;font-weight:700;">BITS</span>' +
+        '</div>' +
         '<div id="svbRemaining" style="text-align:center;font-size:0.5rem;color:var(--text-faint);margin-top:3px;">' + DAILY_LIMIT + ' taps left today</div>';
 
     djBar.appendChild(widget);
