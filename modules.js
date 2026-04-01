@@ -158,7 +158,7 @@ window.renderModules = function(container) {
         '<div onclick="goHome()" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--text-muted);font-size:0.8rem;">← Back to Archive</div>' +
         '<div style="font-size:2.5rem;margin-bottom:6px;">🦌🗺️</div>' +
         '<h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0 0 4px;">Nacho\'s Trails</h2>' +
-        '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">Guided learning paths through Bitcoin · Complete channels · Pass the exam</p>' +
+        '<p style="color:var(--text-muted);font-size:0.82rem;margin:0;">Guided learning paths through Bitcoin · Complete channels · Pass the Trail Quest</p>' +
     '</div>';
 
     // Overall progress
@@ -228,9 +228,9 @@ window.renderModules = function(container) {
 
             // Action button
             if (status.isPassed) {
-                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">🔄 Retake Exam</button>';
+                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">🔄 Retake Trail Quest</button>';
             } else if (status.isComplete) {
-                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:14px;background:' + mod.color + ';border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px ' + mod.color + '40;">⚡ Take the ' + mod.name + ' Exam (25 Questions)</button>';
+                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:14px;background:' + mod.color + ';border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px ' + mod.color + '40;">⚡ Take the ' + mod.name + ' Trail Quest (25 Questions)</button>';
             } else {
                 var nextChannel = mod.channels.find(function(ch) { return status.visited.indexOf(ch.id) === -1; });
                 html += '<button onclick="window._fromTrails=true;go(\'' + (nextChannel ? nextChannel.id : mod.channels[0].id) + '\')" style="width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Continue: ' + (nextChannel ? nextChannel.name : mod.channels[0].name) + ' →</button>';
@@ -366,7 +366,7 @@ function renderTrailExamQuestion() {
     html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
         '<span style="font-size:1.3rem;">' + mod.emoji + '</span>' +
         '<div style="flex:1;">' +
-            '<div style="color:var(--heading);font-weight:800;font-size:0.9rem;">' + mod.name + ' Exam</div>' +
+            '<div style="color:var(--heading);font-weight:800;font-size:0.9rem;">' + mod.name + ' Trail Quest</div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;">Question ' + (exam.current + 1) + ' of ' + exam.total + '</div>' +
         '</div>' +
         '<span style="color:' + mod.color + ';font-weight:700;font-size:0.8rem;">' + exam.score + ' correct / ' + exam.answered + ' answered</span>' +
@@ -413,11 +413,11 @@ function renderTrailExamQuestion() {
     html += '<button onclick="trailExamNav(-1)" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:0.85rem;' + (exam.current === 0 ? 'opacity:0.3;pointer-events:none;' : '') + '">← Prev</button>';
     html += '<span style="color:var(--text-faint);font-size:0.75rem;">' + (exam.current + 1) + ' / ' + exam.total + '</span>';
     if (exam.answered >= exam.total) {
-        html += '<button onclick="trailExamSubmit()" style="padding:10px 20px;background:' + mod.color + ';border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Submit Exam ✅</button>';
+        html += '<button onclick="trailExamSubmit()" style="padding:10px 20px;background:' + mod.color + ';border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Submit Quest ✅</button>';
     } else if (exam.current < exam.total - 1) {
         html += '<button onclick="trailExamNav(1)" style="padding:10px 20px;background:var(--accent);border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Next →</button>';
     } else {
-        html += '<button onclick="trailExamSubmit()" style="padding:10px 20px;background:' + mod.color + ';border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Submit Exam ✅</button>';
+        html += '<button onclick="trailExamSubmit()" style="padding:10px 20px;background:' + mod.color + ';border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Submit Quest ✅</button>';
     }
     html += '</div>';
 
@@ -536,7 +536,7 @@ function renderTrailExamResults() {
     // Buttons
     html += '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">';
     if (!passed) {
-        html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="padding:14px 28px;background:' + mod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🔄 Retry Exam</button>';
+        html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="padding:14px 28px;background:' + mod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🔄 Retry Trail Quest</button>';
     }
     html += '<button onclick="renderModules()" style="padding:14px 28px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🗺️ Back to Trails</button>';
 
@@ -547,11 +547,71 @@ function renderTrailExamResults() {
             html += '<button onclick="renderModules()" style="padding:14px 28px;background:' + nextMod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + nextMod.emoji + ' Start ' + nextMod.name + '</button>';
         }
     }
+    // Review wrong answers with Nacho button (only if there were wrong answers)
+    var wrongCount = exam.questions.filter(function(q) { return q._answered && !q._correct; }).length;
+    if (wrongCount > 0) {
+        html += '<div style="margin-top:16px;"><button onclick="reviewTrailWithNacho()" style="width:100%;max-width:360px;padding:14px 28px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);border-radius:12px;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🦌 Review ' + wrongCount + ' wrong answer' + (wrongCount > 1 ? 's' : '') + ' with Nacho</button></div>';
+    }
+
     html += '</div></div>';
 
     fc.innerHTML = html;
     fc.scrollTop = 0;
 }
+
+// Review wrong answers in Nacho Mode
+window.reviewTrailWithNacho = function() {
+    var exam = window._trailExam;
+    if (!exam) return;
+
+    // Collect wrong questions
+    var wrong = exam.questions.filter(function(q) { return q._answered && !q._correct; });
+    if (wrong.length === 0) return;
+
+    // Store for Nacho to pick up
+    window._nachoTrailReview = wrong;
+
+    // Enter Nacho Mode
+    if (typeof enterNachoMode === 'function') enterNachoMode();
+
+    // After Nacho Mode loads, inject the review
+    setTimeout(function() {
+        if (typeof P !== 'function' || typeof U !== 'function') return;
+
+        var mod = MODULES.find(function(m) { return m.id === exam.moduleId; });
+        var modName = mod ? mod.emoji + ' ' + mod.name : 'Trail';
+
+        P('nacho', '', '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);border-radius:14px;padding:16px;text-align:center;margin-bottom:8px;"><div style="font-size:1.3rem;margin-bottom:4px;">📚🦌</div><div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">' + modName + ' Trail Quest Review</div><div style="color:var(--text-muted);font-size:0.82rem;">Let\'s go over the ' + wrong.length + ' question' + (wrong.length > 1 ? 's' : '') + ' you got wrong!</div></div>');
+        U('nacho', '', '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);border-radius:14px;padding:16px;text-align:center;margin-bottom:8px;"><div style="font-size:1.3rem;margin-bottom:4px;">📚🦌</div><div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">' + modName + ' Trail Quest Review</div><div style="color:var(--text-muted);font-size:0.82rem;">Let\'s go over the ' + wrong.length + ' question' + (wrong.length > 1 ? 's' : '') + ' you got wrong!</div></div>');
+
+        // Feed each wrong question to Nacho with explanation
+        wrong.forEach(function(q, i) {
+            setTimeout(function() {
+                var reviewHtml = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:4px;">' +
+                    '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:6px;">Question ' + (i + 1) + ' of ' + wrong.length + '</div>' +
+                    '<div style="color:var(--text);font-size:0.88rem;font-weight:600;margin-bottom:8px;">' + (typeof escapeHtml === 'function' ? escapeHtml(q.q) : q.q) + '</div>' +
+                    '<div style="padding:6px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:6px;font-size:0.82rem;color:#ef4444;">❌ Your answer: ' + (typeof escapeHtml === 'function' ? escapeHtml(q._selected || '?') : q._selected || '?') + '</div>' +
+                    '<div style="padding:6px 10px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;margin-bottom:8px;font-size:0.82rem;color:#22c55e;">✅ Correct answer: ' + (typeof escapeHtml === 'function' ? escapeHtml(q.a) : q.a) + '</div>' +
+                '</div>';
+
+                P('nacho', '', reviewHtml);
+                U('nacho', '', reviewHtml);
+
+                // Ask Nacho KB to explain
+                if (typeof nachoUnifiedAnswer === 'function') {
+                    nachoUnifiedAnswer('Explain why: ' + q.q + ' Answer: ' + q.a, function(result) {
+                        if (result && result.answer) {
+                            var clean = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').substring(0, 400);
+                            var explainHtml = '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;padding:8px 12px;background:rgba(247,147,26,0.05);border-radius:8px;">💡 ' + clean + '</div>';
+                            P('nacho', '', explainHtml);
+                            U('nacho', '', explainHtml);
+                        }
+                    });
+                }
+            }, (i + 1) * 2000); // Stagger each question 2s apart
+        });
+    }, 1000);
+};
 
 // ---- EXPOSE MODULES DATA for Nacho integration ----
 window.NACHO_TRAILS = MODULES;
