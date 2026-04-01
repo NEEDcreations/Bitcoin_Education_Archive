@@ -73,6 +73,7 @@ window.getUserSimplificationLevel = function() {
 // Step 1: Welcome + pick level
 // Step 2: Interest picker (optional) — highlights channels for you
 window.showOnboardingWizard = function() {
+    if (window._directLinkMode) return false;
     if (window.isOnboardingComplete()) return false;
     var visited = [];
     try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}

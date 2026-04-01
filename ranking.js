@@ -2052,6 +2052,12 @@ function getUserDisplayEmoji(lv) {
 }
 
 function updateUserDisplay(lv) {
+    // Suppress user display during direct link cooldown
+    if (window._directLinkMode) {
+        var _ud = document.getElementById('userDisplay');
+        if (_ud) _ud.style.display = 'none';
+        return;
+    }
     // Hide old guest banner — we now use unified display
     var guestBanner = document.getElementById('guestPointsBanner');
     if (guestBanner) guestBanner.style.display = 'none';
@@ -2753,6 +2759,8 @@ async function _loadPVPLeaderboard() {
 // Toast notifications
 var _toastQueue = [];
 function showToast(msg) {
+    // Suppress toasts during direct link cooldown
+    if (window._directLinkMode) return;
     // If Nacho is busy (Q&A, voice, reading answer), queue the toast
     if (window._nachoBusy) {
         _toastQueue.push(msg);

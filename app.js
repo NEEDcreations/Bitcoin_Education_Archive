@@ -4217,7 +4217,18 @@ window.nachoQuizAnswer = function(btn, correct) {
         });
 
         const h = location.hash.slice(1) || _savedHash.replace('#', '');
-        if (h) window._nachoDirectLinkCooldown = Date.now() + 120000;
+        if (h) {
+            window._nachoDirectLinkCooldown = Date.now() + 120000;
+            window._directLinkMode = true;
+            // Hide Nacho on direct links
+            if (typeof hideNacho === 'function') hideNacho();
+            setTimeout(function() { if (typeof hideNacho === 'function') hideNacho(); }, 1000);
+            setTimeout(function() { if (typeof hideNacho === 'function') hideNacho(); }, 2500);
+            // Minimize sign-in banner
+            sessionStorage.setItem('btc_signin_banner_dismissed', '1');
+            // Clear direct link mode after 120s
+            setTimeout(function() { window._directLinkMode = false; }, 120000);
+        }
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
         else if (h === 'meetup-builder') { window._skipIRLRules = true; localStorage.setItem('btc_irl_rules_accepted', 'true'); setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); go('irl-sync'); setTimeout(function() { var ro2 = document.getElementById('irlRulesOverlay'); if (ro2) ro2.remove(); }, 100); history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder'); var _mbTries = 0; var _mbInt = setInterval(function() { var ro3 = document.getElementById('irlRulesOverlay'); if (ro3) ro3.remove(); var el = document.getElementById('meetupBuilderSection'); if (el) { clearInterval(_mbInt); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } if (++_mbTries > 30) clearInterval(_mbInt); }, 300); }, 1500); }
