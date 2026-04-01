@@ -149,9 +149,10 @@ function injectWidget() {
     trigger.textContent = '⚡ SATS vs BITS — VOTE';
     trigger.onclick = function() { toggleSvbPanel(); };
 
-    // Insert into the DJ action buttons row
-    var actionRow = djBar.querySelector('div:last-child');
-    if (actionRow) actionRow.appendChild(trigger);
+    // Insert into the DJ action buttons row (find the row with Tune In button)
+    var tuneBtn = djBar.querySelector('#djTuneBtn') || djBar.querySelector('button');
+    var actionRow = tuneBtn ? tuneBtn.parentElement : null;
+    if (actionRow && actionRow.style.display !== undefined) actionRow.appendChild(trigger);
     else djBar.appendChild(trigger);
 
     // Load live data
