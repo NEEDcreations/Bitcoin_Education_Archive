@@ -165,6 +165,8 @@ function loadMeetupBuilderPosts() {
                 '</div>' +
                 (d.description ? '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + esc(d.description) + '</div>' : '') +
                 '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
+                    (d.images && d.images.length ? '<span style="padding:3px 8px;background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.2);border-radius:6px;font-size:0.65rem;color:#ec4899;font-weight:700;">📸 ' + d.images.length + ' photo' + (d.images.length > 1 ? 's' : '') + '</span>' : '') +
+                    (d.videoUrl ? '<span style="padding:3px 8px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:6px;font-size:0.65rem;color:#a855f7;font-weight:700;">🎥 Video</span>' : '') +
                     (d.hasSlides ? '<span style="padding:3px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:6px;font-size:0.65rem;color:#818cf8;font-weight:700;">📊 Slides</span>' : '') +
                     (d.hasWriteup ? '<span style="padding:3px 8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:6px;font-size:0.65rem;color:#22c55e;font-weight:700;">📝 Write-up</span>' : '') +
                     (d.topics && d.topics.length ? '<span style="padding:3px 8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);border-radius:6px;font-size:0.65rem;color:var(--accent);font-weight:700;">🎯 ' + d.topics.length + ' topics</span>' : '') +
@@ -214,6 +216,15 @@ window.viewMeetupBuilderPost = async function(id) {
         if (d.tips) html += '<div style="margin-bottom:20px;padding:16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">' +
             '<div style="font-size:0.75rem;color:var(--accent);font-weight:700;margin-bottom:6px;">💡 TIPS FOR NEW HOSTS</div>' +
             '<div style="color:var(--text);font-size:0.85rem;line-height:1.6;white-space:pre-wrap;">' + esc(d.tips) + '</div></div>';
+
+        if (d.images && d.images.length > 0) {
+            html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">';
+            d.images.forEach(function(imgUrl) {
+                html += '<img src="' + esc(imgUrl) + '" onclick="if(typeof openImg===\'function\')openImg(this.src)" style="width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:pointer;" loading="lazy">';
+            });
+            html += '</div>';
+        }
+        if (d.videoUrl) html += '<video controls preload="metadata" style="width:100%;max-height:300px;border-radius:12px;margin-bottom:16px;background:#000;" src="' + esc(d.videoUrl) + '"></video>';
 
         if (d.slideUrl) html += '<a href="' + esc(d.slideUrl) + '" target="_blank" rel="noopener" style="display:block;padding:14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:12px;color:#818cf8;font-weight:700;font-size:0.9rem;text-decoration:none;text-align:center;margin-bottom:12px;">📊 View Slides / Presentation ↗</a>';
         if (d.resourceUrl) html += '<a href="' + esc(d.resourceUrl) + '" target="_blank" rel="noopener" style="display:block;padding:14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;font-weight:700;font-size:0.9rem;text-decoration:none;text-align:center;margin-bottom:12px;">📎 Additional Resources ↗</a>';
@@ -271,6 +282,19 @@ window.showMeetupBuilderSubmit = function() {
     html += '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;text-transform:uppercase;">Additional Resource Link</label>';
     html += '<input type="url" id="mbResourceUrl" placeholder="https://..." style="' + s + '">';
 
+    html += '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;text-transform:uppercase;">Photos (up to 3)</label>';
+    html += '<div style="display:flex;gap:10px;margin-bottom:12px;">';
+    for (var pi = 0; pi < 3; pi++) {
+        html += '<div id="mbImgPreview' + pi + '" onclick="document.getElementById(\'mbImgFile' + pi + '\').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;flex-shrink:0;">' +
+            '<span style="font-size:1.5rem;color:var(--text-faint);">📷</span></div>' +
+            '<input type="file" id="mbImgFile' + pi + '" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;" onchange="var f=this.files[0];if(f){var r=new FileReader();var idx=' + pi + ';r.onload=function(e){var p=document.getElementById(\'mbImgPreview\'+idx);if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">';
+    }
+    html += '</div>';
+
+    html += '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;text-transform:uppercase;">Video (1 file, max 50MB)</label>';
+    html += '<input type="file" id="mbVideoFile" accept="video/mp4,video/webm,video/quicktime" style="' + s + 'font-size:0.8rem;">';
+    html += '<div style="font-size:0.6rem;color:var(--text-faint);margin:-8px 0 12px;">MP4, WebM, or MOV</div>';
+
     html += '<button onclick="submitMeetupBuilder()" id="mbSubmitBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;margin-top:4px;">📤 Share with Community</button>';
     html += '</div>';
     overlay.innerHTML = html;
@@ -291,6 +315,43 @@ window.submitMeetupBuilder = async function() {
         var resourceUrl = (document.getElementById('mbResourceUrl').value || '').trim();
         var tips = (document.getElementById('mbTips').value || '').trim();
 
+        // Upload images
+        btn.textContent = 'Uploading media...';
+        var imageUrls = [];
+        var storage = null;
+        try { storage = firebase.storage(); } catch(e) {}
+        if (storage) {
+            for (var ii = 0; ii < 3; ii++) {
+                var imgInput = document.getElementById('mbImgFile' + ii);
+                if (imgInput && imgInput.files && imgInput.files[0]) {
+                    var imgFile = imgInput.files[0];
+                    if (imgFile.size > 5242880) continue; // skip >5MB
+                    try {
+                        var imgRef = storage.ref('meetup-builder/' + auth.currentUser.uid + '/' + Date.now() + '_img' + ii + '_' + imgFile.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+                        var imgSnap = await imgRef.put(imgFile);
+                        var imgUrl = await imgSnap.ref.getDownloadURL();
+                        imageUrls.push(imgUrl);
+                    } catch(e) {}
+                }
+            }
+        }
+
+        // Upload video
+        var videoUrl = '';
+        var vidInput = document.getElementById('mbVideoFile');
+        if (storage && vidInput && vidInput.files && vidInput.files[0]) {
+            var vidFile = vidInput.files[0];
+            if (vidFile.size <= 52428800) { // 50MB max
+                try {
+                    btn.textContent = 'Uploading video...';
+                    var vidRef = storage.ref('meetup-builder/' + auth.currentUser.uid + '/' + Date.now() + '_vid_' + vidFile.name.replace(/[^a-zA-Z0-9._-]/g, '_'));
+                    var vidSnap = await vidRef.put(vidFile);
+                    videoUrl = await vidSnap.ref.getDownloadURL();
+                } catch(e) {}
+            }
+        }
+
+        btn.textContent = 'Saving...';
         var data = {
             title: title.substring(0, 120),
             description: desc.substring(0, 3000),
@@ -308,7 +369,9 @@ window.submitMeetupBuilder = async function() {
         if (slideUrl) data.slideUrl = slideUrl.substring(0, 500);
         if (resourceUrl) data.resourceUrl = resourceUrl.substring(0, 500);
         if (tips) data.tips = tips.substring(0, 2000);
-        data.emoji = slideUrl ? '📊' : tips ? '💡' : '📋';
+        if (imageUrls.length > 0) data.images = imageUrls;
+        if (videoUrl) data.videoUrl = videoUrl;
+        data.emoji = videoUrl ? '🎥' : imageUrls.length > 0 ? '📸' : slideUrl ? '📊' : tips ? '💡' : '📋';
 
         await db.collection('meetup_builder').add(data);
         document.getElementById('meetupBuilderSubmitOverlay').remove();
