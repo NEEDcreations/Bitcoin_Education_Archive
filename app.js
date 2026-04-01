@@ -4184,6 +4184,12 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // Trails
+            if (hash === 'trails' || state.channel === 'trails') {
+                go('trails');
+                return;
+            }
+
             // Lightning wallet
             if (hash === 'lightning' || state.channel === 'lightning') {
                 go('lightning', null, true);

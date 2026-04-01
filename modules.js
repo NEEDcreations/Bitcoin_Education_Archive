@@ -214,7 +214,7 @@ window.renderModules = function(container) {
             html += '<div style="margin-bottom:12px;">';
             mod.channels.forEach(function(ch) {
                 var done = status.visited.indexOf(ch.id) !== -1;
-                html += '<div onclick="goHome();setTimeout(function(){go(\'' + ch.id + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid transparent;" ' +
+                html += '<div onclick="window._fromTrails=true;go(\'' + ch.id + '\')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid transparent;" ' +
                     'onmouseover="this.style.background=\'rgba(255,255,255,0.03)\';this.style.borderColor=\'var(--border)\'" ' +
                     'onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' +
                     '<span style="font-size:1rem;flex-shrink:0;">' + (done ? '✅' : '⬜') + '</span>' +
@@ -233,7 +233,7 @@ window.renderModules = function(container) {
                 html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:14px;background:' + mod.color + ';border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px ' + mod.color + '40;">⚡ Take the ' + mod.name + ' Exam (25 Questions)</button>';
             } else {
                 var nextChannel = mod.channels.find(function(ch) { return status.visited.indexOf(ch.id) === -1; });
-                html += '<button onclick="goHome();setTimeout(function(){go(\'' + (nextChannel ? nextChannel.id : mod.channels[0].id) + '\')},300)" style="width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Continue: ' + (nextChannel ? nextChannel.name : mod.channels[0].name) + ' →</button>';
+                html += '<button onclick="window._fromTrails=true;go(\'' + (nextChannel ? nextChannel.id : mod.channels[0].id) + '\')" style="width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Continue: ' + (nextChannel ? nextChannel.name : mod.channels[0].name) + ' →</button>';
             }
         }
 
@@ -539,6 +539,39 @@ if (_realGoTrails) {
             return;
         }
         return _realGoTrails.apply(this, arguments);
+    };
+}
+
+// Handle back navigation to return to Trails
+window.addEventListener('popstate', function(e) {
+    var state = e.state || {};
+    var hash = location.hash.slice(1);
+    if (hash === 'trails' || state.channel === 'trails') {
+        go('trails');
+        return;
+    }
+    // If user came from trails and pressed back, go back to trails
+    if (window._fromTrails && !hash) {
+        window._fromTrails = false;
+        e.preventDefault && e.preventDefault();
+        go('trails');
+        return;
+    }
+});
+
+// When navigating from trails to a channel, set up proper history
+var _realGoTrailsNav = window.go;
+if (_realGoTrailsNav) {
+    window.go = async function(id) {
+        // If navigating from trails to a channel, push trails state first
+        if (window._fromTrails && id !== 'trails') {
+            window._fromTrails = false;
+            // Ensure trails is in history so back returns there
+            history.replaceState({ channel: 'trails' }, '', '#trails');
+            var result = await _realGoTrailsNav.apply(this, arguments);
+            return result;
+        }
+        return _realGoTrailsNav.apply(this, arguments);
     };
 }
 
