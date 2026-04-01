@@ -67,6 +67,9 @@ function injectMeetupBuilder() {
                 _mbResource('📣', 'Nostr', 'https://primal.net', 'Post meetup announcements on Nostr — the censorship-resistant social network Bitcoiners use. No algorithm, no gatekeeping.') +
                 _mbResource('🎟️', 'Evento', 'https://evento.so', 'Free event listing platform with ticketing and payments — including Bitcoin payments. Clean UI, no fees for free events.') +
                 _mbResource('🗓️', 'Bitcoin Events', 'https://www.bitcoinevents.co.za', 'Bitcoin-focused event listing site. Submit your meetup to get visibility in the broader Bitcoin community.') +
+                _mbResource('𝕏', 'X (Twitter)', 'https://x.com', 'Post meetup announcements where Bitcoiners already hang out. Use hashtags like #Bitcoin and your city name. Great organic reach.') +
+                _mbResource('📸', 'Instagram', 'https://instagram.com', 'Share event photos, reels, and stories. Visual content drives attendance. Tag your venue and local Bitcoin community.') +
+                _mbResource('👥', 'Facebook', 'https://facebook.com', 'Create a Facebook Event or Page for your meetup. Reaches people outside the Bitcoin bubble. <strong>Pro tip:</strong> Meta Ads (Facebook + Instagram) are highly effective for ticketed events — even $5-10/day can fill seats and drive ticket sales.') +
                 _mbResource('💬', 'Telegram / Signal', null, 'Create a group chat for your local community. Most successful meetups have an always-on chat where members connect between events.') +
             '</div>' +
 
