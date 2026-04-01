@@ -52,15 +52,20 @@ function injectMeetupBuilder() {
     // Curated Resources
     var resources = document.createElement('div');
     resources.style.cssText = 'margin-bottom:30px;';
-    resources.innerHTML =
-        '<div onclick="var c=document.getElementById(\'mbResourcesContent\');var a=document.getElementById(\'mbResourcesArrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;">' +
-            '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.1rem;">🧰</span><span style="color:var(--heading);font-weight:700;font-size:0.9rem;">Resources for Meetup Organizers</span></div>' +
-            '<span id="mbResourcesArrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
-        '</div>' +
-        '<div id="mbResourcesContent" style="display:none;margin-top:12px;">' +
+        function _mbToggle(id) {
+        return 'onclick="var c=document.getElementById(\'' + id + '\');var a=this.querySelector(\'.mb-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}"';
+    }
+    var _btnStyle = 'display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;transition:0.2s;';
 
-            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">📱 Platforms & Promotion</div>' +
-            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+    resources.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;"><span style="font-size:1.1rem;">🧰</span><span style="color:var(--heading);font-weight:700;font-size:0.95rem;">Resources for Meetup Organizers</span></div>' +
+
+        '<div ' + _mbToggle('mbPlatforms') + ' style="' + _btnStyle + '">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span>📱</span><span style="color:var(--text);font-weight:700;font-size:0.85rem;">Platforms & Promotion</span></div>' +
+            '<span class="mb-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
+        '</div>' +
+        '<div id="mbPlatforms" style="display:none;margin-bottom:16px;">' +
+            '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px;">' +
                 _mbResource('🟠', 'Club Orange', 'https://www.cluborange.org', 'The #1 app for finding and hosting Bitcoin meetups. Create events, RSVP, group chats, discover local Bitcoiners. Active in 71+ countries with 19K+ members. $3.99/mo.') +
                 _mbResource('📅', 'Meetup.com', 'https://www.meetup.com', 'The largest event platform. Great for reaching normies who aren\'t on Bitcoin apps yet. Free to join, organizers pay ~$25/mo for groups.') +
                 _mbResource('⚡', 'Geyser Fund', 'https://geyser.fund', 'Bitcoin-native crowdfunding. Raise sats for your meetup via Lightning. Apply for Bitcoin education grants (up to 1 BTC). Non-custodial.') +
@@ -72,9 +77,14 @@ function injectMeetupBuilder() {
                 _mbResource('👥', 'Facebook', 'https://facebook.com', 'Create a Facebook Event or Page for your meetup. Reaches people outside the Bitcoin bubble. <strong>Pro tip:</strong> Meta Ads (Facebook + Instagram) are highly effective for ticketed events — even $5-10/day can fill seats and drive ticket sales.') +
                 _mbResource('💬', 'Telegram / Signal', null, 'Create a group chat for your local community. Most successful meetups have an always-on chat where members connect between events.') +
             '</div>' +
+        '</div>' +
 
-            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">🏠 Free Venue Ideas</div>' +
-            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+        '<div ' + _mbToggle('mbVenues') + ' style="' + _btnStyle + '">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span>🏠</span><span style="color:var(--text);font-weight:700;font-size:0.85rem;">Free Venue Ideas</span></div>' +
+            '<span class="mb-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
+        '</div>' +
+        '<div id="mbVenues" style="display:none;margin-bottom:16px;">' +
+            '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px;">' +
                 _mbResource('📚', 'Public Libraries', null, 'Most libraries offer free meeting rooms for community groups. Reserve online or ask at the front desk. Great for educational meetups.') +
                 _mbResource('🏛️', 'Community Centers', null, 'Recreation centers, senior centers, and town halls often have free rooms. Contact your local parks & recreation department.') +
                 _mbResource('💻', 'Coworking Spaces', null, 'Many coworking spaces offer free event rooms during off-hours or for community tech groups. WeWork, Industrious, local spaces.') +
@@ -82,17 +92,27 @@ function injectMeetupBuilder() {
                 _mbResource('☕', 'Coffee Shops', null, 'Many cafes welcome regular meetup groups, especially if your group buys drinks. Ask about their back room or quiet hours.') +
                 _mbResource('🏢', 'Bitcoin Companies', null, 'Local Bitcoin/tech companies may donate conference room space. It\'s good PR for them and free for you. Just ask!') +
             '</div>' +
+        '</div>' +
 
-            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">📖 Guides & Education</div>' +
-            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+        '<div ' + _mbToggle('mbGuides') + ' style="' + _btnStyle + '">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span>📖</span><span style="color:var(--text);font-weight:700;font-size:0.85rem;">Guides & Education</span></div>' +
+            '<span class="mb-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>' +
+        '</div>' +
+        '<div id="mbGuides" style="display:none;margin-bottom:16px;">' +
+            '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px;">' +
                 _mbResource('🎙️', 'Local Bitcoiners Podcast', 'https://fountain.fm/show/Q48WBr6nT3mrbwMZ8ydY', 'Podcast dedicated to Bitcoin meetup organizers. Real stories from hosts around the world about starting, growing, and sustaining local communities.') +
                 _mbResource('📂', 'Bitcoin Meetups Repository', 'https://github.com/ReedBTC/Bitcoin-Meetups', 'Open-source GitHub repo packed with guides on finding venues, structuring meetings, growing attendance, handling finances, and more. Community-maintained.') +
                 _mbResource('📕', 'How to Start a Bitcoin Meetup', 'https://www.whatisbitcoin.com/guides/start-your-own-bitcoin-meetup', 'Comprehensive guide covering venues, promotion, format, content ideas, and growing your community from zero.') +
                 _mbResource('🎓', 'Mi Primer Bitcoin', 'https://miprimerbitcoin.io/en/', 'Free open-source Bitcoin education curriculum. Perfect for structured meetup presentations — tested in El Salvador schools.') +
                 _mbResource('🦌', 'This Archive!', null, 'Use the 146 channels in the Bitcoin Education Archive as meetup discussion topics. One channel per meetup = 2+ years of weekly content!') +
             '</div>' +
+        '</div>' +
 
-            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">💡 Pro Tips</div>' +
+        '<div ' + _mbToggle('mbTips') + ' style="' + _btnStyle + 'border-color:rgba(247,147,26,0.3);background:rgba(247,147,26,0.04);">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span>💡</span><span style="color:var(--accent);font-weight:700;font-size:0.85rem;">Pro Tips</span></div>' +
+            '<span class="mb-arrow" style="color:var(--text-faint);font-size:0.8rem;">▲</span>' +
+        '</div>' +
+        '<div id="mbTips" style="display:block;margin-bottom:16px;">' +
             '<div style="padding:14px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;color:var(--text);font-size:0.82rem;line-height:1.7;">' +
                 '• <strong>Start small</strong> — 3 people is a meetup. Don\'t wait for 30.<br>' +
                 '• <strong>Be consistent</strong> — Same day, same time, every month. Predictability builds attendance.<br>' +
