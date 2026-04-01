@@ -47,7 +47,7 @@ function injectMeetupBuilder() {
         '<div id="meetupBuilderGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px;margin-bottom:20px;">' +
             '<div style="text-align:center;padding:40px;opacity:0.5;grid-column:1/-1;"><span style="font-size:2rem;">📡</span><br>Loading community resources...</div>' +
         '</div>' +
-        '<button onclick="showMeetupBuilderSubmit()" style="width:100%;padding:14px;background:none;border:2px dashed var(--accent);color:var(--accent);border-radius:14px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'none\'">📤 Share Your Meetup Experience</button>';
+        '<button onclick="showMeetupBuilderSubmit()" style="width:100%;padding:14px;background:none;border:2px dashed var(--accent);color:var(--accent);border-radius:14px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(247,147,26,0.08)\'" onmouseout="this.style.background=\'none\'">📤 Upload & Share Your Meetup Experience</button>';
 
     // Curated Resources
     var resources = document.createElement('div');
@@ -241,7 +241,8 @@ window.viewMeetupBuilderPost = async function(id) {
 window.showMeetupBuilderSubmit = function() {
     var auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (typeof showToast === 'function') showToast('🔒 Sign in to share your meetup experience');
+        if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        else if (typeof showToast === 'function') showToast('🔒 Sign in to share your meetup experience');
         return;
     }
 
