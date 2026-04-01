@@ -325,6 +325,23 @@ function fisherYatesFull(arr) {
     return a;
 }
 
+window.trailExamNav = function(dir) {
+    var exam = window._trailExam;
+    if (!exam) return;
+    var next = exam.current + dir;
+    if (next < 0 || next >= exam.total) return;
+    exam.current = next;
+    renderTrailExamQuestion();
+};
+
+window.trailExamSubmit = function() {
+    var exam = window._trailExam;
+    if (!exam) return;
+    var unanswered = exam.total - exam.answered;
+    if (unanswered > 0 && !confirm('You have ' + unanswered + ' unanswered question' + (unanswered > 1 ? 's' : '') + '. Submit anyway?')) return;
+    renderTrailExamResults();
+};
+
 function renderTrailExamQuestion() {
     var exam = window._trailExam;
     if (!exam) return;
@@ -334,14 +351,10 @@ function renderTrailExamQuestion() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
-    if (exam.current >= exam.total) {
-        renderTrailExamResults();
-        return;
-    }
-
     var q = exam.questions[exam.current];
-    var options = fisherYatesFull([q.a].concat(q.wrong || []).slice(0, 4));
-    var pct = Math.round((exam.current / exam.total) * 100);
+    var options = q._options;
+    var isAnswered = q._answered;
+    var pct = Math.round(((exam.current + 1) / exam.total) * 100);
 
     // Anti-cheat protection
     if (typeof _injectExamProtection === 'function') _injectExamProtection();
@@ -369,12 +382,44 @@ function renderTrailExamQuestion() {
     // Options
     options.forEach(function(opt) {
         var isCorrect = opt === q.a;
-        html += '<button data-trail-correct="' + (isCorrect ? '1' : '0') + '" onclick="trailExamAnswer(this,' + isCorrect + ')" ' +
-            'style="display:block;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.88rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;line-height:1.4;touch-action:manipulation;" ' +
-            'onmouseover="this.style.borderColor=\'' + mod.color + '\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        var wasSelected = q._selected === opt;
+        var bg = 'var(--card-bg)', color = 'var(--text)', border = 'var(--border)', opacity = '1', cursor = 'pointer';
+
+        if (isAnswered) {
+            cursor = 'default';
+            opacity = '0.6';
+            if (wasSelected && q._correct) { bg = '#22c55e'; color = '#fff'; border = '#22c55e'; opacity = '1'; }
+            else if (wasSelected && !q._correct) { bg = '#ef4444'; color = '#fff'; border = '#ef4444'; opacity = '1'; }
+            else if (isCorrect) { border = '#22c55e'; color = '#22c55e'; opacity = '1'; }
+        }
+
+        html += '<button data-trail-correct="' + (isCorrect ? '1' : '0') + '" ' +
+            (isAnswered ? 'disabled ' : 'onclick="trailExamAnswer(this,' + isCorrect + ')" ') +
+            'style="display:block;width:100%;padding:14px 16px;margin-bottom:8px;background:' + bg + ';border:1px solid ' + border + ';border-radius:12px;color:' + color + ';font-size:0.88rem;cursor:' + cursor + ';font-family:inherit;text-align:left;transition:0.2s;line-height:1.4;touch-action:manipulation;opacity:' + opacity + ';" ' +
+            (!isAnswered ? 'onmouseover="this.style.borderColor=\'' + mod.color + '\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : '') + '>' +
             (typeof escapeHtml === 'function' ? escapeHtml(opt) : opt) +
         '</button>';
     });
+
+    // Result indicator for answered questions
+    if (isAnswered) {
+        html += '<div style="text-align:center;padding:6px;margin-bottom:8px;border-radius:8px;font-size:0.85rem;font-weight:700;' +
+            (q._correct ? 'background:rgba(34,197,94,0.1);border:1px solid #22c55e;color:#22c55e;">✅ Correct!' : 'background:rgba(239,68,68,0.1);border:1px solid #ef4444;color:#ef4444;">❌ Incorrect') +
+            '</div>';
+    }
+
+    // Navigation buttons
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:10px;">';
+    html += '<button onclick="trailExamNav(-1)" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:0.85rem;' + (exam.current === 0 ? 'opacity:0.3;pointer-events:none;' : '') + '">← Prev</button>';
+    html += '<span style="color:var(--text-faint);font-size:0.75rem;">' + (exam.current + 1) + ' / ' + exam.total + '</span>';
+    if (exam.answered >= exam.total) {
+        html += '<button onclick="trailExamSubmit()" style="padding:10px 20px;background:' + mod.color + ';border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Submit Exam ✅</button>';
+    } else if (exam.current < exam.total - 1) {
+        html += '<button onclick="trailExamNav(1)" style="padding:10px 20px;background:var(--accent);border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Next →</button>';
+    } else {
+        html += '<button onclick="trailExamSubmit()" style="padding:10px 20px;background:' + mod.color + ';border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:700;">Submit Exam ✅</button>';
+    }
+    html += '</div>';
 
     html += '</div>';
     fc.innerHTML = html;
@@ -415,39 +460,25 @@ function renderTrailExamQuestion() {
 window.trailExamAnswer = function(btn, correct) {
     var exam = window._trailExam;
     if (!exam) return;
+    var q = exam.questions[exam.current];
+    if (q._answered) return; // Already answered
 
-    var buttons = btn.parentElement.querySelectorAll('button[data-trail-correct]');
-    buttons.forEach(function(b) {
-        b.disabled = true;
-        b.style.cursor = 'default';
-        b.style.opacity = '0.6';
-        b.onmouseover = null; b.onmouseout = null;
-    });
-
-    if (correct) {
-        btn.style.background = '#22c55e';
-        btn.style.color = '#fff';
-        btn.style.borderColor = '#22c55e';
-        btn.style.opacity = '1';
-        exam.score++;
-    } else {
-        btn.style.background = '#ef4444';
-        btn.style.color = '#fff';
-        btn.style.borderColor = '#ef4444';
-        btn.style.opacity = '1';
-        buttons.forEach(function(b) {
-            if (b.getAttribute('data-trail-correct') === '1') {
-                b.style.borderColor = '#22c55e';
-                b.style.color = '#22c55e';
-                b.style.opacity = '1';
-                b.style.fontWeight = '700';
-            }
-        });
-    }
-
+    q._answered = true;
+    q._correct = correct;
+    q._selected = btn.textContent.trim();
+    if (correct) exam.score++;
     exam.answered++;
-    exam.current++;
-    setTimeout(renderTrailExamQuestion, correct ? 1200 : 3500);
+
+    // Re-render to show the answered state
+    renderTrailExamQuestion();
+
+    // Auto-advance to next unanswered question after delay
+    if (exam.current < exam.total - 1) {
+        setTimeout(function() {
+            exam.current++;
+            renderTrailExamQuestion();
+        }, correct ? 1500 : 3500);
+    }
 };
 
 function renderTrailExamResults() {
