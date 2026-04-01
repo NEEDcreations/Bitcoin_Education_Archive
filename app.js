@@ -4219,7 +4219,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const h = location.hash.slice(1) || _savedHash.replace('#', '');
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
-        else if (h === 'meetup-builder') { setTimeout(function() { go('irl-sync'); setTimeout(function() { var el = document.getElementById('meetupBuilderSection'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 800); }, 500); }
+        else if (h === 'meetup-builder') { setTimeout(function() { go('irl-sync', null, true); setTimeout(function() { var _mbTries = 0; var _mbInt = setInterval(function() { var el = document.getElementById('meetupBuilderSection'); if (el) { clearInterval(_mbInt); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } if (++_mbTries > 20) clearInterval(_mbInt); }, 300); }, 500); }, 1500); }
         else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }
         else if (h === 'forum') { setTimeout(function() { if (typeof renderForum === 'function') renderForum(); }, 500); }
         else if (h === 'marketplace') { setTimeout(function() { go('marketplace', null, true); }, 500); }
@@ -4271,7 +4271,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (typeof go === 'function') { go('trails'); return; }
                     break;
                 case 'meetup-builder':
-                    if (typeof go === 'function') { go('irl-sync'); setTimeout(function() { var el = document.getElementById('meetupBuilderSection'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 800); return; }
+                    if (typeof go === 'function') { go('irl-sync'); var _mbTries2 = 0; var _mbInt2 = setInterval(function() { var el = document.getElementById('meetupBuilderSection'); if (el) { clearInterval(_mbInt2); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } if (++_mbTries2 > 20) clearInterval(_mbInt2); }, 300); return; }
                     break;
                 case 'irl-sync':
                 case 'meet':
