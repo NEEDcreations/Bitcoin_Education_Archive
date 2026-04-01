@@ -81,6 +81,8 @@ function injectMeetupBuilder() {
 
             '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px;">📖 Guides & Education</div>' +
             '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">' +
+                _mbResource('🎙️', 'Local Bitcoiners Podcast', 'https://fountain.fm/show/Q48WBr6nT3mrbwMZ8ydY', 'Podcast dedicated to Bitcoin meetup organizers. Real stories from hosts around the world about starting, growing, and sustaining local communities.') +
+                _mbResource('📂', 'Bitcoin Meetups Repository', 'https://github.com/ReedBTC/Bitcoin-Meetups', 'Open-source GitHub repo packed with guides on finding venues, structuring meetings, growing attendance, handling finances, and more. Community-maintained.') +
                 _mbResource('📕', 'How to Start a Bitcoin Meetup', 'https://www.whatisbitcoin.com/guides/start-your-own-bitcoin-meetup', 'Comprehensive guide covering venues, promotion, format, content ideas, and growing your community from zero.') +
                 _mbResource('🎓', 'Mi Primer Bitcoin', 'https://miprimerbitcoin.io/en/', 'Free open-source Bitcoin education curriculum. Perfect for structured meetup presentations — tested in El Salvador schools.') +
                 _mbResource('📚', 'Bitcoin Only Resources', 'https://bitcoin-only.com/learning', 'Curated list of Bitcoin-only books, articles, and videos. Great for creating meetup reading lists and discussion topics.') +
