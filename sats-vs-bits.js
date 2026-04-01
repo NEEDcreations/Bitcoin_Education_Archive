@@ -168,7 +168,7 @@ function toggleSvbPanel() {
 
     var widget = document.createElement('div');
     widget.id = 'svbWidget';
-    widget.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;padding:10px 12px;background:var(--bg-side,#0a0a1a);border-radius:12px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;animation:fadeSlideIn 0.3s;';
+    widget.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;padding:14px 12px 8px;background:var(--bg-side,#0a0a1a);border-radius:12px;display:flex;flex-direction:column;justify-content:center;overflow:visible;animation:fadeSlideIn 0.3s;';
 
     // Make djBar position:relative for absolute overlay
     djBar.style.position = 'relative';
