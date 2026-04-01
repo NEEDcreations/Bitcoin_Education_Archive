@@ -571,6 +571,9 @@ window.reviewTrailWithNacho = function() {
     // Store for Nacho to pick up
     window._nachoTrailReview = wrong;
 
+    // Push trails into history so back returns there
+    history.pushState({ channel: 'trails' }, '', '#trails');
+
     // Enter Nacho Mode
     if (typeof enterNachoMode === 'function') enterNachoMode();
 
