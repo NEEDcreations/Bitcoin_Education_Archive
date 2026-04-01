@@ -65,6 +65,7 @@ function injectMeetupBuilder() {
                 _mbResource('📅', 'Meetup.com', 'https://www.meetup.com', 'The largest event platform. Great for reaching normies who aren\'t on Bitcoin apps yet. Free to join, organizers pay ~$25/mo for groups.') +
                 _mbResource('⚡', 'Geyser Fund', 'https://geyser.fund', 'Bitcoin-native crowdfunding. Raise sats for your meetup via Lightning. Apply for Bitcoin education grants (up to 1 BTC). Non-custodial.') +
                 _mbResource('📣', 'Nostr', 'https://primal.net', 'Post meetup announcements on Nostr — the censorship-resistant social network Bitcoiners use. No algorithm, no gatekeeping.') +
+                _mbResource('🎟️', 'Evento', 'https://evento.so', 'Free event listing platform with ticketing and payments — including Bitcoin payments. Clean UI, no fees for free events.') +
                 _mbResource('🗓️', 'Bitcoin Events', 'https://www.bitcoinevents.co.za', 'Bitcoin-focused event listing site. Submit your meetup to get visibility in the broader Bitcoin community.') +
                 _mbResource('💬', 'Telegram / Signal', null, 'Create a group chat for your local community. Most successful meetups have an always-on chat where members connect between events.') +
             '</div>' +
@@ -85,7 +86,6 @@ function injectMeetupBuilder() {
                 _mbResource('📂', 'Bitcoin Meetups Repository', 'https://github.com/ReedBTC/Bitcoin-Meetups', 'Open-source GitHub repo packed with guides on finding venues, structuring meetings, growing attendance, handling finances, and more. Community-maintained.') +
                 _mbResource('📕', 'How to Start a Bitcoin Meetup', 'https://www.whatisbitcoin.com/guides/start-your-own-bitcoin-meetup', 'Comprehensive guide covering venues, promotion, format, content ideas, and growing your community from zero.') +
                 _mbResource('🎓', 'Mi Primer Bitcoin', 'https://miprimerbitcoin.io/en/', 'Free open-source Bitcoin education curriculum. Perfect for structured meetup presentations — tested in El Salvador schools.') +
-                _mbResource('📚', 'Bitcoin Only Resources', 'https://bitcoin-only.com/learning', 'Curated list of Bitcoin-only books, articles, and videos. Great for creating meetup reading lists and discussion topics.') +
                 _mbResource('🦌', 'This Archive!', null, 'Use the 146 channels in the Bitcoin Education Archive as meetup discussion topics. One channel per meetup = 2+ years of weekly content!') +
             '</div>' +
 
