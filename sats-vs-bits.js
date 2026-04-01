@@ -131,9 +131,8 @@ function formatNum(n) {
 }
 
 function injectWidget() {
-    // Find the DJ section in global chat
     var djBar = document.getElementById('djNowPlaying');
-    if (!djBar || document.getElementById('svbWidget')) return;
+    if (!djBar || document.getElementById('svbTrigger')) return;
 
     // Inject animation style
     if (!document.getElementById('svbStyles')) {
@@ -143,35 +142,57 @@ function injectWidget() {
         document.head.appendChild(style);
     }
 
+    // Small inline button next to DJ bar
+    var trigger = document.createElement('button');
+    trigger.id = 'svbTrigger';
+    trigger.style.cssText = 'padding:5px 10px;background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(59,130,246,0.15));border:1px solid rgba(247,147,26,0.4);border-radius:8px;color:#f7931a;font-size:0.65rem;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;transition:0.2s;letter-spacing:0.5px;';
+    trigger.textContent = '⚡ SATS vs BITS — VOTE';
+    trigger.onclick = function() { toggleSvbPanel(); };
+
+    // Insert into the DJ action buttons row
+    var actionRow = djBar.querySelector('div:last-child');
+    if (actionRow) actionRow.appendChild(trigger);
+    else djBar.appendChild(trigger);
+
+    // Load live data
+    loadLiveVotes();
+}
+
+function toggleSvbPanel() {
+    var existing = document.getElementById('svbWidget');
+    if (existing) { existing.remove(); return; }
+
+    var djBar = document.getElementById('djNowPlaying');
+    if (!djBar) return;
+
     var widget = document.createElement('div');
     widget.id = 'svbWidget';
-    widget.style.cssText = 'position:relative;margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;overflow:hidden;';
+    widget.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;padding:10px 12px;background:var(--bg-side,#0a0a1a);border-radius:12px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;animation:fadeSlideIn 0.3s;';
+
+    // Make djBar position:relative for absolute overlay
+    djBar.style.position = 'relative';
+
     widget.innerHTML =
+        '<button onclick="document.getElementById(\'svbWidget\').remove()" style="position:absolute;top:6px;right:8px;background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;z-index:6;">✕</button>' +
         '<div style="text-align:center;font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">⚡ Sats vs Bits — Cast Your Vote!</div>' +
         '<div style="display:flex;align-items:center;justify-content:center;gap:16px;">' +
-            // Sats side
             '<div style="text-align:center;flex:1;">' +
-                '<button id="svbSatsBtn" onclick="window._svbVote(\'sats\')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#ea580c);border:2px solid #f7931a;color:#fff;font-size:1.3rem;cursor:pointer;transition:transform 0.15s;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;touch-action:manipulation;box-shadow:0 2px 10px rgba(247,147,26,0.3);">₿</button>' +
-                '<div id="svbSatsCount" style="font-size:1rem;font-weight:900;color:#f7931a;">0</div>' +
-                '<div style="font-size:0.6rem;color:var(--text-faint);font-weight:700;">SATS</div>' +
+                '<button id="svbSatsBtn" onclick="window._svbVote(\'sats\')" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#ea580c);border:2px solid #f7931a;color:#fff;font-size:1.2rem;cursor:pointer;transition:transform 0.15s;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;touch-action:manipulation;box-shadow:0 2px 10px rgba(247,147,26,0.3);">₿</button>' +
+                '<div id="svbSatsCount" style="font-size:0.95rem;font-weight:900;color:#f7931a;">0</div>' +
+                '<div style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">SATS</div>' +
             '</div>' +
-            // VS
-            '<div style="font-size:0.75rem;font-weight:900;color:var(--text-faint);letter-spacing:1px;">VS</div>' +
-            // Bits side
+            '<div style="font-size:0.7rem;font-weight:900;color:var(--text-faint);letter-spacing:1px;">VS</div>' +
             '<div style="text-align:center;flex:1;">' +
-                '<button id="svbBitsBtn" onclick="window._svbVote(\'bits\')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);border:2px solid #3b82f6;color:#fff;font-size:1.3rem;cursor:pointer;transition:transform 0.15s;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;touch-action:manipulation;box-shadow:0 2px 10px rgba(59,130,246,0.3);">ƀ</button>' +
-                '<div id="svbBitsCount" style="font-size:1rem;font-weight:900;color:#3b82f6;">0</div>' +
-                '<div style="font-size:0.6rem;color:var(--text-faint);font-weight:700;">BITS</div>' +
+                '<button id="svbBitsBtn" onclick="window._svbVote(\'bits\')" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);border:2px solid #3b82f6;color:#fff;font-size:1.2rem;cursor:pointer;transition:transform 0.15s;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;touch-action:manipulation;box-shadow:0 2px 10px rgba(59,130,246,0.3);">ƀ</button>' +
+                '<div id="svbBitsCount" style="font-size:0.95rem;font-weight:900;color:#3b82f6;">0</div>' +
+                '<div style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">BITS</div>' +
             '</div>' +
         '</div>' +
-        // Progress bar
-        '<div id="svbBar" style="height:6px;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;margin-top:8px;overflow:hidden;"></div>' +
-        '<div id="svbRemaining" style="text-align:center;font-size:0.55rem;color:var(--text-faint);margin-top:4px;">' + DAILY_LIMIT + ' taps left today</div>';
+        '<div id="svbBar" style="height:5px;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;margin-top:6px;overflow:hidden;"></div>' +
+        '<div id="svbRemaining" style="text-align:center;font-size:0.5rem;color:var(--text-faint);margin-top:3px;">' + DAILY_LIMIT + ' taps left today</div>';
 
-    djBar.parentNode.insertBefore(widget, djBar.nextSibling);
-
-    // Load live data from Firestore
-    loadLiveVotes();
+    djBar.appendChild(widget);
+    updateDisplay();
 }
 
 function loadLiveVotes() {
