@@ -135,7 +135,7 @@ function loadMeetupBuilderPosts() {
     var grid = document.getElementById('meetupBuilderGrid');
     if (!grid) return;
     if (typeof firebase === 'undefined' || !firebase.firestore) {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--text-faint);">Loading...</div>';
+        grid.innerHTML = '';
         return;
     }
     var db = firebase.firestore();
@@ -174,7 +174,7 @@ function loadMeetupBuilderPosts() {
         });
         grid.innerHTML = html;
     }).catch(function() {
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--text-faint);">Could not load resources</div>';
+        grid.innerHTML = '';
     });
 }
 
