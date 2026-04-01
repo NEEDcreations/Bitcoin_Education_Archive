@@ -81,6 +81,7 @@
 
             // START HERE
             guideSection('⭐ Start Here', [
+                guideCard('🗺️', 'rgba(34,197,94,0.12)', "Nacho's Trails", "Guided learning modules! Start with The Meadow (intro), climb The Mountain (intermediate), and conquer The Summit (advanced). Each trail has curated channels and a 25-question exam.", 'tag-new', 'Recommended path', "minimizeGuide();setTimeout(function(){go('trails')},300)"),
                 guideCard('📖', 'rgba(247,147,26,0.12)', 'Read Channels', 'Tap any channel to read curated Bitcoin content. Each channel you finish earns you points and badges!', 'tag-start', 'Your main activity', "goHome()"),
                 guideCard('🦌', 'rgba(234,179,8,0.12)', 'Ask Nacho Anything', 'Tap the floating deer! Nacho knows Bitcoin inside and out — ask any question and get instant answers.', 'tag-start', 'Always available', "if(typeof showNachoInput==='function')showNachoInput();minimizeGuide()")
             ]) +
@@ -139,7 +140,7 @@
     // ---- Helper: build card ----
     function guideCard(icon, iconBg, title, desc, tagClass, tagText, onclick) {
         var tag = tagClass && tagText ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:4px;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;' +
-            (tagClass === 'tag-start' ? 'background:rgba(34,197,94,0.15);color:#22c55e;' : tagClass === 'tag-earn' ? 'background:rgba(247,147,26,0.15);color:#f7931a;' : 'background:rgba(99,102,241,0.15);color:#818cf8;') +
+            (tagClass === 'tag-new' ? 'background:rgba(168,85,247,0.15);color:#a855f7;' : tagClass === 'tag-start' ? 'background:rgba(34,197,94,0.15);color:#22c55e;' : tagClass === 'tag-earn' ? 'background:rgba(247,147,26,0.15);color:#f7931a;' : 'background:rgba(99,102,241,0.15);color:#818cf8;') +
             '">' + tagText + '</span>' : '';
         var clickAttr = onclick ? ' onclick="' + onclick + '"' : '';
         return '<div' + clickAttr + ' style="padding:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:0.2s;">' +
