@@ -445,8 +445,9 @@ window.trailExamAnswer = function(btn, correct) {
         });
     }
 
+    exam.answered++;
     exam.current++;
-    setTimeout(renderTrailExamQuestion, 1200);
+    setTimeout(renderTrailExamQuestion, correct ? 1200 : 3500);
 };
 
 function renderTrailExamResults() {

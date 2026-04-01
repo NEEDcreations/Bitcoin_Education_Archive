@@ -2323,6 +2323,11 @@ if (document.readyState === 'loading') {
         }
         document.addEventListener('mouseup', tEnd);
         document.addEventListener('touchend', tEnd);
+
+        // Suppress click on toggle when drag happened (prevents reopening Nacho)
+        toggle.addEventListener('click', function(e) {
+            if (tMoved) { e.stopPropagation(); e.preventDefault(); tMoved = false; }
+        }, true);
     }
 
     // Wait for DOM then init
