@@ -566,8 +566,8 @@ if (_realGoTrailsNav) {
         // If navigating from trails to a channel, push trails state first
         if (window._fromTrails && id !== 'trails') {
             window._fromTrails = false;
-            // Ensure trails is in history so back returns there
-            history.replaceState({ channel: 'trails' }, '', '#trails');
+            // Push trails into history stack so back button returns there
+            history.pushState({ channel: 'trails' }, '', '#trails');
             var result = await _realGoTrailsNav.apply(this, arguments);
             return result;
         }
