@@ -295,14 +295,22 @@ window.startTrailExam = function(moduleId) {
         return;
     }
 
+    // Shuffle options for each question once
+    examQuestions.forEach(function(q) {
+        q._options = fisherYatesFull([q.a].concat(q.wrong || []).slice(0, 4));
+        q._answered = false;
+        q._correct = null; // null = unanswered, true/false
+        q._selected = null;
+    });
+
     // Store exam state
     window._trailExam = {
         moduleId: moduleId,
         questions: examQuestions,
         current: 0,
         score: 0,
+        answered: 0,
         total: examQuestions.length,
-        answers: []
     };
 
     renderTrailExamQuestion();
@@ -348,7 +356,7 @@ function renderTrailExamQuestion() {
             '<div style="color:var(--heading);font-weight:800;font-size:0.9rem;">' + mod.name + ' Exam</div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;">Question ' + (exam.current + 1) + ' of ' + exam.total + '</div>' +
         '</div>' +
-        '<span style="color:' + mod.color + ';font-weight:700;font-size:0.85rem;">' + exam.score + '/' + exam.total + '</span>' +
+        '<span style="color:' + mod.color + ';font-weight:700;font-size:0.8rem;">' + exam.score + ' correct / ' + exam.answered + ' answered</span>' +
     '</div>';
 
     // Progress bar
