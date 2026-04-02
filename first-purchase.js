@@ -91,12 +91,42 @@ var APPS_BY_REGION = {
         { name: 'Blink', icon: '⚡', url: 'https://blink.sv', desc: 'Lightning-first wallet from El Salvador. Great for Latin America.', rec: true },
         { name: 'Bitso', icon: '🇲🇽', url: 'https://bitso.com', desc: 'Largest exchange in Latin America. Available in Mexico, Brazil, Argentina.' },
         { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Available in El Salvador and expanding. Lightning-native.', referral: 'https://invite.strike.me/NKP150', referralBonus: 'Get $10 free' },
+        { name: 'Mercado Bitcoin', icon: '🇧🇷', url: 'https://mercadobitcoin.com.br', desc: 'Largest Brazilian exchange. Easy BRL deposits. Trusted since 2013.' },
+    ],
+    africa: [
+        { name: 'Bitnob', icon: '🌍', url: 'https://bitnob.com', desc: 'Bitcoin app for Africa. Lightning enabled. Send/receive across borders instantly.', rec: true },
+        { name: 'Machankura', icon: '📱', url: 'https://8333.mobi', desc: 'Buy Bitcoin via USSD — no internet or smartphone needed. Works on any phone.', rec: true },
+        { name: 'Paxful', icon: '🤝', url: 'https://paxful.com', desc: 'Peer-to-peer marketplace. 350+ payment methods. Very popular in Nigeria & Ghana.' },
+        { name: 'Yellow Card', icon: '💛', url: 'https://yellowcard.io', desc: 'Buy Bitcoin across 20+ African countries. Mobile money, bank transfer supported.' },
+        { name: 'Luno', icon: '🔵', url: 'https://luno.com', desc: 'Available in South Africa, Nigeria, and more. Easy on-ramp with local currency.' },
+        { name: 'Bisq', icon: '🔒', url: 'https://bisq.network', desc: 'Decentralized P2P exchange. No KYC. Works everywhere with internet access.' },
+    ],
+    india: [
+        { name: 'WazirX', icon: '🇮🇳', url: 'https://wazirx.com', desc: 'Largest Indian exchange. INR deposits via UPI and bank transfer.', rec: true },
+        { name: 'CoinDCX', icon: '💎', url: 'https://coindcx.com', desc: 'Popular Indian exchange. Easy INR on-ramp. Beginner-friendly interface.' },
+        { name: 'Giottus', icon: '🟢', url: 'https://giottus.com', desc: 'Indian exchange with low fees. Quick INR deposits. Good mobile app.' },
+        { name: 'Bisq', icon: '🔒', url: 'https://bisq.network', desc: 'Decentralized P2P exchange. No KYC. UPI payment method available.' },
+        { name: 'RoboSats', icon: '🤖', url: 'https://robosats.com', desc: 'Lightning-based P2P exchange. No KYC. Fast trades with UPI.' },
+    ],
+    mena: [
+        { name: 'Rain', icon: '🌧️', url: 'https://rain.co', desc: 'Licensed exchange for Middle East. Available in UAE, Saudi Arabia, Bahrain, Oman, Kuwait.', rec: true },
+        { name: 'BitOasis', icon: '🏜️', url: 'https://bitoasis.net', desc: 'Dubai-based exchange. AED deposits. Trusted across the Gulf region.' },
+        { name: 'Bisq', icon: '🔒', url: 'https://bisq.network', desc: 'Decentralized P2P exchange. No KYC. Works everywhere.' },
+        { name: 'RoboSats', icon: '🤖', url: 'https://robosats.com', desc: 'Lightning-based P2P. No KYC. Fast trades globally.' },
+    ],
+    asia: [
+        { name: 'Bitflyer', icon: '🇯🇵', url: 'https://bitflyer.com', desc: 'Largest Japanese exchange. JPY deposits. Licensed and regulated.', rec: true },
+        { name: 'Coins.ph', icon: '🇵🇭', url: 'https://coins.ph', desc: 'Popular in Philippines. Buy Bitcoin with local payment methods. Lightning enabled.' },
+        { name: 'Luno', icon: '🔵', url: 'https://luno.com', desc: 'Available in Malaysia and Indonesia. Easy local currency on-ramp.' },
+        { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Global exchange available across Asia. Lightning withdrawals.' },
+        { name: 'Bisq', icon: '🔒', url: 'https://bisq.network', desc: 'Decentralized P2P exchange. No KYC. Works everywhere.' },
     ],
     other: [
         { name: 'Bisq', icon: '🔒', url: 'https://bisq.network', desc: 'Decentralized exchange. No KYC. Peer-to-peer. Works everywhere.', rec: true },
         { name: 'RoboSats', icon: '🤖', url: 'https://robosats.com', desc: 'Lightning-based P2P exchange. No KYC. Fast trades.' },
         { name: 'Hodl Hodl', icon: '🤝', url: 'https://hodlhodl.com', desc: 'P2P trading platform. Non-custodial. Global.' },
         { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Available in most countries. Established and trusted.' },
+        { name: 'Machankura', icon: '📱', url: 'https://8333.mobi', desc: 'Buy Bitcoin via USSD on any phone. No internet needed. Great for developing regions.' },
     ]
 };
 
@@ -155,8 +185,12 @@ window.renderFirstPurchase = function() {
             { id: 'uk', emoji: '🇬🇧', name: 'United Kingdom' },
             { id: 'eu', emoji: '🇪🇺', name: 'Europe' },
             { id: 'au', emoji: '🇦🇺', name: 'Australia' },
+            { id: 'india', emoji: '🇮🇳', name: 'India' },
+            { id: 'asia', emoji: '🌏', name: 'Asia Pacific' },
+            { id: 'africa', emoji: '🌍', name: 'Africa' },
+            { id: 'mena', emoji: '🕌', name: 'Middle East' },
             { id: 'latam', emoji: '🌎', name: 'Latin America' },
-            { id: 'other', emoji: '🌍', name: 'Other / Global' },
+            { id: 'other', emoji: '🌐', name: 'Other / Global' },
         ];
         regions.forEach(function(r) {
             html += '<button onclick="localStorage.setItem(\'btc_fp_region\',\'' + r.id + '\');_fpSaveStep(1);renderFirstPurchase()" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
