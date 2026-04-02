@@ -249,7 +249,7 @@ window.showOnboardingWizard = function() {
 window.applySimplifiedHome = function() {
     var level = window.getUserSimplificationLevel();
     var profile = window.getOnboardingProfile();
-    if (level === 'full' || level === 'advanced') return;
+    if (level === 'full') return;
 
     // Hide elements based on level
     var hideSelectors = {
@@ -260,7 +260,8 @@ window.applySimplifiedHome = function() {
             '.desktop-only-apps', '#lbFloatBtn', '#desktopDMBtn', '#rankBar',
             '#activity-ticker', '#continueReading'
         ],
-        intermediate: ['#giveawayBanner', '#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker']
+        intermediate: ['#giveawayBanner', '#dailySpinBanner', '#progressRings', '#explorationMap', '#activity-ticker'],
+        advanced: ['#giveawayBanner', '#dailySpinBanner']
     };
 
     (hideSelectors[level] || []).forEach(function(sel) {
@@ -351,7 +352,9 @@ window.applySimplifiedHome = function() {
         '</div>';
     }
 
-    var heading = (level === 'beginner') ? '🟢 START HERE — tap your first channel' : '📌 Recommended for you';
+    var heading = (level === 'beginner') ? '🟢 START HERE — tap your first channel' :
+                  (level === 'intermediate') ? '📌 Picked for you — based on your interests' :
+                  '🔥 Deep cuts — based on your interests';
     shtml += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">' + heading + '</div>';
 
     channels.forEach(function(ch, idx) {
@@ -375,8 +378,41 @@ window.applySimplifiedHome = function() {
         '</button>';
     });
 
-    // Ask Nacho card (less prominent for beginners)
-    if (level !== 'beginner' || visited.length >= 2) {
+    // Quick action cards — level-specific
+    shtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">';
+    if (level === 'beginner') {
+        // Beginners: First Purchase + Trails (only after 2 channels)
+        if (visited.length >= 2) {
+            shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+                '<div style="font-size:1.3rem;">🛒</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Buy Your First Bitcoin</div></div>';
+            shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+                '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Nacho\'s Trails</div></div>';
+        }
+    } else if (level === 'intermediate') {
+        // Intermediate: Trails + First Purchase + Dashboard + Nacho
+        shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Nacho\'s Trails</div></div>';
+        shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🛒</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Buy Bitcoin Guide</div></div>';
+        shtml += '<div onclick="go(\'bitcoin-dashboard\')" style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">📊</div><div style="font-weight:700;font-size:0.78rem;color:#6366f1;margin-top:4px;">Top Indicators</div></div>';
+        shtml += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:14px;background:rgba(249,115,22,0.04);border:1px dashed rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Ask Nacho</div></div>';
+    } else {
+        // Advanced: Dashboard + Global Chat + Scholar Cert + Meetup Builder
+        shtml += '<div onclick="go(\'bitcoin-dashboard\')" style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">📊</div><div style="font-weight:700;font-size:0.78rem;color:#6366f1;margin-top:4px;">Top Indicators</div></div>';
+        shtml += '<div onclick="if(typeof renderChatHub===\'function\')renderChatHub(\'global\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🌍</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Global Chat</div></div>';
+        shtml += '<div onclick="showSettings();setTimeout(function(){showSettingsPage(\'scholar\')},100)" style="padding:14px;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🎓</div><div style="font-weight:700;font-size:0.78rem;color:#a855f7;margin-top:4px;">Scholar Cert</div></div>';
+        shtml += '<div onclick="go(\'irl-sync\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🤝</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">IRL Meetups</div></div>';
+    }
+    shtml += '</div>';
+
+    // Ask Nacho card (for beginners after 2 channels, skip for others who have it in grid)
+    if (level === 'beginner' && visited.length >= 2) {
         shtml += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:16px;background:linear-gradient(135deg,rgba(249,115,22,0.04),rgba(249,115,22,0.01));border:1px dashed rgba(249,115,22,0.2);border-radius:14px;margin-top:14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:0.2s;">' +
             '<span style="font-size:1.5rem;">🦌</span>' +
             '<div><div style="font-weight:700;font-size:0.85rem;color:var(--heading);">Ask Nacho anything</div>' +
