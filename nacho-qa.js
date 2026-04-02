@@ -491,7 +491,7 @@ const NACHO_KB = [
       siteAction: "if(typeof renderChatHub==='function')renderChatHub('global')", siteLabel: '⚡ Vote Now', isSiteNav: true },
     { keys: ['top indicator','indicators','cycle top','pi cycle','nupl','puell','mayer multiple','power law','bitcoin dashboard','market indicators','cycle signal','are we at the top','bitcoin top','market top'],
       answer: "Our Top Indicators Dashboard tracks 20+ live cycle signals, {name}! 📊🦌\\n\\nPi Cycle, NUPL, Puell Multiple, Mayer Multiple, RSI-22, AHR999, MSTR cost basis, ETF ratio, Power Law deviation & more. When multiple indicators flash red, the market may be overheated. When they're green, historically it's been a good time to stack! Check it out on the Bitcoin Dashboard page.",
-      siteAction: "go('bitcoin-dashboard')", siteLabel: '📊 Open Dashboard', isSiteNav: true },
+      siteAction: "if(typeof toggleDashboard==='function')toggleDashboard()", siteLabel: '📊 Open Dashboard', isSiteNav: true },
     { keys: ['meetup builder','create meetup','share meetup','meetup resources','meetup venues','meetup platforms','meetup guide'],
       answer: "Meetup Builder helps you plan your Bitcoin meetup from scratch! 🔨🦌 Find platforms to promote it (Meetup.com, Eventbrite, Orange Pill App), free venue ideas, hosting guides, and pro tips. You can also upload photos and videos from your meetups to inspire others!",
       siteAction: "go('meetup-builder')", siteLabel: '🔨 Open Meetup Builder', isSiteNav: true },

@@ -287,8 +287,11 @@ window.toggleNotifOverlay = function() {
 
 window.renderNotifList = async function() {
     var body = document.getElementById('notifPanelBody');
-    if (!body || !auth || !auth.currentUser) {
-        if (body) body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);">Sign in to see notifications</div>';
+    if (!body) return;
+    if (!auth || !auth.currentUser) {
+        // Auth not ready yet — retry after short delay
+        setTimeout(function() { if (typeof renderNotifList === 'function') renderNotifList(); }, 1500);
+        body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Loading...</div>';
         return;
     }
     body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.8rem;">Loading...</div>';
@@ -329,8 +332,7 @@ window.renderNotifList = async function() {
         body.innerHTML = html;
     } catch(e) {
         console.warn('[notif] renderNotifList error:', e);
-        body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">' +
-            ((!auth || !auth.currentUser) ? 'Sign in to see notifications' : 'Could not load notifications. Try again later.') + '</div></div>';
+        body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">No notifications yet</div></div>';
     }
 };
 
