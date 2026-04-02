@@ -7,9 +7,11 @@ cd /root/simple-archive
 
 echo "$(date) — Fetching MSTR data from bitcointreasuries.net..."
 
-# MSTR BTC — extract the largest 6-digit number with commas (762,099 format)
-MSTR_RAW=$(curl -s "https://bitcointreasuries.net/" 2>/dev/null | grep -oP '\d{3},\d{3}' | sort -t',' -k1 -rn | head -1)
-MSTR_BTC=$(echo "$MSTR_RAW" | tr -d ',')
+PAGE=$(curl -s "https://bitcointreasuries.net/" 2>/dev/null)
+
+# Find MSTR row — look for 762,XXX pattern near "MSTR" text
+# The MSTR ticker and its BTC count appear close together in the HTML
+MSTR_BTC=$(echo "$PAGE" | tr '\n' ' ' | grep -oP 'MSTR.{0,500}?\d{3},\d{3}' | grep -oP '\d{3},\d{3}' | head -1 | tr -d ',')
 
 if [ -z "$MSTR_BTC" ] || [ "$MSTR_BTC" -lt 500000 ] 2>/dev/null; then
     echo "ERROR: MSTR scrape failed or value too low ($MSTR_BTC). Skipping."
