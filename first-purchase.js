@@ -74,6 +74,19 @@ var APPS_BY_REGION = {
         { name: 'CoinCorner', icon: '🇬🇧', url: 'https://coincorner.com', desc: 'UK Bitcoin-only company. Lightning support. Auto-buy available.' },
         { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Major exchange with UK support. Good liquidity.' },
     ],
+    ca: [
+        { name: 'Bull Bitcoin', icon: '🐂', url: 'https://bullbitcoin.com', desc: 'Canadian Bitcoin-only exchange. Non-custodial. Sends directly to your wallet.', rec: true },
+        { name: 'Shakepay', icon: '🤝', url: 'https://shakepay.com', desc: 'Easy Canadian app. Shake your phone daily for free sats. Very beginner-friendly.' },
+        { name: 'Bitcoin Well', icon: '🟧', url: 'https://bitcoinwell.com', desc: 'Non-custodial exchange. Bitcoin ATMs across Canada. Lightning enabled.', referral: 'https://app.bitcoinwell.com/ref/needcreations', referralBonus: 'Referral bonus' },
+        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Lightning-native. Low fees. Available in Canada.', referral: 'https://invite.strike.me/NKP150', referralBonus: 'Get $10 free' },
+        { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Major exchange with full Canadian support. Lightning withdrawals.' },
+    ],
+    au: [
+        { name: 'Amber', icon: '🟡', url: 'https://amber.app', desc: 'Australian Bitcoin-only app. Auto-DCA, "Buy the Dip" feature. Founded in Melbourne.', rec: true, referral: 'https://amber.app', referralCode: 'NEEDcreations', referralBonus: 'Get $10 free' },
+        { name: 'HardBlock', icon: '🧱', url: 'https://hardblock.com.au', desc: 'Australian Bitcoin-only exchange. Non-custodial option. Instant buy.' },
+        { name: 'Independent Reserve', icon: '🦘', url: 'https://independentreserve.com', desc: 'Established Australian exchange since 2013. AUD deposits. Trusted.' },
+        { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Major global exchange. Available in Australia. Lightning withdrawals.' },
+    ],
     latam: [
         { name: 'Blink', icon: '⚡', url: 'https://blink.sv', desc: 'Lightning-first wallet from El Salvador. Great for Latin America.', rec: true },
         { name: 'Bitso', icon: '🇲🇽', url: 'https://bitso.com', desc: 'Largest exchange in Latin America. Available in Mexico, Brazil, Argentina.' },
@@ -138,8 +151,10 @@ window.renderFirstPurchase = function() {
         html += _stepHeader(step);
         var regions = [
             { id: 'us', emoji: '🇺🇸', name: 'United States' },
+            { id: 'ca', emoji: '🇨🇦', name: 'Canada' },
             { id: 'uk', emoji: '🇬🇧', name: 'United Kingdom' },
             { id: 'eu', emoji: '🇪🇺', name: 'Europe' },
+            { id: 'au', emoji: '🇦🇺', name: 'Australia' },
             { id: 'latam', emoji: '🌎', name: 'Latin America' },
             { id: 'other', emoji: '🌍', name: 'Other / Global' },
         ];
