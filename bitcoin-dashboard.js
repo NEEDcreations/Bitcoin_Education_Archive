@@ -1036,10 +1036,10 @@ function loadTopIndicators() {
     }
 
     // 27. MicroStrategy Avg Bitcoin Cost
-    // MSTR holds ~500K+ BTC at avg cost ~$66K (as of early 2025, updated periodically)
+    // MSTR holds ~762K BTC at avg cost ~$75.7K (as of March 2026, updated periodically)
     if (price) {
-        var mstrAvgCost = 66384; // update periodically from public filings
-        var mstrBTC = 506137;
+        var mstrAvgCost = 75694; // update periodically from public filings
+        var mstrBTC = 762099;
         var mstrPnL = ((price - mstrAvgCost) / mstrAvgCost * 100).toFixed(1);
         indicators.push({
             emoji: '🏢', name: 'MSTR Avg Cost',
@@ -1504,9 +1504,9 @@ function loadTopIndicators() {
                 }
             }
             // ETF/BTC Ratio: ETF AUM / BTC market cap
-            // Estimate AUM from total BTC held (~709K BTC * current price)
-            // CoinGlass shows ~709K BTC total; use that as baseline
-            var etfBtcHeld = 709000; // update periodically
+            // Estimate AUM from total BTC held (~1.31M BTC * current price)
+            // CoinGlass shows ~1.31M BTC total; use that as baseline
+            var etfBtcHeld = 1310000; // update periodically
             var btcPrice = parseFloat(localStorage.getItem('btc_last_price')) || 83000;
             var etfAum = etfBtcHeld * btcPrice;
             var btcMktCap = btcPrice * 19840000; // supply
