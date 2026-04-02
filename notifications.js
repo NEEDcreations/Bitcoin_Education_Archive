@@ -144,7 +144,7 @@ window.showNotifications = async function() {
         list.innerHTML = html;
     } catch(e) {
         var list = document.getElementById('notifList');
-        if (list) list.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">Error loading notifications</div>';
+        if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Could not load notifications</div>';
     }
 };
 
@@ -328,7 +328,9 @@ window.renderNotifList = async function() {
         });
         body.innerHTML = html;
     } catch(e) {
-        body.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;font-size:0.8rem;">Error loading notifications</div>';
+        console.warn('[notif] renderNotifList error:', e);
+        body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">' +
+            ((!auth || !auth.currentUser) ? 'Sign in to see notifications' : 'Could not load notifications. Try again later.') + '</div></div>';
     }
 };
 

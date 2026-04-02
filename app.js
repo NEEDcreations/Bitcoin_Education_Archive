@@ -3605,7 +3605,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_home', title: '🏠 Home', desc: 'Return to the homepage', keywords: 'home main start beginning', action: 'goHome()' },
         { id: '_firstpurchase', title: '🛒 Your First Bitcoin Purchase', desc: 'Step-by-step guide to buying your first Bitcoin — apps for 11 regions', keywords: 'buy purchase first bitcoin exchange app strike river cash coinbase amber wallet region country how to start beginner dca', action: "go('first-purchase')" },
         { id: '_trails', title: '🦌 Nacho\'s Trails', desc: 'Guided learning paths through Bitcoin education — Meadow, Mountain & Summit', keywords: 'trails nacho guided path learning course module meadow mountain summit exam test progress curriculum education beginner intermediate advanced', action: "go('trails')" },
-        { id: '_dashboard', title: '📊 Top Indicators', desc: 'Live Bitcoin cycle top indicators — Pi Cycle, NUPL, Puell, Power Law & more', keywords: 'dashboard indicators top cycle signal pi cycle nupl puell mayer multiple rsi ahr999 mstr etf power law rainbow reserve risk bitcoin metrics data analytics chart', action: "go('bitcoin-dashboard')" },
+        { id: '_dashboard', title: '📊 Top Indicators', desc: 'Live Bitcoin cycle top indicators — Pi Cycle, NUPL, Puell, Power Law & more', keywords: 'dashboard indicators top cycle signal pi cycle nupl puell mayer multiple rsi ahr999 mstr etf power law rainbow reserve risk bitcoin metrics data analytics chart', action: "if(typeof toggleDashboard==='function')toggleDashboard()" },
         { id: '_meetupbox', title: '📦 Meetup-in-a-Box', desc: 'Ready-made meetup templates with agendas and host tips', keywords: 'meetup box template agenda host tips lightning workshop self custody mining event organize plan download', action: "go('irl-sync')" },
         { id: '_buddy', title: '🤝 Bitcoin Buddy', desc: 'Find a learning partner — teachers matched with learners', keywords: 'buddy partner match learn teach mentor mentee pair connect chat find friend study', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_certs', title: '📜 Shareable Certificates', desc: 'Share your Scholar Certification with a verifiable public link', keywords: 'certificate share verify link public proof scholar achievement social media url', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
@@ -4328,6 +4328,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (typeof go === 'function') { go('lightning'); return; }
                     break;
                 case 'dashboard':
+                case 'bitcoin-dashboard':
                 case 'metrics':
                 case 'network':
                     if (typeof toggleDashboard === 'function') { history.replaceState({ home: true }, '', window.location.pathname); toggleDashboard(); return; }
