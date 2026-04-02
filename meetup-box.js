@@ -184,11 +184,71 @@ window.showMeetupTemplate = function(idx) {
         html += '</div></div>';
     }
 
-    html += '<button onclick="document.getElementById(\'meetupTemplateOverlay\').remove()" style="width:100%;margin-top:16px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);cursor:pointer;font-family:inherit;">Close</button>';
+    html += '<div style="display:flex;gap:8px;margin-top:16px;">' +
+        '<button onclick="downloadMeetupTemplate(' + idx + ')" style="flex:1;padding:10px;background:linear-gradient(135deg,' + t.color + '22,' + t.color + '11);border:1px solid ' + t.color + ';border-radius:10px;color:' + t.color + ';cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;">⬇️ Download</button>' +
+        '<button onclick="document.getElementById(\'meetupTemplateOverlay\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);cursor:pointer;font-family:inherit;">Close</button>' +
+    '</div>';
     html += '</div>';
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+};
+
+window.downloadMeetupTemplate = function(idx) {
+    var t = TEMPLATES[idx];
+    if (!t) return;
+
+    var lines = [];
+    lines.push('MEETUP-IN-A-BOX: ' + t.title);
+    lines.push('Duration: ' + t.duration + '  |  Level: ' + t.level);
+    lines.push('');
+    lines.push(t.desc);
+    lines.push('');
+    lines.push('═══════════════════════════════════════');
+    lines.push('AGENDA');
+    lines.push('═══════════════════════════════════════');
+    t.agenda.forEach(function(a) {
+        // Strip emoji for clean text
+        var item = a.item.replace(/[\u{1F300}-\u{1FAD6}\u{2600}-\u{27BF}]\s*/gu, '').trim();
+        lines.push('');
+        lines.push('[' + a.time + ']  ' + item);
+        lines.push('        ' + a.detail);
+    });
+    if (t.tips) {
+        lines.push('');
+        lines.push('═══════════════════════════════════════');
+        lines.push('HOST TIPS');
+        lines.push('═══════════════════════════════════════');
+        lines.push(t.tips);
+    }
+    if (t.channels && t.channels.length) {
+        lines.push('');
+        lines.push('═══════════════════════════════════════');
+        lines.push('STUDY CHANNELS');
+        lines.push('═══════════════════════════════════════');
+        t.channels.forEach(function(ch) {
+            var chData = typeof CHANNELS !== 'undefined' && CHANNELS[ch] ? CHANNELS[ch] : null;
+            var chName = chData ? chData.title : ch;
+            lines.push('• ' + chName + '  →  https://bitcoineducation.quest/#' + ch);
+        });
+    }
+    lines.push('');
+    lines.push('───────────────────────────────────────');
+    lines.push('Generated from Bitcoin Education Archive');
+    lines.push('https://bitcoineducation.quest');
+
+    var text = lines.join('\n');
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = t.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') + '-meetup-template.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof showToast === 'function') showToast('📦 Template downloaded!');
 };
 
 // Hook into meetup builder render
