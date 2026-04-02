@@ -27514,6 +27514,7 @@ window.toggleMobileLearnMenu = function() {
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
             // Nacho's Trails
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🦌 Nacho\'s Trails — Guided Learning</button>' +
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'first-purchase\')" style="padding:12px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🛒 Your First Bitcoin Purchase</button>' +
             // New to Bitcoin
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'one-stop-shop\')" style="padding:12px 14px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🟢 New to Bitcoin?</button>' +
             // Flashcards
