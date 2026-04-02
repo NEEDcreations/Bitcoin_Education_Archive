@@ -2886,11 +2886,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        // Push history state so back button closes modal instead of exiting app
+        history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings error: ' + e.message);
         console.error('showUsernamePrompt error:', e);
@@ -2910,6 +2913,7 @@ window.showSignInOnly = function() {
     var modal = document.getElementById('usernameModal');
     if (!modal) return;
     modal.classList.add('open');
+    history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
 
     // Hide signup-only fields
     setTimeout(function() {
@@ -33283,6 +33287,21 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
 
             // Close any open overlay instead of navigating away
+
+            // Notification panel
+            var _notifPanel = document.getElementById('notifPanel');
+            if (_notifPanel && _notifPanel.style.transform === 'translateY(0px)') {
+                if (typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
+                return;
+            }
+
+            // Chat overlay
+            if (window._chatOverlayOpen) {
+                if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+                return;
+            }
+
+            // Settings/sign-in modal
             var _settingsModal = document.getElementById('usernameModal');
             if (_settingsModal && _settingsModal.classList.contains('open')) {
                 _settingsModal.classList.remove('open');

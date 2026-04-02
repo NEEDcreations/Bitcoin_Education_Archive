@@ -2806,11 +2806,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        // Push history state so back button closes modal instead of exiting app
+        history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
         if (typeof showToast === 'function') showToast('Settings error: ' + e.message);
         console.error('showUsernamePrompt error:', e);
@@ -2830,6 +2833,7 @@ window.showSignInOnly = function() {
     var modal = document.getElementById('usernameModal');
     if (!modal) return;
     modal.classList.add('open');
+    history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
 
     // Hide signup-only fields
     setTimeout(function() {

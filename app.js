@@ -4119,6 +4119,21 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
 
             // Close any open overlay instead of navigating away
+
+            // Notification panel
+            var _notifPanel = document.getElementById('notifPanel');
+            if (_notifPanel && _notifPanel.style.transform === 'translateY(0px)') {
+                if (typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
+                return;
+            }
+
+            // Chat overlay
+            if (window._chatOverlayOpen) {
+                if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+                return;
+            }
+
+            // Settings/sign-in modal
             var _settingsModal = document.getElementById('usernameModal');
             if (_settingsModal && _settingsModal.classList.contains('open')) {
                 _settingsModal.classList.remove('open');

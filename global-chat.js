@@ -900,6 +900,9 @@ window.toggleChatOverlay = function() {
     _overlayOpen = !_overlayOpen;
     window._chatOverlayOpen = _overlayOpen;
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (_overlayOpen) {
+        history.pushState({ modal: 'chat' }, '', window.location.pathname + window.location.hash);
+    }
 
     if (btn) {
         btn.innerHTML = '💬';

@@ -278,6 +278,7 @@ window.toggleNotifOverlay = function() {
     }
 
     if (_notifOverlayOpen) {
+        history.pushState({ modal: 'notif' }, '', window.location.pathname + window.location.hash);
         renderNotifList();
         // Clear badge
         var b = document.getElementById('notifOverlayBadge');
