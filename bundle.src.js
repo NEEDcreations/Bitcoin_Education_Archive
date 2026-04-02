@@ -28648,7 +28648,7 @@ function loadTopIndicators() {
     // MSTR holds ~762K BTC at avg cost ~$75.7K (as of March 2026, updated periodically)
     if (price) {
         var mstrAvgCost = 75694; // update periodically from public filings
-        var mstrBTC = 762099;
+        var mstrBTC = 968889;
         var mstrPnL = ((price - mstrAvgCost) / mstrAvgCost * 100).toFixed(1);
         indicators.push({
             emoji: '🏢', name: 'MSTR Avg Cost',
