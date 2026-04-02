@@ -46,7 +46,6 @@ window.showBuddyFinder = function() {
         '<div style="display:flex;gap:8px;">' +
             _buddyGoalBtn('learn', '📖', 'Learn', 'Find a mentor') +
             _buddyGoalBtn('teach', '🎓', 'Teach', 'Help someone') +
-            _buddyGoalBtn('chat', '💬', 'Chat', 'Just connect') +
         '</div></div>';
 
     // Optional intro
@@ -126,7 +125,7 @@ window.submitBuddyRequest = async function() {
 
         // Try to find a match
         var match = null;
-        var complementaryGoal = goal === 'learn' ? 'teach' : goal === 'teach' ? 'learn' : 'chat';
+        var complementaryGoal = goal === 'learn' ? 'teach' : 'learn'; // Only teacher↔learner
 
         // Priority 1: Complementary goal match (learner + teacher)
         var q1 = await db.collection(COLLECTION)
@@ -141,15 +140,7 @@ window.submitBuddyRequest = async function() {
             match = candidates[0]; // Simple: take first available
         }
 
-        // Priority 2: Same goal (chat + chat, or any available)
-        if (!match) {
-            var q2 = await db.collection(COLLECTION)
-                .where('uid', '!=', uid)
-                .limit(5).get();
-            if (!q2.empty) {
-                q2.forEach(function(doc) { if (!match) match = { id: doc.id, data: doc.data() }; });
-            }
-        }
+        // No fallback — only teacher↔learner matches. Users wait if no complement exists.
 
         if (match) {
             // Match found! Remove both from pool and create match record
@@ -209,7 +200,7 @@ window.submitBuddyRequest = async function() {
 
             setTimeout(function() {
                 document.getElementById('buddyFinderOverlay').remove();
-                if (typeof showToast === 'function') showToast('🤝 You\'re in the buddy pool! We\'ll match you when someone compatible joins. Check back soon!');
+                if (typeof showToast === 'function') showToast(goal === 'learn' ? '🤝 You\'re in the buddy pool! We\'ll pair you with a teacher when one joins.' : '🤝 You\'re in the buddy pool! We\'ll pair you with a learner when one joins.');
             }, 1500);
         }
     } catch(e) {
