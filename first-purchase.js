@@ -55,27 +55,29 @@ var STEPS = [
 
 var APPS_BY_REGION = {
     us: [
-        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Easiest for beginners. Free Lightning payments. No fees on recurring buys.', rec: true },
-        { name: 'Cash App', icon: '💚', url: 'https://cash.app', desc: 'Already have it? Buy Bitcoin right inside. Auto-purchase available.' },
-        { name: 'River', icon: '🏔️', url: 'https://river.com', desc: 'Bitcoin-only. Great DCA (auto-buy). Excellent for long-term stacking.' },
+        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Easiest for beginners. Free Lightning payments. No fees on recurring buys.', rec: true, referral: 'https://invite.strike.me/NKP150', referralBonus: 'Get $10 free' },
+        { name: 'Cash App', icon: '💚', url: 'https://cash.app', desc: 'Already have it? Buy Bitcoin right inside. Auto-purchase available.', referral: 'https://cash.app/app/DRLRTNC', referralBonus: 'Get $5 free' },
+        { name: 'River', icon: '🏔️', url: 'https://river.com', desc: 'Bitcoin-only. Great DCA (auto-buy). Excellent for long-term stacking.', referral: 'https://river.com/signup?r=H4FMHRUS', referralBonus: 'Free sats bonus' },
         { name: 'Swan Bitcoin', icon: '🦢', url: 'https://swanbitcoin.com', desc: 'Auto-DCA focused. Set it and forget it. Bitcoin-only company.' },
+        { name: 'Amber', icon: '🟡', url: 'https://amber.app', desc: 'Auto-DCA with smart features like "Buy the Dip". Bitcoin-only.', referral: 'https://amber.app', referralCode: 'NEEDcreations', referralBonus: 'Get $10 free' },
         { name: 'Coinbase', icon: '🔵', url: 'https://coinbase.com', desc: 'Largest US exchange. Higher fees but very beginner-friendly UI.' },
     ],
     eu: [
         { name: 'Relai', icon: '🇨🇭', url: 'https://relai.app', desc: 'Swiss Bitcoin-only app. No KYC under limits. Auto-DCA. Best for Europe.', rec: true },
         { name: 'Pocket Bitcoin', icon: '🟠', url: 'https://pocketbitcoin.com', desc: 'Buy Bitcoin directly to your own wallet. Swiss, no account needed.' },
+        { name: 'Bitcoin Well', icon: '🟧', url: 'https://bitcoinwell.com', desc: 'Non-custodial Bitcoin exchange. Lightning enabled. No holding your coins.', referral: 'https://app.bitcoinwell.com/ref/needcreations', referralBonus: 'Referral bonus' },
         { name: 'Bitvavo', icon: '🇳🇱', url: 'https://bitvavo.com', desc: 'Popular in Europe. Low fees. Easy bank transfers.' },
         { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Major exchange. Available across Europe. Lightning withdrawals.' },
     ],
     uk: [
-        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Now available in UK. Lightning-native. Very low fees.', rec: true },
+        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Now available in UK. Lightning-native. Very low fees.', rec: true, referral: 'https://invite.strike.me/NKP150', referralBonus: 'Get $10 free' },
         { name: 'CoinCorner', icon: '🇬🇧', url: 'https://coincorner.com', desc: 'UK Bitcoin-only company. Lightning support. Auto-buy available.' },
         { name: 'Kraken', icon: '🐙', url: 'https://kraken.com', desc: 'Major exchange with UK support. Good liquidity.' },
     ],
     latam: [
         { name: 'Blink', icon: '⚡', url: 'https://blink.sv', desc: 'Lightning-first wallet from El Salvador. Great for Latin America.', rec: true },
         { name: 'Bitso', icon: '🇲🇽', url: 'https://bitso.com', desc: 'Largest exchange in Latin America. Available in Mexico, Brazil, Argentina.' },
-        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Available in El Salvador and expanding. Lightning-native.' },
+        { name: 'Strike', icon: '⚡', url: 'https://strike.me', desc: 'Available in El Salvador and expanding. Lightning-native.', referral: 'https://invite.strike.me/NKP150', referralBonus: 'Get $10 free' },
     ],
     other: [
         { name: 'Bisq', icon: '🔒', url: 'https://bisq.network', desc: 'Decentralized exchange. No KYC. Peer-to-peer. Works everywhere.', rec: true },
@@ -153,11 +155,25 @@ window.renderFirstPurchase = function() {
         var region = selectedRegion || 'us';
         var apps = APPS_BY_REGION[region] || APPS_BY_REGION['other'];
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:12px;">Showing apps for: <strong style="color:var(--text);">' + region.toUpperCase() + '</strong> · <a href="#" onclick="event.preventDefault();_fpSaveStep(0);renderFirstPurchase()" style="color:var(--accent);">change region</a></div>';
-        apps.forEach(function(app) {
-            html += '<a href="' + app.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid ' + (app.rec ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;text-decoration:none;color:var(--text);transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + (app.rec ? 'var(--accent)' : 'var(--border)') + '\'">' +
+        apps.forEach(function(app, ai) {
+            var border = app.rec ? 'var(--accent)' : 'var(--border)';
+            html += '<div style="margin-bottom:10px;background:var(--card-bg);border:1px solid ' + border + ';border-radius:12px;overflow:hidden;">';
+            // Main app link
+            html += '<a href="' + app.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;padding:14px 16px;text-decoration:none;color:var(--text);transition:0.2s;">' +
                 '<span style="font-size:1.5rem;">' + app.icon + '</span>' +
                 '<div style="flex:1;"><div style="font-weight:700;font-size:0.9rem;">' + app.name + (app.rec ? ' <span style="color:var(--accent);font-size:0.65rem;">★ RECOMMENDED</span>' : '') + ' ↗</div>' +
                 '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.4;margin-top:2px;">' + app.desc + '</div></div></a>';
+            // Referral section
+            if (app.referral || app.referralCode) {
+                var copyVal = app.referralCode || app.referral;
+                var copyId = '_fpRef' + ai;
+                html += '<div style="padding:8px 16px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+                html += '<span style="font-size:0.72rem;color:#22c55e;font-weight:700;">🎁 ' + (app.referralBonus || 'Referral') + '</span>';
+                html += '<span id="' + copyId + '" style="font-size:0.72rem;color:var(--text-muted);background:rgba(255,255,255,0.05);padding:3px 8px;border-radius:6px;font-family:monospace;word-break:break-all;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (typeof escapeHtml === 'function' ? escapeHtml(copyVal) : copyVal) + '</span>';
+                html += '<button onclick="event.preventDefault();event.stopPropagation();var t=document.getElementById(\'' + copyId + '\').textContent;navigator.clipboard.writeText(t).then(function(){if(typeof showToast===\'function\')showToast(\'📋 Copied!\')}).catch(function(){var i=document.createElement(\'textarea\');i.value=t;document.body.appendChild(i);i.select();document.execCommand(\'copy\');document.body.removeChild(i);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')})" style="padding:4px 10px;background:#22c55e;color:#000;border:none;border-radius:6px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Copy</button>';
+                html += '</div>';
+            }
+            html += '</div>';
         });
         html += _navButtons(1);
     }
