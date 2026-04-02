@@ -4238,6 +4238,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             setTimeout(function() { window._nachoDirectLinkCooldown = 0; }, 180000);
         }
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
+        else if (h.indexOf('cert/') === 0) { setTimeout(function() { go(h); }, 1500); }
         else if (h === 'first-purchase' || h === 'buy') { setTimeout(function() { go('first-purchase'); }, 500); }
         else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
         else if (h === 'meetup-builder' && !window._mbRouted) { window._mbRouted = true; window._skipIRLRules = true; localStorage.setItem('btc_irl_rules_accepted', 'true'); setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); go('irl-sync'); setTimeout(function() { var ro2 = document.getElementById('irlRulesOverlay'); if (ro2) ro2.remove(); }, 100); history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder'); var _mbTries = 0; var _mbInt = setInterval(function() { var ro3 = document.getElementById('irlRulesOverlay'); if (ro3) ro3.remove(); var el = document.getElementById('meetupBuilderSection'); if (el) { clearInterval(_mbInt); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } if (++_mbTries > 30) clearInterval(_mbInt); }, 300); }, 1500); }
@@ -4323,6 +4324,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (typeof toggleDashboard === 'function') { history.replaceState({ home: true }, '', window.location.pathname); toggleDashboard(); return; }
                     break;
                 default:
+                    // Certificate verification link (e.g. #cert/CERT-XXXXX)
+                    if (hash.indexOf('cert/') === 0 && typeof go === 'function') { go(hash); return; }
                     // Channel direct link (e.g. #mining, #self-custody)
                     if (typeof go === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[hash]) { go(hash); return; }
                     break;
