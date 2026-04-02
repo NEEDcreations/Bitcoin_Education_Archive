@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: March 31, 2026</p>
+    <p class="subtitle">Last updated: April 2, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -173,7 +173,51 @@
         <tr><td>Opponent pairing</td><td>Match players for competitive quizzes</td></tr>
     </table>
 
-    <h3>Reports (stored in Firebase)</h3>
+        <h3>Nacho's Trails (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Trail progress (channels completed)</td><td>Track which channels you've read in each guided learning path</td></tr>
+        <tr><td>Exam scores & answers</td><td>Grade trail exams (25 questions each) and award badges/points</td></tr>
+        <tr><td>Trail badges earned</td><td>Track Meadow/Mountain/Summit completion</td></tr>
+    </table>
+
+    <h3>Bitcoin Buddy (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Username & experience level</td><td>Match teachers with learners</td></tr>
+        <tr><td>Goal (Learn or Teach)</td><td>Complementary matching logic</td></tr>
+        <tr><td>Optional intro message</td><td>Shared with matched buddy to start conversation</td></tr>
+        <tr><td>Timezone estimate</td><td>Proximity matching preference</td></tr>
+    </table>
+    <p>Buddy pool entries are deleted when matched or after 30 days of inactivity.</p>
+
+    <h3>Shareable Certificates (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Certificate ID & verification URL</td><td>Generate a public shareable link to your Scholar Certification</td></tr>
+        <tr><td>Username, score, date</td><td>Display on the public verification page</td></tr>
+    </table>
+    <p>Certificate verification pages are publicly accessible by design — they prove your achievement.</p>
+
+    <h3>Sats vs Bits Vote (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Vote (sats or bits)</td><td>Community denomination poll</td></tr>
+        <tr><td>Device fingerprint hash</td><td>Anti-cheat: prevent duplicate voting (hashed, not personally identifiable)</td></tr>
+    </table>
+
+    <h3>Your First Bitcoin Purchase (local only)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Selected region</td><td>Show region-appropriate exchange recommendations</td></tr>
+        <tr><td>Step progress</td><td>Remember where you left off in the guided flow</td></tr>
+    </table>
+    <p>No purchase data, exchange credentials, or financial information is collected or stored. Referral links redirect to third-party sites governed by their own privacy policies.</p>
+
+    <h3>Meetup-in-a-Box (no data collected)</h3>
+    <p>Template downloads are generated client-side as text files. No data is sent to our servers.</p>
+
+<h3>Reports (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
         <tr><td>Reporter & reported user IDs</td><td>Process abuse reports</td></tr>
@@ -204,6 +248,10 @@
         <tr><td>DJ sets count</td><td>Track total DJ sessions for DJ badges</td></tr>
         <tr><td>DJ songs broadcast count</td><td>Track songs broadcast for DJ badges</td></tr>
         <tr><td>DJ tune-in count</td><td>Track how many DJ sets you've listened to</td></tr>
+        <tr><td>Nacho position (draggable)</td><td>Remember where you placed the Nacho mascot on screen</td></tr>
+        <tr><td>First Purchase step & region</td><td>Resume buying guide where you left off</td></tr>
+        <tr><td>Trail progress (local cache)</td><td>Fast load of trail status (also synced to Firebase)</td></tr>
+        <tr><td>NWC connection string</td><td>Stored in sessionStorage (cleared when tab closes) for Lightning wallet connection</td></tr>
     </table>
 
     <p>We do <strong>not</strong> collect your real name, physical location, IP address, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway).</p>
