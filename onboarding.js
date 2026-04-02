@@ -93,24 +93,28 @@ window.showOnboardingWizard = function() {
 
     var state = { step: 0, level: null, interests: [] };
 
-    var INTEREST_TOPICS = [
-        { label: 'Why Bitcoin?', emoji: '❓' },
-        { label: 'How to buy & use', emoji: '🛒' },
-        { label: 'Security & wallets', emoji: '🔑' },
-        { label: 'Lightning Network', emoji: '⚡' },
-        { label: 'Mining & energy', emoji: '⛏️' },
-        { label: 'Privacy & freedom', emoji: '🕵️' },
-        { label: 'History & culture', emoji: '📜' },
-        { label: 'Economics & money', emoji: '💰' },
-        { label: 'Geopolitics & adoption', emoji: '🌍' },
-        { label: 'Technical deep dives', emoji: '🔧' },
-        { label: 'Art, memes & media', emoji: '🎨' },
-        { label: 'Books & learning', emoji: '📚' },
-        { label: 'Philosophy & ethics', emoji: '🍎' },
-        { label: 'Building & DIY', emoji: '🔨' },
-        { label: 'Bitcoin properties', emoji: '₿' },
-        { label: 'Real-world use cases', emoji: '✅' }
+    var ALL_INTEREST_TOPICS = [
+        { label: 'Why Bitcoin?', emoji: '❓', levels: ['beginner','intermediate'] },
+        { label: 'How to buy & use', emoji: '🛒', levels: ['beginner','intermediate'] },
+        { label: 'Security & wallets', emoji: '🔑', levels: ['beginner','intermediate','advanced'] },
+        { label: 'Lightning Network', emoji: '⚡', levels: ['beginner','intermediate','advanced'] },
+        { label: 'Mining & energy', emoji: '⛏️', levels: ['intermediate','advanced'] },
+        { label: 'Privacy & freedom', emoji: '🕵️', levels: ['intermediate','advanced'] },
+        { label: 'History & culture', emoji: '📜', levels: ['beginner','intermediate'] },
+        { label: 'Economics & money', emoji: '💰', levels: ['beginner','intermediate','advanced'] },
+        { label: 'Geopolitics & adoption', emoji: '🌍', levels: ['intermediate','advanced'] },
+        { label: 'Technical deep dives', emoji: '🔧', levels: ['advanced'] },
+        { label: 'Art, memes & media', emoji: '🎨', levels: ['beginner','intermediate'] },
+        { label: 'Books & learning', emoji: '📚', levels: ['beginner','intermediate','advanced'] },
+        { label: 'Philosophy & ethics', emoji: '🍎', levels: ['intermediate','advanced'] },
+        { label: 'Building & DIY', emoji: '🔨', levels: ['advanced'] },
+        { label: 'Bitcoin properties', emoji: '₿', levels: ['beginner','intermediate','advanced'] },
+        { label: 'Real-world use cases', emoji: '✅', levels: ['beginner','intermediate','advanced'] }
     ];
+
+    function getTopicsForLevel(level) {
+        return ALL_INTEREST_TOPICS.filter(function(t) { return t.levels.indexOf(level || 'beginner') !== -1; });
+    }
 
     function finish(level, interests) {
         window.setOnboardingProfile({ level: level || 'beginner', interests: interests || [], completedAt: Date.now() });
@@ -168,9 +172,9 @@ window.showOnboardingWizard = function() {
                 '<div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">How deep in the rabbit hole are you?</div>';
 
             var levels = [
-                { value: 'beginner', emoji: '🌱', label: 'New to Bitcoin', desc: "I'll start you with the basics" },
-                { value: 'intermediate', emoji: '📘', label: 'I know some Bitcoin', desc: "I'll skip the intro stuff" },
-                { value: 'advanced', emoji: '🔥', label: "I'm a Bitcoiner", desc: 'Full access — show me everything' }
+                { value: 'beginner', emoji: '🌱', label: 'New to Bitcoin', desc: "Guided intro, buying guide, simplified experience" },
+                { value: 'intermediate', emoji: '📘', label: 'I know some Bitcoin', desc: "Deeper topics, learning trails, dashboard & tools" },
+                { value: 'advanced', emoji: '🔥', label: "I'm a Bitcoiner", desc: "Full access — Scholar Cert, Global Chat, IRL Meetups" }
             ];
 
             levels.forEach(function(lv) {
@@ -198,13 +202,19 @@ window.showOnboardingWizard = function() {
             var intColor = intValid ? '#22c55e' : intCount > 5 ? '#ef4444' : '#f97316';
             var intMsg = intCount === 0 ? 'Pick 3-5 topics' : intCount < 3 ? (3 - intCount) + ' more needed' : intCount <= 5 ? '✓ ' + intCount + ' selected' : 'Max 5 — remove ' + (intCount - 5);
 
+            var step2Intro = state.level === 'beginner' ? 'We\'ll curate a beginner-friendly starting path just for you.' :
+                             state.level === 'intermediate' ? 'We\'ll surface the most relevant channels and tools for you.' :
+                             'We\'ll highlight the deep dives and advanced topics you care about.';
+
             html += '<div style="font-size:3rem;margin-bottom:8px;">🎯</div>' +
                 '<h1 style="color:#fff;font-size:1.4rem;font-weight:900;margin:0 0 6px;">What interests you?</h1>' +
-                '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">Pick 3-5 topics and we\'ll highlight the best channels for you.</p>' +
+                '<p style="color:#64748b;font-size:0.85rem;margin:0 0 6px;">' + step2Intro + '</p>' +
+                '<p style="color:#475569;font-size:0.78rem;margin:0 0 6px;">Pick 3-5 topics.</p>' +
                 '<div style="color:' + intColor + ';font-size:0.75rem;font-weight:700;margin-bottom:14px;">' + intMsg + '</div>' +
                 '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
 
-            INTEREST_TOPICS.forEach(function(topic) {
+            var levelTopics = getTopicsForLevel(state.level);
+            levelTopics.forEach(function(topic) {
                 var sel = state.interests.indexOf(topic.label) !== -1;
                 html += '<button onclick="window._obToggleInterest(\'' + topic.label.replace(/'/g, "\\'") + '\')" style="padding:9px 14px;border-radius:20px;background:' + (sel ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.04)') + ';border:1.5px solid ' + (sel ? '#f97316' : '#1e293b') + ';color:' + (sel ? '#f97316' : '#e2e8f0') + ';cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:5px;">' +
                     topic.emoji + ' ' + topic.label + '</button>';
