@@ -480,6 +480,19 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
 
+    // Buddy matching pool
+    match /buddy_pool/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Buddy matches
+    match /buddy_matches/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
