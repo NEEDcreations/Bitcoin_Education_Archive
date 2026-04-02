@@ -1504,9 +1504,9 @@ function loadTopIndicators() {
                 }
             }
             // ETF/BTC Ratio: ETF AUM / BTC market cap
-            // Estimate AUM from total BTC held (~1.31M BTC * current price)
-            // CoinGlass shows ~1.31M BTC total; use that as baseline
-            var etfBtcHeld = 1310000; // update periodically
+            // Estimate AUM from total BTC held (~1.05M BTC * current price)
+            // CoinGlass shows ~1.05M BTC total; use that as baseline
+            var etfBtcHeld = 1045000; // update periodically
             var btcPrice = parseFloat(localStorage.getItem('btc_last_price')) || 83000;
             var etfAum = etfBtcHeld * btcPrice;
             var btcMktCap = btcPrice * 19840000; // supply
