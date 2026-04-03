@@ -119,7 +119,7 @@ window.renderChatHub = function(initialTab) {
     document.getElementById('msgs').style.display = 'none';
     container.style.display = 'block';
 
-    var html = '<div style="max-width:600px;margin:0 auto;padding:0;height:calc(100vh - 120px);display:flex;flex-direction:column;">';
+    var html = '<div style="max-width:600px;margin:0 auto;padding:0;height:calc(100vh - 120px - env(safe-area-inset-top, 0px));display:flex;flex-direction:column;">';
 
     // Tab bar
     html += '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg-side);">';

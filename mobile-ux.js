@@ -137,10 +137,9 @@ function initBottomNav() {
 
 // ---- #4: Reading Progress Indicator ----
 function initReadingProgress() {
-    var bar = document.createElement('div');
-    bar.id = 'readingProgress';
-    bar.style.cssText = 'position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:999;width:0;transition:width 0.1s;pointer-events:none;';
-    document.body.appendChild(bar);
+    // Use the existing #progressBar from index.html instead of creating a duplicate
+    var bar = document.getElementById('progressBar');
+    if (!bar) return;
 
     var main = document.getElementById('main');
     if (!main) return;
