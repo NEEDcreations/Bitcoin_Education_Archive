@@ -2992,9 +2992,9 @@ function showSettingsPage(tab) {
 
     // Tab bar
     html += '<div style="display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border);margin-top:8px;position:sticky;top:0;background:var(--bg-side,#1a1a2e);z-index:10;padding-top:4px;overflow:hidden;">';
-    ['account', 'scholar', 'prefs', 'security', 'data'].forEach(t => {
-        const icons = { account: '👤', scholar: '🎓', prefs: '🎨', security: '🔒', data: '📊' };
-        const names = { account: 'Acct', scholar: 'Scholar', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
+    ['account', 'scholar', 'sats', 'prefs', 'security', 'data'].forEach(t => {
+        const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
+        const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
         html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
@@ -3473,6 +3473,109 @@ function showSettingsPage(tab) {
         if (!isAnon && typeof loadReferralStatsUI === 'function') {
             setTimeout(loadReferralStatsUI, 100);
         }
+
+    } else if (settingsTab === 'sats') {
+        // ===== SATS FAUCET TAB =====
+        var isAnon = user.isAnonymous;
+        var userPts = currentUser ? currentUser.points || 0 : 0;
+        var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
+        var satsBalance = Math.floor(userPts / 10); // 10 points = 1 sat
+        var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
+        var claimable = Math.min(satsBalance, 500, lifetimeLeft);
+        var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
+        var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
+        var now = Date.now();
+        var onCooldown = lastClaim && now < canClaimTime;
+        var cooldownStr = '';
+        if (onCooldown) {
+            var diff = canClaimTime - now;
+            var hrs = Math.floor(diff / 3600000);
+            var mins = Math.floor((diff % 3600000) / 60000);
+            cooldownStr = hrs + 'h ' + mins + 'm';
+        }
+        var channelsRead = currentUser ? (currentUser.readChannels ? Object.keys(currentUser.readChannels).length : 0) : 0;
+        var acctCreated = user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
+        var acctAgeDays = acctCreated ? Math.floor((now - acctCreated.getTime()) / 86400000) : 0;
+        var hasEmail = user.email && user.emailVerified;
+
+        // Eligibility checks
+        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
+        var meetsMin = satsBalance >= 100;
+
+        html += '<div style="text-align:center;margin-bottom:20px;">';
+        html += '<div style="font-size:2.5rem;">⚡</div>';
+        html += '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Real Sats</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Earn points → Convert to real Bitcoin over Lightning</div>';
+        html += '</div>';
+
+        // Balance card
+        html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
+        html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
+        html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' sats</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' points × 10 pts/sat</div>';
+        html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
+        html += '</div>';
+
+        // Claim button area
+        if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
+            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Sats (up to ' + Math.min(claimable, 500) + ')</button>';
+        } else if (onCooldown) {
+            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
+        } else if (!meetsMin && eligible) {
+            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' pts) to reach minimum claim</div>';
+        } else {
+            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Complete requirements below to claim</div>';
+        }
+
+        // Requirements checklist
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
+        html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">📋 Requirements</div>';
+
+        var checks = [
+            { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
+            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
+            { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days — ' + (7 - acctAgeDays) + ' more to go' },
+            { met: channelsRead >= 10, label: 'Read ≥ 10 channels', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' channels read' : channelsRead + '/10 channels — read ' + (10 - channelsRead) + ' more' },
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more points' }
+        ];
+        checks.forEach(function(c) {
+            html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
+            html += '<span style="font-size:1.1rem;">' + (c.met ? '✅' : '⬜') + '</span>';
+            html += '<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
+            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div></div>';
+        });
+        html += '</div>';
+
+        // Rules & Limits
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
+        html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">⚡ How It Works</div>';
+        html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += '• <strong>10 points = 1 sat</strong> — earn points by reading, quests, and daily visits<br>';
+        html += '• <strong>Min claim: 100 sats</strong> (1,000 points)<br>';
+        html += '• <strong>Max claim: 500 sats/day</strong><br>';
+        html += '• <strong>1 claim per 24 hours</strong><br>';
+        html += '• <strong>Lifetime max: 10,000 sats</strong> per account<br>';
+        html += '• <strong>Daily points cap: 500 pts</strong> (50 sats worth) to prevent abuse<br>';
+        html += '• Unclaimed sats roll over — no expiration<br>';
+        html += '• Payouts via Lightning Network ⚡<br>';
+        html += '</div></div>';
+
+        // Earning guide
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
+        html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">🎯 How to Earn Points</div>';
+        html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += '• 📖 <strong>Read a channel</strong>: 10-25 pts<br>';
+        html += '• ✅ <strong>Daily visit</strong>: 5 pts (+ streak bonuses)<br>';
+        html += '• 🎯 <strong>Complete quests</strong>: 50 pts<br>';
+        html += '• 🎓 <strong>Scholar Certification</strong>: 300 pts<br>';
+        html += '• 🔥 <strong>Streak milestones</strong>: bonus tickets & pts<br>';
+        html += '</div></div>';
+
+        // Withdrawal history placeholder
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
+        html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:var(--text);">📜 Withdrawal History</div>';
+        html += '<div id="satsHistory" style="font-size:0.78rem;color:var(--text-muted);">Loading...</div>';
+        html += '</div>';
 
     } else if (settingsTab === 'prefs') {
         // Appearance (Theme + Font Size combined)
@@ -4028,6 +4131,11 @@ function showSettingsPage(tab) {
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
     modal.classList.add('open');
+
+    // Load sats history if on sats tab
+    if (settingsTab === 'sats' && typeof loadSatsHistory === 'function') {
+        setTimeout(loadSatsHistory, 100);
+    }
 
     // Load referral stats if on data tab (tickets are now here)
     if (settingsTab === 'data' && typeof loadReferralStatsUI === 'function' && user && !user.isAnonymous) {
@@ -4709,3 +4817,107 @@ function showSignInPrompt() {
     }
     showUsernamePrompt();
 }
+
+// ===== SATS CLAIM FLOW =====
+window.initSatsClaim = function() {
+    if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        showToast('Sign in to claim sats');
+        return;
+    }
+    var satsBalance = Math.floor((currentUser.points || 0) / 10);
+    var satsWithdrawn = currentUser.satsWithdrawn || 0;
+    var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
+    var maxClaim = Math.min(satsBalance, 500, lifetimeLeft);
+    if (maxClaim < 100) {
+        showToast('Need at least 100 sats (1,000 points) to claim');
+        return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'satsClaimOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var html = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">';
+    html += '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:2rem;">⚡</span><div style="font-size:1.1rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Sats</div></div>';
+
+    html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Amount (100-' + maxClaim + ' sats)</label>';
+    html += '<input id="satsClaimAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;margin-bottom:14px;box-sizing:border-box;">';
+
+    html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Lightning Invoice (paste your invoice)</label>';
+    html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:14px;box-sizing:border-box;"></textarea>';
+
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Generate an invoice in your Lightning wallet for the amount above and paste it here. The sats will be sent directly to your wallet.</div>';
+
+    html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
+    html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
+    html += '</div>';
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+};
+
+window.submitSatsClaim = async function() {
+    var btn = document.getElementById('satsClaimBtn');
+    var amountEl = document.getElementById('satsClaimAmount');
+    var invoiceEl = document.getElementById('satsClaimInvoice');
+    if (!btn || !amountEl || !invoiceEl) return;
+
+    var amount = parseInt(amountEl.value);
+    var invoice = invoiceEl.value.trim();
+
+    if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
+        showToast('Please paste a valid Lightning invoice (starts with lnbc...)');
+        return;
+    }
+    if (isNaN(amount) || amount < 100) {
+        showToast('Minimum claim is 100 sats');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Processing...';
+    btn.style.opacity = '0.6';
+
+    try {
+        var claimSats = firebase.functions().httpsCallable('claimSats');
+        var result = await claimSats({ amount: amount, invoice: invoice });
+        if (result.data && result.data.success) {
+            // Update local state
+            currentUser.points = (currentUser.points || 0) - (amount * 10);
+            currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + amount;
+            currentUser.lastSatsClaim = new Date();
+            document.getElementById('satsClaimOverlay').remove();
+            showToast('⚡ ' + amount + ' sats sent to your wallet!');
+            // Refresh settings to show updated balance
+            setTimeout(function() { showSettingsPage('sats'); }, 500);
+        } else {
+            showToast(result.data.error || 'Claim failed — try again');
+            btn.disabled = false;
+            btn.textContent = '⚡ Send Sats to My Wallet';
+            btn.style.opacity = '1';
+        }
+    } catch(e) {
+        console.error('Sats claim error:', e);
+        showToast(e.message || 'Claim failed — try again');
+        btn.disabled = false;
+        btn.textContent = '⚡ Send Sats to My Wallet';
+        btn.style.opacity = '1';
+    }
+};
+
+// Load withdrawal history
+window.loadSatsHistory = function() {
+    var el = document.getElementById('satsHistory');
+    if (!el || !currentUser || !db) { if (el) el.textContent = 'Sign in to view history'; return; }
+    db.collection('users').doc(currentUser.uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').limit(10).get().then(function(snap) {
+        if (snap.empty) { el.textContent = 'No withdrawals yet'; return; }
+        var html = '';
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            var date = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleDateString() : '—';
+            html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>' + date + '</span><span style="color:var(--accent);font-weight:700;">⚡ ' + d.amount + ' sats</span></div>';
+        });
+        el.innerHTML = html;
+    }).catch(function() { el.textContent = 'Could not load history'; });
+};

@@ -3,9 +3,26 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 const { authenticator } = require("otplib");
 const QRCode = require('qrcode');
+const fetch = require('node-fetch');
 
 admin.initializeApp();
 const db = admin.firestore();
+
+// ===== SATS FAUCET CONFIG =====
+const FAUCET = {
+    POINTS_PER_SAT: 10,
+    MIN_WITHDRAWAL_SATS: 100,
+    MAX_PER_CLAIM_SATS: 100,
+    MAX_DAILY_PER_USER_SATS: 500,
+    MAX_LIFETIME_PER_USER_SATS: 10000,
+    GLOBAL_DAILY_MAX_SATS: 10000,
+    COOLDOWN_HOURS: 24,
+    MIN_ACCOUNT_AGE_DAYS: 7,
+    MIN_CHANNELS_READ: 10,
+    WALLET_BALANCE_FLOOR_SATS: 5000,
+    LNBITS_ADMIN_KEY: '75838d2a7fc74730b3a7540f36ed0dd6',
+    LNBITS_URL: functions.config().faucet?.lnbits_url || 'https://PLACEHOLDER.onion'
+};
 
 // Generate TOTP secret and QR code for user
 exports.totpSetup = functions.https.onCall(async (data, context) => {
