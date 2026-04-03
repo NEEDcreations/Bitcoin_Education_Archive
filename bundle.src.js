@@ -1359,6 +1359,11 @@ async function loadUser(uid, prefetchedDoc) {
             currentUser.bestStreak = currentUser.streak;
             db.collection('users').doc(uid).update({ bestStreak: currentUser.streak }).catch(function() {});
         }
+        // One-time fix: set NEEDcreations bestStreak to 9 (historical)
+        if (currentUser.username === 'NEEDcreations' && (!currentUser.bestStreak || currentUser.bestStreak < 9)) {
+            currentUser.bestStreak = 9;
+            db.collection('users').doc(uid).update({ bestStreak: 9 }).catch(function() {});
+        }
 
         rankingReady = true;
         updateRankUI();
