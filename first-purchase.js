@@ -203,7 +203,7 @@ window.renderFirstPurchase = function() {
         html += _stepHeader(step);
         var region = selectedRegion || 'us';
         var apps = APPS_BY_REGION[region] || APPS_BY_REGION['other'];
-        html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:12px;">Showing apps for: <strong style="color:var(--text);">' + region.toUpperCase() + '</strong> · <a href="#" onclick="event.preventDefault();_fpSaveStep(0);renderFirstPurchase()" style="color:var(--accent);">change region</a></div>';
+        html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:12px;">Showing apps for: <strong style="color:var(--text);">' + region.toUpperCase() + '</strong> · <button onclick="event.preventDefault();event.stopPropagation();localStorage.setItem(\'btc_first_purchase_step\',\'0\');if(typeof renderFirstPurchase===\'function\')renderFirstPurchase();" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:0.7rem;padding:0;text-decoration:underline;">change region</button></div>';
         apps.forEach(function(app, ai) {
             var border = app.rec ? 'var(--accent)' : 'var(--border)';
             html += '<div style="margin-bottom:10px;background:var(--card-bg);border:1px solid ' + border + ';border-radius:12px;overflow:hidden;">';
