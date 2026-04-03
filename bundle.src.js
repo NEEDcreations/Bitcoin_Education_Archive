@@ -1354,6 +1354,12 @@ async function loadUser(uid, prefetchedDoc) {
             localStorage.setItem('btc_username', currentUser.username);
         }
 
+        // One-time migration: set bestStreak if not present
+        if (currentUser.streak > 0 && !currentUser.bestStreak) {
+            currentUser.bestStreak = currentUser.streak;
+            db.collection('users').doc(uid).update({ bestStreak: currentUser.streak }).catch(function() {});
+        }
+
         rankingReady = true;
         updateRankUI();
         if (typeof renderProgressRings === 'function') renderProgressRings();
