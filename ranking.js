@@ -197,7 +197,13 @@ function initRanking() {
                     // Real user restored immediately — load them
                     console.log('[Auth] Real user on first event:', user.uid);
                     sessionStorage.removeItem('btc_redirect_auth');
-                    loadUser(user.uid);
+                    loadUser(user.uid).then(function() {
+                        if (currentUser && currentUser.username) {
+                            setTimeout(function() {
+                                if (typeof showToast === 'function') showToast('👋 Welcome back, ' + currentUser.username + '!');
+                            }, 2000);
+                        }
+                    }).catch(function() {});
                 } else if (user && user.isAnonymous) {
                     // If we're pending a redirect, DON'T load anon yet — wait longer for auth to resolve
                     if (_pendingRedirect) {
