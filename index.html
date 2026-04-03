@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;800;900&display=swap" rel="stylesheet">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="dns-prefetch" href="https://www.gstatic.com">
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://firestore.googleapis.com">
@@ -202,7 +202,7 @@
 
         /* Reading progress bar */
         .progress-bar { position: fixed; top: 0; left: 0; width: 0%; height: 3px; background: linear-gradient(90deg, #eab308, #f97316); z-index: 300; transition: width 0.15s; pointer-events: none; }
-        @media (max-width: 900px) { .progress-bar { top: 118px; } }
+        @media (max-width: 900px) { .progress-bar { top: calc(54px + env(safe-area-inset-top, 0px)); } }
         @media (min-width: 901px) { .progress-bar { top: 32px; } }
 
         /* Share buttons */
@@ -433,8 +433,8 @@
             .sidebar-expand-btn { display: none !important; }
             .sidebar-collapse-btn { display: none !important; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: 54px; touch-action: pan-y; }
-            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 32px; left: 0; right: 0; z-index: 100; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(54px + env(safe-area-inset-top, 0px)); touch-action: pan-y; }
+            .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
             .mobile-bar h2 { color: var(--accent); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }

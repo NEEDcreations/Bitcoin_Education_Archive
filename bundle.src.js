@@ -33150,15 +33150,17 @@ window.nachoQuizAnswer = function(btn, correct) {
     // Exploration map (initial render)
     if (typeof renderExplorationMap === 'function') renderExplorationMap();
 
-    // Reading progress bar + back to top
-    document.getElementById('main').addEventListener('scroll', function() {
-        const el = this;
-        const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
-        document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, pct)) + '%';
-        document.getElementById('backToTop').classList.toggle('visible', el.scrollTop > 400);
-        var nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
-        document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);
-    });
+    // Reading progress bar + back to top (desktop only — mobile-ux.js handles mobile)
+    if (window.innerWidth > 900) {
+        document.getElementById('main').addEventListener('scroll', function() {
+            const el = this;
+            const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
+            document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, pct)) + '%';
+            document.getElementById('backToTop').classList.toggle('visible', el.scrollTop > 400);
+            var nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
+            document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);
+        });
+    }
 
     window.toggleAppsMenu = function(e) {
         if (e) e.stopPropagation();
