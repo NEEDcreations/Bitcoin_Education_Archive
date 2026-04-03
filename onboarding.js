@@ -405,7 +405,7 @@ window.applySimplifiedHome = function() {
         shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🛒</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Buy Bitcoin Guide</div></div>';
         shtml += '<div onclick="if(typeof toggleDashboard===\'function\')toggleDashboard()" style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
-            '<div style="font-size:1.3rem;">📊</div><div style="font-weight:700;font-size:0.78rem;color:#6366f1;margin-top:4px;">Top Indicators</div></div>';
+            '<div style="font-size:1.3rem;">📊</div><div style="font-weight:700;font-size:0.78rem;color:#6366f1;margin-top:4px;">Bitcoin Network Metrics</div></div>';
         shtml += '<div onclick="if(typeof enterNachoMode===\'function\')enterNachoMode()" style="padding:14px;background:rgba(249,115,22,0.04);border:1px dashed rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Ask Nacho</div></div>';
     } else {
@@ -414,7 +414,7 @@ window.applySimplifiedHome = function() {
         var _obNeedAuth = "if(typeof auth!=='undefined'&&auth&&auth.currentUser&&!auth.currentUser.isAnonymous){";
         var _obElseSignIn = "}else{if(typeof showToast==='function')showToast('🔐 Sign in to access this feature');if(typeof showUsernamePrompt==='function')setTimeout(showUsernamePrompt,300);}";
         shtml += '<div onclick="if(typeof toggleDashboard===\'function\')toggleDashboard()" style="padding:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
-            '<div style="font-size:1.3rem;">📊</div><div style="font-weight:700;font-size:0.78rem;color:#6366f1;margin-top:4px;">Top Indicators</div></div>';
+            '<div style="font-size:1.3rem;">📊</div><div style="font-weight:700;font-size:0.78rem;color:#6366f1;margin-top:4px;">Bitcoin Network Metrics</div></div>';
         shtml += '<div onclick="' + _obNeedAuth + "if(typeof toggleChatOverlay==='function'){var p=document.getElementById('chatOverlay');if(!p||p.style.transform==='translateY(100%)')toggleChatOverlay();}else if(typeof renderChatHub==='function')renderChatHub('global');" + _obElseSignIn + '" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
             '<div style="font-size:1.3rem;">🌍</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Global Chat</div></div>';
         shtml += '<div onclick="' + _obNeedAuth + "showSettings();setTimeout(function(){showSettingsPage('scholar')},100);" + _obElseSignIn + '" style="padding:14px;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
