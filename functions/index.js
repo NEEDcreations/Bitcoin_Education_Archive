@@ -9,6 +9,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const { NWCClient } = require('@getalby/sdk');
+const bolt11 = require('bolt11');
 
 // ===== SATS FAUCET CONFIG =====
 const FAUCET = {
@@ -22,7 +23,7 @@ const FAUCET = {
     MIN_ACCOUNT_AGE_DAYS: 7,
     MIN_CHANNELS_READ: 10,
     WALLET_BALANCE_FLOOR_SATS: 5000,
-    NWC_URL: 'nostr+walletconnect://d6d1a27fc9b9ec29af7a655866c875882478d44e7b626bf59744680f3c92e53b?relay=wss://relay.getalby.com/v1&secret=88d7d3dd102b6db91291b9b178a570724aff497933e80fdaa27aff01346d25b2'
+    NWC_URL: process.env.NWC_URL || ''
 };
 
 // Generate TOTP secret and QR code for user
@@ -1204,33 +1205,31 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
 
     const invoice = (data.invoice || '').trim();
 
-    // 3. Validate invoice format
+    // 3. NWC configuration check
+    if (!FAUCET.NWC_URL) {
+        console.error('[FAUCET] NWC_URL not configured');
+        return { success: false, error: 'Faucet not configured. Contact admin.' };
+    }
+
+    // 4. Validate invoice format
     if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
         return { success: false, error: 'Invalid Lightning invoice. Must start with lnbc.' };
     }
-    // Sanity check: invoice length (valid BOLT11 is 100-1500 chars)
     if (invoice.length < 50 || invoice.length > 2000) {
         return { success: false, error: 'Invalid Lightning invoice length.' };
     }
 
-    // 3b. Decode amount from invoice (BOLT11 format)
-    const amountMatch = invoice.toLowerCase().match(/^lnbc(\d+)([munp]?)/);
-    if (!amountMatch || !amountMatch[1]) {
-        return { success: false, error: 'Could not read amount from invoice. Make sure to create an invoice with a specific amount.' };
+    // 5. Cryptographic BOLT11 decode (C4 fix — proper library, not regex)
+    let decoded;
+    try {
+        decoded = bolt11.decode(invoice);
+    } catch(e) {
+        return { success: false, error: 'Invalid Lightning invoice format: ' + (e.message || 'decode failed') };
     }
-    const invoiceNum = parseInt(amountMatch[1]);
-    if (isNaN(invoiceNum) || invoiceNum <= 0) {
-        return { success: false, error: 'Invalid invoice amount.' };
+    const amount = Math.floor((decoded.millisatoshis || 0) / 1000);
+    if (!amount || amount <= 0) {
+        return { success: false, error: 'Invoice has no amount or zero amount. Create an invoice for a specific amount.' };
     }
-    const multiplier = amountMatch[2] || '';
-    let amountMsat;
-    if (multiplier === '') amountMsat = invoiceNum * 100000000000;
-    else if (multiplier === 'm') amountMsat = invoiceNum * 100000000;
-    else if (multiplier === 'u') amountMsat = invoiceNum * 100000;
-    else if (multiplier === 'n') amountMsat = invoiceNum * 100;
-    else if (multiplier === 'p') amountMsat = invoiceNum * 0.1;
-    else amountMsat = 0;
-    const amount = Math.floor(amountMsat / 1000);
 
     if (amount < FAUCET.MIN_WITHDRAWAL_SATS) {
         return { success: false, error: 'Invoice is for ' + amount + ' sats. Minimum claim is ' + FAUCET.MIN_WITHDRAWAL_SATS + ' sats.' };
@@ -1239,8 +1238,13 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Invoice is for ' + amount + ' sats. Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
     }
 
-    // 4. Invoice replay protection — hash first 100 chars as dedup key
-    const invoiceHash = require('crypto').createHash('sha256').update(invoice.substring(0, 100)).digest('hex').substring(0, 16);
+    // 6. Check invoice expiry
+    if (decoded.timeExpireDate && decoded.timeExpireDate < Math.floor(Date.now() / 1000)) {
+        return { success: false, error: 'Invoice has expired. Generate a fresh one.' };
+    }
+
+    // 7. Invoice replay protection — full invoice SHA-256 hash (C3 fix)
+    const invoiceHash = require('crypto').createHash('sha256').update(invoice).digest('hex').substring(0, 32);
     const replayDoc = await db.collection('faucet_invoices').doc(invoiceHash).get();
     if (replayDoc.exists) {
         return { success: false, error: 'This invoice has already been used. Generate a new one.' };
@@ -1378,7 +1382,14 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Could not connect to payment wallet. Try again later.' };
     }
 
-    // 8. PAY THE INVOICE via NWC
+    // FINAL SAFETY CHECK — absolute hard cap before touching the wallet
+    if (amount > 500) {
+        console.error('[FAUCET] BLOCKED: amount ' + amount + ' exceeds hard cap of 500 sats for uid=' + uid);
+        await _rollbackClaim(uid, amount, today);
+        return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+    }
+
+    // 9. PAY THE INVOICE via NWC
     try {
         const payResult = await nwc.payInvoice({ invoice: invoice });
         if (!payResult || !payResult.preimage) {

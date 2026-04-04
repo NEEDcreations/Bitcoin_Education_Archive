@@ -12,6 +12,7 @@
   "dependencies": {
     "@getalby/sdk": "^7.0.0",
     "@noble/secp256k1": "^1.7.1",
+    "bolt11": "^1.4.1",
     "firebase-admin": "^11.11.0",
     "firebase-functions": "^4.5.0",
     "node-fetch": "^2.7.0",

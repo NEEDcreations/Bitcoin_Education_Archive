@@ -11,6 +11,8 @@ service cloud.firestore {
                     && request.auth.uid == userId;
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    // Block client writes to faucet-managed fields (Cloud Function only via Admin SDK)
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim']))
                     && (!('points' in request.resource.data) 
                         || (request.resource.data.points is int
                             && request.resource.data.points >= resource.data.points
