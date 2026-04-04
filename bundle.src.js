@@ -8658,6 +8658,11 @@ const NACHO_KB = [
       channel: 'mining', channelName: 'Mining',
       followUp: "🤔 Ask me: 'What is a nonce?' or 'What is SHA-256?' or 'What is difficulty adjustment?'" },
 
+    { keys: ['proof of work','what is proof of work','pow','what is pow','how does proof of work work','proof-of-work','why proof of work'],
+      answer: "Proof of Work (PoW) is Bitcoin's consensus mechanism — the way the network agrees on which transactions are valid without trusting anyone, {name}! ⚡🦌 Here's how it works: miners convert real electricity (energy input) into verifiable computational work by running the SHA-256 algorithm trillions of times per second, searching for a valid hash. When a miner finds one, that block of transactions is added to the longest chain — and every node on the network can instantly verify the work is legitimate. The key insight: you CANNOT fake proof of work. It requires real energy expenditure — real electricity, real cost. This is what makes Bitcoin's ledger immutable and trustless. It's not 'solving complex math problems' — it's a brute-force guessing algorithm where energy is the input and a secure, verifiable blockchain is the output. That's why Bitcoin is backed by energy, not promises. 🔥⛓️",
+      channel: 'pow-vs-pos', channelName: 'Proof of Work vs Proof of Stake',
+      followUp: "🤔 Ask me: 'Why is PoW better than PoS?' or 'How much energy does mining use?' or 'What is the difficulty adjustment?'" },
+
     { keys: ['nonce','what is a nonce','number used once','what is nonce','mining nonce'],
       answer: "A nonce stands for 'Number used ONCE'! 🔢 In Bitcoin mining, the miner takes all the transaction data for a block, adds a random number (the nonce), and runs it through SHA-256. If the hash output doesn't meet the target, they change the nonce and try again. And again. And again — billions of times per second! It's like trying every combination on a lock until it clicks. The nonce is what makes mining a fair lottery — there's no shortcut, no way to game it. Pure energy and computation. Every nonce is used exactly once and discarded. First miner to find a winning nonce gets the block reward! 🎰🦌",
       channel: 'mining', channelName: 'Mining' },
