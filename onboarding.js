@@ -174,7 +174,7 @@ window.showOnboardingWizard = function() {
                     '<div style="font-size:1.8rem;flex-shrink:0;">⚡</div>' +
                     '<div>' +
                         '<div style="color:#f7931a;font-size:0.85rem;font-weight:800;">Earn Real Bitcoin</div>' +
-                        '<div style="color:#94a3b8;font-size:0.72rem;line-height:1.5;margin-top:2px;">Your points convert to real sats. Read, learn, and claim Bitcoin directly to your Lightning wallet. 10 points = 1 sat.</div>' +
+                        '<div style="color:#94a3b8;font-size:0.72rem;line-height:1.5;margin-top:2px;">Your points convert to real sats. Read, learn, and claim Bitcoin directly to your Lightning wallet. 1,000 points = 100 sats.</div>' +
                     '</div>' +
                 '</div>' +
 
