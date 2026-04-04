@@ -1202,18 +1202,35 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
     }
 
-    const amount = parseInt(data.amount);
     const invoice = (data.invoice || '').trim();
 
-    // 3. Validate inputs
+    // 3. Validate invoice
     if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
         return { success: false, error: 'Invalid Lightning invoice. Must start with lnbc.' };
     }
-    if (isNaN(amount) || amount < FAUCET.MIN_WITHDRAWAL_SATS) {
-        return { success: false, error: 'Minimum claim is ' + FAUCET.MIN_WITHDRAWAL_SATS + ' sats.' };
+
+    // 3b. Decode amount from invoice (BOLT11 format)
+    // Amount is encoded after 'lnbc' as a number + multiplier (m=milli, u=micro, n=nano, p=pico)
+    const amountMatch = invoice.toLowerCase().match(/^lnbc(\d+)([munp]?)/);
+    if (!amountMatch || !amountMatch[1]) {
+        return { success: false, error: 'Could not read amount from invoice. Make sure to create an invoice with a specific amount.' };
+    }
+    const invoiceNum = parseInt(amountMatch[1]);
+    const multiplier = amountMatch[2] || '';
+    let amountMsat;
+    if (multiplier === '') amountMsat = invoiceNum * 100000000000; // BTC to msats
+    else if (multiplier === 'm') amountMsat = invoiceNum * 100000000; // mBTC
+    else if (multiplier === 'u') amountMsat = invoiceNum * 100000; // uBTC
+    else if (multiplier === 'n') amountMsat = invoiceNum * 100; // nBTC
+    else if (multiplier === 'p') amountMsat = invoiceNum * 0.1; // pBTC
+    else amountMsat = 0;
+    const amount = Math.floor(amountMsat / 1000); // msats to sats
+
+    if (amount < FAUCET.MIN_WITHDRAWAL_SATS) {
+        return { success: false, error: 'Invoice is for ' + amount + ' sats. Minimum claim is ' + FAUCET.MIN_WITHDRAWAL_SATS + ' sats.' };
     }
     if (amount > FAUCET.MAX_PER_CLAIM_SATS) {
-        return { success: false, error: 'Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats per transaction.' };
+        return { success: false, error: 'Invoice is for ' + amount + ' sats. Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
     }
 
     // 4. Load user data

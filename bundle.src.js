@@ -3598,7 +3598,7 @@ function showSettingsPage(tab) {
 
         // Claim button area
         if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
-            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Sats (up to ' + Math.min(claimable, 500) + ')</button>';
+            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, 500) + ' Sats</button>';
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
@@ -4921,13 +4921,17 @@ window.initSatsClaim = function() {
     var html = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">';
     html += '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:2rem;">⚡</span><div style="font-size:1.1rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Sats</div></div>';
 
-    html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Amount (100-' + maxClaim + ' sats)</label>';
-    html += '<input id="satsClaimAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;margin-bottom:14px;box-sizing:border-box;">';
+    html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:14px;text-align:center;">';
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);">You can claim up to</div>';
+    html += '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚡ ' + maxClaim + ' sats</div>';
+    html += '</div>';
 
-    html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Lightning Invoice (paste your invoice)</label>';
-    html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:14px;box-sizing:border-box;"></textarea>';
+    html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Paste Lightning Invoice</label>';
+    html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:4px;box-sizing:border-box;word-break:break-all;"></textarea>';
 
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Generate an invoice in your Lightning wallet for the amount above and paste it here. The sats will be sent directly to your wallet.</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, create an invoice for the amount you want (100-' + maxClaim + ' sats), and paste it here.</div>';
+
+    html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
@@ -4939,47 +4943,46 @@ window.initSatsClaim = function() {
 
 window.submitSatsClaim = async function() {
     var btn = document.getElementById('satsClaimBtn');
-    var amountEl = document.getElementById('satsClaimAmount');
     var invoiceEl = document.getElementById('satsClaimInvoice');
-    if (!btn || !amountEl || !invoiceEl) return;
+    var errorEl = document.getElementById('satsClaimError');
+    if (!btn || !invoiceEl) return;
 
-    var amount = parseInt(amountEl.value);
     var invoice = invoiceEl.value.trim();
 
     if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
-        showToast('Please paste a valid Lightning invoice (starts with lnbc...)');
-        return;
-    }
-    if (isNaN(amount) || amount < 100) {
-        showToast('Minimum claim is 100 sats');
+        if (errorEl) { errorEl.textContent = 'Please paste a valid Lightning invoice (starts with lnbc...)'; errorEl.style.display = 'block'; }
         return;
     }
 
+    // Hide previous errors
+    if (errorEl) errorEl.style.display = 'none';
+
     btn.disabled = true;
-    btn.textContent = '⏳ Processing...';
+    btn.textContent = '⏳ Sending sats...';
     btn.style.opacity = '0.6';
 
     try {
         var claimSats = firebase.functions().httpsCallable('claimSats');
-        var result = await claimSats({ amount: amount, invoice: invoice });
+        var result = await claimSats({ invoice: invoice });
         if (result.data && result.data.success) {
-            // Update local state
-            currentUser.points = (currentUser.points || 0) - (amount * 10);
-            currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + amount;
+            var paidAmount = result.data.amount || 0;
+            currentUser.points = (currentUser.points || 0) - (paidAmount * 10);
+            currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
-            showToast('⚡ ' + amount + ' sats sent to your wallet!');
-            // Refresh settings to show updated balance
+            showToast('⚡ ' + paidAmount + ' sats sent to your wallet!');
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
-            showToast(result.data.error || 'Claim failed — try again');
+            var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed — try again';
+            if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
             btn.disabled = false;
             btn.textContent = '⚡ Send Sats to My Wallet';
             btn.style.opacity = '1';
         }
     } catch(e) {
         console.error('Sats claim error:', e);
-        showToast(e.message || 'Claim failed — try again');
+        var errMsg = e.message || 'Claim failed — try again';
+        if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
         btn.disabled = false;
         btn.textContent = '⚡ Send Sats to My Wallet';
         btn.style.opacity = '1';
