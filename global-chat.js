@@ -26,7 +26,7 @@ function bridgeToTelegram(data) {
         }
     } catch(e) {}
 }
-var CHAT_INITIAL_SHOW = 20; // Render initially
+var CHAT_INITIAL_SHOW = 10; // Render initially (reduced to save Firestore reads)
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
 var _lastSendTime = 0;
@@ -910,6 +910,8 @@ window.toggleChatOverlay = function() {
     window._chatOverlayOpen = _overlayOpen;
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
     if (_overlayOpen) {
+        localStorage.setItem('hasUsedChat', '1');
+        if (!_bgChatUnsub && typeof db !== 'undefined' && db) startUnreadTracker();
         history.pushState({ modal: 'chat' }, '', window.location.pathname + window.location.hash);
     }
 
@@ -2214,16 +2216,19 @@ function initPresence() {
     writePresence();
     _presenceInterval = setInterval(writePresence, 60000);
 
-    // Count online users (seen in last 3 minutes)
-    var threeMinAgo = new Date(Date.now() - 180000);
-    db.collection('presence')
-        .where('lastSeen', '>', threeMinAgo)
-        .onSnapshot(function(snap) {
-            var count = snap.size;
-            updateOnlineCount(count);
-        }, function() {
-            updateOnlineCount(0);
-        });
+    // Count online users (poll every 2 min instead of real-time listener to save reads)
+    function pollPresence() {
+        var threeMinAgo = new Date(Date.now() - 180000);
+        db.collection('presence')
+            .where('lastSeen', '>', threeMinAgo)
+            .get().then(function(snap) {
+                updateOnlineCount(snap.size);
+            }).catch(function() {
+                updateOnlineCount(0);
+            });
+    }
+    pollPresence();
+    setInterval(pollPresence, 120000);
 }
 
 function updateOnlineCount(count) {
@@ -2316,7 +2321,7 @@ function startUnreadTracker() {
     if (_bgChatUnsub || typeof db === 'undefined' || !db) return;
     _bgChatUnsub = db.collection(CHAT_COLLECTION)
         .orderBy('ts', 'desc')
-        .limit(50)
+        .limit(5)
         .onSnapshot(function(snapshot) {
             var count = 0;
             snapshot.forEach(function(doc) {
@@ -2398,11 +2403,14 @@ if (_origToggleChatOverlay) {
     };
 }
 
-// Start tracker when Firebase is ready
-setTimeout(function() {
-    if (typeof db !== 'undefined' && db) startUnreadTracker();
-    else setTimeout(function() { if (typeof db !== 'undefined' && db) startUnreadTracker(); }, 5000);
-}, 3000);
+// Only start unread tracker if user has previously opened chat (saves Firestore reads)
+// The tracker will auto-start on first chat open instead
+if (localStorage.getItem('hasUsedChat')) {
+    setTimeout(function() {
+        if (typeof db !== 'undefined' && db) startUnreadTracker();
+        else setTimeout(function() { if (typeof db !== 'undefined' && db) startUnreadTracker(); }, 5000);
+    }, 10000); // Delay 10s to let more critical loads go first
+}
 
 console.log('[CHAT] Global chat module loaded');
 }();

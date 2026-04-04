@@ -2660,7 +2660,7 @@ async function toggleLeaderboard() {
         if (useCache) {
             allUsers = window._lbCache;
         } else {
-            const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
+            const snap = await db.collection('users').orderBy('points', 'desc').limit(50).get();
             snap.forEach(doc => {
                 const d = doc.data();
                 // Ghost Mode: only show if user is visible OR is the current user themselves
@@ -2749,11 +2749,21 @@ async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
     try {
-        // Fetch users with wins AND users with losses (two queries merged)
-        var [winsSnap, lossSnap] = await Promise.all([
-            db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(100).get(),
-            db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(100).get()
-        ]);
+        // Cache PVP leaderboard for 5 minutes
+        var _pvpNow = Date.now();
+        var _pvpCached = window._pvpLbCache && window._pvpLbCacheTime && (_pvpNow - window._pvpLbCacheTime < 300000);
+        var winsSnap, lossSnap;
+        if (_pvpCached) {
+            winsSnap = window._pvpLbCache.wins;
+            lossSnap = window._pvpLbCache.losses;
+        } else {
+            [winsSnap, lossSnap] = await Promise.all([
+                db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(30).get(),
+                db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(30).get()
+            ]);
+            window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
+            window._pvpLbCacheTime = _pvpNow;
+        }
         var playerMap = {};
         var myUid = auth.currentUser ? auth.currentUser.uid : null;
         function addPlayer(doc) {

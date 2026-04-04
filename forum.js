@@ -258,13 +258,22 @@ async function forumLoadPostsFallback() {
     if (!container) return;
     try {
         var sortField = forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt';
+        // Cache forum posts for 2 minutes to save Firestore reads
+        var _forumKey = forumCategory + '_' + forumSort;
+        var _forumNow = Date.now();
+        if (window._forumCache && window._forumCache.key === _forumKey && (_forumNow - window._forumCache.time < 120000)) {
+            forumPostsCache = window._forumCache.posts;
+            forumRenderPosts(window._forumCache.posts, container);
+            return;
+        }
         var query = forumCategory !== 'all'
-            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(50)
-            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
+            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(20)
+            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(20);
         var snap = await query.get();
         var posts = [];
         snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
         forumPostsCache = posts;
+        window._forumCache = { key: _forumKey, time: Date.now(), posts: posts };
         forumRenderPosts(posts, container);
     } catch(e) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Error loading posts. Try refreshing.</div>';
@@ -860,7 +869,7 @@ async function loadArticles() {
     
     try {
         var sortField = forumSort === 'top' ? 'upvotes' : 'createdAt';
-        var snap = await db.collection('articles').where('status', '==', 'published').orderBy(sortField, 'desc').limit(30).get();
+        var snap = await db.collection('articles').where('status', '==', 'published').orderBy(sortField, 'desc').limit(15).get();
         var articles = [];
         snap.forEach(function(doc) { articles.push({ id: doc.id, ...doc.data() }); });
         

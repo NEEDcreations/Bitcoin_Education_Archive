@@ -2740,7 +2740,7 @@ async function toggleLeaderboard() {
         if (useCache) {
             allUsers = window._lbCache;
         } else {
-            const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
+            const snap = await db.collection('users').orderBy('points', 'desc').limit(50).get();
             snap.forEach(doc => {
                 const d = doc.data();
                 // Ghost Mode: only show if user is visible OR is the current user themselves
@@ -2829,11 +2829,21 @@ async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
     try {
-        // Fetch users with wins AND users with losses (two queries merged)
-        var [winsSnap, lossSnap] = await Promise.all([
-            db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(100).get(),
-            db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(100).get()
-        ]);
+        // Cache PVP leaderboard for 5 minutes
+        var _pvpNow = Date.now();
+        var _pvpCached = window._pvpLbCache && window._pvpLbCacheTime && (_pvpNow - window._pvpLbCacheTime < 300000);
+        var winsSnap, lossSnap;
+        if (_pvpCached) {
+            winsSnap = window._pvpLbCache.wins;
+            lossSnap = window._pvpLbCache.losses;
+        } else {
+            [winsSnap, lossSnap] = await Promise.all([
+                db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(30).get(),
+                db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(30).get()
+            ]);
+            window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
+            window._pvpLbCacheTime = _pvpNow;
+        }
         var playerMap = {};
         var myUid = auth.currentUser ? auth.currentUser.uid : null;
         function addPlayer(doc) {
@@ -20198,13 +20208,22 @@ async function forumLoadPostsFallback() {
     if (!container) return;
     try {
         var sortField = forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt';
+        // Cache forum posts for 2 minutes to save Firestore reads
+        var _forumKey = forumCategory + '_' + forumSort;
+        var _forumNow = Date.now();
+        if (window._forumCache && window._forumCache.key === _forumKey && (_forumNow - window._forumCache.time < 120000)) {
+            forumPostsCache = window._forumCache.posts;
+            forumRenderPosts(window._forumCache.posts, container);
+            return;
+        }
         var query = forumCategory !== 'all'
-            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(50)
-            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
+            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(20)
+            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(20);
         var snap = await query.get();
         var posts = [];
         snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
         forumPostsCache = posts;
+        window._forumCache = { key: _forumKey, time: Date.now(), posts: posts };
         forumRenderPosts(posts, container);
     } catch(e) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Error loading posts. Try refreshing.</div>';
@@ -20800,7 +20819,7 @@ async function loadArticles() {
     
     try {
         var sortField = forumSort === 'top' ? 'upvotes' : 'createdAt';
-        var snap = await db.collection('articles').where('status', '==', 'published').orderBy(sortField, 'desc').limit(30).get();
+        var snap = await db.collection('articles').where('status', '==', 'published').orderBy(sortField, 'desc').limit(15).get();
         var articles = [];
         snap.forEach(function(doc) { articles.push({ id: doc.id, ...doc.data() }); });
         
@@ -23862,7 +23881,7 @@ window.beatsLoadTracks = function(tab) {
             listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Sign in to see your uploads</div>';
             return;
         }
-        query = db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(50);
+        query = db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(20);
     } else if (tab === 'likes') {
         var liked = safeJSON('btc_beats_liked', []);
         if (liked.length === 0) {
@@ -23873,7 +23892,7 @@ window.beatsLoadTracks = function(tab) {
         var batch = liked.slice(0, 30);
         query = db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', batch);
     } else {
-        query = db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(50);
+        query = db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(20);
     }
 
     query.get().then(function(snap) {
@@ -25515,7 +25534,7 @@ window.beatsSetGenre = function(genre) {
         }
 
         // Fetch all tracks for client-side sorting
-        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(200).get().then(function(snap) {
+        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(30).get().then(function(snap) {
             if (snap.empty) {
                 listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;margin-bottom:12px;">🎸</div><div style="color:var(--text-muted);font-weight:600;">No tracks yet</div></div>';
                 return;

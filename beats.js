@@ -244,7 +244,7 @@ window.beatsLoadTracks = function(tab) {
             listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Sign in to see your uploads</div>';
             return;
         }
-        query = db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(50);
+        query = db.collection('beats_tracks').where('authorId', '==', auth.currentUser.uid).orderBy('createdAt', 'desc').limit(20);
     } else if (tab === 'likes') {
         var liked = safeJSON('btc_beats_liked', []);
         if (liked.length === 0) {
@@ -255,7 +255,7 @@ window.beatsLoadTracks = function(tab) {
         var batch = liked.slice(0, 30);
         query = db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', batch);
     } else {
-        query = db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(50);
+        query = db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(20);
     }
 
     query.get().then(function(snap) {
@@ -1897,7 +1897,7 @@ window.beatsSetGenre = function(genre) {
         }
 
         // Fetch all tracks for client-side sorting
-        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(200).get().then(function(snap) {
+        db.collection('beats_tracks').orderBy('createdAt', 'desc').limit(30).get().then(function(snap) {
             if (snap.empty) {
                 listEl.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2.5rem;margin-bottom:12px;">🎸</div><div style="color:var(--text-muted);font-weight:600;">No tracks yet</div></div>';
                 return;
