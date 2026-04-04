@@ -13796,14 +13796,34 @@ const TRIVIA = [
 ];
 
 window.nachoTrivia = function() {
+    // Build expanded pool: original TRIVIA + QUESTION_BANK (from quests)
+    var pool = TRIVIA.slice();
+    if (typeof QUESTION_BANK !== 'undefined') {
+        var cats = Object.keys(QUESTION_BANK);
+        for (var ci = 0; ci < cats.length; ci++) {
+            var qs = QUESTION_BANK[cats[ci]];
+            if (!Array.isArray(qs)) continue;
+            for (var qi = 0; qi < qs.length; qi++) {
+                var q = qs[qi];
+                if (q.q && q.a && q.wrong && q.wrong.length >= 3) {
+                    var opts = q.wrong.slice(0, 3);
+                    var correctIdx = Math.floor(Math.random() * 4);
+                    opts.splice(correctIdx, 0, q.a);
+                    pool.push({ q: q.q, options: opts, correct: correctIdx, pts: 10, _fromBank: true });
+                }
+            }
+        }
+    }
     var asked = JSON.parse(localStorage.getItem('btc_nacho_trivia_asked') || '[]');
-    var available = TRIVIA.filter(function(t, i) { return !asked.includes(i); });
+    // Reset if we've exhausted most of the pool
+    if (asked.length > pool.length * 0.8) { asked = []; localStorage.removeItem('btc_nacho_trivia_asked'); }
+    var available = pool.filter(function(t, i) { return !asked.includes(t._fromBank ? 'qb_' + t.q.substring(0,30) : i); });
     if (available.length === 0) return null;
 
-    var idx = TRIVIA.indexOf(available[Math.floor(Math.random() * available.length)]);
-    var t = TRIVIA[idx];
+    var t = available[Math.floor(Math.random() * available.length)];
+    var trackKey = t._fromBank ? 'qb_' + t.q.substring(0,30) : pool.indexOf(t);
 
-    asked.push(idx);
+    asked.push(trackKey);
     localStorage.setItem('btc_nacho_trivia_asked', JSON.stringify(asked));
 
     return { trivia: t, index: idx };
