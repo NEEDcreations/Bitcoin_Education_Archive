@@ -1288,7 +1288,7 @@ async function loadUser(uid, prefetchedDoc) {
         // One-time fix: set NEEDcreations bestStreak to 9 (historical)
         if (currentUser.username === 'NEEDcreations' && (!currentUser.bestStreak || currentUser.bestStreak < 9)) {
             currentUser.bestStreak = 9;
-            db.collection('users').doc(uid).update({ bestStreak: 9 }).catch(function() {});
+            db.collection('users').doc(uid).set({ bestStreak: 9 }, { merge: true }).catch(function(e) { console.error('bestStreak write failed:', e); });
         }
 
         rankingReady = true;

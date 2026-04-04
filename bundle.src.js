@@ -1368,7 +1368,7 @@ async function loadUser(uid, prefetchedDoc) {
         // One-time fix: set NEEDcreations bestStreak to 9 (historical)
         if (currentUser.username === 'NEEDcreations' && (!currentUser.bestStreak || currentUser.bestStreak < 9)) {
             currentUser.bestStreak = 9;
-            db.collection('users').doc(uid).update({ bestStreak: 9 }).catch(function() {});
+            db.collection('users').doc(uid).set({ bestStreak: 9 }, { merge: true }).catch(function(e) { console.error('bestStreak write failed:', e); });
         }
 
         rankingReady = true;
@@ -22903,11 +22903,8 @@ window.onlineStatusDot = function(lastSeen) {
 window.showUserProfile = function(uid) {
     if (!uid || !db) return;
 
-    // Don't show profile for yourself (go to settings instead)
-    if (auth && auth.currentUser && auth.currentUser.uid === uid) {
-        if (typeof showSettings === 'function') showSettings();
-        return;
-    }
+    // Show profile for yourself too (same modal as others see)
+    // Settings is still accessible via the ⚙️ tab
 
     // Show loading
     var loadingHtml = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +

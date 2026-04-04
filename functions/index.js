@@ -1240,16 +1240,16 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
     }
     const user = userDoc.data();
 
-    // 5. Check account age
-    const createdAt = context.auth.token.auth_time ? new Date(context.auth.token.auth_time * 1000) : null;
-    // Use Firestore createdAt if available
-    const userCreated = user.createdAt ? (user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt)) : null;
-    const accountDate = userCreated || createdAt;
-    if (accountDate) {
-        const ageDays = Math.floor((Date.now() - accountDate.getTime()) / 86400000);
+    // 5. Check account age (use Firebase Auth creation time, not auth_time which is last sign-in)
+    try {
+        const userRecord = await admin.auth().getUser(uid);
+        const creationDate = new Date(userRecord.metadata.creationTime);
+        const ageDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
         }
+    } catch(e) {
+        console.error('[FAUCET] Could not verify account age:', e.message);
     }
 
     // 6. Check channels read
