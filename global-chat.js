@@ -622,6 +622,13 @@ window.sendGlobalChat = function() {
         return;
     }
 
+    // Link filter — strip all URLs from chat messages
+    if (/https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(text)) {
+        text = text.replace(/https?:\/\/\S+/gi, '[link removed]').replace(/www\.\S+/gi, '[link removed]').replace(/\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\S*/gi, '[link removed]');
+        if (typeof showToast === 'function') showToast('🔗 Links are not allowed in chat.', 4000);
+        if (text.replace(/\[link removed\]/g, '').trim().length === 0) return; // message was only a link
+    }
+
     // Spam check
     if (isSpammy(text)) {
         if (typeof showToast === 'function') showToast('🚫 Message flagged as spam. Please write normally.');
