@@ -3630,7 +3630,7 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">⚡ How It Works</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• <strong>10 points = 1 sat</strong> — earn points by reading, quests, and daily visits<br>';
+        html += '• <strong>1,000 points = 100 sats</strong> — earn points by reading, quests, and daily visits<br>';
         html += '• <strong>Min claim: 100 sats</strong> (1,000 points)<br>';
         html += '• <strong>Max claim: 500 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
