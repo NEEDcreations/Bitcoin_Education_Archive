@@ -75,9 +75,9 @@ window.beatsEnsureGlobalPlayer = function() {
         '<div id="beatsProgressWrap" onclick="beatsSeek(event)" style="height:4px;background:rgba(255,255,255,0.1);cursor:pointer;position:relative;">' +
             '<div id="beatsProgressBar" style="height:100%;background:linear-gradient(90deg,var(--accent),#ea580c);width:0%;transition:width 0.3s linear;border-radius:0 2px 2px 0;"></div>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;">' +
             '<div id="beatsNowArt" onclick="if(typeof go===\'function\')go(\'bitcoin-beats\')" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;cursor:pointer;">🎵</div>' +
-            '<div onclick="if(window._beatsQueueIdx>=0){beatsShowTrackDetail(window._beatsQueueIdx)}else if(typeof go===\'function\'){go(\'bitcoin-beats\')}" style="flex:1;min-width:0;cursor:pointer;">' +
+            '<div onclick="if(window._beatsQueueIdx>=0){beatsShowTrackDetail(window._beatsQueueIdx)}else if(typeof go===\'function\'){go(\'bitcoin-beats\')}" style="min-width:0;max-width:140px;cursor:pointer;flex-shrink:1;">' +
                 '<div id="beatsNowTitle" style="color:#fff;font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not Playing</div>' +
                 '<div id="beatsNowArtist" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Bitcoin Beats</div>' +
             '</div>' +
@@ -85,7 +85,7 @@ window.beatsEnsureGlobalPlayer = function() {
             '<button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>' +
             '<button id="beatsPlayBtn" onclick="beatsTogglePlay()" style="background:var(--accent);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>' +
             '<button onclick="beatsNextTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏭</button>' +
-            '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:60px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
+            '<input type="range" id="beatsVolume" min="0" max="100" value="80" oninput="beatsSetVolume(this.value)" style="width:50px;accent-color:var(--accent);cursor:pointer;" title="Volume">' +
             '<button onclick="beatsShowComments()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:0.9rem;cursor:pointer;padding:4px;" title="Comments">💬</button>' +
             '<button onclick="beatsCollapsePlayer()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.9rem;cursor:pointer;padding:4px;" title="Minimize">▼</button>' +
             '<button onclick="beatsClosePlayer()" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.9rem;cursor:pointer;padding:4px;" title="Close">✕</button>' +
