@@ -4880,7 +4880,9 @@ window.initSatsClaim = function() {
     document.body.appendChild(overlay);
 };
 
+window._satsClaimInProgress = false;
 window.submitSatsClaim = async function() {
+    if (window._satsClaimInProgress) return; // prevent double-click
     var btn = document.getElementById('satsClaimBtn');
     var invoiceEl = document.getElementById('satsClaimInvoice');
     var errorEl = document.getElementById('satsClaimError');
@@ -4896,6 +4898,7 @@ window.submitSatsClaim = async function() {
     // Hide previous errors
     if (errorEl) errorEl.style.display = 'none';
 
+    window._satsClaimInProgress = true;
     btn.disabled = true;
     btn.textContent = '⏳ Sending sats...';
     btn.style.opacity = '0.6';
@@ -4909,11 +4912,13 @@ window.submitSatsClaim = async function() {
             currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
+            window._satsClaimInProgress = false;
             showToast('⚡ ' + paidAmount + ' sats sent to your wallet!');
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed — try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            window._satsClaimInProgress = false;
             btn.disabled = false;
             btn.textContent = '⚡ Send Sats to My Wallet';
             btn.style.opacity = '1';
@@ -4922,6 +4927,7 @@ window.submitSatsClaim = async function() {
         console.error('Sats claim error:', e);
         var errMsg = e.message || 'Claim failed — try again';
         if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+        window._satsClaimInProgress = false;
         btn.disabled = false;
         btn.textContent = '⚡ Send Sats to My Wallet';
         btn.style.opacity = '1';

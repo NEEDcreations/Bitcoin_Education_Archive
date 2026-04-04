@@ -1197,34 +1197,40 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
     const email = context.auth.token.email;
     const emailVerified = context.auth.token.email_verified;
 
-    // 2. Must not be anonymous
+    // 2. Must not be anonymous, must have verified email
     if (!email || !emailVerified) {
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
     }
 
     const invoice = (data.invoice || '').trim();
 
-    // 3. Validate invoice
+    // 3. Validate invoice format
     if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
         return { success: false, error: 'Invalid Lightning invoice. Must start with lnbc.' };
     }
+    // Sanity check: invoice length (valid BOLT11 is 100-1500 chars)
+    if (invoice.length < 50 || invoice.length > 2000) {
+        return { success: false, error: 'Invalid Lightning invoice length.' };
+    }
 
     // 3b. Decode amount from invoice (BOLT11 format)
-    // Amount is encoded after 'lnbc' as a number + multiplier (m=milli, u=micro, n=nano, p=pico)
     const amountMatch = invoice.toLowerCase().match(/^lnbc(\d+)([munp]?)/);
     if (!amountMatch || !amountMatch[1]) {
         return { success: false, error: 'Could not read amount from invoice. Make sure to create an invoice with a specific amount.' };
     }
     const invoiceNum = parseInt(amountMatch[1]);
+    if (isNaN(invoiceNum) || invoiceNum <= 0) {
+        return { success: false, error: 'Invalid invoice amount.' };
+    }
     const multiplier = amountMatch[2] || '';
     let amountMsat;
-    if (multiplier === '') amountMsat = invoiceNum * 100000000000; // BTC to msats
-    else if (multiplier === 'm') amountMsat = invoiceNum * 100000000; // mBTC
-    else if (multiplier === 'u') amountMsat = invoiceNum * 100000; // uBTC
-    else if (multiplier === 'n') amountMsat = invoiceNum * 100; // nBTC
-    else if (multiplier === 'p') amountMsat = invoiceNum * 0.1; // pBTC
+    if (multiplier === '') amountMsat = invoiceNum * 100000000000;
+    else if (multiplier === 'm') amountMsat = invoiceNum * 100000000;
+    else if (multiplier === 'u') amountMsat = invoiceNum * 100000;
+    else if (multiplier === 'n') amountMsat = invoiceNum * 100;
+    else if (multiplier === 'p') amountMsat = invoiceNum * 0.1;
     else amountMsat = 0;
-    const amount = Math.floor(amountMsat / 1000); // msats to sats
+    const amount = Math.floor(amountMsat / 1000);
 
     if (amount < FAUCET.MIN_WITHDRAWAL_SATS) {
         return { success: false, error: 'Invoice is for ' + amount + ' sats. Minimum claim is ' + FAUCET.MIN_WITHDRAWAL_SATS + ' sats.' };
@@ -1233,14 +1239,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Invoice is for ' + amount + ' sats. Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
     }
 
-    // 4. Load user data
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-        return { success: false, error: 'User profile not found.' };
-    }
-    const user = userDoc.data();
-
-    // 5. Check account age (use Firebase Auth creation time, not auth_time which is last sign-in)
+    // 4. Check account age FIRST (cheap check, fail fast)
     try {
         const userRecord = await admin.auth().getUser(uid);
         const creationDate = new Date(userRecord.metadata.creationTime);
@@ -1250,113 +1249,132 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         }
     } catch(e) {
         console.error('[FAUCET] Could not verify account age:', e.message);
+        return { success: false, error: 'Could not verify account age. Try again later.' };
     }
 
-    // 6. Check channels read
-    const channelsRead = user.readChannels ? Object.keys(user.readChannels).length : 0;
-    if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
-        return { success: false, error: 'Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.' };
-    }
-
-    // 7. Check points balance
-    const userPoints = user.points || 0;
-    const satsBalance = Math.floor(userPoints / FAUCET.POINTS_PER_SAT);
-    if (satsBalance < amount) {
-        return { success: false, error: 'Insufficient points. You have ' + satsBalance + ' sats worth (' + userPoints + ' points).' };
-    }
-
-    // 8. Check lifetime cap
-    const satsWithdrawn = user.satsWithdrawn || 0;
-    if (satsWithdrawn + amount > FAUCET.MAX_LIFETIME_PER_USER_SATS) {
-        const remaining = FAUCET.MAX_LIFETIME_PER_USER_SATS - satsWithdrawn;
-        return { success: false, error: 'Lifetime cap reached. You can withdraw ' + remaining + ' more sats.' };
-    }
-
-    // 9. Check 24h cooldown
-    const lastClaim = user.lastSatsClaim ? (user.lastSatsClaim.toDate ? user.lastSatsClaim.toDate() : new Date(user.lastSatsClaim)) : null;
-    if (lastClaim) {
-        const cooldownEnd = lastClaim.getTime() + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
-        if (Date.now() < cooldownEnd) {
-            const hoursLeft = Math.ceil((cooldownEnd - Date.now()) / 3600000);
-            return { success: false, error: 'Cooldown active. Try again in ~' + hoursLeft + ' hour(s).' };
-        }
-    }
-
-    // 10. Check daily per-user cap
-    const today = new Date().toISOString().split('T')[0];
-    const dailyDoc = await db.collection('users').doc(uid).collection('sats_daily').doc(today).get();
-    const dailyUsed = dailyDoc.exists ? (dailyDoc.data().amount || 0) : 0;
-    if (dailyUsed + amount > FAUCET.MAX_DAILY_PER_USER_SATS) {
-        const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsed;
-        return { success: false, error: 'Daily limit reached. You can claim ' + remaining + ' more sats today.' };
-    }
-
-    // 11. Check global daily cap
-    const globalDoc = await db.collection('faucet_stats').doc(today).get();
-    const globalUsed = globalDoc.exists ? (globalDoc.data().totalPaid || 0) : 0;
-    if (globalUsed + amount > FAUCET.GLOBAL_DAILY_MAX_SATS) {
-        return { success: false, error: 'Daily faucet limit reached. Try again tomorrow.' };
-    }
-
-    // 12. Check kill switch
+    // 5. Check kill switch before expensive operations
     const configDoc = await db.collection('faucet_config').doc('settings').get();
     if (configDoc.exists && configDoc.data().paused) {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
     }
 
-    // 13. Check wallet balance floor
+    // 6. ATOMIC TRANSACTION — All balance/limit checks + point deduction in one transaction
+    //    This prevents race conditions from concurrent requests
+    const today = new Date().toISOString().split('T')[0];
+    const userRef = db.collection('users').doc(uid);
+    const dailyRef = userRef.collection('sats_daily').doc(today);
+    const globalRef = db.collection('faucet_stats').doc(today);
+
+    let transactionPassed = false;
+    try {
+        await db.runTransaction(async (t) => {
+            const userDoc = await t.get(userRef);
+            if (!userDoc.exists) throw new Error('User profile not found.');
+            const user = userDoc.data();
+
+            // Check channels read
+            const channelsRead = user.readChannels ? Object.keys(user.readChannels).length : 0;
+            if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
+                throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
+            }
+
+            // Check points balance
+            const userPoints = user.points || 0;
+            const satsBalance = Math.floor(userPoints / FAUCET.POINTS_PER_SAT);
+            if (satsBalance < amount) {
+                throw new Error('Insufficient points. You have ' + satsBalance + ' sats worth (' + userPoints + ' points).');
+            }
+
+            // Check lifetime cap
+            const satsWithdrawn = user.satsWithdrawn || 0;
+            if (satsWithdrawn + amount > FAUCET.MAX_LIFETIME_PER_USER_SATS) {
+                const remaining = FAUCET.MAX_LIFETIME_PER_USER_SATS - satsWithdrawn;
+                throw new Error('Lifetime cap reached. You can withdraw ' + remaining + ' more sats.');
+            }
+
+            // Check 24h cooldown
+            const lastClaim = user.lastSatsClaim ? (user.lastSatsClaim.toDate ? user.lastSatsClaim.toDate() : new Date(user.lastSatsClaim)) : null;
+            if (lastClaim) {
+                const cooldownEnd = lastClaim.getTime() + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
+                if (Date.now() < cooldownEnd) {
+                    const hoursLeft = Math.ceil((cooldownEnd - Date.now()) / 3600000);
+                    throw new Error('Cooldown active. Try again in ~' + hoursLeft + ' hour(s).');
+                }
+            }
+
+            // Check daily per-user cap
+            const dailyDoc = await t.get(dailyRef);
+            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().amount || 0) : 0;
+            if (dailyUsed + amount > FAUCET.MAX_DAILY_PER_USER_SATS) {
+                const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsed;
+                throw new Error('Daily limit reached. You can claim ' + remaining + ' more sats today.');
+            }
+
+            // Check global daily cap
+            const globalDoc = await t.get(globalRef);
+            const globalUsed = globalDoc.exists ? (globalDoc.data().totalPaid || 0) : 0;
+            if (globalUsed + amount > FAUCET.GLOBAL_DAILY_MAX_SATS) {
+                throw new Error('Daily faucet limit reached. Try again tomorrow.');
+            }
+
+            // ALL CHECKS PASSED — deduct points and set cooldown BEFORE paying
+            // This locks the user's balance so concurrent requests fail
+            const pointsToDeduct = amount * FAUCET.POINTS_PER_SAT;
+            t.update(userRef, {
+                points: admin.firestore.FieldValue.increment(-pointsToDeduct),
+                satsWithdrawn: admin.firestore.FieldValue.increment(amount),
+                lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
+                _pendingClaim: true // flag: payment in progress
+            });
+
+            t.set(dailyRef, { amount: admin.firestore.FieldValue.increment(amount) }, { merge: true });
+            t.set(globalRef, { totalPaid: admin.firestore.FieldValue.increment(amount), claimCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
+        });
+        transactionPassed = true;
+    } catch (e) {
+        console.error('[FAUCET] Transaction failed:', e.message);
+        return { success: false, error: e.message || 'Claim validation failed.' };
+    }
+
+    if (!transactionPassed) {
+        return { success: false, error: 'Claim validation failed.' };
+    }
+
+    // 7. Check wallet balance floor
     let nwc;
     try {
         nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await nwc.getBalance();
-        const walletBalance = balanceResult.balance; // in msats
-        const walletSats = Math.floor(walletBalance / 1000);
+        const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) {
+            // ROLLBACK: refund points since we already deducted
+            await _rollbackClaim(uid, amount, today);
             return { success: false, error: 'Faucet is being refilled. Try again later.' };
         }
     } catch (e) {
         console.error('[FAUCET] Balance check failed:', e.message);
+        await _rollbackClaim(uid, amount, today);
         return { success: false, error: 'Could not connect to payment wallet. Try again later.' };
     }
 
-    // 14. PAY THE INVOICE via NWC
+    // 8. PAY THE INVOICE via NWC
     try {
         const payResult = await nwc.payInvoice({ invoice: invoice });
         if (!payResult || !payResult.preimage) {
+            await _rollbackClaim(uid, amount, today);
             return { success: false, error: 'Payment failed. Check your invoice and try again.' };
         }
 
-        // 15. Record the withdrawal in Firestore (atomic)
+        // 9. Payment succeeded — record withdrawal history and clear pending flag
         const batch = db.batch();
-
-        // Deduct points, update user
-        const pointsToDeduct = amount * FAUCET.POINTS_PER_SAT;
-        batch.update(db.collection('users').doc(uid), {
-            points: admin.firestore.FieldValue.increment(-pointsToDeduct),
-            satsWithdrawn: admin.firestore.FieldValue.increment(amount),
-            lastSatsClaim: admin.firestore.FieldValue.serverTimestamp()
-        });
-
-        // Withdrawal history
-        batch.set(db.collection('users').doc(uid).collection('sats_withdrawals').doc(), {
+        batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete() });
+        batch.set(userRef.collection('sats_withdrawals').doc(), {
             amount: amount,
-            pointsDeducted: pointsToDeduct,
+            pointsDeducted: amount * FAUCET.POINTS_PER_SAT,
             invoice: invoice.substring(0, 50) + '...',
             preimage: payResult.preimage,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
-
-        // Daily per-user tracking
-        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
-            amount: admin.firestore.FieldValue.increment(amount)
-        }, { merge: true });
-
-        // Global daily tracking
-        batch.set(db.collection('faucet_stats').doc(today), {
-            totalPaid: admin.firestore.FieldValue.increment(amount),
-            claimCount: admin.firestore.FieldValue.increment(1)
-        }, { merge: true });
-
         await batch.commit();
 
         console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid + ' (preimage: ' + payResult.preimage.substring(0, 16) + '...)');
@@ -1369,9 +1387,35 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         };
     } catch (e) {
         console.error('[FAUCET] Payment error:', e.message);
+        // Payment failed — rollback the points deduction
+        await _rollbackClaim(uid, amount, today);
         return { success: false, error: 'Payment failed: ' + (e.message || 'Unknown error') };
     }
 });
+
+// Rollback helper: refund points if payment fails after transaction
+async function _rollbackClaim(uid, amount, today) {
+    try {
+        const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
+        const batch = db.batch();
+        batch.update(db.collection('users').doc(uid), {
+            points: admin.firestore.FieldValue.increment(pointsToRefund),
+            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
+            _pendingClaim: admin.firestore.FieldValue.delete()
+        });
+        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
+            amount: admin.firestore.FieldValue.increment(-amount)
+        }, { merge: true });
+        batch.set(db.collection('faucet_stats').doc(today), {
+            totalPaid: admin.firestore.FieldValue.increment(-amount),
+            claimCount: admin.firestore.FieldValue.increment(-1)
+        }, { merge: true });
+        await batch.commit();
+        console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
+    } catch (e) {
+        console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
+    }
+}
 
 // ===== FAUCET ADMIN — getFaucetStats =====
 exports.getFaucetStats = functions.https.onCall(async (data, context) => {
