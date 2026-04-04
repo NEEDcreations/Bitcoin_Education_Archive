@@ -1450,3 +1450,27 @@ exports.toggleFaucet = functions.https.onCall(async (data, context) => {
     await db.collection('faucet_config').doc('settings').set({ paused: paused }, { merge: true });
     return { success: true, paused: paused };
 });
+
+// ===== ONE-TIME: Backfill bestStreak for all users =====
+exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
+    if (!context.auth || context.auth.token.email !== 'needcreations@gmail.com') {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const usersSnap = await db.collection('users').get();
+    let updated = 0;
+    const batch = db.batch();
+    usersSnap.forEach(doc => {
+        const d = doc.data();
+        const streak = d.streak || 0;
+        const existing = d.bestStreak || 0;
+        if (streak > 0 && existing < streak) {
+            batch.update(doc.ref, { bestStreak: streak });
+            updated++;
+        } else if (!d.bestStreak && streak === 0) {
+            batch.update(doc.ref, { bestStreak: 0 });
+            updated++;
+        }
+    });
+    if (updated > 0) await batch.commit();
+    return { success: true, updated: updated, total: usersSnap.size };
+});
