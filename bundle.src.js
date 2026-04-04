@@ -14856,18 +14856,20 @@ async function submitQuest() {
         qLog.count++;
         localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
         // [AUDIT FIX] Sync quest count to Firestore
-        if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
-                questsCompletedToday: (qLog[today] || 0),
-                lastQuestDate: today
+                questsCompletedToday: (qLog.count || 0),
+                lastQuestDate: todayQ
             }).catch(function(e) { console.error('Quest sync failed:', e); });
         }
     }
-    if (completedQuests.has(currentQuest.id) && typeof db !== 'undefined' && auth.currentUser) {
-        await db.collection('users').doc(auth.currentUser.uid).update({
-            completedQuests: firebase.firestore.FieldValue.arrayUnion(currentQuest.id)
-        });
-    }
+    try {
+        if (completedQuests.has(currentQuest.id) && typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser) {
+            await db.collection('users').doc(auth.currentUser.uid).update({
+                completedQuests: firebase.firestore.FieldValue.arrayUnion(currentQuest.id)
+            });
+        }
+    } catch(e) { console.error('Quest completion sync failed:', e); }
 
     // Hide submit and skip buttons
     const submitBtn = document.getElementById('questSubmitBtn');
