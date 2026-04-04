@@ -20093,7 +20093,7 @@ window.renderForum = function() {
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
-        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
         '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
         '</div>';
 
@@ -20299,7 +20299,7 @@ window.forumViewPost = async function(postId, fromPopState) {
 
         var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
-        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
         '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
         '</div>';
 
@@ -20434,7 +20434,7 @@ window.forumNewPost = function() {
 
     var html = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
-        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
         '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
         '</div>';
     html += '<button onclick="forumBack()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:8px;font-family:inherit;touch-action:manipulation;">← Back to PlebTalk</button>';
@@ -21775,7 +21775,7 @@ function _actualRenderMarketplace(options) {
     // Header
     var html = '<div style="max-width:900px;margin:0 auto;padding:16px;">';
     html += '<div class="channel-logos" style="display:flex;justify-content:center;gap:20px;margin-bottom:20px;">' + 
-        '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
+        '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:50px;height:50px;border-radius:50%;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);object-fit:cover;" title="Home">' + 
         '<span class="donate-circle" onclick="showDonateModal()" style="width:50px;height:50px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 15px rgba(247,147,26,0.3);"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' + 
         '</div>';
 
@@ -23649,7 +23649,7 @@ window.renderBitcoinBeats = function() {
         <!-- Header -->
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
             <div class="channel-logos" style="display:flex;gap:12px;align-items:center;">
-                <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:44px;height:44px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
+                <img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:44px;height:44px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
                 <span class="donate-circle" onclick="showDonateModal()" style="width:44px;height:44px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);flex-shrink:0;" title="Donate"><svg viewBox="0 0 64 64" width="24" height="24"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
 
             </div>
@@ -30674,7 +30674,7 @@ function loadTopIndicators() {
                         '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:0.95rem;" title="ELI5 Mode">🧒</button>' +
                         '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Save chat">💾</button>' +
                         '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Clear chat">🗑️</button>' +
-                        '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
+                        '<img src="images/btc-grad-logo-sm.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -33026,7 +33026,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos">' +
-                '<img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
+                '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +
             '<div class="cat">' + meta.cat + '</div>' +

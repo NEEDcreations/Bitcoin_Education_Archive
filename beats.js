@@ -12,7 +12,7 @@ window.renderBitcoinBeats = function() {
         <!-- Header -->
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
             <div class="channel-logos" style="display:flex;gap:12px;align-items:center;">
-                <img src="images/btc-grad-logo.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:44px;height:44px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
+                <img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="width:44px;height:44px;border-radius:50%;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);object-fit:cover;" title="Home">
                 <span class="donate-circle" onclick="showDonateModal()" style="width:44px;height:44px;background:#f7931a;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 12px rgba(247,147,26,0.3);flex-shrink:0;" title="Donate"><svg viewBox="0 0 64 64" width="24" height="24"><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
 
             </div>
