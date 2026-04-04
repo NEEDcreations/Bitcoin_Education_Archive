@@ -125,6 +125,7 @@ window.renderChatHub = function(initialTab) {
     html += '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg-side);">';
     html += '<button id="chatTabGlobal" onclick="switchChatTab(\'global\')" style="flex:1;padding:14px 0;background:none;border:none;border-bottom:2px solid ' + (_chatTab === 'global' ? 'var(--accent)' : 'transparent') + ';color:' + (_chatTab === 'global' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Global Chat</button>';
     html += '<button id="chatTabDMs" onclick="switchChatTab(\'dms\')" style="flex:1;padding:14px 0;background:none;border:none;border-bottom:2px solid ' + (_chatTab === 'dms' ? 'var(--accent)' : 'transparent') + ';color:' + (_chatTab === 'dms' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✉️ Direct Messages</button>';
+    html += '<button onclick="showChatRules()" style="padding:14px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">📋 Rules</button>';
     html += '</div>';
 
     // Content area
@@ -2269,6 +2270,40 @@ window.addEventListener('beforeunload', function() {
         navigator.sendBeacon && db.collection('presence').doc(auth.currentUser.uid).delete();
     }
 });
+
+// ---- Chat Rules Modal ----
+window.showChatRules = function() {
+    var existing = document.getElementById('chatRulesOverlay');
+    if (existing) { existing.remove(); return; }
+    var overlay = document.createElement('div');
+    overlay.id = 'chatRulesOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML =
+        '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+            '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">📋 Chat Rules</div>' +
+            '<button onclick="document.getElementById(\'chatRulesOverlay\').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>' +
+        '</div>' +
+        '<div style="font-size:0.85rem;color:var(--text);line-height:1.8;">' +
+            '<div style="margin-bottom:12px;padding:10px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);border-radius:10px;font-size:0.8rem;color:var(--accent);font-weight:600;">This is a Bitcoin-only community. Be respectful, stay on topic, and help each other learn. 🦌🧡</div>' +
+            '1️⃣ <strong>Be respectful.</strong> No personal attacks, harassment, or hate speech.<br><br>' +
+            '2️⃣ <strong>Bitcoin only.</strong> No altcoin promotion, shilling, or "what about ETH?" discussions.<br><br>' +
+            '3️⃣ <strong>No links.</strong> URLs are automatically blocked to prevent scams and spam.<br><br>' +
+            '4️⃣ <strong>No spam or flooding.</strong> Don\'t repeat messages, use excessive caps, or flood the chat.<br><br>' +
+            '5️⃣ <strong>No financial advice.</strong> Share knowledge, not investment tips. Always DYOR.<br><br>' +
+            '6️⃣ <strong>No personal info.</strong> Don\'t share or ask for phone numbers, addresses, or real names in public chat.<br><br>' +
+            '7️⃣ <strong>No impersonation.</strong> Don\'t pretend to be another user, admin, or Nacho.<br><br>' +
+            '8️⃣ <strong>Keep it clean.</strong> Profanity is filtered. Attempts to bypass the filter may result in muting.<br><br>' +
+            '9️⃣ <strong>Report issues.</strong> Use the report button if you see rule violations.<br><br>' +
+            '🔟 <strong>Have fun!</strong> This is a community of learners. Ask questions, share insights, and stack knowledge together.' +
+        '</div>' +
+        '<div style="margin-top:16px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.75rem;color:var(--text-faint);text-align:center;">' +
+            'Violations may result in message removal or account restrictions.<br>Admins have final say on all moderation decisions.' +
+        '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
 
 console.log('[CHAT] Global chat module loaded');
 }();
