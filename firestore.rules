@@ -500,6 +500,11 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
+    // Faucet invoice dedup (Cloud Function only)
+    match /faucet_invoices/{docId} {
+      allow read, write: if false; // Cloud Function admin SDK only
+    }
+
     // Faucet stats (Cloud Function only, admin can read)
     match /faucet_stats/{docId} {
       allow read: if request.auth != null

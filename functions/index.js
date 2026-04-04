@@ -1239,7 +1239,14 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Invoice is for ' + amount + ' sats. Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats.' };
     }
 
-    // 4. Check account age FIRST (cheap check, fail fast)
+    // 4. Invoice replay protection — hash first 100 chars as dedup key
+    const invoiceHash = require('crypto').createHash('sha256').update(invoice.substring(0, 100)).digest('hex').substring(0, 16);
+    const replayDoc = await db.collection('faucet_invoices').doc(invoiceHash).get();
+    if (replayDoc.exists) {
+        return { success: false, error: 'This invoice has already been used. Generate a new one.' };
+    }
+
+    // 5. Check account age FIRST (cheap check, fail fast)
     try {
         const userRecord = await admin.auth().getUser(uid);
         const creationDate = new Date(userRecord.metadata.creationTime);
@@ -1252,7 +1259,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Could not verify account age. Try again later.' };
     }
 
-    // 5. Check kill switch before expensive operations
+    // 6. Check kill switch before expensive operations
     const configDoc = await db.collection('faucet_config').doc('settings').get();
     if (configDoc.exists && configDoc.data().paused) {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
@@ -1285,6 +1292,18 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
             if (satsBalance < amount) {
                 throw new Error('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
+            }
+
+            // Server-side points sanity check: max 500 pts/day × account age + 2100 (scholar)
+            // If points are impossibly high for account age, flag as suspicious
+            const created = user.createdAt ? (user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt)) : null;
+            if (created) {
+                const accountDays = Math.max(1, Math.floor((Date.now() - created.getTime()) / 86400000));
+                const maxReasonablePoints = (accountDays * 500) + 2100 + 500; // daily cap × days + scholar cert + buffer
+                if (userPoints > maxReasonablePoints) {
+                    console.error('[FAUCET] SUSPICIOUS: uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account');
+                    throw new Error('Points balance flagged for review. Contact support.');
+                }
             }
 
             // Check lifetime cap
@@ -1367,7 +1386,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             return { success: false, error: 'Payment failed. Check your invoice and try again.' };
         }
 
-        // 9. Payment succeeded — record withdrawal history and clear pending flag
+        // 9. Payment succeeded — record withdrawal history, clear pending flag, mark invoice used
         const batch = db.batch();
         batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete() });
         batch.set(userRef.collection('sats_withdrawals').doc(), {
@@ -1375,7 +1394,14 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             pointsUsed: amount * FAUCET.POINTS_PER_SAT,
             invoice: invoice.substring(0, 50) + '...',
             preimage: payResult.preimage,
-            timestamp: admin.firestore.FieldValue.serverTimestamp()
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            uid: uid
+        });
+        // Mark invoice as used (replay protection)
+        batch.set(db.collection('faucet_invoices').doc(invoiceHash), {
+            uid: uid,
+            amount: amount,
+            ts: admin.firestore.FieldValue.serverTimestamp()
         });
         await batch.commit();
 

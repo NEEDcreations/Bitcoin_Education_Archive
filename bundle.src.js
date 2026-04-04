@@ -1820,6 +1820,17 @@ async function awardVisitPoints() {
 async function awardPoints(pts, reason) {
     if (!currentUser || !rankingReady) return;
 
+    // Anti-abuse: validate pts is a reasonable number
+    pts = parseInt(pts);
+    if (isNaN(pts) || pts <= 0 || pts > 2200) return; // max single award is 2100 (scholar cert) + buffer
+
+    // Anti-abuse: rate limit — max 20 point awards per minute
+    window._pointAwardTimes = window._pointAwardTimes || [];
+    var _now = Date.now();
+    window._pointAwardTimes = window._pointAwardTimes.filter(function(t) { return _now - t < 60000; });
+    if (window._pointAwardTimes.length >= 20) return;
+    window._pointAwardTimes.push(_now);
+
     // Anti-abuse: global daily points cap (500/day)
     var _dailyKey = 'btc_daily_pts_' + new Date().toISOString().split('T')[0];
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
