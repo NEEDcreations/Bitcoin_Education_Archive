@@ -2032,7 +2032,7 @@ function updateRankUI() {
     const streak = currentUser.streak || 0;
     const isMilestone = streak > 0 && (streak % 7 === 0 || streak === 30 || streak === 100 || streak === 365);
     const bestStreakVal = currentUser.bestStreak || 0;
-    const streakHtml = (streak > 0 || bestStreakVal > 0) ? '<span class="rank-streak' + (isMilestone ? ' streak-milestone' : '') + '" style="color:#f97316;font-size:0.7rem;font-weight:700;' + (isMilestone ? 'animation:streakGlow 2s ease-in-out infinite;' : '') + '">🔥 ' + streak + (bestStreakVal > streak ? '(' + bestStreakVal + ')' : '') + ' day streak' + (isMilestone ? ' ✨' : '') + '</span>' : '';
+    const streakHtml = (streak > 0 || bestStreakVal > 0) ? '<span class="rank-streak' + (isMilestone ? ' streak-milestone' : '') + '" style="color:#f97316;font-size:0.7rem;font-weight:700;' + (isMilestone ? 'animation:streakGlow 2s ease-in-out infinite;' : '') + '">🔥 ' + streak + (bestStreakVal > 0 ? '(' + bestStreakVal + ')' : '') + ' day streak' + (isMilestone ? ' ✨' : '') + '</span>' : '';
     const ticketHtml = (currentUser.orangeTickets || 0) > 0 ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;margin-left:6px;"><svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>' + currentUser.orangeTickets + '</span>' : '';
 
     bar.innerHTML =
@@ -2216,7 +2216,7 @@ function updateUserDisplay(lv) {
         
         const streak = currentUser.streak || 0;
         const wbBestStreak = currentUser.bestStreak || 0;
-        const streakText = (streak > 0 || wbBestStreak > 0) ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + (wbBestStreak > streak ? '(' + wbBestStreak + ')' : '') + ' day streak</span>' : '';
+        const streakText = (streak > 0 || wbBestStreak > 0) ? '<span style="color:#f97316;font-weight:700;"> · 🔥 ' + streak + (wbBestStreak > 0 ? '(' + wbBestStreak + ')' : '') + ' day streak</span>' : '';
         wb.innerHTML = '<span style="font-size:1.2rem;">' + lv.emoji + '</span> ' +
             '<span style="color:var(--heading);font-weight:700;">Welcome back, ' + escapeHtml(currentUser.username || 'Anon') + '!</span>' +
             '<span style="color:var(--text-muted);font-size:0.85rem;"> · ' + lv.name + ' · ' + (currentUser.points || 0).toLocaleString() + ' pts</span>' +
@@ -3963,7 +3963,7 @@ function showSettingsPage(tab) {
         var freezeCount = currentUser ? (currentUser.streakFreezes || 0) : parseInt(localStorage.getItem('btc_streak_freezes') || '0');
         var bestStreak = currentUser ? (currentUser.bestStreak || streak) : streak;
         if (bestStreak < streak) bestStreak = streak; // safety
-        html += statRow('Current Streak', streak + (bestStreak > streak ? ' (' + bestStreak + ')' : '') + ' days', '🔥');
+        html += statRow('Current Streak', streak + (bestStreak > 0 ? ' (' + bestStreak + ')' : '') + ' days', '🔥');
         html += statRow('🧊 Streak Freezes', freezeCount + ' available', '🧊');
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Channels Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');

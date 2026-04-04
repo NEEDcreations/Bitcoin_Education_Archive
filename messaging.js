@@ -468,7 +468,7 @@ window.showUserProfile = function(uid) {
             '</div>' +
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🗣️', u.forumPosts || 0, 'Posts') +
-                profileStat('🔥', (u.streak || 0) + (u.bestStreak && u.bestStreak > (u.streak || 0) ? '(' + u.bestStreak + ')' : ''), 'Streak') +
+                profileStat('🔥', (u.streak || 0) + (u.bestStreak && u.bestStreak > 0 ? '(' + u.bestStreak + ')' : ''), 'Streak') +
                 profileStat('📅', joinDate, 'Joined') +
             '</div>' +
             // PVP Stats (only show if they've played)
