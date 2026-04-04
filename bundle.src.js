@@ -32476,7 +32476,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
 
         // Tier Logic — progressive unlock
-        // Explorer (3ch): PlebTalk | Community (5ch): IRL Sync | Full (10ch or signed in): Marketplace | Beats: always unlocked
+        // Explorer (3ch): PlebTalk | Community (5ch): IRL Sync | Full (10ch): Lightning Mart | Beats: always unlocked (no tier)
         const isFull = _isAdvanced || isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
         const isCommunity = isFull || (visits >= 5 || exploredCount >= 5);
         const isExplorer = isCommunity || (visits >= 3 || exploredCount >= 3);
