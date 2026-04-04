@@ -58,8 +58,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Push
+# Push to all remotes
 git push origin gh-pages
+echo "📦 Pushing to Codeberg..."
+git push codeberg gh-pages 2>/dev/null &
+echo "📦 Pushing to GitLab..."
+git push gitlab gh-pages 2>/dev/null &
 
 if [ $? -eq 0 ]; then
     echo ""

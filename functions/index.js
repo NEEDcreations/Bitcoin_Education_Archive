@@ -1283,6 +1283,11 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User profile not found.');
             const user = userDoc.data();
 
+            // L1: Check if a previous claim is still pending
+            if (user._pendingClaim === true) {
+                throw new Error('A previous claim is still processing. Try again in a minute.');
+            }
+
             // Check channels read
             const channelsRead = user.readChannels ? Object.keys(user.readChannels).length : 0;
             if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
@@ -1303,7 +1308,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             const created = user.createdAt ? (user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt)) : null;
             if (created) {
                 const accountDays = Math.max(1, Math.floor((Date.now() - created.getTime()) / 86400000));
-                const maxReasonablePoints = (accountDays * 500) + 2100 + 500; // daily cap × days + scholar cert + buffer
+                const maxReasonablePoints = (accountDays * 500) + 2100; // daily cap × days + scholar cert (no buffer)
                 if (userPoints > maxReasonablePoints) {
                     console.error('[FAUCET] SUSPICIOUS: uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account');
                     throw new Error('Points balance flagged for review. Contact support.');

@@ -225,6 +225,7 @@ service cloud.firestore {
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
         allow create: if request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
                       && request.resource.data.senderUid == request.auth.uid
                       && request.resource.data.text is string
                       && request.resource.data.text.size() >= 1
@@ -444,8 +445,8 @@ service cloud.firestore {
                             && request.resource.data.text.size() <= 2000))
                     && request.resource.data.name is string
                     && (request.resource.data.uid == request.auth.uid
-                        || request.resource.data.uid == 'nacho-bot'
-                        || request.resource.data.uid == 'system')
+                        || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
+                            && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')))
                     ) || (
                     // Telegram bridge messages (anonymous auth from CF Worker)
                     request.auth != null
@@ -475,7 +476,8 @@ service cloud.firestore {
       // [AUDIT FIX M3] Require senderId matches auth uid or is 'system'
       allow create: if request.auth != null
                     && (request.resource.data.senderId == request.auth.uid
-                        || request.resource.data.senderId == 'system');
+                        || (request.resource.data.senderId == 'system'
+                            && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')));
       allow update: if request.auth != null
                     && request.auth.uid == resource.data.recipientId;
       allow delete: if request.auth != null
@@ -486,13 +488,14 @@ service cloud.firestore {
     // Polls (Sats vs Bits — anonymous voting allowed)
     match /polls/{pollId} {
       allow read: if true;
-      allow create, update: if true;
+      allow create, update: if request.auth != null;
     }
 
     // Certificates (public read, authenticated write)
     match /certs/{certId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
     }
 
     // Buddy matching pool
