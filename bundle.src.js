@@ -3558,8 +3558,10 @@ function showSettingsPage(tab) {
         // ===== SATS FAUCET TAB =====
         var isAnon = user.isAnonymous;
         var userPts = currentUser ? currentUser.points || 0 : 0;
+        var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
+        var availablePts = userPts - pointsClaimed;
         var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
-        var satsBalance = Math.floor(userPts / 10); // 10 points = 1 sat
+        var satsBalance = Math.floor(Math.max(0, availablePts) / 10); // 10 unclaimed points = 1 sat
         var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
         var claimable = Math.min(satsBalance, 500, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
@@ -3591,8 +3593,8 @@ function showSettingsPage(tab) {
         // Balance card
         html += '<div style="background:linear-gradient(135deg, rgba(249,115,22,0.1), rgba(234,179,8,0.1));border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Your Balance</div>';
-        html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' sats</div>';
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' points × 10 pts/sat</div>';
+        html += '<div style="font-size:2rem;font-weight:900;color:var(--accent);margin:8px 0;">⚡ ' + satsBalance.toLocaleString() + ' claimable sats</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + availablePts.toLocaleString() + ' unclaimed pts of ' + userPts.toLocaleString() + ' total</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 10,000 sats</div>';
         html += '</div>';
 
@@ -4923,7 +4925,8 @@ window.initSatsClaim = function() {
         showToast('Sign in to claim sats');
         return;
     }
-    var satsBalance = Math.floor((currentUser.points || 0) / 10);
+    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0);
+    var satsBalance = Math.floor(Math.max(0, availPts) / 10);
     var satsWithdrawn = currentUser.satsWithdrawn || 0;
     var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 500, lifetimeLeft);
@@ -4988,7 +4991,7 @@ window.submitSatsClaim = async function() {
         var result = await claimSats({ invoice: invoice });
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
-            currentUser.points = (currentUser.points || 0) - (paidAmount * 10);
+            currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
             currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();

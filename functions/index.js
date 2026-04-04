@@ -1278,11 +1278,13 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
             }
 
-            // Check points balance
+            // Check points balance (points are NEVER deducted — we track pointsClaimed separately)
             const userPoints = user.points || 0;
-            const satsBalance = Math.floor(userPoints / FAUCET.POINTS_PER_SAT);
+            const pointsClaimed = user.pointsClaimed || 0;
+            const availablePoints = userPoints - pointsClaimed;
+            const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
             if (satsBalance < amount) {
-                throw new Error('Insufficient points. You have ' + satsBalance + ' sats worth (' + userPoints + ' points).');
+                throw new Error('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
             }
 
             // Check lifetime cap
@@ -1317,11 +1319,11 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 throw new Error('Daily faucet limit reached. Try again tomorrow.');
             }
 
-            // ALL CHECKS PASSED — deduct points and set cooldown BEFORE paying
-            // This locks the user's balance so concurrent requests fail
-            const pointsToDeduct = amount * FAUCET.POINTS_PER_SAT;
+            // ALL CHECKS PASSED — mark points as claimed (NEVER deduct points)
+            // This locks the unclaimed balance so concurrent requests fail
+            const pointsToClaim = amount * FAUCET.POINTS_PER_SAT;
             t.update(userRef, {
-                points: admin.firestore.FieldValue.increment(-pointsToDeduct),
+                pointsClaimed: admin.firestore.FieldValue.increment(pointsToClaim),
                 satsWithdrawn: admin.firestore.FieldValue.increment(amount),
                 lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
                 _pendingClaim: true // flag: payment in progress
@@ -1370,7 +1372,7 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         batch.update(userRef, { _pendingClaim: admin.firestore.FieldValue.delete() });
         batch.set(userRef.collection('sats_withdrawals').doc(), {
             amount: amount,
-            pointsDeducted: amount * FAUCET.POINTS_PER_SAT,
+            pointsUsed: amount * FAUCET.POINTS_PER_SAT,
             invoice: invoice.substring(0, 50) + '...',
             preimage: payResult.preimage,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
@@ -1399,7 +1401,7 @@ async function _rollbackClaim(uid, amount, today) {
         const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
         const batch = db.batch();
         batch.update(db.collection('users').doc(uid), {
-            points: admin.firestore.FieldValue.increment(pointsToRefund),
+            pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
             satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
             _pendingClaim: admin.firestore.FieldValue.delete()
         });
