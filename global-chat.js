@@ -961,6 +961,7 @@ function renderOverlayChat() {
     var tabHtml = '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;">' +
         '<button onclick="window._switchOverlayTab(\'global\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + (_overlayTab === 'global' ? 'var(--accent)' : 'transparent') + ';color:' + (_overlayTab === 'global' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🌍 Global</button>' +
         '<button onclick="window._switchOverlayTab(\'dms\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + (_overlayTab === 'dms' ? 'var(--accent)' : 'transparent') + ';color:' + (_overlayTab === 'dms' ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
+        '<button onclick="if(typeof showChatRules===\'function\')showChatRules()" style="padding:10px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Rules</button>' +
     '</div>';
 
     if (_overlayTab === 'dms') {
