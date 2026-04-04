@@ -1421,7 +1421,7 @@ async function _rollbackClaim(uid, amount, today) {
 
 // ===== FAUCET ADMIN — getFaucetStats =====
 exports.getFaucetStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.email !== 'needcreations@gmail.com') {
+    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const today = new Date().toISOString().split('T')[0];
@@ -1445,7 +1445,7 @@ exports.getFaucetStats = functions.https.onCall(async (data, context) => {
 
 // ===== FAUCET ADMIN — toggleFaucet =====
 exports.toggleFaucet = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.email !== 'needcreations@gmail.com') {
+    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const paused = !!data.paused;
@@ -1455,7 +1455,7 @@ exports.toggleFaucet = functions.https.onCall(async (data, context) => {
 
 // ===== ONE-TIME: Backfill bestStreak for all users =====
 exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
-    if (!context.auth || context.auth.token.email !== 'needcreations@gmail.com') {
+    if (!context.auth || ['needcreations@gmail.com','info.603btc@gmail.com'].indexOf(context.auth.token.email) === -1) {
         throw new functions.https.HttpsError('permission-denied', 'Admin only');
     }
     const usersSnap = await db.collection('users').get();

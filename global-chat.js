@@ -2306,5 +2306,102 @@ window.showChatRules = function() {
     document.body.appendChild(overlay);
 };
 
+// ---- Unread Message Counter for Chat Button ----
+var _unreadChatCount = 0;
+var _lastSeenChatTs = parseInt(localStorage.getItem('btc_chat_last_seen') || '0');
+var _bgChatUnsub = null;
+
+function startUnreadTracker() {
+    if (_bgChatUnsub || typeof db === 'undefined' || !db) return;
+    _bgChatUnsub = db.collection(CHAT_COLLECTION)
+        .orderBy('ts', 'desc')
+        .limit(50)
+        .onSnapshot(function(snapshot) {
+            var count = 0;
+            snapshot.forEach(function(doc) {
+                var d = doc.data();
+                if (d.ts) {
+                    var msgTs = d.ts.seconds ? d.ts.seconds * 1000 : (d.ts.toMillis ? d.ts.toMillis() : 0);
+                    if (msgTs > _lastSeenChatTs) count++;
+                }
+            });
+            _unreadChatCount = count;
+            updateChatUnreadBadge();
+        }, function() {});
+}
+
+window.markChatAsRead = function() {
+    _lastSeenChatTs = Date.now();
+    _unreadChatCount = 0;
+    localStorage.setItem('btc_chat_last_seen', String(_lastSeenChatTs));
+    updateChatUnreadBadge();
+};
+
+function updateChatUnreadBadge() {
+    // Desktop Chat button
+    var deskBtn = document.getElementById('desktopDMBtn');
+    if (deskBtn) {
+        var badge = document.getElementById('chatUnreadBadge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.id = 'chatUnreadBadge';
+            badge.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:2px 5px;border-radius:8px;min-width:14px;text-align:center;display:none;';
+            deskBtn.style.position = 'relative';
+            deskBtn.appendChild(badge);
+        }
+        if (_unreadChatCount > 0) {
+            badge.textContent = _unreadChatCount > 99 ? '99+' : _unreadChatCount;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    // Mobile bottom nav Chat/DM button
+    var mobileBtn = document.getElementById('bnavNotif');
+    if (!mobileBtn) mobileBtn = document.querySelector('#bottomNav [onclick*="toggleNotifOverlay"]');
+    // Actually target the DM/chat button in bottom nav
+    var mobileChatBtn = document.querySelector('#bottomNav [onclick*="toggleChatOverlay"], #bottomNav [onclick*="showInbox"]');
+    // Update bottom nav badge if we have a dedicated chat btn
+    var bnavMsg = document.getElementById('bnavMsg');
+    if (bnavMsg) {
+        var mBadge = document.getElementById('bnavChatUnread');
+        if (!mBadge) {
+            mBadge = document.createElement('span');
+            mBadge.id = 'bnavChatUnread';
+            mBadge.style.cssText = 'position:absolute;top:2px;right:4px;background:#ef4444;color:#fff;font-size:0.5rem;font-weight:800;padding:1px 4px;border-radius:6px;min-width:12px;text-align:center;display:none;';
+            bnavMsg.style.position = 'relative';
+            bnavMsg.appendChild(mBadge);
+        }
+        if (_unreadChatCount > 0) {
+            mBadge.textContent = _unreadChatCount > 99 ? '99+' : _unreadChatCount;
+            mBadge.style.display = 'block';
+        } else {
+            mBadge.style.display = 'none';
+        }
+    }
+}
+
+// Mark as read when user opens chat
+var _origRenderChatHub3 = window.renderChatHub;
+if (_origRenderChatHub3) {
+    window.renderChatHub = function(tab) {
+        _origRenderChatHub3(tab);
+        if (tab === 'global') markChatAsRead();
+    };
+}
+var _origToggleChatOverlay = window.toggleChatOverlay;
+if (_origToggleChatOverlay) {
+    window.toggleChatOverlay = function() {
+        _origToggleChatOverlay();
+        markChatAsRead();
+    };
+}
+
+// Start tracker when Firebase is ready
+setTimeout(function() {
+    if (typeof db !== 'undefined' && db) startUnreadTracker();
+    else setTimeout(function() { if (typeof db !== 'undefined' && db) startUnreadTracker(); }, 5000);
+}, 3000);
+
 console.log('[CHAT] Global chat module loaded');
 }();
