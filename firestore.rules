@@ -97,7 +97,7 @@ service cloud.firestore {
                     && request.auth.uid == referralId;
       allow update: if request.auth != null
                     && (request.auth.uid == referralId
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -150,11 +150,11 @@ service cloud.firestore {
                        && (!(request.auth.uid in resource.data.get('voters', [])))
                       )
                       || resource.data.authorId == request.auth.uid
-                      || request.auth.token.email == 'needcreations@gmail.com'
+                      || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -172,11 +172,11 @@ service cloud.firestore {
                     && (
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                       || resource.data.authorId == request.auth.uid
-                      || request.auth.token.email == 'needcreations@gmail.com'
+                      || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -188,10 +188,10 @@ service cloud.firestore {
                     && request.resource.data.sellerUid == request.auth.uid;
       allow update: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
       allow delete: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -235,7 +235,7 @@ service cloud.firestore {
     // =============================================
     match /reports/{reportId} {
       allow read: if request.auth != null
-                  && request.auth.token.email == 'needcreations@gmail.com';
+                  && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
       allow create: if request.auth != null
                     && request.resource.data.reporterUid == request.auth.uid;
     }
@@ -254,11 +254,11 @@ service cloud.firestore {
                     && request.resource.data.title.size() <= 200;
       allow update: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com'
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees']));
       allow delete: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -366,11 +366,11 @@ service cloud.firestore {
                       // Upvotes/tips: anyone authenticated
                       || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount', 'tipTotal'])
                       // Admin
-                      || request.auth.token.email == 'needcreations@gmail.com'
+                      || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -387,10 +387,10 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -419,7 +419,7 @@ service cloud.firestore {
                               && request.auth.uid == queueId;
         allow delete: if request.auth != null
                       && (request.auth.uid == queueId
-                          || request.auth.token.email == 'needcreations@gmail.com');
+                          || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
       }
     }
 
@@ -458,7 +458,7 @@ service cloud.firestore {
       // Own messages or admin can delete
       allow delete: if request.auth != null
                     && (resource.data.uid == request.auth.uid
-                        || request.auth.token.email == 'needcreations@gmail.com');
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // =============================================
@@ -502,14 +502,14 @@ service cloud.firestore {
     // Faucet stats (Cloud Function only, admin can read)
     match /faucet_stats/{docId} {
       allow read: if request.auth != null
-                  && request.auth.token.email == 'needcreations@gmail.com';
+                  && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
       allow write: if false;
     }
 
     // Faucet config (Cloud Function only, admin can read)
     match /faucet_config/{docId} {
       allow read: if request.auth != null
-                  && request.auth.token.email == 'needcreations@gmail.com';
+                  && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
       allow write: if false;
     }
 

@@ -291,7 +291,8 @@ function renderChatMessages(msgs) {
     var hasMore = !window._chatReachedBeginning && (msgs.length >= CHAT_INITIAL_SHOW || msgs.length > showCount);
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email === 'needcreations@gmail.com';
+    var _adminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+    var isAdmin = myUid && typeof auth !== 'undefined' && auth.currentUser && _adminEmails.indexOf(auth.currentUser.email) !== -1;
     var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
 
     if (msgs.length === 0) {

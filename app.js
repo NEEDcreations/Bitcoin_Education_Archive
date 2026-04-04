@@ -3997,7 +3997,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _vis = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _aAuth = (typeof auth !== 'undefined') ? auth : null;
         var _aCu = _aAuth && _aAuth.currentUser;
-        var _isAdmin = (_aCu && (_aCu.email || '') === 'needcreations@gmail.com');
+        var _isAdmin = (_aCu && ['needcreations@gmail.com', 'info.603btc@gmail.com'].indexOf(_aCu.email || '') !== -1);
         var _obP = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
         var _isAdv = _obP && (_obP.level === 'advanced' || _obP.level === 'full');
         var _isFull = _isAdv || _isAdmin || (_aCu && !_aCu.isAnonymous) || (_vis >= 10 || _exploredN >= 10);

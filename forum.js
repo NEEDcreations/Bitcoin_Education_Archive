@@ -14,7 +14,7 @@ function isForumAdmin() {
     if (FORUM_ADMINS.indexOf(auth.currentUser.uid) !== -1) return true;
     // Also check email
     var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com';
+    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com';
 }
 
 var FORUM_CATEGORIES = [
