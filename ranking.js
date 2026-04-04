@@ -3165,7 +3165,7 @@ function showSettingsPage(tab) {
             var val = currentUser ? currentUser[s.k] || '' : '';
             html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);">' +
                 '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
-                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
+                '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
                 '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:rgba(239,68,68,0.1);border:none;color:#ef4444;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
             '</div>';
         });
@@ -4310,7 +4310,7 @@ window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
     row.setAttribute('data-key', key);
     row.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);';
     row.innerHTML = '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + emoji + '</span>' +
-        '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:15px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
+        '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
         '<button onclick="document.getElementById(\'profile_' + key + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + key + '\')" style="background:rgba(239,68,68,0.1);border:none;color:#ef4444;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" title="Remove">✕</button>';
     area.appendChild(row);
     // Hide the menu
@@ -4541,28 +4541,34 @@ window.saveArtistProfile = function() {
 window.pasteToField = function(fieldId) {
     var field = document.getElementById(fieldId);
     if (!field) return;
-    field.focus();
+
+    // Method 1: Clipboard API (works on most browsers with user gesture)
     if (navigator.clipboard && navigator.clipboard.readText) {
         navigator.clipboard.readText().then(function(text) {
             if (text) {
-                field.value = text;
+                field.value = text.trim();
                 field.style.borderColor = 'var(--accent)';
                 field.dispatchEvent(new Event('input', { bubbles: true }));
                 if (typeof showToast === 'function') showToast('📋 Pasted!');
             } else {
-                if (typeof showToast === 'function') showToast('📋 Tap and hold the field, then tap Paste', 4000);
+                _pasteFieldFallback(field);
             }
         }).catch(function() {
-            // iOS Safari: clipboard API often blocked, use execCommand fallback
-            try {
-                document.execCommand('paste');
-            } catch(e) {}
-            if (typeof showToast === 'function') showToast('📋 Tap and hold the field, then tap Paste', 4000);
+            _pasteFieldFallback(field);
         });
     } else {
-        if (typeof showToast === 'function') showToast('📋 Tap and hold the field, then tap Paste', 4000);
+        _pasteFieldFallback(field);
     }
 };
+
+// Fallback: focus field and trigger native paste menu on iOS
+function _pasteFieldFallback(field) {
+    field.focus();
+    field.value = '';
+    field.setSelectionRange(0, 0);
+    try { document.execCommand('paste'); } catch(e) {}
+    if (typeof showToast === 'function') showToast('📋 Field ready — tap and hold, then tap Paste', 5000);
+}
 
 // Load Signal live news content
 window.loadSignalContent = function() {
