@@ -1743,8 +1743,24 @@ async function awardPoints(pts, reason) {
     // Anti-abuse: global daily points cap (500/day)
     var _dailyKey = 'btc_daily_pts_' + new Date().toISOString().split('T')[0];
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    if (_dailyPts >= 500) return; // silently cap
-    if (_dailyPts + pts > 500) pts = 500 - _dailyPts; // award partial
+    if (_dailyPts >= 500) {
+        // Show toast once per day when cap is hit
+        var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+        if (!localStorage.getItem(_capNotifKey)) {
+            localStorage.setItem(_capNotifKey, '1');
+            if (typeof showToast === 'function') showToast('🎯 You\'ve hit today\'s 500-point daily cap! Come back tomorrow to earn more. Your points convert to real sats — check Settings → ⚡ Sats!', 7000);
+        }
+        return;
+    }
+    if (_dailyPts + pts > 500) {
+        pts = 500 - _dailyPts;
+        // They just hit the cap with this award
+        var _capNotifKey2 = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+        if (!localStorage.getItem(_capNotifKey2)) {
+            localStorage.setItem(_capNotifKey2, '1');
+            if (typeof showToast === 'function') showToast('🎯 You\'ve hit today\'s 500-point daily cap! Come back tomorrow to earn more. Your points convert to real sats — check Settings → ⚡ Sats!', 7000);
+        }
+    }
     if (pts <= 0) return;
     localStorage.setItem(_dailyKey, (_dailyPts + pts).toString());
 
@@ -2775,23 +2791,25 @@ async function _loadPVPLeaderboard() {
 
 // Toast notifications
 var _toastQueue = [];
-function showToast(msg) {
+function showToast(msg, duration) {
     // Suppress toasts during direct link cooldown
     if (window._directLinkMode) return;
     // If Nacho is busy (Q&A, voice, reading answer), queue the toast
     if (window._nachoBusy) {
-        _toastQueue.push(msg);
+        _toastQueue.push({ msg: msg, duration: duration });
         return;
     }
-    _showToastNow(msg);
+    _showToastNow(msg, duration);
 }
-function _showToastNow(msg) {
+function _showToastNow(msg, duration) {
+    var ms = duration || 2500;
     const t = document.createElement('div');
     t.className = 'rank-toast';
-    t.innerHTML = msg;
+    t.innerHTML = typeof msg === 'object' ? msg.msg : msg;
+    if (typeof msg === 'object' && msg.duration) ms = msg.duration;
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
-    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
 }
 // Flush queued toasts when Nacho is no longer busy
 setInterval(function() {
@@ -4851,7 +4869,7 @@ window.initSatsClaim = function() {
     var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 500, lifetimeLeft);
     if (maxClaim < 100) {
-        showToast('Need at least 100 sats (1,000 points) to claim');
+        showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed points) to withdraw. Keep earning!', 5000);
         return;
     }
 
@@ -4916,7 +4934,7 @@ window.submitSatsClaim = async function() {
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
-            showToast('⚡ ' + paidAmount + ' sats sent to your wallet!');
+            showToast('⚡ ' + paidAmount + ' sats sent to your wallet! Check your Lightning wallet.', 5000);
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed — try again';
