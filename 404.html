@@ -509,7 +509,8 @@
     </style>
     <!-- Google Sign-In loaded after page is interactive -->
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;document.head.appendChild(s);},3000);</script>
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+    <!-- Facebook SDK deferred until user interacts (saves 77KB) -->
+    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://connect.facebook.net/en_US/sdk.js';s.async=true;s.crossOrigin='anonymous';document.head.appendChild(s);},5000);</script>
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;"></div>
@@ -1003,9 +1004,11 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer integrity="sha384-XMIl1b2Ez9tKAM0R5q67/iLdfnlLBl9kfo40X5WMtCPb+3OLplrjnOxZTYCg1SKY" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js" defer integrity="sha384-oFrOL1TiREYNET0lsYF3LjQuyi2gL7vhjH1X8vFr+umcmzAdPELopeSgbcrv4uRm" crossorigin="anonymous"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
+    <!-- Firebase Messaging deferred: only used by notifications.js (lazy-loaded) -->
+    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js';s.async=true;document.head.appendChild(s);},6000);</script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
+    <!-- App Check disabled: not enforced, reCAPTCHA adds 724KB -->
+    <!-- <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script> -->
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
     <script src="bundle.js?v=20260324" defer fetchpriority="high"></script>
@@ -1056,7 +1059,7 @@
         setTimeout(_loadDeferred, 5000);
     })();
     </script>
-<div id="recaptcha-container"></div>
+<!-- recaptcha-container removed: App Check disabled -->
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {

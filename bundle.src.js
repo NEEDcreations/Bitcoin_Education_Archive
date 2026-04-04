@@ -157,13 +157,11 @@ function initRanking() {
 
         // Firebase App Check — temporarily disabled to fix Cloud Functions auth
                 // Firebase App Check — temporarily disabled until key is verified
-        // If sign-in or Firestore breaks, this may be the cause
-        // Unenforce in Firebase Console → App Check → Firestore → Unenforce
-        if (typeof firebase.appCheck === 'function') {
-            try {
-                firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
-            } catch(e) { console.warn('App Check init failed:', e); }
-        }
+        // App Check DISABLED — not enforced, and reCAPTCHA adds 724KB to page load
+        // Re-enable when Firebase App Check is enforced in the console
+        // if (typeof firebase.appCheck === 'function') {
+        //     firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv', true);
+        // }
 
         db = firebase.firestore();
         // Enable offline persistence — data survives connection loss
