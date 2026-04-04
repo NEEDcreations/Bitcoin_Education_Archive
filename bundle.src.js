@@ -3644,12 +3644,30 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">🎯 How to Earn Points</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• 📖 <strong>Open a channel</strong>: 10 pts<br>';
-        html += '• ⏱️ <strong>Read (30 sec)</strong>: 15 pts<br>';
-        html += '• ✅ <strong>Daily visit</strong>: 5 pts<br>';
-        html += '• 🔥 <strong>Streak bonus</strong>: 100 pts/day<br>';
-        html += '• 🧭 <strong>Explore 10+ channels</strong>: 50 pts<br>';
-        html += '• 🎓 <strong>Scholar Certification</strong>: 2,100 pts<br>';
+        html += '<strong style="color:var(--text);font-size:0.8rem;">📚 Reading & Exploring</strong><br>';
+        html += '• 📖 Open a channel: <strong>10 pts</strong><br>';
+        html += '• ⏱️ Read for 30 sec: <strong>15 pts</strong><br>';
+        html += '• 🧭 Explore 10+ channels/session: <strong>50 pts</strong><br>';
+        html += '• 🗺️ Exploration milestones: <strong>50-500 pts</strong> (25/50/75/100%)<br><br>';
+        html += '<strong style="color:var(--text);font-size:0.8rem;">✅ Daily Activities</strong><br>';
+        html += '• ✅ Daily visit: <strong>5 pts</strong><br>';
+        html += '• 🔥 Streak bonus: <strong>100 pts/day</strong><br>';
+        html += '• 🎰 Daily spin: <strong>10-50 pts</strong> (if you land on points)<br>';
+        html += '• 📈 Price prediction: <strong>5 pts</strong> (25 if correct!)<br><br>';
+        html += '<strong style="color:var(--text);font-size:0.8rem;">🧠 Quizzes & Learning</strong><br>';
+        html += '• 🎯 Daily quests (perfect): <strong>100 pts</strong> (50 for 3+, 25 retry)<br>';
+        html += '• 🧠 Nacho trivia pop-ups: <strong>10-15 pts</strong><br>';
+        html += '• 🎮 Channel quizzes: <strong>10 pts</strong><br>';
+        html += '• 🎯 Conversation quests: <strong>5 pts/correct</strong><br>';
+        html += '• 📖 Nacho\'s Trails chapters: <strong>25-50 pts</strong> (100 for completing all)<br><br>';
+        html += '<strong style="color:var(--text);font-size:0.8rem;">⚔️ PVP & Competitions</strong><br>';
+        html += '• ⚔️ PVP victory: <strong>score-based pts</strong><br>';
+        html += '• 🧠 PVP practice: <strong>10 pts/correct</strong><br>';
+        html += '• 🏅 PVP badges: <strong>25-500 pts</strong><br><br>';
+        html += '<strong style="color:var(--text);font-size:0.8rem;">🏆 Big Achievements</strong><br>';
+        html += '• 🎓 Scholar Certification: <strong>2,100 pts</strong><br>';
+        html += '• 🔑 Hidden badges: <strong>varies</strong><br>';
+        html += '• 💬 Feedback bonus: <strong>5 pts</strong><br>';
         html += '</div></div>';
 
         // Withdrawal history placeholder
