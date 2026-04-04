@@ -3612,6 +3612,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_satsvbits', title: '⚡ Sats vs Bits', desc: 'Live community vote — sats or bits for the Bitcoin denomination?', keywords: 'sats bits vote poll denomination unit satoshi community debate live', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_newbie', title: '🟢 Brand New to Bitcoin?', desc: 'Quick introduction for absolute beginners', keywords: 'new beginner brand new start zero nothing know nothing introduction first time newbie noob', action: "go('one-stop-shop')" },
         { id: '_meetupbuilder', title: '🔨 Meetup Builder', desc: 'Plan, share, and discover Bitcoin meetups — resources, venues & guides', keywords: 'meetup builder create plan share venue platform resource guide community', action: "go('meetup-builder')" },
+        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw bitcoin lightning faucet earn points convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
     ];
 
     function doSearch(q) {

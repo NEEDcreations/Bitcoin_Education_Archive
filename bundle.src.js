@@ -10851,7 +10851,30 @@ const NACHO_KB = [
 
 // ---- Online Users Counter ----
 { keys: ['online users','who is online','how many people','user count','active users','people online'],
-  answer: "🌍 You can see how many users are online right next to the Chat icon! The green counter shows everyone who's been active in the last 3 minutes. You'll see it in the bottom nav, the desktop 💬 button, and inside the Global Chat header. It updates in real-time! 🦌" }
+  answer: "🌍 You can see how many users are online right next to the Chat icon! The green counter shows everyone who's been active in the last 3 minutes. You'll see it in the bottom nav, the desktop 💬 button, and inside the Global Chat header. It updates in real-time! 🦌" },
+
+// ---- Sats Faucet / Claim Sats ----
+{ keys: ['earn real sats','earn bitcoin','earn real bitcoin','can i earn bitcoin','get free sats','earn sats on this site','free bitcoin','earn btc','how to earn sats','earn sats here','get sats','get bitcoin'],
+  answer: "Yes, {name} — you can earn REAL sats (Bitcoin) on this site! ⚡🦌 Earn points by reading channels, completing quests, chatting, and more. Then convert your points into real sats at a rate of 10 points = 1 sat. Go to Settings → ⚡ Sats tab to claim. You'll need at least 1,000 points to claim 100 sats (the minimum). Payouts are instant via Lightning Network! 🧡",
+  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
+
+{ keys: ['claim sats','how to claim sats','withdraw sats','withdraw bitcoin','how to withdraw','cash out points','convert points','redeem points','redeem sats','claim bitcoin','how do i claim','sats tab','get my sats'],
+  answer: "Here's how to claim your sats, {name}! ⚡🦌\n\n1️⃣ Go to **Settings → ⚡ Sats** tab\n2️⃣ Check your point balance (10 points = 1 sat)\n3️⃣ Enter the amount of sats you want to claim (min 100, max 500/day)\n4️⃣ Paste a **Lightning invoice** from your wallet for that amount\n5️⃣ Hit Claim — sats are sent instantly via Lightning! ⚡\n\nYou'll need a Lightning wallet like Wallet of Satoshi, Phoenix, or Alby to generate an invoice. 🧡",
+  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Claim Sats Now', isSiteNav: true },
+
+{ keys: ['requirements to claim sats','sats requirements','claim requirements','who can claim sats','eligible for sats','qualify for sats','sats eligibility','requirements for sats'],
+  answer: "To claim sats you need to meet these requirements, {name}: 📋🦌\n\n✅ Account at least **7 days old**\n✅ Read at least **10 channels**\n✅ **Verified email** on your account\n✅ Minimum **1,000 points** (= 100 sats)\n\nThese requirements help prevent abuse and reward genuine learners. Once you qualify, head to Settings → ⚡ Sats to claim! ⚡",
+  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Check Eligibility', isSiteNav: true },
+
+{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','daily cap','claim limit','500 sats','10000 sats','sats per day','cooldown','how often can i claim'],
+  answer: "Here are the sats claim limits, {name}: 📊🦌\n\n⚡ **Minimum claim**: 100 sats (1,000 points)\n⚡ **Maximum per day**: 500 sats (5,000 points)\n⚡ **Lifetime cap**: 10,000 sats per user\n⏰ **Cooldown**: 1 claim every 24 hours\n📈 **Points earned per day**: up to 500 points\n\nThe faucet rewards consistent learning over time. Stack sats by stacking knowledge! 🧡" },
+
+{ keys: ['points to sats','sats conversion','conversion rate','how many points per sat','points per sat','exchange rate points','10 points','points ratio','points equal sats'],
+  answer: "The conversion rate is simple, {name}: **10 points = 1 sat**! 🔢🦌\n\nSo 1,000 points = 100 sats, 5,000 points = 500 sats. You earn points by reading channels (+15), daily visits (+5), quests, badges, chatting, and more. Points cap at 500 per day. Think of it as earning Bitcoin by learning about Bitcoin — how cool is that? ⚡🧡" },
+
+{ keys: ['lightning wallet for sats','need a wallet to claim','lightning invoice','how to get invoice','wallet for claiming sats','where to get lightning invoice','do i need a lightning wallet','claiming wallet'],
+  answer: "Yes, you need a Lightning wallet to receive sats, {name}! ⚡🦌 When you claim, you paste a **Lightning invoice** (a one-time payment request) for the exact amount. Here are the easiest wallets to get started:\n\n⚡ **Wallet of Satoshi** — easiest, 2-minute setup\n⚡ **Phoenix** — self-custodial, you hold the keys\n⚡ **Alby** — browser extension + NWC\n⚡ **Coinos** — web-based, no download\n\nOpen your wallet, create an invoice for the amount you want to claim, copy it, and paste it into the Sats tab. Instant sats! 🧡",
+  siteAction: "go('lightning')", siteLabel: '⚡ Set Up Lightning Wallet', isSiteNav: true }
 ];
 
 
@@ -33027,6 +33050,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_satsvbits', title: '⚡ Sats vs Bits', desc: 'Live community vote — sats or bits for the Bitcoin denomination?', keywords: 'sats bits vote poll denomination unit satoshi community debate live', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_newbie', title: '🟢 Brand New to Bitcoin?', desc: 'Quick introduction for absolute beginners', keywords: 'new beginner brand new start zero nothing know nothing introduction first time newbie noob', action: "go('one-stop-shop')" },
         { id: '_meetupbuilder', title: '🔨 Meetup Builder', desc: 'Plan, share, and discover Bitcoin meetups — resources, venues & guides', keywords: 'meetup builder create plan share venue platform resource guide community', action: "go('meetup-builder')" },
+        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw bitcoin lightning faucet earn points convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
     ];
 
     function doSearch(q) {
