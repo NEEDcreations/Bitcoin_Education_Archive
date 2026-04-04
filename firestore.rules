@@ -22,6 +22,18 @@ service cloud.firestore {
       allow delete: if request.auth != null
                     && request.auth.uid == userId;
 
+      // Sats withdrawal history (read own, Cloud Function writes)
+      match /sats_withdrawals/{docId} {
+        allow read: if request.auth != null
+                    && request.auth.uid == userId;
+        allow write: if false; // Cloud Function only
+      }
+
+      // Sats daily tracking (Cloud Function only)
+      match /sats_daily/{docId} {
+        allow read, write: if false;
+      }
+
       // Playlists subcollection
       match /playlists/{playlistId} {
         allow read: if request.auth != null;
@@ -485,6 +497,20 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow delete: if request.auth != null;
+    }
+
+    // Faucet stats (Cloud Function only, admin can read)
+    match /faucet_stats/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email == 'needcreations@gmail.com';
+      allow write: if false;
+    }
+
+    // Faucet config (Cloud Function only, admin can read)
+    match /faucet_config/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email == 'needcreations@gmail.com';
+      allow write: if false;
     }
 
     // Buddy matches

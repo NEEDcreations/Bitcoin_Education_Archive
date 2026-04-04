@@ -8,11 +8,13 @@ const fetch = require('node-fetch');
 admin.initializeApp();
 const db = admin.firestore();
 
+const { NWCClient } = require('@getalby/sdk');
+
 // ===== SATS FAUCET CONFIG =====
 const FAUCET = {
     POINTS_PER_SAT: 10,
     MIN_WITHDRAWAL_SATS: 100,
-    MAX_PER_CLAIM_SATS: 100,
+    MAX_PER_CLAIM_SATS: 500,
     MAX_DAILY_PER_USER_SATS: 500,
     MAX_LIFETIME_PER_USER_SATS: 10000,
     GLOBAL_DAILY_MAX_SATS: 10000,
@@ -20,8 +22,7 @@ const FAUCET = {
     MIN_ACCOUNT_AGE_DAYS: 7,
     MIN_CHANNELS_READ: 10,
     WALLET_BALANCE_FLOOR_SATS: 5000,
-    LNBITS_ADMIN_KEY: '75838d2a7fc74730b3a7540f36ed0dd6',
-    LNBITS_URL: functions.config().faucet?.lnbits_url || 'https://PLACEHOLDER.onion'
+    NWC_URL: 'nostr+walletconnect://d6d1a27fc9b9ec29af7a655866c875882478d44e7b626bf59744680f3c92e53b?relay=wss://relay.getalby.com/v1&secret=88d7d3dd102b6db91291b9b178a570724aff497933e80fdaa27aff01346d25b2'
 };
 
 // Generate TOTP secret and QR code for user
@@ -1184,4 +1185,207 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
         console.error('[BRIDGE] Error:', e.message);
         return { ok: false };
     }
+});
+
+// ===== SATS FAUCET — claimSats Cloud Function =====
+exports.claimSats = functions.https.onCall(async (data, context) => {
+    // 1. Must be authenticated
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    const uid = context.auth.uid;
+    const email = context.auth.token.email;
+    const emailVerified = context.auth.token.email_verified;
+
+    // 2. Must not be anonymous
+    if (!email || !emailVerified) {
+        return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
+    }
+
+    const amount = parseInt(data.amount);
+    const invoice = (data.invoice || '').trim();
+
+    // 3. Validate inputs
+    if (!invoice || !invoice.toLowerCase().startsWith('lnbc')) {
+        return { success: false, error: 'Invalid Lightning invoice. Must start with lnbc.' };
+    }
+    if (isNaN(amount) || amount < FAUCET.MIN_WITHDRAWAL_SATS) {
+        return { success: false, error: 'Minimum claim is ' + FAUCET.MIN_WITHDRAWAL_SATS + ' sats.' };
+    }
+    if (amount > FAUCET.MAX_PER_CLAIM_SATS) {
+        return { success: false, error: 'Maximum claim is ' + FAUCET.MAX_PER_CLAIM_SATS + ' sats per transaction.' };
+    }
+
+    // 4. Load user data
+    const userDoc = await db.collection('users').doc(uid).get();
+    if (!userDoc.exists) {
+        return { success: false, error: 'User profile not found.' };
+    }
+    const user = userDoc.data();
+
+    // 5. Check account age
+    const createdAt = context.auth.token.auth_time ? new Date(context.auth.token.auth_time * 1000) : null;
+    // Use Firestore createdAt if available
+    const userCreated = user.createdAt ? (user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt)) : null;
+    const accountDate = userCreated || createdAt;
+    if (accountDate) {
+        const ageDays = Math.floor((Date.now() - accountDate.getTime()) / 86400000);
+        if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
+            return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
+        }
+    }
+
+    // 6. Check channels read
+    const channelsRead = user.readChannels ? Object.keys(user.readChannels).length : 0;
+    if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
+        return { success: false, error: 'Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.' };
+    }
+
+    // 7. Check points balance
+    const userPoints = user.points || 0;
+    const satsBalance = Math.floor(userPoints / FAUCET.POINTS_PER_SAT);
+    if (satsBalance < amount) {
+        return { success: false, error: 'Insufficient points. You have ' + satsBalance + ' sats worth (' + userPoints + ' points).' };
+    }
+
+    // 8. Check lifetime cap
+    const satsWithdrawn = user.satsWithdrawn || 0;
+    if (satsWithdrawn + amount > FAUCET.MAX_LIFETIME_PER_USER_SATS) {
+        const remaining = FAUCET.MAX_LIFETIME_PER_USER_SATS - satsWithdrawn;
+        return { success: false, error: 'Lifetime cap reached. You can withdraw ' + remaining + ' more sats.' };
+    }
+
+    // 9. Check 24h cooldown
+    const lastClaim = user.lastSatsClaim ? (user.lastSatsClaim.toDate ? user.lastSatsClaim.toDate() : new Date(user.lastSatsClaim)) : null;
+    if (lastClaim) {
+        const cooldownEnd = lastClaim.getTime() + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
+        if (Date.now() < cooldownEnd) {
+            const hoursLeft = Math.ceil((cooldownEnd - Date.now()) / 3600000);
+            return { success: false, error: 'Cooldown active. Try again in ~' + hoursLeft + ' hour(s).' };
+        }
+    }
+
+    // 10. Check daily per-user cap
+    const today = new Date().toISOString().split('T')[0];
+    const dailyDoc = await db.collection('users').doc(uid).collection('sats_daily').doc(today).get();
+    const dailyUsed = dailyDoc.exists ? (dailyDoc.data().amount || 0) : 0;
+    if (dailyUsed + amount > FAUCET.MAX_DAILY_PER_USER_SATS) {
+        const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsed;
+        return { success: false, error: 'Daily limit reached. You can claim ' + remaining + ' more sats today.' };
+    }
+
+    // 11. Check global daily cap
+    const globalDoc = await db.collection('faucet_stats').doc(today).get();
+    const globalUsed = globalDoc.exists ? (globalDoc.data().totalPaid || 0) : 0;
+    if (globalUsed + amount > FAUCET.GLOBAL_DAILY_MAX_SATS) {
+        return { success: false, error: 'Daily faucet limit reached. Try again tomorrow.' };
+    }
+
+    // 12. Check kill switch
+    const configDoc = await db.collection('faucet_config').doc('settings').get();
+    if (configDoc.exists && configDoc.data().paused) {
+        return { success: false, error: 'Sats faucet is temporarily paused.' };
+    }
+
+    // 13. Check wallet balance floor
+    let nwc;
+    try {
+        nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
+        const balanceResult = await nwc.getBalance();
+        const walletBalance = balanceResult.balance; // in msats
+        const walletSats = Math.floor(walletBalance / 1000);
+        if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) {
+            return { success: false, error: 'Faucet is being refilled. Try again later.' };
+        }
+    } catch (e) {
+        console.error('[FAUCET] Balance check failed:', e.message);
+        return { success: false, error: 'Could not connect to payment wallet. Try again later.' };
+    }
+
+    // 14. PAY THE INVOICE via NWC
+    try {
+        const payResult = await nwc.payInvoice({ invoice: invoice });
+        if (!payResult || !payResult.preimage) {
+            return { success: false, error: 'Payment failed. Check your invoice and try again.' };
+        }
+
+        // 15. Record the withdrawal in Firestore (atomic)
+        const batch = db.batch();
+
+        // Deduct points, update user
+        const pointsToDeduct = amount * FAUCET.POINTS_PER_SAT;
+        batch.update(db.collection('users').doc(uid), {
+            points: admin.firestore.FieldValue.increment(-pointsToDeduct),
+            satsWithdrawn: admin.firestore.FieldValue.increment(amount),
+            lastSatsClaim: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Withdrawal history
+        batch.set(db.collection('users').doc(uid).collection('sats_withdrawals').doc(), {
+            amount: amount,
+            pointsDeducted: pointsToDeduct,
+            invoice: invoice.substring(0, 50) + '...',
+            preimage: payResult.preimage,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Daily per-user tracking
+        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
+            amount: admin.firestore.FieldValue.increment(amount)
+        }, { merge: true });
+
+        // Global daily tracking
+        batch.set(db.collection('faucet_stats').doc(today), {
+            totalPaid: admin.firestore.FieldValue.increment(amount),
+            claimCount: admin.firestore.FieldValue.increment(1)
+        }, { merge: true });
+
+        await batch.commit();
+
+        console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid + ' (preimage: ' + payResult.preimage.substring(0, 16) + '...)');
+
+        return {
+            success: true,
+            amount: amount,
+            preimage: payResult.preimage,
+            message: '⚡ ' + amount + ' sats sent to your wallet!'
+        };
+    } catch (e) {
+        console.error('[FAUCET] Payment error:', e.message);
+        return { success: false, error: 'Payment failed: ' + (e.message || 'Unknown error') };
+    }
+});
+
+// ===== FAUCET ADMIN — getFaucetStats =====
+exports.getFaucetStats = functions.https.onCall(async (data, context) => {
+    if (!context.auth || context.auth.token.email !== 'needcreations@gmail.com') {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const statsDoc = await db.collection('faucet_stats').doc(today).get();
+    const configDoc = await db.collection('faucet_config').doc('settings').get();
+    
+    let walletBalance = 0;
+    try {
+        const nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
+        const bal = await nwc.getBalance();
+        walletBalance = Math.floor(bal.balance / 1000);
+    } catch(e) { walletBalance = -1; }
+
+    return {
+        today: statsDoc.exists ? statsDoc.data() : { totalPaid: 0, claimCount: 0 },
+        paused: configDoc.exists ? !!configDoc.data().paused : false,
+        walletBalance: walletBalance,
+        limits: FAUCET
+    };
+});
+
+// ===== FAUCET ADMIN — toggleFaucet =====
+exports.toggleFaucet = functions.https.onCall(async (data, context) => {
+    if (!context.auth || context.auth.token.email !== 'needcreations@gmail.com') {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    }
+    const paused = !!data.paused;
+    await db.collection('faucet_config').doc('settings').set({ paused: paused }, { merge: true });
+    return { success: true, paused: paused };
 });
