@@ -26906,6 +26906,73 @@ var BITCOIN_QUOTES = [
     { text: "Bitcoin doesn't care about your feelings.", author: "Bitcoin Proverb", channel: 'fun-facts' },
     { text: "Stack sats and stay humble.", author: "Matt Odell", channel: 'investment-strategy' },
     { text: "Number go up because money printer go brr.", author: "Bitcoin Memes", channel: 'memes-funny' },
+
+    // Freedom & Sovereignty
+    { text: "Those who would give up essential liberty, to purchase a little temporary safety, deserve neither liberty nor safety.", author: "Benjamin Franklin", channel: 'human_rights__social_justice_and_freedo' },
+    { text: "Freedom is never more than one generation away from extinction.", author: "Ronald Reagan", channel: 'human_rights__social_justice_and_freedo' },
+    { text: "The only way to deal with an unfree world is to become so absolutely free that your very existence is an act of rebellion.", author: "Albert Camus", channel: 'philosophy' },
+    { text: "If the American people ever allow private banks to control the issue of their currency, first by inflation, then by deflation, the banks and corporations that will grow up around them will deprive the people of all property.", author: "Thomas Jefferson", channel: 'problems-of-money' },
+    { text: "It is well enough that people of the nation do not understand our banking and monetary system, for if they did, I believe there would be a revolution before tomorrow morning.", author: "Henry Ford", channel: 'problems-of-money' },
+    { text: "The most dangerous man to any government is the man who is able to think things out for himself.", author: "H.L. Mencken", channel: 'philosophy' },
+    { text: "In a time of deceit, telling the truth is a revolutionary act.", author: "George Orwell", channel: 'philosophy' },
+    { text: "The urge to save humanity is almost always a false front for the urge to rule it.", author: "H.L. Mencken", channel: 'philosophy' },
+    { text: "A society that puts equality before freedom will get neither. A society that puts freedom before equality will get a high degree of both.", author: "Milton Friedman", channel: 'philosophy' },
+    { text: "The state is that great fiction by which everyone tries to live at the expense of everyone else.", author: "Frédéric Bastiat", channel: 'austrian_school_of_economics' },
+
+    // Austrian Economics & Sound Money
+    { text: "There is no means of avoiding the final collapse of a boom brought about by credit expansion.", author: "Ludwig von Mises", channel: 'austrian_school_of_economics' },
+    { text: "The first panacea for a mismanaged nation is inflation of the currency; the second is war. Both bring a temporary prosperity; both bring a permanent ruin.", author: "Ernest Hemingway", channel: 'problems-of-money' },
+    { text: "Gold is money. Everything else is credit.", author: "J.P. Morgan", channel: 'money' },
+    { text: "We don't have a trillion-dollar debt because we haven't taxed enough; we have a trillion-dollar debt because we spend too much.", author: "Ronald Reagan", channel: 'problems-of-money' },
+    { text: "Government is the only institution that can take a valuable commodity like paper, and make it worthless by applying ink.", author: "Ludwig von Mises", channel: 'problems-of-money' },
+    { text: "Whenever destroyers appear among men, they start by destroying money.", author: "Ayn Rand", channel: 'problems-of-money' },
+    { text: "The way to crush the bourgeoisie is to grind them between the millstones of taxation and inflation.", author: "Vladimir Lenin", channel: 'problems-of-money' },
+    { text: "Savings represent goods produced but not yet consumed. That's what real wealth is — not digits in a bank database.", author: "Saifedean Ammous", channel: 'money' },
+    { text: "Civilization is in a race between education and catastrophe. Let us learn the truth and spread it as far and wide as our circumstances allow.", author: "H.G. Wells", channel: 'one-stop-shop' },
+    { text: "Paper money eventually returns to its intrinsic value — zero.", author: "Voltaire", channel: 'problems-of-money' },
+
+    // Bitcoin Wisdom
+    { text: "Bitcoin is the separation of money and state.", author: "Bitcoin Community", channel: 'maximalism' },
+    { text: "Bitcoin is the first money in the history of the world where the supply is entirely unaffected by an increase in demand.", author: "Jeff Booth", channel: 'scarce' },
+    { text: "In a world where everything is printed, scarcity is the ultimate feature.", author: "Bitcoin Educators", channel: 'scarce' },
+    { text: "Bitcoin is hope for humanity.", author: "Jack Mallers", channel: 'one-stop-shop' },
+    { text: "The cost of Bitcoin is measured in electricity. The cost of fiat is measured in human freedom.", author: "Bitcoin Community", channel: 'energy' },
+    { text: "Your savings should not be someone else's liability.", author: "Bitcoin Educators", channel: 'self-custody' },
+    { text: "Bitcoin is the peaceful protest that cannot be silenced.", author: "Alex Gladstein", channel: 'human_rights__social_justice_and_freedo' },
+    { text: "Bitcoin gives us the ability to opt out of a system that was designed to extract value from us.", author: "Many Bitcoiners", channel: 'problems-of-money' },
+    { text: "Proof of work means proof of energy. Energy is the one thing that cannot be faked.", author: "Bitcoin Mining Community", channel: 'mining' },
+    { text: "The Bitcoin network processes more value per year than Visa. Without a CEO.", author: "Bitcoin Stats", channel: 'decentralized' },
+    { text: "If Bitcoin is a bubble, it's the only bubble that reflated itself five times in a row.", author: "Bitcoin Community", channel: 'fun-facts' },
+    { text: "Bitcoin has died 474 times according to the media. It's still here.", author: "Bitcoin Obituaries", channel: 'misconceptions-fud' },
+    { text: "Your grandchildren will ask you why you didn't buy Bitcoin when it was under six figures.", author: "Bitcoin Twitter", channel: 'predictions' },
+    { text: "The next 4 years are going to be very exciting for Bitcoin.", author: "Every Bitcoiner, Every Year", channel: 'fun-facts' },
+    { text: "Bitcoin isn't getting more expensive. Your dollars are getting cheaper.", author: "Bitcoin Community", channel: 'problems-of-money' },
+    { text: "If you can't hold it, you don't own it. If you didn't earn it, you'll lose it.", author: "Bitcoin Wisdom", channel: 'self-custody' },
+    { text: "Think in sats, not dollars.", author: "Bitcoin Community", channel: 'sats__or__bits' },
+    { text: "The best time to buy Bitcoin was 10 years ago. The second best time is now.", author: "Bitcoin Proverb", channel: 'investment-strategy' },
+    { text: "Work is the transfer of energy over time. Money should measure exactly that.", author: "Jason Lowery", channel: 'energy' },
+    { text: "Bitcoin is not anti-government. Bitcoin is anti-fraud.", author: "Bitcoin Educators", channel: 'regulation' },
+
+    // Technology & Cypherpunk
+    { text: "We must defend our own privacy if we expect to have any.", author: "Eric Hughes, A Cypherpunk's Manifesto", channel: 'privacy-nonkyc' },
+    { text: "Cryptography is the ultimate form of non-violent direct action.", author: "Julian Assange", channel: 'cryptography' },
+    { text: "Strong cryptography can resist an unlimited application of violence.", author: "Jacob Appelbaum", channel: 'cryptography' },
+    { text: "The Net interprets censorship as damage and routes around it.", author: "John Gilmore", channel: 'privacy-nonkyc' },
+    { text: "Bitcoin is a weapon of peace.", author: "Jason Lowery, Softwar", channel: 'geopolitics___macroeconomics' },
+    { text: "Running a node means nobody can change the rules on you.", author: "Bitcoin Node Runners", channel: 'nodes' },
+    { text: "Hashrate is the heartbeat of Bitcoin. As long as miners mine, Bitcoin lives.", author: "Bitcoin Mining Community", channel: 'mining' },
+    { text: "Lightning is what makes Bitcoin usable for 8 billion people.", author: "Lightning Network Community", channel: 'layer-2-lightning' },
+    { text: "2,099,999,997,690,000 satoshis. That's all there will ever be.", author: "The Bitcoin Protocol", channel: 'scarce' },
+    { text: "Code is speech. Math is law. Cryptography is defense.", author: "Cypherpunks", channel: 'cryptography' },
+
+    // Historical Perspective
+    { text: "I predict the Internet will go spectacularly supernova and in 1996 catastrophically collapse.", author: "Robert Metcalfe (1995) — They said this about Bitcoin too", channel: 'misconceptions-fud' },
+    { text: "Every generation needs a new revolution.", author: "Thomas Jefferson", channel: 'philosophy' },
+    { text: "First they ignore you, then they laugh at you, then they fight you, then you win.", author: "Often attributed to Gandhi", channel: 'organic' },
+    { text: "I do not think there is any other quality so essential to success of any kind as the quality of perseverance.", author: "John D. Rockefeller", channel: 'philosophy' },
+    { text: "The world is a dangerous place, not because of those who do evil, but because of those who look on and do nothing.", author: "Albert Einstein", channel: 'philosophy' },
+    { text: "Hard times create strong men. Strong men create good times. Good times create weak men. Weak men create hard times.", author: "G. Michael Hopf", channel: 'time_preference' },
+    { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin", channel: 'one-stop-shop' },
 ];
 
 window.renderDailyQuote = function() {
