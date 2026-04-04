@@ -1192,7 +1192,7 @@ function showGiveawayPrompt(uid, displayName) {
                 '<span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>' +
             '</label>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +
-                '<input type="text" id="giveawayLnProvider" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
+                '<input type="text" id="giveawayLnProvider" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
                 '<button onclick="pasteToField(\'giveawayLnProvider\')" style="padding:10px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">📋 Paste</button>' +
             '</div>' +
             '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
@@ -4621,18 +4621,26 @@ window.saveArtistProfile = function() {
 window.pasteToField = function(fieldId) {
     var field = document.getElementById(fieldId);
     if (!field) return;
+    field.focus();
     if (navigator.clipboard && navigator.clipboard.readText) {
         navigator.clipboard.readText().then(function(text) {
-            field.value = text;
-            field.style.borderColor = 'var(--accent)';
-            if (typeof showToast === 'function') showToast('📋 Pasted!');
+            if (text) {
+                field.value = text;
+                field.style.borderColor = 'var(--accent)';
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+                if (typeof showToast === 'function') showToast('📋 Pasted!');
+            } else {
+                if (typeof showToast === 'function') showToast('📋 Tap and hold the field, then tap Paste', 4000);
+            }
         }).catch(function() {
-            if (typeof showToast === 'function') showToast('Long-press the field to paste');
-            field.focus();
+            // iOS Safari: clipboard API often blocked, use execCommand fallback
+            try {
+                document.execCommand('paste');
+            } catch(e) {}
+            if (typeof showToast === 'function') showToast('📋 Tap and hold the field, then tap Paste', 4000);
         });
     } else {
-        if (typeof showToast === 'function') showToast('Long-press the field to paste');
-        field.focus();
+        if (typeof showToast === 'function') showToast('📋 Tap and hold the field, then tap Paste', 4000);
     }
 };
 
