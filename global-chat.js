@@ -2347,7 +2347,7 @@ function updateChatUnreadBadge() {
             badge = document.createElement('span');
             badge.id = 'chatUnreadBadge';
             badge.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:2px 5px;border-radius:8px;min-width:14px;text-align:center;display:none;';
-            deskBtn.style.position = 'relative';
+            // Don't override position — desktopDMBtn is position:fixed
             deskBtn.appendChild(badge);
         }
         if (_unreadChatCount > 0) {
