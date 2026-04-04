@@ -2291,7 +2291,7 @@ window.showChatRules = function() {
             '1️⃣ <strong>Be respectful.</strong> No personal attacks, harassment, or hate speech.<br><br>' +
             '2️⃣ <strong>Bitcoin only.</strong> No altcoin promotion, shilling, or "what about ETH?" discussions.<br><br>' +
             '3️⃣ <strong>No links.</strong> URLs are automatically blocked to prevent scams and spam.<br><br>' +
-            '4️⃣ <strong>No spam or flooding.</strong> Don\'t repeat messages, use excessive caps, or flood the chat.<br><br>' +
+            '4️⃣ <strong>No spam, flooding, or self-promotion.</strong> Don\'t repeat messages, use excessive caps, flood the chat, or promote yourself/your business.<br><br>' +
             '5️⃣ <strong>No financial advice.</strong> Share knowledge, not investment tips. Always DYOR.<br><br>' +
             '6️⃣ <strong>No personal info.</strong> Don\'t share or ask for phone numbers, addresses, or real names in public chat.<br><br>' +
             '7️⃣ <strong>No impersonation.</strong> Don\'t pretend to be another user, admin, or Nacho.<br><br>' +
