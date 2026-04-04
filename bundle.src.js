@@ -23904,7 +23904,7 @@ window.beatsPlayTrack = function(idx) {
         title: track.title || 'Untitled',
         artist: track.artist || track.authorName || 'Unknown',
         genre: track.genre || '',
-        coverArt: track.coverArt || '',
+        coverArt: track.coverArt || track.coverUrl || '',
         authorId: track.authorId || '',
         trackId: track.id || ''
     };
