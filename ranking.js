@@ -3564,11 +3564,12 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">🎯 How to Earn Points</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• 📖 <strong>Read a channel</strong>: 10-25 pts<br>';
-        html += '• ✅ <strong>Daily visit</strong>: 5 pts (+ streak bonuses)<br>';
-        html += '• 🎯 <strong>Complete quests</strong>: 50 pts<br>';
-        html += '• 🎓 <strong>Scholar Certification</strong>: 300 pts<br>';
-        html += '• 🔥 <strong>Streak milestones</strong>: bonus tickets & pts<br>';
+        html += '• 📖 <strong>Open a channel</strong>: 10 pts<br>';
+        html += '• ⏱️ <strong>Read (30 sec)</strong>: 15 pts<br>';
+        html += '• ✅ <strong>Daily visit</strong>: 5 pts<br>';
+        html += '• 🔥 <strong>Streak bonus</strong>: 100 pts/day<br>';
+        html += '• 🧭 <strong>Explore 10+ channels</strong>: 50 pts<br>';
+        html += '• 🎓 <strong>Scholar Certification</strong>: 2,100 pts<br>';
         html += '</div></div>';
 
         // Withdrawal history placeholder
