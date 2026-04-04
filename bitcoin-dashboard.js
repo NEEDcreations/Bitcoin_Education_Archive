@@ -577,24 +577,44 @@ window.toggleDashboard = async function() {
         }
     }
 
-    // Fetch fresh data in background and re-render
+    // Fetch fresh data in background and re-render (preserve indicators state)
     fetchDashboardData().then(function(data) {
         var c = document.getElementById('btcDashCard');
         if (!c) return;
+        var indPanel = document.getElementById('topIndicatorsPanel');
+        var indWasOpen = indPanel && indPanel.style.display !== 'none';
         if (data && (data.price || data.blockHeight)) {
             c.innerHTML = renderDashboard(data);
         } else if (!_shown) {
             c.innerHTML = '<div style="text-align:center;padding:40px;"><div style="font-size:2rem;margin-bottom:12px;">📊</div><div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:16px;">Unable to load fresh metrics.</div><div style="color:var(--text-faint);font-size:0.8rem;">Showing last known data. Try again later.</div><button onclick="closeDashboard();setTimeout(toggleDashboard,500)" style="margin-top:16px;padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Retry</button></div>';
         }
+        if (indWasOpen) {
+            var newPanel = document.getElementById('topIndicatorsPanel');
+            var newArrow = document.getElementById('topIndArrow');
+            if (newPanel) { newPanel.style.display = 'block'; _topIndLoaded = false; loadTopIndicators(); }
+            if (newArrow) newArrow.textContent = '▲';
+        }
     });
 
-    // Auto-refresh every 2 min
+    // Auto-refresh every 2 min — preserve top indicators panel state
     _dashInterval = setInterval(async function() {
         if (!document.getElementById('btcDashOverlay')) { clearInterval(_dashInterval); return; }
+        // Remember if top indicators panel was open
+        var indPanel = document.getElementById('topIndicatorsPanel');
+        var indWasOpen = indPanel && indPanel.style.display !== 'none';
         localStorage.removeItem(DASH_CACHE_KEY); // force fresh
         var fresh = await fetchDashboardData();
         var c = document.getElementById('btcDashCard');
-        if (c) c.innerHTML = renderDashboard(fresh);
+        if (c) {
+            c.innerHTML = renderDashboard(fresh);
+            // Restore top indicators panel state
+            if (indWasOpen) {
+                var newPanel = document.getElementById('topIndicatorsPanel');
+                var newArrow = document.getElementById('topIndArrow');
+                if (newPanel) { newPanel.style.display = 'block'; _topIndLoaded = false; loadTopIndicators(); }
+                if (newArrow) newArrow.textContent = '▲';
+            }
+        }
     }, DASH_CACHE_TTL);
 };
 
