@@ -169,6 +169,15 @@ window.showOnboardingWizard = function() {
                     '</div>' +
                 '</div>' +
 
+                // Earn Real Sats callout
+                '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,179,8,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:14px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">' +
+                    '<div style="font-size:1.8rem;flex-shrink:0;">⚡</div>' +
+                    '<div>' +
+                        '<div style="color:#f7931a;font-size:0.85rem;font-weight:800;">Earn Real Bitcoin</div>' +
+                        '<div style="color:#94a3b8;font-size:0.72rem;line-height:1.5;margin-top:2px;">Your points convert to real sats. Read, learn, and claim Bitcoin directly to your Lightning wallet. 10 points = 1 sat.</div>' +
+                    '</div>' +
+                '</div>' +
+
                 '<div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">How deep in the rabbit hole are you?</div>';
 
             var levels = [
