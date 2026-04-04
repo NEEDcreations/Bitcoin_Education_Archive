@@ -12,14 +12,8 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <link rel="dns-prefetch" href="https://www.gstatic.com">
     <link rel="dns-prefetch" href="https://mempool.space">
-    <link rel="dns-prefetch" href="https://firestore.googleapis.com">
     <link rel="preload" href="bundle.js?v=20260324" as="script">
-    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
-    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, 8800+ messages, and 3000+ images — for the world.">
     <meta name="theme-color" content="#f7931a">
     <link rel="manifest" href="manifest.json">
@@ -858,7 +852,7 @@
                     </div>
                 <div id="donateSection"><div id="donatePanelInner" style="display:none;margin-top:10px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>
-                    <img src="donation-qr.jpg" alt="Bitcoin Donation QR Code" style="width:200px;height:auto;margin-bottom:12px;border:2px solid var(--border);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">
+                    <img src="donation-qr.jpg" loading="lazy" alt="Bitcoin Donation QR Code" style="width:200px;height:auto;margin-bottom:12px;border:2px solid var(--border);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">
                     <div style="color:var(--accent);font-weight:600;font-size:0.95rem;margin-bottom:8px;">spontaneousleopard54@zeuspay.com</div>
                     <button onclick="navigator.clipboard.writeText('spontaneousleopard54@zeuspay.com');if(typeof showToast==='function')showToast('📋 Lightning Address copied!')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;">📋 Copy Lightning Address</button>
                     <br>
@@ -866,32 +860,32 @@
                     <div id="homeDonateMore" style="display:none;text-align:left;max-width:340px;margin:10px auto 0;">
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">₿ On-Chain Bitcoin</div>
-                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/onchain-qr.jpg" alt="On-Chain QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
+                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/onchain-qr.jpg" loading="lazy" alt="On-Chain QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
                             <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.6rem;color:var(--text);word-break:break-all;line-height:1.3;cursor:pointer;" onclick="navigator.clipboard.writeText('bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf');if(typeof showToast==='function')showToast('📋 Copied!')">bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf</div><button onclick="navigator.clipboard.writeText('bc1qvukgml6t5cnv6jk3gkx3ufd7eqs7veycuqxwrf');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">🔒 BIP47 Payment Code</div>
-                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/bip47-qr.jpg" alt="BIP47 Payment Code QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
+                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/bip47-qr.jpg" loading="lazy" alt="BIP47 Payment Code QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
                             <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.55rem;color:var(--text);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText('PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89');if(typeof showToast==='function')showToast('📋 Copied!')">PM8TJWpq8Hq...Tg89</div><button onclick="navigator.clipboard.writeText('PM8TJWpq8HqPeBEuz3dAoB3uyZADVxQjWekQJCJYddpWPce9nDaeK6XjYnifBUnjjKcWF8Y98EkfPZYaftC7uDJkiFqBTBYrd8TJhRg5qQwXtfnTTg89');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💵 Cash App</div>
-                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/cashapp-qr.jpg" alt="Cash App QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
+                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/cashapp-qr.jpg" loading="lazy" alt="Cash App QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
                             <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" onclick="navigator.clipboard.writeText('$NEEDcreations');if(typeof showToast==='function')showToast('📋 Copied!')">$NEEDcreations</div><button onclick="navigator.clipboard.writeText('$NEEDcreations');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://cash.app/$NEEDcreations" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💜 Venmo</div>
-                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/venmo-qr.jpg" alt="Venmo QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
+                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/venmo-qr.jpg" loading="lazy" alt="Venmo QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
                             <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" onclick="navigator.clipboard.writeText('@Phil2140');if(typeof showToast==='function')showToast('📋 Copied!')">@Phil2140</div><button onclick="navigator.clipboard.writeText('@Phil2140');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://venmo.com/code?user_id=1358236213051392692&created=1773155307" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💙 PayPal</div>
-                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/paypal-qr.jpg" alt="PayPal QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
+                            <div style="text-align:center;margin-bottom:8px;"><img src="images/donate/paypal-qr.jpg" loading="lazy" alt="PayPal QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
                             <div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:0.75rem;color:var(--text);cursor:pointer;" onclick="navigator.clipboard.writeText('paypal.me/PhilipFazioli');if(typeof showToast==='function')showToast('📋 Copied!')">paypal.me/PhilipFazioli</div><button onclick="navigator.clipboard.writeText('paypal.me/PhilipFazioli');this.textContent='✅';var b=this;setTimeout(function(){b.textContent='📋'},1500);if(typeof showToast==='function')showToast('📋 Copied!')" style="padding:6px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;">📋</button><a href="https://paypal.me/PhilipFazioli" target="_blank" rel="noopener" style="padding:6px 10px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:0.65rem;font-weight:700;text-decoration:none;white-space:nowrap;">Open ↗</a></div>
                         </div>
                         <div style="padding:12px;margin-bottom:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;">
                             <div style="font-size:0.75rem;color:var(--text-faint);font-weight:700;margin-bottom:8px;">💚 Zelle</div>
-                            <div style="text-align:center;"><img src="images/donate/zelle-qr.jpg" alt="Zelle QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
+                            <div style="text-align:center;"><img src="images/donate/zelle-qr.jpg" loading="lazy" alt="Zelle QR" style="width:280px;height:280px;border-radius:12px;object-fit:contain;background:#fff;padding:8px;"></div>
                         </div>
                     </div>
                     <p style="color:var(--text-faint);font-size:0.85rem;margin-top:10px;margin-bottom:0;">⚠️ Donations are non-refundable</p>
@@ -1008,34 +1002,46 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
-    <script src="security-patches.js?v=20260307"></script>
+    <!-- Critical: needed for initial page render -->
+    <script src="security-patches.js?v=20260307" defer></script>
     <script src="bundle.js?v=20260324" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260307" defer></script>
     <script src="mobile-optimize.js?v=20260307" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>
-    <script src="pvp.js?v=20260306a" defer></script>
-    <script src="irl-sync.js?v=20260306a" defer></script>
-    <script src="meetup-builder.js?v=20260401" defer></script>
-    <script src="meetup-box.js?v=20260401" defer></script>
-    <script src="bitcoin-buddy.js?v=20260401" defer></script>
-    <script src="nacho-closet.js?v=20260306a" defer></script>
-    <script src="lightning.js?v=20260330b" defer></script>
-    <script src="lightning-tips.js?v=20260330a" defer></script>
-    <script src="guide.js?v=20260330d" defer></script>
-    <script src="modules.js?v=20260331" defer></script>
-    <script src="first-purchase.js?v=20260401" defer></script>
-    <script src="shareable-certs.js?v=20260401" defer></script>
-    <script src="global-chat.js?v=20260330b" defer></script>
-    <script src="sats-vs-bits.js?v=20260401" defer></script>
-    <script src="tips-integrations.js?v=20260307" defer></script>
-    <script src="wallet-router.js?v=20260307a" defer></script>
-    <script src="lightning-prompt.js?v=20260307" defer></script>
+    <script src="ux-improvements.js?v=20260307" defer></script>
     <script src="performance-patches.js?v=20260307" defer></script>
     <script src="accessibility-patches.js?v=20260307" defer></script>
-    <script src="ux-improvements.js?v=20260307" defer></script>
     <script src="audit-v3-phase1.js?v=20260308" defer></script>
-    <script src="notifications.js?v=20260328c" defer></script>
+    <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
+    <script>
+    (function(){
+        var _lazyScripts = [
+            'pvp.js?v=20260306a','irl-sync.js?v=20260306a','meetup-builder.js?v=20260401',
+            'meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260401','nacho-closet.js?v=20260306a',
+            'lightning.js?v=20260330b','lightning-tips.js?v=20260330a','guide.js?v=20260330d',
+            'modules.js?v=20260331','first-purchase.js?v=20260401','shareable-certs.js?v=20260401',
+            'global-chat.js?v=20260330b','sats-vs-bits.js?v=20260401','tips-integrations.js?v=20260307',
+            'wallet-router.js?v=20260307a','lightning-prompt.js?v=20260307','notifications.js?v=20260328c'
+        ];
+        var _loaded = false;
+        function _loadDeferred() {
+            if (_loaded) return;
+            _loaded = true;
+            _lazyScripts.forEach(function(src) {
+                var s = document.createElement('script');
+                s.src = src;
+                s.defer = true;
+                document.body.appendChild(s);
+            });
+        }
+        // Load on first interaction OR after 4 seconds (whichever comes first)
+        ['click','scroll','touchstart','keydown'].forEach(function(evt) {
+            document.addEventListener(evt, _loadDeferred, { once: true, passive: true });
+        });
+        setTimeout(_loadDeferred, 4000);
+    })();
+    </script>
 <div id="recaptcha-container"></div>
 <script>
 if ('serviceWorker' in navigator) {
