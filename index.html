@@ -8,9 +8,9 @@
 (function(){
     if (!sessionStorage.getItem('_cnuke')) {
         var v = localStorage.getItem('btc_build');
-        if (v !== '20260405c') {
+        if (v !== '20260405d') {
             sessionStorage.setItem('_cnuke', '1');
-            localStorage.setItem('btc_build', '20260405c');
+            localStorage.setItem('btc_build', '20260405d');
             if ('caches' in window) {
                 caches.keys().then(function(k) {
                     return Promise.all(k.map(function(n){ return caches.delete(n); }));
@@ -531,10 +531,8 @@
     #desktopDMBtn { display: flex; } @media (max-width: 600px) { #desktopDMBtn { display: none !important; } }
     .no-desktop { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } }
     </style>
-    <!-- Google Sign-In loaded after page is interactive -->
-    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;document.head.appendChild(s);},3000);</script>
-    <!-- Facebook SDK deferred until user interacts (saves 77KB) -->
-    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://connect.facebook.net/en_US/sdk.js';s.async=true;s.crossOrigin='anonymous';document.head.appendChild(s);},5000);</script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;"></div>
@@ -1028,8 +1026,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer integrity="sha384-XMIl1b2Ez9tKAM0R5q67/iLdfnlLBl9kfo40X5WMtCPb+3OLplrjnOxZTYCg1SKY" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js" defer integrity="sha384-oFrOL1TiREYNET0lsYF3LjQuyi2gL7vhjH1X8vFr+umcmzAdPELopeSgbcrv4uRm" crossorigin="anonymous"></script>
-    <!-- Firebase Messaging deferred: only used by notifications.js (lazy-loaded) -->
-    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js';s.async=true;document.head.appendChild(s);},6000);</script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <!-- App Check disabled: not enforced, reCAPTCHA adds 724KB -->
     <!-- <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script> -->
