@@ -8,9 +8,9 @@
 (function(){
     if (!sessionStorage.getItem('_cnuke')) {
         var v = localStorage.getItem('btc_build');
-        if (v !== '20260405d') {
+        if (v !== '20260405e') {
             sessionStorage.setItem('_cnuke', '1');
-            localStorage.setItem('btc_build', '20260405d');
+            localStorage.setItem('btc_build', '20260405e');
             if ('caches' in window) {
                 caches.keys().then(function(k) {
                     return Promise.all(k.map(function(n){ return caches.delete(n); }));
@@ -1029,7 +1029,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <!-- App Check disabled: not enforced, reCAPTCHA adds 724KB -->
-    <!-- <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer></script> -->
+    <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
+    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
     <script src="bundle.js?v=20260405" defer fetchpriority="high"></script>
