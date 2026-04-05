@@ -1059,7 +1059,7 @@
             /* Input bar */
             '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
                 '<div style="max-width:500px;margin:0 auto;position:relative;">' +
-                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:12px ' + (hasSpeech ? '96px' : '56px') + ' 12px 16px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:24px;color:var(--text,#eee);font-size:0.95rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="nachoModeKeydown(event)">' +
+                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:12px ' + (hasSpeech ? '96px' : '56px') + ' 12px 16px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:24px;color:var(--text,#eee);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="nachoModeKeydown(event)">' +
                     micHtml +
                     '<button onclick="nachoModeSend()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--accent);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;justify-content:center;">▶</button>' +
                 '</div>' +
@@ -3416,7 +3416,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         const shareUrl = 'https://bitcoineducation.quest/#' + id;
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
-            '<div class="channel-logos">' +
+            '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
+                '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
                 '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +

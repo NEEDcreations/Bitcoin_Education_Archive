@@ -3092,7 +3092,7 @@ function showSettingsPage(tab) {
         const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
         const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats<br>Nacho' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:6px 1px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.5rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
@@ -10316,7 +10316,7 @@ var FORUM_RULES = [
 ];
 
 function showForumRules(force) {
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this && force)this.remove()">' +
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){acceptForumRules()}">' +
         '<div style="background:rgba(15,23,42,0.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:fadeSlideIn 0.3s;-webkit-overflow-scrolling:touch;">' +
             '<div style="text-align:center;margin-bottom:16px;">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">📜</div>' +
@@ -18341,7 +18341,7 @@ function loadTopIndicators() {
             /* Input bar */
             '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-side,#0a0a0a);">' +
                 '<div style="max-width:500px;margin:0 auto;position:relative;">' +
-                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:12px ' + (hasSpeech ? '96px' : '56px') + ' 12px 16px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:24px;color:var(--text,#eee);font-size:0.95rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="nachoModeKeydown(event)">' +
+                    '<input type="text" id="nachoModeInput" placeholder="' + (hasSpeech ? 'Type or tap 🎙️ to speak...' : 'Ask Nacho anything about Bitcoin...') + '" maxlength="500" style="width:100%;padding:12px ' + (hasSpeech ? '96px' : '56px') + ' 12px 16px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:24px;color:var(--text,#eee);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="nachoModeKeydown(event)">' +
                     micHtml +
                     '<button onclick="nachoModeSend()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--accent);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;justify-content:center;">▶</button>' +
                 '</div>' +
@@ -20698,7 +20698,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         const shareUrl = 'https://bitcoineducation.quest/#' + id;
         const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
-            '<div class="channel-logos">' +
+            '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
+                '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
                 '<img src="images/btc-grad-logo-sm.jpg" alt="Home" class="channel-logo-img" onclick="goHome()" style="cursor:pointer;" title="Home — Long-press for Nacho Mode 🦌">' +
                 '<span class="donate-circle" onclick="showDonateModal()"><svg viewBox="0 0 64 64" width="50" height="50" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>' +
             '</div>' +

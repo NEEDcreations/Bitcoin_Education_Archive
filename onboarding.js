@@ -351,7 +351,7 @@ window.applySimplifiedHome = function() {
 
     var section = document.createElement('div');
     section.id = 'curatedStartSection';
-    section.style.cssText = 'width:100%;max-width:480px;margin:0 auto 28px;text-align:left;';
+    section.style.cssText = 'width:100%;max-width:480px;margin:0 auto 28px;text-align:left;padding-top:8px;';
 
     var visited = [];
     try { visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]'); } catch(e) {}
