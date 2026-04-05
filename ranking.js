@@ -492,35 +492,9 @@ async function signInWithGIS() {
         // Try One Tap first
         google.accounts.id.prompt(function(notification) {
             if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap not available — use the button/popup flow
-                console.log('[Auth] One Tap not shown:', notification.getNotDisplayedReason ? notification.getNotDisplayedReason() : notification.getSkippedReason ? notification.getSkippedReason() : 'unknown');
-                // Render a temporary hidden button and click it
-                var tempDiv = document.createElement('div');
-                tempDiv.id = 'gsi-temp-btn';
-                tempDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99999;';
-                document.body.appendChild(tempDiv);
-                google.accounts.id.renderButton(tempDiv, {
-                    type: 'standard',
-                    theme: 'filled_black',
-                    size: 'large',
-                    text: 'signin_with',
-                    shape: 'pill',
-                    width: 300
-                });
-                // The button is now rendered — user clicks it
-                // Add a backdrop
-                var backdrop = document.createElement('div');
-                backdrop.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
-                backdrop.innerHTML = '<div style="color:#fff;font-size:1rem;font-weight:700;margin-bottom:8px;">Sign in with Google</div>';
-                backdrop.onclick = function(e) {
-                    if (e.target === backdrop) {
-                        tempDiv.remove();
-                        backdrop.remove();
-                        reject(new Error('User cancelled'));
-                    }
-                };
-                document.body.appendChild(backdrop);
-                backdrop.appendChild(tempDiv);
+                // One Tap not available — fall back to Firebase popup immediately (no second button)
+                console.log('[Auth] One Tap not shown, falling back to Firebase popup');
+                reject(new Error('One Tap unavailable'));
             }
         });
     });
@@ -1116,7 +1090,7 @@ function showGiveawayPrompt(uid, displayName) {
             '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
         '</div>' +
         '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
-        '<span class="skip" onclick="hideUsernamePrompt();showToast(\'✅ Signed in as ' + displayName.replace(/'/g, "\\'") + '\')" style="color:var(--text-faint);font-size:0.85rem;cursor:pointer;display:block;text-align:center;">Skip giveaway</span>';
+        '<button onclick="hideUsernamePrompt();showToast(\'✅ Welcome, ' + displayName.replace(/'/g, "\\'") + '!\')" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Skip → Start Learning</button>';
     modal.classList.add('open');
 
     // Toggle lightning address visibility
