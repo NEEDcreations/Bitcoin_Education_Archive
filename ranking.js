@@ -2756,8 +2756,8 @@ async function _loadPVPLeaderboard() {
             lossSnap = window._pvpLbCache.losses;
         } else {
             [winsSnap, lossSnap] = await Promise.all([
-                db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(30).get(),
-                db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(30).get()
+                db.collection('users').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
+                db.collection('users').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
             ]);
             window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
             window._pvpLbCacheTime = _pvpNow;
