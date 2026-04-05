@@ -532,6 +532,9 @@ window.signInWithGoogle = async function() {
             return;
         } catch(gisErr) {
             console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
+            // Clean up any lingering GIS UI before falling back
+            try { google.accounts.id.cancel(); } catch(e) {}
+            document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
         }
     }
     // Fallback to Firebase popup/redirect
@@ -554,9 +557,11 @@ async function signInWithGIS() {
                 try {
                     var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
                     var result = await auth.signInWithCredential(credential);
-                    // Clean up GIS UI elements
+                    // Clean up ALL GIS UI elements
+                    try { google.accounts.id.cancel(); } catch(e) {}
                     var _gsiBtn = document.getElementById('gsi-temp-btn');
                     if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
+                    document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
                     await _handleSignInResultGlobal(result.user, anonUid, anonData);
                     resolve(result.user);
                 } catch(e) {
