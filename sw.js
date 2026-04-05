@@ -1,6 +1,6 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v211';
+const CACHE_NAME = 'btc-archive-v212';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -27,13 +27,9 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
       keys.filter(k => k !== CACHE_NAME && k !== IMG_CACHE).map(k => caches.delete(k))
-    )).then(() => self.clients.claim()).then(() => {
-      // Force reload all open tabs to pick up new code
-      return self.clients.matchAll({ type: 'window' }).then(clients => {
-        clients.forEach(client => client.navigate(client.url));
-      });
-    })
+    ))
   );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {

@@ -4,26 +4,25 @@
 <html lang="en">
 <head>
 <script>
-// Emergency cache nuke — remove after April 2026
-// Forces all users to get fresh code after the SW caching strategy change
+// One-time cache nuke for the SW strategy change (April 2026)
 (function(){
-    var CURRENT_BUILD = '20260405b';
-    if (localStorage.getItem('btc_build') !== CURRENT_BUILD) {
-        localStorage.setItem('btc_build', CURRENT_BUILD);
-        if ('caches' in window) {
-            caches.keys().then(function(keys) {
-                return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-            }).then(function() {
-                if (navigator.serviceWorker) {
-                    navigator.serviceWorker.getRegistrations().then(function(regs) {
-                        regs.forEach(function(r) { r.unregister(); });
-                        // Reload after clearing everything
-                        setTimeout(function() { location.reload(true); }, 200);
-                    });
-                } else {
-                    location.reload(true);
-                }
-            });
+    if (!sessionStorage.getItem('_cnuke')) {
+        var v = localStorage.getItem('btc_build');
+        if (v !== '20260405c') {
+            sessionStorage.setItem('_cnuke', '1');
+            localStorage.setItem('btc_build', '20260405c');
+            if ('caches' in window) {
+                caches.keys().then(function(k) {
+                    return Promise.all(k.map(function(n){ return caches.delete(n); }));
+                });
+            }
+            if (navigator.serviceWorker) {
+                navigator.serviceWorker.getRegistrations().then(function(r) {
+                    r.forEach(function(reg){ reg.unregister(); });
+                });
+            }
+            setTimeout(function(){ location.reload(); }, 500);
+            return;
         }
     }
 })();
@@ -1087,11 +1086,6 @@
 <!-- recaptcha-container removed: App Check disabled -->
 <script>
 if ('serviceWorker' in navigator) {
-    // Auto-reload when a new SW takes control (ensures fresh code after deploys)
-    var _swReloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (!_swReloading) { _swReloading = true; location.reload(); }
-    });
     window.addEventListener('load', function() {
         // Remember if a SW was already controlling this page (= not first visit)
         var hadController = !!navigator.serviceWorker.controller;
@@ -1106,8 +1100,11 @@ if ('serviceWorker' in navigator) {
                     // Only show update banner if this is a genuine update (user had a previous SW)
                     // Skip on first visit — there's nothing to "update" from
                     if (newWorker.state === 'activated' && hadController) {
-                        // Auto-reload to pick up new version immediately
-                        location.reload();
+                        // Show update banner — user refreshes naturally
+                        var banner = document.createElement('div');
+                        banner.style.cssText = 'position:fixed;bottom:70px;left:16px;right:16px;z-index:9999;background:#f7931a;color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);font-family:inherit;';
+                        banner.innerHTML = '<div style="font-weight:700;font-size:0.85rem;">🆕 Update ready</div><button onclick="location.reload()" style="padding:7px 14px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;">Refresh</button>';
+                        document.body.appendChild(banner);
                     }
                 });
             });
