@@ -20630,14 +20630,29 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
             if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); }
             
-            // Route to correct renderer
-            if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
-            else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
-            else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
-            else if (id === 'dms' && typeof showInbox === 'function') showInbox();
-            else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
-            else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
-            else if (typeof renderForum === 'function') renderForum();
+            // Route to correct renderer (with retry for lazy-loaded scripts)
+            function _routeApp(id, attempt) {
+                attempt = attempt || 0;
+                if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
+                else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
+                else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
+                else if (id === 'dms' && typeof showInbox === 'function') showInbox();
+                else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
+                else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
+                else if (id === 'forum' && typeof renderForum === 'function') renderForum();
+                else if (attempt < 20) {
+                    // Script not loaded yet — retry (lazy scripts load in batches)
+                    setTimeout(function() { _routeApp(id, attempt + 1); }, 250);
+                    if (attempt === 0) {
+                        var fc2 = document.getElementById('forumContainer');
+                        if (fc2) fc2.innerHTML = '<div style="text-align:center;padding:60px;"><div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><div style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;">Loading...</div></div>';
+                    }
+                } else {
+                    // Fallback after 5 seconds
+                    if (typeof renderForum === 'function') renderForum();
+                }
+            }
+            _routeApp(id);
             
             // Scroll to top after rendering app pages
             document.getElementById('main').scrollTop = 0;
