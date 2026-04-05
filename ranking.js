@@ -2632,7 +2632,7 @@ async function toggleLeaderboard() {
     try {
         // Cache leaderboard data for 5 minutes to reduce Firestore reads
         var now = Date.now();
-        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 300000);
+        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 120000);
         let allUsers = [];
         if (useCache) {
             allUsers = window._lbCache;

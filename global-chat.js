@@ -26,7 +26,7 @@ function bridgeToTelegram(data) {
         }
     } catch(e) {}
 }
-var CHAT_INITIAL_SHOW = 10; // Render initially (reduced to save Firestore reads)
+var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads)
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
 var _lastSendTime = 0;
@@ -2321,7 +2321,7 @@ function startUnreadTracker() {
     if (_bgChatUnsub || typeof db === 'undefined' || !db) return;
     _bgChatUnsub = db.collection(CHAT_COLLECTION)
         .orderBy('ts', 'desc')
-        .limit(5)
+        .limit(10)
         .onSnapshot(function(snapshot) {
             var count = 0;
             snapshot.forEach(function(doc) {
