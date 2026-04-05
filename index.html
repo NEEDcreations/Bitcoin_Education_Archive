@@ -1062,6 +1062,11 @@
 <!-- recaptcha-container removed: App Check disabled -->
 <script>
 if ('serviceWorker' in navigator) {
+    // Auto-reload when a new SW takes control (ensures fresh code after deploys)
+    var _swReloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!_swReloading) { _swReloading = true; location.reload(); }
+    });
     window.addEventListener('load', function() {
         // Remember if a SW was already controlling this page (= not first visit)
         var hadController = !!navigator.serviceWorker.controller;
@@ -1076,19 +1081,8 @@ if ('serviceWorker' in navigator) {
                     // Only show update banner if this is a genuine update (user had a previous SW)
                     // Skip on first visit — there's nothing to "update" from
                     if (newWorker.state === 'activated' && hadController) {
-                        var banner = document.createElement('div');
-                        banner.id = 'updateBanner';
-                        banner.style.cssText = 'position:fixed;bottom:70px;left:16px;right:16px;z-index:9999;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;padding:14px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 30px rgba(0,0,0,0.4);animation:slideInUp 0.3s;font-family:inherit;';
-                        banner.innerHTML =
-                            '<div style="flex:1;">' +
-                                '<div style="font-weight:700;font-size:0.85rem;">🆕 Update ready</div>' +
-                                '<div style="font-size:0.7rem;opacity:0.85;">Refresh for the latest version.</div>' +
-                            '</div>' +
-                            '<button onclick="location.reload()" style="padding:7px 14px;background:#fff;color:#f7931a;border:none;border-radius:8px;font-weight:700;font-size:0.78rem;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Refresh</button>' +
-                            '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:1.1rem;cursor:pointer;padding:4px;">✕</button>';
-                        document.body.appendChild(banner);
-                        // Auto-dismiss after 15 seconds
-                        setTimeout(function() { var b = document.getElementById('updateBanner'); if (b) b.remove(); }, 15000);
+                        // Auto-reload to pick up new version immediately
+                        location.reload();
                     }
                 });
             });
