@@ -69,35 +69,52 @@ window._pvpSendTaunt = function(emoji) {
     if (Date.now() - _lastTauntTime < 3000) return; // 3s cooldown
     _lastTauntTime = Date.now();
     
-    if (typeof db === 'undefined' || !db) return;
-    var matchId = window._pvpGetMatchId ? window._pvpGetMatchId() : null;
-    if (!matchId) {
-        // Try to find it from the PVP state
-        var overlay = document.getElementById('pvpOverlay');
-        if (!overlay) return;
-    }
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) return;
     
-    // Show taunt locally
+    // Show locally
     _showTauntBubble(emoji, true);
     
-    // Write taunt to Firestore (other player reads via snapshot)
+    // Write to match doc so opponent sees it via their existing real-time listener
     try {
-        var uid = auth.currentUser ? auth.currentUser.uid : '';
-        if (uid) {
-            // Use a lightweight approach — write to a taunts subcollection isn't worth the reads
-            // Instead, just show it locally. For real cross-player taunts, we'd need the match doc.
-            // For now, taunts are local fun only (both players see their own taunts).
+        // Find match ID from the PVP overlay's current state
+        // The match doc is already being listened to — we just add a taunt field
+        var uid = auth.currentUser.uid;
+        // Search for the match ID in pvp_matches where this user is a player
+        // Actually, the match ID is stored on the global pvp state. Let's access it.
+        if (window._pvpEnhanceMatchId) {
+            db.collection('pvp_matches').doc(window._pvpEnhanceMatchId).update({
+                lastTaunt: { uid: uid, emoji: emoji, ts: Date.now() }
+            }).catch(function() {});
         }
     } catch(e) {}
 };
 
 function _showTauntBubble(emoji, isMine) {
     var bubble = document.createElement('div');
-    bubble.style.cssText = 'position:fixed;' + (isMine ? 'bottom:200px;right:20px;' : 'bottom:200px;left:20px;') + 
-        'z-index:100010;font-size:3rem;animation:pvpTauntFloat 1.5s ease forwards;pointer-events:none;';
+    bubble.style.cssText = 'position:fixed;' + (isMine ? 'bottom:180px;right:20px;' : 'bottom:180px;left:20px;') + 
+        'z-index:100010;font-size:3.5rem;pointer-events:none;' +
+        'animation:pvpTauntFloat 2s ease forwards;' +
+        'text-shadow:0 0 20px rgba(0,0,0,0.5);';
     bubble.textContent = emoji;
     document.body.appendChild(bubble);
-    setTimeout(function() { bubble.remove(); }, 1500);
+    
+    // Play a subtle sound for received taunts
+    if (!isMine && typeof window.canPlaySound === 'function' && window.canPlaySound()) {
+        try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.value = 600;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.2);
+        } catch(e) {}
+    }
+    
+    setTimeout(function() { bubble.remove(); }, 2000);
 }
 
 // Inject taunt bar into the waiting-for-opponent screen
@@ -219,6 +236,66 @@ var style = document.createElement('style');
 style.textContent = '@keyframes pvpTauntFloat { 0% { opacity:1; transform:translateY(0) scale(1); } 50% { opacity:1; transform:translateY(-40px) scale(1.3); } 100% { opacity:0; transform:translateY(-80px) scale(0.8); } }';
 document.head.appendChild(style);
 
+// ---- Taunt listener — watch match doc for opponent taunts ----
+var _tauntUnsub = null;
+var _lastSeenTauntTs = 0;
+
+function _startTauntListener(matchId) {
+    if (_tauntUnsub) _tauntUnsub();
+    window._pvpEnhanceMatchId = matchId;
+    _lastSeenTauntTs = Date.now();
+    
+    _tauntUnsub = db.collection('pvp_matches').doc(matchId).onSnapshot(function(snap) {
+        if (!snap.exists) return;
+        var data = snap.data();
+        if (data.lastTaunt && data.lastTaunt.ts > _lastSeenTauntTs) {
+            _lastSeenTauntTs = data.lastTaunt.ts;
+            // Only show if it's from the opponent
+            if (auth.currentUser && data.lastTaunt.uid !== auth.currentUser.uid) {
+                _showTauntBubble(data.lastTaunt.emoji, false);
+                if (typeof haptic === 'function') haptic('light');
+            }
+        }
+    }, function() {});
+}
+
+function _stopTauntListener() {
+    if (_tauntUnsub) { _tauntUnsub(); _tauntUnsub = null; }
+    window._pvpEnhanceMatchId = null;
+}
+
+// ---- Detect match start by watching for the VS screen / question screen ----
+function _detectMatchId() {
+    // Poll for the match ID from Firestore — find active match for this user
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+    var uid = auth.currentUser.uid;
+    
+    // Check both player positions — simple query without composite index
+    db.collection('pvp_matches')
+        .where('player1.uid', '==', uid)
+        .orderBy('createdAt', 'desc')
+        .limit(1).get().then(function(snap) {
+            if (!snap.empty) {
+                var d = snap.docs[0].data();
+                if (d.status !== 'finished' && d.status !== 'forfeit') {
+                    _startTauntListener(snap.docs[0].id);
+                    return;
+                }
+            }
+            db.collection('pvp_matches')
+                .where('player2.uid', '==', uid)
+                .orderBy('createdAt', 'desc')
+                .limit(1).get().then(function(snap2) {
+                    if (!snap2.empty) {
+                        var d2 = snap2.docs[0].data();
+                        if (d2.status !== 'finished' && d2.status !== 'forfeit') {
+                            _startTauntListener(snap2.docs[0].id);
+                        }
+                    }
+                }).catch(function() {});
+        }).catch(function() {});
+}
+
 // ---- Start observers when PVP overlay opens ----
 var _pvpMainObserver = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
@@ -232,6 +309,10 @@ var _pvpMainObserver = new MutationObserver(function(mutations) {
                 
                 // Inject match history into lobby
                 setTimeout(_injectMatchHistory, 500);
+                
+                // Detect match for taunts (check after countdown)
+                setTimeout(_detectMatchId, 5000);
+                setTimeout(_detectMatchId, 10000);
             }
         });
         m.removedNodes.forEach(function(node) {
@@ -241,6 +322,7 @@ var _pvpMainObserver = new MutationObserver(function(mutations) {
                 _speedObserver.disconnect();
                 _tauntObserver.disconnect();
                 _historyObserver.disconnect();
+                _stopTauntListener();
             }
         });
     });
