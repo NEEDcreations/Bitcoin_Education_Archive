@@ -7,6 +7,7 @@ var DONE_KEY = 'btc_onboarding_done';
 var STARTER_CHANNELS = {
     beginner: [
         { id: 'one-stop-shop', reason: 'The best place to start' },
+        { id: 'first-purchase', reason: 'Step-by-step buying guide' },
         { id: 'whitepaper', reason: 'The 9 pages that started it all' },
         { id: 'money', reason: 'Why Bitcoin is real money' },
         { id: 'misconceptions-fud', reason: 'Common myths debunked' },
@@ -400,13 +401,11 @@ window.applySimplifiedHome = function() {
     // Quick action cards — level-specific
     shtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">';
     if (level === 'beginner') {
-        // Beginners: First Purchase + Trails (only after 2 channels)
-        if (visited.length >= 2) {
-            shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
-                '<div style="font-size:1.3rem;">🛒</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Buy Your First Bitcoin</div></div>';
-            shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
-                '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Nacho\'s Trails</div></div>';
-        }
+        // Beginners: First Purchase + Trails — always shown
+        shtml += '<div onclick="go(\'first-purchase\')" style="padding:14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🛒</div><div style="font-weight:700;font-size:0.78rem;color:#22c55e;margin-top:4px;">Buy Your First Bitcoin</div></div>';
+        shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
+            '<div style="font-size:1.3rem;">🦌</div><div style="font-weight:700;font-size:0.78rem;color:var(--accent);margin-top:4px;">Nacho\'s Trails</div></div>';
     } else if (level === 'intermediate') {
         // Intermediate: Trails + First Purchase + Dashboard + Nacho
         shtml += '<div onclick="go(\'trails\')" style="padding:14px;background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.2);border-radius:12px;cursor:pointer;text-align:center;">' +
