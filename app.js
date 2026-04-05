@@ -4169,7 +4169,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var _questModal = document.getElementById('questModal');
             if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
 
-            var _overlayIds = ['onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal'];
+            var _overlayIds = ['onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal','forumRulesOverlay','chatRulesOverlay','marketRulesOverlay','irlRulesOverlay'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);
                 if (_oel) { _oel.remove(); return; }
