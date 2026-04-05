@@ -2658,7 +2658,7 @@ async function toggleLeaderboard() {
         if (useCache) {
             allUsers = window._lbCache;
         } else {
-            const snap = await db.collection('users').orderBy('points', 'desc').limit(50).get();
+            const snap = await db.collection('users').orderBy('points', 'desc').limit(150).get();
             snap.forEach(doc => {
                 const d = doc.data();
                 // Ghost Mode: only show if user is visible OR is the current user themselves
