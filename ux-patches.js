@@ -1228,7 +1228,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                 }
             } catch(e) {}
         }, 500);
-    });
+    }, { passive: true });
     
     // Show "Continue reading" indicator when revisiting
     window.getChannelProgress = function(channelId) {
