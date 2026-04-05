@@ -3,6 +3,31 @@
 <!-- This code is proprietary. See LICENSE file. Do not copy or redistribute. -->
 <html lang="en">
 <head>
+<script>
+// Emergency cache nuke — remove after April 2026
+// Forces all users to get fresh code after the SW caching strategy change
+(function(){
+    var CURRENT_BUILD = '20260405b';
+    if (localStorage.getItem('btc_build') !== CURRENT_BUILD) {
+        localStorage.setItem('btc_build', CURRENT_BUILD);
+        if ('caches' in window) {
+            caches.keys().then(function(keys) {
+                return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+            }).then(function() {
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.getRegistrations().then(function(regs) {
+                        regs.forEach(function(r) { r.unregister(); });
+                        // Reload after clearing everything
+                        setTimeout(function() { location.reload(true); }, 200);
+                    });
+                } else {
+                    location.reload(true);
+                }
+            });
+        }
+    }
+})();
+</script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
