@@ -245,3 +245,118 @@
 
     console.log('[GUIDE] Quest guide module loaded');
 })();
+
+// ---- Scroll-reactive animations for Guide ----
+(function() {
+    // Add animation CSS
+    var animStyle = document.createElement('style');
+    animStyle.textContent = 
+        '.guide-reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }' +
+        '.guide-reveal.visible { opacity: 1; transform: translateY(0); }' +
+        '.guide-reveal-left { opacity: 0; transform: translateX(-40px); transition: opacity 0.5s ease, transform 0.5s ease; }' +
+        '.guide-reveal-left.visible { opacity: 1; transform: translateX(0); }' +
+        '.guide-reveal-right { opacity: 0; transform: translateX(40px); transition: opacity 0.5s ease, transform 0.5s ease; }' +
+        '.guide-reveal-right.visible { opacity: 1; transform: translateX(0); }' +
+        '.guide-reveal-scale { opacity: 0; transform: scale(0.85); transition: opacity 0.5s ease, transform 0.5s ease; }' +
+        '.guide-reveal-scale.visible { opacity: 1; transform: scale(1); }' +
+        '.guide-stagger-1 { transition-delay: 0s; }' +
+        '.guide-stagger-2 { transition-delay: 0.1s; }' +
+        '.guide-stagger-3 { transition-delay: 0.2s; }' +
+        '.guide-stagger-4 { transition-delay: 0.3s; }' +
+        '.guide-stagger-5 { transition-delay: 0.4s; }' +
+        '.guide-stagger-6 { transition-delay: 0.5s; }';
+    document.head.appendChild(animStyle);
+
+    // Watch for guide overlay to appear, then apply animations
+    var _guideAnimObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1 && node.id === 'guideOverlay') {
+                    setTimeout(function() { _applyGuideAnimations(); }, 100);
+                }
+            });
+        });
+    });
+    if (document.body) {
+        _guideAnimObserver.observe(document.body, { childList: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', function() {
+            _guideAnimObserver.observe(document.body, { childList: true });
+        });
+    }
+
+    function _applyGuideAnimations() {
+        var sheet = document.getElementById('guideSheet');
+        if (!sheet) return;
+
+        // Find all section headers and cards
+        var sections = sheet.querySelectorAll('div[style*="text-transform:uppercase"][style*="letter-spacing"]');
+        var cards = sheet.querySelectorAll('div[style*="border-radius:14px"][style*="cursor:pointer"], div[style*="border-radius:10px"][style*="margin-bottom:6px"]');
+        var progressBar = sheet.querySelector('div[style*="Your Journey"]');
+        var nachoTip = sheet.querySelector('div[style*="Nacho\'s Tip"]');
+        var buttons = sheet.querySelectorAll('button');
+
+        // Apply classes — alternate animation types for variety
+        var animTypes = ['guide-reveal', 'guide-reveal-left', 'guide-reveal-right', 'guide-reveal-scale'];
+
+        // Section headers slide up
+        sections.forEach(function(el) {
+            el.parentElement.classList.add('guide-reveal');
+        });
+
+        // Cards alternate left/right with stagger
+        var cardIdx = 0;
+        cards.forEach(function(card) {
+            var animType = cardIdx % 2 === 0 ? 'guide-reveal-left' : 'guide-reveal-right';
+            card.classList.add(animType);
+            card.classList.add('guide-stagger-' + Math.min((cardIdx % 3) + 1, 6));
+            cardIdx++;
+        });
+
+        // Progress bar scales in
+        if (progressBar) {
+            var progParent = progressBar.closest('div[style*="margin:8px"]') || progressBar.parentElement;
+            if (progParent) progParent.classList.add('guide-reveal-scale');
+        }
+
+        // Nacho tip slides up
+        if (nachoTip) {
+            var tipParent = nachoTip.closest('div[style*="border-radius:12px"]') || nachoTip.parentElement;
+            if (tipParent) tipParent.classList.add('guide-reveal');
+        }
+
+        // Buttons scale
+        buttons.forEach(function(btn) {
+            btn.classList.add('guide-reveal-scale');
+        });
+
+        // Use IntersectionObserver on the scroll container (guideSheet)
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, {
+            root: sheet, // observe within the scrolling sheet
+            threshold: 0.15,
+            rootMargin: '0px 0px -30px 0px'
+        });
+
+        // Observe all animated elements
+        sheet.querySelectorAll('.guide-reveal, .guide-reveal-left, .guide-reveal-right, .guide-reveal-scale').forEach(function(el) {
+            observer.observe(el);
+        });
+
+        // Trigger elements already visible on load (top of sheet)
+        setTimeout(function() {
+            sheet.querySelectorAll('.guide-reveal, .guide-reveal-left, .guide-reveal-right, .guide-reveal-scale').forEach(function(el) {
+                var rect = el.getBoundingClientRect();
+                var sheetRect = sheet.getBoundingClientRect();
+                if (rect.top < sheetRect.bottom && rect.bottom > sheetRect.top) {
+                    el.classList.add('visible');
+                }
+            });
+        }, 200);
+    }
+})();
