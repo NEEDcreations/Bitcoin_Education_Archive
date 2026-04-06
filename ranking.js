@@ -992,34 +992,24 @@ async function signInWithProvider(provider) {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
     if (isMobileDevice || isStandalone) {
-        // Mobile browser: try popup first, redirect as fallback
-        // (PWA Google sign-in is handled by GIS above — this path is for Twitter/GitHub on mobile)
+        // Mobile: go straight to redirect (popups don't work reliably on mobile browsers)
         try {
-            const { anonUid, anonData } = await saveAnonData();
-            const result = await auth.signInWithPopup(provider);
-            await handleSignInResult(result.user, anonUid, anonData);
-            return;
-        } catch(popupErr) {
-            console.log('[Auth] Mobile popup failed:', popupErr.code, '— falling back to redirect');
-            if (popupErr.code === 'auth/popup-closed-by-user') return;
-            try {
-                showToast('⏳ Opening sign-in page...');
-                const anonUser = auth.currentUser;
-                if (anonUser && anonUser.isAnonymous) {
-                    localStorage.setItem('btc_anon_uid', anonUser.uid);
-                    try {
-                        const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                        if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                    } catch(e2) {}
-                }
-                sessionStorage.setItem('btc_redirect_pending', '1');
-                await auth.signInWithRedirect(provider);
-                return;
-            } catch(e) {
-                console.error('Redirect sign-in error:', e);
-                showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
-                return;
+            showToast('⏳ Opening sign-in...');
+            const anonUser = auth.currentUser;
+            if (anonUser && anonUser.isAnonymous) {
+                localStorage.setItem('btc_anon_uid', anonUser.uid);
+                try {
+                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
+                    if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
+                } catch(e2) {}
             }
+            sessionStorage.setItem('btc_redirect_pending', '1');
+            await auth.signInWithRedirect(provider);
+            return;
+        } catch(e) {
+            console.error('Redirect sign-in error:', e);
+            showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
+            return;
         }
     }
 
