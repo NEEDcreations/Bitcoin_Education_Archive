@@ -4718,6 +4718,18 @@ window.exportUserData = function() {
 };
 
 
+// ---- Prefetch BTC price immediately (don't wait for auth) ----
+if (!localStorage.getItem('btc_last_price') || Date.now() - parseInt(localStorage.getItem('btc_price_ts') || '0') > 300000) {
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd').then(function(r){return r.json()}).then(function(d){
+        if(d&&d.bitcoin&&d.bitcoin.usd){localStorage.setItem('btc_last_price',d.bitcoin.usd.toString());localStorage.setItem('btc_price_ts',Date.now().toString());}
+    }).catch(function(){});
+}
+if (!localStorage.getItem('btc_last_height') || Date.now() - parseInt(localStorage.getItem('btc_height_ts') || '0') > 300000) {
+    fetch('https://mempool.space/api/blocks/tip/height').then(function(r){return r.text()}).then(function(h){
+        var height=parseInt(h);if(height){localStorage.setItem('btc_last_height',height.toString());localStorage.setItem('btc_height_ts',Date.now().toString());}
+    }).catch(function(){});
+}
+
 // ---- Init Firebase & Auth ----
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initRanking);
