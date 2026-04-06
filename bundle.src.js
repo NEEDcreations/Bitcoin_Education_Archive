@@ -19874,7 +19874,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (fb) fb.style.display = 'none';
         // Reset leaderboard button position (may have been shifted up for chat)
         var _lbReset = document.getElementById('lbFloatBtn');
-        if (_lbReset) _lbReset.style.bottom = '';
+        if (_lbReset) _lbReset.classList.remove('chat-shifted');
         // Hide special page containers when returning home
         var fc = document.getElementById('forumContainer');
         if (fc) fc.style.display = 'none';
