@@ -19881,6 +19881,9 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.goHome = function goHome(fromPopState) {
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
+        // Reset leaderboard button position (may have been shifted up for chat)
+        var _lbReset = document.getElementById('lbFloatBtn');
+        if (_lbReset) _lbReset.style.bottom = '';
         // Hide special page containers when returning home
         var fc = document.getElementById('forumContainer');
         if (fc) fc.style.display = 'none';
