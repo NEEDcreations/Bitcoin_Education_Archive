@@ -325,10 +325,13 @@ function renderChatMessages(msgs) {
             lastDate = dateStr;
         }
 
-        var nameColor = isMe ? 'var(--accent)' : '#6366f1';
-        var bubbleBg = isMe ? 'var(--accent-bg,rgba(247,147,26,0.08))' : 'var(--card-bg)';
-        var bubbleBorder = isMe ? 'rgba(247,147,26,0.2)' : 'var(--border)';
-        var align = isMe ? 'flex-end' : 'flex-start';
+        var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
+        var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
+        var bubbleBg = isNacho ? 'rgba(34,197,94,0.06)' : isMe ? 'var(--accent-bg,rgba(247,147,26,0.08))' : 'var(--card-bg)';
+        var bubbleBorder = isNacho ? 'rgba(34,197,94,0.2)' : isMe ? 'rgba(247,147,26,0.2)' : 'var(--border)';
+        var align = isMe && !isNacho ? 'flex-end' : 'flex-start';
+        // Override display name for Nacho auto-replies
+        if (isNacho && m.name !== '🦌 Nacho') m.name = '🦌 Nacho';
 
         html += '<div style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
@@ -364,7 +367,7 @@ function renderChatMessages(msgs) {
         }
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
-            if (!isMe && m.uid !== 'nacho-bot' && m.uid !== 'system') {
+            if (!isMe && !isNacho && m.uid !== 'system') {
                 html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/'/g, '\\&#39;') + '\',recipientUid:\'' + (m.uid || '') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
@@ -765,10 +768,21 @@ window.sendGlobalChat = function() {
             // Nacho gets a longer limit than users (1000 vs 300)
             if (answer.length > 1000) answer = answer.substring(0, 997) + '...';
             setTimeout(function() {
+                // Check if current user is admin (can use nacho-bot uid)
+                var _nachoUid = 'nacho-bot';
+                var _nachoName = '🦌 Nacho';
+                var _isAdmin = auth && auth.currentUser && auth.currentUser.email &&
+                    (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com');
+                if (!_isAdmin) {
+                    // Non-admin: write as the user's uid with nacho flag (Firestore rules allow uid == auth.uid)
+                    _nachoUid = auth && auth.currentUser ? auth.currentUser.uid : 'nacho-bot';
+                    _nachoName = '🦌 Nacho';
+                }
                 db.collection(CHAT_COLLECTION).add({
-                    uid: 'nacho-bot',
-                    name: '🦌 Nacho',
+                    uid: _nachoUid,
+                    name: _nachoName,
                     text: answer,
+                    isNachoAuto: true,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
                 }).then(function() {
                     console.log('[BRIDGE] Sending Nacho answer to Telegram, length:', answer.length);
