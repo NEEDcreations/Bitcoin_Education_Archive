@@ -377,6 +377,24 @@ async function handleTelegramWebhook(request, env) {
   if (msg.reply_to_message) {
     var replyName = msg.reply_to_message.from ? (msg.reply_to_message.from.first_name || 'User') : 'User';
     var replyText = msg.reply_to_message.text || msg.reply_to_message.caption || '';
+
+    // If replying to a bridged message from the web app, extract the real username
+    // Bridged messages look like: "[🌐 Username]\nActual message text"
+    // or with reply context: "[🌐 Username]\n↩️ ReplyTo: preview\n\nActual text"
+    var bridgeMatch = replyText.match(/^\[🌐\s+([^\]]+)\]\n([\s\S]*)/);
+    if (bridgeMatch) {
+      replyName = bridgeMatch[1].trim();
+      var bodyText = bridgeMatch[2].trim();
+      // Strip reply context prefix if present
+      var replyCtxMatch = bodyText.match(/^↩️\s+[^\n]+\n\n([\s\S]*)/);
+      if (replyCtxMatch) {
+        replyText = replyCtxMatch[1].trim();
+      } else {
+        replyText = bodyText;
+      }
+    }
+    // If replying to another Telegram user's message (not bridged), use as-is
+
     firestoreDoc.fields.replyToName = { stringValue: replyName };
     firestoreDoc.fields.replyToText = { stringValue: replyText.substring(0, 100) };
   }

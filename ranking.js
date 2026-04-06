@@ -2338,6 +2338,9 @@ document.addEventListener('click', function(e) {
     if (rankBar && rankBar.contains(e.target)) return;
     var fab = document.getElementById('lbFloatBtn');
     if (fab && fab.contains(e.target)) return;
+    // Don't close if a profile modal is open or was just closed
+    var profileModal = document.getElementById('userProfileModal');
+    if (profileModal) return;
     // Close it
     lb.classList.remove('open');
     lb.classList.remove('minimized');
