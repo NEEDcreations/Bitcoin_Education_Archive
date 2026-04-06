@@ -525,19 +525,20 @@ async function finishEmailSignIn(email, _signInUrl) {
 var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
 
 window.signInWithGoogle = async function() {
-    // Check if GIS is available
-    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    // On desktop, try GIS One Tap (fast if available)
+    // On mobile, skip GIS entirely — go straight to Firebase popup (faster, more reliable)
+    if (!isMobile && typeof google !== 'undefined' && google.accounts && google.accounts.id) {
         try {
             await signInWithGIS();
             return;
         } catch(gisErr) {
             console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
-            // Clean up any lingering GIS UI before falling back
             try { google.accounts.id.cancel(); } catch(e) {}
             document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
         }
     }
-    // Fallback to Firebase popup/redirect
+    // Firebase popup/redirect
     await signInWithProvider(new firebase.auth.GoogleAuthProvider());
 };
 
