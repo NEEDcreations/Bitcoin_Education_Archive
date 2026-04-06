@@ -83,7 +83,17 @@
             guideSection('⭐ Start Here', [
                 guideCard('🗺️', 'rgba(34,197,94,0.12)', "Nacho's Trails", "Guided learning modules! Start with The Meadow (intro), climb The Mountain (intermediate), and conquer The Summit (advanced). Each trail has curated channels and a 25-question exam.", 'tag-new', 'Recommended path', "minimizeGuide();setTimeout(function(){go('trails')},300)"),
                 guideCard('📖', 'rgba(247,147,26,0.12)', 'Read Channels', 'Tap any channel to read curated Bitcoin content. Each channel you finish earns you points and badges!', 'tag-start', 'Your main activity', "goHome()"),
-                guideCard('🦌', 'rgba(234,179,8,0.12)', 'Ask Nacho Anything', 'Tap the floating deer! Nacho knows Bitcoin inside and out — ask any question and get instant answers.', 'tag-start', 'Always available', "if(typeof showNachoInput==='function')showNachoInput();minimizeGuide()")
+                guideCard('🦌', 'rgba(234,179,8,0.12)', 'Ask Nacho Anything', 'Tap the floating deer on any page to ask a quick question. For the full experience, enter Nacho Mode — an interactive AI tutor with quizzes, learning paths, and conversation history.', 'tag-start', 'Always available', "if(typeof showNachoInput==='function')showNachoInput();minimizeGuide()") +
+                '<div onclick="minimizeGuide();setTimeout(function(){if(typeof enterNachoMode===\'function\')enterNachoMode()},300)" style="padding:12px 14px;background:rgba(234,179,8,0.04);border:1px dashed rgba(234,179,8,0.2);border-radius:12px;margin:-4px 0 8px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'rgba(234,179,8,0.5)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.2)\'">' +
+                    '<div style="font-size:0.72rem;color:#eab308;font-weight:700;margin-bottom:6px;">🦌 HOW TO ACCESS NACHO MODE</div>' +
+                    '<div style="display:flex;flex-direction:column;gap:4px;font-size:0.73rem;color:var(--text-muted);line-height:1.4;">' +
+                        '<div>📱 <strong>Mobile:</strong> Tap the 🦌 deer floating on screen, or two-finger tap anywhere</div>' +
+                        '<div>💻 <strong>Desktop:</strong> Press the <kbd style="padding:1px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:3px;font-size:0.65rem;">A</kbd> key for quick ask, or <kbd style="padding:1px 5px;background:var(--card-bg);border:1px solid var(--border);border-radius:3px;font-size:0.65rem;">N</kbd> for full Nacho Mode</div>' +
+                        '<div>🧭 <strong>Menu:</strong> Explore Apps → Nacho Mode</div>' +
+                        '<div>🔗 <strong>Direct link:</strong> bitcoineducation.quest/#nacho</div>' +
+                    '</div>' +
+                    '<div style="margin-top:8px;font-size:0.72rem;font-weight:700;color:#f7931a;">→ Tap here to enter Nacho Mode now</div>' +
+                '</div>'
             ]) +
 
             // DAILY ACTIVITIES
