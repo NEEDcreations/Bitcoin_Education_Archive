@@ -2222,6 +2222,19 @@ function updateUserDisplay(lv) {
             var cachedH = parseInt(localStorage.getItem('btc_last_height')) || 0;
             if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cachedP = nachoLiveData.price;
             if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) cachedH = nachoLiveData.blockHeight;
+            // Fetch price if not cached
+            if (!cachedP) {
+                fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd').then(function(r) { return r.json(); }).then(function(d) {
+                    if (d && d.bitcoin && d.bitcoin.usd) {
+                        var price = d.bitcoin.usd;
+                        localStorage.setItem('btc_last_price', price.toString());
+                        var el = document.getElementById('userDisplayLive');
+                        if (el && !el.querySelector('[style*="color:#f7931a"]')) {
+                            el.insertAdjacentHTML('afterbegin', '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(price).toLocaleString() + '</span>');
+                        }
+                    }
+                }).catch(function() {});
+            }
             // Fetch block height if not cached
             if (!cachedH) {
                 fetch('https://mempool.space/api/blocks/tip/height').then(function(r) { return r.text(); }).then(function(h) {

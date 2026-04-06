@@ -442,6 +442,8 @@ service cloud.firestore {
                         || (request.resource.data.get('isGif', false) == true
                             && request.resource.data.text.size() <= 1000000)
                         || (request.resource.data.uid == 'nacho-bot'
+                            && request.resource.data.text.size() <= 2000)
+                        || (request.resource.data.get('isNachoAuto', false) == true
                             && request.resource.data.text.size() <= 2000))
                     && request.resource.data.name is string
                     && (request.resource.data.uid == request.auth.uid
