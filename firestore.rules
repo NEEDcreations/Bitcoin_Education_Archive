@@ -81,6 +81,9 @@ service cloud.firestore {
       allow create, update: if statId == 'predictions'
                             && request.auth != null
                             && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      // Global community stats (channel visits, quests, spins, PVP)
+      allow create, update: if statId == 'global'
+                            && request.auth != null;
     }
 
     // Active predictions (for server-side resolution)

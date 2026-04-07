@@ -817,6 +817,10 @@ async function submitQuest() {
             await db.collection('users').doc(auth.currentUser.uid).update({
                 completedQuests: firebase.firestore.FieldValue.arrayUnion(currentQuest.id)
             });
+            // Increment global quest completion counter
+            db.collection('stats').doc('global').set({
+                questsCompleted: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true }).catch(function() {});
         }
     } catch(e) { console.error('Quest completion sync failed:', e); }
 

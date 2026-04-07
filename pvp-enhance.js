@@ -182,6 +182,17 @@ var _historyObserver = new MutationObserver(function(mutations) {
                 var oppName = oppNameEls.length >= 2 ? oppNameEls[1].textContent : 'Unknown';
                 
                 _pvpSaveMatchHistory(oppName, myScore, oppScore, isWin);
+
+                // Increment global PVP match counter (only count once per match — winner side)
+                if (isWin) {
+                    try {
+                        if (typeof firebase !== 'undefined' && firebase.firestore) {
+                            firebase.firestore().collection('stats').doc('global').set({
+                                pvpMatches: firebase.firestore.FieldValue.increment(1)
+                            }, { merge: true }).catch(function() {});
+                        }
+                    } catch(e) {}
+                }
             }
         });
     });

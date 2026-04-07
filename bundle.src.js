@@ -9868,6 +9868,10 @@ async function submitQuest() {
             await db.collection('users').doc(auth.currentUser.uid).update({
                 completedQuests: firebase.firestore.FieldValue.arrayUnion(currentQuest.id)
             });
+            // Increment global quest completion counter
+            db.collection('stats').doc('global').set({
+                questsCompleted: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true }).catch(function() {});
         }
     } catch(e) { console.error('Quest completion sync failed:', e); }
 
@@ -14749,6 +14753,55 @@ window.getPredictionStats = function(user) {
     };
 };
 
+// ---- COMMUNITY STATS BAR ----
+var _communityStatsCache = null;
+var _communityStatsCacheTs = 0;
+
+window.loadCommunityStats = function() {
+    var el = document.getElementById('communityStatsInner');
+    var wrap = document.getElementById('communityStats');
+    if (!el || !wrap) return;
+
+    // Cache for 5 minutes
+    if (_communityStatsCache && Date.now() - _communityStatsCacheTs < 300000) {
+        _renderCommunityStats(el, wrap, _communityStatsCache);
+        return;
+    }
+
+    if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
+    try {
+        db.collection('stats').doc('global').get().then(function(doc) {
+            var data = doc.exists ? doc.data() : {};
+            _communityStatsCache = data;
+            _communityStatsCacheTs = Date.now();
+            _renderCommunityStats(el, wrap, data);
+        }).catch(function() {});
+    } catch(e) {}
+};
+
+function _renderCommunityStats(el, wrap, data) {
+    var items = [];
+    if (data.channelVisits) items.push('📖 ' + _fmtNum(data.channelVisits) + ' reads');
+    if (data.questsCompleted) items.push('⚡ ' + _fmtNum(data.questsCompleted) + ' quests');
+    if (data.spins) items.push('🎡 ' + _fmtNum(data.spins) + ' spins');
+    if (data.pvpMatches) items.push('⚔️ ' + _fmtNum(data.pvpMatches) + ' battles');
+    // visits doc is separate
+    var visitEl = document.getElementById('visitCount');
+    if (visitEl && visitEl.textContent !== '—') items.push('👥 ' + visitEl.textContent + ' visits');
+    if (items.length === 0) { wrap.style.display = 'none'; return; }
+    el.innerHTML = '🌍 <strong style="color:var(--text-muted);">Community</strong> · ' + items.join(' · ');
+    wrap.style.display = 'block';
+}
+
+function _fmtNum(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toLocaleString();
+}
+
+// Load on init
+setTimeout(function() { if (typeof loadCommunityStats === 'function') loadCommunityStats(); }, 5000);
+
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
     var el = document.getElementById('explorationMap');
@@ -18270,6 +18323,10 @@ function loadTopIndicators() {
                             db.collection('users').doc(auth.currentUser.uid).update({
                                 lastSpinDate: today
                             }).catch(function(){});
+                            // Increment global spin counter
+                            db.collection('stats').doc('global').set({
+                                spins: firebase.firestore.FieldValue.increment(1)
+                            }, { merge: true }).catch(function() {});
                         } catch(e) {}
                     }
                 }
@@ -20122,6 +20179,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Refresh exploration map and daily quote
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
+        if (typeof loadCommunityStats === 'function') loadCommunityStats();
         // Show guide return button if user navigated from the guide
         if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
             showGuideReturnBtn();
@@ -21013,6 +21071,15 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Immediately check tier unlocks when a new channel is visited
             if (typeof updateSidebarTiers === 'function') updateSidebarTiers();
         }
+
+        // Increment global channel visit counter
+        try {
+            if (typeof db !== 'undefined' && typeof firebase !== 'undefined') {
+                db.collection('stats').doc('global').set({
+                    channelVisits: firebase.firestore.FieldValue.increment(1)
+                }, { merge: true }).catch(function() {});
+            }
+        } catch(e) {}
 
         // --- SENTIMENT RATING ---
         if (d.msgs && d.msgs.length > 0) {

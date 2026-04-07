@@ -804,6 +804,10 @@
                             db.collection('users').doc(auth.currentUser.uid).update({
                                 lastSpinDate: today
                             }).catch(function(){});
+                            // Increment global spin counter
+                            db.collection('stats').doc('global').set({
+                                spins: firebase.firestore.FieldValue.increment(1)
+                            }, { merge: true }).catch(function() {});
                         } catch(e) {}
                     }
                 }
@@ -2656,6 +2660,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Refresh exploration map and daily quote
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
+        if (typeof loadCommunityStats === 'function') loadCommunityStats();
         // Show guide return button if user navigated from the guide
         if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
             showGuideReturnBtn();
@@ -3547,6 +3552,15 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Immediately check tier unlocks when a new channel is visited
             if (typeof updateSidebarTiers === 'function') updateSidebarTiers();
         }
+
+        // Increment global channel visit counter
+        try {
+            if (typeof db !== 'undefined' && typeof firebase !== 'undefined') {
+                db.collection('stats').doc('global').set({
+                    channelVisits: firebase.firestore.FieldValue.increment(1)
+                }, { merge: true }).catch(function() {});
+            }
+        } catch(e) {}
 
         // --- SENTIMENT RATING ---
         if (d.msgs && d.msgs.length > 0) {
