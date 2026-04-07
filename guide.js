@@ -20,6 +20,8 @@
 
     // ---- Show guide (called after onboarding or from banner) ----
     window.showGuide = function() {
+        // Hide the return button since we're back in the guide
+        if (typeof hideGuideReturnBtn === 'function') hideGuideReturnBtn();
         var existing = document.getElementById('guideOverlay');
         if (existing) existing.remove();
 
@@ -98,28 +100,28 @@
 
             // DAILY ACTIVITIES
             guideSection('🎯 Daily Activities', [
-                guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin the wheel once per day — win bonus points, tickets, or badges!', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
-                guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete simple tasks each day — visit channels, read content, test your knowledge.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
-                guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s Bitcoin price and compete with other users!', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}")
+                guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin the wheel once per day — win bonus points, tickets, or badges!', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
+                guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete simple tasks each day — visit channels, read content, test your knowledge.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
+                guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s Bitcoin price and compete with other users!', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}")
             ]) +
 
             // UNLOCK APPS
             '<div style="margin-bottom:12px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
-                unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
-                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('forum')},300)") +
-                unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
-                unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
-                unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)") +
+                unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
+                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
+                unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
+                unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
+                unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)") +
                 unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true, null) +
             '</div>' +
 
             // MORE FEATURES
             guideSection('✨ More Features', [
-                guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "sessionStorage.setItem('btc_return_guide','1');if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
-                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){if(typeof go==='function')go('bitcoin-dashboard')},300)"),
-                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
+                guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
+                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function')go('bitcoin-dashboard')},300)"),
+                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
             ]) +
 
             // Nacho tip
@@ -336,4 +338,60 @@
             });
         }, 200);
     }
+
+    // ---- Floating "Back to Guide" button ----
+    var _guideReturnBtn = null;
+
+    window.showGuideReturnBtn = function() {
+        if (_guideReturnBtn) return; // already showing
+        _guideReturnBtn = document.createElement('div');
+        _guideReturnBtn.id = 'guideReturnFloat';
+        _guideReturnBtn.innerHTML =
+            '<div id="guideReturnExpanded" style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:14px;box-shadow:0 4px 20px rgba(99,102,241,0.4);cursor:pointer;transition:all 0.3s ease;touch-action:manipulation;" onclick="returnToGuide()">' +
+                '<span style="font-size:0.95rem;">📜</span>' +
+                '<span style="font-size:0.78rem;font-weight:700;color:#fff;white-space:nowrap;">Back to Guide</span>' +
+                '<button onclick="event.stopPropagation();collapseGuideReturn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:0.7rem;cursor:pointer;padding:2px 4px;margin-left:2px;">✕</button>' +
+            '</div>' +
+            '<div id="guideReturnCollapsed" style="display:none;width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:50%;box-shadow:0 4px 16px rgba(99,102,241,0.4);cursor:pointer;align-items:center;justify-content:center;font-size:1.1rem;transition:all 0.3s ease;touch-action:manipulation;" onclick="returnToGuide()">📜</div>';
+        _guideReturnBtn.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9980;animation:guideReturnIn 0.4s ease;';
+        // Add animation keyframes if not already present
+        if (!document.getElementById('guideReturnStyle')) {
+            var s = document.createElement('style');
+            s.id = 'guideReturnStyle';
+            s.textContent = '@keyframes guideReturnIn{from{transform:translateX(-60px);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes guideReturnOut{from{transform:translateX(0);opacity:1}to{transform:translateX(-60px);opacity:0}}';
+            document.head.appendChild(s);
+        }
+        document.body.appendChild(_guideReturnBtn);
+    };
+
+    window.collapseGuideReturn = function() {
+        var exp = document.getElementById('guideReturnExpanded');
+        var col = document.getElementById('guideReturnCollapsed');
+        if (exp) exp.style.display = 'none';
+        if (col) col.style.display = 'flex';
+    };
+
+    window.hideGuideReturnBtn = function() {
+        if (_guideReturnBtn) {
+            _guideReturnBtn.style.animation = 'guideReturnOut 0.3s ease forwards';
+            setTimeout(function() {
+                if (_guideReturnBtn && _guideReturnBtn.parentNode) _guideReturnBtn.parentNode.removeChild(_guideReturnBtn);
+                _guideReturnBtn = null;
+            }, 300);
+        }
+        sessionStorage.removeItem('btc_return_guide');
+    };
+
+    window.returnToGuide = function() {
+        hideGuideReturnBtn();
+        // Close any open overlays/settings first
+        if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+        var chatHub = document.getElementById('chatHubOverlay');
+        if (chatHub) chatHub.remove();
+        var pvpOverlay = document.getElementById('pvpOverlay');
+        if (pvpOverlay) { if (typeof exitPVPMode === 'function') exitPVPMode(true); }
+        // Navigate home then open guide
+        if (typeof goHome === 'function') goHome();
+        setTimeout(function() { if (typeof showGuide === 'function') showGuide(); }, 400);
+    };
 })();

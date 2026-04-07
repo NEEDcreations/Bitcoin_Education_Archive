@@ -4639,10 +4639,9 @@ async function signOutUser() {
 window.hideUsernamePrompt = function() {
     const modal = document.getElementById('usernameModal');
     if (modal) modal.classList.remove('open');
-    // Return to Quest Guide if user navigated from it
-    if (sessionStorage.getItem('btc_return_guide') === '1') {
-        sessionStorage.removeItem('btc_return_guide');
-        setTimeout(function() { if (typeof showGuideOverlay === 'function') showGuideOverlay(); }, 300);
+    // Show guide return button if user navigated from the guide
+    if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
+        showGuideReturnBtn();
     }
 };
 
