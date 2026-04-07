@@ -127,17 +127,18 @@ window.submitBuddyRequest = async function() {
         var match = null;
         var complementaryGoal = goal === 'learn' ? 'teach' : 'learn'; // Only teacher↔learner
 
-        // Priority 1: Complementary goal match (learner + teacher)
+        // Query by complementary goal, filter out self client-side (avoids composite index)
         var q1 = await db.collection(COLLECTION)
             .where('goal', '==', complementaryGoal)
-            .where('uid', '!=', uid)
-            .limit(5).get();
+            .limit(10).get();
 
         if (!q1.empty) {
-            // Pick the best match by timezone proximity
             var candidates = [];
-            q1.forEach(function(doc) { candidates.push({ id: doc.id, data: doc.data() }); });
-            match = candidates[0]; // Simple: take first available
+            q1.forEach(function(doc) {
+                var d = doc.data();
+                if (d.uid !== uid) candidates.push({ id: doc.id, data: d });
+            });
+            if (candidates.length > 0) match = candidates[0];
         }
 
         // No fallback — only teacher↔learner matches. Users wait if no complement exists.
@@ -207,7 +208,7 @@ window.submitBuddyRequest = async function() {
         console.error('[BUDDY]', e);
         btn.disabled = false;
         btn.textContent = '🤝 Find My Buddy';
-        if (typeof showToast === 'function') showToast('Error: ' + (e.message || 'Try again'));
+        if (typeof showToast === 'function') showToast('⚠️ Something went wrong. Please try again.');
     }
 };
 
