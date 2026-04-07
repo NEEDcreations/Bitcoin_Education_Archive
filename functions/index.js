@@ -1518,3 +1518,67 @@ exports.backfillBestStreak = functions.https.onCall(async (data, context) => {
     if (updated > 0) await batch.commit();
     return { success: true, updated: updated, total: usersSnap.size };
 });
+
+// ---- Resolve Predictions (runs every 6 hours) ----
+exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: 'UTC' }, async (event) => {
+    const snap = await db.collection('active_predictions').where('resolved', '==', false).get();
+    if (snap.empty) return;
+
+    const now = Date.now();
+    const batch = db.batch();
+    let resolved = 0;
+    let correct = 0;
+    let total = 0;
+
+    // Fetch current BTC price
+    let currentPrice = 0;
+    try {
+        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+        const data = await res.json();
+        if (data && data.bitcoin && data.bitcoin.usd) currentPrice = data.bitcoin.usd;
+    } catch(e) {
+        console.error('Failed to fetch BTC price:', e);
+        return;
+    }
+    if (!currentPrice) return;
+
+    snap.forEach(doc => {
+        const pred = doc.data();
+        // Only resolve if at least 12 hours old
+        if (now - pred.time < 12 * 60 * 60 * 1000) return;
+
+        const diff = currentPrice - pred.price;
+        const isCorrect = (pred.direction === 'up' && diff > 0) || (pred.direction === 'down' && diff < 0);
+
+        // Update user's prediction stats
+        const userRef = db.collection('users').doc(pred.uid);
+        const inc = admin.firestore.FieldValue.increment;
+        const userUpdate = {
+            'predictions.total': inc(1),
+            'predictions.lastResolved': now
+        };
+        if (isCorrect) {
+            userUpdate['predictions.correct'] = inc(1);
+        }
+        batch.set(userRef, userUpdate, { merge: true });
+
+        // Delete the active prediction
+        batch.delete(doc.ref);
+
+        if (isCorrect) correct++;
+        total++;
+        resolved++;
+    });
+
+    // Update global stats
+    if (total > 0) {
+        const globalRef = db.collection('stats').doc('predictions');
+        const inc = admin.firestore.FieldValue.increment;
+        const globalUpdate = { total: inc(total) };
+        if (correct > 0) globalUpdate.correct = inc(correct);
+        batch.set(globalRef, globalUpdate, { merge: true });
+    }
+
+    if (resolved > 0) await batch.commit();
+    console.log(`Resolved ${resolved} predictions: ${correct}/${total} correct. BTC price: $${currentPrice}`);
+});

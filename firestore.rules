@@ -83,6 +83,15 @@ service cloud.firestore {
                             && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
     }
 
+    // Active predictions (for server-side resolution)
+    match /active_predictions/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == uid
+                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     // =============================================
     // SUGGESTIONS COLLECTION
     // =============================================

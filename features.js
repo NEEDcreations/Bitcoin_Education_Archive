@@ -541,6 +541,13 @@ window.checkPredictionResult = function() {
     // Update prediction stats in Firestore
     _updatePredictionStats(correct);
 
+    // Mark as resolved in active_predictions (so Cloud Function doesn't double-count)
+    try {
+        if (typeof auth !== 'undefined' && auth.currentUser && typeof db !== 'undefined') {
+            db.collection('active_predictions').doc(auth.currentUser.uid).delete().catch(function() {});
+        }
+    } catch(e) {}
+
     // Award bonus points for correct prediction
     if (correct) {
         if (typeof awardPoints === 'function') awardPoints(25, '🎯 Correct price prediction!');
@@ -578,6 +585,15 @@ function _syncPredictionToFirestore(prediction) {
                 }
             }
         }, { merge: true }).catch(function() {});
+
+        // Save to active_predictions collection for server-side resolution
+        db.collection('active_predictions').doc(uid).set({
+            uid: uid,
+            direction: prediction.direction,
+            price: prediction.price,
+            time: prediction.time,
+            resolved: false
+        }).catch(function() {});
     } catch(e) {}
 }
 
