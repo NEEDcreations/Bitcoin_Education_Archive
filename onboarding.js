@@ -119,6 +119,12 @@ window.showOnboardingWizard = function() {
 
     function finish(level, interests) {
         window.setOnboardingProfile({ level: level || 'beginner', interests: interests || [], completedAt: Date.now() });
+
+        // Auto-submit to buddy pool if user opted in
+        if (state.buddyRole) {
+            _submitBuddyFromOnboarding(level || 'beginner', state.buddyRole);
+        }
+
         overlay.style.transition = 'opacity 0.4s';
         overlay.style.opacity = '0';
         setTimeout(function() {
@@ -129,6 +135,71 @@ window.showOnboardingWizard = function() {
                 setTimeout(function() { window.showGuide(); }, 500);
             }
         }, 400);
+    }
+
+    function _submitBuddyFromOnboarding(level, goal) {
+        // Delay to let auth settle (user may be anonymous or just signed in)
+        setTimeout(function() {
+            if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return;
+            var _auth = firebase.auth();
+            // If not signed in, sign in anonymously first
+            var doSubmit = function() {
+                var user = _auth.currentUser;
+                if (!user) return;
+                var _db = firebase.firestore();
+                var uid = user.uid;
+                var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'New Bitcoiner';
+                var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+
+                // Check for existing match first
+                _db.collection('buddy_pool').limit(50).get().then(function(snap) {
+                    var match = null;
+                    var complementaryGoal = goal === 'learn' ? 'teach' : 'learn';
+                    snap.forEach(function(doc) {
+                        var d = doc.data();
+                        if (!match && d.uid !== uid && d.goal === complementaryGoal) {
+                            match = { id: doc.id, data: d };
+                        }
+                    });
+
+                    if (match) {
+                        // Instant match!
+                        _db.collection('buddy_pool').doc(match.id).delete();
+                        _db.collection('buddy_matches').add({
+                            user1: { uid: uid, username: username, level: level, goal: goal, intro: 'Joined via onboarding' },
+                            user2: { uid: match.data.uid, username: match.data.username, level: match.data.level, goal: match.data.goal, intro: match.data.intro || '' },
+                            matchedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            tz1: tz, tz2: match.data.tz || 'Unknown'
+                        });
+                        if (typeof showToast === 'function') showToast('🤝 Buddy matched! Check your DMs to say hi to ' + match.data.username + '!', 6000);
+                        if (typeof awardPoints === 'function') awardPoints(20, '🤝 Bitcoin Buddy match!');
+                        // Open DM
+                        setTimeout(function() {
+                            if (typeof openDM === 'function') openDM(match.data.uid, match.data.username);
+                        }, 2000);
+                    } else {
+                        // Add to pool
+                        _db.collection('buddy_pool').add({
+                            uid: uid, username: username, level: level, goal: goal,
+                            intro: 'Joined via onboarding', tz: tz,
+                            joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        if (typeof showToast === 'function') showToast('🤝 You\'re in the Buddy Pool! We\'ll notify you when a ' + (goal === 'learn' ? 'teacher' : 'learner') + ' joins.', 5000);
+                    }
+                }).catch(function(e) { console.error('[BUDDY onboarding]', e); });
+            };
+
+            if (_auth.currentUser) {
+                doSubmit();
+            } else {
+                _auth.signInAnonymously().then(function() {
+                    // Wait for auth state
+                    var unsub = _auth.onAuthStateChanged(function(u) {
+                        if (u) { unsub(); doSubmit(); }
+                    });
+                }).catch(function() {});
+            }
+        }, 2000);
     }
 
     function render() {
@@ -197,6 +268,23 @@ window.showOnboardingWizard = function() {
                 '</button>';
             });
 
+            // Buddy opt-in
+            if (state.level) {
+                var buddyRole = state.buddyRole || null;
+                html += '<div style="margin-top:16px;padding:14px 16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:14px;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+                        '<span style="font-size:1.2rem;">🤝</span>' +
+                        '<div><div style="color:#22c55e;font-size:0.8rem;font-weight:800;">Find a Bitcoin Buddy</div>' +
+                        '<div style="color:#64748b;font-size:0.7rem;">Get paired with ' + (state.level === 'advanced' ? 'a learner to mentor' : 'an experienced Bitcoiner') + '</div></div>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:8px;">' +
+                        '<button onclick="window._obBuddyRole(\'learn\')" style="flex:1;padding:10px;border-radius:10px;background:' + (buddyRole === 'learn' ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.03)') + ';border:1.5px solid ' + (buddyRole === 'learn' ? '#f97316' : '#1e293b') + ';color:' + (buddyRole === 'learn' ? '#f97316' : '#94a3b8') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📖 I want to learn</button>' +
+                        '<button onclick="window._obBuddyRole(\'teach\')" style="flex:1;padding:10px;border-radius:10px;background:' + (buddyRole === 'teach' ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.03)') + ';border:1.5px solid ' + (buddyRole === 'teach' ? '#f97316' : '#1e293b') + ';color:' + (buddyRole === 'teach' ? '#f97316' : '#94a3b8') + ';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎓 I want to teach</button>' +
+                    '</div>' +
+                    (buddyRole ? '<div style="text-align:center;margin-top:6px;"><button onclick="window._obBuddyRole(null)" style="background:none;border:none;color:#475569;font-size:0.7rem;cursor:pointer;font-family:inherit;">Skip buddy matching</button></div>' : '') +
+                '</div>';
+            }
+
             // Continue button
             var canContinue = !!state.level;
             html += '<div style="margin-top:14px;">' +
@@ -244,6 +332,7 @@ window.showOnboardingWizard = function() {
 
     // Event handlers
     window._obSelectLevel = function(level) { state.level = level; render(); };
+    window._obBuddyRole = function(role) { state.buddyRole = role; render(); };
     window._obAdvance = function() { if (state.level) { state.step = 1; render(); overlay.scrollTop = 0; } };
     window._obBack = function() { state.step = 0; render(); overlay.scrollTop = 0; };
     window._obToggleInterest = function(label) {
