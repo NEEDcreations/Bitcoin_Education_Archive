@@ -723,6 +723,15 @@ function _renderCommunityStats(el, wrap, data) {
     if (items.length === 0) { wrap.style.display = 'none'; return; }
     el.innerHTML = '🌍 <strong style="color:var(--text-muted);">Community</strong> · ' + items.join(' · ');
     wrap.style.display = 'block';
+
+    // Also populate the home panel stats
+    var _set = function(id, val) { var e = document.getElementById(id); if (e && val) e.textContent = val.toLocaleString(); };
+    _set('csChannelReads', data.channelVisits);
+    _set('csQuests', data.questsCompleted);
+    _set('csChatMsgs', data.chatMessages);
+    _set('csSpins', data.spins);
+    _set('csPvp', data.pvpMatches);
+    _set('csUsers', data.userCount);
 }
 
 function _fmtNum(n) {
