@@ -459,7 +459,21 @@ window.showPricePrediction = function() {
             '<p style="font-size:1.2rem;margin-top:12px;">' + (correct ? '✅ You were RIGHT! +25 points' : '❌ Not this time!') + '</p>' +
             (correct && streak >= 2 ? '<p style="font-size:0.9rem;color:#f7931a;">🔥 ' + streak + ' correct in a row!</p>' : '') +
             '<div style="margin-top:16px;font-size:0.8rem;color:var(--text-muted,#94a3b8);">Come back tomorrow for a new prediction!</div>' +
+            '<div id="globalPredStatsResult" style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>' +
             '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:12px;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;">Close</button>';
+
+        // Load global stats on result screen
+        setTimeout(function() {
+            if (typeof getGlobalPredictionStats === 'function') {
+                getGlobalPredictionStats(function(stats) {
+                    var el = document.getElementById('globalPredStatsResult');
+                    if (!el) return;
+                    if (!stats || !stats.total) { el.innerHTML = '🌍 No community data yet.'; return; }
+                    var pct = Math.round((stats.correct / stats.total) * 100);
+                    el.innerHTML = '🌍 <strong>Community:</strong> ' + (stats.correct || 0) + '/' + stats.total + ' correct (' + pct + '% accuracy)';
+                });
+            }
+        }, 100);
     } else {
         // New prediction
         card.innerHTML = '<span style="font-size:2.5rem;">📈📉</span>' +
@@ -470,7 +484,24 @@ window.showPricePrediction = function() {
             '<div style="display:flex;gap:12px;justify-content:center;">' +
                 '<button onclick="window._savePrediction(\'up\');this.closest(\'div[style*=fixed]\').remove()" style="background:#22c55e;color:#fff;border:none;padding:14px 32px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1.1rem;">📈 UP</button>' +
                 '<button onclick="window._savePrediction(\'down\');this.closest(\'div[style*=fixed]\').remove()" style="background:#ef4444;color:#fff;border:none;padding:14px 32px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1.1rem;">📉 DOWN</button>' +
-            '</div>';
+            '</div>' +
+            '<div id="globalPredStats" style="margin-top:16px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>';
+
+        // Load global stats
+        setTimeout(function() {
+            if (typeof getGlobalPredictionStats === 'function') {
+                getGlobalPredictionStats(function(stats) {
+                    var el = document.getElementById('globalPredStats');
+                    if (!el) return;
+                    if (!stats || !stats.total) {
+                        el.innerHTML = '🌍 Be the first to predict!';
+                        return;
+                    }
+                    var pct = Math.round((stats.correct / stats.total) * 100);
+                    el.innerHTML = '🌍 <strong>Community:</strong> ' + (stats.correct || 0) + '/' + stats.total + ' correct (' + pct + '% accuracy)';
+                });
+            }
+        }, 100);
     }
 
     overlay.appendChild(card);
@@ -577,6 +608,11 @@ function _updatePredictionStats(correct) {
 
         db.collection('users').doc(uid).set(updateData, { merge: true }).catch(function() {});
 
+        // Update global prediction stats
+        var globalUpdate = { total: inc(1) };
+        if (correct) globalUpdate.correct = inc(1);
+        db.collection('stats').doc('predictions').set(globalUpdate, { merge: true }).catch(function() {});
+
         // Also update local currentUser for immediate display
         if (typeof currentUser !== 'undefined' && currentUser) {
             if (!currentUser.predictions) currentUser.predictions = { total: 0, correct: 0, streak: 0, bestStreak: 0 };
@@ -593,6 +629,30 @@ function _updatePredictionStats(correct) {
         }
     } catch(e) {}
 }
+
+// Cache global prediction stats
+var _globalPredCache = null;
+var _globalPredCacheTs = 0;
+
+window.getGlobalPredictionStats = function(callback) {
+    // Cache for 2 minutes
+    if (_globalPredCache && Date.now() - _globalPredCacheTs < 120000) {
+        callback(_globalPredCache);
+        return;
+    }
+    if (typeof db === 'undefined' || typeof firebase === 'undefined') { callback(null); return; }
+    try {
+        db.collection('stats').doc('predictions').get().then(function(doc) {
+            if (doc.exists) {
+                _globalPredCache = doc.data();
+                _globalPredCacheTs = Date.now();
+                callback(_globalPredCache);
+            } else {
+                callback(null);
+            }
+        }).catch(function() { callback(null); });
+    } catch(e) { callback(null); }
+};
 
 // Get prediction stats (for profile display)
 window.getPredictionStats = function(user) {

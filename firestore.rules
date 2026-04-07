@@ -77,6 +77,10 @@ service cloud.firestore {
       // [AUDIT FIX] Require auth for analytics writes
       allow create, update: if statId == 'nacho-analytics'
                             && request.auth != null;
+      // Global prediction stats (increment only)
+      allow create, update: if statId == 'predictions'
+                            && request.auth != null
+                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
     }
 
     // =============================================
