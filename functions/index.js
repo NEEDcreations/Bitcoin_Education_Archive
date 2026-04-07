@@ -1544,8 +1544,8 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
 
     snap.forEach(doc => {
         const pred = doc.data();
-        // Only resolve if at least 12 hours old
-        if (now - pred.time < 12 * 60 * 60 * 1000) return;
+        // Only resolve after 24 hours (prediction window)
+        if (now - pred.time < 24 * 60 * 60 * 1000) return;
 
         const diff = currentPrice - pred.price;
         const isCorrect = (pred.direction === 'up' && diff > 0) || (pred.direction === 'down' && diff < 0);

@@ -523,8 +523,8 @@ window._savePrediction = function(direction) {
 window.checkPredictionResult = function() {
     var saved = safeJSON('btc_price_prediction', null);
     if (!saved || saved.resolved) return;
-    // Only check if at least 12 hours have passed (give the market time to move)
-    if (Date.now() - saved.time < 12 * 60 * 60 * 1000) return;
+    // Only check after 24 hours have passed (prediction window)
+    if (Date.now() - saved.time < 24 * 60 * 60 * 1000) return;
     var currentPrice = parseFloat(localStorage.getItem('btc_last_price')) || 0;
     if (!currentPrice || !saved.price) return;
 
