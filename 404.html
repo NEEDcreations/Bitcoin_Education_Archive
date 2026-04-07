@@ -764,13 +764,29 @@
             <div class="cat-group" style="display:none;">
             <button class="ch-btn" onclick="go('referral-links',this)">🔗 free-btc-referral-links</button>
             </div>
-            <div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;text-align:center;margin-top:14px;margin-bottom:6px;">🎲 Random</div>
-            <div style="display:flex;gap:8px;margin-bottom:12px;justify-content:center;padding:0 8px;">
-                <button class="random-btn" onclick="goRandom()" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
-                <button class="random-btn" onclick="goRandomArt()" title="Random Art"><span>🎨</span><span class="random-label">Art</span></button>
-                <button class="random-btn" onclick="goRandomGraphic()" title="Random Graphic"><span>📊</span><span class="random-label">Graphic</span></button>
-                <button class="random-btn" onclick="goRandomMeme()" title="Random Meme"><span>😂</span><span class="random-label">Meme</span></button>
+            <div style="margin:14px 8px 12px;text-align:center;">
+                <button id="randomToggleBtn" onclick="toggleRandomPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">🎲 Random <span id="randomToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
+                <div id="randomPanel" style="display:none;margin-top:8px;">
+                    <div style="display:flex;gap:8px;justify-content:center;">
+                        <button class="random-btn" onclick="goRandom()" title="Random Channel"><span>🎲</span><span class="random-label">Channel</span></button>
+                        <button class="random-btn" onclick="goRandomArt()" title="Random Art"><span>🎨</span><span class="random-label">Art</span></button>
+                        <button class="random-btn" onclick="goRandomGraphic()" title="Random Graphic"><span>📊</span><span class="random-label">Graphic</span></button>
+                        <button class="random-btn" onclick="goRandomMeme()" title="Random Meme"><span>😂</span><span class="random-label">Meme</span></button>
+                    </div>
+                </div>
             </div>
+            <script>
+                window.toggleRandomPanel = function() {
+                    var panel = document.getElementById('randomPanel');
+                    var arrow = document.getElementById('randomToggleArrow');
+                    var btn = document.getElementById('randomToggleBtn');
+                    if (!panel) return;
+                    var open = panel.style.display !== 'none';
+                    panel.style.display = open ? 'none' : 'block';
+                    if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+                    if (btn) { btn.style.borderColor = open ? 'var(--border)' : 'var(--accent)'; btn.style.color = open ? 'var(--text-muted)' : 'var(--accent)'; }
+                };
+            </script>
         </div>
         <a href="https://603btc.com" target="_blank" rel="noopener noreferrer" class="sidebar-promo">⚡ Powered by 603btc.com</a>
         <div id="rankBar"></div>
