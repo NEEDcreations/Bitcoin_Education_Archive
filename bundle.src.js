@@ -14783,6 +14783,7 @@ function _renderCommunityStats(el, wrap, data) {
     var items = [];
     if (data.channelVisits) items.push('📖 ' + _fmtNum(data.channelVisits) + ' reads');
     if (data.questsCompleted) items.push('⚡ ' + _fmtNum(data.questsCompleted) + ' quests');
+    if (data.chatMessages) items.push('💬 ' + _fmtNum(data.chatMessages) + ' chats');
     if (data.spins) items.push('🎡 ' + _fmtNum(data.spins) + ' spins');
     if (data.pvpMatches) items.push('⚔️ ' + _fmtNum(data.pvpMatches) + ' battles');
     // visits doc is separate

@@ -691,6 +691,8 @@ window.sendGlobalChat = function() {
     db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         // Track for daily challenge
         sessionStorage.setItem('btc_chat_sent', 'true');
+        // Increment global chat counter
+        db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
         // Bridge to Telegram
         bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '' });
     }).catch(function(err) {

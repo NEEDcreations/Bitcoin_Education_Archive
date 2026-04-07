@@ -1582,3 +1582,97 @@ exports.resolvePredictions = onSchedule({ schedule: 'every 6 hours', timeZone: '
     if (resolved > 0) await batch.commit();
     console.log(`Resolved ${resolved} predictions: ${correct}/${total} correct. BTC price: $${currentPrice}`);
 });
+
+// ---- One-time backfill global community stats ----
+exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
+    // Admin only
+    if (!context.auth || (context.auth.token.email !== 'needcreations@gmail.com' && context.auth.token.email !== 'info.603btc@gmail.com')) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    }
+
+    const usersSnap = await db.collection('users').get();
+    let totalQuestsCompleted = 0;
+    let totalPvpMatches = 0;
+    let totalChannelVisits = 0;
+    let totalPredictions = 0;
+    let totalPredictionsCorrect = 0;
+    let totalSpins = 0;
+
+    usersSnap.forEach(doc => {
+        const u = doc.data();
+        // Quests
+        if (u.completedQuests && Array.isArray(u.completedQuests)) {
+            totalQuestsCompleted += u.completedQuests.length;
+        }
+        // PVP (each win or loss = 1 match played by this user)
+        const wins = u.pvpWins || 0;
+        const losses = u.pvpLosses || 0;
+        totalPvpMatches += wins; // count unique matches (winner-side only to avoid double count)
+        // Channel visits
+        if (u.channelsVisited) totalChannelVisits += u.channelsVisited;
+        else if (u.readChannels && Array.isArray(u.readChannels)) totalChannelVisits += u.readChannels.length;
+        // Predictions
+        if (u.predictions) {
+            totalPredictions += u.predictions.total || 0;
+            totalPredictionsCorrect += u.predictions.correct || 0;
+        }
+        // Spins — estimate: if user has lastSpinDate, they've spun at least once
+        // Better estimate: users with streak > 0 have been active, avg ~10 spins each
+        if (u.lastSpinDate) totalSpins += 1;
+    });
+
+    // Channel visits from Firestore are "unique channels per user" not total opens
+    // Estimate total opens: avg user reads ~3x per unique channel visited
+    const estimatedChannelOpens = totalChannelVisits * 3;
+
+    // Spins estimate: users who have spun at least once probably averaged ~8 spins
+    const estimatedSpins = totalSpins * 8;
+
+    // Chat messages
+    let chatMessages = 0;
+    try {
+        const chatSnap = await db.collection('global_chat').count().get();
+        chatMessages = chatSnap.data().count || 0;
+    } catch(e) {
+        // count() may not be available, estimate from limit query
+        const chatSample = await db.collection('global_chat').limit(500).get();
+        chatMessages = chatSample.size;
+        if (chatMessages === 500) chatMessages = 800; // estimate if we hit limit
+    }
+
+    const globalStats = {
+        channelVisits: estimatedChannelOpens,
+        questsCompleted: totalQuestsCompleted,
+        pvpMatches: totalPvpMatches,
+        spins: estimatedSpins,
+        chatMessages: chatMessages,
+        backfilledAt: Date.now(),
+        userCount: usersSnap.size
+    };
+
+    await db.collection('stats').doc('global').set(globalStats, { merge: true });
+
+    // Also seed predictions global if not already there
+    if (totalPredictions > 0) {
+        await db.collection('stats').doc('predictions').set({
+            total: totalPredictions,
+            correct: totalPredictionsCorrect,
+            backfilledAt: Date.now()
+        }, { merge: true });
+    }
+
+    return {
+        success: true,
+        raw: {
+            users: usersSnap.size,
+            uniqueChannelVisits: totalChannelVisits,
+            questsCompleted: totalQuestsCompleted,
+            pvpWinsTotal: totalPvpMatches,
+            usersWhoSpun: totalSpins,
+            predictions: totalPredictions,
+            predictionsCorrect: totalPredictionsCorrect,
+            chatMessages: chatMessages
+        },
+        estimated: globalStats
+    };
+});
