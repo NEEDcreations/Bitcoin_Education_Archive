@@ -264,5 +264,87 @@ if (typeof MutationObserver !== 'undefined') {
     if (document.body) buddyObs.observe(document.body, { childList: true, subtree: true });
 }
 
+// ---- Nacho buddy pool alerts ----
+// Check buddy pool periodically and have Nacho nudge users
+// Triggers: 2-3 min after session start, max once every 3 sessions
+var BUDDY_ALERT_KEY = 'btc_buddy_alert_session';
+var BUDDY_ALERT_COUNT_KEY = 'btc_buddy_alert_count';
+
+function checkBuddyPoolAlert() {
+    // Don't alert if user isn't signed in
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.auth().currentUser) return;
+    var uid = firebase.auth().currentUser.uid;
+
+    // Rate limit: only show every 3 sessions
+    var count = parseInt(localStorage.getItem(BUDDY_ALERT_COUNT_KEY) || '0');
+    if (sessionStorage.getItem(BUDDY_ALERT_KEY)) return; // already shown this session
+    if (count % 3 !== 0) {
+        // Increment and skip
+        sessionStorage.setItem(BUDDY_ALERT_KEY, '1');
+        localStorage.setItem(BUDDY_ALERT_COUNT_KEY, (count + 1).toString());
+        return;
+    }
+
+    // Check if user is already in the pool
+    var _db = firebase.firestore();
+    _db.collection(COLLECTION).limit(50).get().then(function(snap) {
+        var waiting = [];
+        var userInPool = false;
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (d.uid === uid) { userInPool = true; return; }
+            waiting.push(d);
+        });
+
+        // Don't alert if user is already in pool or nobody is waiting
+        if (userInPool || waiting.length === 0) {
+            sessionStorage.setItem(BUDDY_ALERT_KEY, '1');
+            localStorage.setItem(BUDDY_ALERT_COUNT_KEY, (count + 1).toString());
+            return;
+        }
+
+        // Build the alert message
+        var learners = waiting.filter(function(d) { return d.goal === 'learn'; }).length;
+        var teachers = waiting.filter(function(d) { return d.goal === 'teach'; }).length;
+        var msg = '';
+        if (teachers > 0 && learners > 0) {
+            msg = '🤝 ' + teachers + ' experienced ' + (teachers === 1 ? 'teacher' : 'teachers') + ' and ' + learners + ' ' + (learners === 1 ? 'learner' : 'learners') + ' waiting in the Buddy Pool!';
+        } else if (teachers > 0) {
+            msg = '🎓 ' + teachers + ' experienced ' + (teachers === 1 ? 'teacher is' : 'teachers are') + ' waiting to help in the Buddy Pool!';
+        } else {
+            msg = '🌱 ' + learners + ' new ' + (learners === 1 ? 'learner is' : 'learners are') + ' looking for a Bitcoin mentor in the Buddy Pool!';
+        }
+        msg += '<br><br><span onclick="if(typeof renderChatHub===\'function\'){renderChatHub(\'global\');}if(typeof showToast===\'function\')showToast(\'Look for the 🤝 Find a Buddy button above the chat!\')" style="color:#f7931a;font-weight:700;cursor:pointer;text-decoration:underline;">Open Global Chat to find a buddy →</span>';
+
+        // Show via Nacho bubble
+        var bubble = document.getElementById('nacho-bubble');
+        var textEl = document.getElementById('nacho-text');
+        if (bubble && textEl && typeof forceShowBubble !== 'undefined') {
+            // Use interactive bubble so it stays visible
+            textEl.innerHTML = msg;
+            bubble.setAttribute('data-interactive', 'true');
+            bubble.classList.add('show');
+            if (typeof clearNachoBubbleTimeout === 'function') clearNachoBubbleTimeout();
+            if (typeof setPose === 'function') setPose('happy');
+            // Auto-hide after 15s
+            setTimeout(function() {
+                if (bubble.getAttribute('data-interactive') === 'true') {
+                    bubble.removeAttribute('data-interactive');
+                    bubble.classList.remove('show');
+                }
+            }, 15000);
+        } else if (typeof showToast === 'function') {
+            // Fallback to toast
+            showToast(msg.replace(/<br>/g, ' ').replace(/<[^>]+>/g, ''), 8000);
+        }
+
+        sessionStorage.setItem(BUDDY_ALERT_KEY, '1');
+        localStorage.setItem(BUDDY_ALERT_COUNT_KEY, (count + 1).toString());
+    }).catch(function() {});
+}
+
+// Trigger 2.5 minutes into the session
+setTimeout(checkBuddyPoolAlert, 150000);
+
 console.log('[BUDDY] Bitcoin Buddy matching system loaded');
 })();
