@@ -9989,36 +9989,121 @@ function retryQuest() {
 function startQuestManual(targetChannelId) {
     if (currentQuest) return; // Already showing one
     
-    // If no target ID provided, check if we have enough visited channels OR if we can use general pool
-    if (!targetChannelId) {
-        // Build a temporary pool to see if we HAVE enough questions to even start
-        let tempPool = [];
-        if (QUESTION_BANK['_general']) QUESTION_BANK['_general'].forEach(q => tempPool.push(q));
-        
-        for (const chId of visitedForQuest) {
-            const questions = QUESTION_BANK[chId];
-            if (questions) questions.forEach(q => tempPool.push(q));
+    // If a specific channel was passed, start directly
+    if (targetChannelId) {
+        generateAndShowQuest(true, targetChannelId);
+        if (typeof isMobile === 'function' && isMobile()) {
+            const sb = document.getElementById('sidebar');
+            if (sb) sb.classList.remove('open');
         }
+        return;
+    }
 
-        if (tempPool.length < 5) {
-            // Still too few? Fallback to pulling 5 random questions from any channel
-            let allQs = [];
-            for (const [chId, questions] of Object.entries(QUESTION_BANK)) {
-                questions.forEach(q => allQs.push(q));
-            }
-            if (allQs.length < 5) {
-                if (typeof showToast === 'function') showToast('📚 Learning materials loading... try again in a second!');
-                return;
-            }
+    // Show topic picker
+    _showQuestTopicPicker();
+}
+
+function _showQuestTopicPicker() {
+    // Build topic list with question counts and completion status
+    var topics = [];
+    var topicEmojis = {
+        '_general': '🌐', 'mining': '⛏️', 'nodes': '🖥️', 'privacy-nonkyc': '🕵️', 'problems-of-money': '💸',
+        'layer-2-lightning': '⚡', 'self-custody': '🔑', 'halving': '📉', 'history': '📜', 'satoshi-nakamoto': '🧩',
+        'whitepaper': '📄', 'money': '💰', 'scarce': '💎', 'secure': '🛡️', 'decentralized': '🌍',
+        'programmable': '💻', 'dominant': '👑', 'philosophy': '🤔', 'energy': '🔋', 'cryptography': '🔐',
+        'consensus': '🤝', 'taproot': '🌳', 'regulation': '⚖️', 'maximalism': '🔥', 'utxos': '📦',
+        'difficulty-adjustment': '🎯', 'transaction_fees': '💳', 'game_theory': '♟️', 'books': '📚',
+        'orange-pilling': '🍊', 'nostr': '🟣', 'use-cases': '🛠️', 'investment-strategy': '📊',
+        'geopolitics___macroeconomics': '🌎', 'human_rights__social_justice_and_freedo': '✊',
+        'smart-contracts': '📝', 'sidechains': '🔗', 'stablecoins': '🏦', 'fedimints': '🏛️',
+        'pow-vs-pos': '⚔️', 'blockchain-timechain': '⛓️', 'softwar': '🪖', 'time_preference': '⏳',
+        'governance': '🏛️', 'apps-tools': '🧰', 'misconceptions-fud': '🚫', 'elevator_pitches': '🗣️'
+    };
+
+    for (var key in QUESTION_BANK) {
+        if (key === '_general') continue; // Skip general pool in picker
+        var qs = QUESTION_BANK[key];
+        if (!qs || qs.length < 3) continue; // Need at least 3 questions
+        var label = key.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        var emoji = topicEmojis[key] || '📖';
+        var done = completedQuests.has('quest_' + key) || completedQuests.has(key);
+        topics.push({ key: key, label: label, emoji: emoji, count: qs.length, done: done });
+    }
+
+    // Sort: incomplete first, then alphabetical
+    topics.sort(function(a, b) {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        return a.label.localeCompare(b.label);
+    });
+
+    var doneCount = topics.filter(function(t) { return t.done; }).length;
+
+    // Build the modal
+    var modal = document.getElementById('questModal');
+    if (!modal) return;
+    var box = modal.querySelector('.quest-box');
+    if (!box) return;
+
+    var html = '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:2.5rem;margin-bottom:6px;">⚡</div>' +
+        '<h2 style="color:var(--heading);font-size:1.2rem;font-weight:800;margin:0 0 4px;">Choose a Quest Topic</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.8rem;margin:0;">Pick a Bitcoin topic to test your knowledge</p>' +
+        '<div style="margin-top:8px;font-size:0.72rem;color:var(--accent);font-weight:700;">' + doneCount + '/' + topics.length + ' topics completed</div>' +
+        '<div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">' +
+            '<div style="height:100%;background:var(--accent);width:' + (topics.length > 0 ? Math.round(doneCount/topics.length*100) : 0) + '%;border-radius:2px;transition:width 0.3s;"></div>' +
+        '</div>' +
+    '</div>';
+
+    // Random option
+    html += '<button onclick="_startQuestTopic(null)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(247,147,26,0.03));border:1px solid var(--accent);border-radius:12px;color:var(--accent);font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:12px;transition:0.2s;">🎲 Random Topic</button>';
+
+    // Topic grid
+    html += '<div style="max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px;">';
+    topics.forEach(function(t) {
+        var bg = t.done ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)';
+        var border = t.done ? 'rgba(34,197,94,0.2)' : 'var(--border)';
+        var statusIcon = t.done ? '<span style="color:#22c55e;font-size:0.75rem;">✅</span>' : '<span style="color:var(--text-faint);font-size:0.65rem;">' + t.count + 'Q</span>';
+        html += '<button onclick="_startQuestTopic(\'' + t.key.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:10px;cursor:pointer;width:100%;text-align:left;font-family:inherit;transition:0.2s;color:var(--text);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + border + '\'">' +
+            '<span style="font-size:1.1rem;flex-shrink:0;">' + t.emoji + '</span>' +
+            '<span style="flex:1;font-size:0.82rem;font-weight:' + (t.done ? '500' : '700') + ';color:' + (t.done ? 'var(--text-muted)' : 'var(--text)') + ';">' + t.label + '</span>' +
+            statusIcon +
+        '</button>';
+    });
+    html += '</div>';
+
+    // Close button
+    html += '<button onclick="closeQuest()" style="width:100%;margin-top:12px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">← Back</button>';
+
+    box.innerHTML = html;
+    modal.classList.add('open');
+}
+
+window._startQuestTopic = function(topicKey) {
+    var modal = document.getElementById('questModal');
+    if (modal) modal.classList.remove('open');
+    currentQuest = null;
+    
+    if (!topicKey) {
+        // Random — pick an incomplete topic
+        var incomplete = [];
+        for (var key in QUESTION_BANK) {
+            if (key === '_general') continue;
+            if (QUESTION_BANK[key].length < 3) continue;
+            if (!completedQuests.has('quest_' + key) && !completedQuests.has(key)) incomplete.push(key);
+        }
+        if (incomplete.length > 0) {
+            topicKey = incomplete[Math.floor(Math.random() * incomplete.length)];
+        } else {
+            // All done — pick any
+            var allKeys = Object.keys(QUESTION_BANK).filter(function(k) { return k !== '_general' && QUESTION_BANK[k].length >= 3; });
+            topicKey = allKeys[Math.floor(Math.random() * allKeys.length)];
         }
     }
     
-    generateAndShowQuest(true, targetChannelId);
-    if (typeof isMobile === 'function' && isMobile()) {
-        const sb = document.getElementById('sidebar');
-        if (sb) sb.classList.remove('open');
-    }
-}
+    setTimeout(function() {
+        generateAndShowQuest(true, topicKey);
+    }, 200);
+};
 
 function skipQuest() { closeQuest(); }
 
