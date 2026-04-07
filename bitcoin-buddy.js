@@ -102,14 +102,21 @@ window.selectBuddyGoal = function(goal) {
 
 window.submitBuddyRequest = async function() {
     var btn = document.getElementById('buddySubmitBtn');
-    var auth = firebase.auth();
-    var db = firebase.firestore();
-    if (!auth.currentUser) return;
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) {
+        if (typeof showToast === 'function') showToast('⚠️ Still loading. Please try again in a moment.');
+        return;
+    }
+    var _auth = firebase.auth();
+    var _db = firebase.firestore();
+    if (!_auth.currentUser) {
+        if (typeof showToast === 'function') showToast('🔒 Please sign in first.');
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = '🔍 Searching for a match...';
 
-    var uid = auth.currentUser.uid;
+    var uid = _auth.currentUser.uid;
     var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
     var level = window._buddyLevel || 'beginner';
     var goal = window._buddyGoal || 'learn';
@@ -117,37 +124,28 @@ window.submitBuddyRequest = async function() {
     var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
 
     try {
-        // Check if already in pool
-        var existing = await db.collection(COLLECTION).where('uid', '==', uid).get();
-        if (!existing.empty) {
-            existing.forEach(function(doc) { doc.ref.delete(); }); // Remove old entry
-        }
+        // Remove any existing pool entry (simple get-all then filter client-side)
+        var allPool = await _db.collection(COLLECTION).limit(50).get();
+        allPool.forEach(function(doc) {
+            if (doc.data().uid === uid) doc.ref.delete();
+        });
 
-        // Try to find a match
+        // Try to find a complementary match (learner↔teacher only)
         var match = null;
-        var complementaryGoal = goal === 'learn' ? 'teach' : 'learn'; // Only teacher↔learner
+        var complementaryGoal = goal === 'learn' ? 'teach' : 'learn';
 
-        // Query by complementary goal, filter out self client-side (avoids composite index)
-        var q1 = await db.collection(COLLECTION)
-            .where('goal', '==', complementaryGoal)
-            .limit(10).get();
-
-        if (!q1.empty) {
-            var candidates = [];
-            q1.forEach(function(doc) {
-                var d = doc.data();
-                if (d.uid !== uid) candidates.push({ id: doc.id, data: d });
-            });
-            if (candidates.length > 0) match = candidates[0];
-        }
-
-        // No fallback — only teacher↔learner matches. Users wait if no complement exists.
+        var candidates = [];
+        allPool.forEach(function(doc) {
+            var d = doc.data();
+            if (d.uid !== uid && d.goal === complementaryGoal) candidates.push({ id: doc.id, data: d });
+        });
+        if (candidates.length > 0) match = candidates[0];
 
         if (match) {
             // Match found! Remove both from pool and create match record
-            await db.collection(COLLECTION).doc(match.id).delete();
+            await _db.collection(COLLECTION).doc(match.id).delete();
 
-            await db.collection(MATCH_COLLECTION).add({
+            await _db.collection(MATCH_COLLECTION).add({
                 user1: { uid: uid, username: username, level: level, goal: goal, intro: intro },
                 user2: { uid: match.data.uid, username: match.data.username, level: match.data.level, goal: match.data.goal, intro: match.data.intro || '' },
                 matchedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -186,7 +184,7 @@ window.submitBuddyRequest = async function() {
 
         } else {
             // No match available — add to pool
-            await db.collection(COLLECTION).add({
+            await _db.collection(COLLECTION).add({
                 uid: uid,
                 username: username,
                 level: level,
@@ -196,13 +194,28 @@ window.submitBuddyRequest = async function() {
                 joinedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            btn.textContent = '✅ Added to buddy pool!';
-            btn.style.background = '#22c55e';
-
-            setTimeout(function() {
-                document.getElementById('buddyFinderOverlay').remove();
-                if (typeof showToast === 'function') showToast(goal === 'learn' ? '🤝 You\'re in the buddy pool! We\'ll pair you with a teacher when one joins.' : '🤝 You\'re in the buddy pool! We\'ll pair you with a learner when one joins.');
-            }, 1500);
+            // Show confirmation in the overlay itself
+            var overlay = document.getElementById('buddyFinderOverlay');
+            if (overlay) {
+                var inner = overlay.querySelector('div > div') || overlay.firstElementChild;
+                if (inner) {
+                    inner.innerHTML =
+                        '<div style="text-align:center;padding:20px;">' +
+                            '<div style="font-size:3rem;margin-bottom:16px;">✅</div>' +
+                            '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 8px;">You\'re in the Buddy Pool!</h2>' +
+                            '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;margin:0 0 16px;">' +
+                                (goal === 'learn'
+                                    ? 'We\'ll pair you with a teacher when one joins. You\'ll get a DM notification when matched!'
+                                    : 'We\'ll pair you with a learner when one joins. You\'ll get a DM notification when matched!') +
+                            '</p>' +
+                            '<div style="padding:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:12px;margin-bottom:16px;">' +
+                                '<div style="font-size:0.75rem;color:#22c55e;font-weight:700;">Your Profile</div>' +
+                                '<div style="font-size:0.8rem;color:var(--text);margin-top:4px;">📊 ' + level.charAt(0).toUpperCase() + level.slice(1) + ' · ' + (goal === 'learn' ? '📖 Looking to learn' : '🎓 Looking to teach') + '</div>' +
+                            '</div>' +
+                            '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;">👍 Got it!</button>' +
+                        '</div>';
+                }
+            }
         }
     } catch(e) {
         console.error('[BUDDY]', e);
