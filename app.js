@@ -2656,6 +2656,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Refresh exploration map and daily quote
         if (typeof renderExplorationMap === 'function') renderExplorationMap();
         if (typeof renderDailyQuote === 'function') renderDailyQuote();
+        // Return to Quest Guide if user came from it
+        if (sessionStorage.getItem('btc_return_guide') === '1') {
+            sessionStorage.removeItem('btc_return_guide');
+            setTimeout(function() { if (typeof showGuideOverlay === 'function') showGuideOverlay(); }, 400);
+        }
     }
 
     function showContinueReading() {

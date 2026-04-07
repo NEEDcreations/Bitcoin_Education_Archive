@@ -98,28 +98,28 @@
 
             // DAILY ACTIVITIES
             guideSection('🎯 Daily Activities', [
-                guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin the wheel once per day — win bonus points, tickets, or badges!', 'tag-earn', '+Points daily', "if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
-                guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete simple tasks each day — visit channels, read content, test your knowledge.', 'tag-earn', '+Bonus points', null),
-                guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s Bitcoin price and compete with other users!', 'tag-earn', '+Points if right', "if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}")
+                guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin the wheel once per day — win bonus points, tickets, or badges!', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
+                guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete simple tasks each day — visit channels, read content, test your knowledge.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
+                guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s Bitcoin price and compete with other users!', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}")
             ]) +
 
             // UNLOCK APPS
             '<div style="margin-bottom:12px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
-                unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false) +
-                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked) +
-                unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked) +
-                unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked) +
-                unlockTier('⚡', 'Lightning Tipping', 'Connect a Lightning wallet', true) +
-                unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true) +
+                unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
+                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('forum')},300)") +
+                unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
+                unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
+                unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)") +
+                unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true, null) +
             '</div>' +
 
             // MORE FEATURES
             guideSection('✨ More Features', [
-                guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
-                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "if(typeof go==='function'){minimizeGuide();go('bitcoin-dashboard');}"),
-                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
+                guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "sessionStorage.setItem('btc_return_guide','1');if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
+                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');minimizeGuide();setTimeout(function(){if(typeof go==='function')go('bitcoin-dashboard')},300)"),
+                guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
             ]) +
 
             // Nacho tip
@@ -161,8 +161,10 @@
     }
 
     // ---- Helper: unlock tier row ----
-    function unlockTier(icon, name, req, locked) {
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;">' +
+    function unlockTier(icon, name, req, locked, onclick) {
+        var clickAttr = onclick ? ' onclick="' + onclick + '" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'rgba(247,147,26,0.3)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.06)\'"'
+            : ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;"';
+        return '<div' + clickAttr + '>' +
             '<div style="font-size:1.1rem;">' + icon + '</div>' +
             '<div style="flex:1;"><div style="font-size:0.82rem;font-weight:700;color:#e2e8f0;">' + name + '</div><div style="font-size:0.68rem;color:#64748b;">' + req + '</div></div>' +
             '<div style="font-size:0.8rem;color:' + (locked ? '#4b5563' : '#22c55e') + ';">' + (locked ? '🔒' : '✅') + '</div>' +
