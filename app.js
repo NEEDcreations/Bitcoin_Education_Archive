@@ -3,6 +3,24 @@
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };
 
+    // ---- Clean URL helpers ----
+    var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho'];
+    window._cleanUrl = function(id) {
+        if (!id) return '/';
+        if (_SEO_APP_PAGES.indexOf(id) !== -1) return '/app/' + id;
+        return '/channels/' + id;
+    };
+    // Parse clean URL on page load
+    window._parseCleanUrl = function() {
+        var path = window.location.pathname;
+        var m;
+        if ((m = path.match(/^\/channels\/(.+)$/))) return m[1];
+        if ((m = path.match(/^\/app\/(.+)$/))) return m[1];
+        // Also check hash for backwards compat
+        var hash = window.location.hash.replace('#', '');
+        return hash || null;
+    };
+
     // Create lightbox if not exists
     if (!document.getElementById('lb')) {
         var lb = document.createElement('div');
@@ -978,7 +996,7 @@
         }
 
         // Push history state so browser back button returns to Nacho Mode
-        if (!fromPopState) history.pushState({ nachoMode: true }, '', '#nacho');
+        if (!fromPopState) history.pushState({ nachoMode: true }, '', '/app/nacho');
 
         // Hide everything
         document.getElementById('home').classList.add('hidden');
@@ -2647,7 +2665,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         document.getElementById('home').classList.remove('hidden');
         document.querySelectorAll('.ch-btn').forEach(b => b.classList.remove('active'));
         document.getElementById('main').scrollTop = 0;
-        if (!fromPopState) history.pushState({ channel: null }, '', window.location.pathname);
+        if (!fromPopState) history.pushState({ channel: null }, '', '/');
         if (isMobile()) {
             document.getElementById('sidebar').classList.remove('open');
             setFloatingElementsVisible(true);
@@ -3336,7 +3354,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             document.getElementById('hero').style.display = 'none';
             var fc = document.getElementById('forumContainer');
             if (fc) { fc.style.display = 'block'; }
-            if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
+            if (!fromPopState) history.pushState({ channel: id }, '', _cleanUrl(id));
             if (isMobile()) { document.getElementById('sidebar').classList.remove('open'); }
             
             // Route to correct renderer (with retry for lazy-loaded scripts)
@@ -3447,7 +3465,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
             '<div style="color:var(--text-faint);font-size:0.85rem;">Loading channel...</div></div>';
         document.getElementById('main').scrollTop = 0;
-        if (!fromPopState) history.pushState({ channel: id }, '', '#' + id);
+        if (!fromPopState) history.pushState({ channel: id }, '', _cleanUrl(id));
 
         // On mobile, close the menu immediately
         if (isMobile()) {
@@ -4140,6 +4158,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         window.addEventListener('popstate', function(e) {
             var state = e.state || {};
             var hash = location.hash.slice(1);
+            // Also check clean URL paths
+            if (!hash && typeof _parseCleanUrl === 'function') {
+                hash = _parseCleanUrl() || '';
+            }
 
             // GUARD STATE: user tried to leave the app — push them back to home
             if (!e.state || state.guard) {
@@ -4321,9 +4343,13 @@ window.nachoQuizAnswer = function(btn, correct) {
 // =============================================
 (function() {
     function handleHash() {
+        // Support both clean URLs (/channels/X, /app/X) and hash routes (#X)
         var hash = window.location.hash.replace('#', '');
+        if (!hash && typeof _parseCleanUrl === 'function') {
+            hash = _parseCleanUrl() || '';
+        }
         if (!hash) return;
-        console.log('[HASH] Routing to:', hash);
+        console.log('[ROUTE] Routing to:', hash);
         
         // Wait for app to be ready (up to 8 seconds)
         var maxWait = 8000;
