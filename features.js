@@ -690,8 +690,8 @@ var _communityStatsCacheTs = 0;
 
 window.loadCommunityStats = function() {
     var el = document.getElementById('communityStatsInner');
-    var wrap = document.getElementById('communityStats');
-    if (!el || !wrap) return;
+    if (!el) return;
+    var wrap = el.parentElement;
 
     // Cache for 5 minutes
     if (_communityStatsCache && Date.now() - _communityStatsCacheTs < 300000) {
@@ -712,17 +712,16 @@ window.loadCommunityStats = function() {
 
 function _renderCommunityStats(el, wrap, data) {
     var items = [];
-    if (data.channelVisits) items.push('📖 ' + _fmtNum(data.channelVisits) + ' reads');
-    if (data.questsCompleted) items.push('⚡ ' + _fmtNum(data.questsCompleted) + ' quests');
-    if (data.chatMessages) items.push('💬 ' + _fmtNum(data.chatMessages) + ' chats');
-    if (data.spins) items.push('🎡 ' + _fmtNum(data.spins) + ' spins');
-    if (data.pvpMatches) items.push('⚔️ ' + _fmtNum(data.pvpMatches) + ' battles');
-    // visits doc is separate
+    if (data.channelVisits) items.push('📖 <strong>' + _fmtNum(data.channelVisits) + '</strong> channel reads');
+    if (data.questsCompleted) items.push('⚡ <strong>' + _fmtNum(data.questsCompleted) + '</strong> quests completed');
+    if (data.chatMessages) items.push('💬 <strong>' + _fmtNum(data.chatMessages) + '</strong> chat messages');
+    if (data.spins) items.push('🎡 <strong>' + _fmtNum(data.spins) + '</strong> daily spins');
+    if (data.pvpMatches) items.push('⚔️ <strong>' + _fmtNum(data.pvpMatches) + '</strong> PVP battles');
     var visitEl = document.getElementById('visitCount');
-    if (visitEl && visitEl.textContent !== '—') items.push('👥 ' + visitEl.textContent + ' visits');
-    if (items.length === 0) { wrap.style.display = 'none'; return; }
-    el.innerHTML = '🌍 <strong style="color:var(--text-muted);">Community</strong> · ' + items.join(' · ');
-    wrap.style.display = 'block';
+    if (visitEl && visitEl.textContent !== '—') items.push('👥 <strong>' + visitEl.textContent + '</strong> total visits');
+    if (data.userCount) items.push('🧑‍🤝‍🧑 <strong>' + _fmtNum(data.userCount) + '</strong> registered users');
+    if (items.length === 0) { el.innerHTML = 'No stats yet'; return; }
+    el.innerHTML = items.join(' &nbsp;·&nbsp; ');
 
     // Also populate the home panel stats
     var _set = function(id, val) { var e = document.getElementById(id); if (e && val) e.textContent = val.toLocaleString(); };

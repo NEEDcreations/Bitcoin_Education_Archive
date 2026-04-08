@@ -581,9 +581,7 @@
 
         </div>
         <div class="channels" id="channelList">
-            <div id="communityStats" style="display:none;padding:8px 12px;margin-bottom:4px;">
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:0.68rem;color:var(--text-faint);justify-content:center;" id="communityStatsInner"></div>
-            </div>
+
             <div id="favsSection" style="display:none;">
                 <div class="cat-label">⭐ Your Saved Channels</div>
                 <div id="favsList"></div>
@@ -785,6 +783,25 @@
                     panel.style.display = open ? 'none' : 'block';
                     if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
                     if (btn) { btn.style.borderColor = open ? 'var(--border)' : 'var(--accent)'; btn.style.color = open ? 'var(--text-muted)' : 'var(--accent)'; }
+                };
+            </script>
+            <div style="margin:12px 8px 12px;text-align:center;">
+                <button id="communityStatsToggle" onclick="toggleCommunityStatsPanel()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor='#22c55e';this.style.color='#22c55e'" onmouseout="var o=document.getElementById('communityStatsPanel2');this.style.borderColor=o&&o.style.display!=='none'?'#22c55e':'var(--border)';this.style.color=o&&o.style.display!=='none'?'#22c55e':'var(--text-muted)'">🌍 Community Stats <span id="csToggleArrow" style="font-size:0.6rem;transition:transform 0.3s;">▼</span></button>
+                <div id="communityStatsPanel2" style="display:none;margin-top:10px;padding:10px;text-align:center;">
+                    <div id="communityStatsInner" style="font-size:0.82rem;color:var(--text-muted);line-height:2;">Loading...</div>
+                </div>
+            </div>
+            <script>
+                window.toggleCommunityStatsPanel = function() {
+                    var panel = document.getElementById('communityStatsPanel2');
+                    var arrow = document.getElementById('csToggleArrow');
+                    var btn = document.getElementById('communityStatsToggle');
+                    if (!panel) return;
+                    var open = panel.style.display !== 'none';
+                    panel.style.display = open ? 'none' : 'block';
+                    if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+                    if (btn) { btn.style.borderColor = open ? 'var(--border)' : '#22c55e'; btn.style.color = open ? 'var(--text-muted)' : '#22c55e'; }
+                    if (!open && typeof loadCommunityStats === 'function') loadCommunityStats();
                 };
             </script>
         </div>
