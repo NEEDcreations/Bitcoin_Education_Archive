@@ -923,7 +923,7 @@
                         <button onclick="var s=document.getElementById('sponsorPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📣 Sponsor <span>▼</span></button>
                         <button onclick="var s=document.getElementById('creditsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">👥 Contributors <span>▼</span></button>
                         <button onclick="var s=document.getElementById('donatePanelInner');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">❤️ Donate <span>▼</span></button>
-                        <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲';if(s.style.display!=='none'&&typeof loadCommunityStats==='function')loadCommunityStats()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📊 App / Community Stats <span>▼</span></button>
+                        <button onclick="var s=document.getElementById('appStatsPanel');s.style.display=s.style.display==='none'?'block':'none';this.querySelector('span').textContent=s.style.display==='none'?'▼':'▲'" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:12px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;">📊 App Stats <span>▼</span></button>
                     </div>
                     <!-- Expanded panels below grid -->
                     <div id="sponsorPanel" style="display:none;margin-top:10px;padding:20px;background:linear-gradient(135deg,rgba(247,147,26,0.05),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.3);border-radius:12px;text-align:center;">
@@ -975,28 +975,16 @@
                         <p><strong>Lead Curator:</strong> Pleb "<a href="https://x.com/NEEDcreations" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">NEEDcreations</a>" Phil</p>
                         <p><strong>Other Contributors:</strong> Hundreds of Bitcoiners from Bitcoin Twitter, Bitcoin X, and the Bitcoin Education Discord community</p>
                     </div>
-                    <div id="appStatsPanel" style="display:none;margin-top:10px;">
-                        <div style="font-size:0.7rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;padding-left:4px;">📦 App Content</div>
-                        <div class="home-stats" style="margin-bottom:16px;">
-                            <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
-                            <div class="home-stat"><span class="home-stat-num">6</span><span class="home-stat-label">Mini Apps</span></div>
-                            <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
-                            <div class="home-stat"><span class="home-stat-num">5,485</span><span class="home-stat-label">Images</span></div>
-                            <div class="home-stat"><span class="home-stat-num">621</span><span class="home-stat-label">Nacho KB Entries</span></div>
-                            <div class="home-stat"><span class="home-stat-num">77</span><span class="home-stat-label">Quest Topics</span></div>
-                            <div class="home-stat"><span class="home-stat-num">416</span><span class="home-stat-label">Quest Questions</span></div>
-                            <div class="home-stat"><span class="home-stat-num">107</span><span class="home-stat-label">Daily Quotes</span></div>
-                        </div>
-                        <div style="font-size:0.7rem;color:#22c55e;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;padding-left:4px;">🌍 Community Activity</div>
-                        <div class="home-stats" id="communityStatsHome">
-                            <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
-                            <div class="home-stat"><span class="home-stat-num" id="csChannelReads">—</span><span class="home-stat-label">Channel Reads</span></div>
-                            <div class="home-stat"><span class="home-stat-num" id="csQuests">—</span><span class="home-stat-label">Quests Done</span></div>
-                            <div class="home-stat"><span class="home-stat-num" id="csChatMsgs">—</span><span class="home-stat-label">Chat Messages</span></div>
-                            <div class="home-stat"><span class="home-stat-num" id="csSpins">—</span><span class="home-stat-label">Daily Spins</span></div>
-                            <div class="home-stat"><span class="home-stat-num" id="csPvp">—</span><span class="home-stat-label">PVP Battles</span></div>
-                            <div class="home-stat"><span class="home-stat-num" id="csUsers">—</span><span class="home-stat-label">Registered Users</span></div>
-                        </div>
+                    <div id="appStatsPanel" class="home-stats" style="display:none;margin-top:10px;">
+                        <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
+                        <div class="home-stat"><span class="home-stat-num">6</span><span class="home-stat-label">Mini Apps</span></div>
+                        <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
+                        <div class="home-stat"><span class="home-stat-num">5,485</span><span class="home-stat-label">Images</span></div>
+                        <div class="home-stat"><span class="home-stat-num">621</span><span class="home-stat-label">Nacho KB Entries</span></div>
+                        <div class="home-stat"><span class="home-stat-num">77</span><span class="home-stat-label">Quest Topics</span></div>
+                        <div class="home-stat"><span class="home-stat-num">416</span><span class="home-stat-label">Quest Questions</span></div>
+                        <div class="home-stat"><span class="home-stat-num">107</span><span class="home-stat-label">Daily Quotes</span></div>
+                        <div class="home-stat"><span class="home-stat-num" id="visitCount">—</span><span class="home-stat-label">Total Visits</span></div>
                     </div>
                     <!-- Contact/Support below grid -->
                     <div style="text-align:center;margin-top:10px;">
