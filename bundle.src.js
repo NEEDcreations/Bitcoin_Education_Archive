@@ -3663,6 +3663,9 @@ function showSettingsPage(tab) {
         html += '• <strong>Daily points cap: 500 pts</strong> (50 sats worth) to prevent abuse<br>';
         html += '• Unclaimed sats roll over — no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
+        html += '</div>';
+        html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;font-size:0.75rem;color:#22c55e;line-height:1.5;">';
+        html += '💚 <strong>Zero fees for you!</strong> We pay all Lightning network fees so you receive the full amount you claim. You earned it!';
         html += '</div></div>';
 
         // Earning guide
