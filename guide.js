@@ -265,8 +265,8 @@
     // Add animation CSS
     var animStyle = document.createElement('style');
     animStyle.textContent = 
-        '.guide-reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.5s cubic-bezier(0.25,0.46,0.45,0.94), transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94); }' +
-        '.guide-reveal.visible { opacity: 1; transform: translateY(0); }';
+        '.guide-reveal { opacity: 0; transform: translateX(-60px); transition: opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1); will-change: transform, opacity; }' +
+        '.guide-reveal.visible { opacity: 1; transform: translateX(0); }';
     document.head.appendChild(animStyle);
 
     // Watch for guide overlay to appear, then apply animations
@@ -300,13 +300,11 @@
             if (el.offsetHeight === 0) return;
             rows.push(el);
         });
-        // Apply uniform fade-up with stagger per row
+        // Apply slide-from-left with stagger per row
         rows.forEach(function(row, idx) {
             row.classList.add('guide-reveal');
-            row.style.transitionDelay = (idx * 0.08) + 's';
+            row.style.transitionDelay = (idx * 0.07) + 's';
         });
-
-        console.log('[GUIDE] Applied animations to', rows.length, 'rows');
 
         // Use IntersectionObserver on the scroll container (guideSheet)
         var observer = new IntersectionObserver(function(entries) {
