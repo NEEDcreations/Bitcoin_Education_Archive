@@ -43,5 +43,5 @@
   <path d="M65 148 Q100 158 135 148 Q132 165 120 168 Q100 172 80 168 Q68 165 65 148Z" fill="#F7931A"/>
   <path d="M100 168 L96 185 L104 185 Z" fill="#F7931A"/>
   <!-- Bitcoin B on scarf -->
-  <text x="100" y="163" text-anchor="middle" font-size="16" font-weight="bold" fill="white" font-family="Arial">₿</text>
+  <text x="100" y="163" text-anchor="middle" font-size="18" font-weight="bold" fill="white" font-family="Arial, sans-serif">B</text>
 </svg>
