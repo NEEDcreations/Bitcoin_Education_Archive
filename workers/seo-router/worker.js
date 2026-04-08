@@ -13,8 +13,14 @@
 const BOT_UA = /googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|facebot|facebookexternalhit|twitterbot|linkedinbot|telegrambot|discordbot|whatsapp|ia_archiver|archive\.org_bot|applebot|semrushbot|ahrefsbot|mj12bot|dotbot|petalbot|rogerbot|sogou|exabot|swiftbot/i;
 
 // Channel data URL base
-const ORIGIN = 'https://bitcoineducation.quest';
-const CHANNEL_INDEX_URL = ORIGIN + '/channel_index.js';
+const PRIMARY_ORIGIN = 'https://bitcoineducation.quest';
+const CHANNEL_INDEX_URL = PRIMARY_ORIGIN + '/channel_index.js';
+
+// Use the request's own origin so URLs match the domain the bot is crawling
+function getOrigin(request) {
+    const url = new URL(request.url);
+    return url.origin;
+}
 
 // Cache channel index for 1 hour
 let channelCache = null;
@@ -45,12 +51,12 @@ function escapeHtml(s) {
 }
 
 // Generate pre-rendered HTML for a channel
-function renderChannelPage(id, channel) {
+function renderChannelPage(id, channel, origin) {
     const title = escapeHtml((channel.title || id).replace(/^[^\w]*/, ''));
     const desc = escapeHtml(channel.desc || 'Bitcoin education channel');
     const cat = escapeHtml(channel.cat || '');
-    const url = ORIGIN + '/channels/' + id;
-    const ogImage = ORIGIN + '/og-image.png';
+    const url = origin + '/channels/' + id;
+    const ogImage = origin + '/og-image.png';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -78,24 +84,24 @@ function renderChannelPage(id, channel) {
         "description": "${desc}",
         "url": "${url}",
         "publisher": {"@type": "Organization", "name": "603BTC LLC", "url": "https://603btc.com"},
-        "isPartOf": {"@type": "WebSite", "name": "Bitcoin Education Archive", "url": "${ORIGIN}"}
+        "isPartOf": {"@type": "WebSite", "name": "Bitcoin Education Archive", "url": "${origin}"}
     }
     </script>
-    <meta http-equiv="refresh" content="0;url=${ORIGIN}/#${id}">
+    <meta http-equiv="refresh" content="0;url=${origin}/#${id}">
 </head>
 <body>
     <h1>${title}</h1>
     <p>Category: ${cat}</p>
     <p>${desc}</p>
-    <p><a href="${ORIGIN}/#${id}">Open in Bitcoin Education Archive →</a></p>
-    <p><a href="${ORIGIN}">← Back to all channels</a></p>
+    <p><a href="${origin}/#${id}">Open in Bitcoin Education Archive →</a></p>
+    <p><a href="${origin}">← Back to all channels</a></p>
     <p>Bitcoin Education Archive — 146 channels of free, curated Bitcoin education.</p>
 </body>
 </html>`;
 }
 
 // Generate pre-rendered HTML for an app page
-function renderAppPage(page) {
+function renderAppPage(page, origin) {
     const pages = {
         'forum': { title: 'PlebTalk Forum', desc: 'Discuss Bitcoin with the community. Post, reply, upvote, and earn points.' },
         'marketplace': { title: 'Lightning Mart', desc: 'Buy and sell with Bitcoin Lightning. Community marketplace for Bitcoiners.' },
@@ -113,8 +119,8 @@ function renderAppPage(page) {
     const info = pages[page] || { title: page, desc: 'Bitcoin Education Archive' };
     const title = escapeHtml(info.title);
     const desc = escapeHtml(info.desc);
-    const url = ORIGIN + '/app/' + page;
-    const ogImage = ORIGIN + '/og-image.png';
+    const url = origin + "/app/" + page;
+    const ogImage = origin + "/og-image.png";;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -134,13 +140,13 @@ function renderAppPage(page) {
     <meta name="twitter:title" content="${title} — Bitcoin Education Archive">
     <meta name="twitter:description" content="${desc}">
     <meta name="twitter:image" content="${ogImage}">
-    <meta http-equiv="refresh" content="0;url=${ORIGIN}/#${page}">
+    <meta http-equiv="refresh" content="0;url=${origin}/#${page}">
 </head>
 <body>
     <h1>${title}</h1>
     <p>${desc}</p>
-    <p><a href="${ORIGIN}/#${page}">Open ${title} →</a></p>
-    <p><a href="${ORIGIN}">← Back to Bitcoin Education Archive</a></p>
+    <p><a href="${origin}/#${page}">Open ${title} →</a></p>
+    <p><a href="${origin}">← Back to Bitcoin Education Archive</a></p>
 </body>
 </html>`;
 }
@@ -150,24 +156,23 @@ export default {
         const url = new URL(request.url);
         const path = url.pathname;
         const ua = request.headers.get('user-agent') || '';
+        const origin = getOrigin(request);
 
         // /channels/{id}
         const channelMatch = path.match(/^\/channels\/([a-zA-Z0-9_-]+)\/?$/);
         if (channelMatch) {
             const id = channelMatch[1];
 
-            // For bots: serve pre-rendered HTML
             if (isBot(ua)) {
                 const channels = await getChannelIndex();
                 if (channels && channels[id]) {
-                    return new Response(renderChannelPage(id, channels[id]), {
+                    return new Response(renderChannelPage(id, channels[id], origin), {
                         headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400' }
                     });
                 }
             }
 
-            // For humans: redirect to SPA with hash route
-            return Response.redirect(ORIGIN + '/#' + id, 302);
+            return Response.redirect(PRIMARY_ORIGIN + '/#' + id, 302);
         }
 
         // /app/{page}
@@ -176,12 +181,12 @@ export default {
             const page = appMatch[1];
 
             if (isBot(ua)) {
-                return new Response(renderAppPage(page), {
+                return new Response(renderAppPage(page, origin), {
                     headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'public, max-age=86400' }
                 });
             }
 
-            return Response.redirect(ORIGIN + '/#' + page, 302);
+            return Response.redirect(PRIMARY_ORIGIN + '/#' + page, 302);
         }
 
         // Everything else: pass through to origin

@@ -3375,8 +3375,13 @@ window.nachoQuizAnswer = function(btn, correct) {
                         if (fc2) fc2.innerHTML = '<div style="text-align:center;padding:60px;"><div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div><div style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;">Loading...</div></div>';
                     }
                 } else {
-                    // Fallback after 5 seconds
-                    if (typeof renderForum === 'function') renderForum();
+                    // Fallback after 5 seconds — only fall back to forum if the route WAS forum
+                    if (id === 'forum' && typeof renderForum === 'function') renderForum();
+                    else {
+                        // Show error instead of wrong page
+                        var fc3 = document.getElementById('forumContainer');
+                        if (fc3) fc3.innerHTML = '<div style="text-align:center;padding:60px;"><div style="font-size:2rem;margin-bottom:12px;">⚠️</div><div style="color:var(--text);font-weight:700;margin-bottom:8px;">Still loading...</div><div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">This feature is taking longer than expected.</div><button onclick="location.reload()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Reload Page</button></div>';
+                    }
                 }
             }
             _routeApp(id);
@@ -4302,7 +4307,11 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
         });
 
-        const h = location.hash.slice(1) || _savedHash.replace('#', '');
+        var h = location.hash.slice(1) || _savedHash.replace('#', '');
+        // Also check clean URL paths (/channels/X, /app/X)
+        if (!h && typeof _parseCleanUrl === 'function') {
+            h = _parseCleanUrl() || '';
+        }
         if (h) {
             window._nachoDirectLinkCooldown = Date.now() + 120000;
             window._directLinkMode = true;

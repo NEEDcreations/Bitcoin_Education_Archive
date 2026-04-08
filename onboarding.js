@@ -83,6 +83,7 @@ window.showOnboardingWizard = function() {
         return false;
     }
     var hash = window.location.hash.replace('#', '');
+    if (!hash && typeof _parseCleanUrl === 'function') hash = _parseCleanUrl() || '';
     if (hash && hash.length > 0) {
         window.setOnboardingProfile({ level: 'intermediate', interests: [], skipped: true, directLink: hash });
         return false;
