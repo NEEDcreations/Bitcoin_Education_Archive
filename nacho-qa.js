@@ -2349,6 +2349,9 @@ const NACHO_KB = [
 { keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','daily cap','claim limit','500 sats','10000 sats','sats per day','cooldown','how often can i claim'],
   answer: "Here are the sats claim limits, {name}: 📊🦌\n\n⚡ **Minimum claim**: 100 sats (1,000 points)\n⚡ **Maximum per day**: 500 sats (5,000 points)\n⚡ **Lifetime cap**: 10,000 sats per user\n⏰ **Cooldown**: 1 claim every 24 hours\n📈 **Points earned per day**: up to 500 points\n\nThe faucet rewards consistent learning over time. Stack sats by stacking knowledge! 🧡" },
 
+{ keys: ['locked points','release points','unlock points','when release','when unlock','points locked','claimed points','pointsClaimed','my points are locked','why are my points locked','redeem points','how to redeem','release my points','when can i claim','how to unlock points'],
+  answer: "Your points aren't locked, {name} — they're waiting to be claimed as real sats! ⚡🦌\n\nHere's how it works:\n1️⃣ Go to **Settings → ⚡ Sats** tab\n2️⃣ Check the **requirements**: verified email, 7+ day account, 10+ channels read\n3️⃣ Once you have **1,000+ points**, you can claim **100+ sats**\n4️⃣ Paste a Lightning invoice and claim — we even pay the network fees! 💚\n\nYour points never expire and they keep growing. Head to Settings → ⚡ Sats to see exactly where you stand! 🧡" },
+
 { keys: ['points to sats','sats conversion','conversion rate','how many points per sat','points per sat','exchange rate points','10 points','points ratio','points equal sats'],
   answer: "The conversion rate is simple, {name}: **10 points = 1 sat**! 🔢🦌\n\nSo 1,000 points = 100 sats, 5,000 points = 500 sats. You earn points by reading channels (+15), daily visits (+5), quests, badges, chatting, and more. Points cap at 500 per day. Think of it as earning Bitcoin by learning about Bitcoin — how cool is that? ⚡🧡" },
 
