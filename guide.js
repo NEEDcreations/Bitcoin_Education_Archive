@@ -291,23 +291,22 @@
         var sheet = document.getElementById('guideSheet');
         if (!sheet) return;
 
-        // Collect all visible block-level children of the sheet content
-        // Each row gets the same fade-up animation with a small stagger
-        var contentWrapper = sheet.querySelector('div[style*="padding"]') || sheet;
+        // Collect all meaningful content blocks inside the sheet
         var rows = [];
-        // Get direct children that are meaningful content blocks
-        var candidates = contentWrapper.children;
-        for (var i = 0; i < candidates.length; i++) {
-            var el = candidates[i];
-            if (el.tagName === 'STYLE' || el.tagName === 'SCRIPT') continue;
-            if (el.offsetHeight === 0) continue;
+        var allEls = sheet.querySelectorAll(':scope > div, :scope > button');
+        allEls.forEach(function(el) {
+            // Skip the sticky header and zero-height elements
+            if (el.style.position === 'sticky' || el.style.cssText.indexOf('sticky') !== -1) return;
+            if (el.offsetHeight === 0) return;
             rows.push(el);
-        }
+        });
         // Apply uniform fade-up with stagger per row
         rows.forEach(function(row, idx) {
             row.classList.add('guide-reveal');
-            row.style.transitionDelay = (idx * 0.06) + 's';
+            row.style.transitionDelay = (idx * 0.08) + 's';
         });
+
+        console.log('[GUIDE] Applied animations to', rows.length, 'rows');
 
         // Use IntersectionObserver on the scroll container (guideSheet)
         var observer = new IntersectionObserver(function(entries) {
