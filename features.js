@@ -742,6 +742,18 @@ function _fmtNum(n) {
 // Load on init
 setTimeout(function() { if (typeof loadCommunityStats === 'function') loadCommunityStats(); }, 5000);
 
+// Load prediction accuracy label next to button
+setTimeout(function() {
+    if (typeof getGlobalPredictionStats === 'function') {
+        getGlobalPredictionStats(function(stats) {
+            var el = document.getElementById('predAccuracyLabel');
+            if (!el || !stats || !stats.total) return;
+            var pct = Math.round((stats.correct / stats.total) * 100);
+            el.textContent = '🌍 ' + pct + '% accurate';
+        });
+    }
+}, 6000);
+
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
     var el = document.getElementById('explorationMap');
