@@ -42,6 +42,10 @@
     <link rel="preload" href="bundle.js?v=20260405" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, 8800+ messages, 5485 images, and 621 Nacho KB entries — for the world.">
+    <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
+    <meta name="author" content="603BTC LLC">
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <link rel="canonical" href="https://bitcoineducation.quest/">
     <meta name="theme-color" content="#f7931a">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -530,6 +534,83 @@
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "name": "Bitcoin Education Archive",
+          "url": "https://bitcoineducation.quest",
+          "description": "A curated Bitcoin education archive with 146 topics, 8800+ messages, 5485 images, and an AI tutor — free for the world.",
+          "publisher": {
+            "@type": "Organization",
+            "name": "603BTC LLC",
+            "url": "https://603btc.com"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://bitcoineducation.quest/#{search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "EducationalOrganization",
+          "name": "Bitcoin Education Archive",
+          "url": "https://bitcoineducation.quest",
+          "description": "Free, open-source Bitcoin education platform with 146 curated channels, an AI tutor, quizzes, and community features.",
+          "logo": "https://bitcoineducation.quest/images/btc-grad-logo-sm.jpg",
+          "sameAs": [
+            "https://github.com/NEEDcreations/Bitcoin_Education_Archive",
+            "https://x.com/NEEDcreations"
+          ],
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "description": "Free Bitcoin education — no account needed, no ads"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is the Bitcoin Education Archive?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The Bitcoin Education Archive is a free, open-source platform with 146 curated channels covering every aspect of Bitcoin — from beginner basics to advanced technical topics. It includes an AI tutor (Nacho), quizzes, community chat, and real Bitcoin rewards."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is the Bitcoin Education Archive free?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, completely free. No account needed, no ads, no paywalls. You can even earn real Bitcoin (sats) by learning and completing quests."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I earn Bitcoin by learning?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes! Earn points by reading channels, completing quests, daily activities, and chatting. Convert 1,000 points into 100 sats (real Bitcoin) via Lightning Network. We even pay the network fees."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is Nacho?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Nacho is an AI-powered Bitcoin tutor built into the app. Ask any Bitcoin question and get instant, accurate answers backed by 621 knowledge base entries. Nacho also offers guided learning trails, quizzes, and conversation history."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
 </head>
 <body>
     <div id="btcTicker" style="height:32px;background:#030712;"></div>
