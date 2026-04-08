@@ -14811,14 +14811,25 @@ function _fmtNum(n) {
 // Load on init
 setTimeout(function() { if (typeof loadCommunityStats === 'function') loadCommunityStats(); }, 5000);
 
-// Load prediction accuracy label next to button
+// Load prediction accuracy labels next to button
 setTimeout(function() {
+    var el = document.getElementById('predAccuracyLabel');
+    if (!el) return;
+    var lines = [];
+
+    // Global stats
     if (typeof getGlobalPredictionStats === 'function') {
         getGlobalPredictionStats(function(stats) {
-            var el = document.getElementById('predAccuracyLabel');
-            if (!el || !stats || !stats.total) return;
-            var pct = Math.round((stats.correct / stats.total) * 100);
-            el.textContent = '🌍 ' + pct + '% accurate';
+            if (stats && stats.total) {
+                var pct = Math.round((stats.correct / stats.total) * 100);
+                lines.unshift('🌍 ' + pct + '% community');
+            }
+            // User stats
+            if (typeof currentUser !== 'undefined' && currentUser && currentUser.predictions && currentUser.predictions.total) {
+                var uPct = Math.round((currentUser.predictions.correct / currentUser.predictions.total) * 100);
+                lines.push('👤 ' + uPct + '% you');
+            }
+            el.innerHTML = lines.join('<br>');
         });
     }
 }, 6000);
