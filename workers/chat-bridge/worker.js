@@ -255,6 +255,11 @@ export default {
 
     try {
       if (url.pathname === '/webhook/telegram' && request.method === 'POST') {
+        // Validate Telegram webhook secret token (set via setWebhook secret_token parameter)
+        var tgSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
+        if (!env.TG_WEBHOOK_SECRET || tgSecret !== env.TG_WEBHOOK_SECRET) {
+          return corsResponse({ error: 'unauthorized' }, 401);
+        }
         return handleTelegramWebhook(request, env);
       }
       if (url.pathname === '/webhook/firestore' && request.method === 'POST') {

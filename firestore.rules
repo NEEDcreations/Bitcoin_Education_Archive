@@ -14,7 +14,8 @@ service cloud.firestore {
                     // Block client writes to server-managed fields (Cloud Function only via Admin SDK)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
                         'pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim',
-                        'points', 'lastAwards', 'created', 'createdAt'
+                        'points', 'lastAwards', 'created', 'createdAt',
+                        'visitedChannelsList', 'channelsVisited', 'readChannels'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string

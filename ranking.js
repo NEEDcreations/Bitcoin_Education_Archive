@@ -1760,7 +1760,7 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason) {
+async function awardPoints(pts, reason, channelId) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
@@ -1794,7 +1794,9 @@ async function awardPoints(pts, reason) {
     // ── Signed-in users: Cloud Function enforces daily cap server-side ──
     try {
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
-        var result = await awardPointsFn({ pts: pts, reason: reason || '' });
+        var payload = { pts: pts, reason: reason || '' };
+        if (channelId) payload.channelId = channelId;
+        var result = await awardPointsFn(payload);
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
             if (awarded > 0) {
@@ -1870,14 +1872,10 @@ async function onChannelOpen(channelId) {
             setTimeout(() => { showToast('⚡ 2X POINTS! Daily boost applied! +' + ptsAwarded + ' pts'); }, 2000);
         }
 
-        // Update channelsVisited + readChannels (non-points)
+        // Update local tracking
         if (currentUser._isLocal) {
             currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
         } else {
-            db.collection('users').doc(currentUser.uid).update({
-                channelsVisited: firebase.firestore.FieldValue.increment(1),
-                visitedChannelsList: firebase.firestore.FieldValue.arrayUnion(channelId)
-            }).catch(function() {});
             currentUser.channelsVisited = (currentUser.channelsVisited || 0) + 1;
         }
         if (currentUser.readChannels) {
@@ -1885,8 +1883,8 @@ async function onChannelOpen(channelId) {
         } else {
             currentUser.readChannels = [channelId];
         }
-        // Award points through the standard pipeline (handles cap, overflow, UI update)
-        await awardPoints(ptsAwarded, '📖 New channel explored');
+        // Award points + track channel visit server-side (Cloud Function handles both atomically)
+        await awardPoints(ptsAwarded, '📖 New channel explored', channelId);
 
         // Show leaderboard only if forced or during specific onboarding by Nacho
         // (Removed auto-show on every new channel visit)

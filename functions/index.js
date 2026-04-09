@@ -1469,6 +1469,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     const uid = context.auth.uid;
     const pts = parseInt(data.pts);
     const reason = (data.reason || '').substring(0, 100);
+    const channelId = (data.channelId || '').substring(0, 100);
 
     // Validate points amount
     if (isNaN(pts) || pts <= 0 || pts > 2200) {
@@ -1501,10 +1502,16 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 return { awarded: 0, capped: true, dailyUsed: dailyUsed };
             }
 
-            // Award points + update daily tracker
-            t.update(userRef, {
+            // Award points + update daily tracker + optional channel tracking
+            const userUpdate = {
                 points: admin.firestore.FieldValue.increment(awarded)
-            });
+            };
+            // If a channelId was provided, track the visit server-side
+            if (channelId && channelId.length > 0) {
+                userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
+                userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
+            }
+            t.update(userRef, userUpdate);
             t.set(dailyPtsRef, {
                 total: admin.firestore.FieldValue.increment(awarded),
                 lastAward: admin.firestore.FieldValue.serverTimestamp(),
