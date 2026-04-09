@@ -356,6 +356,80 @@ window.renderFirstPurchase = function() {
 
         '</div>';
 
+        // ---- Advanced: Passphrases & Multisig (collapsible) ----
+        html += '<div style="margin-top:16px;">' +
+            '<button id="fpAdvancedBtn" onclick="var c=document.getElementById(\'fpAdvancedContent\');var b=this;if(c.style.display===\'none\'){c.style.display=\'block\';b.innerHTML=\'🔬 Advanced Security ▲\'}else{c.style.display=\'none\';b.innerHTML=\'🔬 Advanced Security ▼\'}" style="width:100%;padding:12px 16px;background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(99,102,241,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#a78bfa;font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;">🔬 Advanced Security ▼</button>' +
+            '<div id="fpAdvancedContent" style="display:none;margin-top:10px;">' +
+
+                // Passphrase (25th word)
+                '<div style="background:var(--card-bg);border:1px solid rgba(139,92,246,0.25);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+                    '<div style="font-weight:700;font-size:0.9rem;color:var(--heading);margin-bottom:8px;">🔤 Passphrase (25th Word)</div>' +
+                    '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                        'A <strong>passphrase</strong> (sometimes called the "25th word") is an extra password you add on top of your seed phrase. The same 12 or 24 words with a different passphrase creates a <strong>completely different wallet</strong> with different keys and addresses.' +
+                    '</div>' +
+                    '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                        '<strong style="color:var(--accent);">Why use one?</strong>' +
+                    '</div>' +
+                    '<div style="color:var(--text);font-size:0.8rem;line-height:1.8;margin-bottom:12px;">' +
+                        '🛡️ <strong>Plausible deniability</strong> — if someone forces you to reveal your seed, the default wallet (no passphrase) shows a small decoy balance. Your real funds are hidden behind the passphrase.<br>' +
+                        '🔒 <strong>Extra protection</strong> — even if someone steals your seed phrase, they can\'t access your funds without the passphrase.<br>' +
+                        '🧠 <strong>Multiple wallets</strong> — use different passphrases to create separate wallets from one seed (savings, spending, etc.).' +
+                    '</div>' +
+                    '<div style="background:rgba(139,92,246,0.06);border-radius:8px;padding:10px 12px;margin-bottom:8px;">' +
+                        '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">EXAMPLE:</div>' +
+                        '<div style="font-size:0.8rem;color:var(--text);line-height:1.6;">' +
+                            '<strong>Seed:</strong> abandon ability able about above absent absorb abstract absurd abuse access accident<br>' +
+                            '<strong>No passphrase →</strong> Wallet A (decoy, small balance)<br>' +
+                            '<strong>Passphrase: "mySecret123" →</strong> Wallet B (real funds, completely different addresses)' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="padding:8px 10px;background:rgba(239,68,68,0.06);border-radius:8px;font-size:0.78rem;color:#ef4444;line-height:1.5;">' +
+                        '⚠️ <strong>Warning:</strong> If you forget your passphrase, your Bitcoin is gone forever. There is no recovery. Write it down separately from your seed phrase and store it securely.' +
+                    '</div>' +
+                '</div>' +
+
+                // Multisig
+                '<div style="background:var(--card-bg);border:1px solid rgba(139,92,246,0.25);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+                    '<div style="font-weight:700;font-size:0.9rem;color:var(--heading);margin-bottom:8px;">🗝️ Multisig (Multiple Keys)</div>' +
+                    '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                        '<strong>Multisig</strong> (multi-signature) requires <strong>multiple private keys</strong> to authorize a transaction. Instead of one key controlling your Bitcoin, you need M-of-N keys to sign — like a safe that needs 2 of 3 different keys to open.' +
+                    '</div>' +
+                    '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                        '<strong style="color:var(--accent);">Common setups:</strong>' +
+                    '</div>' +
+                    '<div style="display:grid;gap:8px;margin-bottom:12px;">' +
+                        '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;">' +
+                            '<div style="font-weight:700;font-size:0.82rem;color:var(--text);">2-of-3 <span style="color:#22c55e;font-size:0.7rem;">Most popular</span></div>' +
+                            '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;">3 keys total, any 2 required to spend. Lose one key? You can still access your funds with the other two. Best balance of security and recovery.</div>' +
+                        '</div>' +
+                        '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;">' +
+                            '<div style="font-weight:700;font-size:0.82rem;color:var(--text);">3-of-5</div>' +
+                            '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.5;">Maximum redundancy. Can lose 2 keys and still recover. Used by companies, family trusts, and large holdings.</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                        '<strong style="color:var(--accent);">Why use multisig?</strong>' +
+                    '</div>' +
+                    '<div style="color:var(--text);font-size:0.8rem;line-height:1.8;margin-bottom:12px;">' +
+                        '🏦 <strong>No single point of failure</strong> — one stolen or lost key doesn\'t mean lost funds<br>' +
+                        '🌍 <strong>Geographic distribution</strong> — store keys in different physical locations<br>' +
+                        '👥 <strong>Shared custody</strong> — family members, business partners, or inheritance planning<br>' +
+                        '🛡️ <strong>Elimination of trust</strong> — no single person has complete control' +
+                    '</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:6px;">MULTISIG TOOLS:</div>' +
+                    '<div style="display:grid;gap:6px;">' +
+                        '<a href="https://sparrowwallet.com" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:8px;text-decoration:none;color:var(--text);font-size:0.8rem;"><span>🐦</span><div><strong>Sparrow Wallet</strong> — Free, open source. Best desktop multisig setup.</div></a>' +
+                        '<a href="https://nunchuk.io" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:8px;text-decoration:none;color:var(--text);font-size:0.8rem;"><span>🔐</span><div><strong>Nunchuk</strong> — Mobile-friendly multisig. Collaborative key management.</div></a>' +
+                        '<a href="https://unchained.com" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:8px;text-decoration:none;color:var(--text);font-size:0.8rem;"><span>⛓️</span><div><strong>Unchained Capital</strong> — Guided 2-of-3 multisig with concierge support.</div></a>' +
+                    '</div>' +
+                    '<div style="margin-top:10px;padding:8px 10px;background:rgba(234,179,8,0.06);border-radius:8px;font-size:0.78rem;color:#eab308;line-height:1.5;">' +
+                        '💡 <strong>Start simple.</strong> Multisig is powerful but complex. Use a single-sig hardware wallet first. Graduate to multisig when your stack grows and you\'re comfortable with the basics.' +
+                    '</div>' +
+                '</div>' +
+
+            '</div>' +
+        '</div>';
+
         html += '<div style="margin-top:12px;"><a href="#" onclick="event.preventDefault();if(typeof go===\'function\'){goHome();setTimeout(function(){go(\'self-custody\')},300)}" style="color:var(--accent);font-size:0.82rem;font-weight:600;">📖 Read more about self-custody in the archive →</a></div>';
         html += _navButtons(3);
     }
