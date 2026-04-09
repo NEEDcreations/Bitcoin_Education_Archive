@@ -4388,14 +4388,32 @@ function showSettingsPage(tab) {
 function changeLanguage(lang) {
     const status = document.getElementById('langStatus');
     if (!lang) {
-        // Reset to English
+        // Reset to English — remove Google Translate without full reload
         const frame = document.querySelector('.goog-te-banner-frame');
         if (frame) frame.remove();
+        // Remove Google Translate injected elements
+        var _gtFrame = document.querySelector('iframe.goog-te-banner-frame');
+        if (_gtFrame) _gtFrame.remove();
+        var _gtBody = document.querySelector('.skiptranslate');
+        if (_gtBody) _gtBody.remove();
+        // Reset body top offset that Google Translate adds
+        document.body.style.top = '';
+        document.body.style.position = '';
+        document.documentElement.style.overflow = '';
+        // Clear cookies
         document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
         document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + location.hostname;
         localStorage.setItem('btc_lang', '');
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Switched to English</span>';
-        setTimeout(() => location.reload(), 500);
+        // Remove translated class — Google Translate adds 'translated-ltr' or 'translated-rtl'
+        document.documentElement.classList.remove('translated-ltr', 'translated-rtl');
+        // Restore original text by removing font elements Google Translate injects
+        document.querySelectorAll('font[style*="vertical-align: inherit"]').forEach(function(f) {
+            var parent = f.parentNode;
+            if (parent) { parent.replaceChild(document.createTextNode(f.textContent), f); }
+        });
+        // Re-render settings page to show clean English
+        setTimeout(function() { showSettingsPage('prefs'); }, 200);
         return;
     }
     localStorage.setItem('btc_lang', lang);
