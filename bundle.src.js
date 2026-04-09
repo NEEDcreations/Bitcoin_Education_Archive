@@ -20803,6 +20803,14 @@ window.nachoQuizAnswer = function(btn, correct) {
             window.audioEnabled = true;
             localStorage.setItem('btc_audio', 'true');
         }
+        // Apply master volume to all active audio sources
+        if (window._beatsAudio) window._beatsAudio.volume = window.audioVolume;
+        if (window._djAudio) window._djAudio.volume = window.audioVolume;
+        // Sync Beats volume slider if visible
+        var bvSlider = document.getElementById('beatsVolume');
+        if (bvSlider) bvSlider.value = Math.round(window.audioVolume * 100);
+        var djvSlider = document.getElementById('djVolume');
+        if (djvSlider) djvSlider.value = Math.round(window.audioVolume * 100);
         updateAudioUI();
     }
     function updateAudioUI() {
