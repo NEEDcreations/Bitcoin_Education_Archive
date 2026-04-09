@@ -5171,15 +5171,35 @@ window.submitSatsClaim = async function() {
 window.loadSatsHistory = function() {
     var el = document.getElementById('satsHistory');
     if (!el || !currentUser || !db) { if (el) el.textContent = 'Sign in to view history'; return; }
-    db.collection('users').doc(currentUser.uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').limit(10).get().then(function(snap) {
+    db.collection('users').doc(currentUser.uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').get().then(function(snap) {
         if (snap.empty) { el.textContent = 'No withdrawals yet'; return; }
-        var html = '';
+        var totalWithdrawn = 0;
+        var LIFETIME_MAX = 10000;
+        var rows = '';
         snap.forEach(function(doc) {
             var d = doc.data();
+            var amt = parseInt(d.amount) || 0;
+            totalWithdrawn += amt;
             var date = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleDateString() : '—';
-            html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>' + date + '</span><span style="color:var(--accent);font-weight:700;">⚡ ' + d.amount + ' sats</span></div>';
+            rows += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>' + date + '</span><span style="color:var(--accent);font-weight:700;">⚡ ' + amt + ' sats</span></div>';
         });
-        el.innerHTML = html;
+        var remaining = Math.max(0, LIFETIME_MAX - totalWithdrawn);
+        var pct = Math.min(100, Math.round(totalWithdrawn / LIFETIME_MAX * 100));
+        var barColor = pct >= 90 ? '#ef4444' : pct >= 60 ? '#eab308' : '#22c55e';
+        var summary = '<div style="margin-bottom:12px;padding:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                '<span style="font-size:0.75rem;color:var(--text-muted);">Lifetime Claimed</span>' +
+                '<span style="font-size:0.85rem;font-weight:800;color:var(--accent);">⚡ ' + totalWithdrawn.toLocaleString() + ' / ' + LIFETIME_MAX.toLocaleString() + ' sats</span>' +
+            '</div>' +
+            '<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-bottom:6px;">' +
+                '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:3px;transition:width 0.5s;"></div>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:space-between;font-size:0.7rem;">' +
+                '<span style="color:var(--text-faint);">' + pct + '% used</span>' +
+                '<span style="color:' + (remaining > 0 ? '#22c55e' : '#ef4444') + ';font-weight:700;">' + remaining.toLocaleString() + ' sats remaining</span>' +
+            '</div>' +
+        '</div>';
+        el.innerHTML = summary + rows;
     }).catch(function() { el.textContent = 'Could not load history'; });
 };
 // © 2024-2026 603BTC LLC. All rights reserved.
