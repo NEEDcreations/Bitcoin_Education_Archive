@@ -4284,6 +4284,12 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // First Purchase guide
+            if (hash === 'first-purchase' || hash === 'buy' || state.channel === 'first-purchase') {
+                go('first-purchase', null, true);
+                return;
+            }
+
             // Trails
             if (hash === 'trails' || state.channel === 'trails') {
                 go('trails');
