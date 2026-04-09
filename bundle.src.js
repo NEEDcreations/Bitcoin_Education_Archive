@@ -5197,6 +5197,8 @@ window.submitSatsClaim = async function() {
 
             // Fun celebration popup + confetti
             if (typeof launchConfetti === 'function') launchConfetti();
+            var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
+            var _remaining = Math.max(0, 10000 - _totalClaimed);
             var _celebOverlay = document.createElement('div');
             _celebOverlay.id = 'satsCelebration';
             _celebOverlay.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeSlideIn 0.3s;';
@@ -5206,6 +5208,10 @@ window.submitSatsClaim = async function() {
                 '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">Sats Claimed!</h2>' +
                 '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + paidAmount + ' sats</div>' +
                 '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
+                '<div style="padding:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;margin-bottom:12px;">' +
+                    '<div style="font-size:0.85rem;color:#f7931a;font-weight:800;">⚡ ' + _remaining.toLocaleString() + ' sats remaining to claim!</div>' +
+                    '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + _totalClaimed.toLocaleString() + ' / 10,000 lifetime total claimed</div>' +
+                '</div>' +
                 '<div style="padding:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:10px;margin-bottom:16px;">' +
                     '<div style="font-size:0.75rem;color:#22c55e;font-weight:700;">🧡 Thank you for learning Bitcoin with us!</div>' +
                 '</div>' +
