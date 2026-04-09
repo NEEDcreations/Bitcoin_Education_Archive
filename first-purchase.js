@@ -199,7 +199,7 @@ window.renderFirstPurchase = function() {
             { id: 'other', emoji: '🌐', name: 'Other / Global' },
         ];
         regions.forEach(function(r) {
-            html += '<button onclick="localStorage.setItem(\'btc_fp_region\',\'' + r.id + '\');_fpSaveStep(1);renderFirstPurchase()" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+            html += '<button onclick="localStorage.setItem(\'btc_fp_region\',\'' + r.id + '\');_fpNav(1)" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                 '<span style="font-size:1.5rem;">' + r.emoji + '</span>' + r.name + '</button>';
         });
     }
@@ -351,11 +351,11 @@ window.renderFirstPurchase = function() {
             '<div style="border-top:1px solid var(--border);padding-top:20px;">' +
                 '<div style="color:var(--text-faint);font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px;text-align:center;">📖 Review Steps</div>' +
                 '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">' +
-                    '<button onclick="_fpSaveStep(0);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🌍 Region</button>' +
-                    '<button onclick="_fpSaveStep(1);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">📱 Download App</button>' +
-                    '<button onclick="_fpSaveStep(2);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">💰 Buy Bitcoin</button>' +
-                    '<button onclick="_fpSaveStep(3);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔐 Self-Custody</button>' +
-                    '<button onclick="_fpSaveStep(4);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' + '<button onclick="_fpSaveStep(5);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🛡️ Pro Tips</button>' +
+                    '<button onclick="_fpNav(0)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🌍 Region</button>' +
+                    '<button onclick="_fpNav(1)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">📱 Download App</button>' +
+                    '<button onclick="_fpNav(2)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">💰 Buy Bitcoin</button>' +
+                    '<button onclick="_fpNav(3)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔐 Self-Custody</button>' +
+                    '<button onclick="_fpNav(4)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' + '<button onclick="_fpNav(5)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🛡️ Pro Tips</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -391,12 +391,22 @@ function _walletCard(w) {
 
 function _navButtons(stepNum) {
     return '<div style="display:flex;justify-content:space-between;margin-top:20px;">' +
-        '<button onclick="event.preventDefault();event.stopPropagation();_fpSaveStep(' + (stepNum - 1) + ');renderFirstPurchase()" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
-        '<button onclick="event.preventDefault();event.stopPropagation();_fpSaveStep(' + (stepNum + 1) + ');renderFirstPurchase()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
+        '<button onclick="_fpNav(' + (stepNum - 1) + ')" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+        '<button onclick="_fpNav(' + (stepNum + 1) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
     '</div>';
 }
 
 window._fpSaveStep = function(n) { saveStep(n); };
+
+// Single navigation function — prevents double-fire and event issues
+var _fpNavLock = false;
+window._fpNav = function(step) {
+    if (_fpNavLock) return;
+    _fpNavLock = true;
+    saveStep(step);
+    renderFirstPurchase();
+    setTimeout(function() { _fpNavLock = false; }, 300);
+};
 
 // Route: go('first-purchase') — now handled by app.js _routeApp retry
 // No need to wrap window.go; app.js calls renderFirstPurchase() directly
