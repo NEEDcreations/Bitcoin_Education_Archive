@@ -838,12 +838,20 @@
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     };
 
-    // Preload QR code image so it appears instantly
-    var _donateQRPreloaded = false;
+    // Preload QR code as data URI so it appears instantly in the modal
+    var _donateQRDataUri = null;
     setTimeout(function() {
         var img = new Image();
+        img.crossOrigin = 'anonymous';
         img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:spontaneousleopard54@zeuspay.com';
-        img.onload = function() { _donateQRPreloaded = true; };
+        img.onload = function() {
+            try {
+                var c = document.createElement('canvas');
+                c.width = img.width; c.height = img.height;
+                c.getContext('2d').drawImage(img, 0, 0);
+                _donateQRDataUri = c.toDataURL('image/png');
+            } catch(e) { _donateQRDataUri = img.src; }
+        };
     }, 3000);
 
     function _donateMethodHtml(label, copyVal, displayVal, linkUrl, qrImg) {
@@ -868,7 +876,7 @@
         modal.id = 'donateModal';
         modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;display:flex;align-items:flex-start;justify-content:center;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
         var lnAddr = 'spontaneousleopard54@zeuspay.com';
-        var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:' + lnAddr;
+        var qrUrl = _donateQRDataUri || 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=lightning:' + lnAddr;
         
         modal.innerHTML =
             '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:24px;padding:30px 20px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.6);animation:fadeSlideIn 0.3s;margin:40px auto;">' +
