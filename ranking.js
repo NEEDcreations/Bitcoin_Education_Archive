@@ -5069,7 +5069,7 @@ window.initSatsClaim = function() {
     html += '<label style="display:block;font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Paste Lightning Invoice</label>';
     html += '<textarea id="satsClaimInvoice" placeholder="lnbc..." rows="3" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-family:monospace;resize:none;margin-bottom:4px;box-sizing:border-box;word-break:break-all;"></textarea>';
 
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, create an invoice for the amount you want (100-' + maxClaim + ' sats), and paste it here.<br><span style="color:var(--text-faint);">⚡ Note: Lightning routing fees will be deducted from your claim.</span></div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:14px;">Open your Lightning wallet, create an invoice for the amount you want (100-' + maxClaim + ' sats), and paste it here.<br><span style="color:#22c55e;">💚 Zero fees — we pay all Lightning network fees so you receive the full amount!</span></div>';
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
@@ -5114,7 +5114,25 @@ window.submitSatsClaim = async function() {
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
-            showToast('⚡ ' + paidAmount + ' sats sent to your wallet! Check your Lightning wallet.', 5000);
+
+            // Fun celebration popup + confetti
+            if (typeof launchConfetti === 'function') launchConfetti();
+            var _celebOverlay = document.createElement('div');
+            _celebOverlay.id = 'satsCelebration';
+            _celebOverlay.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeSlideIn 0.3s;';
+            _celebOverlay.onclick = function(e) { if (e.target === _celebOverlay) _celebOverlay.remove(); };
+            _celebOverlay.innerHTML = '<div style="background:linear-gradient(135deg,#1a1b2e,#12131f);border:2px solid #f7931a;border-radius:24px;padding:32px;max-width:360px;width:100%;text-align:center;animation:nachoPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);">' +
+                '<div style="font-size:4rem;margin-bottom:12px;">⚡🎉</div>' +
+                '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">Sats Claimed!</h2>' +
+                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + paidAmount + ' sats</div>' +
+                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
+                '<div style="padding:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:10px;margin-bottom:16px;">' +
+                    '<div style="font-size:0.75rem;color:#22c55e;font-weight:700;">🧡 Thank you for learning Bitcoin with us!</div>' +
+                '</div>' +
+                '<button onclick="document.getElementById(\'satsCelebration\').remove()" style="padding:14px 32px;background:#f7931a;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;">🚀 Stack more sats!</button>' +
+            '</div>';
+            document.body.appendChild(_celebOverlay);
+
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed — try again';
