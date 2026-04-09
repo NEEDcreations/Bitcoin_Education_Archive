@@ -1276,6 +1276,7 @@ function loadUserLocal(uid) {
     if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
     restoreVisitedUI();
     updateRankUI();
+    _checkCapOnLoad();
     updateAuthButton();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     if (typeof renderExplorationMap === 'function') renderExplorationMap();
@@ -1799,29 +1800,77 @@ async function awardPoints(pts, reason) {
     if (window._pointAwardTimes.length >= 20) return;
     window._pointAwardTimes.push(_now);
 
-    // Anti-abuse: global daily points cap (500/day)
-    var _dailyKey = 'btc_daily_pts_' + new Date().toISOString().split('T')[0];
+    // ── Daily Cap System with Overflow Rollover ──
+    var DAILY_CAP = 2100;
+    var _today = new Date().toISOString().split('T')[0];
+    var _dailyKey = 'btc_daily_pts_' + _today;
+    var _dailyDateKey = 'btc_daily_pts_date';
+    var _overflowKey = 'btc_pts_overflow';
+
+    // Check if it's a new day — roll over overflow from yesterday
+    var _lastDate = localStorage.getItem(_dailyDateKey) || '';
+    if (_lastDate && _lastDate !== _today) {
+        var _overflow = parseInt(localStorage.getItem(_overflowKey) || '0');
+        if (_overflow > 0) {
+            // Add overflow to balance immediately (already earned, not subject to new cap)
+            if (currentUser._isLocal) {
+                currentUser.points = (currentUser.points || 0) + _overflow;
+                localStorage.setItem('btc_points', currentUser.points.toString());
+            } else if (db && currentUser.uid) {
+                db.collection('users').doc(currentUser.uid).update({
+                    points: firebase.firestore.FieldValue.increment(_overflow)
+                }).catch(function() {});
+                currentUser.points = (currentUser.points || 0) + _overflow;
+            }
+            if (typeof showToast === 'function') showToast('🌅 +' + _overflow + ' overflow points from yesterday added to your balance!', 6000);
+            localStorage.setItem(_overflowKey, '0');
+            updateRankUI();
+        }
+        // Reset daily counter for new day
+        localStorage.setItem(_dailyKey, '0');
+    }
+    localStorage.setItem(_dailyDateKey, _today);
+
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    if (_dailyPts >= 500) {
-        // Show toast once per day when cap is hit
-        var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+
+    if (_dailyPts >= DAILY_CAP) {
+        // Already at cap — store ALL of these points as overflow
+        var _curOverflow = parseInt(localStorage.getItem(_overflowKey) || '0');
+        localStorage.setItem(_overflowKey, (_curOverflow + pts).toString());
+        // Show cap notification once per day
+        var _capNotifKey = 'btc_daily_cap_notified_' + _today;
         if (!localStorage.getItem(_capNotifKey)) {
             localStorage.setItem(_capNotifKey, '1');
-            if (typeof showToast === 'function') showToast('🎯 You\'ve hit today\'s 500-point daily cap! Come back tomorrow to earn more. Your points convert to real sats — check Settings → ⚡ Sats!', 7000);
+            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (2,100)! +' + pts + ' pts saved as overflow — they\'ll roll over tomorrow. Your points convert to real sats in Settings → ⚡ Sats!', 8000);
+            _updateCapIndicator(true);
         }
         return;
     }
-    if (_dailyPts + pts > 500) {
-        pts = 500 - _dailyPts;
-        // They just hit the cap with this award
-        var _capNotifKey2 = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+
+    var _awarded = pts;
+    var _overflowAmt = 0;
+    if (_dailyPts + pts > DAILY_CAP) {
+        _awarded = DAILY_CAP - _dailyPts;
+        _overflowAmt = pts - _awarded;
+        // Store overflow
+        var _curOverflow2 = parseInt(localStorage.getItem(_overflowKey) || '0');
+        localStorage.setItem(_overflowKey, (_curOverflow2 + _overflowAmt).toString());
+        // Show cap notification
+        var _capNotifKey2 = 'btc_daily_cap_notified_' + _today;
         if (!localStorage.getItem(_capNotifKey2)) {
             localStorage.setItem(_capNotifKey2, '1');
-            if (typeof showToast === 'function') showToast('🎯 You\'ve hit today\'s 500-point daily cap! Come back tomorrow to earn more. Your points convert to real sats — check Settings → ⚡ Sats!', 7000);
+            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (2,100)! +' + _overflowAmt + ' pts saved as overflow — they\'ll roll over tomorrow.', 8000);
+            _updateCapIndicator(true);
         }
     }
+    pts = _awarded;
     if (pts <= 0) return;
     localStorage.setItem(_dailyKey, (_dailyPts + pts).toString());
+
+    // Update cap indicator if we just hit it
+    if (_dailyPts + pts >= DAILY_CAP) {
+        _updateCapIndicator(true);
+    }
 
     if (currentUser._isLocal) {
         currentUser.points = (currentUser.points || 0) + pts;
@@ -2061,6 +2110,45 @@ function updateGuestPointsBanner() {
         '</div>' +
         '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
     banner.style.display = 'flex';
+}
+
+// ── Daily Cap Visual Indicator ──
+function _updateCapIndicator(atCap) {
+    var el = document.getElementById('userDisplay');
+    if (!el) return;
+    var _today = new Date().toISOString().split('T')[0];
+    var _dailyKey = 'btc_daily_pts_' + _today;
+    var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
+    var _overflow = parseInt(localStorage.getItem('btc_pts_overflow') || '0');
+    if (atCap || _dailyPts >= 2100) {
+        el.style.borderColor = '#ef4444';
+        el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
+        el.title = '🎯 Daily point cap reached (2,100/2,100)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        // Add cap badge if not present
+        if (!document.getElementById('dailyCapBadge')) {
+            var badge = document.createElement('span');
+            badge.id = 'dailyCapBadge';
+            badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:800;padding:2px 6px;border-radius:8px;z-index:2;pointer-events:none;';
+            badge.textContent = 'CAP';
+            el.style.position = 'fixed'; // ensure positioned
+            el.appendChild(badge);
+        }
+    } else {
+        el.style.borderColor = 'var(--border)';
+        el.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        el.title = '';
+        var badge = document.getElementById('dailyCapBadge');
+        if (badge) badge.remove();
+    }
+}
+
+function _checkCapOnLoad() {
+    var _today = new Date().toISOString().split('T')[0];
+    var _dailyKey = 'btc_daily_pts_' + _today;
+    var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
+    if (_dailyPts >= 2100) {
+        setTimeout(function() { _updateCapIndicator(true); }, 2000);
+    }
 }
 
 function updateRankUI() {
@@ -5151,6 +5239,10 @@ const BADGE_DEFS = [
     { id: 'dj_songs_100', name: 'Vinyl Master', emoji: '💿', desc: 'Broadcast 100 songs as DJ', check: () => parseInt(localStorage.getItem('btc_dj_songs') || '0') >= 100, pts: 200 },
     { id: 'dj_listener', name: 'Good Listener', emoji: '🔊', desc: 'Tuned in to 10 DJ sets', check: () => parseInt(localStorage.getItem('btc_dj_listens') || '0') >= 10, pts: 20 },
     { id: 'dj_listener_50', name: 'Groupie', emoji: '🤘', desc: 'Tuned in to 50 DJ sets', check: () => parseInt(localStorage.getItem('btc_dj_listens') || '0') >= 50, pts: 75 },
+
+    // ---- Music Badges ----
+    { id: 'producer_1', name: 'Producer', emoji: '🎤', desc: 'Uploaded your first song to Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_uploads') || '0') >= 1, pts: 50 },
+    { id: 'producer_10', name: 'Discographer', emoji: '💿', desc: 'Uploaded 10 songs to Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_uploads') || '0') >= 10, pts: 100 },
 
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },

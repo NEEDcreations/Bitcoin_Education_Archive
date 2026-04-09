@@ -360,13 +360,10 @@ window.renderFirstPurchase = function() {
             '</div>' +
         '</div>';
 
-        // Award badge + points on first completion
+        // Award tickets on first completion (points + badge handled above via btc_fp_completed)
         if (!localStorage.getItem('btc_first_purchase_done')) {
             localStorage.setItem('btc_first_purchase_done', '1');
-            if (typeof awardPoints === 'function') awardPoints(100, '🛒 First Purchase guide complete!');
             if (typeof awardOrangeTickets === 'function') awardOrangeTickets(10, '🛒 First Purchase');
-            if (typeof awardHiddenBadge === 'function') awardHiddenBadge('first_purchase', '🛒 First Purchase — Completed the buying guide!');
-            if (typeof launchConfetti === 'function') launchConfetti();
         }
     }
 
