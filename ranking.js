@@ -3194,10 +3194,11 @@ function showSettingsPage(tab) {
             '<div id="pfpUploadStatus" style="margin-top:8px;font-size:0.8rem;"></div>' +
         '</div>';
 
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        // --- Account Details (will go inside Advanced Account) ---
+        var _acctDetailsHtml = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Account Details</div>';
-        if (user.email) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
-        if (user.displayName) html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + user.displayName + '</span></div>';
+        if (user.email) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
+        if (user.displayName) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + user.displayName + '</span></div>';
 
         // Sign-in provider
         let provider = 'Anonymous';
@@ -3209,17 +3210,18 @@ function showSettingsPage(tab) {
             else if (pid === 'facebook.com') provider = 'Facebook';
             else if (pid === 'password') provider = 'Email';
         }
-        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
+        _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
 
         // Account created
         if (currentUser && currentUser.created) {
             const created = currentUser.created.toDate ? currentUser.created.toDate().toLocaleDateString() : new Date(currentUser.created).toLocaleDateString();
-            html += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
+            _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Member since</span><span style="color:var(--text);font-size:0.85rem;">' + created + '</span></div>';
         }
-        html += '</div>';
+        _acctDetailsHtml += '</div>';
 
         // --- START: content that goes inside Advanced Account ---
         html += '<div id="advAcctContent" style="display:none;">';
+        html += _acctDetailsHtml;
         // Display Badge chooser (collapsible)
         if (!isAnon) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
@@ -3266,7 +3268,9 @@ function showSettingsPage(tab) {
             '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
 
-        // Profile section
+        html += '</div>'; // close advAcctContent — Account Details + Badge chooser + Change username are inside
+
+        // Profile section (OUTSIDE advAcctContent — always visible)
         var bio = currentUser ? currentUser.bio || '' : '';
         // Social links config: key, emoji, label, placeholder, maxlen, type
         var _slDef = [
@@ -3320,7 +3324,6 @@ function showSettingsPage(tab) {
         html += '<button onclick="saveProfile()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save Profile</button>' +
             '<div id="profileStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
             '</div>';
-        html += '</div>'; // close advAcctContent
 
                 // Lightning wallet prompt (only if no Lightning Address set)
         var _hasLn = currentUser && (currentUser.lightning || currentUser.lightningAddress);
