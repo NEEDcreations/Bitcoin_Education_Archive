@@ -22300,6 +22300,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 if (typeof toggleCat !== 'undefined') window.toggleCat = toggleCat;
 if (typeof toggleTheme !== 'undefined') window.toggleTheme = toggleTheme;
 if (typeof toggleAudio !== 'undefined') window.toggleAudio = toggleAudio;
+if (typeof setVolume !== 'undefined') window.setVolume = setVolume;
 if (typeof handleSupportClick !== 'undefined') window.handleSupportClick = handleSupportClick;
 if (typeof showDonateModal !== 'undefined') window.showDonateModal = showDonateModal;
 if (typeof enterNachoMode !== 'undefined') window.enterNachoMode = enterNachoMode;
