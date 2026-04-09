@@ -121,7 +121,7 @@
             // ── MORE FEATURES ──
             guideSection('✨ More Features', [
                 guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
-                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function')go('bitcoin-dashboard')},300)"),
+                guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)"),
                 guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
             ]) +
 
