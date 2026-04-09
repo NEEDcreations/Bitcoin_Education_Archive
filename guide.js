@@ -23,6 +23,9 @@
         var existing = document.getElementById('guideOverlay');
         if (existing) existing.remove();
 
+        // Push history state so back-swipe closes guide instead of exiting app
+        history.pushState({ guide: true }, '', window.location.pathname + window.location.hash);
+
         var userName = '';
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
             userName = currentUser.username;
