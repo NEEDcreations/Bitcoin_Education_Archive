@@ -1801,7 +1801,7 @@ async function awardPoints(pts, reason) {
     window._pointAwardTimes.push(_now);
 
     // ── Daily Cap System with Overflow Rollover ──
-    var DAILY_CAP = 2100;
+    var DAILY_CAP = 500;
     var _today = new Date().toISOString().split('T')[0];
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyDateKey = 'btc_daily_pts_date';
@@ -1841,7 +1841,7 @@ async function awardPoints(pts, reason) {
         var _capNotifKey = 'btc_daily_cap_notified_' + _today;
         if (!localStorage.getItem(_capNotifKey)) {
             localStorage.setItem(_capNotifKey, '1');
-            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (2,100)! +' + pts + ' pts saved as overflow — they\'ll roll over tomorrow. Your points convert to real sats in Settings → ⚡ Sats!', 8000);
+            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (500)! +' + pts + ' pts saved as overflow — they\'ll roll over tomorrow. Your points convert to real sats in Settings → ⚡ Sats!', 8000);
             _updateCapIndicator(true);
         }
         return;
@@ -1859,7 +1859,7 @@ async function awardPoints(pts, reason) {
         var _capNotifKey2 = 'btc_daily_cap_notified_' + _today;
         if (!localStorage.getItem(_capNotifKey2)) {
             localStorage.setItem(_capNotifKey2, '1');
-            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (2,100)! +' + _overflowAmt + ' pts saved as overflow — they\'ll roll over tomorrow.', 8000);
+            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (500)! +' + _overflowAmt + ' pts saved as overflow — they\'ll roll over tomorrow.', 8000);
             _updateCapIndicator(true);
         }
     }
@@ -2120,10 +2120,10 @@ function _updateCapIndicator(atCap) {
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
     var _overflow = parseInt(localStorage.getItem('btc_pts_overflow') || '0');
-    if (atCap || _dailyPts >= 2100) {
+    if (atCap || _dailyPts >= 500) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily point cap reached (2,100/2,100)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = '🎯 Daily point cap reached (500/500)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -2146,7 +2146,7 @@ function _checkCapOnLoad() {
     var _today = new Date().toISOString().split('T')[0];
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    if (_dailyPts >= 2100) {
+    if (_dailyPts >= 500) {
         setTimeout(function() { _updateCapIndicator(true); }, 2000);
     }
 }
