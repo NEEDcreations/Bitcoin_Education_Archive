@@ -498,6 +498,7 @@
         }
         localStorage.setItem('btc_bookmarks', JSON.stringify(bookmarks));
         renderFavs();
+        if (typeof syncBookmarksToFirebase === 'function') syncBookmarksToFirebase();
     };
 
     window.loadMoreGallery = function() {

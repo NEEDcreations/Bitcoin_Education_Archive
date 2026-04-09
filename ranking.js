@@ -1248,6 +1248,26 @@ async function loadUser(uid, prefetchedDoc) {
             localStorage.setItem('btc_favs', '[]');
             if (typeof renderFavs === 'function') renderFavs();
         }
+        // Sync bookmarks: for real users, use Firebase as source of truth
+        if (currentUser.bookmarks) {
+            if (isRealUser) {
+                localStorage.setItem('btc_bookmarks', JSON.stringify(currentUser.bookmarks));
+            } else {
+                let localBm = JSON.parse(localStorage.getItem('btc_bookmarks') || '[]');
+                let mergedBm = currentUser.bookmarks.concat(localBm.filter(function(b) {
+                    return !currentUser.bookmarks.some(function(fb) { return fb.channel === b.channel && fb.idx === b.idx; });
+                }));
+                localStorage.setItem('btc_bookmarks', JSON.stringify(mergedBm));
+            }
+            if (typeof renderFavs === 'function') renderFavs();
+        } else if (isRealUser) {
+            // No bookmarks in Firebase yet — push local ones up if any exist
+            var _localBm = JSON.parse(localStorage.getItem('btc_bookmarks') || '[]');
+            if (_localBm.length > 0 && db && auth.currentUser) {
+                db.collection('users').doc(auth.currentUser.uid).update({ bookmarks: _localBm }).catch(function() {});
+            }
+        }
+
         // Cache username in localStorage for PVP and other modules
         if (currentUser.username) {
             localStorage.setItem('btc_username', currentUser.username);
@@ -1935,6 +1955,18 @@ async function syncFavsToFirebase() {
         });
     } catch(e) {}
 }
+
+// Sync bookmarks to Firebase
+async function syncBookmarksToFirebase() {
+    if (!currentUser || !db || !auth.currentUser || currentUser._isLocal) return;
+    try {
+        const bm = JSON.parse(localStorage.getItem('btc_bookmarks') || '[]');
+        await db.collection('users').doc(auth.currentUser.uid).update({
+            bookmarks: bm
+        });
+    } catch(e) {}
+}
+window.syncBookmarksToFirebase = syncBookmarksToFirebase;
 
 // Sync badges and scholar status to Firebase
 // syncProgressToFirebase removed — badges and scholar status are synced inline at award time
