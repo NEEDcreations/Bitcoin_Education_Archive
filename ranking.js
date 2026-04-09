@@ -4583,9 +4583,16 @@ async function saveProfile() {
     
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
+    // URL scheme validation — block javascript:, data:, vbscript: etc.
+    var _safeUrl = function(url) {
+        if (!url) return '';
+        url = url.trim();
+        if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
+        return url;
+    };
     links.forEach(function(k) {
         var el = document.getElementById('profile_' + k);
-        if (el) updateData[k] = el.value.trim();
+        if (el) updateData[k] = (k === 'contactEmail' || k === 'lightning' || k === 'nostr') ? el.value.trim() : _safeUrl(el.value);
         else if (currentUser && typeof currentUser[k] !== 'undefined') {
             // If the element doesn't exist but the user had it, we check if it was removed
             // Actually, addProfileLink adds the element. If it's gone from DOM, they likely clicked Remove.

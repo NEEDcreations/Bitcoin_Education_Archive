@@ -27,6 +27,14 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
+function sanitizeUrl(url) {
+    if (!url) return '';
+    url = url.trim();
+    if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
+    return url;
+}
+
 // ---- Time Ago ----
 // Converts a Firestore timestamp or Date to human-readable relative time
 function timeAgo(ts) {

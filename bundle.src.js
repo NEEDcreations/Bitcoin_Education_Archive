@@ -27,6 +27,14 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
+function sanitizeUrl(url) {
+    if (!url) return '';
+    url = url.trim();
+    if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
+    return url;
+}
+
 // ---- Time Ago ----
 // Converts a Firestore timestamp or Date to human-readable relative time
 function timeAgo(ts) {
@@ -4663,9 +4671,16 @@ async function saveProfile() {
     
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
+    // URL scheme validation — block javascript:, data:, vbscript: etc.
+    var _safeUrl = function(url) {
+        if (!url) return '';
+        url = url.trim();
+        if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
+        return url;
+    };
     links.forEach(function(k) {
         var el = document.getElementById('profile_' + k);
-        if (el) updateData[k] = el.value.trim();
+        if (el) updateData[k] = (k === 'contactEmail' || k === 'lightning' || k === 'nostr') ? el.value.trim() : _safeUrl(el.value);
         else if (currentUser && typeof currentUser[k] !== 'undefined') {
             // If the element doesn't exist but the user had it, we check if it was removed
             // Actually, addProfileLink adds the element. If it's gone from DOM, they likely clicked Remove.
@@ -13870,7 +13885,7 @@ window.showUserProfile = function(uid) {
             ((u.twitter || u.nostr || u.website) ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;justify-content:center;">' +
                 (u.twitter ? '<a href="https://x.com/' + escapeHtml(u.twitter.replace('@','')) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">𝕏 ' + escapeHtml(u.twitter) + '</a>' : '') +
                 (u.nostr ? '<span style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:#8b5cf6;font-size:0.72rem;">🟣 Nostr</span>' : '') +
-                (u.website ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
+                (u.website && !/^(javascript|data|vbscript|blob):/i.test(u.website.trim()) ? '<a href="' + escapeHtml(u.website) + '" target="_blank" rel="noopener" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.72rem;text-decoration:none;">🌐 Website</a>' : '') +
             '</div>' : '') +
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
