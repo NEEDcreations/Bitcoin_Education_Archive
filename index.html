@@ -1116,9 +1116,9 @@
                     <span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>
                 </label>
                 <div id="giveawayLnWrap" style="display:none;flex-direction:column;gap:6px;">
-                    <div style="display:flex;gap:6px;align-items:center;">
-                        <input type="text" id="giveawayLnAddress" placeholder="⚡ you@walletofsatoshi.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;width:100%;-webkit-appearance:none;" oninput="this.style.borderColor='var(--border)'">
-                        <button onclick="pasteToField('giveawayLnAddress')" style="padding:10px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;touch-action:manipulation;">📋 Paste</button>
+                    <div>
+                        <input type="text" id="giveawayLnAddress" placeholder="⚡ you@walletofsatoshi.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;margin-bottom:8px;" oninput="this.style.borderColor='var(--border)'">
+                        <button onclick="pasteToField('giveawayLnAddress')" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">📋 Paste from clipboard</button>
                     </div>
                 </div>
                 <p id="giveawayNote" style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;display:none;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>

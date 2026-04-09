@@ -1084,9 +1084,9 @@ function showGiveawayPrompt(uid, displayName) {
                 '<input type="checkbox" id="giveawayCheckboxProvider" checked style="width:20px;height:20px;accent-color:#f7931a;margin-top:2px;flex-shrink:0;cursor:pointer;">' +
                 '<span style="color:var(--text);font-size:0.9rem;font-weight:600;line-height:1.4;">🎉 Register for the <span style="color:#f7931a;">25,000 sats giveaway!</span></span>' +
             '</label>' +
-            '<div style="display:flex;gap:6px;align-items:center;">' +
-                '<input type="text" id="giveawayLnProvider" placeholder="⚡ Lightning address (e.g. you@walletofsatoshi.com)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0;padding:12px 14px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;">' +
-                '<button onclick="pasteToField(\'giveawayLnProvider\')" style="padding:10px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">📋 Paste</button>' +
+            '<div>' +
+                '<input type="text" id="giveawayLnProvider" placeholder="⚡ you@walletofsatoshi.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;margin-bottom:8px;">' +
+                '<button onclick="pasteToField(\'giveawayLnProvider\')" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;">📋 Paste from clipboard</button>' +
             '</div>' +
             '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
         '</div>' +
