@@ -779,13 +779,8 @@
                         // Add freeze ticket to user
                         var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0');
                         localStorage.setItem('btc_streak_freezes', freezes + 1);
-                        if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
-                            try {
-                                db.collection('users').doc(auth.currentUser.uid).update({
-                                    streakFreezes: firebase.firestore.FieldValue.increment(1)
-                                }).catch(function(){});
-                            } catch(e) {}
-                        }
+                        // Award streak freeze through server-side Cloud Function
+                        if (typeof awardPoints === 'function') awardPoints(0, '🧊 Streak Freeze', null, 0, 1);
                         if (typeof currentUser !== 'undefined' && currentUser) {
                             currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
                         }

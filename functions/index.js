@@ -1470,10 +1470,16 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     const pts = parseInt(data.pts);
     const reason = (data.reason || '').substring(0, 100);
     const channelId = (data.channelId || '').substring(0, 100);
+    const tickets = parseInt(data.tickets) || 0;
+    const streakFreezes = parseInt(data.streakFreezes) || 0;
 
     // Validate points amount
-    if (isNaN(pts) || pts <= 0 || pts > 2200) {
+    if (isNaN(pts) || pts < 0 || pts > 2200) {
         return { success: false, error: 'Invalid points amount' };
+    }
+    // Allow 0 pts if tickets or streak freezes are being awarded
+    if (pts === 0 && !tickets && !streakFreezes && !channelId) {
+        return { success: false, error: 'Nothing to award' };
     }
 
     const DAILY_CAP = 500;
@@ -1510,6 +1516,14 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             if (channelId && channelId.length > 0) {
                 userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
                 userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
+            }
+            // If tickets were requested, award them server-side
+            if (tickets > 0 && tickets <= 100) {
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
+            }
+            // If streak freezes were awarded (spin wheel)
+            if (streakFreezes > 0 && streakFreezes <= 5) {
+                userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
             }
             t.update(userRef, userUpdate);
             t.set(dailyPtsRef, {
@@ -1742,4 +1756,95 @@ exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
         },
         estimated: globalStats
     };
+});
+
+// ===== SERVER-SIDE DAILY VISIT TRACKING =====
+// Handles streak, totalVisits, bestStreak, orangeTickets, streakFreezes
+// All these fields are blocked from client writes in Firestore rules
+exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    try {
+        const result = await db.runTransaction(async (t) => {
+            const userDoc = await t.get(userRef);
+            if (!userDoc.exists) throw new Error('User not found');
+            const user = userDoc.data();
+
+            const today = new Date().toISOString().split('T')[0];
+            const lastVisit = user.lastVisit || '';
+
+            // Already visited today
+            if (lastVisit === today) {
+                return { alreadyVisited: true, streak: user.streak || 0 };
+            }
+
+            // Calculate streak
+            let newStreak = 1;
+            let usedFreeze = false;
+            let bonusTickets = 0;
+            const oldStreak = user.streak || 0;
+            const streakFreezes = user.streakFreezes || 0;
+
+            if (lastVisit) {
+                const lastDate = new Date(lastVisit);
+                const todayDate = new Date(today);
+                const diffDays = Math.round((todayDate - lastDate) / 86400000);
+
+                if (diffDays === 1) {
+                    // Consecutive day
+                    newStreak = oldStreak + 1;
+                } else if (diffDays === 2 && streakFreezes > 0) {
+                    // Missed one day but have a freeze
+                    newStreak = oldStreak + 1;
+                    usedFreeze = true;
+                } else {
+                    // Streak broken
+                    newStreak = 1;
+                }
+            }
+
+            // Bonus tickets for streak milestones
+            if (newStreak === 7) bonusTickets = 3;
+            else if (newStreak === 30) bonusTickets = 10;
+            else if (newStreak === 100) bonusTickets = 25;
+            else if (newStreak === 365) bonusTickets = 50;
+
+            const currentBest = user.bestStreak || 0;
+            const newBest = Math.max(currentBest, newStreak);
+
+            const updateData = {
+                totalVisits: admin.firestore.FieldValue.increment(1),
+                lastVisit: today,
+                streak: newStreak,
+                bestStreak: newBest,
+            };
+            if (bonusTickets > 0) {
+                updateData.orangeTickets = admin.firestore.FieldValue.increment(bonusTickets);
+            }
+            if (usedFreeze) {
+                updateData.streakFreezes = admin.firestore.FieldValue.increment(-1);
+            }
+
+            t.update(userRef, updateData);
+
+            return {
+                alreadyVisited: false,
+                streak: newStreak,
+                bestStreak: newBest,
+                oldStreak: oldStreak,
+                usedFreeze: usedFreeze,
+                bonusTickets: bonusTickets,
+                totalVisits: (user.totalVisits || 0) + 1
+            };
+        });
+
+        return { success: true, ...result };
+    } catch (e) {
+        console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
+        return { success: false, error: e.message || 'Visit recording failed' };
+    }
 });

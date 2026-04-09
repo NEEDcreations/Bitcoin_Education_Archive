@@ -1787,12 +1787,7 @@ async function awardVisitPoints() {
             setTimeout(function() {
                 showToast('🧊 STREAK FROZEN! A freeze ticket was used to save your ' + newStreak + '-day streak! (' + (currentUser.streakFreezes || 0) + ' freezes remaining)');
             }, 3000);
-            // Deduct from Firestore immediately
-            if (!currentUser._isLocal) {
-                db.collection('users').doc(currentUser.uid).update({ 
-                    streakFreezes: firebase.firestore.FieldValue.increment(-1)
-                }).catch(function(e) { console.error('[ranking] Error:', e); });
-            }
+            // Streak freeze is now deducted server-side in recordDailyVisit Cloud Function
         } else if (oldStreak > 1) {
             // No freeze available — streak is broken
             setTimeout(function() {
@@ -1804,26 +1799,30 @@ async function awardVisitPoints() {
     if (currentUser._isLocal) {
         // ... update logic
     } else {
-        // Track all-time best streak
-        var currentBest = currentUser.bestStreak || 0;
-        var newBest = Math.max(currentBest, newStreak);
-        const updateData = {
-            totalVisits: firebase.firestore.FieldValue.increment(1),
-            lastVisit: today,
-            streak: newStreak,
-            bestStreak: newBest,
-        };
-        if (bonusTickets > 0) {
-            updateData.orangeTickets = firebase.firestore.FieldValue.increment(bonusTickets);
+        // Record visit server-side (streak, totalVisits, bestStreak, tickets all handled atomically)
+        try {
+            var recordVisitFn = firebase.functions().httpsCallable('recordDailyVisit');
+            var visitResult = await recordVisitFn({});
+            if (visitResult.data && visitResult.data.success && !visitResult.data.alreadyVisited) {
+                newStreak = visitResult.data.streak || 1;
+                bonusTickets = visitResult.data.bonusTickets || 0;
+                var newBest = visitResult.data.bestStreak || newStreak;
+                currentUser.streak = newStreak;
+                currentUser.bestStreak = newBest;
+                currentUser.lastVisit = today;
+                currentUser.totalVisits = visitResult.data.totalVisits || (currentUser.totalVisits || 0) + 1;
+                if (bonusTickets > 0) currentUser.orangeTickets = (currentUser.orangeTickets || 0) + bonusTickets;
+                if (visitResult.data.usedFreeze) {
+                    currentUser.streakFreezes = Math.max(0, (currentUser.streakFreezes || 0) - 1);
+                    setTimeout(function() { showToast('🧊 STREAK FROZEN! A freeze was used to save your ' + newStreak + '-day streak!'); }, 3000);
+                }
+            }
+        } catch (e) {
+            console.warn('[VISIT] Cloud Function failed:', e.message);
         }
-        await db.collection('users').doc(currentUser.uid).update(updateData);
-        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + bonusTickets;
         // Award points through Cloud Function (daily cap enforced server-side)
         var _visitPts = pointsToAdd + (bonusTickets * 5);
         if (_visitPts > 0) await awardPoints(_visitPts, '✅ Daily visit' + (newStreak > 1 ? ' (' + newStreak + '-day streak!)' : ''));
-        currentUser.lastVisit = today;
-        currentUser.streak = newStreak;
-        currentUser.bestStreak = newBest;
     }
     
     if (bonusTickets > 0) {
@@ -1840,12 +1839,14 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
-async function awardPoints(pts, reason, channelId) {
+async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     if (!currentUser || !rankingReady) return;
 
     // Anti-abuse: validate pts is a reasonable number
     pts = parseInt(pts);
-    if (isNaN(pts) || pts <= 0 || pts > 2200) return;
+    if (isNaN(pts) || pts < 0 || pts > 2200) return;
+    // Allow 0 pts if tickets or streakFreezes are being awarded
+    if (pts === 0 && !tickets && !streakFreezes) return;
 
     // Anti-abuse: rate limit — max 20 point awards per minute
     window._pointAwardTimes = window._pointAwardTimes || [];
@@ -1876,6 +1877,8 @@ async function awardPoints(pts, reason, channelId) {
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
         var payload = { pts: pts, reason: reason || '' };
         if (channelId) payload.channelId = channelId;
+        if (tickets) payload.tickets = tickets;
+        if (streakFreezes) payload.streakFreezes = streakFreezes;
         var result = await awardPointsFn(payload);
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
@@ -5893,14 +5896,13 @@ async function awardDailyTicket() {
         const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
         await db.collection('users').doc(currentUser.uid).update({
-            orangeTickets: newTickets,
             lastTicketDate: today,
         });
 
-        currentUser.orangeTickets = newTickets;
         currentUser.lastTicketDate = today;
-        // Award points through server-side Cloud Function
-        if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets');
+        // Award tickets + points through server-side Cloud Function
+        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
+        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
         // Delay toast so page is settled and user can see it
         setTimeout(function() {
@@ -6017,11 +6019,9 @@ async function checkReferralQualifications() {
         if (ticketsEarned > 0) {
             const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
             const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
-            await db.collection('users').doc(currentUser.uid).update({
-                orangeTickets: newTotal,
-            });
-            currentUser.orangeTickets = newTotal;
-            if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets');
+            // Award tickets + points through server-side Cloud Function
+            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets', null, ticketsEarned);
+            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
             showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
@@ -6179,11 +6179,9 @@ window.awardTickets = async function(amount, reason) {
     var bonusPoints = amount * TICKET_CONFIG.pointsPerTicket;
 
     try {
-        await db.collection('users').doc(auth.currentUser.uid).update({
-            orangeTickets: newTotal,
-        });
-        currentUser.orangeTickets = newTotal;
-        if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'));
+        // Award tickets + points through server-side Cloud Function
+        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
+        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
         if (typeof updateRankUI === 'function') updateRankUI();
     } catch(e) { console.warn('[tickets] Award error:', e); }
 
@@ -18730,13 +18728,8 @@ function loadTopIndicators() {
                         // Add freeze ticket to user
                         var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0');
                         localStorage.setItem('btc_streak_freezes', freezes + 1);
-                        if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
-                            try {
-                                db.collection('users').doc(auth.currentUser.uid).update({
-                                    streakFreezes: firebase.firestore.FieldValue.increment(1)
-                                }).catch(function(){});
-                            } catch(e) {}
-                        }
+                        // Award streak freeze through server-side Cloud Function
+                        if (typeof awardPoints === 'function') awardPoints(0, '🧊 Streak Freeze', null, 0, 1);
                         if (typeof currentUser !== 'undefined' && currentUser) {
                             currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
                         }

@@ -57,14 +57,13 @@ async function awardDailyTicket() {
         const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
         await db.collection('users').doc(currentUser.uid).update({
-            orangeTickets: newTickets,
             lastTicketDate: today,
         });
 
-        currentUser.orangeTickets = newTickets;
         currentUser.lastTicketDate = today;
-        // Award points through server-side Cloud Function
-        if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets');
+        // Award tickets + points through server-side Cloud Function
+        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
+        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
         // Delay toast so page is settled and user can see it
         setTimeout(function() {
@@ -181,11 +180,9 @@ async function checkReferralQualifications() {
         if (ticketsEarned > 0) {
             const bonusPoints = ticketsEarned * TICKET_CONFIG.pointsPerTicket;
             const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
-            await db.collection('users').doc(currentUser.uid).update({
-                orangeTickets: newTotal,
-            });
-            currentUser.orangeTickets = newTotal;
-            if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets');
+            // Award tickets + points through server-side Cloud Function
+            if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets', null, ticketsEarned);
+            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsEarned;
             showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
@@ -343,11 +340,9 @@ window.awardTickets = async function(amount, reason) {
     var bonusPoints = amount * TICKET_CONFIG.pointsPerTicket;
 
     try {
-        await db.collection('users').doc(auth.currentUser.uid).update({
-            orangeTickets: newTotal,
-        });
-        currentUser.orangeTickets = newTotal;
-        if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'));
+        // Award tickets + points through server-side Cloud Function
+        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
+        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
         if (typeof updateRankUI === 'function') updateRankUI();
     } catch(e) { console.warn('[tickets] Award error:', e); }
 

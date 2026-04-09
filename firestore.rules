@@ -15,7 +15,9 @@ service cloud.firestore {
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
                         'pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim',
                         'points', 'lastAwards', 'created', 'createdAt',
-                        'visitedChannelsList', 'channelsVisited', 'readChannels'
+                        'visitedChannelsList', 'channelsVisited', 'readChannels',
+                        'orangeTickets', 'streak', 'bestStreak', 'streakFreezes',
+                        'totalVisits', 'badges', 'hiddenBadges'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
