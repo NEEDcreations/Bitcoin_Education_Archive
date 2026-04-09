@@ -157,6 +157,7 @@ function initRanking() {
 
             loadUser(user.uid);
             updateAuthButton();
+            if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
             showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
             return user;
         }).catch(function(e) {
