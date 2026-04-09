@@ -59,6 +59,7 @@
         <tr><td>Hidden badges earned</td><td>Badge/achievement tracking</td></tr>
         <tr><td>Scholar certification status</td><td>Certification tracking</td></tr>
         <tr><td>Favorites</td><td>Saved channel list sync across devices</td></tr>
+        <tr><td>Bookmarks</td><td>Saved channel bookmarks synced across devices via Firestore</td></tr>
         <tr><td>Social links (Twitter/X, Instagram, TikTok, GitHub, Nostr)</td><td>Display on public profile (optional, user-provided)</td></tr>
         <tr><td>Contact email (if provided)</td><td>Display on public profile for contact (optional, separate from sign-in email)</td></tr>
         <tr><td>Online presence (lastSeen timestamp)</td><td>Show online/away/offline status on leaderboard and profiles (can be disabled in Settings)</td></tr>
@@ -153,11 +154,29 @@
         <strong>⚠️ IRL Sync events are public.</strong> Event details (title, date, location, description, host name, attendee count) are visible to all users. Your user ID is added to the attendee list when you RSVP. 603BTC LLC is not responsible for events organized by users — see our <a href="/terms.html#irl-sync" target="_blank" rel="noopener" style="color:#eab308;">Terms of Service</a> for liability details.
     </div>
 
+    <h3>In-App Notifications (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Notification type & message</td><td>Alert you about sats claims, new DMs, streak milestones, and exploration achievements</td></tr>
+        <tr><td>Sender & recipient IDs</td><td>Route notifications to the correct user</td></tr>
+        <tr><td>Timestamps</td><td>Display notification times and expiration</td></tr>
+        <tr><td>Read/unread status</td><td>Badge count and notification management</td></tr>
+    </table>
+
+    <h3>Community Statistics (stored in Firebase)</h3>
+    <table>
+        <tr><th>Data</th><th>Purpose</th></tr>
+        <tr><td>Aggregate counters (channel reads, quests, spins, chats, PVP matches)</td><td>Display community-wide activity stats — no individual user data</td></tr>
+        <tr><td>User count</td><td>Display total registered users</td></tr>
+    </table>
+    <p>Community statistics are fully anonymous aggregate counters. They do not contain any personally identifiable information.</p>
+
     <h3>Price Predictions (stored in Firebase)</h3>
     <table>
         <tr><th>Data</th><th>Purpose</th></tr>
         <tr><td>Prediction (up/down), price at time</td><td>Track daily prediction accuracy</td></tr>
         <tr><td>Accuracy stats (total, correct, streak)</td><td>Display prediction stats on profile</td></tr>
+        <tr><td>Active predictions</td><td>Pending predictions resolved server-side via Cloud Function every 6 hours</td></tr>
     </table>
 
     <h3>Telegram Bridge (via Cloud Function)</h3>
