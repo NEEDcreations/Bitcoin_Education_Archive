@@ -3762,10 +3762,13 @@ function showSettingsPage(tab) {
         html += '💚 <strong>Zero fees for you!</strong> We pay all Lightning network fees so you receive the full amount you claim. You earned it!';
         html += '</div></div>';
 
-        // Earning guide
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
-        html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">🎯 How to Earn Points</div>';
-        html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        // Earning guide (collapsible)
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;">';
+        html += '<button onclick="var c=document.getElementById(\'earnPointsContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
+        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn Points</span>';
+        html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
+        html += '</button>';
+        html += '<div id="earnPointsContent" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         html += '<strong style="color:var(--text);font-size:0.8rem;">📚 Reading & Exploring</strong><br>';
         html += '• 📖 Open a channel: <strong>10 pts</strong><br>';
         html += '• ⏱️ Read for 30 sec: <strong>15 pts</strong><br>';
