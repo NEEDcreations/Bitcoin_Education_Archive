@@ -296,6 +296,14 @@ window.renderFirstPurchase = function() {
 
     // Step 5: Done!
     else if (currentStep >= 5) {
+        // Award Bitcoiner badge + 100 pts (once)
+        if (localStorage.getItem('btc_fp_completed') !== 'true') {
+            localStorage.setItem('btc_fp_completed', 'true');
+            if (typeof awardPoints === 'function') awardPoints(100, '🛒 First Bitcoin Purchase guide complete!');
+            if (typeof showToast === 'function') showToast('🛒🏅 Bitcoiner badge earned! +100 pts');
+            if (typeof launchConfetti === 'function') launchConfetti();
+            if (typeof initBadges === 'function') setTimeout(initBadges, 500);
+        }
         html += '<div style="text-align:center;padding:30px 0;">' +
             '<div style="font-size:4rem;margin-bottom:16px;">🎉₿🎉</div>' +
             '<h2 style="color:var(--heading);font-size:1.5rem;font-weight:900;margin:0 0 8px;">You\'re a Bitcoiner!</h2>' +
