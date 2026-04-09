@@ -214,6 +214,7 @@ function initRanking() {
                         created: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
+                try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
             } else if (anonData) {
                 const existData = existingDoc.data();
@@ -491,6 +492,7 @@ async function finishEmailSignIn(email, _signInUrl) {
                 } catch(e) {}
             }
             await db.collection('users').doc(emailUid).set(userData);
+            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
 
             // Attach referral if they came via referral link
             if (typeof attachReferral === 'function') attachReferral(emailUid);
@@ -805,6 +807,7 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             if (!userDoc.exists || !userDoc.data().username) {
                 var npubShort = 'npub...' + pubkey.substring(0, 8);
                 await db.collection('users').doc(uid).set({ username: npubShort, nostr: pubkey, points: 0, channelsVisited: 0, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0], created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             }
             loadUser(uid); hideUsernamePrompt();
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
@@ -916,6 +919,7 @@ window.signInWithLightning = async function() {
                             lastVisit: new Date().toISOString().split('T')[0],
                             created: firebase.firestore.FieldValue.serverTimestamp()
                         }, { merge: true });
+                        try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                     }
 
                     loadUser(uid);
@@ -1672,6 +1676,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
         } catch(e) { console.log('Giveaway entry save error:', e); }
     }
     await db.collection('users').doc(uid).set(userData);
+    // Increment global registered user count
+    try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
     rankingReady = true;
     window._badgesReady = true;
