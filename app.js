@@ -3353,7 +3353,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -3368,7 +3368,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Route to correct renderer (with retry for lazy-loaded scripts)
             function _routeApp(id, attempt) {
                 attempt = attempt || 0;
-                if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
+                if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') renderFirstPurchase();
+                else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
                 else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
                 else if (id === 'dms' && typeof showInbox === 'function') showInbox();
