@@ -5374,6 +5374,37 @@ const BADGE_DEFS = [
     { id: 'producer_1', name: 'Producer', emoji: '🎤', desc: 'Uploaded your first song to Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_uploads') || '0') >= 1, pts: 50 },
     { id: 'producer_10', name: 'Discographer', emoji: '💿', desc: 'Uploaded 10 songs to Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_uploads') || '0') >= 10, pts: 100 },
 
+    // ---- PVP Badges ----
+    { id: 'pvp_first', name: 'First Blood', emoji: '🗡️', desc: 'Won your first PVP battle', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 1, pts: 25 },
+    { id: 'pvp_5', name: 'Contender', emoji: '🥊', desc: 'Won 5 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 5, pts: 50 },
+    { id: 'pvp_25', name: 'Gladiator', emoji: '⚔️', desc: 'Won 25 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 25, pts: 100 },
+    { id: 'pvp_50', name: 'Champion', emoji: '🏆', desc: 'Won 50 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 50, pts: 200 },
+    { id: 'pvp_100', name: 'PVP Legend', emoji: '👑', desc: 'Won 100 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 100, pts: 500 },
+
+    // ---- Forum Badges ----
+    { id: 'forum_5', name: 'Voice of the People', emoji: '📣', desc: 'Made 5 forum posts', check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 5, pts: 25 },
+    { id: 'forum_25', name: 'Thought Leader', emoji: '🧠', desc: 'Made 25 forum posts', check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 25, pts: 75 },
+    { id: 'article_1', name: 'Author', emoji: '✍️', desc: 'Published your first article', check: () => parseInt(localStorage.getItem('btc_articles_published') || '0') >= 1, pts: 50 },
+
+    // ---- Streak Badges ----
+    { id: 'streak_7', name: 'Week Warrior', emoji: '🔥', desc: '7-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 7, pts: 50 },
+    { id: 'streak_30', name: 'Monthly Maxi', emoji: '💪', desc: '30-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 30, pts: 150 },
+    { id: 'streak_100', name: 'Diamond Hands', emoji: '💎', desc: '100-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 100, pts: 500 },
+    { id: 'streak_365', name: 'HODLer Supreme', emoji: '🏛️', desc: '365-day visit streak', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.bestStreak || 0) >= 365, pts: 2100 },
+
+    // ---- IRL & Community Badges ----
+    { id: 'irl_host', name: 'Event Host', emoji: '🎪', desc: 'Hosted your first IRL event', check: () => parseInt(localStorage.getItem('btc_irl_hosted') || '0') >= 1, pts: 50 },
+    { id: 'irl_host_5', name: 'Community Builder', emoji: '🏗️', desc: 'Hosted 5 IRL events', check: () => parseInt(localStorage.getItem('btc_irl_hosted') || '0') >= 5, pts: 150 },
+
+    // ---- Sats Badges ----
+    { id: 'sats_first', name: 'First Sats', emoji: '🪙', desc: 'Claimed your first sats from the faucet', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 1, pts: 25 },
+    { id: 'sats_1k', name: 'Stacker', emoji: '📦', desc: 'Claimed 1,000 sats total', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 1000, pts: 100 },
+    { id: 'sats_5k', name: 'Sat Whale', emoji: '🐳', desc: 'Claimed 5,000 sats total', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 5000, pts: 250 },
+
+    // ---- Prediction Badges ----
+    { id: 'predict_1', name: 'Oracle', emoji: '🔮', desc: 'Made your first price prediction', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.total || 0 : 0) >= 1, pts: 10 },
+    { id: 'predict_correct_5', name: 'Crystal Ball', emoji: '🏐', desc: '5 correct predictions', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.correct || 0 : 0) >= 5, pts: 75 },
+
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
@@ -5653,12 +5684,21 @@ function playBadgeSound() {
 
 function getBadgeHTML() {
     // Categorize badges
+    var _used = {};
+    function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
     const categories = {
-        'Discovery': BADGE_DEFS.filter(b => b.id.includes('explorer') || b.id === 'first_channel'),
-        'Knowledge': BADGE_DEFS.filter(b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest')),
-        'Global Chat': BADGE_DEFS.filter(b => b.id.startsWith('chat_')),
-        'DJ Mode': BADGE_DEFS.filter(b => b.id.startsWith('dj_')),
-        'Social/Misc': BADGE_DEFS.filter(b => !b.id.includes('explorer') && b.id !== 'first_channel' && !b.id.includes('builder') && !b.id.includes('diver') && !b.id.includes('librarian') && !b.id.includes('quest') && !b.id.startsWith('chat_') && !b.id.startsWith('dj_'))
+        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel'),
+        '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
+        '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
+        '🎧 DJ Mode': _cat(BADGE_DEFS, b => b.id.startsWith('dj_')),
+        '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer')),
+        '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
+        '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
+        '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
+        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_')),
+        '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup'),
+        '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
+        '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
     let html = '<style>' +
@@ -5669,12 +5709,21 @@ function getBadgeHTML() {
         '.badge-item.locked:hover .badge-emoji { filter: grayscale(1) opacity(0.5); }' +
         '</style>';
 
+    var _bcIdx = 0;
     for (const [catName, badgeList] of Object.entries(categories)) {
         if (badgeList.length === 0) continue;
-        
+        _bcIdx++;
+        var _bcId = 'bc_' + _bcIdx;
         const catEarned = badgeList.filter(b => earnedBadges.has(b.id)).length;
-        html += '<div class="badge-cat-title">' + catName + ' <span style="color:var(--accent);">' + catEarned + '/' + badgeList.length + '</span></div>';
-        html += '<div class="badges-grid">';
+        const allEarned = catEarned === badgeList.length;
+        
+        html += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:hidden;">';
+        html += '<button onclick="var c=document.getElementById(\'' + _bcId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + catName + '</span>';
+        html += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + catEarned + '/' + badgeList.length + (allEarned ? ' ✅' : '') + '</span>';
+        html += '</button>';
+        html += '<div id="' + _bcId + '" class="badges-grid" style="display:none;">';
         
         for (const badge of badgeList) {
             const earned = earnedBadges.has(badge.id);
@@ -5688,7 +5737,7 @@ function getBadgeHTML() {
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
             '</div>';
         }
-        html += '</div>';
+        html += '</div></div>';
     }
 
     // Hidden badges section...
@@ -14321,6 +14370,17 @@ const HIDDEN_BADGES = [
     { id: 'explorer_50', name: 'Half Stack', emoji: '📚', pts: 500, desc: 'Explore 50 channels', hint: 'Halfway there!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 50; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 50) + '/50'; } },
     { id: 'explorer_100', name: 'Century Club', emoji: '💯', pts: 1000, desc: 'Explore 100 channels', hint: 'Almost all of them!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 100; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 100) + '/100'; } },
     { id: 'explorer_all', name: 'Archive Master', emoji: '👑', pts: 2000, desc: 'Explore every single channel', hint: 'Visit them all!', hidden: true, check: function() { return typeof CHANNELS !== 'undefined' && safeJSON('btc_visited_channels', []).length >= Object.keys(CHANNELS).length; } },
+    // === MORE SECRET BADGES ===
+    { id: 'marathon', name: 'Marathon Reader', emoji: '🏃', pts: 150, desc: 'Spent 30+ minutes reading in one session', hidden: true, check: function() { return (Date.now() - (window._sessionStart || Date.now())) > 1800000; } },
+    { id: 'early_adopter', name: 'Early Adopter', emoji: '🌅', pts: 200, desc: 'Browsing between 5am and 7am', hidden: true, check: function() { var h = new Date().getHours(); return h >= 5 && h < 7; } },
+    { id: 'weekend_warrior', name: 'Weekend Warrior', emoji: '🎉', pts: 75, desc: 'Learning Bitcoin on a weekend', hidden: true, check: function() { var d = new Date().getDay(); return d === 0 || d === 6; } },
+    { id: 'triple_threat', name: 'Triple Threat', emoji: '🎯', pts: 300, desc: 'Completed a quest, sent a chat message, and read a channel in one session', hidden: true, check: function() { return sessionStorage.getItem('btc_quest_done') === 'true' && sessionStorage.getItem('btc_chat_sent') === 'true' && (typeof sessionChannels !== 'undefined' && sessionChannels.size >= 1); } },
+    { id: 'nacho_50q', name: 'Nacho Sage', emoji: '🧙', pts: 500, desc: 'Ask Nacho 50 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 50; } },
+    { id: 'bookmark_collector', name: 'Bookmark Hoarder', emoji: '📚', pts: 100, desc: 'Bookmarked 20+ messages', hidden: true, check: function() { return safeJSON('btc_bookmarks', []).length >= 20; } },
+    { id: 'pvp_streak', name: 'Undefeated', emoji: '🔱', pts: 250, desc: 'Won 5 PVP battles in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5; } },
+    { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 10,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000; } },
+    { id: 'streak_freeze', name: 'Ice Shield', emoji: '🧊', pts: 50, desc: 'Used a streak freeze to save your streak', hidden: true, check: function() { return localStorage.getItem('btc_freeze_used') === 'true'; } },
+    { id: 'nacho_closet_full', name: 'Fashionista', emoji: '👗', pts: 200, desc: 'Unlocked all Nacho closet items from the spin wheel', hidden: true, check: function() { var items = safeJSON('btc_spin_closet_items', []); return items.length >= 10; } },
 ];
 
 
@@ -17815,6 +17875,7 @@ function loadTopIndicators() {
 
 })();
 (function() {
+    window._sessionStart = window._sessionStart || Date.now();
     var _lastTickerPrice = null;
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };

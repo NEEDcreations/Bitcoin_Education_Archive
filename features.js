@@ -23,6 +23,17 @@ const HIDDEN_BADGES = [
     { id: 'explorer_50', name: 'Half Stack', emoji: '📚', pts: 500, desc: 'Explore 50 channels', hint: 'Halfway there!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 50; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 50) + '/50'; } },
     { id: 'explorer_100', name: 'Century Club', emoji: '💯', pts: 1000, desc: 'Explore 100 channels', hint: 'Almost all of them!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 100; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 100) + '/100'; } },
     { id: 'explorer_all', name: 'Archive Master', emoji: '👑', pts: 2000, desc: 'Explore every single channel', hint: 'Visit them all!', hidden: true, check: function() { return typeof CHANNELS !== 'undefined' && safeJSON('btc_visited_channels', []).length >= Object.keys(CHANNELS).length; } },
+    // === MORE SECRET BADGES ===
+    { id: 'marathon', name: 'Marathon Reader', emoji: '🏃', pts: 150, desc: 'Spent 30+ minutes reading in one session', hidden: true, check: function() { return (Date.now() - (window._sessionStart || Date.now())) > 1800000; } },
+    { id: 'early_adopter', name: 'Early Adopter', emoji: '🌅', pts: 200, desc: 'Browsing between 5am and 7am', hidden: true, check: function() { var h = new Date().getHours(); return h >= 5 && h < 7; } },
+    { id: 'weekend_warrior', name: 'Weekend Warrior', emoji: '🎉', pts: 75, desc: 'Learning Bitcoin on a weekend', hidden: true, check: function() { var d = new Date().getDay(); return d === 0 || d === 6; } },
+    { id: 'triple_threat', name: 'Triple Threat', emoji: '🎯', pts: 300, desc: 'Completed a quest, sent a chat message, and read a channel in one session', hidden: true, check: function() { return sessionStorage.getItem('btc_quest_done') === 'true' && sessionStorage.getItem('btc_chat_sent') === 'true' && (typeof sessionChannels !== 'undefined' && sessionChannels.size >= 1); } },
+    { id: 'nacho_50q', name: 'Nacho Sage', emoji: '🧙', pts: 500, desc: 'Ask Nacho 50 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 50; } },
+    { id: 'bookmark_collector', name: 'Bookmark Hoarder', emoji: '📚', pts: 100, desc: 'Bookmarked 20+ messages', hidden: true, check: function() { return safeJSON('btc_bookmarks', []).length >= 20; } },
+    { id: 'pvp_streak', name: 'Undefeated', emoji: '🔱', pts: 250, desc: 'Won 5 PVP battles in a row', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5; } },
+    { id: 'sats_maxed', name: 'Faucet King', emoji: '👑', pts: 1000, desc: 'Claimed all 10,000 sats from the faucet', hidden: true, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.satsWithdrawn || 0) >= 10000; } },
+    { id: 'streak_freeze', name: 'Ice Shield', emoji: '🧊', pts: 50, desc: 'Used a streak freeze to save your streak', hidden: true, check: function() { return localStorage.getItem('btc_freeze_used') === 'true'; } },
+    { id: 'nacho_closet_full', name: 'Fashionista', emoji: '👗', pts: 200, desc: 'Unlocked all Nacho closet items from the spin wheel', hidden: true, check: function() { var items = safeJSON('btc_spin_closet_items', []); return items.length >= 10; } },
 ];
 
 

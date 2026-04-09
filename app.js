@@ -1,4 +1,5 @@
 (function() {
+    window._sessionStart = window._sessionStart || Date.now();
     var _lastTickerPrice = null;
     var _hasInited = false;
     var nachoLiveData = { price: null, blockHeight: null };
