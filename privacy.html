@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: April 2, 2026</p>
+    <p class="subtitle">Last updated: April 9, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell, share, or monetize your data. Ever.</strong>
@@ -254,7 +254,7 @@
         <tr><td>NWC connection string</td><td>Stored in sessionStorage (cleared when tab closes) for Lightning wallet connection</td></tr>
     </table>
 
-    <p>We do <strong>not</strong> collect your real name, physical location, IP address, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway).</p>
+    <p>We do <strong>not</strong> collect your real name, physical location, browsing history outside the Site, or any financial information (other than a Lightning address if you enter the giveaway). <strong>IP addresses are only collected during sats faucet claims</strong> for multi-account abuse detection — they are not collected during normal browsing, sign-in, or any other activity.</p>
 
     <h2>2. How We Use Your Data</h2>
     <ul>
@@ -284,6 +284,10 @@
         <li>Display Bitcoin market indicators from public third-party APIs (no user data sent)</li>
         <li>Enable two-factor authentication (TOTP) for account security</li>
         <li>Verify Nostr and Lightning wallet signatures for authentication</li>
+        <li>Enforce server-side daily point caps and prevent points manipulation</li>
+        <li>Detect and prevent multi-account faucet abuse via device fingerprinting and IP logging</li>
+        <li>Filter harmful content (hate speech, threats, sexual content, self-harm) in all user-generated text</li>
+        <li>Block personal information (phone numbers, emails) from appearing in public chat</li>
     </ul>
 
     <h2>3. User Profiles</h2>
@@ -358,7 +362,23 @@
         <li>Live data (price, fees) is fetched from the public mempool.space API — no user data is sent in these requests</li>
     </ul>
 
-    <h2>9. Messaging & Communication Safety</h2>
+    <h2>9. Content Moderation & Filtering</h2>
+    <p>All user-generated content (Global Chat messages, forum posts, DMs, usernames, articles) is filtered <strong>client-side</strong> before submission. No content is sent to external moderation services. Filters include:</p>
+    <ul>
+        <li><strong>Profanity filter</strong> — 100+ blocked words with leet-speak normalization (e.g., "f*ck", "sh1t" detected)</li>
+        <li><strong>Hate speech & racial slurs</strong> — 27+ racial/ethnic slurs blocked across all surfaces</li>
+        <li><strong>Sexual content</strong> — 30+ explicit terms and phrase patterns blocked</li>
+        <li><strong>Self-harm detection</strong> — phrases indicating self-harm intent are blocked in public chat and flagged in DMs</li>
+        <li><strong>Threat detection</strong> — violent threats ("I will kill you", "I know where you live") blocked via regex patterns</li>
+        <li><strong>Political & religious extremism</strong> — political party names, extremist slogans, and religious hate terms blocked in public spaces</li>
+        <li><strong>PII protection</strong> — phone numbers and email addresses are hard-blocked in Global Chat (allowed in DMs with confirmation)</li>
+        <li><strong>Link filtering</strong> — URLs are stripped from Global Chat messages</li>
+        <li><strong>Spam detection</strong> — ALL CAPS, repeated characters, and excessive links are flagged</li>
+        <li><strong>Username validation</strong> — ASCII-only enforcement prevents Unicode/homoglyph bypass attempts</li>
+    </ul>
+    <p>Filtering is performed entirely in your browser. <strong>No message content is sent to external moderation APIs or third-party services.</strong> Blocked messages are never stored in Firebase.</p>
+
+    <h2>10. Messaging & Communication Safety</h2>
     <ul>
         <li>Direct messages are scanned <strong>client-side</strong> for known scam patterns and suspicious links</li>
         <li>Flagged messages display a warning to the recipient — we do not prevent delivery of flagged messages</li>
@@ -369,7 +389,7 @@
         <li>Messages are sanitized (HTML stripped) before storage and display</li>
     </ul>
 
-    <h2>10. Your Rights</h2>
+    <h2>11. Your Rights</h2>
     <p>You can:</p>
     <ul>
         <li><strong>Export your data</strong> — use the "Export My Data" button in Settings → Data</li>
@@ -385,10 +405,10 @@
     </ul>
     <p>When you delete your account, all your data is permanently removed from our Firebase database, including messages, posts, listings, and reports. Local browser data must be cleared separately.</p>
 
-    <h2>11. Children</h2>
+    <h2>12. Children</h2>
     <p>The Site is educational and suitable for all ages. We do not knowingly collect personal information from children under 13. The direct messaging feature is available only to registered users. If you are a parent and believe your child has provided personal information or been contacted inappropriately, please contact us immediately and we will take action.</p>
 
-    <h2>12. Data Security</h2>
+    <h2>13. Data Security</h2>
     <p>We use industry-standard security measures including:</p>
     <ul>
         <li>HTTPS encryption for all data in transit</li>
@@ -396,16 +416,22 @@
         <li>OAuth 2.0 for third-party authentication</li>
         <li>Email verification required for email-based sign-ins</li>
         <li>Rate limiting on sign-in attempts and message sending (30 messages/hour)</li>
-        <li>Profanity and scam content filtering on user inputs</li>
+        <li>Comprehensive content moderation: profanity, hate speech, sexual content, self-harm, threats, and political extremism filtering</li>
+        <li>Server-side point award validation via Cloud Functions (prevents client-side manipulation)</li>
+        <li>Server-side daily point cap enforcement (500 pts/day, atomic transactions)</li>
+        <li>Device fingerprinting and IP-based multi-account detection for faucet claims</li>
+        <li>Invoice replay protection (SHA-256 hash deduplication)</li>
         <li>HTML sanitization on all user-generated content</li>
         <li>Client-side scam and phishing link detection in messages</li>
+        <li>PII blocking (phone numbers, emails) in public chat</li>
+        <li>ASCII-only username enforcement (prevents Unicode/homoglyph bypass)</li>
         <li>User blocking and reporting system</li>
     </ul>
 
-    <h2>13. Data Retention</h2>
+    <h2>14. Data Retention</h2>
     <p>Account data is retained as long as your account exists. Direct messages are retained as long as both participants' accounts exist. Forum posts and marketplace listings are retained indefinitely unless deleted by the author or removed by administrators. If you delete your account, all associated data is permanently deleted from Firebase. Anonymous visit data (visitor ID and count) may be retained for aggregate statistics but contains no personally identifiable information.</p>
 
-    <h2>14. Sats Faucet (Claim Sats)</h2>
+    <h2>15. Sats Faucet (Claim Sats)</h2>
 
     <h3>Data Collected for Sats Claims (stored in Firebase)</h3>
     <table>
@@ -415,6 +441,8 @@
         <tr><td>Daily claim tracking</td><td>Enforce 1-claim-per-24-hours cooldown and 500 sats/day cap</td></tr>
         <tr><td>Lifetime total claimed</td><td>Enforce 10,000 sats lifetime cap per user</td></tr>
         <tr><td>Device fingerprint hash</td><td>Anti-abuse: detect multi-accounting (hashed, not personally identifiable)</td></tr>
+        <tr><td>IP address (at claim time only)</td><td>Anti-abuse: detect multiple accounts claiming from the same network</td></tr>
+        <tr><td>Server-side daily points tracking</td><td>Enforce 500 pts/day cap per user — tracked in Firebase, not browser</td></tr>
     </table>
 
     <h3>Firestore Data Structure</h3>
@@ -422,20 +450,23 @@
     <ul>
         <li><strong>sats_withdrawals</strong> — individual claim records (amount, truncated invoice, timestamp, status)</li>
         <li><strong>sats_daily</strong> — daily aggregate tracking (amount claimed per day, claim count)</li>
+        <li><strong>daily_points</strong> — server-side daily point award tracking (total awarded per day, enforces 500/day cap)</li>
         <li><strong>faucet_stats</strong> — global faucet statistics (total distributed, active claimants)</li>
+        <li><strong>faucet_ip_log</strong> — IP addresses at claim time only (detects multi-account abuse per network)</li>
+        <li><strong>faucet_fingerprints</strong> — device fingerprint hashes (detects multi-account abuse per device)</li>
     </ul>
 
     <div class="highlight">
         <strong>Privacy note:</strong> We intentionally do NOT store full Lightning invoices. Only the first 50 characters are retained (followed by "...") for basic audit purposes. This means we cannot reconstruct the full payment destination after the claim is processed.
     </div>
 
-    <h2>15. Changes</h2>
+    <h2>16. Changes</h2>
     <p>We may update this Privacy Policy from time to time. Changes will be reflected in the "Last updated" date above. Continued use of the Site after changes constitutes acceptance.</p>
 
-    <h2>16. Ownership</h2>
+    <h2>17. Ownership</h2>
     <p>The Bitcoin Education Archive is owned and operated by <strong>603BTC LLC</strong>. "Bitcoin Education Archive" is a trademark (™) of 603BTC LLC. All original Site content, design, code, and branding are © 2026 603BTC LLC. All rights reserved.</p>
 
-    <h2>17. Contact</h2>
+    <h2>18. Contact</h2>
     <p>Questions about privacy? Email <a href="mailto:needcreations@gmail.com">needcreations@gmail.com</a>.</p>
 
     <hr class="divider">

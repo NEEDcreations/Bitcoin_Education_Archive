@@ -26,7 +26,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: April 2, 2026</p>
+    <p class="subtitle">Last updated: April 9, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -90,7 +90,8 @@
         <li>There are visible goal badges (including chat and DJ categories) and hidden secret badges with point values ranging from 10 to 1,000</li>
         <li>Ranks range from Normie (0 pts) to Satoshi (21,000 pts)</li>
         <li>Leaderboard rankings are public and display your chosen username and online status</li>
-        <li>Manipulation of points through automated tools, scripts, or exploits is prohibited</li>
+        <li>Points are awarded through server-side Cloud Functions with a <strong>500 point daily cap</strong> enforced via atomic database transactions — client-side manipulation is not possible</li>
+        <li>Attempting to manipulate points through automated tools, scripts, browser console commands, or exploits is prohibited and will be detected</li>
         <li>We reserve the right to reset points or remove accounts engaged in abuse</li>
     </ul>
 
@@ -309,7 +310,19 @@
     <p>You may not use, reproduce, or distribute our trademarks, branding, or original content without prior written permission from 603BTC LLC.</p>
     <p>By posting content on PlebTalk, LightningMart, or Bitcoin Beats, you grant us a non-exclusive, royalty-free license to display, distribute, stream, and moderate that content on the Site. You retain ownership of your content. For music uploaded to Bitcoin Beats, see the specific <a href="#bitcoin-beats">Copyright & Takedown Policy</a> in Section 9.</p>
 
-    <h2>18. User Conduct</h2>
+    <h2>18. Content Moderation</h2>
+    <p>All user-generated content is subject to automated filtering. The following categories of content are <strong>automatically blocked</strong> across Global Chat, PlebTalk, DMs, usernames, and articles:</p>
+    <ul>
+        <li><strong>Hate speech & discrimination</strong> — racial slurs, ethnic slurs, homophobic language, antisemitic content, and all forms of bigotry</li>
+        <li><strong>Sexual content</strong> — sexually explicit language, solicitation, pornographic references, and links to adult content</li>
+        <li><strong>Self-harm content</strong> — messages expressing intent to harm oneself. If you or someone you know is in crisis, please contact the <a href="https://988lifeline.org" target="_blank" rel="noopener" style="color:#22c55e;">988 Suicide & Crisis Lifeline</a> (call or text 988)</li>
+        <li><strong>Threats & violence</strong> — physical threats, death threats, doxxing threats, and intimidation</li>
+        <li><strong>Political & religious extremism</strong> — partisan political content, extremist slogans, and religious hate. This is a Bitcoin education site, not a political platform</li>
+        <li><strong>Personal information in public spaces</strong> — phone numbers and email addresses are blocked in Global Chat to protect user privacy. PII may be shared in private DMs with a confirmation prompt</li>
+    </ul>
+    <p>Content filters use leet-speak normalization, multi-word phrase detection, and regex pattern matching. Blocked messages are never stored or transmitted. Attempting to circumvent content filters (e.g., using special characters, Unicode tricks, or deliberate misspellings) is a violation of these Terms and may result in account suspension.</p>
+
+    <h2>19. User Conduct</h2>
     <p>You agree not to:</p>
     <ul>
         <li>Abuse, exploit, or manipulate the points, tickets, badges, or ranking system</li>
@@ -326,7 +339,7 @@
         <li>Circumvent block lists, bans, or other safety measures</li>
     </ul>
 
-    <h2>19. Enforcement & Penalties</h2>
+    <h2>20. Enforcement & Penalties</h2>
     <p>Violations of these Terms may result in:</p>
     <ul>
         <li>Content removal (posts, listings, messages)</li>
@@ -337,10 +350,10 @@
     </ul>
     <p>We reserve sole discretion in determining violations and appropriate penalties.</p>
 
-    <h2>20. Progressive Web App (PWA)</h2>
+    <h2>21. Progressive Web App (PWA)</h2>
     <p>The Site is available as a Progressive Web App that can be installed on mobile and desktop devices. The PWA caches content for offline access. By installing the PWA, you agree that cached data is stored locally on your device and is subject to your device's storage policies.</p>
 
-    <h2>21. Third-Party Services & APIs</h2>
+    <h2>22. Third-Party Services & APIs</h2>
     <p>The Site integrates with third-party services including:</p>
     <ul>
         <li>Firebase (authentication, data storage, messaging)</li>
@@ -353,7 +366,7 @@
     </ul>
     <p>We are not responsible for the availability, accuracy, or policies of third-party services.</p>
 
-    <h2>22. Your First Bitcoin Purchase & Referral Links</h2>
+    <h2>23. Your First Bitcoin Purchase & Referral Links</h2>
     <ul>
         <li>The "Your First Bitcoin Purchase" guide provides general educational guidance — it is <strong>not financial advice</strong></li>
         <li>Exchange recommendations are curated opinions, not endorsements. We do not guarantee the safety, legality, or availability of any listed exchange in your jurisdiction</li>
@@ -361,9 +374,11 @@
         <li>Clicking referral links takes you to third-party sites governed by their own terms of service and privacy policies</li>
         <li>We are not responsible for any losses, fees, or issues arising from your use of third-party exchanges</li>
         <li>Always verify exchange availability and regulatory status in your country before signing up</li>
+        <li>The guide includes educational information about Bitcoin addresses (Legacy, SegWit, Native SegWit), private keys, seed phrases, passphrases, and multisig — this is <strong>general education, not security advice</strong> for your specific situation</li>
+        <li>Example keys, addresses, and seed phrases shown in the guide are <strong>for illustration only</strong> — never use example keys found online for real funds</li>
     </ul>
 
-    <h2>23. Nacho's Trails & Certifications</h2>
+    <h2>24. Nacho's Trails & Certifications</h2>
     <ul>
         <li>Trail exams test knowledge of curated archive content — questions are not comprehensive Bitcoin certification</li>
         <li>Scholar Certification is an achievement within this site only — it does not constitute a professional credential</li>
@@ -371,7 +386,7 @@
         <li>We reserve the right to revoke certificates obtained through cheating or exploitation</li>
     </ul>
 
-    <h2>24. Bitcoin Buddy</h2>
+    <h2>25. Bitcoin Buddy</h2>
     <ul>
         <li>Bitcoin Buddy is a voluntary matching system — you choose to join the pool</li>
         <li>We match teachers with learners only. Same-goal matching is not supported</li>
@@ -381,7 +396,7 @@
         <li>Unmatched pool entries are deleted after 30 days</li>
     </ul>
 
-    <h2>25. Top Indicators Dashboard</h2>
+    <h2>26. Top Indicators Dashboard</h2>
     <ul>
         <li>All indicators are calculated client-side from publicly available data (CoinGecko API) and are for <strong>educational and informational purposes only</strong></li>
         <li>Indicator values, thresholds, and signals are <strong>not financial advice</strong> and should not be used as the sole basis for investment decisions</li>
@@ -389,7 +404,7 @@
         <li>We make no guarantees about the accuracy, timeliness, or completeness of dashboard data</li>
     </ul>
 
-    <h2>26. Sats Faucet (Claim Sats)</h2>
+    <h2>27. Sats Faucet (Claim Sats)</h2>
     <ul>
         <li>Sats (satoshis) are earned through genuine engagement with the Site's educational content — they are <strong>not purchased, traded, or invested</strong></li>
         <li>The sats faucet is an <strong>educational reward program</strong>, not a financial service. 603BTC LLC is not a money transmitter, bank, or financial institution</li>
@@ -406,13 +421,21 @@
         <li>603BTC LLC makes no representations regarding the future value of Bitcoin or satoshis received through the faucet</li>
     </ul>
     <div class="warn">
-        <strong>⚠️ Anti-Abuse Policy:</strong> We employ device fingerprinting, daily tracking, and behavioral analysis to detect faucet abuse. Violations are taken seriously and may result in permanent exclusion from all reward features, forfeiture of unclaimed points, and account termination.
+        <strong>⚠️ Anti-Abuse Policy:</strong> We employ device fingerprinting, IP-based rate limiting, server-side point validation, and behavioral analysis to detect faucet abuse. Specific protections include:
+        <ul style="margin-top:8px;margin-bottom:0;">
+            <li><strong>Device fingerprinting</strong> — a hashed hardware/canvas fingerprint is generated at claim time to detect multiple accounts on the same device (max 2 accounts per device)</li>
+            <li><strong>IP rate limiting</strong> — claims from the same IP address across multiple accounts are flagged and may be blocked (max 3 accounts per IP, 2-hour cross-account cooldown)</li>
+            <li><strong>Server-side point enforcement</strong> — all point awards are processed through Firebase Cloud Functions with atomic transactions. The 500 pts/day cap is enforced server-side and cannot be bypassed by client modification</li>
+            <li><strong>Points sanity check</strong> — total points are validated against account age using immutable Firebase Auth metadata. Impossibly high balances are flagged for review</li>
+            <li><strong>Invoice replay protection</strong> — Lightning invoices are SHA-256 hashed and deduplicated. Each invoice can only be used once</li>
+        </ul>
+        <p style="margin-top:8px;margin-bottom:0;">Violations are taken seriously and may result in permanent exclusion from all reward features, forfeiture of unclaimed points, and account termination.</p>
     </div>
 
-    <h2>27. Disclaimer</h2>
+    <h2>28. Disclaimer</h2>
     <p>The Site is provided "as is" without warranties of any kind. Content on the Site is for <strong>educational purposes only</strong> and does not constitute financial, investment, tax, or legal advice. Live price data, fee estimates, market indicators, and cycle signals are for informational purposes only. LightningMart transactions are between users — we provide no warranties regarding listed items. Exchange recommendations and referral links are not endorsements. Always do your own research before making any financial decisions.</p>
 
-    <h2>28. Limitation of Liability</h2>
+    <h2>29. Limitation of Liability</h2>
     <p>Bitcoin Education Archive and its operators shall not be liable for any damages arising from your use of the Site, including but not limited to:</p>
     <ul>
         <li>Loss of data or account information</li>
@@ -423,16 +446,16 @@
         <li>Any decisions made based on information presented on the Site</li>
     </ul>
 
-    <h2>29. Privacy</h2>
+    <h2>30. Privacy</h2>
     <p>We collect minimal data to power your experience. We do <strong>not</strong> sell, share, or monetize your data. For full details, see our <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</p>
 
-    <h2>30. Third-Party Links</h2>
+    <h2>31. Third-Party Links</h2>
     <p>The Site contains links to third-party websites. We are not responsible for the content, accuracy, or practices of external sites. Visiting linked sites is at your own risk.</p>
 
-    <h2>31. Changes to Terms</h2>
+    <h2>32. Changes to Terms</h2>
     <p>We may update these Terms at any time. Continued use of the Site after changes constitutes acceptance of the updated Terms. We will note the "Last updated" date at the top of this page.</p>
 
-    <h2>32. Contact</h2>
+    <h2>33. Contact</h2>
     <p>Questions about these Terms? Reach out via the Support button on the Site or email <a href="mailto:needcreations@gmail.com">needcreations@gmail.com</a>.</p>
 
     <hr class="divider">
