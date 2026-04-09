@@ -276,6 +276,86 @@ window.renderFirstPurchase = function() {
         SELF_CUSTODY_WALLETS.filter(function(w) { return w.hardware; }).forEach(function(w) {
             html += _walletCard(w);
         });
+        // ---- Keys & Addresses Education ----
+        html += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">' +
+            '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:12px;">🔑 UNDERSTANDING KEYS & ADDRESSES</div>' +
+
+            // Public address explanation
+            '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+                '<div style="font-weight:700;font-size:0.9rem;color:var(--heading);margin-bottom:8px;">📬 Public Address <span style="color:#22c55e;font-size:0.7rem;">SAFE TO SHARE</span></div>' +
+                '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                    'A public address is like your email address — you give it to people so they can send you Bitcoin. Anyone can see the balance, but <strong>nobody can spend from it</strong> without the private key.' +
+                '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:6px;">EXAMPLE ADDRESSES:</div>' +
+                '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Legacy (P2PKH) — starts with 1</div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</div>' +
+                '</div>' +
+                '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">SegWit (P2SH) — starts with 3</div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy</div>' +
+                '</div>' +
+                '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;">' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Native SegWit (Bech32) — starts with bc1q <span style="color:#22c55e;">✓ Most common today</span></div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq</div>' +
+                '</div>' +
+            '</div>' +
+
+            // Private key explanation
+            '<div style="background:var(--card-bg);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+                '<div style="font-weight:700;font-size:0.9rem;color:var(--heading);margin-bottom:8px;">🔐 Private Key <span style="color:#ef4444;font-size:0.7rem;">⚠️ NEVER SHARE</span></div>' +
+                '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                    'A private key is the <strong>password to your Bitcoin</strong>. Anyone who has it can spend your coins. It\'s a long random number, usually shown in one of these formats:' +
+                '</div>' +
+                '<div style="background:rgba(239,68,68,0.06);border-radius:8px;padding:10px 12px;margin-bottom:6px;">' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">WIF Format (Wallet Import Format) — starts with 5, K, or L</div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ</div>' +
+                '</div>' +
+                '<div style="background:rgba(239,68,68,0.06);border-radius:8px;padding:10px 12px;">' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Hex Format (raw 256-bit number)</div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</div>' +
+                '</div>' +
+                '<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border-radius:8px;font-size:0.78rem;color:#ef4444;font-weight:600;">⚠️ These are <em>examples only</em> — never use a private key you found online!</div>' +
+            '</div>' +
+
+            // Seed phrase explanation
+            '<div style="background:var(--card-bg);border:1px solid rgba(234,179,8,0.3);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+                '<div style="font-weight:700;font-size:0.9rem;color:var(--heading);margin-bottom:8px;">📝 Seed Phrase (Recovery Words) <span style="color:#eab308;font-size:0.7rem;">⚠️ NEVER SHARE</span></div>' +
+                '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
+                    'Instead of remembering a long private key, wallets generate a <strong>seed phrase</strong> — 12 or 24 random English words that represent ALL your private keys. One seed phrase can generate unlimited addresses.' +
+                '</div>' +
+                '<div style="background:rgba(234,179,8,0.06);border-radius:8px;padding:12px;margin-bottom:10px;">' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:8px;">EXAMPLE 12-WORD SEED (BIP-39):</div>' +
+                    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;">' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">1. abandon</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">2. ability</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">3. able</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">4. about</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">5. above</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">6. absent</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">7. absorb</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">8. abstract</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">9. absurd</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">10. abuse</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">11. access</span>' +
+                        '<span style="font-family:monospace;font-size:0.75rem;color:var(--text);background:rgba(0,0,0,0.3);padding:4px 6px;border-radius:4px;text-align:center;">12. accident</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:8px;">' +
+                    '<strong style="color:var(--accent);">How to protect your seed phrase:</strong>' +
+                '</div>' +
+                '<div style="color:var(--text);font-size:0.8rem;line-height:1.8;">' +
+                    '✍️ Write it on <strong>paper</strong> (or stamp it on metal for fire/water protection)<br>' +
+                    '🚫 <strong>Never</strong> type it into a website, screenshot it, or store it digitally<br>' +
+                    '🏦 Store it in a <strong>safe, private location</strong> — not your phone, not the cloud<br>' +
+                    '📋 Make a <strong>backup copy</strong> and store it in a separate physical location<br>' +
+                    '🤐 <strong>Never share it</strong> with anyone — no wallet company will ever ask for it' +
+                '</div>' +
+                '<div style="margin-top:10px;padding:8px 10px;background:rgba(234,179,8,0.08);border-radius:8px;font-size:0.78rem;color:#eab308;font-weight:600;">⚠️ This is an example only! Your wallet will generate a unique seed phrase for you.</div>' +
+            '</div>' +
+
+        '</div>';
+
         html += '<div style="margin-top:12px;"><a href="#" onclick="event.preventDefault();if(typeof go===\'function\'){goHome();setTimeout(function(){go(\'self-custody\')},300)}" style="color:var(--accent);font-size:0.82rem;font-weight:600;">📖 Read more about self-custody in the archive →</a></div>';
         html += _navButtons(3);
     }
@@ -373,6 +453,43 @@ window.renderFirstPurchase = function() {
     var mainEl = document.getElementById('main');
     if (mainEl) mainEl.scrollTop = 0;
     window.scrollTo(0, 0);
+
+    // ---- Swipe navigation between steps ----
+    var _fpSwipeX0 = null;
+    var _fpSwipeY0 = null;
+    var _fpSwiping = false;
+    var fpContainer = fc.querySelector('div');
+    if (fpContainer) {
+        fpContainer.addEventListener('touchstart', function(e) {
+            if (e.touches.length !== 1) return;
+            _fpSwipeX0 = e.touches[0].clientX;
+            _fpSwipeY0 = e.touches[0].clientY;
+            _fpSwiping = false;
+        }, { passive: true });
+        fpContainer.addEventListener('touchmove', function(e) {
+            if (_fpSwipeX0 === null) return;
+            var dx = Math.abs(e.touches[0].clientX - _fpSwipeX0);
+            var dy = Math.abs(e.touches[0].clientY - _fpSwipeY0);
+            if (dx > dy && dx > 15) _fpSwiping = true;
+        }, { passive: true });
+        fpContainer.addEventListener('touchend', function(e) {
+            if (_fpSwipeX0 === null || !_fpSwiping) { _fpSwipeX0 = null; return; }
+            var endX = e.changedTouches[0].clientX;
+            var diff = endX - _fpSwipeX0;
+            _fpSwipeX0 = null;
+            _fpSwiping = false;
+            var curStep = getStep();
+            var maxStep = STEPS.length - 1;
+            if (diff < -60 && curStep < maxStep) {
+                // Swipe left → next step (only if not on region select without selection)
+                if (curStep === 0 && !localStorage.getItem('btc_fp_region')) return;
+                _fpNav(curStep + 1);
+            } else if (diff > 60 && curStep > 0) {
+                // Swipe right → previous step
+                _fpNav(curStep - 1);
+            }
+        }, { passive: true });
+    }
 };
 
 function _stepHeader(step) {
