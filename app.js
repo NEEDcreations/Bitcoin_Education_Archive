@@ -7,8 +7,8 @@
     var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho'];
     window._cleanUrl = function(id) {
         if (!id) return '/';
-        if (_SEO_APP_PAGES.indexOf(id) !== -1) return '/app/' + id;
-        return '/channels/' + id;
+        // Use hash routes for pushState (safe for GitHub Pages — no 404 on refresh)
+        return '#' + id;
     };
     // Parse clean URL on page load
     window._parseCleanUrl = function() {
