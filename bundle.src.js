@@ -14825,7 +14825,7 @@ setTimeout(function() {
         getGlobalPredictionStats(function(stats) {
             if (stats && stats.total) {
                 var pct = Math.round((stats.correct / stats.total) * 100);
-                lines.unshift('🌍 ' + pct + '% community');
+                lines.unshift('🌍 ' + pct + '% community accuracy');
             }
             // User stats
             if (typeof currentUser !== 'undefined' && currentUser && currentUser.predictions && currentUser.predictions.total) {
