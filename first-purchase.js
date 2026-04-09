@@ -311,9 +311,19 @@ window.renderFirstPurchase = function() {
                 'You\'ve bought Bitcoin, moved it to your own wallet, and set up Lightning.<br>' +
                 'Welcome to the hardest money humanity has ever created. 🧡' +
             '</p>' +
-            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;">' +
                 '<button onclick="if(typeof go===\'function\')go(\'trails\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">🦌 Continue Learning</button>' +
                 '<button onclick="goHome()" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">🏠 Home</button>' +
+            '</div>' +
+            '<div style="border-top:1px solid var(--border);padding-top:20px;">' +
+                '<div style="color:var(--text-faint);font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:10px;text-align:center;">📖 Review Steps</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">' +
+                    '<button onclick="_fpSaveStep(0);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🌍 Region</button>' +
+                    '<button onclick="_fpSaveStep(1);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">📱 Download App</button>' +
+                    '<button onclick="_fpSaveStep(2);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">💰 Buy Bitcoin</button>' +
+                    '<button onclick="_fpSaveStep(3);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔐 Self-Custody</button>' +
+                    '<button onclick="_fpSaveStep(4);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +
+                '</div>' +
             '</div>' +
         '</div>';
 
