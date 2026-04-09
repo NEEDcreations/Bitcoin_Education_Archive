@@ -72,15 +72,44 @@ function getHashTargets() {
 }
 
 // Profanity filter
-var BAD_WORDS = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo','kill yourself','kys',
-    'ass','bastard','slut','whore','penis','vagina','anal','cum','jizz','dildo','tits','boob','nude','naked','milf','orgasm','molest','wank','twat','piss','skank','thot',
-    'onlyfans','xnxx','pornhub','xvideos','suicide','terrorist','jihad','stfu','gtfo','incel'];
+var BAD_WORDS = [
+    // Profanity
+    'fuck','shit','bitch','dick','cock','pussy','cunt','ass','bastard','slut','whore','penis','vagina','anal','cum','jizz','dildo','tits','boob','nude','naked','milf','orgasm','molest','wank','twat','piss','skank','thot','stfu','gtfo','incel',
+    // Hate speech / racism
+    'nigger','nigga','fag','faggot','retard','retarded','nazi','hitler','kkk','spic','wetback','chink','gook','kike','towelhead','raghead','beaner','cracker','honky','coon','darkie','zipperhead','gringo','jap','paki','wop','dago',
+    // Violence / threats
+    'kill yourself','kys','rape','pedo','suicide','terrorist','jihad','murder','genocide','lynch','ethnic cleansing','gas the','death to',
+    // Hate phrases
+    'white power','white supremacy','heil','sieg heil','race war','great replacement','final solution','go back to your country','build the wall','deport them','they will not replace',
+    // Religious hate
+    'islamophob','christophob','antisemit','anti semit','zionist pig','crusade against','infidel','kafir','heathen scum','god hates',
+    // Political extremism
+    'maga','trump','biden','democrat','republican','liberal','conservative','left wing','right wing','antifa','proud boys','qanon','wwg1wga','lets go brandon','fjb','fjb',
+    // Discrimination phrases
+    'all cops','acab','defund','illegal alien','anchor baby',
+    // Adult content
+    'onlyfans','xnxx','pornhub','xvideos','porn','hentai'
+];
+
+// Hate/political phrase detection (multi-word patterns checked separately)
+var HATE_PHRASES = ['kill yourself','white power','white supremacy','sieg heil','race war','great replacement','final solution','go back to your country','build the wall','death to','gas the','ethnic cleansing','god hates','they will not replace','lets go brandon'];
 function containsProfanity(text) {
     var lower = text.toLowerCase().replace(/[0-9@$!*_\-]/g, function(c) {
         return {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i','*':''}[c] || c;
     });
+    // Check multi-word hate phrases first
+    for (var p = 0; p < HATE_PHRASES.length; p++) {
+        if (lower.includes(HATE_PHRASES[p])) return true;
+    }
+    // Check individual bad words
+    var words = lower.split(/\s+/);
     for (var i = 0; i < BAD_WORDS.length; i++) {
-        if (lower.includes(BAD_WORDS[i])) return true;
+        // Exact word match
+        for (var w = 0; w < words.length; w++) {
+            if (words[w] === BAD_WORDS[i]) return true;
+        }
+        // Embedded match for longer words (4+ chars)
+        if (BAD_WORDS[i].length >= 4 && lower.includes(BAD_WORDS[i])) return true;
     }
     return false;
 }

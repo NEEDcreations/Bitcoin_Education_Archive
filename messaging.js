@@ -52,6 +52,11 @@ var BLOCKED_CONTENT = [
     /(?:child|minor|underage).*(?:porn|nude|nsfw)/i,
     /(?:kill|murder|attack|bomb|shoot).*(?:yourself|someone|them|people|school)/i,
     /\b(?:doxx|doxing|swat)\b/i,
+    // Hate speech / racism
+    /\b(?:nigger|nigga|faggot|kike|spic|wetback|chink|gook|towelhead|raghead|beaner|coon|darkie|zipperhead)\b/i,
+    /\b(?:white\s*power|white\s*supremacy|sieg\s*heil|race\s*war|ethnic\s*cleansing|final\s*solution)\b/i,
+    /\b(?:gas\s*the|death\s*to)\s+\w+/i,
+    /\b(?:heil\s*hitler|genocide)\b/i,
 ];
 
 // PII solicitation patterns (asking for or sharing personal info)

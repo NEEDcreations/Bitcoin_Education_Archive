@@ -1526,13 +1526,19 @@ window.syncCelebratedState = function() {
 
 // Profanity filter
 const PROFANITY_LIST = [
+    // Profanity
     'fuck','shit','ass','bitch','dick','cock','pussy','cunt','damn','hell',
-    'bastard','slut','whore','fag','nigger','nigga','retard','penis','vagina',
+    'bastard','slut','whore','fag','faggot','nigger','nigga','retard','retarded','penis','vagina',
     'porn','sex','anal','cum','jizz','dildo','tits','boob','nude','naked',
     'hentai','milf','orgasm','erect','molest','rape','pedo','nazi','hitler',
     'kkk','jihad','terrorist','kill','murder','suicide','die','stfu','gtfo',
     'wank','twat','bollocks','arse','shag','piss','crap','douche','skank',
-    'thot','incel','simp','onlyfans','xnxx','pornhub','xvideos'
+    'thot','incel','simp','onlyfans','xnxx','pornhub','xvideos',
+    // Racial slurs
+    'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie','zipperhead','jap','paki','wop','dago',
+    // Hate/political (blocked in usernames too)
+    'maga','trump','biden','democrat','republican','antifa','qanon','wwg1wga','acab',
+    'supremacy','genocide','lynch'
 ];
 
 function containsProfanity(str) {
