@@ -1801,6 +1801,7 @@ async function awardVisitPoints() {
     }
     
     if (bonusTickets > 0) {
+        if (typeof notifySelfStreak === 'function') notifySelfStreak(newStreak);
         setTimeout(function() {
             showToast('🔥 STREAK MILESTONE! Day ' + newStreak + ': Earned +' + bonusTickets + ' Bonus Tickets! 🎟️');
         }, 3500);
@@ -5244,6 +5245,7 @@ window.submitSatsClaim = async function() {
             document.getElementById('satsClaimOverlay').remove();
             window._satsClaimInProgress = false;
 
+            if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
             // Fun celebration popup + confetti
             if (typeof launchConfetti === 'function') launchConfetti();
             var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
@@ -14158,6 +14160,11 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     convoData.participantNames[myUid] = myName;
     convoData.participantNames[recipientUid] = recipientName;
     convoData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+
+    // Notify recipient of new DM
+    if (typeof sendNotification === 'function') {
+        sendNotification(recipientUid, 'dm', '💬 New message from @' + myName, 'dm', convoId);
+    }
 
     // Update conversation metadata + add message
     convoRef.set(convoData, { merge: true }).then(function() {

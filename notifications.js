@@ -127,7 +127,7 @@ window.showNotifications = async function() {
             var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
             var timeStr = n.createdAt && n.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(n.createdAt.toDate()) : n.createdAt.toDate().toLocaleDateString()) : '';
             var isUnread = !n.read;
-            var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔' };
+            var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️' };
             var icon = icons[n.type] || '🔔';
 
             html += '<div style="padding:10px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\')">' +
@@ -310,7 +310,7 @@ window.renderNotifList = async function() {
         }
 
         var html = '';
-        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔' };
+        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️' };
         snap.forEach(function(doc) {
             var n = doc.data();
             var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
@@ -538,3 +538,122 @@ if (typeof auth !== 'undefined' && auth) {
         }
     });
 }
+
+// ---- Additional notification helpers ----
+
+// Notify on sats claim
+window.notifySelfSatsClaim = function(amount) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'sats',
+        message: '⚡ You claimed ' + amount + ' sats! Check your Lightning wallet.',
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify on forum reply to your post
+window.notifyForumReply = function(recipientId, replierName, postTitle, postId) {
+    if (!auth || !auth.currentUser || recipientId === auth.currentUser.uid) return;
+    db.collection('notifications').add({
+        recipientId: recipientId,
+        senderId: auth.currentUser.uid,
+        senderName: replierName || 'Someone',
+        type: 'reply',
+        message: '💬 @' + (replierName || 'Someone') + ' replied to your post: "' + (postTitle || '').substring(0, 50) + '"',
+        targetType: 'forum_post', targetId: postId || null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify on forum upvote
+window.notifyForumUpvote = function(recipientId, voterName, postTitle, postId) {
+    if (!auth || !auth.currentUser || recipientId === auth.currentUser.uid) return;
+    db.collection('notifications').add({
+        recipientId: recipientId,
+        senderId: auth.currentUser.uid,
+        senderName: voterName || 'Someone',
+        type: 'upvote',
+        message: '👍 @' + (voterName || 'Someone') + ' upvoted your post: "' + (postTitle || '').substring(0, 50) + '"',
+        targetType: 'forum_post', targetId: postId || null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify artist on song comment
+window.notifySongComment = function(artistUid, commenterName, songTitle, songId) {
+    if (!auth || !auth.currentUser || artistUid === auth.currentUser.uid) return;
+    db.collection('notifications').add({
+        recipientId: artistUid,
+        senderId: auth.currentUser.uid,
+        senderName: commenterName || 'Someone',
+        type: 'comment',
+        message: '💬 @' + (commenterName || 'Someone') + ' commented on your track: "' + (songTitle || '').substring(0, 40) + '"',
+        targetType: 'song', targetId: songId || null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify artist on song like
+window.notifySongLike = function(artistUid, likerName, songTitle, songId) {
+    if (!auth || !auth.currentUser || artistUid === auth.currentUser.uid) return;
+    db.collection('notifications').add({
+        recipientId: artistUid,
+        senderId: auth.currentUser.uid,
+        senderName: likerName || 'Someone',
+        type: 'like',
+        message: '❤️ @' + (likerName || 'Someone') + ' liked your track: "' + (songTitle || '').substring(0, 40) + '"',
+        targetType: 'song', targetId: songId || null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify on DM received
+window.notifyDMReceived = function(recipientId, senderName) {
+    if (!auth || !auth.currentUser || recipientId === auth.currentUser.uid) return;
+    db.collection('notifications').add({
+        recipientId: recipientId,
+        senderId: auth.currentUser.uid,
+        senderName: senderName || 'Someone',
+        type: 'dm',
+        message: '💬 New message from @' + (senderName || 'Someone'),
+        targetType: 'dm', targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify on daily streak milestone
+window.notifySelfStreak = function(streakDays) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'streak',
+        message: '🔥 ' + streakDays + '-day streak! Keep it going!',
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
+// Notify on exploration milestone
+window.notifySelfExploration = function(channelCount, pct) {
+    if (!auth || !auth.currentUser) return;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'milestone',
+        message: '🗺️ Explored ' + channelCount + ' channels (' + pct + '%)! Keep discovering!',
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};

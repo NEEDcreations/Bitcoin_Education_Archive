@@ -798,6 +798,11 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     convoData.participantNames[recipientUid] = recipientName;
     convoData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
+    // Notify recipient of new DM
+    if (typeof sendNotification === 'function') {
+        sendNotification(recipientUid, 'dm', '💬 New message from @' + myName, 'dm', convoId);
+    }
+
     // Update conversation metadata + add message
     convoRef.set(convoData, { merge: true }).then(function() {
         return convoRef.collection('messages').add(msgData);
