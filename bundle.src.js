@@ -3769,47 +3769,61 @@ function showSettingsPage(tab) {
         html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
         html += '</button>';
         html += '<div id="earnPointsContent" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">📚 Reading & Exploring</strong><br>';
-        html += '• 📖 Open a channel: <strong>10 pts</strong><br>';
-        html += '• ⏱️ Read for 30 sec: <strong>15 pts</strong><br>';
-        html += '• 🧭 Explore 10+ channels/session: <strong>50 pts</strong><br>';
-        html += '• 🗺️ Exploration milestones: <strong>50-500 pts</strong> (25/50/75/100%)<br><br>';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">✅ Daily Activities</strong><br>';
-        html += '• ✅ Daily visit: <strong>5 pts</strong><br>';
-        html += '• 🔥 Streak bonus: <strong>100 pts/day</strong><br>';
-        html += '• 🎰 Daily spin: <strong>10-50 pts</strong> (if you land on points)<br>';
-        html += '• 📈 Price prediction: <strong>5 pts</strong> (25 if correct!)<br><br>';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">🧠 Quizzes & Learning</strong><br>';
-        html += '• 🎯 Daily quests (perfect): <strong>100 pts</strong> (50 for 3+, 25 retry)<br>';
-        html += '• 🧠 Nacho trivia pop-ups: <strong>10-15 pts</strong><br>';
-        html += '• 🎮 Channel quizzes: <strong>10 pts</strong><br>';
-        html += '• 🎯 Conversation quests: <strong>5 pts/correct</strong><br>';
-        html += '• 📖 Nacho\'s Trails chapters: <strong>25-50 pts</strong> (100 for completing all)<br>';
-        html += '• 📖 Nacho\'s Story chapters: <strong>15 pts</strong> (50 final, 100 all)<br><br>';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">💬 Community & Social</strong><br>';
-        html += '• 📝 Forum post: <strong>10 pts</strong><br>';
-        html += '• 💬 Forum reply: <strong>5 pts</strong><br>';
-        html += '• 📝 Publish article: <strong>30 pts</strong><br>';
-        html += '• 📖 Read an article: <strong>5 pts</strong><br>';
-        html += '• 💬 Article comment: <strong>5 pts</strong><br>';
-        html += '• 🌍 Global Chat message: <strong>5 pts</strong><br>';
-        html += '• 🔥 Chat streaks: <strong>10-25 pts</strong> (3-day / 7-day)<br>';
-        html += '• 🤝 Host IRL event: <strong>15 pts</strong><br><br>';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">🎵 Music & Content</strong><br>';
-        html += '• 🎵 Upload a song: <strong>50 pts</strong><br>';
-        html += '• 🎧 Listen to full track: <strong>10 pts</strong><br>';
-        html += '• 💬 Comment on Beats: <strong>10 pts</strong><br><br>';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">⚔️ PVP & Competitions</strong><br>';
-        html += '• ⚔️ PVP victory: <strong>score-based pts</strong><br>';
-        html += '• 🧠 PVP practice: <strong>10 pts/correct</strong><br>';
-        html += '• 🏅 PVP badges: <strong>25-500 pts</strong><br><br>';
-        html += '<strong style="color:var(--text);font-size:0.8rem;">🏆 Big Achievements</strong><br>';
-        html += '• 🎓 Scholar Certification: <strong>2,100 pts</strong><br>';
-        html += '• 🛒 First Purchase guide: <strong>100 pts</strong><br>';
-        html += '• ⚡ Lightning wallet setup: <strong>100 pts</strong><br>';
-        html += '• 🎤 Music badges (Producer/Discographer): <strong>50-100 pts</strong><br>';
-        html += '• 🔑 Hidden badges: <strong>varies</strong><br>';
-        html += '• 💬 Feedback bonus: <strong>5 pts</strong><br>';
+        var _es = function(id, title, items) {
+            return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
+                '<button onclick="var c=document.getElementById(\'' + id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
+                '<span class="ea" style="color:var(--text-faint);font-size:0.7rem;">▶</span>' +
+                '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + title + '</span></button>' +
+                '<div id="' + id + '" style="display:none;padding:8px 12px 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.7;">' + items.join('<br>') + '</div></div>';
+        };
+        html += _es('ep_read', '📚 Reading & Exploring', [
+            '📖 Open a channel: <strong>10 pts</strong>',
+            '⏱️ Read for 30 sec: <strong>15 pts</strong>',
+            '🧭 Explore 10+ channels/session: <strong>50 pts</strong>',
+            '🗺️ Exploration milestones: <strong>50-500 pts</strong>'
+        ]);
+        html += _es('ep_daily', '✅ Daily Activities', [
+            '✅ Daily visit: <strong>5 pts</strong>',
+            '🔥 Streak bonus: <strong>100 pts/day</strong>',
+            '🎰 Daily spin: <strong>10-50 pts</strong>',
+            '📈 Price prediction: <strong>5 pts</strong> (25 if correct!)'
+        ]);
+        html += _es('ep_quiz', '🧠 Quizzes & Learning', [
+            '🎯 Daily quests (perfect): <strong>100 pts</strong> (50 for 3+, 25 retry)',
+            '🧠 Nacho trivia pop-ups: <strong>10-15 pts</strong>',
+            '🎮 Channel quizzes: <strong>10 pts</strong>',
+            '🎯 Conversation quests: <strong>5 pts/correct</strong>',
+            '📖 Nacho\'s Trails chapters: <strong>25-50 pts</strong> (100 for all)',
+            '📖 Nacho\'s Story chapters: <strong>15 pts</strong> (50 final, 100 all)'
+        ]);
+        html += _es('ep_social', '💬 Community & Social', [
+            '📝 Forum post: <strong>10 pts</strong>',
+            '💬 Forum reply: <strong>5 pts</strong>',
+            '📝 Publish article: <strong>30 pts</strong>',
+            '📖 Read an article: <strong>5 pts</strong>',
+            '💬 Article comment: <strong>5 pts</strong>',
+            '🌍 Global Chat message: <strong>5 pts</strong>',
+            '🔥 Chat streaks: <strong>10-25 pts</strong> (3-day / 7-day)',
+            '🤝 Host IRL event: <strong>15 pts</strong>'
+        ]);
+        html += _es('ep_music', '🎵 Music & Content', [
+            '🎵 Upload a song: <strong>50 pts</strong>',
+            '🎧 Listen to full track: <strong>10 pts</strong>',
+            '💬 Comment on Beats: <strong>10 pts</strong>'
+        ]);
+        html += _es('ep_pvp', '⚔️ PVP & Competitions', [
+            '⚔️ PVP victory: <strong>score-based pts</strong>',
+            '🧠 PVP practice: <strong>10 pts/correct</strong>',
+            '🏅 PVP badges: <strong>25-500 pts</strong>'
+        ]);
+        html += _es('ep_big', '🏆 Big Achievements', [
+            '🎓 Scholar Certification: <strong>2,100 pts</strong>',
+            '🛒 First Purchase guide: <strong>100 pts</strong>',
+            '⚡ Lightning wallet setup: <strong>100 pts</strong>',
+            '🎤 Music badges: <strong>50-100 pts</strong>',
+            '🔑 Hidden badges: <strong>varies</strong>',
+            '💬 Feedback bonus: <strong>5 pts</strong>'
+        ]);
         html += '</div></div>';
 
         // Withdrawal history placeholder
