@@ -1726,6 +1726,16 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     if (typeof onUserLoadedTickets === 'function') onUserLoadedTickets();
     // Initialize messaging
     if (typeof initMessaging === 'function') initMessaging();
+    // Process pending buddy match from anonymous onboarding
+    try {
+        var _pendingBuddy = JSON.parse(localStorage.getItem('btc_buddy_pending') || 'null');
+        if (_pendingBuddy && _pendingBuddy.goal) {
+            localStorage.removeItem('btc_buddy_pending');
+            if (typeof _submitBuddyFromOnboarding === 'function') {
+                setTimeout(function() { _submitBuddyFromOnboarding(_pendingBuddy.level || 'beginner', _pendingBuddy.goal); }, 2000);
+            }
+        }
+    } catch(e) {}
 }
 
 async function awardVisitPoints() {

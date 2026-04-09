@@ -138,12 +138,11 @@ window.showOnboardingWizard = function() {
         }, 400);
     }
 
-    function _submitBuddyFromOnboarding(level, goal) {
-        // Delay to let auth settle (user may be anonymous or just signed in)
+    window._submitBuddyFromOnboarding = function(level, goal) {
+        // Delay to let auth settle
         setTimeout(function() {
             if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return;
             var _auth = firebase.auth();
-            // If not signed in, sign in anonymously first
             var doSubmit = function() {
                 var user = _auth.currentUser;
                 if (!user) return;
@@ -151,8 +150,16 @@ window.showOnboardingWizard = function() {
                 var uid = user.uid;
                 var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'New Bitcoiner';
                 var tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+                var isAnon = user.isAnonymous;
 
-                // Check for existing match first
+                // If anonymous, save preference locally — match when they sign up
+                if (isAnon) {
+                    localStorage.setItem('btc_buddy_pending', JSON.stringify({ level: level, goal: goal, tz: tz }));
+                    if (typeof showToast === 'function') showToast('🤝 Buddy preference saved! Sign up to get matched with a ' + (goal === 'learn' ? 'teacher' : 'learner') + '.', 6000);
+                    return;
+                }
+
+                // Real user — search pool for complement
                 _db.collection('buddy_pool').limit(50).get().then(function(snap) {
                     var match = null;
                     var complementaryGoal = goal === 'learn' ? 'teach' : 'learn';
@@ -166,20 +173,67 @@ window.showOnboardingWizard = function() {
                     if (match) {
                         // Instant match!
                         _db.collection('buddy_pool').doc(match.id).delete();
-                        _db.collection('buddy_matches').add({
-                            user1: { uid: uid, username: username, level: level, goal: goal, intro: 'Joined via onboarding' },
-                            user2: { uid: match.data.uid, username: match.data.username, level: match.data.level, goal: match.data.goal, intro: match.data.intro || '' },
+                        var matchDoc = {
+                            user1: { uid: uid, username: username, level: level, goal: goal },
+                            user2: { uid: match.data.uid, username: match.data.username, level: match.data.level, goal: match.data.goal },
                             matchedAt: firebase.firestore.FieldValue.serverTimestamp(),
                             tz1: tz, tz2: match.data.tz || 'Unknown'
-                        });
-                        if (typeof showToast === 'function') showToast('🤝 Buddy matched! Check your DMs to say hi to ' + match.data.username + '!', 6000);
+                        };
+                        _db.collection('buddy_matches').add(matchDoc);
+
+                        // Award points to both
                         if (typeof awardPoints === 'function') awardPoints(20, '🤝 Bitcoin Buddy match!');
-                        // Open DM
+
+                        // Notify BOTH users
+                        if (typeof sendNotification === 'function') {
+                            sendNotification(match.data.uid, 'buddy', '🤝 You\'ve been matched with @' + username + '! Check your DMs to start learning together.', 'buddy_match', null);
+                        }
+                        _db.collection('notifications').add({
+                            recipientId: uid,
+                            senderId: 'system', senderName: 'Nacho 🦌',
+                            type: 'buddy',
+                            message: '🤝 You\'ve been matched with @' + match.data.username + '! Check your DMs.',
+                            read: false,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(function() {});
+
+                        if (typeof showToast === 'function') showToast('🤝 Buddy matched with ' + match.data.username + '! Opening DMs...', 6000);
+
+                        // Create a DM conversation with a Nacho welcome message
+                        var convoId = [uid, match.data.uid].sort().join('_');
+                        var convoData = {
+                            participants: [uid, match.data.uid],
+                            lastMessage: '🦌 Hey! I\'m Nacho, and I matched you two as Bitcoin Buddies! ' + username + ' wants to ' + goal + ' and ' + match.data.username + ' wants to ' + match.data.goal + '. Ask me anything about Bitcoin right here — just type "Hey Nacho" and I\'ll help! Have fun learning together! 🧡',
+                            lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+                            lastSenderUid: 'nacho',
+                            isBuddyMatch: true
+                        };
+                        convoData.participantNames = {};
+                        convoData.participantNames[uid] = username;
+                        convoData.participantNames[match.data.uid] = match.data.username;
+                        var convoRef = _db.collection('dm_conversations').doc(convoId);
+                        convoRef.set(convoData, { merge: true }).then(function() {
+                            // Add Nacho's welcome message
+                            return convoRef.collection('messages').add({
+                                senderUid: 'nacho',
+                                senderName: 'Nacho 🦌',
+                                text: '🦌 Hey! I\'m Nacho, and I matched you two as Bitcoin Buddies!\n\n' +
+                                    '👤 @' + username + ' wants to ' + goal + '\n' +
+                                    '👤 @' + match.data.username + ' wants to ' + match.data.goal + '\n\n' +
+                                    'Ask me anything about Bitcoin right here — just start your message with "Hey Nacho" and I\'ll jump in! 🧡\n\n' +
+                                    'Pro tip: Start with "What is Bitcoin?" if you\'re brand new, or "Explain the Lightning Network" if you want to go deeper!',
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                isSystem: true
+                            });
+                        }).catch(function(e) { console.error('[BUDDY] DM create error:', e); });
+
+                        // Open DM for the current user after a delay
                         setTimeout(function() {
                             if (typeof openDM === 'function') openDM(match.data.uid, match.data.username);
-                        }, 2000);
+                            else if (typeof showInbox === 'function') showInbox();
+                        }, 3000);
                     } else {
-                        // Add to pool
+                        // No match — add to pool
                         _db.collection('buddy_pool').add({
                             uid: uid, username: username, level: level, goal: goal,
                             intro: 'Joined via onboarding', tz: tz,
