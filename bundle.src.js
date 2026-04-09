@@ -807,7 +807,9 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             var userDoc = await db.collection('users').doc(uid).get();
             if (!userDoc.exists || !userDoc.data().username) {
                 var npubShort = 'npub...' + pubkey.substring(0, 8);
-                await db.collection('users').doc(uid).set({ username: npubShort, nostr: pubkey, points: 0, channelsVisited: 0, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0], created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                var _nostrUserData = { username: npubShort, nostr: pubkey, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
+                if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; _nostrUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
+                await db.collection('users').doc(uid).set(_nostrUserData, { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
             }
             loadUser(uid); hideUsernamePrompt();
@@ -910,16 +912,9 @@ window.signInWithLightning = async function() {
                     var userDoc = await db.collection('users').doc(uid).get();
                     if (!userDoc.exists || !userDoc.data().username) {
                         var lnName = '⚡anon-' + k1.substring(0, 8);
-                        await db.collection('users').doc(uid).set({
-                            username: lnName,
-                            authMethod: 'lightning',
-                            points: 0,
-                            channelsVisited: 0,
-                            totalVisits: 1,
-                            streak: 1,
-                            lastVisit: new Date().toISOString().split('T')[0],
-                            created: firebase.firestore.FieldValue.serverTimestamp()
-                        }, { merge: true });
+                        var _lnUserData = { username: lnName, authMethod: 'lightning', totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
+                        if (!userDoc.exists) { _lnUserData.points = 0; _lnUserData.channelsVisited = 0; _lnUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
+                        await db.collection('users').doc(uid).set(_lnUserData, { merge: true });
                         try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                     }
 
