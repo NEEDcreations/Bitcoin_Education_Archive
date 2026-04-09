@@ -193,9 +193,8 @@
 
     // ---- Show minimized banner at top of home ----
     window.showGuideBanner = function() {
-        if (localStorage.getItem(GUIDE_DISMISSED_KEY) === 'permanent') return;
-        var existing = document.getElementById('guideBanner');
-        if (existing) return;
+        // Top banner disabled — the home page "Your Quest Begins" card handles this now
+        return;
 
         var banner = document.createElement('div');
         banner.id = 'guideBanner';
