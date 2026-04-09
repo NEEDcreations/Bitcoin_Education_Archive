@@ -828,7 +828,9 @@
         var BLOCKED = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','faggot','retard','nazi','hitler','kkk','porn','hentai','rape','pedo',
             'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie','jap','paki','wop',
             'slut','whore','cum','dildo','tits','nude','naked','milf','molest','suicide','terrorist','jihad','genocide','lynch',
-            'maga','trump','biden','democrat','republican','antifa','qanon','wwg1wga','supremacy','acab'];
+            'maga','trump','biden','democrat','republican','antifa','qanon','wwg1wga','supremacy','acab',
+            'blowjob','handjob','fingering','masturbat','threesome','gangbang','fetish','bondage','bdsm','kinky','horny',
+            'erection','ejaculat','deepthroat','creampie','cuckold','dominatrix','escort','prostitut','hooker','stripper','camgirl','sexting','nudes'];
         var words = normalized.split(/\s+/);
         for (var i = 0; i < words.length; i++) {
             for (var j = 0; j < BLOCKED.length; j++) {

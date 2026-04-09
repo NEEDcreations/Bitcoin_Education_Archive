@@ -1534,6 +1534,8 @@ const PROFANITY_LIST = [
     'kkk','jihad','terrorist','kill','murder','suicide','die','stfu','gtfo',
     'wank','twat','bollocks','arse','shag','piss','crap','douche','skank',
     'thot','incel','simp','onlyfans','xnxx','pornhub','xvideos',
+    // Sexual content
+    'blowjob','handjob','fingering','masturbat','threesome','gangbang','fetish','bondage','bdsm','kinky','horny','aroused','erection','erectile','climax','ejaculat','deepthroat','rimjob','creampie','cuckold','dominatrix','escort','prostitut','hooker','stripper','camgirl','sexting','nudes','twerk',
     // Racial slurs
     'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie','zipperhead','jap','paki','wop','dago',
     // Hate/political (blocked in usernames too)

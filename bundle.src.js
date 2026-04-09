@@ -1614,6 +1614,8 @@ const PROFANITY_LIST = [
     'kkk','jihad','terrorist','kill','murder','suicide','die','stfu','gtfo',
     'wank','twat','bollocks','arse','shag','piss','crap','douche','skank',
     'thot','incel','simp','onlyfans','xnxx','pornhub','xvideos',
+    // Sexual content
+    'blowjob','handjob','fingering','masturbat','threesome','gangbang','fetish','bondage','bdsm','kinky','horny','aroused','erection','erectile','climax','ejaculat','deepthroat','rimjob','creampie','cuckold','dominatrix','escort','prostitut','hooker','stripper','camgirl','sexting','nudes','twerk',
     // Racial slurs
     'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie','zipperhead','jap','paki','wop','dago',
     // Hate/political (blocked in usernames too)
@@ -13460,6 +13462,22 @@ var BLOCKED_CONTENT = [
     /\b(?:white\s*power|white\s*supremacy|sieg\s*heil|race\s*war|ethnic\s*cleansing|final\s*solution)\b/i,
     /\b(?:gas\s*the|death\s*to)\s+\w+/i,
     /\b(?:heil\s*hitler|genocide)\b/i,
+    // Threats / violence
+    /\b(?:i\s*(?:will|wanna|gonna|want\s*to)\s*(?:kill|hurt|stab|shoot|beat|attack|find)\s*(?:you|u|him|her|them))\b/i,
+    /\b(?:i\s*know\s*where\s*(?:you|u)\s*live)\b/i,
+    /\b(?:watch\s*your\s*back|you(?:'re|\s*are)\s*dead)\b/i,
+    /\b(?:track\s*(?:you|u)\s*down|come\s*find\s*(?:you|u))\b/i,
+    // Self-harm
+    /\b(?:kill\s*myself|cut(?:ting)?\s*myself|slit\s*my\s*wrist|hang\s*myself|end\s*my\s*life)\b/i,
+    /\b(?:want(?:a)?\s*(?:to\s*)?die|kys|kill\s*yourself)\b/i,
+    /\b(?:self[\s-]*harm|overdose\s*on|jump\s*off\s*a)\b/i,
+    // Sexual content
+    /\b(?:blowjob|handjob|gangbang|threesome|deepthroat|rimjob|creampie)\b/i,
+    /\b(?:send\s*(?:me\s*)?nudes|dick\s*pic|show\s*(?:me\s*)?(?:your|ur)\s*(?:body|tits|boobs|ass|pussy|dick))\b/i,
+    /\b(?:wanna|want\s*to|lets)\s*(?:fuck|bang|screw|bone|smash)\b/i,
+    /\b(?:suck\s*my|sit\s*on\s*my|bend\s*over|get\s*on\s*your\s*knees)\b/i,
+    /\b(?:masturbat|fingering|bondage|bdsm|fetish|dominatrix)\b/i,
+    /\b(?:escort|prostitut|hooker|camgirl|sexting)\b/i,
 ];
 
 // PII solicitation patterns (asking for or sharing personal info)
@@ -23325,7 +23343,9 @@ window.playSpinWin = function() {
         var BLOCKED = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','faggot','retard','nazi','hitler','kkk','porn','hentai','rape','pedo',
             'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie','jap','paki','wop',
             'slut','whore','cum','dildo','tits','nude','naked','milf','molest','suicide','terrorist','jihad','genocide','lynch',
-            'maga','trump','biden','democrat','republican','antifa','qanon','wwg1wga','supremacy','acab'];
+            'maga','trump','biden','democrat','republican','antifa','qanon','wwg1wga','supremacy','acab',
+            'blowjob','handjob','fingering','masturbat','threesome','gangbang','fetish','bondage','bdsm','kinky','horny',
+            'erection','ejaculat','deepthroat','creampie','cuckold','dominatrix','escort','prostitut','hooker','stripper','camgirl','sexting','nudes'];
         var words = normalized.split(/\s+/);
         for (var i = 0; i < words.length; i++) {
             for (var j = 0; j < BLOCKED.length; j++) {
