@@ -460,6 +460,7 @@ function createNacho() {
             position: relative;
             flex-shrink: 0;
             z-index: 2;
+            overflow: hidden;
         }
         #nacho-avatar { -webkit-user-select: none; }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
@@ -652,6 +653,7 @@ function createNacho() {
             transition: none;
             animation: nachoTrailFade 0.8s ease-out forwards;
         }
+        .nacho-trail.stuck-cleanup { display: none !important; }
         @keyframes nachoTrailFade {
             0% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.7; transform: scale(1.3); }
@@ -2387,5 +2389,12 @@ if (document.readyState === 'loading') {
         setTimeout(init, 500);
     }
 })();
+
+// Periodic cleanup: remove any stuck nacho-trail particles older than 2 seconds
+setInterval(function() {
+    document.querySelectorAll('.nacho-trail').forEach(function(el) {
+        el.remove();
+    });
+}, 3000);
 
 })();
