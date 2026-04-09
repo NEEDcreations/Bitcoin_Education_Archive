@@ -72,7 +72,9 @@ function getHashTargets() {
 }
 
 // Profanity filter
-var BAD_WORDS = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo','kill yourself','kys'];
+var BAD_WORDS = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','retard','nazi','hitler','kkk','porn','hentai','rape','pedo','kill yourself','kys',
+    'ass','bastard','slut','whore','penis','vagina','anal','cum','jizz','dildo','tits','boob','nude','naked','milf','orgasm','molest','wank','twat','piss','skank','thot',
+    'onlyfans','xnxx','pornhub','xvideos','suicide','terrorist','jihad','stfu','gtfo','incel'];
 function containsProfanity(text) {
     var lower = text.toLowerCase().replace(/[0-9@$!*_\-]/g, function(c) {
         return {'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i','*':''}[c] || c;
@@ -637,6 +639,12 @@ window.sendGlobalChat = function() {
     // Spam check
     if (isSpammy(text)) {
         if (typeof showToast === 'function') showToast('🚫 Message flagged as spam. Please write normally.');
+        return;
+    }
+
+    // PII check — block phone numbers and email addresses in public chat
+    if (/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(text) || /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) {
+        if (typeof showToast === 'function') showToast('🔒 For your safety, phone numbers and email addresses are not allowed in public chat. Use DMs instead.', 6000);
         return;
     }
 

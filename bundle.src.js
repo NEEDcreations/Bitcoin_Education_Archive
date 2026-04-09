@@ -1616,7 +1616,13 @@ const PROFANITY_LIST = [
 ];
 
 function containsProfanity(str) {
-    const lower = str.toLowerCase().replace(/[^a-z]/g, ' ');
+    // Normalize leet speak and special chars
+    const lower = str.toLowerCase()
+        .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
+        .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't')
+        .replace(/\$/g, 's').replace(/@/g, 'a').replace(/!/g, 'i')
+        .replace(/\*/g, '').replace(/_/g, '').replace(/-/g, '')
+        .replace(/[^a-z\s]/g, ' ');
     const words = lower.split(/\s+/);
     for (const word of words) {
         if (PROFANITY_LIST.includes(word)) return true;
@@ -1663,6 +1669,12 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     // Clear any leftover data from previous users on this browser
     clearUserData();
     username = sanitizeInput(username);
+    // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
+    username = username.replace(/[^\x20-\x7E]/g, '').trim();
+    if (!username || username.length < 2) {
+        showToast('⚠️ Username must be at least 2 characters (letters, numbers, basic symbols only).');
+        return;
+    }
     if (containsProfanity(username)) {
         showToast('⚠️ That username is not allowed. Please choose another.');
         return;
@@ -5049,8 +5061,11 @@ window.setDisplayBadge = function(badgeId) {
 if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) {
     // Read from input if no name passed
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
-    if (!name || name.length < 2) { showToast('Username must be at least 2 characters'); return; }
+    // Strip non-ASCII (prevent Unicode/homoglyph bypass)
+    if (name) name = name.replace(/[^\x20-\x7E]/g, '').trim();
+    if (!name || name.length < 2) { showToast('Username must be at least 2 characters (ASCII only)'); return; }
     if (name.length > 20) { showToast('Username max 20 characters'); return; }
+    if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
     if (typeof isCleanText === 'function' && !isCleanText(name)) { showToast('Username contains inappropriate language'); return; }
     // Save locally always (works for anon too)
     localStorage.setItem('btc_username', name);
