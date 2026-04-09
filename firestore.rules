@@ -12,11 +12,10 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && request.auth.uid == userId
                     // Block client writes to server-managed fields (Cloud Function only via Admin SDK)
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim', 'points']))
-                    // visitedChannelsList: arrayUnion only (can only grow, never shrink)
-                    && (!('visitedChannelsList' in request.resource.data)
-                        || (request.resource.data.visitedChannelsList is list
-                            && request.resource.data.visitedChannelsList.size() >= resource.data.get('visitedChannelsList', []).size()))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                        'pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim',
+                        'points', 'lastAwards', 'created', 'createdAt'
+                    ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
                             && request.resource.data.username.size() >= 3

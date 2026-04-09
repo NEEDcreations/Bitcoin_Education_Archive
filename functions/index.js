@@ -957,70 +957,8 @@ exports.verifyReferral = functions.https.onCall(async (data, context) => {
 });
 
 // =============================================
-// AUDIT FIX: Server-Side Points Validation
-// High-value point awards go through this function
-// Prevents client-side point farming
-// =============================================
-exports.awardPoints = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
-    const uid = context.auth.uid;
-    const reason = data.reason || '';
-    const amount = parseInt(data.amount) || 0;
-    
-    // Define allowed point values per reason
-    const allowedAwards = {
-        'exam_pass': 500,
-        'quest_complete': 200,
-        'referral_bonus': 100,
-        'scholar_cert': 1000,
-        'daily_challenge': 50,
-    };
-    
-    if (!allowedAwards[reason]) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid award reason');
-    }
-    
-    const awardAmount = allowedAwards[reason];
-    
-    // Rate limiting: check last award time for this reason
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
-    
-    const userData = userDoc.data();
-    const now = Date.now();
-    const lastAwards = userData.lastAwards || {};
-    const lastAwardTime = lastAwards[reason] || 0;
-    
-    // Cooldowns per reason
-    const cooldowns = {
-        'exam_pass': 86400000,      // 24 hours
-        'quest_complete': 3600000,   // 1 hour
-        'referral_bonus': 0,         // No cooldown (one-time per referral)
-        'scholar_cert': 86400000,    // 24 hours
-        'daily_challenge': 86400000, // 24 hours
-    };
-    
-    if (now - lastAwardTime < cooldowns[reason]) {
-        throw new functions.https.HttpsError('resource-exhausted', 'Too soon. Try again later.');
-    }
-    
-    // Award points
-    await db.collection('users').doc(uid).update({
-        points: admin.firestore.FieldValue.increment(awardAmount),
-        [`lastAwards.${reason}`]: now
-    });
-    
-    // Log the award for audit trail
-    await db.collection('point_awards').add({
-        uid: uid,
-        reason: reason,
-        amount: awardAmount,
-        ts: admin.firestore.FieldValue.serverTimestamp()
-    });
-    
-    return { success: true, awarded: awardAmount };
-});
+// NOTE: Old allowedAwards-based awardPoints removed — replaced by daily-cap version below (line ~1527)
+// That version enforces 500 pts/day via atomic Firestore transaction in daily_points subcollection
 
 // =============================================
 // AUDIT FIX: Server-Side Daily Limit Check
@@ -1344,14 +1282,13 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             }
 
             // Server-side points sanity check: max 500 pts/day × account age + 2100 (scholar)
-            // If points are impossibly high for account age, flag as suspicious
-            // Field is stored as 'created' by the client (not 'createdAt')
-            const created = (user.created || user.createdAt) ? ((user.created || user.createdAt).toDate ? (user.created || user.createdAt).toDate() : new Date(user.created || user.createdAt)) : null;
-            if (created) {
-                const accountDays = Math.max(1, Math.floor((Date.now() - created.getTime()) / 86400000));
-                const maxReasonablePoints = (accountDays * 500) + 2100; // daily cap × days + scholar cert (no buffer)
+            // Uses Firebase Auth metadata (immutable) — NOT client-writable Firestore field
+            {
+                const authCreation = new Date(userRecord.metadata.creationTime);
+                const accountDays = Math.max(1, Math.floor((Date.now() - authCreation.getTime()) / 86400000));
+                const maxReasonablePoints = (accountDays * 500) + 2100;
                 if (userPoints > maxReasonablePoints) {
-                    console.error('[FAUCET] SUSPICIOUS: uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account');
+                    console.error('[FAUCET] SUSPICIOUS: uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account (auth creation: ' + userRecord.metadata.creationTime + ')');
                     throw new Error('Points balance flagged for review. Contact support.');
                 }
             }
