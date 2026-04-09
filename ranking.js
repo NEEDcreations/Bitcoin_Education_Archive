@@ -1807,9 +1807,23 @@ async function awardPoints(pts, reason) {
         });
         currentUser.points = (currentUser.points || 0) + pts;
     }
-    // Toast for point awards — show for trivia/quiz (5+) and significant awards (25+)
-    if (pts >= 5 || (reason && (reason.indexOf('Trivia') !== -1 || reason.indexOf('trivia') !== -1 || reason.indexOf('🧠') !== -1))) {
-        showToast('+' + pts + ' pts — ' + reason);
+    // Toast for point awards — smart throttle to avoid spam
+    // Always show: big awards (25+), milestones, achievements
+    // Throttle: small repeating awards (read time, chat, channel open) — max 1 toast per 30s
+    var _showPtsToast = false;
+    if (pts >= 25) {
+        _showPtsToast = true; // always show significant awards
+    } else if (reason && reason.length > 0) {
+        // Small award with a reason — throttle to avoid spam
+        window._lastPtsToast = window._lastPtsToast || 0;
+        if (Date.now() - window._lastPtsToast > 30000) {
+            _showPtsToast = true;
+        }
+    }
+    // Never toast empty-reason awards (read time)
+    if (_showPtsToast && reason) {
+        window._lastPtsToast = Date.now();
+        showToast('+' + pts + ' pts — ' + reason, 2500);
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
