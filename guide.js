@@ -12,7 +12,6 @@
 
     // ---- Should we show the guide? ----
     window.shouldShowGuide = function() {
-        // Only show if onboarding is complete but guide hasn't been permanently dismissed
         if (!localStorage.getItem('onboarding_complete')) return false;
         if (localStorage.getItem(GUIDE_DISMISSED_KEY) === 'permanent') return false;
         return true;
@@ -20,7 +19,6 @@
 
     // ---- Show guide (called after onboarding or from banner) ----
     window.showGuide = function() {
-        // Hide the return button since we're back in the guide
         if (typeof hideGuideReturnBtn === 'function') hideGuideReturnBtn();
         var existing = document.getElementById('guideOverlay');
         if (existing) existing.remove();
@@ -30,7 +28,6 @@
             userName = currentUser.username;
         }
 
-        // Get dynamic stats
         var channelsRead = 0;
         try {
             var visited = JSON.parse(localStorage.getItem('btc_visited') || '[]');
@@ -49,7 +46,6 @@
             }
         } catch(e) {}
 
-        // Check what's unlocked
         var forumLocked = channelsRead < 3;
         var irlLocked = channelsRead < 5;
         var marketLocked = channelsRead < 10;
@@ -64,15 +60,20 @@
         sheet.style.cssText = 'background:linear-gradient(180deg,#1a1b2e 0%,#12131f 100%);border:1px solid rgba(99,102,241,0.3);border-bottom:none;border-radius:24px 24px 0 0;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;padding:0 20px 120px;animation:guideSlideUp 0.4s ease-out;-webkit-overflow-scrolling:touch;';
 
         sheet.innerHTML =
-            // Header
-            '<div style="position:sticky;top:0;z-index:2;background:linear-gradient(180deg,#1a1b2e 80%,transparent);padding:16px 0 12px;text-align:center;">' +
-                '<div style="width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 12px;"></div>' +
-                '<div style="font-size:1.3rem;font-weight:900;color:#fff;">📜 Your <span style="color:#f7931a;">Quest</span> Begins</div>' +
-                '<div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">Everything you can do — and how to level up</div>' +
+            // ── HERO ── Big, spacious, breathable
+            '<div style="position:sticky;top:0;z-index:2;background:linear-gradient(180deg,#1a1b2e 90%,transparent);padding:12px 0 0;text-align:center;">' +
+                '<div style="width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 8px;"></div>' +
             '</div>' +
 
-            // Progress
-            '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:8px 0 16px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">' +
+            '<div style="text-align:center;padding:24px 10px 40px;min-height:40vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
+                '<div style="font-size:3rem;margin-bottom:20px;">📜</div>' +
+                '<h1 style="font-size:2rem;font-weight:900;color:#fff;margin:0 0 12px;line-height:1.2;">Your <span style="color:#f7931a;">Quest</span> Begins</h1>' +
+                '<p style="font-size:1rem;color:#94a3b8;margin:0;max-width:320px;line-height:1.6;">Everything you can do — and how to level up</p>' +
+                '<div style="margin-top:24px;font-size:0.75rem;color:#4b5563;letter-spacing:1px;">↓ SCROLL TO EXPLORE ↓</div>' +
+            '</div>' +
+
+            // ── PROGRESS BAR ──
+            '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin:0 0 20px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">' +
                 '<div style="font-size:1.3rem;">🌱</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-size:0.7rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Your Journey</div>' +
@@ -81,7 +82,7 @@
                 '</div>' +
             '</div>' +
 
-            // START HERE
+            // ── START HERE ──
             guideSection('⭐ Start Here', [
                 guideCard('🗺️', 'rgba(34,197,94,0.12)', "Nacho's Trails", "Guided learning modules! Start with The Meadow (intro), climb The Mountain (intermediate), and conquer The Summit (advanced). Each trail has curated channels and a 25-question exam.", 'tag-new', 'Recommended path', "minimizeGuide();setTimeout(function(){go('trails')},300)"),
                 guideCard('📖', 'rgba(247,147,26,0.12)', 'Read Channels', 'Tap any channel to read curated Bitcoin content. Each channel you finish earns you points and badges!', 'tag-start', 'Your main activity', "goHome()"),
@@ -98,14 +99,14 @@
                 '</div>'
             ]) +
 
-            // DAILY ACTIVITIES
+            // ── DAILY ACTIVITIES ──
             guideSection('🎯 Daily Activities', [
                 guideCard('🎡', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin the wheel once per day — win bonus points, tickets, or badges!', 'tag-earn', '+Points daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"),
                 guideCard('🎯', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete simple tasks each day — visit channels, read content, test your knowledge.', 'tag-earn', '+Bonus points', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"),
                 guideCard('📈', 'rgba(34,197,94,0.12)', 'Price Predictions', 'Predict tomorrow\'s Bitcoin price and compete with other users!', 'tag-earn', '+Points if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}")
             ]) +
 
-            // UNLOCK APPS
+            // ── APPS TO UNLOCK ──
             '<div style="margin-bottom:12px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
@@ -117,20 +118,20 @@
                 unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true, null) +
             '</div>' +
 
-            // MORE FEATURES
+            // ── MORE FEATURES ──
             guideSection('✨ More Features', [
                 guideCard('🌍', 'rgba(236,72,153,0.12)', 'Global Chat', 'Chat with Bitcoiners in real-time. Send messages, DMs, GIFs, and listen to Nacho Radio!', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
                 guideCard('📊', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, block height, mempool, hashrate, fee estimates — all in one place.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function')go('bitcoin-dashboard')},300)"),
                 guideCard('🏆', 'rgba(168,85,247,0.12)', 'Leaderboard & Ranks', 'Compete with other learners! Rise from Normie → Pleb → Maxi → Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleLeaderboard==='function'){minimizeGuide();toggleLeaderboard();}")
             ]) +
 
-            // Nacho tip
+            // ── NACHO TIP ──
             '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px;margin-top:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;">' +
                 '<div style="font-size:1.3rem;flex-shrink:0;">🦌</div>' +
                 '<div style="font-size:0.75rem;color:#d4a574;line-height:1.5;"><strong style="color:#f7931a;">Nacho\'s Tip:</strong> Start by tapping any channel that looks interesting! There\'s no wrong place to begin — every channel teaches you something new about Bitcoin.</div>' +
             '</div>' +
 
-            // Actions
+            // ── ACTIONS ──
             '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">' +
                 '<button onclick="minimizeGuide()" style="width:100%;padding:14px;border:none;border-radius:14px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#f7931a,#eab308);color:#000;transition:0.2s;touch-action:manipulation;">🚀 Start Exploring</button>' +
                 '<button onclick="dismissGuidePermanent()" style="width:100%;padding:10px;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;background:none;color:#94a3b8;transition:0.2s;">Don\'t show this again</button>' +
@@ -209,15 +210,12 @@
             '<div style="color:var(--text-faint);font-size:0.7rem;">Open ›</div>' +
             '<button onclick="event.stopPropagation();this.parentElement.remove();localStorage.setItem(\'' + GUIDE_DISMISSED_KEY + '\',\'permanent\');" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;padding:4px;margin-left:4px;">✕</button>';
 
-        // Insert at top of home-inner content, after the logos/header
         var homeInner = document.querySelector('.home-inner');
         if (homeInner) {
-            // Find the first non-header element (after logos, title, subtitle, stats)
             var createBtn = homeInner.querySelector('[onclick*="showAuth"]') || homeInner.querySelector('[onclick*="showSignIn"]');
             if (createBtn) {
                 createBtn.parentElement.insertBefore(banner, createBtn);
             } else {
-                // Fallback: insert after the last .home-logos element
                 var logos = homeInner.querySelector('.home-logos');
                 if (logos && logos.nextElementSibling) {
                     homeInner.insertBefore(banner, logos.nextElementSibling.nextElementSibling || logos.nextElementSibling);
@@ -237,21 +235,15 @@
     }
 
     // ---- Auto-show on page load if appropriate ----
-    // This runs after onboarding.js sets onboarding_complete
-    // The onboarding code should call showGuide() directly after completing
-    // But if the user refreshes, check if we should show the banner
     window.addEventListener('load', function() {
         setTimeout(function() {
             if (!shouldShowGuide()) return;
             var dismissed = localStorage.getItem(GUIDE_DISMISSED_KEY);
             if (dismissed === 'session' || dismissed === 'permanent') {
-                // Show banner only if session-dismissed (not permanent)
                 if (dismissed === 'session') showGuideBanner();
             } else if (!localStorage.getItem(GUIDE_SEEN_KEY)) {
-                // First time — show full guide
                 showGuide();
             } else {
-                // Seen before, not dismissed — show banner
                 showGuideBanner();
             }
         }, 1000);
@@ -262,14 +254,12 @@
 
 // ---- Scroll-reactive animations for Guide ----
 (function() {
-    // Add animation CSS
     var animStyle = document.createElement('style');
     animStyle.textContent = 
         '.guide-reveal { opacity: 0; transform: translateX(-60px); transition: opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1); will-change: transform, opacity; }' +
         '.guide-reveal.visible { opacity: 1; transform: translateX(0); }';
     document.head.appendChild(animStyle);
 
-    // Watch for guide overlay to appear, then apply animations
     var _guideAnimObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(m) {
             m.addedNodes.forEach(function(node) {
@@ -291,22 +281,27 @@
         var sheet = document.getElementById('guideSheet');
         if (!sheet) return;
 
-        // Collect all meaningful content blocks inside the sheet
+        // Collect all meaningful content blocks — skip the hero (first big centered section)
         var rows = [];
         var allEls = sheet.querySelectorAll(':scope > div, :scope > button');
+        var heroSkipped = false;
         allEls.forEach(function(el) {
-            // Skip the sticky header and zero-height elements
+            // Skip the sticky header
             if (el.style.position === 'sticky' || el.style.cssText.indexOf('sticky') !== -1) return;
             if (el.offsetHeight === 0) return;
+            // Skip the hero (big centered section with min-height:40vh)
+            if (!heroSkipped && el.style.cssText.indexOf('min-height:40vh') !== -1) {
+                heroSkipped = true;
+                return;
+            }
             rows.push(el);
         });
-        // Apply slide-from-left with stagger per row
+
         rows.forEach(function(row, idx) {
             row.classList.add('guide-reveal');
             row.style.transitionDelay = (idx * 0.07) + 's';
         });
 
-        // Use IntersectionObserver on the scroll container (guideSheet)
         var observer = new IntersectionObserver(function(entries) {
             entries.forEach(function(entry) {
                 if (entry.isIntersecting) {
@@ -314,17 +309,15 @@
                 }
             });
         }, {
-            root: sheet, // observe within the scrolling sheet
+            root: sheet,
             threshold: 0.15,
             rootMargin: '0px 0px -30px 0px'
         });
 
-        // Observe all animated elements
         sheet.querySelectorAll('.guide-reveal').forEach(function(el) {
             observer.observe(el);
         });
 
-        // Trigger elements already visible on load (top of sheet)
         setTimeout(function() {
             sheet.querySelectorAll('.guide-reveal').forEach(function(el) {
                 var rect = el.getBoundingClientRect();
@@ -340,7 +333,7 @@
     var _guideReturnBtn = null;
 
     window.showGuideReturnBtn = function() {
-        if (_guideReturnBtn) return; // already showing
+        if (_guideReturnBtn) return;
         _guideReturnBtn = document.createElement('div');
         _guideReturnBtn.id = 'guideReturnFloat';
         _guideReturnBtn.innerHTML =
@@ -351,7 +344,6 @@
             '</div>' +
             '<div id="guideReturnCollapsed" style="display:none;width:40px;height:40px;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:50%;box-shadow:0 4px 16px rgba(99,102,241,0.4);cursor:pointer;align-items:center;justify-content:center;font-size:1.1rem;transition:all 0.3s ease;touch-action:manipulation;" onclick="returnToGuide()">📜</div>';
         _guideReturnBtn.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9980;animation:guideReturnIn 0.4s ease;';
-        // Add animation keyframes if not already present
         if (!document.getElementById('guideReturnStyle')) {
             var s = document.createElement('style');
             s.id = 'guideReturnStyle';
@@ -381,13 +373,11 @@
 
     window.returnToGuide = function() {
         hideGuideReturnBtn();
-        // Close any open overlays/settings first
         if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
         var chatHub = document.getElementById('chatHubOverlay');
         if (chatHub) chatHub.remove();
         var pvpOverlay = document.getElementById('pvpOverlay');
         if (pvpOverlay) { if (typeof exitPVPMode === 'function') exitPVPMode(true); }
-        // Navigate home then open guide
         if (typeof goHome === 'function') goHome();
         setTimeout(function() { if (typeof showGuide === 'function') showGuide(); }, 400);
     };
