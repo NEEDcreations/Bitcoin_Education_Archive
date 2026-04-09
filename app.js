@@ -3368,7 +3368,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Route to correct renderer (with retry for lazy-loaded scripts)
             function _routeApp(id, attempt) {
                 attempt = attempt || 0;
-                if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') renderFirstPurchase();
+                if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') { renderFirstPurchase(); document.getElementById('main').scrollTop = 0; }
                 else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
                 else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();

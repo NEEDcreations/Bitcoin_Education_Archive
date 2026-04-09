@@ -347,28 +347,8 @@ function _navButtons(stepNum) {
 
 window._fpSaveStep = function(n) { saveStep(n); };
 
-// Route: go('first-purchase')
-var _realGoFP = window.go;
-if (_realGoFP) {
-    window.go = async function(id) {
-        if (id === 'first-purchase') {
-            if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
-            document.getElementById('home').classList.add('hidden');
-            document.getElementById('hero').innerHTML = '';
-            document.getElementById('hero').style.display = 'none';
-            document.getElementById('msgs').innerHTML = '';
-            document.getElementById('msgs').style.display = 'none';
-            var fc = document.getElementById('forumContainer');
-            if (fc) fc.style.display = 'block';
-            history.pushState({ channel: 'first-purchase' }, '', '#first-purchase');
-            if (typeof isMobile === 'function' && isMobile()) document.getElementById('sidebar').classList.remove('open');
-            renderFirstPurchase();
-            document.getElementById('main').scrollTop = 0;
-            return;
-        }
-        return _realGoFP.apply(this, arguments);
-    };
-}
+// Route: go('first-purchase') — now handled by app.js _routeApp retry
+// No need to wrap window.go; app.js calls renderFirstPurchase() directly
 
 console.log('[FIRST PURCHASE] Guide loaded');
 })();
