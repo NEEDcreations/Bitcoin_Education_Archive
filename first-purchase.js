@@ -46,6 +46,12 @@ var STEPS = [
         desc: 'Instant, nearly-free payments. The future of spending Bitcoin.'
     },
     {
+        id: 'tips',
+        emoji: '🛡️',
+        title: 'Pro Tips & Warnings',
+        desc: 'Important advice to protect yourself and your stack. Read this before going further.'
+    },
+    {
         id: 'done',
         emoji: '🎉',
         title: 'You Own Bitcoin!',
@@ -60,7 +66,7 @@ var APPS_BY_REGION = {
         { name: 'River', icon: '🏔️', url: 'https://river.com', desc: 'Bitcoin-only. Great DCA (auto-buy). Excellent for long-term stacking.', referral: 'https://river.com/signup?r=H4FMHRUS', referralBonus: 'Free sats bonus' },
         { name: 'Swan Bitcoin', icon: '🦢', url: 'https://swanbitcoin.com', desc: 'Auto-DCA focused. Set it and forget it. Bitcoin-only company.' },
         { name: 'Amber', icon: '🟡', url: 'https://amber.app', desc: 'Auto-DCA with smart features like "Buy the Dip". Bitcoin-only.', referral: 'https://amber.app', referralCode: 'NEEDcreations', referralBonus: 'Get $10 free' },
-        { name: 'Coinbase', icon: '🔵', url: 'https://coinbase.com', desc: 'Largest US exchange. Higher fees but very beginner-friendly UI.' },
+
     ],
     eu: [
         { name: 'Relai', icon: '🇨🇭', url: 'https://relai.app', desc: 'Swiss Bitcoin-only app. No KYC under limits. Auto-DCA. Best for Europe.', rec: true },
@@ -295,7 +301,34 @@ window.renderFirstPurchase = function() {
     }
 
     // Step 5: Done!
-    else if (currentStep >= 5) {
+    // Step 5: Pro Tips
+    else if (currentStep === 5) {
+        html += _stepHeader(step);
+        var tips = [
+            { emoji: '🚫', title: 'Avoid Altcoin Exchanges', text: 'Stay away from exchanges like Coinbase, Gemini, and Kraken that sell altcoins. They profit by promoting thousands of speculative tokens to newcomers. Stick to <strong>Bitcoin-only</strong> platforms like Strike, River, and Swan.' },
+            { emoji: '⚠️', title: 'Never Use Leverage', text: 'Avoid leverage trading and Bitcoin-backed loans unless you are very experienced and fully understand the risks. Liquidation can wipe out your entire stack in minutes.' },
+            { emoji: '📉', title: 'Don\'t Try to Trade', text: 'Avoid trading unless you are very experienced. The vast majority of traders lose money — despite what you see posted online. The winners are loud; the losers are silent.' },
+            { emoji: '🎰', title: 'Never Risk What You Can\'t Lose', text: 'If you choose to get cute and try to outperform Bitcoin with risky strategies, <strong>never risk any amount of Bitcoin that you can\'t afford to lose.</strong>' },
+            { emoji: '🧘', title: 'Don\'t Get Greedy', text: 'Simply buying and holding is one of the most successful strategies in Bitcoin\'s history. Dollar-cost averaging (DCA) + patience has outperformed almost every trading strategy. You really can\'t go wrong with it.' },
+            { emoji: '🔒', title: 'Never Share Your Seed Phrase', text: 'No legitimate service, company, or person will ever ask for your 12 or 24-word seed phrase. Anyone who asks is trying to steal your Bitcoin. Period.' },
+            { emoji: '🎣', title: 'Watch for Scams', text: 'If someone promises guaranteed returns, "free Bitcoin," or asks you to send Bitcoin to receive more back — it\'s a scam. 100% of the time. No exceptions.' },
+            { emoji: '📵', title: 'Don\'t Talk About Your Stack', text: 'Keep your Bitcoin holdings private. Don\'t tell people how much you own. This protects you from social engineering, phishing, and even physical threats.' },
+            { emoji: '🧠', title: 'Keep Learning', text: 'Bitcoin is deep. The more you learn, the more confident you\'ll feel holding through volatility. Read the <a href="#" onclick="event.preventDefault();_fpSaveStep(5);go(\'whitepaper\')" style="color:var(--accent);font-weight:600;">Whitepaper</a>, explore the archive, and ask Nacho anything.' },
+            { emoji: '⏰', title: 'Think Long-Term', text: 'Bitcoin is volatile in the short term but has outperformed every asset class over any 4+ year period in its history. Zoom out. Think in years, not days.' }
+        ];
+        tips.forEach(function(tip) {
+            html += '<div style="padding:14px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+                '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+                    '<span style="font-size:1.3rem;flex-shrink:0;margin-top:2px;">' + tip.emoji + '</span>' +
+                    '<div><div style="font-weight:700;font-size:0.88rem;color:var(--heading);margin-bottom:4px;">' + tip.title + '</div>' +
+                    '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + tip.text + '</div></div>' +
+                '</div></div>';
+        });
+        html += _navButtons(5);
+    }
+
+    // Step 6: Done!
+    else if (currentStep >= 6) {
         // Award Bitcoiner badge + 100 pts (once)
         if (localStorage.getItem('btc_fp_completed') !== 'true') {
             localStorage.setItem('btc_fp_completed', 'true');
@@ -322,7 +355,7 @@ window.renderFirstPurchase = function() {
                     '<button onclick="_fpSaveStep(1);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">📱 Download App</button>' +
                     '<button onclick="_fpSaveStep(2);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">💰 Buy Bitcoin</button>' +
                     '<button onclick="_fpSaveStep(3);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔐 Self-Custody</button>' +
-                    '<button onclick="_fpSaveStep(4);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +
+                    '<button onclick="_fpSaveStep(4);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' + '<button onclick="_fpSaveStep(5);renderFirstPurchase()" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🛡️ Pro Tips</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -340,6 +373,9 @@ window.renderFirstPurchase = function() {
     html += '</div></div>';
     fc.innerHTML = html;
     fc.scrollTop = 0;
+    var mainEl = document.getElementById('main');
+    if (mainEl) mainEl.scrollTop = 0;
+    window.scrollTo(0, 0);
 };
 
 function _stepHeader(step) {
@@ -358,8 +394,8 @@ function _walletCard(w) {
 
 function _navButtons(stepNum) {
     return '<div style="display:flex;justify-content:space-between;margin-top:20px;">' +
-        '<button onclick="_fpSaveStep(' + (stepNum - 1) + ');renderFirstPurchase()" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">← Back</button>' +
-        '<button onclick="_fpSaveStep(' + (stepNum + 1) + ');renderFirstPurchase()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Next Step →</button>' +
+        '<button onclick="event.preventDefault();event.stopPropagation();_fpSaveStep(' + (stepNum - 1) + ');renderFirstPurchase()" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+        '<button onclick="event.preventDefault();event.stopPropagation();_fpSaveStep(' + (stepNum + 1) + ');renderFirstPurchase()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
     '</div>';
 }
 
