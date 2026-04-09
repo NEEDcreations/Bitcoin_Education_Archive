@@ -3731,14 +3731,14 @@ function showSettingsPage(tab) {
 
         // Earning guide (collapsible)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;">';
-        html += '<button onclick="var c=document.getElementById(\'earnPointsContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
+        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnPointsContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
         html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn Points</span>';
         html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
         html += '</button>';
-        html += '<div id="earnPointsContent" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += '<div id="earnPointsContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         var _es = function(id, title, items) {
             return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
-                '<button onclick="var c=document.getElementById(\'' + id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
+                '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
                 '<span class="ea" style="color:var(--text-faint);font-size:0.7rem;">▶</span>' +
                 '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + title + '</span></button>' +
                 '<div id="' + id + '" style="display:none;padding:8px 12px 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.7;">' + items.join('<br>') + '</div></div>';
