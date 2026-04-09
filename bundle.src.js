@@ -14688,7 +14688,43 @@ window.showPricePrediction = function() {
     card.style.cssText = 'background:var(--card-bg,#1a1a2e);border:1px solid #f7931a;border-radius:16px;padding:28px;max-width:420px;width:100%;color:var(--text,#e2e8f0);font-family:inherit;text-align:center;';
 
     if (saved && Date.now() - saved.time < 86400000) {
-        // Show existing prediction result
+        var _elapsed = Date.now() - saved.time;
+        var _ready = _elapsed >= 86400000; // 24h passed?
+
+        if (!_ready) {
+            // Prediction pending — show waiting state
+            var _hoursLeft = Math.ceil((86400000 - _elapsed) / 3600000);
+            card.innerHTML = '<span style="font-size:2.5rem;">⏳</span>' +
+                '<h2 style="color:#f7931a;margin:12px 0 8px;">Prediction Locked In!</h2>' +
+                '<p>You predicted <b style="color:' + (saved.direction === 'up' ? '#22c55e' : '#ef4444') + '">' + (saved.direction === 'up' ? '📈 UP' : '📉 DOWN') + '</b></p>' +
+                '<p>Price when predicted: <b>$' + Math.round(saved.price).toLocaleString() + '</b></p>' +
+                '<p>Current price: <b>$' + Math.round(currentPrice).toLocaleString() + '</b></p>' +
+                '<div style="margin-top:16px;padding:12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;">' +
+                    '<div style="font-size:0.85rem;color:var(--accent);font-weight:700;">⏳ Results in ~' + _hoursLeft + ' hour' + (_hoursLeft !== 1 ? 's' : '') + '</div>' +
+                    '<div style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-top:4px;">Come back after 24 hours to see if you were right!</div>' +
+                '</div>' +
+                '<div id="globalPredStatsResult" style="margin-top:12px;padding:10px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:10px;font-size:0.75rem;color:var(--text-muted,#94a3b8);">Loading community stats...</div>' +
+                '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="margin-top:12px;background:#f7931a;color:#000;border:none;padding:10px 28px;border-radius:8px;font-weight:700;cursor:pointer;">Close</button>';
+
+            // Load global stats
+            setTimeout(function() {
+                if (typeof getGlobalPredictionStats === 'function') {
+                    getGlobalPredictionStats(function(stats) {
+                        var el = document.getElementById('globalPredStatsResult');
+                        if (!el) return;
+                        if (!stats || !stats.total) { el.innerHTML = '🌍 No community data yet.'; return; }
+                        var pct = Math.round((stats.correct / stats.total) * 100);
+                        el.innerHTML = '🌍 <strong>Community:</strong> ' + (stats.correct || 0) + '/' + stats.total + ' correct (' + pct + '% accuracy)';
+                    });
+                }
+            }, 500);
+
+            overlay.appendChild(card);
+            document.body.appendChild(overlay);
+            return;
+        }
+
+        // 24h passed — show result
         var diff = currentPrice - saved.price;
         var pct = ((diff / saved.price) * 100).toFixed(2);
         var correct = (saved.direction === 'up' && diff > 0) || (saved.direction === 'down' && diff < 0);
