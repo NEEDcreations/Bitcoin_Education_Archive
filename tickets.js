@@ -59,12 +59,12 @@ async function awardDailyTicket() {
         await db.collection('users').doc(currentUser.uid).update({
             orangeTickets: newTickets,
             lastTicketDate: today,
-            points: firebase.firestore.FieldValue.increment(bonusPoints),
         });
 
         currentUser.orangeTickets = newTickets;
         currentUser.lastTicketDate = today;
-        currentUser.points = (currentUser.points || 0) + bonusPoints;
+        // Award points through server-side Cloud Function
+        if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets');
 
         // Delay toast so page is settled and user can see it
         setTimeout(function() {
@@ -183,10 +183,9 @@ async function checkReferralQualifications() {
             const newTotal = (currentUser.orangeTickets || 0) + ticketsEarned;
             await db.collection('users').doc(currentUser.uid).update({
                 orangeTickets: newTotal,
-                points: firebase.firestore.FieldValue.increment(bonusPoints),
             });
             currentUser.orangeTickets = newTotal;
-            currentUser.points = (currentUser.points || 0) + bonusPoints;
+            if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Referral tickets');
             showToast('🎟️ +' + ticketsEarned + ' Orange Tickets — Referral' + (ticketsEarned > 50 ? 's' : '') + ' verified!');
             if (typeof notifySelfReferral === 'function') notifySelfReferral(ticketsEarned);
             updateRankUI();
@@ -346,10 +345,9 @@ window.awardTickets = async function(amount, reason) {
     try {
         await db.collection('users').doc(auth.currentUser.uid).update({
             orangeTickets: newTotal,
-            points: firebase.firestore.FieldValue.increment(bonusPoints)
         });
         currentUser.orangeTickets = newTotal;
-        currentUser.points = (currentUser.points || 0) + bonusPoints;
+        if (bonusPoints > 0 && typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ ' + (reason || 'Orange Tickets'));
         if (typeof updateRankUI === 'function') updateRankUI();
     } catch(e) { console.warn('[tickets] Award error:', e); }
 

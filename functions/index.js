@@ -1269,7 +1269,45 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
     }
 
-    // 6. ATOMIC TRANSACTION — All balance/limit checks + point deduction in one transaction
+    // 6a. IP RATE LIMITING (Fix #6) — flag same IP claiming across multiple accounts
+    const clientIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
+    if (clientIP !== 'unknown') {
+        const ipRef = db.collection('faucet_ip_log').doc(clientIP.replace(/[./]/g, '_'));
+        const ipDoc = await ipRef.get();
+        if (ipDoc.exists) {
+            const ipData = ipDoc.data();
+            const ipUids = ipData.uids || [];
+            // Flag if 3+ different UIDs claim from the same IP
+            if (ipUids.length >= 3 && !ipUids.includes(uid)) {
+                console.error('[FAUCET] IP ABUSE: ' + clientIP + ' used by ' + ipUids.length + ' accounts + new uid=' + uid);
+                return { success: false, error: 'Unusual activity detected from this network. Contact support if this is an error.' };
+            }
+            // Check if same IP claimed in last 2 hours (across ANY account)
+            const lastClaimTime = ipData.lastClaim ? (ipData.lastClaim.toDate ? ipData.lastClaim.toDate() : new Date(ipData.lastClaim)) : null;
+            if (lastClaimTime && (Date.now() - lastClaimTime.getTime()) < 7200000 && ipData.lastUid !== uid) {
+                console.error('[FAUCET] IP COOLDOWN: ' + clientIP + ' claimed by ' + ipData.lastUid + ' recently, now uid=' + uid);
+                return { success: false, error: 'A claim was recently made from this network. Try again later.' };
+            }
+        }
+        // Log this IP claim (after payment succeeds — moved to post-payment batch below)
+    }
+
+    // 6b. DEVICE FINGERPRINT CHECK (Fix #3)
+    const fingerprint = (data.fingerprint || '').trim();
+    if (fingerprint && fingerprint.length >= 8) {
+        const fpRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
+        const fpDoc = await fpRef.get();
+        if (fpDoc.exists) {
+            const fpData = fpDoc.data();
+            const fpUids = fpData.uids || [];
+            if (fpUids.length >= 2 && !fpUids.includes(uid)) {
+                console.error('[FAUCET] FINGERPRINT ABUSE: fp=' + fingerprint.substring(0, 16) + ' used by ' + fpUids.length + ' accounts + uid=' + uid);
+                return { success: false, error: 'This device has been used by multiple accounts. Each person may only claim from one account.' };
+            }
+        }
+    }
+
+    // 7. ATOMIC TRANSACTION — All balance/limit checks + point deduction in one transaction
     //    This prevents race conditions from concurrent requests
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
@@ -1289,7 +1327,9 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             }
 
             // Check channels read
-            const channelsRead = user.readChannels ? Object.keys(user.readChannels).length : 0;
+            // Fix #4: Use visitedChannelsList (arrayUnion-only, tamper-resistant) instead of readChannels
+            const visitedList = user.visitedChannelsList || [];
+            const channelsRead = Array.isArray(visitedList) ? visitedList.length : 0;
             if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
                 throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
             }
@@ -1305,7 +1345,8 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
 
             // Server-side points sanity check: max 500 pts/day × account age + 2100 (scholar)
             // If points are impossibly high for account age, flag as suspicious
-            const created = user.createdAt ? (user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt)) : null;
+            // Field is stored as 'created' by the client (not 'createdAt')
+            const created = (user.created || user.createdAt) ? ((user.created || user.createdAt).toDate ? (user.created || user.createdAt).toDate() : new Date(user.created || user.createdAt)) : null;
             if (created) {
                 const accountDays = Math.max(1, Math.floor((Date.now() - created.getTime()) / 86400000));
                 const maxReasonablePoints = (accountDays * 500) + 2100; // daily cap × days + scholar cert (no buffer)
@@ -1419,6 +1460,26 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             amount: amount,
             ts: admin.firestore.FieldValue.serverTimestamp()
         });
+        // Log IP for multi-account detection (Fix #6)
+        if (clientIP !== 'unknown') {
+            const ipDocRef = db.collection('faucet_ip_log').doc(clientIP.replace(/[./]/g, '_'));
+            batch.set(ipDocRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                uids: admin.firestore.FieldValue.arrayUnion(uid),
+                claimCount: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+        }
+        // Log fingerprint for multi-account detection (Fix #3)
+        if (fingerprint && fingerprint.length >= 8) {
+            const fpDocRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
+            batch.set(fpDocRef, {
+                lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                uids: admin.firestore.FieldValue.arrayUnion(uid),
+                claimCount: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+        }
         await batch.commit();
 
         console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid + ' (preimage: ' + payResult.preimage.substring(0, 16) + '...)');
@@ -1460,6 +1521,68 @@ async function _rollbackClaim(uid, amount, today) {
         console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
     }
 }
+
+// ===== SERVER-SIDE POINTS AWARD (Fix #1, #2, #5) =====
+// All point awards go through this Cloud Function instead of direct Firestore writes
+// Enforces daily cap server-side, eliminates localStorage bypass and console inflation
+exports.awardPoints = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    const uid = context.auth.uid;
+    const pts = parseInt(data.pts);
+    const reason = (data.reason || '').substring(0, 100);
+
+    // Validate points amount
+    if (isNaN(pts) || pts <= 0 || pts > 2200) {
+        return { success: false, error: 'Invalid points amount' };
+    }
+
+    const DAILY_CAP = 500;
+    const today = new Date().toISOString().split('T')[0];
+    const userRef = db.collection('users').doc(uid);
+    const dailyPtsRef = userRef.collection('daily_points').doc(today);
+
+    try {
+        const result = await db.runTransaction(async (t) => {
+            const userDoc = await t.get(userRef);
+            if (!userDoc.exists) throw new Error('User not found');
+
+            const dailyDoc = await t.get(dailyPtsRef);
+            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+
+            if (dailyUsed >= DAILY_CAP) {
+                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
+            }
+
+            let awarded = pts;
+            if (dailyUsed + pts > DAILY_CAP) {
+                awarded = DAILY_CAP - dailyUsed;
+            }
+
+            if (awarded <= 0) {
+                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
+            }
+
+            // Award points + update daily tracker
+            t.update(userRef, {
+                points: admin.firestore.FieldValue.increment(awarded)
+            });
+            t.set(dailyPtsRef, {
+                total: admin.firestore.FieldValue.increment(awarded),
+                lastAward: admin.firestore.FieldValue.serverTimestamp(),
+                awards: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+
+            return { awarded: awarded, capped: (dailyUsed + awarded >= DAILY_CAP), dailyUsed: dailyUsed + awarded };
+        });
+
+        return { success: true, ...result };
+    } catch (e) {
+        console.error('[POINTS] Award failed for ' + uid + ':', e.message);
+        return { success: false, error: 'Points award failed' };
+    }
+});
 
 // ===== FAUCET ADMIN — getFaucetStats =====
 exports.getFaucetStats = functions.https.onCall(async (data, context) => {

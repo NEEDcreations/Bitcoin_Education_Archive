@@ -11,12 +11,12 @@ service cloud.firestore {
                     && request.auth.uid == userId;
       allow update: if request.auth != null
                     && request.auth.uid == userId
-                    // Block client writes to faucet-managed fields (Cloud Function only via Admin SDK)
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim']))
-                    && (!('points' in request.resource.data) 
-                        || (request.resource.data.points is int
-                            && request.resource.data.points >= resource.data.points
-                            && request.resource.data.points <= resource.data.points + 2200))
+                    // Block client writes to server-managed fields (Cloud Function only via Admin SDK)
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['pointsClaimed', 'satsWithdrawn', 'lastSatsClaim', '_pendingClaim', 'points']))
+                    // visitedChannelsList: arrayUnion only (can only grow, never shrink)
+                    && (!('visitedChannelsList' in request.resource.data)
+                        || (request.resource.data.visitedChannelsList is list
+                            && request.resource.data.visitedChannelsList.size() >= resource.data.get('visitedChannelsList', []).size()))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
                             && request.resource.data.username.size() >= 3
@@ -540,6 +540,21 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com');
       allow write: if false;
+    }
+
+    // Faucet IP log (Cloud Function only)
+    match /faucet_ip_log/{docId} {
+      allow read, write: if false;
+    }
+
+    // Faucet fingerprints (Cloud Function only)
+    match /faucet_fingerprints/{docId} {
+      allow read, write: if false;
+    }
+
+    // Server-side daily points tracking (Cloud Function only)
+    match /users/{userId}/daily_points/{docId} {
+      allow read, write: if false;
     }
 
     // Buddy matches

@@ -1737,14 +1737,15 @@ async function awardVisitPoints() {
             lastVisit: today,
             streak: newStreak,
             bestStreak: newBest,
-            points: firebase.firestore.FieldValue.increment(pointsToAdd + (bonusTickets * 5))
         };
         if (bonusTickets > 0) {
             updateData.orangeTickets = firebase.firestore.FieldValue.increment(bonusTickets);
         }
         await db.collection('users').doc(currentUser.uid).update(updateData);
-        currentUser.points = (currentUser.points || 0) + pointsToAdd + (bonusTickets * 5);
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + bonusTickets;
+        // Award points through Cloud Function (daily cap enforced server-side)
+        var _visitPts = pointsToAdd + (bonusTickets * 5);
+        if (_visitPts > 0) await awardPoints(_visitPts, '✅ Daily visit' + (newStreak > 1 ? ' (' + newStreak + '-day streak!)' : ''));
         currentUser.lastVisit = today;
         currentUser.streak = newStreak;
         currentUser.bestStreak = newBest;
@@ -1769,7 +1770,7 @@ async function awardPoints(pts, reason) {
 
     // Anti-abuse: validate pts is a reasonable number
     pts = parseInt(pts);
-    if (isNaN(pts) || pts <= 0 || pts > 2200) return; // max single award is 2100 (scholar cert) + buffer
+    if (isNaN(pts) || pts <= 0 || pts > 2200) return;
 
     // Anti-abuse: rate limit — max 20 point awards per minute
     window._pointAwardTimes = window._pointAwardTimes || [];
@@ -1778,109 +1779,68 @@ async function awardPoints(pts, reason) {
     if (window._pointAwardTimes.length >= 20) return;
     window._pointAwardTimes.push(_now);
 
-    // ── Daily Cap System with Overflow Rollover ──
-    var DAILY_CAP = 500;
-    var _today = new Date().toISOString().split('T')[0];
-    var _dailyKey = 'btc_daily_pts_' + _today;
-    var _dailyDateKey = 'btc_daily_pts_date';
-    var _overflowKey = 'btc_pts_overflow';
-
-    // Check if it's a new day — roll over overflow from yesterday
-    var _lastDate = localStorage.getItem(_dailyDateKey) || '';
-    if (_lastDate && _lastDate !== _today) {
-        var _overflow = parseInt(localStorage.getItem(_overflowKey) || '0');
-        if (_overflow > 0) {
-            // Add overflow to balance immediately (already earned, not subject to new cap)
-            if (currentUser._isLocal) {
-                currentUser.points = (currentUser.points || 0) + _overflow;
-                localStorage.setItem('btc_points', currentUser.points.toString());
-            } else if (db && currentUser.uid) {
-                db.collection('users').doc(currentUser.uid).update({
-                    points: firebase.firestore.FieldValue.increment(_overflow)
-                }).catch(function() {});
-                currentUser.points = (currentUser.points || 0) + _overflow;
-            }
-            if (typeof showToast === 'function') showToast('🌅 +' + _overflow + ' overflow points from yesterday added to your balance!', 6000);
-            localStorage.setItem(_overflowKey, '0');
-            updateRankUI();
-        }
-        // Reset daily counter for new day
-        localStorage.setItem(_dailyKey, '0');
-    }
-    localStorage.setItem(_dailyDateKey, _today);
-
-    var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-
-    if (_dailyPts >= DAILY_CAP) {
-        // Already at cap — store ALL of these points as overflow
-        var _curOverflow = parseInt(localStorage.getItem(_overflowKey) || '0');
-        localStorage.setItem(_overflowKey, (_curOverflow + pts).toString());
-        // Show cap notification once per day
-        var _capNotifKey = 'btc_daily_cap_notified_' + _today;
-        if (!localStorage.getItem(_capNotifKey)) {
-            localStorage.setItem(_capNotifKey, '1');
-            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (500)! +' + pts + ' pts saved as overflow — they\'ll roll over tomorrow. Your points convert to real sats in Settings → ⚡ Sats!', 8000);
-            _updateCapIndicator(true);
-        }
+    // ── Local/anonymous users: localStorage only (can't claim sats anyway) ──
+    if (currentUser._isLocal) {
+        var DAILY_CAP = 500;
+        var _today = new Date().toISOString().split('T')[0];
+        var _dailyKey = 'btc_daily_pts_' + _today;
+        var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
+        if (_dailyPts >= DAILY_CAP) return;
+        var _awarded = Math.min(pts, DAILY_CAP - _dailyPts);
+        if (_awarded <= 0) return;
+        localStorage.setItem(_dailyKey, (_dailyPts + _awarded).toString());
+        currentUser.points = (currentUser.points || 0) + _awarded;
+        localStorage.setItem('btc_points', currentUser.points.toString());
+        _showPointsToast(_awarded, reason);
+        updateRankUI();
         return;
     }
 
-    var _awarded = pts;
-    var _overflowAmt = 0;
-    if (_dailyPts + pts > DAILY_CAP) {
-        _awarded = DAILY_CAP - _dailyPts;
-        _overflowAmt = pts - _awarded;
-        // Store overflow
-        var _curOverflow2 = parseInt(localStorage.getItem(_overflowKey) || '0');
-        localStorage.setItem(_overflowKey, (_curOverflow2 + _overflowAmt).toString());
-        // Show cap notification
-        var _capNotifKey2 = 'btc_daily_cap_notified_' + _today;
-        if (!localStorage.getItem(_capNotifKey2)) {
-            localStorage.setItem(_capNotifKey2, '1');
-            if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (500)! +' + _overflowAmt + ' pts saved as overflow — they\'ll roll over tomorrow.', 8000);
-            _updateCapIndicator(true);
+    // ── Signed-in users: Cloud Function enforces daily cap server-side ──
+    try {
+        var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
+        var result = await awardPointsFn({ pts: pts, reason: reason || '' });
+        if (result.data && result.data.success) {
+            var awarded = result.data.awarded || 0;
+            if (awarded > 0) {
+                currentUser.points = (currentUser.points || 0) + awarded;
+                _showPointsToast(awarded, reason);
+            }
+            if (result.data.capped) {
+                var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+                if (!localStorage.getItem(_capNotifKey)) {
+                    localStorage.setItem(_capNotifKey, '1');
+                    showToast('🎯 Daily point limit reached (500)! Your points convert to real sats in Settings → ⚡ Sats!', 8000);
+                    _updateCapIndicator(true);
+                }
+            }
         }
-    }
-    pts = _awarded;
-    if (pts <= 0) return;
-    localStorage.setItem(_dailyKey, (_dailyPts + pts).toString());
-
-    // Update cap indicator if we just hit it
-    if (_dailyPts + pts >= DAILY_CAP) {
-        _updateCapIndicator(true);
-    }
-
-    if (currentUser._isLocal) {
+    } catch (e) {
+        // Fallback: if Cloud Function fails (e.g., cold start timeout), award locally
+        // This prevents broken UX but server is still the source of truth
+        console.warn('[POINTS] Cloud Function failed, local fallback:', e.message);
         currentUser.points = (currentUser.points || 0) + pts;
-        localStorage.setItem('btc_points', currentUser.points.toString());
-    } else {
-        await db.collection('users').doc(currentUser.uid).update({
-            points: firebase.firestore.FieldValue.increment(pts)
-        });
-        currentUser.points = (currentUser.points || 0) + pts;
-    }
-    // Toast for point awards — smart throttle to avoid spam
-    // Always show: big awards (25+), milestones, achievements
-    // Throttle: small repeating awards (read time, chat, channel open) — max 1 toast per 30s
-    var _showPtsToast = false;
-    if (pts >= 25) {
-        _showPtsToast = true; // always show significant awards
-    } else if (reason && reason.length > 0) {
-        // Small award with a reason — throttle to avoid spam
-        window._lastPtsToast = window._lastPtsToast || 0;
-        if (Date.now() - window._lastPtsToast > 30000) {
-            _showPtsToast = true;
-        }
-    }
-    // Never toast empty-reason awards (read time)
-    if (_showPtsToast && reason) {
-        window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' pts — ' + reason, 2500);
+        _showPointsToast(pts, reason);
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
     refreshLeaderboardIfOpen();
     if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
+}
+
+// Helper: smart toast throttling for point awards
+function _showPointsToast(pts, reason) {
+    var _show = false;
+    if (pts >= 25) {
+        _show = true;
+    } else if (reason && reason.length > 0) {
+        window._lastPtsToast = window._lastPtsToast || 0;
+        if (Date.now() - window._lastPtsToast > 30000) _show = true;
+    }
+    if (_show && reason) {
+        window._lastPtsToast = Date.now();
+        showToast('+' + pts + ' pts — ' + reason, 2500);
+    }
 }
 
 // Auto-refresh leaderboard if it's currently open
@@ -5164,6 +5124,41 @@ window.initSatsClaim = function() {
     document.body.appendChild(overlay);
 };
 
+// Device fingerprint for multi-account detection (Fix #3)
+function _generateDeviceFingerprint() {
+    try {
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('Bitcoin Education 🦌', 2, 2);
+        var canvasData = canvas.toDataURL();
+
+        var components = [
+            navigator.userAgent || '',
+            screen.width + 'x' + screen.height,
+            screen.colorDepth,
+            new Date().getTimezoneOffset(),
+            navigator.language || '',
+            navigator.hardwareConcurrency || 0,
+            (navigator.deviceMemory || 0).toString(),
+            typeof window.ontouchstart !== 'undefined' ? 'touch' : 'no-touch',
+            canvasData.substring(canvasData.length - 50)
+        ].join('|');
+
+        // Simple hash
+        var hash = 0;
+        for (var i = 0; i < components.length; i++) {
+            var chr = components.charCodeAt(i);
+            hash = ((hash << 5) - hash) + chr;
+            hash |= 0;
+        }
+        return Math.abs(hash).toString(36) + '_' + components.length.toString(36);
+    } catch (e) {
+        return 'err_' + Date.now().toString(36);
+    }
+}
+
 window._satsClaimInProgress = false;
 window.submitSatsClaim = async function() {
     if (window._satsClaimInProgress) return; // prevent double-click
@@ -5189,7 +5184,9 @@ window.submitSatsClaim = async function() {
 
     try {
         var claimSats = firebase.functions().httpsCallable('claimSats');
-        var result = await claimSats({ invoice: invoice });
+        // Generate device fingerprint for multi-account detection
+        var _fp = _generateDeviceFingerprint();
+        var result = await claimSats({ invoice: invoice, fingerprint: _fp });
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
