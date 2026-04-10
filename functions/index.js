@@ -1515,19 +1515,179 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     const uid = context.auth.uid;
-    const pts = parseInt(data.pts);
-    const reason = (data.reason || '').substring(0, 100);
+    const action = (data.action || data.reason || '').substring(0, 100);
     const channelId = (data.channelId || '').substring(0, 100);
     const tickets = parseInt(data.tickets) || 0;
     const streakFreezes = parseInt(data.streakFreezes) || 0;
 
-    // Validate points amount
-    if (isNaN(pts) || pts < 0 || pts > 2200) {
+    // ── ACTION-BASED POINT VALIDATION ──
+    // Server defines exact point values per action type. Client cannot choose amounts.
+    const ACTION_POINTS = {
+        'channel_read': 10,           // Open a new channel
+        'channel_read_bonus': 15,     // Read for 30 seconds
+        'read_time': 5,               // Periodic read time bonus
+        'daily_visit': 5,             // Daily visit base
+        'daily_visit_streak': 100,    // Streak bonus
+        'explore_10': 50,             // 10 channels explored
+        'explore_25': 50,             // 25% milestone
+        'explore_50': 100,            // 50% milestone
+        'explore_75': 200,            // 75% milestone
+        'explore_100': 500,           // 100% milestone
+        'daily_spin': 50,             // Max spin reward
+        'quest_complete': 100,        // Perfect quest
+        'quest_retry': 25,            // Quest retry
+        'quest_partial': 50,          // Quest 3+ correct
+        'scholar_cert': 2100,         // Scholar certification
+        'badge_earned': 1000,         // Max badge points (actual varies)
+        'pvp_victory': 50,            // PVP win (score-based, capped)
+        'pvp_practice': 10,           // PVP practice correct
+        'pvp_draw': 5,               // PVP draw
+        'pvp_consolation': 25,        // PVP loss consolation
+        'chat_message': 5,            // Global chat message
+        'chat_streak_3': 10,          // 3-day chat streak
+        'chat_streak_7': 25,          // 7-day chat streak
+        'forum_post': 10,             // Forum post
+        'forum_reply': 5,             // Forum reply
+        'article_publish': 30,        // Publish article
+        'article_read': 5,            // Read article
+        'article_comment': 5,         // Comment on article
+        'beats_upload': 50,           // Upload a song
+        'beats_listen': 10,           // Listen to full track
+        'beats_comment': 10,          // Comment on Beats
+        'irl_host': 15,               // Host IRL event
+        'prediction': 5,              // Make prediction
+        'prediction_correct': 25,     // Correct prediction
+        'welcome_bonus': 5,           // First visit
+        'anon_merge': 500,            // Anonymous data merge (capped)
+        'story_chapter': 15,          // Nacho story chapter
+        'story_final': 50,            // Final story chapter
+        'story_complete': 100,        // All story chapters
+        'trail_chapter': 25,          // Trail chapter
+        'trail_complete': 50,         // Trail completion
+        'ticket_bonus': 5,            // Per-ticket bonus (tickets × 5)
+        'streak_freeze': 0,           // Streak freeze only (no points)
+        'tickets_only': 0,            // Tickets only (no points)
+        'feedback': 5,                // Feedback bonus
+    };
+
+    // Look up max allowed points for this action using keyword matching
+    const actionLower = action.toLowerCase();
+    const ACTION_KEYWORDS = {
+        'channel_read': ['channel explored', 'channel_read', 'new channel'],
+        'read_time': ['read_time', 'read time'],
+        'daily_visit': ['daily visit', 'daily_visit'],
+        'daily_visit_streak': ['streak!', 'day streak'],
+        'explore_10': ['explore_10', 'explorer bonus', '10 channels'],
+        'explore_25': ['explore_25', '25%'],
+        'explore_50': ['explore_50', '50%'],
+        'explore_75': ['explore_75', '75%'],
+        'explore_100': ['explore_100', 'archive complete', '100%'],
+        'daily_spin': ['daily spin', 'spin'],
+        'quest_complete': ['quest:', 'quest_complete'],
+        'scholar_cert': ['scholar', 'certification', '🎓'],
+        'badge_earned': ['badge:', 'badge_earned'],
+        'pvp_victory': ['pvp victory', 'pvp win'],
+        'pvp_practice': ['pvp practice'],
+        'pvp_draw': ['pvp draw'],
+        'pvp_consolation': ['pvp consolation', 'pvp loss'],
+        'chat_message': ['chat_message', 'global chat'],
+        'chat_streak_3': ['chat_streak_3', '3-day chat'],
+        'chat_streak_7': ['chat_streak_7', '7-day chat'],
+        'forum_post': ['forum_post', 'forum post'],
+        'forum_reply': ['forum_reply', 'forum reply'],
+        'article_publish': ['article_publish', 'publish article'],
+        'article_read': ['article_read', 'read article'],
+        'article_comment': ['article_comment', 'article comment'],
+        'beats_upload': ['beats_upload', 'upload'],
+        'beats_listen': ['beats_listen', 'listened to', 'full track'],
+        'beats_comment': ['beats_comment', 'comment on bitcoin beats'],
+        'irl_host': ['irl_host', 'host irl'],
+        'prediction': ['prediction'],
+        'prediction_correct': ['prediction_correct', 'correct prediction'],
+        'welcome_bonus': ['welcome bonus', 'welcome_bonus'],
+        'anon_merge': ['anon_merge', 'anonymous progress'],
+        'story_chapter': ['completed chapter', 'story_chapter'],
+        'story_complete': ['completed nacho', 'story_complete'],
+        'trail_chapter': ['trail_chapter', 'trail chapter'],
+        'trail_complete': ['trail_complete'],
+        'ticket_bonus': ['ticket', '🎟️'],
+        'streak_freeze': ['streak freeze', 'streak_freeze', '🧊'],
+        'tickets_only': ['tickets_only'],
+        'feedback': ['feedback'],
+    };
+
+    let pts = 0;
+    let matchedAction = null;
+    for (const [key, keywords] of Object.entries(ACTION_KEYWORDS)) {
+        for (const kw of keywords) {
+            if (actionLower.includes(kw.toLowerCase())) {
+                pts = ACTION_POINTS[key];
+                matchedAction = key;
+                break;
+            }
+        }
+        if (matchedAction) break;
+    }
+
+    // If client sent explicit pts, cap at the action max (backward compat during transition)
+    if (data.pts !== undefined && data.pts !== null) {
+        const requestedPts = parseInt(data.pts);
+        if (!isNaN(requestedPts) && requestedPts >= 0) {
+            pts = Math.min(requestedPts, matchedAction ? pts : 50); // Unknown actions capped at 50
+        }
+    }
+
+    // Validate
+    if (pts < 0 || pts > 2200) {
         return { success: false, error: 'Invalid points amount' };
     }
-    // Allow 0 pts if tickets or streak freezes are being awarded
     if (pts === 0 && !tickets && !streakFreezes && !channelId) {
         return { success: false, error: 'Nothing to award' };
+    }
+
+    const reason = action;
+
+    // ── ACTION COOLDOWN ENFORCEMENT ──
+    // Prevent rapid-fire calls for the same action type
+    const ACTION_COOLDOWNS = {
+        'chat_message': 3000,       // 3 seconds
+        'forum_post': 60000,        // 1 minute
+        'forum_reply': 10000,       // 10 seconds
+        'beats_comment': 10000,     // 10 seconds
+        'article_comment': 10000,   // 10 seconds
+    };
+    if (matchedAction && ACTION_COOLDOWNS[matchedAction]) {
+        const cooldownMs = ACTION_COOLDOWNS[matchedAction];
+        const cooldownRef = db.collection('action_cooldowns').doc(uid + '_' + matchedAction);
+        const cooldownDoc = await cooldownRef.get();
+        if (cooldownDoc.exists) {
+            const lastAction = cooldownDoc.data().ts;
+            const lastTime = lastAction ? (lastAction.toDate ? lastAction.toDate() : new Date(lastAction)) : null;
+            if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
+                return { success: false, error: 'Too fast — wait a moment', cooldown: true };
+            }
+        }
+        await cooldownRef.set({ ts: admin.firestore.FieldValue.serverTimestamp() });
+    }
+
+    // ── BADGE DEDUPLICATION ──
+    // If this is a badge award, check server-side if it's already been awarded
+    if (matchedAction === 'badge_earned' && action) {
+        const badgeMatch = action.match(/Badge:\s*(.+)/i);
+        if (badgeMatch) {
+            const badgeName = badgeMatch[1].trim().substring(0, 60);
+            const badgeAwardsRef = db.collection('users').doc(uid).collection('badge_awards');
+            const existing = await badgeAwardsRef.where('badge', '==', badgeName).limit(1).get();
+            if (!existing.empty) {
+                return { success: true, awarded: 0, capped: false, duplicate: true, dailyUsed: 0 };
+            }
+            // Record this badge award (inside the transaction below would be better, but reads are limited)
+            await badgeAwardsRef.add({
+                badge: badgeName,
+                pts: pts,
+                ts: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
     }
 
     const DAILY_CAP = 500;

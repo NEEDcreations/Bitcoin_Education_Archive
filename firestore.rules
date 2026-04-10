@@ -589,6 +589,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Server-side badge award deduplication (Cloud Function only)
+    match /users/{userId}/badge_awards/{docId} {
+      allow read, write: if false;
+    }
+
+    // Action cooldown tracking (Cloud Function only)
+    match /action_cooldowns/{docId} {
+      allow read, write: if false;
+    }
+
     // Buddy matches
     match /buddy_matches/{docId} {
       allow read: if request.auth != null;

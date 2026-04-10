@@ -1791,7 +1791,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     // ── Signed-in users: Cloud Function enforces daily cap server-side ──
     try {
         var awardPointsFn = firebase.functions().httpsCallable('awardPoints');
-        var payload = { pts: pts, reason: reason || '' };
+        var payload = { pts: pts, action: reason || '', reason: reason || '' };
         if (channelId) payload.channelId = channelId;
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
