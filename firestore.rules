@@ -84,9 +84,10 @@ service cloud.firestore {
       allow create, update: if statId == 'predictions'
                             && request.auth != null
                             && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
-      // Global community stats (channel visits, quests, spins, PVP)
+      // Global community stats — increment only, authenticated
       allow create, update: if statId == 'global'
-                            && request.auth != null;
+                            && request.auth != null
+                            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatMessages', 'channelVisits', 'questsCompleted', 'spins', 'pvpMatches', 'userCount']);
     }
 
     // Active predictions (for server-side resolution)
@@ -334,7 +335,9 @@ service cloud.firestore {
     // [AUDIT FIX S4] Validate player1 is the creator
     // =============================================
     match /pvp_matches/{matchId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+                  && (resource.data.player1.uid == request.auth.uid
+                      || resource.data.player2.uid == request.auth.uid);
       // [AUDIT FIX] Creator must be one of the players
       allow create: if request.auth != null
                     && (request.resource.data.player1.uid == request.auth.uid

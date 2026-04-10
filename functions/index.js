@@ -8,6 +8,9 @@ const fetch = require('node-fetch');
 admin.initializeApp();
 const db = admin.firestore();
 
+// HTML escape for server-side email/notification content
+function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 const { NWCClient } = require('@getalby/sdk');
 const bolt11 = require('bolt11');
 
@@ -102,25 +105,24 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
     
     const uid = context.auth.uid;
 
-    // Rate limiting: max 5 attempts per 2-minute window
+    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction to prevent race condition)
     const totpRateRef = db.collection('totp_rate_limits').doc(uid);
-    const totpRateDoc = await totpRateRef.get();
-    if (totpRateDoc.exists) {
-        const rateData = totpRateDoc.data();
-        const attempts = rateData.attempts || 0;
-        const windowStart = rateData.windowStart ? (rateData.windowStart.toDate ? rateData.windowStart.toDate() : new Date(rateData.windowStart)) : null;
-        if (windowStart && (Date.now() - windowStart.getTime()) < 120000) {
-            if (attempts >= 5) {
-                console.error('[TOTP] Rate limit exceeded for uid=' + uid + ', attempts=' + attempts);
-                throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes and try again.');
+    await db.runTransaction(async (t) => {
+        const doc = await t.get(totpRateRef);
+        const now = Date.now();
+        if (doc.exists) {
+            const d = doc.data();
+            const ws = d.windowStart ? (d.windowStart.toDate ? d.windowStart.toDate() : new Date(d.windowStart)) : null;
+            if (ws && (now - ws.getTime()) < 120000) {
+                if ((d.attempts || 0) >= 5) throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+                t.set(totpRateRef, { attempts: (d.attempts || 0) + 1, windowStart: d.windowStart }, { merge: true });
+            } else {
+                t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
             }
-            await totpRateRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
         } else {
-            await totpRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+            t.set(totpRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
         }
-    } else {
-        await totpRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-    }
+    });
     
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists || !doc.data().enabled) {
@@ -557,7 +559,7 @@ exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
 // Step 2: HTTP callback endpoint — wallet calls this with sig + key
 exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     // CORS headers
-    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Origin', 'https://bitcoineducation.quest');
 
     const { k1, sig, key, tag } = req.query;
 
@@ -655,11 +657,11 @@ exports.lnAuthCallback = functions.https.onRequest(async (req, res) => {
     }
 
     // Update challenge doc with auth result
+    // Mark challenge as completed — token is generated fresh by lnAuthVerify (never stored)
     await db.collection('lnauth_challenges').doc(k1).update({
         status: 'completed',
         linkingKey: key,
         uid: lnUid,
-        token: customToken,
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -678,20 +680,60 @@ exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
     const { k1 } = data;
     if (!k1) throw new functions.https.HttpsError('invalid-argument', 'Missing k1');
 
+    // Rate limiting: max 20 polls per IP per minute
+    const verifyIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
+    if (verifyIP !== 'unknown') {
+        const vrRef = db.collection('rate_limits').doc('lnverify_' + verifyIP.replace(/[./]/g, '_'));
+        const vrDoc = await vrRef.get();
+        if (vrDoc.exists) {
+            const rd = vrDoc.data();
+            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+            if (ws && (Date.now() - ws.getTime()) < 60000 && (rd.attempts || 0) >= 20) {
+                throw new functions.https.HttpsError('resource-exhausted', 'Too many requests');
+            }
+            if (ws && (Date.now() - ws.getTime()) < 60000) { await vrRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
+            else { await vrRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+        } else { await vrRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+    }
+
     const doc = await db.collection('lnauth_challenges').doc(k1).get();
     if (!doc.exists) {
         throw new functions.https.HttpsError('not-found', 'Challenge not found');
     }
 
     const challenge = doc.data();
+
+    // Check expiry (5 minutes from creation)
+    if (challenge.expiresAt) {
+        const expires = challenge.expiresAt.toDate ? challenge.expiresAt.toDate() : new Date(challenge.expiresAt);
+        if (Date.now() > expires.getTime()) {
+            await db.collection('lnauth_challenges').doc(k1).delete();
+            throw new functions.https.HttpsError('deadline-exceeded', 'Challenge expired');
+        }
+    }
+
     if (challenge.status !== 'completed') {
         throw new functions.https.HttpsError('not-found', 'Not yet authenticated');
     }
 
-    // Clean up the challenge doc (one-time use)
+    // Generate token fresh instead of reading stored one (never persist tokens in Firestore)
+    const uid = challenge.uid;
+    const linkingKey = challenge.linkingKey;
+    if (!uid) {
+        throw new functions.https.HttpsError('internal', 'Invalid challenge state');
+    }
+
+    let token;
+    try {
+        token = await admin.auth().createCustomToken(uid, { lnPubkey: linkingKey || '' });
+    } catch(e) {
+        throw new functions.https.HttpsError('internal', 'Token generation failed');
+    }
+
+    // Delete challenge immediately (one-time use)
     await db.collection('lnauth_challenges').doc(k1).delete();
 
-    return { token: challenge.token, uid: challenge.uid };
+    return { token: token, uid: uid };
 });
 
 // Helper: Parse DER-encoded ECDSA signature into r, s BigInts
@@ -825,9 +867,9 @@ exports.onForumPost = functions.firestore
                     html: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">' +
                         '<h2 style="color:#f7931a;">🗣️ New Forum Post</h2>' +
                         '<div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                            '<h3 style="color:#fff;margin:0 0 8px;">' + (post.title || 'Untitled') + '</h3>' +
-                            '<div style="color:#aaa;font-size:0.9rem;">By: ' + (post.authorName || 'Unknown') + ' · Category: ' + (post.category || 'general') + '</div>' +
-                            (post.body ? '<p style="color:#ccc;margin-top:12px;">' + (post.body || '').substring(0, 300) + (post.body.length > 300 ? '...' : '') + '</p>' : '') +
+                            '<h3 style="color:#fff;margin:0 0 8px;">' + _escHtml(post.title || 'Untitled') + '</h3>' +
+                            '<div style="color:#aaa;font-size:0.9rem;">By: ' + _escHtml(post.authorName || 'Unknown') + ' · Category: ' + _escHtml(post.category || 'general') + '</div>' +
+                            (post.body ? '<p style="color:#ccc;margin-top:12px;">' + _escHtml((post.body || '').substring(0, 300)) + (post.body.length > 300 ? '...' : '') + '</p>' : '') +
                         '</div>' +
                         '<a href="https://bitcoineducation.quest/#forum" style="display:inline-block;padding:10px 24px;background:#f7931a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">View Forum →</a>' +
                     '</div>'
@@ -1587,6 +1629,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     }
     const uid = context.auth.uid;
+    const actionKey = (data.actionKey || '').substring(0, 50);
     const action = (data.action || data.reason || '').substring(0, 100);
     const channelId = (data.channelId || '').substring(0, 100);
     const tickets = parseInt(data.tickets) || 0;
@@ -1690,15 +1733,25 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
     let pts = 0;
     let matchedAction = null;
-    for (const [key, keywords] of Object.entries(ACTION_KEYWORDS)) {
-        for (const kw of keywords) {
-            if (actionLower.includes(kw.toLowerCase())) {
-                pts = ACTION_POINTS[key];
-                matchedAction = key;
-                break;
+
+    // Priority 1: Explicit actionKey (exact enum match — not gameable)
+    if (actionKey && ACTION_POINTS.hasOwnProperty(actionKey)) {
+        matchedAction = actionKey;
+        pts = ACTION_POINTS[actionKey];
+    }
+
+    // Priority 2: Keyword matching (backward compat — will be deprecated)
+    if (!matchedAction) {
+        for (const [key, keywords] of Object.entries(ACTION_KEYWORDS)) {
+            for (const kw of keywords) {
+                if (actionLower.includes(kw.toLowerCase())) {
+                    pts = ACTION_POINTS[key];
+                    matchedAction = key;
+                    break;
+                }
             }
+            if (matchedAction) break;
         }
-        if (matchedAction) break;
     }
 
     // If client sent explicit pts, cap at the action max (backward compat during transition)

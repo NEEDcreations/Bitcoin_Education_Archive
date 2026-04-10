@@ -12758,7 +12758,7 @@ function loadMarketListings(category, search, sort, section) {
                     if (fallbackListings.length > 0) {
                         grid.innerHTML = fallbackListings.map(function(l) {
                             return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                                '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);margin-bottom:4px;">' + (l.title || 'Untitled') + '</div>' +
+                                '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);margin-bottom:4px;">' + escapeHtml(l.title || 'Untitled') + '</div>' +
                                 '<div style="font-size:0.8rem;color:var(--accent);font-weight:800;">⚡ ' + (l.priceSats || 0).toLocaleString() + ' sats</div>' +
                                 '</div>';
                         }).join('');
