@@ -1062,10 +1062,9 @@ window.awardHiddenBadge = function(badgeId, toastMsg) {
 window.awardOrangeTickets = function(amount, reason) {
     if (typeof currentUser !== 'undefined' && currentUser) {
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + amount;
-        if (!currentUser._isLocal && typeof db !== 'undefined' && auth && auth.currentUser) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                orangeTickets: firebase.firestore.FieldValue.increment(amount)
-            }).catch(function(){});
+        // Award tickets through server-side Cloud Function (orangeTickets blocked in Firestore rules)
+        if (!currentUser._isLocal && typeof awardPoints === 'function') {
+            awardPoints(0, '🎟️ ' + (reason || 'Orange Tickets'), null, amount);
         }
     }
     var local = parseInt(localStorage.getItem('btc_orange_tickets') || '0');

@@ -139,14 +139,16 @@ function initRanking() {
             } else if (anonData) {
                 const existData = existingDoc.data();
                 // Anti-abuse: only merge anonymous data once per account
-                var _mergedPts = Math.min(anonData.points || 0, 500);
-                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
+                // Anonymous data merge now handled minimally (points/visits are server-managed)
+                if (!existData.mergedAnon) {
                     await existingDoc.ref.update({
-                        points: Math.max(_mergedPts, existData.points || 0),
-                        channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
-                        totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
                         mergedAnon: true,
                     });
+                    // Award any anonymous points through the server-side Cloud Function
+                    var _mergedPts = Math.min(anonData.points || 0, 500);
+                    if (_mergedPts > 0 && typeof awardPoints === 'function') {
+                        await awardPoints(_mergedPts, '🔗 Anonymous progress merged');
+                    }
                 }
             }
 
@@ -1269,15 +1271,9 @@ async function loadUser(uid, prefetchedDoc) {
             localStorage.setItem('btc_username', currentUser.username);
         }
 
-        // One-time migration: set bestStreak if not present
+        // One-time migration: set bestStreak if not present (now handled by recordDailyVisit CF)
         if (currentUser.streak > 0 && !currentUser.bestStreak) {
             currentUser.bestStreak = currentUser.streak;
-            db.collection('users').doc(uid).update({ bestStreak: currentUser.streak }).catch(function() {});
-        }
-        // One-time fix: set NEEDcreations bestStreak to 9 (historical)
-        if (currentUser.username === 'NEEDcreations' && (!currentUser.bestStreak || currentUser.bestStreak < 9)) {
-            currentUser.bestStreak = 9;
-            db.collection('users').doc(uid).set({ bestStreak: 9 }, { merge: true }).catch(function(e) { console.error('bestStreak write failed:', e); });
         }
 
         rankingReady = true;
@@ -1920,12 +1916,8 @@ async function onChannelOpen(channelId) {
 
 // Sync read checkmarks to Firebase
 async function syncReadToFirebase(channelId) {
-    if (!currentUser || !db || !auth.currentUser || currentUser._isLocal) return;
-    try {
-        await db.collection('users').doc(auth.currentUser.uid).update({
-            readChannels: firebase.firestore.FieldValue.arrayUnion(channelId)
-        });
-    } catch(e) {}
+    // readChannels is now blocked in Firestore rules — channel tracking goes through awardPoints CF
+    // This function is kept as a no-op for backward compatibility
 }
 
 // Sync favorites to Firebase (called from index.html)
