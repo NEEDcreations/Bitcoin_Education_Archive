@@ -1754,11 +1754,16 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         }
     }
 
-    // If client sent explicit pts, cap at the action max (backward compat during transition)
+    // Reject unknown actions — no backward-compat fallback
+    if (!matchedAction) {
+        return { success: false, error: 'Unknown action', awarded: 0 };
+    }
+
+    // If client sent explicit pts, cap at the action max
     if (data.pts !== undefined && data.pts !== null) {
         const requestedPts = parseInt(data.pts);
         if (!isNaN(requestedPts) && requestedPts >= 0) {
-            pts = Math.min(requestedPts, matchedAction ? pts : 50); // Unknown actions capped at 50
+            pts = Math.min(requestedPts, pts);
         }
     }
 
@@ -2124,6 +2129,9 @@ exports.backfillGlobalStats = functions.https.onCall(async (data, context) => {
 exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Sign in required');
     }
     const uid = context.auth.uid;
     const userRef = db.collection('users').doc(uid);

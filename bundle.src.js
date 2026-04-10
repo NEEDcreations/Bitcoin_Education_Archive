@@ -12732,7 +12732,7 @@ function loadMarketListings(category, search, sort, section) {
             return '<div onclick="renderMarketplace({listingId:\'' + l.id + '\'})" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                 // Image or placeholder
                 (l.imageUrl
-                    ? '<div style="width:100%;aspect-ratio:1;background:url(\'' + l.imageUrl + '\') center/cover;border-bottom:1px solid var(--border);"></div>'
+                    ? '<div style="width:100%;aspect-ratio:1;background:url(\'' + (l.imageUrl && /^(https:\/\/|data:image\/)/.test(l.imageUrl) ? l.imageUrl.replace(/['"\\()<>]/g, '') : '') + '\') center/cover;border-bottom:1px solid var(--border);"></div>'
                     : '<div style="width:100%;aspect-ratio:1;background:var(--bg-side);display:flex;align-items:center;justify-content:center;font-size:2.5rem;border-bottom:1px solid var(--border);">' + catEmoji + '</div>'
                 ) +
                 '<div style="padding:10px;">' +
@@ -12824,7 +12824,7 @@ function renderListingDetail(container, listingId) {
 
         // Image
         if (l.imageUrl) {
-            html += '<div style="width:100%;aspect-ratio:4/3;background:url(\'' + l.imageUrl + '\') center/contain no-repeat;background-color:var(--bg-side);border-radius:14px;border:1px solid var(--border);margin-bottom:16px;"></div>';
+            html += '<div style="width:100%;aspect-ratio:4/3;background:url(\'' + (l.imageUrl && /^(https:\/\/|data:image\/)/.test(l.imageUrl) ? l.imageUrl.replace(/['"\\()<>]/g, '') : '') + '\') center/contain no-repeat;background-color:var(--bg-side);border-radius:14px;border:1px solid var(--border);margin-bottom:16px;"></div>';
         } else {
             var catE = catObj ? catObj.emoji : '📦';
             html += '<div style="width:100%;aspect-ratio:4/3;background:var(--bg-side);display:flex;align-items:center;justify-content:center;font-size:4rem;border-radius:14px;border:1px solid var(--border);margin-bottom:16px;">' + catE + '</div>';
