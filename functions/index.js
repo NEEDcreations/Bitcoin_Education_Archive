@@ -1722,23 +1722,49 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             };
             // If a channelId was provided, track the visit server-side
             if (channelId && channelId.length > 0) {
-                userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
-                userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
+                // Validate channelId against the known channel list (NEW-4 fix)
+                const VALID_CHANNELS = new Set(["decentralized","dominant","money","organic","peaceful","programmable","scarce","secure","supranational","use-cases","whitepaper","bitvm","blockchain-timechain","chaumian-mints","consensus","core-source-code","cryptography","ctv-covenants","developers","difficulty-adjustment","energy","evidence-against-alts","extension-blocks","fedi-ark","investment-strategy","layer-2-lightning","layer-3-sidechains","maximalism","mining","nodes","op-codes","pow-vs-pos","privacy-nonkyc","problems-of-money","regulation","self-custody","smart-contracts","stablecoins","0_mining__hashing","100_sats","1_first_principles","2__solved_technical_problems","analogies","austrian_school_of_economics","bip119","bitcoin_exam","bitcoin_vs_real_estate","block_time-block-size","burn_bitcoin","byzantine_generals__problem","chaumian_e-cash_and_blind_signatures","coin_mixing_coinjoin_coin_control_utxo","cyles","derivation_path","discrete_log_contracts__dlcs","dollar-bitcoin_milkshake_theory","dust","elevator_pitches","environment___energy","faith___religion","fedimints","feedback_loops","free_and_open_source_software__foss","game_theory","geopolitics___macroeconomics","governance","ham_radio","human_rights__social_justice_and_freedo","improved_incentive_structure","laws_of_thermodynamics","lightning_node","lindy_effect","market_cap","math","mathematics","mev","network_effects","open_source","oracle","orange-pilling","ordinals","ordinals__nfts_on_bitcoin__and_block_spa","peace_and_anti-war","philosophy","politics","predictions","public_key_vs_private_key","rbf","referral-links","risks__threats__attack_vectors__weaknes","rollups","sats__or__bits","scalability","sidechains","simplified_payment_verification__spv","soft_vs_hard_forks","softwar","stratum_v2","submarine_swap","swaps","ta_tips","tail_emission","taproot","taro","the_future","time","time_preference","toxicity","transaction_fees","unpopular_opinions","utxos","vbyte","apps-tools","art-inspiration","articles-threads","books","charts","curriculum","faq-glossary","fun-facts","games","giga-chad","graphics","hardware","health","history","informational-sites","international","jobs-earn","memes-funny","misconceptions-fud","movies-tv","music","news-adoption","nostr","one-stop-shop","podcasts","poems-stories","projects-diy","research-theses","satoshi-nakamoto","social-media","swag-merch","videos","web5"]);
+                if (VALID_CHANNELS.has(channelId)) {
+                    userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
+                    userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
+                }
             }
-            // If tickets were requested, award them server-side
-            if (tickets > 0 && tickets <= 100) {
-                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
+            // If tickets were requested, validate action and enforce daily cap
+            if (tickets > 0) {
+                // Only specific actions can award tickets
+                const TICKET_ACTIONS = ['ticket_bonus', 'tickets_only', 'daily_visit', 'daily_visit_streak', 'daily_spin'];
+                const allowedTickets = matchedAction && TICKET_ACTIONS.includes(matchedAction);
+                if (allowedTickets) {
+                    // Cap: max 10 tickets per call, max 50 tickets per day
+                    const cappedTickets = Math.min(tickets, 10);
+                    const dailyTickets = dailyDoc.exists ? (dailyDoc.data().ticketsToday || 0) : 0;
+                    const ticketsToAward = Math.min(cappedTickets, Math.max(0, 50 - dailyTickets));
+                    if (ticketsToAward > 0) {
+                        userUpdate.orangeTickets = admin.firestore.FieldValue.increment(ticketsToAward);
+                    }
+                }
             }
-            // If streak freezes were awarded (spin wheel)
-            if (streakFreezes > 0 && streakFreezes <= 5) {
-                userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
+            // If streak freezes were awarded, validate action and cap
+            if (streakFreezes > 0) {
+                const FREEZE_ACTIONS = ['streak_freeze', 'daily_spin'];
+                const allowedFreeze = matchedAction && FREEZE_ACTIONS.includes(matchedAction);
+                if (allowedFreeze) {
+                    // Cap: max 1 freeze per call, max 3 per day
+                    const dailyFreezes = dailyDoc.exists ? (dailyDoc.data().freezesToday || 0) : 0;
+                    if (dailyFreezes < 3) {
+                        userUpdate.streakFreezes = admin.firestore.FieldValue.increment(1);
+                    }
+                }
             }
             t.update(userRef, userUpdate);
-            t.set(dailyPtsRef, {
+            const dailyUpdate = {
                 total: admin.firestore.FieldValue.increment(awarded),
                 lastAward: admin.firestore.FieldValue.serverTimestamp(),
                 awards: admin.firestore.FieldValue.increment(1)
-            }, { merge: true });
+            };
+            if (tickets > 0 && userUpdate.orangeTickets) dailyUpdate.ticketsToday = admin.firestore.FieldValue.increment(tickets);
+            if (streakFreezes > 0 && userUpdate.streakFreezes) dailyUpdate.freezesToday = admin.firestore.FieldValue.increment(1);
+            t.set(dailyPtsRef, dailyUpdate, { merge: true });
 
             return { awarded: awarded, capped: (dailyUsed + awarded >= DAILY_CAP), dailyUsed: dailyUsed + awarded };
         });

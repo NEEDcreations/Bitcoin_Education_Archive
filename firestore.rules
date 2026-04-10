@@ -17,7 +17,8 @@ service cloud.firestore {
                         'points', 'lastAwards', 'created', 'createdAt',
                         'visitedChannelsList', 'channelsVisited', 'readChannels',
                         'orangeTickets', 'streak', 'bestStreak', 'streakFreezes',
-                        'totalVisits', 'badges', 'hiddenBadges'
+                        'totalVisits', 'badges', 'hiddenBadges', 'tickets',
+                        'referralTicketsEarned'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
