@@ -326,20 +326,24 @@
         .badge-toast-desc { color: var(--text-muted); font-size: 0.8rem; }
 
         /* Badges Grid */
-        .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 12px; }
+        .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 12px; overflow: visible; }
         .badge-item { text-align: center; padding: 12px 6px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-bg); transition: 0.2s; position: relative; cursor: pointer; }
         .badge-item.earned { border-color: var(--accent-glow); }
         .badge-item.locked { opacity: 0.4; }
         .badge-item:hover { opacity: 1; transform: translateY(-2px); }
         .badge-emoji { font-size: 1.5rem; margin-bottom: 4px; }
         .badge-name { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
-        .badge-tooltip { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--bg-side); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 0.75rem; white-space: normal; min-width: 160px; max-width: 240px; z-index: 160; box-shadow: 0 4px 15px rgba(0,0,0,0.3); pointer-events: none; text-align: center; line-height: 1.4; }
+        .badge-tooltip { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--bg-side); border: 1px solid var(--accent); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 0.78rem; white-space: normal; min-width: 180px; max-width: 280px; z-index: 10000; box-shadow: 0 8px 24px rgba(0,0,0,0.5); pointer-events: none; text-align: center; line-height: 1.5; }
         .badge-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--border); }
         .badge-item:nth-child(1) .badge-tooltip, .badge-item:nth-child(2) .badge-tooltip { left: 0; transform: none; }
         .badge-item:nth-child(1) .badge-tooltip::after, .badge-item:nth-child(2) .badge-tooltip::after { left: 20px; transform: none; }
         .badge-item:nth-last-child(1) .badge-tooltip, .badge-item:nth-last-child(2) .badge-tooltip { left: auto; right: 0; transform: none; }
         .badge-item:nth-last-child(1) .badge-tooltip::after, .badge-item:nth-last-child(2) .badge-tooltip::after { left: auto; right: 20px; transform: none; }
         .badge-item:hover .badge-tooltip, .badge-item.tapped .badge-tooltip { display: block; }
+        @media (max-width: 900px) {
+            .badge-tooltip { bottom: auto; top: calc(100% + 8px); }
+            .badge-tooltip::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--accent); }
+        }
         .oled-theme { --bg-main: #000000; --bg-side: #000000; --card-bg: #050505; --input-bg: #0a0a0a; --border: #1a1a1a; --text-muted: #94a3b8; --text-faint: #475569; }
         .oled-theme aside { border-right: 1px solid #1a1a1a; }
         .oled-theme .glass-dark { background: rgba(0,0,0,0.8); }

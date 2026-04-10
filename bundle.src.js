@@ -5769,7 +5769,7 @@ function getBadgeHTML() {
         const catEarned = badgeList.filter(b => earnedBadges.has(b.id)).length;
         const allEarned = catEarned === badgeList.length;
         
-        html += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:hidden;">';
+        html += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
         html += '<button onclick="var c=document.getElementById(\'' + _bcId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
         html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
         html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + catName + '</span>';
@@ -5805,7 +5805,7 @@ function getBadgeHTML() {
             var _goalId = 'bc_' + _bcIdx;
             var goalEarned = visibleGoals.filter(function(b) { return earnedHidden.includes(b.id); }).length;
             var allGoalsEarned = goalEarned === visibleGoals.length;
-            html += '</div><div style="margin-bottom:6px;border:1px solid ' + (allGoalsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:hidden;">';
+            html += '</div><div style="margin-bottom:6px;border:1px solid ' + (allGoalsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
             html += '<button onclick="var c=document.getElementById(\'' + _goalId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allGoalsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
             html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
             html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🎯 Goals</span>';
@@ -5835,7 +5835,7 @@ function getBadgeHTML() {
         _bcIdx++;
         var _secretId = 'bc_' + _bcIdx;
         var allSecretsEarned = hiddenEarnedCount === hiddenCount;
-        html += '</div><div style="margin-bottom:6px;border:1px solid ' + (allSecretsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:hidden;">';
+        html += '</div><div style="margin-bottom:6px;border:1px solid ' + (allSecretsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
         html += '<button onclick="var c=document.getElementById(\'' + _secretId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allSecretsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
         html += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
         html += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🔮 Secret Badges</span>';
