@@ -55,6 +55,19 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
     
     const uid = context.auth.uid;
+
+    // Rate limiting: max 5 attempts per 2-minute window
+    const rlRef = db.collection('totp_rate_limits').doc(uid + '_verify');
+    const rlDoc = await rlRef.get();
+    if (rlDoc.exists) {
+        const rd = rlDoc.data();
+        const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+        if (ws && (Date.now() - ws.getTime()) < 120000 && (rd.attempts || 0) >= 5) {
+            throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+        }
+        if (ws && (Date.now() - ws.getTime()) < 120000) { await rlRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
+        else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+    } else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
     
     // Get pending secret
     const pending = await db.collection('totp_pending').doc(uid).get();
@@ -137,6 +150,19 @@ exports.totpDisable = functions.https.onCall(async (data, context) => {
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Enter your current code to disable');
     
     const uid = context.auth.uid;
+
+    // Rate limiting: max 5 attempts per 2-minute window
+    const rlRef = db.collection('totp_rate_limits').doc(uid + '_disable');
+    const rlDoc = await rlRef.get();
+    if (rlDoc.exists) {
+        const rd = rlDoc.data();
+        const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+        if (ws && (Date.now() - ws.getTime()) < 120000 && (rd.attempts || 0) >= 5) {
+            throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+        }
+        if (ws && (Date.now() - ws.getTime()) < 120000) { await rlRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
+        else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+    } else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
     
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists) throw new functions.https.HttpsError('not-found', 'TOTP not enabled');
@@ -490,6 +516,22 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 
 // Step 1: Generate a challenge (k1) and return LNURL
 exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
+    // Rate limiting: max 10 challenges per IP per hour
+    const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
+    if (lnIP !== 'unknown') {
+        const lnRateRef = db.collection('rate_limits').doc('lnauth_' + lnIP.replace(/[./]/g, '_'));
+        const lnRateDoc = await lnRateRef.get();
+        if (lnRateDoc.exists) {
+            const rd = lnRateDoc.data();
+            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+            if (ws && (Date.now() - ws.getTime()) < 3600000 && (rd.attempts || 0) >= 10) {
+                throw new functions.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
+            }
+            if (ws && (Date.now() - ws.getTime()) < 3600000) { await lnRateRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
+            else { await lnRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+        } else { await lnRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+    }
+
     const crypto = require('crypto');
     const k1 = crypto.randomBytes(32).toString('hex');
 
@@ -1117,8 +1159,29 @@ exports.moderateContent = functions.https.onCall(async (data, context) => {
 // =============================================
 exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64 && !data.user) {
+    if (!data.text && !data.gifUrl && !data.imageUrl && !data.imageBase64) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing content');
+    }
+
+    // Server-side content filtering — prevents bypassing client-side filters via direct CF calls
+    if (data.text) {
+        const text = data.text.toLowerCase()
+            .replace(/0/g,'o').replace(/1/g,'i').replace(/3/g,'e').replace(/4/g,'a')
+            .replace(/5/g,'s').replace(/7/g,'t').replace(/\$/g,'s').replace(/@/g,'a')
+            .replace(/!/g,'i').replace(/\*/g,'').replace(/_/g,'').replace(/-/g,'');
+        const BAD = ['fuck','shit','bitch','dick','cock','pussy','cunt','nigger','nigga','fag','faggot','retard',
+            'nazi','hitler','kkk','porn','hentai','rape','pedo','slut','whore','cum','dildo','tits','nude','naked',
+            'suicide','terrorist','jihad','genocide','lynch','blowjob','handjob','threesome','gangbang','bondage',
+            'deepthroat','masturbat','hooker','stripper','onlyfans','pornhub','xvideos','xnxx',
+            'spic','wetback','chink','gook','kike','towelhead','raghead','beaner','coon','darkie',
+            'maga','trump','biden','democrat','republican','antifa','qanon','white power','sieg heil',
+            'kill yourself','kys','kill myself','self harm','death to','gas the'];
+        const words = text.split(/\s+/);
+        for (const bad of BAD) {
+            if (bad.includes(' ')) { if (text.includes(bad)) throw new functions.https.HttpsError('invalid-argument', 'Message blocked by content filter'); }
+            else { for (const w of words) { if (w === bad) throw new functions.https.HttpsError('invalid-argument', 'Message blocked by content filter'); } }
+            if (bad.length >= 4 && text.includes(bad)) throw new functions.https.HttpsError('invalid-argument', 'Message blocked by content filter');
+        }
     }
 
     // Rate limit: 1 bridge call per 3 seconds per user
@@ -1143,6 +1206,15 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
     }
 
     try {
+        // Look up the caller's actual username from Firestore (don't trust client-supplied name)
+        let verifiedUsername = 'Anon';
+        try {
+            const userDoc = await db.collection('users').doc(uid).get();
+            if (userDoc.exists && userDoc.data().username) {
+                verifiedUsername = userDoc.data().username.substring(0, 50);
+            }
+        } catch(e) {}
+
         const fetch = require('node-fetch');
         const resp = await fetch(BRIDGE_URL, {
             method: 'POST',
@@ -1151,7 +1223,7 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
                 'Authorization': 'Bearer ' + BRIDGE_SECRET
             },
             body: JSON.stringify({
-                user: (data.user || data.name || 'Anon').substring(0, 50),
+                user: verifiedUsername,
                 text: (data.text || '').substring(0, 500),
                 gifUrl: data.gifUrl || '',
                 imageUrl: data.imageUrl || '',
@@ -1670,24 +1742,25 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         await cooldownRef.set({ ts: admin.firestore.FieldValue.serverTimestamp() });
     }
 
-    // ── BADGE DEDUPLICATION ──
-    // If this is a badge award, check server-side if it's already been awarded
-    if (matchedAction === 'badge_earned' && action) {
-        const badgeMatch = action.match(/Badge:\s*(.+)/i);
-        if (badgeMatch) {
-            const badgeName = badgeMatch[1].trim().substring(0, 60);
-            const badgeAwardsRef = db.collection('users').doc(uid).collection('badge_awards');
-            const existing = await badgeAwardsRef.where('badge', '==', badgeName).limit(1).get();
-            if (!existing.empty) {
-                return { success: true, awarded: 0, capped: false, duplicate: true, dailyUsed: 0 };
-            }
-            // Record this badge award (inside the transaction below would be better, but reads are limited)
-            await badgeAwardsRef.add({
-                badge: badgeName,
-                pts: pts,
-                ts: admin.firestore.FieldValue.serverTimestamp()
-            });
+    // ── ONE-TIME AWARD DEDUPLICATION ──
+    // Badges and high-value one-time awards can only be claimed once per user
+    const ONE_TIME_ACTIONS = ['badge_earned', 'scholar_cert', 'story_complete', 'explore_100', 'anon_merge'];
+    if (ONE_TIME_ACTIONS.includes(matchedAction)) {
+        const dedupKey = matchedAction === 'badge_earned'
+            ? (action.match(/Badge:\s*(.+)/i) || [])[1] || action
+            : matchedAction;
+        const dedupId = dedupKey.trim().substring(0, 60).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const awardsRef = db.collection('users').doc(uid).collection('badge_awards');
+        const existing = await awardsRef.where('badge', '==', dedupId).limit(1).get();
+        if (!existing.empty) {
+            return { success: true, awarded: 0, capped: false, duplicate: true, dailyUsed: 0 };
         }
+        await awardsRef.add({
+            badge: dedupId,
+            pts: pts,
+            action: matchedAction,
+            ts: admin.firestore.FieldValue.serverTimestamp()
+        });
     }
 
     const DAILY_CAP = 500;

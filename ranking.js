@@ -1589,7 +1589,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     clearUserData();
     username = sanitizeInput(username);
     // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
-    username = username.replace(/[^\x20-\x7E]/g, '').trim();
+    username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
     if (!username || username.length < 2) {
         showToast('⚠️ Username must be at least 2 characters (letters, numbers, basic symbols only).');
         return;
@@ -4959,7 +4959,7 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
     // Read from input if no name passed
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
     // Strip non-ASCII (prevent Unicode/homoglyph bypass)
-    if (name) name = name.replace(/[^\x20-\x7E]/g, '').trim();
+    if (name) name = name.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
     if (!name || name.length < 2) { showToast('Username must be at least 2 characters (ASCII only)'); return; }
     if (name.length > 20) { showToast('Username max 20 characters'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }

@@ -203,7 +203,11 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid;
       allow update: if request.auth != null
                     && (
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                       && (!(request.auth.uid in resource.data.get('voters', [])))
+                       && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                       && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
+                       && request.auth.uid in request.resource.data.voters)
                       || resource.data.authorId == request.auth.uid
                       || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
@@ -428,7 +432,11 @@ service cloud.firestore {
                     && request.resource.data.body.size() <= 2000;
       allow update: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                            && (!(request.auth.uid in resource.data.get('voters', [])))
+                            && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                            && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
+                            && request.auth.uid in request.resource.data.voters)
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
@@ -496,13 +504,14 @@ service cloud.firestore {
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
                             && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')))
                     ) || (
-                    // Telegram bridge messages (anonymous auth from CF Worker)
+                    // Telegram bridge messages — admin/service account only
                     request.auth != null
                     && request.resource.data.source == 'telegram'
                     && request.resource.data.text is string
                     && request.resource.data.text.size() <= 500
                     && request.resource.data.name is string
                     && request.resource.data.uid is string
+                    && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
       // Allow reactions update by any authenticated user
       allow update: if request.auth != null
