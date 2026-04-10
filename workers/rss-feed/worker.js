@@ -11,12 +11,13 @@
  *   Posts new items to @updates_603BTC Telegram channel
  */
 
-const TELEGRAM_BOT_TOKEN = '8664304650:AAHIVO01I6dq_nMtuftEMHimpUmaudZcXN0';
+// Secrets stored in Cloudflare Workers env (never in code)
+// TELEGRAM_BOT_TOKEN — set via dashboard Secrets
+// ADMIN_KEY — set via dashboard Secrets
 const TELEGRAM_CHANNEL = '@updates_603BTC';
 const FIRESTORE_PROJECT = 'bitcoin-education-archive';
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents`;
 const SITE_URL = 'https://bitcoineducation.quest';
-const ADMIN_KEY = 'btc603-rss-admin-2026'; // Simple admin auth for /announce
 
 // ── Firestore helpers ──
 
@@ -72,8 +73,8 @@ async function queryFirestore(collection, orderBy, limit = 10, direction = 'DESC
 
 // ── Telegram helper ──
 
-async function sendTelegram(text) {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+async function sendTelegram(text, botToken) {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -217,7 +218,7 @@ async function getRecentContent() {
 
 let _lastCronRun = 0;
 
-async function cronBroadcast() {
+async function cronBroadcast(botToken) {
     const now = Date.now();
     
     // Don't check more than once per 25 minutes
@@ -246,7 +247,7 @@ async function cronBroadcast() {
         }
 
         if (msg) {
-            const result = await sendTelegram(msg);
+            const result = await sendTelegram(msg, botToken);
             if (result.ok) {
                 posted++;
                 // Rate limit: max 3 posts per cron run
@@ -281,8 +282,11 @@ export default {
 
         // Manual announcement endpoint
         if (path === '/announce' && request.method === 'POST') {
-            const auth = url.searchParams.get('key');
-            if (auth !== ADMIN_KEY) {
+            // Auth via header (not query string — avoids logging in URLs)
+            const authHeader = request.headers.get('Authorization') || '';
+            const authQuery = url.searchParams.get('key') || '';
+            const adminKey = env.ADMIN_KEY;
+            if (!adminKey || (authHeader !== 'Bearer ' + adminKey && authQuery !== adminKey)) {
                 return new Response('Unauthorized', { status: 401 });
             }
             try {
@@ -291,9 +295,9 @@ export default {
                 if (!text) return new Response('Missing text field', { status: 400 });
                 
                 const emoji = body.emoji || '📢';
-                const msg = `${emoji} <b>${escXml(body.title || 'Update')}</b>\n\n${escXml(text)}${body.link ? '\n\n<a href="' + body.link + '">Learn more →</a>' : ''}`;
+                const msg = `${emoji} <b>${escXml(body.title || 'Update')}</b>\n\n${escXml(text)}${body.link ? '\n\n<a href="' + escXml(body.link) + '">Learn more →</a>' : ''}`;
                 
-                const result = await sendTelegram(msg);
+                const result = await sendTelegram(msg, env.TELEGRAM_BOT_TOKEN);
                 return new Response(JSON.stringify(result), {
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -308,6 +312,6 @@ export default {
     },
 
     async scheduled(event, env) {
-        await cronBroadcast();
+        await cronBroadcast(env.TELEGRAM_BOT_TOKEN);
     }
 };
