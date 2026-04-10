@@ -1087,8 +1087,8 @@ function showGiveawayPrompt(uid, displayName) {
             '</div>' +
             '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
         '</div>' +
-        '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
-        '<button onclick="hideUsernamePrompt();showToast(\'✅ Welcome, ' + displayName.replace(/'/g, "\\'") + '!\')" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Skip → Start Learning</button>';
+        '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
+        '<button onclick="hideUsernamePrompt();showToast(\'✅ Welcome, ' + displayName.replace(/[\\'"]/g, "") + '!\')" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Skip → Start Learning</button>';
     modal.classList.add('open');
 
     // Toggle lightning address visibility
@@ -3435,7 +3435,7 @@ function showSettingsPage(tab) {
             {name:'El Salvador & Adoption', emoji:'🇸🇻'}, {name:'Technical Deep Dives', emoji:'🔬'}
         ];
         flashTopics.forEach(function(t) {
-            html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/'/g, "\\'") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
+            html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/[\\'"]/g, "") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
         });
         html += '</div></div></div>';
 
@@ -3538,7 +3538,7 @@ function showSettingsPage(tab) {
                     var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
                     var link = n.link || '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/'/g, "\\'") + '\',\'_blank\')"' : '') +
+                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -4072,7 +4072,7 @@ function showSettingsPage(tab) {
                         var name = doc.exists ? (doc.data().username || 'Unknown') : 'Deleted User';
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
                             '<span style="color:var(--text);font-size:0.85rem;">' + name + '</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/'/g, "\\'") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/[\\'"]/g, "") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === blockedList.length) container.innerHTML = listHtml;
                     }).catch(function() {
@@ -4771,7 +4771,7 @@ window.loadSignalContent = function() {
             var title = (n.title || '').replace(/<[^>]+>/g, '');
             var link = n.link || '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/'/g, "\\'") + '\',\'_blank\')"' : '') +
+                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';

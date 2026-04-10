@@ -266,7 +266,7 @@
                             const isMob = typeof isMobile === 'function' && isMobile();
                             const handle = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
                             const displayHandle = handle ? '@' + handle[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
-                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\''+ twId + '\',\''+ twUrl.replace(/'/g, "\\'") + '\')">' +
+                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\''+ twId + '\',\''+ twUrl.replace(/[\\'"]/g, "") + '\')">' +
                                 '<div class="tw-preview-icon">𝕏</div>' +
                                 '<div class="tw-preview-content">' +
                                 '<div class="tw-preview-url">' + displayHandle + '</div>' +
@@ -858,8 +858,8 @@
             '<div style="font-size:0.75rem;color:var(--text-faint,#888);font-weight:700;margin-bottom:8px;">' + label + '</div>' +
             qrHtml +
             (copyVal ? '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + copyVal.replace(/'/g, "\\'") + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
-                '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + copyVal.replace(/'/g, "\\'") + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
+                '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + copyVal.replace(/[\\'"]/g, "") + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
+                '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + copyVal.replace(/[\\'"]/g, "") + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
                 linkBtn +
             '</div>' : '') +
         '</div>';
@@ -1225,7 +1225,7 @@
         ];
         var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px;margin:0 auto;">';
         for (var i = 0; i < chips.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ chips[i].q.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
+            html += '<button onclick="nachoModeChip(\''+ chips[i].q.replace(/[\\'"]/g, "") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
         }
         html += '</div>';
         return html;
@@ -1698,7 +1698,7 @@
         if (!followUps || followUps.length === 0) return '';
         var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
         for (var i = 0; i < followUps.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/'/g, "\\'") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/[\\'"]/g, "") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
         }
         html += '</div>';
         return html;
@@ -3474,7 +3474,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/'/g, "\\'") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
                 '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
@@ -3725,7 +3725,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     '</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
                 recentSearches.forEach(function(s) {
-                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/'/g, "\\'") + '\';doSearch(\'' + s.replace(/'/g, "\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
+                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/[\\'"]/g, "") + '\';doSearch(\'' + s.replace(/[\\'"]/g, "") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
                 });
                 recentHtml += '</div></div>';
                 sr.innerHTML = recentHtml;
@@ -3804,7 +3804,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700;">🔥 Trending Topics</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
         TRENDING_TOPICS.forEach(function(t) {
-            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ t.q.replace(/'/g, "\\'") + '\';doSearch(\''+ t.q.replace(/'/g, "\\'") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
+            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ t.q.replace(/[\\'"]/g, "") + '\';doSearch(\''+ t.q.replace(/[\\'"]/g, "") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
                 '<span>' + t.icon + '</span>' +
                 '<span>' + escapeHtml(t.q) + '</span>' +
                 '<span style="font-size:0.65rem;color:var(--text-faint);margin-left:4px;">' + t.reason + '</span>' +
@@ -4083,7 +4083,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         function appBtn(emoji, label, action, locked, lockMsg) {
             if (locked) {
-                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/'/g, "\\'") + '\')" style="' + btnLocked + '" class="app-menu-item">' +
+                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" style="' + btnLocked + '" class="app-menu-item">' +
                     '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
             }
             return '<button onclick="' + action + ';toggleAppsMenu()" style="' + btnBase + '" class="app-menu-item">' +

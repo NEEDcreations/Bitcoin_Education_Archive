@@ -4010,7 +4010,7 @@ function renderScholarQuestion(idx) {
     
         choices.forEach(val => {
             const selected = scholarAnswers[idx] === val;
-            html += '<button onclick="selectScholarAnswer(' + idx + ', \'' + val.replace(/'/g, "\\'") + '\')" style="text-align:left;padding:15px;background:' + (selected ? 'var(--accent)' : 'var(--bg-side)') + ';color:' + (selected ? '#fff' : 'var(--text)') + ';border:1px solid ' + (selected ? 'var(--accent)' : 'var(--border)' ) + ';border-radius:10px;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + val + '</button>';
+            html += '<button onclick="selectScholarAnswer(' + idx + ', \'' + val.replace(/[\\'"]/g, "") + '\')" style="text-align:left;padding:15px;background:' + (selected ? 'var(--accent)' : 'var(--bg-side)') + ';color:' + (selected ? '#fff' : 'var(--text)') + ';border:1px solid ' + (selected ? 'var(--accent)' : 'var(--border)' ) + ';border-radius:10px;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + val + '</button>';
         });
     html += '</div>' +
         '<div style="margin-top:30px;display:flex;justify-content:space-between;">' +

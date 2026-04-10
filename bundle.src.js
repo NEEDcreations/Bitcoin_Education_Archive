@@ -1175,8 +1175,8 @@ function showGiveawayPrompt(uid, displayName) {
             '</div>' +
             '<p style="color:var(--text-faint);font-size:0.7rem;margin:6px 0 0;">Enter a Lightning address so we can send you the sats if you win! 🏆</p>' +
         '</div>' +
-        '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
-        '<button onclick="hideUsernamePrompt();showToast(\'✅ Welcome, ' + displayName.replace(/'/g, "\\'") + '!\')" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Skip → Start Learning</button>';
+        '<button onclick="submitGiveawayProvider(\'' + uid + '\',\'' + displayName.replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Enter Giveaway & Continue →</button>' +
+        '<button onclick="hideUsernamePrompt();showToast(\'✅ Welcome, ' + displayName.replace(/[\\'"]/g, "") + '!\')" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Skip → Start Learning</button>';
     modal.classList.add('open');
 
     // Toggle lightning address visibility
@@ -3523,7 +3523,7 @@ function showSettingsPage(tab) {
             {name:'El Salvador & Adoption', emoji:'🇸🇻'}, {name:'Technical Deep Dives', emoji:'🔬'}
         ];
         flashTopics.forEach(function(t) {
-            html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/'/g, "\\'") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
+            html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/[\\'"]/g, "") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
         });
         html += '</div></div></div>';
 
@@ -3626,7 +3626,7 @@ function showSettingsPage(tab) {
                     var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
                     var link = n.link || '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/'/g, "\\'") + '\',\'_blank\')"' : '') +
+                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -4160,7 +4160,7 @@ function showSettingsPage(tab) {
                         var name = doc.exists ? (doc.data().username || 'Unknown') : 'Deleted User';
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
                             '<span style="color:var(--text);font-size:0.85rem;">' + name + '</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/'/g, "\\'") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + name.replace(/[\\'"]/g, "") + '\')};showSettingsPage(\'security\')" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === blockedList.length) container.innerHTML = listHtml;
                     }).catch(function() {
@@ -4859,7 +4859,7 @@ window.loadSignalContent = function() {
             var title = (n.title || '').replace(/<[^>]+>/g, '');
             var link = n.link || '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/'/g, "\\'") + '\',\'_blank\')"' : '') +
+                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
@@ -5631,8 +5631,8 @@ function showBadgeToast(badge) {
             '<p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Share your achievement!</p>' +
             '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
             '<a href="' + twitterUrl + '" target="_blank" style="padding:8px 16px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;">𝕏 Share on Twitter</a>' +
-            '<button onclick="shareNostr(\'' + shareText.replace(/'/g, "\\'") + '\',\'' + shareUrl + '\')" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
-            '<button onclick="copyBadgeLink(\'' + badge.emoji + '\',\'' + badge.name.replace(/'/g, "\\'") + '\')" style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
+            '<button onclick="shareNostr(\'' + shareText.replace(/[\\'"]/g, "") + '\',\'' + shareUrl + '\')" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
+            '<button onclick="copyBadgeLink(\'' + badge.emoji + '\',\'' + badge.name.replace(/[\\'"]/g, "") + '\')" style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
             '</div></div>';
     }
 
@@ -10432,7 +10432,7 @@ function _showQuestTopicPicker() {
         var bg = t.done ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)';
         var border = t.done ? 'rgba(34,197,94,0.2)' : 'var(--border)';
         var statusIcon = t.done ? '<span style="color:#22c55e;font-size:0.75rem;">✅</span>' : '<span style="color:var(--text-faint);font-size:0.65rem;">' + t.count + 'Q</span>';
-        html += '<button onclick="_startQuestTopic(\'' + t.key.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:10px;cursor:pointer;width:100%;text-align:left;font-family:inherit;transition:0.2s;color:var(--text);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + border + '\'">' +
+        html += '<button onclick="_startQuestTopic(\'' + t.key.replace(/[\\'"]/g, "") + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:10px;cursor:pointer;width:100%;text-align:left;font-family:inherit;transition:0.2s;color:var(--text);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + border + '\'">' +
             '<span style="font-size:1.1rem;flex-shrink:0;">' + t.emoji + '</span>' +
             '<span style="flex:1;font-size:0.82rem;font-weight:' + (t.done ? '500' : '700') + ';color:' + (t.done ? 'var(--text-muted)' : 'var(--text)') + ';">' + t.label + '</span>' +
             statusIcon +
@@ -12869,7 +12869,7 @@ function renderListingDetail(container, listingId) {
             html += '<div style="display:flex;gap:10px;margin-bottom:16px;">' +
                 '<button onclick="contactSeller(\'' + l.id + '\',\'' + escapeHtml(l.sellerName || '') + '\')"  style="flex:1;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Contact Seller</button>' +
                 '<button onclick="toggleMarketSave(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:1.1rem;cursor:pointer;">' + (isSaved ? '❤️' : '🤍') + '</button>' +
-                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/'/g, "\\'") + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
+                '<button onclick="if(typeof reportUser===\'function\')reportUser(\'' + (l.sellerUid || '') + '\',\'' + escapeHtml(l.sellerName || '').replace(/[\\'"]/g, "") + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;cursor:pointer;color:var(--text-faint);" title="Report listing">🚩</button>' +
                 (isAdmin ? '<button onclick="deleteListing(\'' + l.id + '\')"  style="padding:14px 18px;background:var(--card-bg);border:1px solid #ef4444;border-radius:12px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;" title="Admin: Delete listing">🗑️</button>' : '') +
             '</div>';
             // Safety notice
@@ -16804,7 +16804,7 @@ function renderDashboard(data) {
         var halvingPct = d.halving ? ((210000 - d.halving) / 210000 * 100).toFixed(1) : 0;
         var etaStr = d.halvingEta ? d.halvingEta.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
         var halvingTip = 'Every 210,000 blocks (~4 years), the Bitcoin block reward is cut in half. This is called the "halving." It reduces the rate of new Bitcoin created, enforcing scarcity. The reward started at 50 BTC in 2009 and has halved 4 times: 50 → 25 → 12.5 → 6.25 → 3.125 BTC. After the next halving, miners will receive 1.5625 BTC per block. There will only ever be 21 million Bitcoin.';
-        html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + halvingTip.replace(/'/g, "\\'") + '\')" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.2)\'">';
+        html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + halvingTip.replace(/[\\'"]/g, "") + '\')" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.2)\'">';
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
         html += '<div style="display:flex;justify-content:center;gap:16px;margin-bottom:10px;">';
         html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
@@ -16897,7 +16897,7 @@ function renderDashboard(data) {
 }
 
 function metricCard(emoji, label, value, sub, tip) {
-    var tipAttr = tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + tip.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"';
+    var tipAttr = tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"';
     return '<div' + tipAttr + '>' +
         '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + emoji + ' ' + label + (tip ? ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span>' : '') + '</div>' +
         '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-top:4px;letter-spacing:-0.3px;">' + (value || '—') + '</div>' +
@@ -17641,7 +17641,7 @@ function loadTopIndicators() {
     indicators.forEach(function(ind) {
         var borderCol = ind.flashing ? 'rgba(239,68,68,0.5)' : 'var(--border)';
         var bgExtra = ind.flashing ? 'background:rgba(239,68,68,0.04);' : '';
-        html += '<div' + (ind.tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + ind.tip.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + borderCol + '\'"' : ' style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;position:relative;"') + '>';
+        html += '<div' + (ind.tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + ind.tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '\')" style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + borderCol + '\'"' : ' style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;position:relative;"') + '>';
         // Flashing badge
         if (!ind.noFlashLogic) {
             if (ind.flashing) {
@@ -18254,7 +18254,7 @@ function loadTopIndicators() {
                             const isMob = typeof isMobile === 'function' && isMobile();
                             const handle = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
                             const displayHandle = handle ? '@' + handle[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
-                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\''+ twId + '\',\''+ twUrl.replace(/'/g, "\\'") + '\')">' +
+                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\''+ twId + '\',\''+ twUrl.replace(/[\\'"]/g, "") + '\')">' +
                                 '<div class="tw-preview-icon">𝕏</div>' +
                                 '<div class="tw-preview-content">' +
                                 '<div class="tw-preview-url">' + displayHandle + '</div>' +
@@ -18846,8 +18846,8 @@ function loadTopIndicators() {
             '<div style="font-size:0.75rem;color:var(--text-faint,#888);font-weight:700;margin-bottom:8px;">' + label + '</div>' +
             qrHtml +
             (copyVal ? '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + copyVal.replace(/'/g, "\\'") + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
-                '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + copyVal.replace(/'/g, "\\'") + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
+                '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + copyVal.replace(/[\\'"]/g, "") + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
+                '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + copyVal.replace(/[\\'"]/g, "") + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
                 linkBtn +
             '</div>' : '') +
         '</div>';
@@ -19213,7 +19213,7 @@ function loadTopIndicators() {
         ];
         var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px;margin:0 auto;">';
         for (var i = 0; i < chips.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ chips[i].q.replace(/'/g,"\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
+            html += '<button onclick="nachoModeChip(\''+ chips[i].q.replace(/[\\'"]/g, "") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
         }
         html += '</div>';
         return html;
@@ -19686,7 +19686,7 @@ function loadTopIndicators() {
         if (!followUps || followUps.length === 0) return '';
         var html = '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">';
         for (var i = 0; i < followUps.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/'/g, "\\'") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
+            html += '<button onclick="nachoModeChip(\''+ followUps[i].replace(/[\\'"]/g, "") + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + followUps[i] + '</button>';
         }
         html += '</div>';
         return html;
@@ -21462,7 +21462,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
                 '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/'/g, "\\'") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
                 '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
@@ -21713,7 +21713,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     '</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
                 recentSearches.forEach(function(s) {
-                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/'/g, "\\'") + '\';doSearch(\'' + s.replace(/'/g, "\\'") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
+                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/[\\'"]/g, "") + '\';doSearch(\'' + s.replace(/[\\'"]/g, "") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
                 });
                 recentHtml += '</div></div>';
                 sr.innerHTML = recentHtml;
@@ -21792,7 +21792,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700;">🔥 Trending Topics</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
         TRENDING_TOPICS.forEach(function(t) {
-            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ t.q.replace(/'/g, "\\'") + '\';doSearch(\''+ t.q.replace(/'/g, "\\'") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
+            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ t.q.replace(/[\\'"]/g, "") + '\';doSearch(\''+ t.q.replace(/[\\'"]/g, "") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
                 '<span>' + t.icon + '</span>' +
                 '<span>' + escapeHtml(t.q) + '</span>' +
                 '<span style="font-size:0.65rem;color:var(--text-faint);margin-left:4px;">' + t.reason + '</span>' +
@@ -22071,7 +22071,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         function appBtn(emoji, label, action, locked, lockMsg) {
             if (locked) {
-                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/'/g, "\\'") + '\')" style="' + btnLocked + '" class="app-menu-item">' +
+                return '<button onclick="event.preventDefault();event.stopPropagation();if(typeof showToast===\'function\')showToast(\'' + lockMsg.replace(/[\\'"]/g, "") + '\')" style="' + btnLocked + '" class="app-menu-item">' +
                     '<span style="font-size:1.8rem;">' + emoji + '</span><span>🔒 ' + label + '</span></button>';
             }
             return '<button onclick="' + action + ';toggleAppsMenu()" style="' + btnBase + '" class="app-menu-item">' +

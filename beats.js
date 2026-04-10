@@ -1001,7 +1001,7 @@ window.beatsShowTrackDetail = function(idx) {
         '<div style="text-align:center;margin-bottom:6px;color:var(--heading);font-weight:800;font-size:1.1rem;word-break:break-word;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
         '<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">' +
             (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>') +
-            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/'/g, '\\&#39;') + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
+            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
         '</div>' +
         (track.genre ? '<div style="text-align:center;margin-bottom:16px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:16px;"></div>') +
         '<div style="display:flex;justify-content:center;gap:24px;margin-bottom:20px;color:var(--text-faint);font-size:0.75rem;">' +
@@ -1915,7 +1915,7 @@ window.beatsSetGenre = function(genre) {
                 var chipHtml = '<button class="beats-genre-btn" data-genre="" onclick="beatsSetGenre(\'\')" style="' + chipStyle + (window._beatsGenreFilter === '' ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">All</button>';
                 Object.keys(genres).sort().forEach(function(g) {
                     var active = window._beatsGenreFilter === g;
-                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g.replace(/'/g, "\\'") + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + escapeHtml(g) + ' (' + genres[g] + ')</button>';
+                    chipHtml += '<button class="beats-genre-btn" data-genre="' + g + '" onclick="beatsSetGenre(\'' + g.replace(/[\\'"]/g, "") + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + escapeHtml(g) + ' (' + genres[g] + ')</button>';
                 });
                 genreChips.innerHTML = chipHtml;
             }
@@ -1976,8 +1976,8 @@ window.beatsSetGenre = function(genre) {
                     '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-left:38px;">' +
                         '<button onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                         '<button onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
-                        (t.authorId ? '<button onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/'/g, "\\'") + '\',\'' + escapeHtml(t.title || '').replace(/'/g, "\\'") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
-                        '<button onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/'/g, "\\'") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
+                        (t.authorId ? '<button onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\\'"]/g, "") + '\',\'' + escapeHtml(t.title || '').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
+                        '<button onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
                         '<button onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
                     '</div>' +
                 '</div>';
@@ -2067,7 +2067,7 @@ window.beatsShowArtistPage = function(uid) {
             '</div>' : '') +
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
-                ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/'/g, "\\'") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/'/g, "\\'") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
+                ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
                 '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">👤 Full Profile</button>' +
             '</div>' +
             // Discography
@@ -2384,7 +2384,7 @@ window.beatsLoadPlaylists = function() {
                         '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.name || 'Untitled Playlist') + '</div>' +
                         '<div style="color:var(--text-faint);font-size:0.72rem;">' + count + ' track' + (count !== 1 ? 's' : '') + '</div>' +
                     '</div>' +
-                    '<button onclick="event.stopPropagation();beatsDeletePlaylist(\'' + p.id + '\',\'' + escapeHtml(p.name || '').replace(/'/g, "\\'") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:4px;" title="Delete">🗑️</button>' +
+                    '<button onclick="event.stopPropagation();beatsDeletePlaylist(\'' + p.id + '\',\'' + escapeHtml(p.name || '').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:4px;" title="Delete">🗑️</button>' +
                 '</div>';
             });
         }
@@ -2431,7 +2431,7 @@ window.beatsOpenPlaylist = function(playlistId) {
             '<div style="flex:1;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;">' + escapeHtml(pl.name || 'Playlist') + '</div><div style="color:var(--text-faint);font-size:0.75rem;">' + ids.length + ' tracks</div></div>' +
             '<button onclick="beatsPlayPlaylist(\'' + playlistId + '\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Play All</button>' +
             '<button onclick="beatsShufflePlaylist(\'' + playlistId + '\')" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;cursor:pointer;font-family:inherit;color:var(--text-muted);">🎲</button>' +
-            '<button onclick="beatsSharePlaylistLink(\'' + playlistId + '\',\'' + escapeHtml(pl.name || 'Playlist').replace(/'/g, "\\'") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;" title="Share">🔗</button>' +
+            '<button onclick="beatsSharePlaylistLink(\'' + playlistId + '\',\'' + escapeHtml(pl.name || 'Playlist').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;" title="Share">🔗</button>' +
         '</div>';
 
         if (ids.length === 0) {
