@@ -4672,7 +4672,21 @@ async function saveProfile() {
     };
     links.forEach(function(k) {
         var el = document.getElementById('profile_' + k);
-        if (el) updateData[k] = (k === 'contactEmail' || k === 'lightning' || k === 'nostr') ? el.value.trim() : _safeUrl(el.value);
+        if (el) {
+            var val = el.value.trim();
+            if (k === 'lightning') {
+                // Lightning address: must be user@domain format, no special chars that break onclick
+                val = val.replace(/[\\'"<>]/g, '');
+                if (val && !val.match(/^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) val = '';
+            } else if (k === 'contactEmail') {
+                val = val.replace(/[\\'"<>]/g, '');
+            } else if (k === 'nostr') {
+                val = val.replace(/[\\'"<>]/g, '');
+            } else {
+                val = _safeUrl(val);
+            }
+            updateData[k] = val;
+        }
         else if (currentUser && typeof currentUser[k] !== 'undefined') {
             // If the element doesn't exist but the user had it, we check if it was removed
             // Actually, addProfileLink adds the element. If it's gone from DOM, they likely clicked Remove.
@@ -13930,9 +13944,9 @@ window.showUserProfile = function(uid) {
                 '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
                     '<span style="font-size:1rem;">⚡</span>' +
                     '<span style="color:#eab308;font-size:0.78rem;font-weight:600;word-break:break-all;">' + escapeHtml(u.lightningAddress || u.lightning) + '</span>' +
-                    '<button onclick="navigator.clipboard.writeText(\'' + escapeHtml((u.lightningAddress || u.lightning).replace(/'/g, "\\'")) + '\');if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
+                    '<button onclick="navigator.clipboard.writeText(\'' + escapeHtml(u.lightningAddress || u.lightning).replace(/[\\'"]/g, '') + '\');if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
                 '</div>' +
-                '<button onclick="document.getElementById(\'userProfileModal\').remove();showTipOverlay({recipientName:\'' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\',recipientUid:\'' + uid + '\',lightningAddress:\'' + escapeHtml(u.lightningAddress || u.lightning).replace(/'/g, "\\'") + '\',label:\'Tip ' + escapeHtml(u.username || 'Bitcoiner').replace(/'/g, "\\'") + '\',context:\'profile\'})" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
+                '<button onclick="document.getElementById(\'userProfileModal\').remove();showTipOverlay({recipientName:\'' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, '') + '\',recipientUid:\'' + uid + '\',lightningAddress:\'' + escapeHtml(u.lightningAddress || u.lightning).replace(/[\\'"]/g, '') + '\',label:\'Tip ' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, '') + '\',context:\'profile\'})" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
             '</div>' : '') +
             // Message button
             (canMessage && dmEligibility.ok ?

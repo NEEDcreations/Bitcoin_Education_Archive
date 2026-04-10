@@ -4584,7 +4584,21 @@ async function saveProfile() {
     };
     links.forEach(function(k) {
         var el = document.getElementById('profile_' + k);
-        if (el) updateData[k] = (k === 'contactEmail' || k === 'lightning' || k === 'nostr') ? el.value.trim() : _safeUrl(el.value);
+        if (el) {
+            var val = el.value.trim();
+            if (k === 'lightning') {
+                // Lightning address: must be user@domain format, no special chars that break onclick
+                val = val.replace(/[\\'"<>]/g, '');
+                if (val && !val.match(/^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) val = '';
+            } else if (k === 'contactEmail') {
+                val = val.replace(/[\\'"<>]/g, '');
+            } else if (k === 'nostr') {
+                val = val.replace(/[\\'"<>]/g, '');
+            } else {
+                val = _safeUrl(val);
+            }
+            updateData[k] = val;
+        }
         else if (currentUser && typeof currentUser[k] !== 'undefined') {
             // If the element doesn't exist but the user had it, we check if it was removed
             // Actually, addProfileLink adds the element. If it's gone from DOM, they likely clicked Remove.

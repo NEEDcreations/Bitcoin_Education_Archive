@@ -88,6 +88,26 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
     if (!data.code) throw new functions.https.HttpsError('invalid-argument', 'Code required');
     
     const uid = context.auth.uid;
+
+    // Rate limiting: max 5 attempts per 2-minute window
+    const totpRateRef = db.collection('totp_rate_limits').doc(uid);
+    const totpRateDoc = await totpRateRef.get();
+    if (totpRateDoc.exists) {
+        const rateData = totpRateDoc.data();
+        const attempts = rateData.attempts || 0;
+        const windowStart = rateData.windowStart ? (rateData.windowStart.toDate ? rateData.windowStart.toDate() : new Date(rateData.windowStart)) : null;
+        if (windowStart && (Date.now() - windowStart.getTime()) < 120000) {
+            if (attempts >= 5) {
+                console.error('[TOTP] Rate limit exceeded for uid=' + uid + ', attempts=' + attempts);
+                throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes and try again.');
+            }
+            await totpRateRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+        } else {
+            await totpRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+        }
+    } else {
+        await totpRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+    }
     
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists || !doc.data().enabled) {
@@ -98,6 +118,9 @@ exports.totpCheck = functions.https.onCall(async (data, context) => {
     var isValid = authenticator.verify({ token: data.code, secret: secret });
     
     if (!isValid) throw new functions.https.HttpsError('invalid-argument', 'Invalid code');
+    
+    // Reset rate limit on success
+    await totpRateRef.delete().catch(function() {});
     
     // Mark session as verified
     await db.collection('totp_sessions').doc(uid).set({
@@ -311,6 +334,27 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
     
     if (!pubkey || !sig || !event) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
+    }
+
+    // Rate limiting: max 5 nostrAuth calls per IP per hour
+    const nostrIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
+    if (nostrIP !== 'unknown') {
+        const nostrRateRef = db.collection('rate_limits').doc('nostr_' + nostrIP.replace(/[./]/g, '_'));
+        const nostrRateDoc = await nostrRateRef.get();
+        if (nostrRateDoc.exists) {
+            const rd = nostrRateDoc.data();
+            const windowStart = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+            if (windowStart && (Date.now() - windowStart.getTime()) < 3600000) {
+                if ((rd.attempts || 0) >= 5) {
+                    throw new functions.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
+                }
+                await nostrRateRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+            } else {
+                await nostrRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+            }
+        } else {
+            await nostrRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+        }
     }
 
     // Validate pubkey format (64 hex chars)
@@ -1209,7 +1253,11 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
 
     // 6a. IP RATE LIMITING (Fix #6) — flag same IP claiming across multiple accounts
     const clientIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    if (clientIP !== 'unknown') {
+    if (clientIP === 'unknown') {
+        console.error('[FAUCET] Could not determine client IP for uid=' + uid);
+        return { success: false, error: 'Could not verify request origin. Try again later.' };
+    }
+    {
         const ipRef = db.collection('faucet_ip_log').doc(clientIP.replace(/[./]/g, '_'));
         const ipDoc = await ipRef.get();
         if (ipDoc.exists) {

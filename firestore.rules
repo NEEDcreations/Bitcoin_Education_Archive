@@ -91,9 +91,15 @@ service cloud.firestore {
     // Active predictions (for server-side resolution)
     match /active_predictions/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null
-                            && request.auth.uid == uid
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.keys().hasAll(['direction', 'price', 'uid'])
+                    && request.resource.data.direction is string
+                    && (request.resource.data.direction == 'up' || request.resource.data.direction == 'down')
+                    && request.resource.data.uid == request.auth.uid;
+      // No updates allowed — predictions are immutable once placed
+      allow update: if false;
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
@@ -150,6 +156,9 @@ service cloud.firestore {
     match /totp_secrets/{userId} {
       allow read, write: if false;
     }
+    match /totp_rate_limits/{userId} {
+      allow read, write: if false; // Cloud Function only
+    }
 
     // =============================================
     // FORUM POSTS
@@ -165,9 +174,12 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid;
       allow update: if request.auth != null
                     && (
-                      // Upvote: only if user hasn't voted yet
+                      // Upvote: only if user hasn't voted yet, increment by exactly 1, append only own UID
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
+                       && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                       && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
+                       && request.auth.uid in request.resource.data.voters
                       )
                       || resource.data.authorId == request.auth.uid
                       || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
@@ -276,7 +288,9 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
-                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees']));
+                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
+                            && request.resource.data.attendees.size() == resource.data.get('attendees', []).size() + 1
+                            && request.auth.uid in request.resource.data.attendees));
       allow delete: if request.auth != null
                     && (resource.data.hostId == request.auth.uid
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
@@ -336,7 +350,9 @@ service cloud.firestore {
                     && request.resource.data.copyrightConfirmed == true;
       allow update: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes']));
+                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes'])
+                            && request.resource.data.plays <= resource.data.get('plays', 0) + 1
+                            && request.resource.data.likes <= resource.data.get('likes', 0) + 1));
       allow delete: if request.auth != null
                     && resource.data.authorId == request.auth.uid;
 
@@ -385,7 +401,11 @@ service cloud.firestore {
                       // Author can edit their own article
                       resource.data.authorId == request.auth.uid
                       // Upvotes/tips: anyone authenticated
-                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount', 'tipTotal'])
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount', 'tipTotal'])
+                          && (!(request.auth.uid in resource.data.get('voters', [])))
+                          && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                          && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
+                          && request.auth.uid in request.resource.data.voters)
                       // Admin
                       || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
@@ -430,8 +450,15 @@ service cloud.firestore {
     // =============================================
     match /global_chat_meta/{docId} {
       allow read: if true;
-      allow create, update: if request.auth != null
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      // DJ state: only writable by the current DJ (must match djUid) or admin
+      allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      allow update: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && (resource.data.get('djUid', '') == request.auth.uid
+                        || resource.data.get('djUid', '') == ''
+                        || resource.data.get('active', false) == false
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
 
       // DJ Queue subcollection
       match /dj_queue/{queueId} {
@@ -521,8 +548,11 @@ service cloud.firestore {
     // Buddy matching pool
     match /buddy_pool/{docId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null
+                    && (resource.data.uid == request.auth.uid
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // Faucet invoice dedup (Cloud Function only)
