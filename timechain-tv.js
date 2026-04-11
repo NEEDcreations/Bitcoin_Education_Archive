@@ -574,9 +574,12 @@ function showWhiteNoise(callback) {
         noiseNode.start();
     } catch(e) {}
 
-    // Fade out after 1.5s
+    // Start loading YouTube API during white noise so it's ready when we need it
+    loadYouTubeAPI();
+
+    // Fade out after 0.8s
     setTimeout(function() {
-        overlay.style.transition = 'opacity 0.5s';
+        overlay.style.transition = 'opacity 0.4s';
         overlay.style.opacity = '0';
         if (noiseNode) { try { noiseNode.stop(); } catch(e) {} }
         if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
@@ -584,8 +587,8 @@ function showWhiteNoise(callback) {
             clearInterval(noiseInterval);
             overlay.remove();
             if (callback) callback();
-        }, 500);
-    }, 1500);
+        }, 400);
+    }, 800);
 }
 
 // ── YouTube Player ──
@@ -845,7 +848,7 @@ window.renderTimechainTV = function() {
                     } catch(e) {}
                 }, 2000);
             } else {
-                setTimeout(initPlayer, 500);
+                setTimeout(initPlayer, 100);
             }
         }
         initPlayer();
@@ -889,7 +892,6 @@ window.switchStation = function(stationId) {
     // Load new video WITHOUT rebuilding the page
     if (state.video && _player && _playerReady) {
         _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
-        setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
         _currentVideoId = state.video.id;
     } else if (state.video) {
         // Player not ready — recreate it
