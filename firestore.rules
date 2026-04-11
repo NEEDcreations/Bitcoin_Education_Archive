@@ -393,7 +393,12 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
-                    && request.resource.data.copyrightConfirmed == true;
+                    && request.resource.data.copyrightConfirmed == true
+                    && (!('coverUrl' in request.resource.data)
+                        || request.resource.data.coverUrl == ''
+                        || request.resource.data.coverUrl == null
+                        || request.resource.data.coverUrl.matches('^https://.*')
+                        || request.resource.data.coverUrl.matches('^data:image/.*'));
       allow update: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
