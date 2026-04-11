@@ -582,8 +582,8 @@ function _walletCard(w) {
 
 function _navButtons(stepNum) {
     return '<div style="display:flex;justify-content:space-between;margin-top:20px;">' +
-        '<button onclick="_fpNav(' + (stepNum - 1) + ')" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
-        '<button onclick="_fpNav(' + (stepNum + 1) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
+        '<button onclick="event.stopPropagation();_fpNav(' + (stepNum - 1) + ')" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+        '<button onclick="event.stopPropagation();_fpNav(' + (stepNum + 1) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
     '</div>';
 }
 
@@ -595,8 +595,11 @@ window._fpNav = function(step) {
     if (_fpNavLock) return;
     _fpNavLock = true;
     saveStep(step);
-    renderFirstPurchase();
-    setTimeout(function() { _fpNavLock = false; }, 300);
+    // Small delay to let event handling complete before re-render
+    setTimeout(function() {
+        renderFirstPurchase();
+        _fpNavLock = false;
+    }, 50);
 };
 
 // Route: go('first-purchase') — now handled by app.js _routeApp retry
