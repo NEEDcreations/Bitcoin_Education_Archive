@@ -518,8 +518,6 @@ function updateViewerBadges() {
 
 // ── White Noise Loading Screen ──
 function showWhiteNoise(callback) {
-    var existing = document.getElementById('tctvNoise');
-    if (existing) existing.remove();
     var overlay = document.createElement('div');
     overlay.id = 'tctvNoise';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:200000;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
@@ -576,12 +574,9 @@ function showWhiteNoise(callback) {
         noiseNode.start();
     } catch(e) {}
 
-    // Start loading YouTube API during white noise so it's ready when we need it
-    loadYouTubeAPI();
-
-    // Fade out after 0.8s
+    // Fade out after 1.5s
     setTimeout(function() {
-        overlay.style.transition = 'opacity 0.4s';
+        overlay.style.transition = 'opacity 0.5s';
         overlay.style.opacity = '0';
         if (noiseNode) { try { noiseNode.stop(); } catch(e) {} }
         if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
@@ -589,8 +584,8 @@ function showWhiteNoise(callback) {
             clearInterval(noiseInterval);
             overlay.remove();
             if (callback) callback();
-        }, 400);
-    }, 800);
+        }, 500);
+    }, 1500);
 }
 
 // ── YouTube Player ──
@@ -850,7 +845,7 @@ window.renderTimechainTV = function() {
                     } catch(e) {}
                 }, 2000);
             } else {
-                setTimeout(initPlayer, 100);
+                setTimeout(initPlayer, 500);
             }
         }
         initPlayer();
@@ -867,23 +862,13 @@ window.renderTimechainTV = function() {
 // ── Channel Switching ──
 // Scroll everything to top — called immediately and repeatedly
 function _tctvScrollTop() {
-    // Override smooth scroll for instant snap
-    document.documentElement.style.scrollBehavior = 'auto';
-    document.body.style.scrollBehavior = 'auto';
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     window.scrollTo(0, 0);
     var fc = document.getElementById('forumContainer');
-    if (fc) { fc.style.scrollBehavior = 'auto'; fc.scrollTop = 0; }
+    if (fc) fc.scrollTop = 0;
     var main = document.getElementById('main');
-    if (main) { main.style.scrollBehavior = 'auto'; main.scrollTop = 0; }
-    // Restore smooth scroll after
-    setTimeout(function() {
-        document.documentElement.style.scrollBehavior = '';
-        document.body.style.scrollBehavior = '';
-        if (fc) fc.style.scrollBehavior = '';
-        if (main) main.style.scrollBehavior = '';
-    }, 50);
+    if (main) main.scrollTop = 0;
 }
 
 window.switchStation = function(stationId) {
@@ -891,12 +876,6 @@ window.switchStation = function(stationId) {
 
     // IMMEDIATELY scroll to top
     _tctvScrollTop();
-
-    // Show white noise while switching
-    showWhiteNoise(function() {
-        // Scroll again after white noise clears
-        _tctvScrollTop();
-    });
 
     leaveStation();
     _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
@@ -910,6 +889,7 @@ window.switchStation = function(stationId) {
     // Load new video WITHOUT rebuilding the page
     if (state.video && _player && _playerReady) {
         _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
+        setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
         _currentVideoId = state.video.id;
     } else if (state.video) {
         // Player not ready — recreate it
