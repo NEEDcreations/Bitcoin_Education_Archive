@@ -288,17 +288,25 @@ async function fetchDashboardData() {
         new Promise(resolve => setTimeout(resolve, 8000))
     ]);
 
-    // If no price from CoinGecko, try cached or WS price
+    // Fill any missing fields from WS price, then stale cache — user should NEVER see blanks
     if (!data.price && _lastWsPrice) data.price = _lastWsPrice;
-    if (!data.price) {
+    // Merge from short-TTL cache, then persistent backup — fill every gap
+    var _cacheKeys = [DASH_CACHE_KEY, 'btc_dash_backup'];
+    for (var _ci = 0; _ci < _cacheKeys.length; _ci++) {
         try {
-            var _fc = JSON.parse(localStorage.getItem(DASH_CACHE_KEY));
-            if (_fc && _fc.data && _fc.data.price) {
-                // Use stale cache rather than showing nothing
-                Object.keys(_fc.data).forEach(function(k) { if (!data[k]) data[k] = _fc.data[k]; });
+            var _fc = JSON.parse(localStorage.getItem(_cacheKeys[_ci]));
+            if (_fc && _fc.data) {
+                Object.keys(_fc.data).forEach(function(k) {
+                    if (data[k] === undefined || data[k] === null || data[k] === '' || (typeof data[k] === 'number' && isNaN(data[k]))) {
+                        data[k] = _fc.data[k];
+                    }
+                });
             }
         } catch(e) {}
     }
+    // Last-resort individual field fallbacks
+    if (!data.price) { try { data.price = parseFloat(localStorage.getItem('btc_last_price')) || undefined; } catch(e) {} }
+    if (!data.blockHeight) { try { data.blockHeight = parseInt(localStorage.getItem('btc_last_height')) || undefined; } catch(e) {} }
 
     // Derived metrics
     if (data.price) {
@@ -324,9 +332,11 @@ async function fetchDashboardData() {
     data.ts = Date.now();
     _dashData = data;
 
-    // Cache — only if we got meaningful data
+    // Cache — save if we got meaningful data (short-TTL + persistent backup)
     if (data.price || data.blockHeight) {
-        try { localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
+        var cachePayload = JSON.stringify({ ts: Date.now(), data: data });
+        try { localStorage.setItem(DASH_CACHE_KEY, cachePayload); } catch(e) {}
+        try { localStorage.setItem('btc_dash_backup', cachePayload); } catch(e) {}
     }
     _dashLoading = false;
     return data;
@@ -357,7 +367,9 @@ function renderDashboard(data) {
     // Header
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
     html += '<div><h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0;letter-spacing:-0.5px;">₿ Bitcoin Network</h2>';
-    html += '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Live metrics · Updates every 2 min</div></div>';
+    var _dataAge = d.ts ? Math.round((Date.now() - d.ts) / 60000) : 0;
+    var _freshLabel = _dataAge <= 2 ? 'Live metrics · Updates every 2 min' : '📦 Data from ' + (_dataAge < 60 ? _dataAge + 'm' : Math.round(_dataAge/60) + 'h') + ' ago · Refreshing...';
+    html += '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">' + _freshLabel + '</div></div>';
     html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
     html += '</div>';
 
@@ -700,11 +712,13 @@ function loadTopIndicators() {
     var el = document.getElementById('topIndContent');
     if (!el) return;
 
-    // Try to show cached data immediately while fresh data loads
+    // Show cached indicators immediately — never show blanks
     try {
         var cached = JSON.parse(localStorage.getItem(TOP_IND_CACHE_KEY));
-        if (cached && cached.html && (Date.now() - cached.ts < 3600000)) { // 1 hour cache
-            el.innerHTML = cached.html;
+        if (cached && cached.html) {
+            var ageMin = Math.round((Date.now() - cached.ts) / 60000);
+            var staleNote = ageMin > 5 ? '<div style="text-align:center;font-size:0.6rem;color:var(--text-faint);padding:4px;">📦 Cached ' + (ageMin < 60 ? ageMin + 'm' : Math.round(ageMin/60) + 'h') + ' ago · refreshing...</div>' : '';
+            el.innerHTML = staleNote + cached.html;
         }
     } catch(e) {}
 
@@ -1600,11 +1614,17 @@ var _goldCacheTs = 0;
 var TOTAL_GOLD_OZ = 212582 * 32150.7; // ~6.83 billion troy oz above-ground gold
 
 function _fetchGoldData(btcMktCapT, btcSupply) {
-    // Cache for 30 minutes
+    // Restore from localStorage if no in-memory cache
+    if (!_goldCache) {
+        try { var _gc = JSON.parse(localStorage.getItem('btc_gold_cache')); if (_gc && _gc.p) { _goldCache = _gc.p; _goldCacheTs = _gc.t || 0; } } catch(e) {}
+    }
+    // Use cache if fresh enough
     if (_goldCache && Date.now() - _goldCacheTs < 1800000) {
         _renderGold(_goldCache, btcMktCapT, btcSupply);
         return;
     }
+    // Show stale cache immediately while fetching
+    if (_goldCache) _renderGold(_goldCache, btcMktCapT, btcSupply);
 
     fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd')
         .then(function(r) { return r.json(); })
@@ -1613,12 +1633,13 @@ function _fetchGoldData(btcMktCapT, btcSupply) {
             if (goldPrice) {
                 _goldCache = goldPrice;
                 _goldCacheTs = Date.now();
+                try { localStorage.setItem('btc_gold_cache', JSON.stringify({ p: goldPrice, t: Date.now() })); } catch(e) {}
                 _renderGold(goldPrice, btcMktCapT, btcSupply);
             }
         })
         .catch(function() {
-            // Fallback to static estimate
-            _renderGold(3200, btcMktCapT, btcSupply);
+            // If we already rendered stale cache above, do nothing; otherwise use fallback
+            if (!_goldCache) _renderGold(3200, btcMktCapT, btcSupply);
         });
 }
 
@@ -1656,21 +1677,28 @@ function _fetchTreasuryData(btcPrice) {
     var container = document.getElementById('treasuryData');
     if (!container) return;
 
-    // Cache for 30 minutes
+    // Restore from localStorage if no in-memory cache
+    if (!_treasuryCache) {
+        try { var _tc = JSON.parse(localStorage.getItem('btc_treasury_cache')); if (_tc && _tc.d) { _treasuryCache = _tc.d; _treasuryCacheTs = _tc.t || 0; } } catch(e) {}
+    }
+    // Use cache if fresh enough
     if (_treasuryCache && Date.now() - _treasuryCacheTs < 1800000) {
         _renderTreasury(container, _treasuryCache, btcPrice);
         return;
     }
+    // Show stale cache immediately while fetching
+    if (_treasuryCache) _renderTreasury(container, _treasuryCache, btcPrice);
 
     fetch('https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             _treasuryCache = data;
             _treasuryCacheTs = Date.now();
+            try { localStorage.setItem('btc_treasury_cache', JSON.stringify({ d: data, t: Date.now() })); } catch(e) {}
             _renderTreasury(container, data, btcPrice);
         })
         .catch(function() {
-            container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Could not load treasury data</div>';
+            if (!_treasuryCache) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Could not load treasury data</div>';
         });
 }
 
