@@ -168,8 +168,8 @@ window.renderFirstPurchase = function() {
     var selectedRegion = localStorage.getItem('btc_fp_region') || '';
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
 
-    var html = '<div onclick="if(event.target===this)goHome()" style="min-height:100vh;padding:20px 0;cursor:default;">' +
-        '<div style="max-width:580px;margin:0 auto;padding:20px 16px 120px;cursor:auto;" onclick="event.stopPropagation()">';
+    var html = '<div style="min-height:100vh;padding:20px 0;cursor:default;">' +
+        '<div style="max-width:580px;margin:0 auto;padding:20px 16px 120px;cursor:auto;">';
 
     // Header
     html += '<div style="text-align:center;margin-bottom:24px;animation:fadeSlideIn 0.4s ease-out;">' +
@@ -609,24 +609,25 @@ function _walletCard(w) {
 
 function _navButtons(stepNum) {
     return '<div style="display:flex;justify-content:space-between;margin-top:20px;">' +
-        '<button onclick="event.stopPropagation();_fpNav(' + (stepNum - 1) + ')" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
-        '<button onclick="event.stopPropagation();_fpNav(' + (stepNum + 1) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
+        '<button onclick="_fpNav(' + (stepNum - 1) + ')" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+        '<button onclick="_fpNav(' + (stepNum + 1) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
     '</div>';
 }
 
 window._fpSaveStep = function(n) { saveStep(n); };
 
-// Single navigation function — prevents double-fire and event issues
-var _fpNavLock = false;
+// Single navigation function
 window._fpNav = function(step) {
-    if (_fpNavLock) return;
-    _fpNavLock = true;
     saveStep(step);
-    // Small delay to let event handling complete before re-render
-    setTimeout(function() {
+    // Use requestAnimationFrame to ensure click event completes before DOM replacement
+    requestAnimationFrame(function() {
         renderFirstPurchase();
-        _fpNavLock = false;
-    }, 50);
+        // Scroll to top of content
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.scrollTop = 0;
+        var main = document.getElementById('main');
+        if (main) main.scrollTop = 0;
+    });
 };
 
 // Route: go('first-purchase') — now handled by app.js _routeApp retry
