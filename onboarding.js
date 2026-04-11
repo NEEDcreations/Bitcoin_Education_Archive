@@ -305,7 +305,7 @@ window.showOnboardingWizard = function() {
                     '</div>' +
                 '</div>' +
 
-                '<div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">How deep in the rabbit hole are you?</div>';
+                '<div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">🐇 How deep down the rabbit hole are you?</div>';
 
             var levels = [
                 { value: 'beginner', emoji: '🌱', label: 'New to Bitcoin', desc: "Guided intro, buying guide, simplified experience" },
