@@ -21362,6 +21362,29 @@ window.nachoQuizAnswer = function(btn, correct) {
             group.style.display = label.getAttribute('data-expanded') === 'true' ? '' : 'none';
         });
 
+        // Safe action executor — parses known onclick patterns without eval/new Function
+        function _safeAction(action) {
+            return function() {
+                // go('channelId') pattern
+                var goMatch = action.match(/^go\(['"]([^'"]+)['"]/);
+                if (goMatch) { go(goMatch[1]); return; }
+                // Simple function call pattern: funcName() or if(typeof x==='function')x()
+                var simpleMatch = action.match(/^(?:if\(typeof\s+(\w+)==='function'\))?\s*(\w+)\(\)/);
+                if (simpleMatch) {
+                    var fn = simpleMatch[2] || simpleMatch[1];
+                    if (typeof window[fn] === 'function') { window[fn](); return; }
+                }
+                // Compound: if(typeof renderChatHub==='function')renderChatHub('global')
+                var chatMatch = action.match(/renderChatHub\(['"](\w+)['"]\)/);
+                if (chatMatch && typeof window.renderChatHub === 'function') { window.renderChatHub(chatMatch[1]); return; }
+                // showSettingsPage('x')
+                var settMatch = action.match(/showSettingsPage\(['"](\w+)['"]\)/);
+                if (settMatch && typeof window.showSettingsPage === 'function') { window.showSettingsPage(settMatch[1]); return; }
+                // Fallback: set as onclick attribute (browser-parsed, not eval)
+                console.warn('[SECURITY] Unrecognized action pattern:', action);
+            };
+        }
+
         // Sidebar Action Buttons (exclude buttons inside appsMenu — those have their own formatting)
         sidebarButtons.forEach(btn => {
             if (btn.closest('#appsMenu')) return;
@@ -21378,12 +21401,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             btn.title = "";
             var action = btn.getAttribute('data-onclick');
             if (action) {
-                try {
-                    btn.onclick = new Function(action);
-                } catch(e) {
-                    btn.setAttribute('onclick', action);
-                    btn.onclick = null;
-                }
+                btn.onclick = _safeAction(action);
             }
         });
 
@@ -21427,7 +21445,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 btn.title = '';
                 var action = btn.getAttribute('data-onclick');
                 if (action) {
-                    try { btn.onclick = new Function(action); } catch(e) { btn.setAttribute('onclick', action); btn.onclick = null; }
+                    btn.onclick = _safeAction(action);
                 }
             }
         });

@@ -275,7 +275,7 @@ export default {
                 headers: {
                     'Content-Type': 'application/rss+xml; charset=UTF-8',
                     'Cache-Control': 'public, max-age=1800', // 30 min cache
-                    'Access-Control-Allow-Origin': '*'
+                    'Access-Control-Allow-Origin': 'https://bitcoineducation.quest'
                 }
             });
         }

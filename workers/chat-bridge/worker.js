@@ -540,7 +540,7 @@ async function tgApi(token, method, params) {
 
 function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://bitcoineducation.quest',
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   };

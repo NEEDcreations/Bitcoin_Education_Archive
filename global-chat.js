@@ -1401,7 +1401,10 @@ window.enlargeChatImage = function(src) {
     lb.id = 'chatImageLightbox';
     lb.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
     lb.onclick = function() { lb.remove(); };
-    lb.innerHTML = '<img src="' + src + '" style="max-width:95%;max-height:90vh;border-radius:12px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5);pointer-events:none;">';
+    var img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:95%;max-height:90vh;border-radius:12px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5);pointer-events:none;';
+    lb.appendChild(img);
     document.body.appendChild(lb);
 };
 
