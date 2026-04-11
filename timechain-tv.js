@@ -777,7 +777,8 @@ window.renderTimechainTV = function() {
         _currentStation = activeStation;
         joinStation(activeStation);
 
-        // Wait for YouTube API
+        // Wait for YouTube API (poll + callback)
+        window._tctvPendingInit = function() { initPlayer(); };
         function initPlayer() {
             if (window.YT && window.YT.Player) {
                 var station = STATIONS.find(function(s) { return s.id === activeStation; });
@@ -914,7 +915,16 @@ window.addEventListener('pagehide', function() { leaveStation(); });
 window.addEventListener('beforeunload', function() { leaveStation(); });
 
 // YouTube API callback
-window.onYouTubeIframeAPIReady = window.onYouTubeIframeAPIReady || function() {};
+// YouTube API callback — triggers when iframe API is loaded
+var _origYTCallback = window.onYouTubeIframeAPIReady;
+window.onYouTubeIframeAPIReady = function() {
+    if (_origYTCallback) _origYTCallback();
+    // If we're waiting to start playback, trigger it now
+    if (window._tctvPendingInit) {
+        window._tctvPendingInit();
+        window._tctvPendingInit = null;
+    }
+};
 
 console.log('[TIMECHAIN TV] Module loaded — ' + STATIONS.length + ' stations');
 })();
