@@ -18299,6 +18299,7 @@ window._startHalvingTicker = function() {
         var m;
         if ((m = path.match(/^\/channels\/(.+)$/))) return m[1];
         if ((m = path.match(/^\/app\/(.+)$/))) return m[1];
+        if (path === '/timechain-tv' || path === '/tv') return 'timechain-tv';
         // Also check hash for backwards compat
         var hash = window.location.hash.replace('#', '');
         return hash || null;
