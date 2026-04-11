@@ -16955,6 +16955,9 @@ function renderDashboard(data) {
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
+    // Start halving countdown ticker after DOM renders
+    setTimeout(function() { if (window._halvingTargetMs && document.getElementById('halvSecs') && typeof window._startHalvingTicker === 'function') window._startHalvingTicker(); }, 100);
+
     return html;
 }
 
@@ -18049,10 +18052,12 @@ function loadTopIndicators() {
 
 // Live halving countdown ticker (updates every second)
 var _halvingTickerInterval = null;
-function startHalvingTicker() {
+window._startHalvingTicker = function() {
     if (_halvingTickerInterval) clearInterval(_halvingTickerInterval);
     _halvingTickerInterval = setInterval(function() {
         if (!window._halvingTargetMs) return;
+        var sEl = document.getElementById('halvSecs');
+        if (!sEl) { clearInterval(_halvingTickerInterval); _halvingTickerInterval = null; return; }
         var diff = Math.max(0, window._halvingTargetMs - Date.now());
         var totalSec = Math.floor(diff / 1000);
         var days = Math.floor(totalSec / 86400);
@@ -18062,26 +18067,12 @@ function startHalvingTicker() {
         var dEl = document.getElementById('halvDays');
         var hEl = document.getElementById('halvHours');
         var mEl = document.getElementById('halvMins');
-        var sEl = document.getElementById('halvSecs');
         if (dEl) dEl.textContent = days;
         if (hEl) hEl.textContent = hours;
         if (mEl) mEl.textContent = mins;
-        if (sEl) sEl.textContent = secs < 10 ? '0' + secs : secs;
+        sEl.textContent = secs < 10 ? '0' + secs : secs;
     }, 1000);
-}
-// Start ticker when dashboard opens
-var _origToggle = window.toggleDashboard;
-window.toggleDashboard = async function() {
-    await _origToggle.apply(this, arguments);
-    if (document.getElementById('halvSecs')) startHalvingTicker();
 };
-// Clean up when dashboard closes
-document.addEventListener('click', function() {
-    if (!document.getElementById('halvSecs') && _halvingTickerInterval) {
-        clearInterval(_halvingTickerInterval);
-        _halvingTickerInterval = null;
-    }
-});
 
 })();
 (function() {
