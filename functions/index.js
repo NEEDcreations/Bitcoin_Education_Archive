@@ -2454,7 +2454,40 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
 
-    // Atomic check: has user already spun today?
+    // Spin outcomes with weights (server-determined)
+    const outcomes = [
+        { label: '🎟️ 1 Ticket',     pts: 0,  tickets: 1,  freezes: 0, closet: false, rare: false, weight: 25 },
+        { label: '🎟️ 2 Tickets',    pts: 0,  tickets: 2,  freezes: 0, closet: false, rare: false, weight: 22 },
+        { label: '⭐ 10 pts',        pts: 10, tickets: 0,  freezes: 0, closet: false, rare: false, weight: 18 },
+        { label: '🎟️ 3 Tickets',    pts: 0,  tickets: 3,  freezes: 0, closet: false, rare: false, weight: 12 },
+        { label: '⭐ 25 pts',        pts: 25, tickets: 0,  freezes: 0, closet: false, rare: false, weight: 8 },
+        { label: '👔 Closet!',       pts: 0,  tickets: 0,  freezes: 0, closet: true,  rare: false, weight: 5 },
+        { label: '🧊 Freeze!',       pts: 0,  tickets: 0,  freezes: 1, closet: false, rare: false, weight: 4 },
+        { label: '⭐ 50 pts',        pts: 50, tickets: 0,  freezes: 0, closet: false, rare: false, weight: 3 },
+        { label: '🎟️ 5 Tickets',    pts: 0,  tickets: 5,  freezes: 0, closet: false, rare: false, weight: 1.5 },
+        { label: '💎 RARE!',         pts: 0,  tickets: 0,  freezes: 0, closet: false, rare: true,  weight: 1.5 },
+    ];
+
+    // Rare drop sub-table
+    const rareOutcomes = [
+        { label: '🎟️ 10 Tickets',       tickets: 10,   weight: 1000 },
+        { label: '🎟️ 25 Tickets',       tickets: 25,   weight: 500 },
+        { label: '🎟️ 50 Tickets',       tickets: 50,   weight: 100 },
+        { label: '🎟️ 100 Tickets!',     tickets: 100,  weight: 50 },
+        { label: '🎟️ 500 Tickets!!',    tickets: 500,  weight: 10 },
+        { label: '🎟️💎 1,000 Tickets!!!', tickets: 1000, weight: 3 },
+    ];
+
+    function weightedRandom(table) {
+        const totalWeight = table.reduce((s, o) => s + o.weight, 0);
+        let roll = Math.random() * totalWeight;
+        for (const item of table) {
+            roll -= item.weight;
+            if (roll <= 0) return item;
+        }
+        return table[0];
+    }
+
     const result = await db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
         if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
@@ -2464,17 +2497,52 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError('already-exists', 'Already spun today');
         }
 
-        // Mark as spun
-        tx.update(userRef, { lastSpinDate: today });
+        // Server determines reward
+        let reward = weightedRandom(outcomes);
+        let rewardIndex = outcomes.indexOf(reward);
+        let totalPts = reward.pts;
+        let totalTickets = reward.tickets;
+        let totalFreezes = reward.freezes;
+        let rareLabel = null;
+
+        // Handle rare drop
+        if (reward.rare) {
+            const rareDrop = weightedRandom(rareOutcomes);
+            totalTickets = rareDrop.tickets;
+            rareLabel = rareDrop.label;
+        }
+
+        // Handle closet (award 25 pts as bonus if all items owned — client handles item logic)
+        if (reward.closet) {
+            totalPts = 25; // Closet item selection handled client-side from server response
+        }
+
+        // Atomic update
+        const update = {
+            lastSpinDate: today,
+        };
+        if (totalPts > 0) update.points = admin.firestore.FieldValue.increment(totalPts);
+        if (totalTickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(totalTickets);
+        if (totalFreezes > 0) update.streakFreezes = admin.firestore.FieldValue.increment(totalFreezes);
+        tx.update(userRef, update);
 
         // Increment global spin counter
         const statsRef = db.collection('stats').doc('global');
         tx.set(statsRef, { spins: admin.firestore.FieldValue.increment(1) }, { merge: true });
 
-        return { spun: true };
+        return {
+            rewardIndex,
+            label: reward.label,
+            pts: totalPts,
+            tickets: totalTickets,
+            freezes: totalFreezes,
+            closet: reward.closet,
+            rare: reward.rare,
+            rareLabel,
+        };
     });
 
-    return { success: true };
+    return { success: true, reward: result };
 });
 
 // ---- Update PVP Stats (server-side) ----
@@ -2541,4 +2609,93 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
     });
 
     return { matchId: matchRef.id };
+});
+
+// ── Scholar Exam: Server-Side Grading ──
+exports.startScholarExam = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
+    }
+
+    const { type, questions } = data || {};
+    if (!type || !questions || !Array.isArray(questions)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing type or questions');
+    }
+    if (questions.length !== 25) {
+        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 25 questions');
+    }
+
+    const uid = context.auth.uid;
+    const examId = uid + '_' + type + '_' + Date.now();
+
+    // Store answer keys server-side
+    const answerKeys = questions.map((q, i) => ({ index: i, correct: q.a }));
+
+    await db.collection('scholar_exam_keys').doc(examId).set({
+        uid,
+        type,
+        keys: answerKeys,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        graded: false,
+    });
+
+    return { examId };
+});
+
+exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+
+    const { examId, answers } = data || {};
+    if (!examId || !answers || !Array.isArray(answers)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing examId or answers');
+    }
+    if (answers.length !== 25) {
+        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 25 answers');
+    }
+
+    const uid = context.auth.uid;
+    const examRef = db.collection('scholar_exam_keys').doc(examId);
+
+    const result = await db.runTransaction(async (tx) => {
+        const examDoc = await tx.get(examRef);
+        if (!examDoc.exists) throw new functions.https.HttpsError('not-found', 'Exam not found');
+
+        const exam = examDoc.data();
+        if (exam.uid !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your exam');
+        if (exam.graded) throw new functions.https.HttpsError('already-exists', 'Exam already graded');
+
+        // Grade server-side
+        let score = 0;
+        const keys = exam.keys;
+        for (let i = 0; i < 25; i++) {
+            if (answers[i] === keys[i].correct) score++;
+        }
+
+        const passed = score >= 20;
+        const type = exam.type;
+        const keyPrefix = type === 'technical' ? 'tech' : 'prop';
+        const today = new Date().toISOString().split('T')[0];
+
+        // Mark exam as graded
+        tx.update(examRef, { graded: true, score, passed, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+        // Save attempt date
+        const userRef = db.collection('users').doc(uid);
+        const attemptField = 'lastExamAttempt_' + keyPrefix;
+        const update = {};
+        update[attemptField] = today;
+
+        if (passed) {
+            // Award points server-side
+            update.points = admin.firestore.FieldValue.increment(2100);
+            update['certPassed_' + keyPrefix] = true;
+        }
+
+        tx.update(userRef, update);
+
+        return { score, passed, type };
+    });
+
+    return { success: true, score: result.score, passed: result.passed, type: result.type };
 });

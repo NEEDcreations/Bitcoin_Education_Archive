@@ -3868,6 +3868,17 @@ function startScholarQuest(type) {
     scholarAnswers = new Array(25).fill(null);
     scholarTimeLeft = 600;
 
+    // Register exam server-side for secure grading
+    window._scholarExamId = null;
+    if (typeof firebase !== 'undefined' && firebase.functions) {
+        firebase.functions().httpsCallable('startScholarExam')({
+            type: scholarType,
+            questions: scholarQuestions.map(function(q) { return { a: q.a }; })
+        }).then(function(res) {
+            window._scholarExamId = res.data.examId;
+        }).catch(function(e) { console.warn('Scholar exam registration failed:', e); });
+    }
+
     // Save session start info
     const sessionData = {
         questions: scholarQuestions,
@@ -4084,31 +4095,40 @@ async function submitScholarQuest() {
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     sessionStorage.removeItem('btc_scholar_session_' + keyPrefix);
 
+    // Grade server-side if exam was registered
     let score = 0;
-    scholarQuestions.forEach((q, i) => {
-        if (scholarAnswers[i] === q.a) score++;
-    });
-
-    const passed = score >= 20;
+    let passed = false;
     const today = new Date().toISOString().split('T')[0];
-    
-    localStorage.setItem('btc_scholar_' + keyPrefix + '_attempt_date', today);
-    // [AUDIT FIX] Also save to Firestore to prevent localStorage bypass
-    if (typeof db !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        var attemptField = 'lastExamAttempt_' + keyPrefix;
-        var upd = {}; upd[attemptField] = today;
-        db.collection('users').doc(auth.currentUser.uid).update(upd)
-            .catch(function(e) { console.error('Failed to save exam attempt:', e); });
+
+    if (window._scholarExamId && typeof firebase !== 'undefined' && firebase.functions) {
+        try {
+            const gradeResult = await firebase.functions().httpsCallable('gradeScholarExam')({
+                examId: window._scholarExamId,
+                answers: scholarAnswers
+            });
+            score = gradeResult.data.score;
+            passed = gradeResult.data.passed;
+        } catch(e) {
+            console.error('Server grading failed, falling back:', e);
+            // Fallback to client grading if server fails
+            scholarQuestions.forEach((q, i) => { if (scholarAnswers[i] === q.a) score++; });
+            passed = score >= 20;
+        }
+    } else {
+        // Fallback for offline/unsigned
+        scholarQuestions.forEach((q, i) => { if (scholarAnswers[i] === q.a) score++; });
+        passed = score >= 20;
     }
+
+    localStorage.setItem('btc_scholar_' + keyPrefix + '_attempt_date', today);
     scholarAttemptDate[scholarType] = today;
 
     if (passed) {
         localStorage.setItem('btc_scholar_' + keyPrefix + '_passed', 'true');
         scholarPassed[scholarType] = true;
         
-        if (typeof awardPoints === 'function') {
-            await awardPoints(2100, '🎓 ' + (scholarType === 'technical' ? 'Technical' : 'Scholar') + ' Certification');
-        }
+        // Points already awarded server-side by gradeScholarExam
+        // Badge still awarded client-side (cosmetic)
         if (typeof awardHiddenBadge === 'function') {
             awardHiddenBadge(scholarType === 'technical' ? 'cert_tech' : 'cert_scholar', (scholarType === 'technical' ? 'Protocol Expert' : 'Bitcoin Scholar') + '! 🎓');
         }

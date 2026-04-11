@@ -385,6 +385,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Scholar exam answer keys — server-only, no client access
+    match /scholar_exam_keys/{examId} {
+      allow read, write: if false;
+    }
+
     match /pvp_matches/{matchId} {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid
