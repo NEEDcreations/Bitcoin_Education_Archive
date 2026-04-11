@@ -518,6 +518,8 @@ function updateViewerBadges() {
 
 // ── White Noise Loading Screen ──
 function showWhiteNoise(callback) {
+    var existing = document.getElementById('tctvNoise');
+    if (existing) existing.remove();
     var overlay = document.createElement('div');
     overlay.id = 'tctvNoise';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:200000;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
@@ -879,6 +881,12 @@ window.switchStation = function(stationId) {
 
     // IMMEDIATELY scroll to top
     _tctvScrollTop();
+
+    // Show white noise while switching
+    showWhiteNoise(function() {
+        // Scroll again after white noise clears
+        _tctvScrollTop();
+    });
 
     leaveStation();
     _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
