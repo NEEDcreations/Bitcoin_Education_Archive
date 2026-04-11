@@ -56,12 +56,12 @@ function flushVotes() {
     if (s > 0) update.sats = firebase.firestore.FieldValue.increment(s);
     if (b > 0) update.bits = firebase.firestore.FieldValue.increment(b);
 
-    // Also track per-device to limit abuse
-    var fp = getFingerprint();
-    var fpKey = 'devices.' + fp;
-    update[fpKey] = firebase.firestore.FieldValue.increment(s + b);
-
-    db.doc(FIRESTORE_DOC).set(update, { merge: true }).catch(function() {});
+    db.doc(FIRESTORE_DOC).update(update).catch(function(e) {
+        // If update fails (doc doesn't exist), try set
+        if (e && e.code === 'not-found') {
+            db.doc(FIRESTORE_DOC).set({ sats: s, bits: b }, { merge: true }).catch(function() {});
+        }
+    });
 }
 
 function castVote(side) {

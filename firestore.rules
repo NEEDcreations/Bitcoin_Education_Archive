@@ -556,15 +556,13 @@ service cloud.firestore {
     // Polls (Sats vs Bits — anonymous voting allowed)
     match /polls/{pollId} {
       allow read: if true;
-      allow create: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['sats', 'bits', 'voters'])
-                    && request.resource.data.sats is int
-                    && request.resource.data.bits is int;
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sats', 'bits', 'voters'])
-                    && (request.resource.data.sats == resource.data.sats + 1 || request.resource.data.sats == resource.data.sats)
-                    && (request.resource.data.bits == resource.data.bits + 1 || request.resource.data.bits == resource.data.bits)
-                    && (request.resource.data.sats + request.resource.data.bits == resource.data.sats + resource.data.bits + 1);
+      allow create: if request.auth != null;
+      allow update: if true
+                    && (request.resource.data.sats is int)
+                    && (request.resource.data.bits is int)
+                    && (request.resource.data.sats >= resource.data.sats)
+                    && (request.resource.data.bits >= resource.data.bits)
+                    && (request.resource.data.sats + request.resource.data.bits <= resource.data.sats + resource.data.bits + 10);
     }
 
     // Certificates (public read, authenticated write)
