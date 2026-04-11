@@ -310,18 +310,19 @@ window.renderFirstPurchase = function() {
                 '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
                     'A public address is like your email address — you give it to people so they can send you Bitcoin. Anyone can see the balance, but <strong>nobody can spend from it</strong> without the private key.' +
                 '</div>' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:6px;">EXAMPLE ADDRESSES:</div>' +
+                '<div style="font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;">EXAMPLE ADDRESSES:</div>' +
+                '<div style="font-size:0.65rem;color:#ef4444;margin-bottom:8px;">⚠️ These are examples only — do NOT send Bitcoin to these addresses.</div>' +
                 '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">' +
-                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Legacy (P2PKH) — starts with 1</div>' +
-                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Native SegWit (Bech32) — starts with bc1q <span style="color:#22c55e;">✓ Most common today</span></div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">bc1q4c6f849cu67e3h03qudlh3a6yhcdlwk3ulrgug</div>' +
                 '</div>' +
                 '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">' +
                     '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">SegWit (P2SH) — starts with 3</div>' +
                     '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy</div>' +
                 '</div>' +
                 '<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:10px 12px;">' +
-                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Native SegWit (Bech32) — starts with bc1q <span style="color:#22c55e;">✓ Most common today</span></div>' +
-                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq</div>' +
+                    '<div style="color:var(--text-muted);font-size:0.65rem;font-weight:600;margin-bottom:4px;">Legacy (P2PKH) — starts with 1</div>' +
+                    '<div style="font-family:monospace;font-size:0.72rem;color:var(--text);word-break:break-all;line-height:1.5;">1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</div>' +
                 '</div>' +
             '</div>' +
 
