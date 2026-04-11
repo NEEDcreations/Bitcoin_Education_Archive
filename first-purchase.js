@@ -140,13 +140,8 @@ var SELF_CUSTODY_WALLETS = [
     // Recommended (shown by default)
     { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner Bitcoin wallet. Open source. Beautiful UI. Mobile app for iOS & Android. Supports watch-only wallets.', rec: true, tier: 'rec', extra: 'watchonly' },
     { name: 'Aqua Wallet', icon: '💧', url: 'https://aquawallet.io', desc: 'Simple, beautiful Bitcoin & Lightning wallet. Also supports Liquid and Tether (USDt). Great for beginners. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
-    // More mobile apps (hidden by default)
-    { name: 'Blockstream Green', icon: '🟢', url: 'https://blockstream.com/green/', desc: 'From the makers of Liquid. Multi-sig option. Very secure. Mobile app for iOS & Android.', tier: 'mobile' },
-    { name: 'Muun Wallet', icon: '🌙', url: 'https://muun.com', desc: 'Self-custodial Bitcoin & Lightning. Clean design, easy backups. Mobile app.', tier: 'mobile' },
-    { name: 'Misty Breez', icon: '🌊', url: 'https://breez.technology', desc: 'Non-custodial Lightning wallet. Podcast streaming, point-of-sale mode. Mobile app.', tier: 'mobile' },
-    { name: 'Speed Wallet', icon: '⚡', url: 'https://speed.app', desc: 'Fast Lightning payments. Simple interface for everyday spending. Mobile app.', tier: 'mobile' },
+    { name: 'Blockstream Green', icon: '🟢', url: 'https://blockstream.com/green/', desc: 'From the makers of Liquid. Multi-sig option. Very secure. Mobile app for iOS & Android.', tier: 'rec' },
     // Advanced (hidden by default)
-    { name: 'Zeus', icon: '⚡🔧', url: 'https://zeusln.com', desc: 'Connect your own Lightning node. Full control over channels and routing. Mobile app.', tier: 'advanced', note: 'Advanced — connect your own node' },
     { name: 'Sparrow Wallet', icon: '🐦', url: 'https://sparrowwallet.com', desc: 'Desktop-only power-user wallet. Full coin control. Best for privacy. ⚠️ No mobile app — beware of scam apps claiming to be Sparrow.', tier: 'advanced', note: 'Desktop only — no mobile app' },
     // Hardware
     { name: 'Trezor', icon: '🔐', url: 'https://trezor.io', desc: 'Popular hardware wallet. Open source. User-friendly. Includes Bitcoin-only firmware.', hardware: true, rec: true },
@@ -156,8 +151,11 @@ var SELF_CUSTODY_WALLETS = [
 var LIGHTNING_WALLETS = [
     { name: 'Wallet of Satoshi', icon: '🟠', url: 'https://walletofsatoshi.com', desc: 'The easiest Lightning wallet. Download and go. Instant Lightning Address.', rec: true },
     { name: 'Phoenix', icon: '🔥', url: 'https://phoenix.acinq.co', desc: 'Self-custodial Lightning. Automated channels. Great balance of ease + sovereignty.' },
-    { name: 'Zeus', icon: '⚡', url: 'https://zeusln.com', desc: 'Connect to your own node. Full control. For the technically inclined.' },
+    { name: 'Muun Wallet', icon: '🌙', url: 'https://muun.com', desc: 'Self-custodial Bitcoin & Lightning. Clean design, easy backups. Mobile app.' },
+    { name: 'Misty Breez', icon: '🌊', url: 'https://breez.technology', desc: 'Non-custodial Lightning wallet. Podcast streaming, point-of-sale mode. Mobile app.' },
+    { name: 'Speed Wallet', icon: '⚡', url: 'https://speed.app', desc: 'Fast Lightning payments. Simple interface for everyday spending. Mobile app.' },
     { name: 'Alby', icon: '🐝', url: 'https://getalby.com', desc: 'Browser extension + mobile. WebLN support. Great for tipping online.' },
+    { name: 'Zeus', icon: '⚡🔧', url: 'https://zeusln.com', desc: 'Connect your own Lightning node. Full control over channels and routing. Mobile app.', note: 'Advanced — connect your own node' },
 ];
 
 window.renderFirstPurchase = function() {
@@ -282,13 +280,7 @@ window.renderFirstPurchase = function() {
         SELF_CUSTODY_WALLETS.filter(function(w) { return w.tier === 'rec'; }).forEach(function(w) {
             html += _walletCard(w);
         });
-        // More mobile apps (collapsed)
-        html += '<button onclick="var p=document.getElementById(\'moreWallets\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.textContent=p.style.display===\'none\'?\'📱 More Mobile Apps ▼\':\'📱 More Mobile Apps ▲\'" style="width:100%;padding:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;color:#6366f1;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">📱 More Mobile Apps ▼</button>';
-        html += '<div id="moreWallets" style="display:none;">';
-        SELF_CUSTODY_WALLETS.filter(function(w) { return w.tier === 'mobile'; }).forEach(function(w) {
-            html += _walletCard(w);
-        });
-        html += '</div>';
+
         // Advanced wallets (collapsed)
         html += '<button onclick="var p=document.getElementById(\'advWallets\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.textContent=p.style.display===\'none\'?\'🔧 Advanced ▼\':\'🔧 Advanced ▲\'" style="width:100%;padding:10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:10px;color:#a855f7;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">🔧 Advanced ▼</button>';
         html += '<div id="advWallets" style="display:none;">';
