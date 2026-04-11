@@ -308,7 +308,10 @@ window.renderFirstPurchase = function() {
             '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">' +
                 '<div style="font-weight:700;font-size:0.9rem;color:var(--heading);margin-bottom:8px;">📬 Public Address <span style="color:#22c55e;font-size:0.7rem;">SAFE TO SHARE</span></div>' +
                 '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;margin-bottom:12px;">' +
-                    'A public address is like your email address — you give it to people so they can send you Bitcoin. Anyone can see the balance, but <strong>nobody can spend from it</strong> without the private key.' +
+                    'A public address is like your email address — you give it to people so they can send you Bitcoin. You can also use your own address to send Bitcoin to yourself (e.g., moving from an exchange to your wallet). Anyone can see the balance, but <strong>nobody can spend from it</strong> without the private key.' +
+                '</div>' +
+                '<div style="padding:10px 12px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:8px;margin-bottom:12px;font-size:0.78rem;color:var(--text);line-height:1.6;">' +
+                    '🔄 <strong>Avoid address reuse.</strong> For privacy, use a fresh address for each transaction. All wallet apps will automatically generate new addresses for you — either on demand or each time you receive. This prevents others from tracking your full balance.' +
                 '</div>' +
                 '<div style="font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;">EXAMPLE ADDRESSES:</div>' +
                 '<div style="font-size:0.65rem;color:#ef4444;margin-bottom:8px;">⚠️ These are examples only — do NOT send Bitcoin to these addresses.</div>' +
