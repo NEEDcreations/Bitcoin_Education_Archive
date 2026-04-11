@@ -697,7 +697,7 @@ window.renderTimechainTV = function() {
     loadYouTubeAPI();
 
     // Default to first station
-    var activeStation = _currentStation || STATIONS[0].id;
+    var activeStation = _currentStation || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
 
