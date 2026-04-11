@@ -117,7 +117,7 @@
                 unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
                 unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
                 unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
-                unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)") +
+                unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('lightning')}},300)") +
                 unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true, null) +
             '</div>' +
 
