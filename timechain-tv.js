@@ -725,10 +725,10 @@ window.renderTimechainTV = function() {
     // Default to first station
     var activeStation = _currentStation || localStorage.getItem('tctv_last_station') || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
 
-    var html = '<div style="background:#0a0a0a;height:100vh;color:#fff;font-family:inherit;display:flex;flex-direction:column;">';
+    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
 
     // Header bar
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);flex-shrink:0;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);">';
     html += '<div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;">';
     html += '<span style="color:var(--text-muted);font-size:0.8rem;">←</span>';
     html += '<span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span>';
@@ -742,13 +742,13 @@ window.renderTimechainTV = function() {
     html += '</div></div>';
 
     // Video player area (click-blocking overlay prevents pause)
-    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;flex-shrink:0;max-height:45vh;">';
+    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
-    // Overlay removed — was blocking YouTube autoplay interaction
+    html += '<div id="tctv-overlay" style="position:absolute;inset:0;z-index:2;cursor:default;background:transparent;" title="Live — no pause allowed"></div>';
     html += '</div>';
 
     // Now playing bar
-    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">';
+    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;">';
     html += '<div style="flex:1;min-width:0;">';
     html += '<div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div>';
     html += '<div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div>';
@@ -757,10 +757,9 @@ window.renderTimechainTV = function() {
     html += '</div>';
 
     // Progress bar
-    html += '<div style="height:3px;background:#222;flex-shrink:0;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
+    html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
 
-    // Channel guide (scrollable area)
-    html += '<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">';
+    // Channel guide
     html += '<div style="padding:12px 16px 8px;"><div style="font-size:0.65rem;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">CHANNELS</div></div>';
 
     html += '<div style="display:flex;flex-direction:column;gap:2px;padding:0 8px 120px;">';
@@ -795,7 +794,6 @@ window.renderTimechainTV = function() {
         html += '</div>';
     });
     html += '</div>';
-    html += '</div>'; // close scrollable wrapper
 
     html += '</div>';
     fc.innerHTML = html;
