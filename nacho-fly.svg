@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 200" width="220" height="200">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#d4915c"/>
+      <stop offset="100%" stop-color="#b07040"/>
+    </radialGradient>
+    <radialGradient id="faceGrad" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#f5dcc0"/>
+      <stop offset="100%" stop-color="#e8c9a0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Wind trail lines -->
+  <g opacity="0.5" stroke="#f7931a" stroke-width="2.5" stroke-linecap="round" fill="none">
+    <path d="M25 85 Q5 85 -10 82" opacity="0.3">
+      <animate attributeName="d" values="M25 85 Q5 85 -10 82;M25 85 Q8 88 -10 85;M25 85 Q5 85 -10 82" dur="1.5s" repeatCount="indefinite"/>
+    </path>
+    <path d="M20 100 Q0 100 -15 98" opacity="0.5">
+      <animate attributeName="d" values="M20 100 Q0 100 -15 98;M20 100 Q3 103 -15 102;M20 100 Q0 100 -15 98" dur="1.8s" repeatCount="indefinite"/>
+    </path>
+    <path d="M30 115 Q10 116 -5 114" opacity="0.25">
+      <animate attributeName="d" values="M30 115 Q10 116 -5 114;M30 115 Q13 119 -5 118;M30 115 Q10 116 -5 114" dur="1.3s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- Cape flowing behind -->
+  <g transform="translate(75, 95) rotate(-15)">
+    <path d="M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z" fill="#f7931a" opacity="0.9">
+      <animate attributeName="d" values="M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z;M-5 10 Q-28 28 -42 58 Q-32 48 -22 62 Q-18 42 -8 52 Q-13 32 -5 20 Z;M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <path d="M-5 10 Q-25 20 -38 45 Q-28 42 -20 50 Q-15 35 -5 20 Z" fill="#ea580c" opacity="0.6">
+      <animate attributeName="d" values="M-5 10 Q-25 20 -38 45 Q-28 42 -20 50 Q-15 35 -5 20 Z;M-5 10 Q-23 23 -35 48 Q-25 44 -18 52 Q-13 37 -5 20 Z;M-5 10 Q-25 20 -38 45 Q-28 42 -20 50 Q-15 35 -5 20 Z" dur="2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- Main body group — tilted for flying pose -->
+  <g transform="translate(110, 100) rotate(-15)">
+    <!-- Body -->
+    <ellipse cx="0" cy="20" rx="32" ry="36" fill="url(#bodyGrad)"/>
+
+    <!-- Orange shirt with B -->
+    <ellipse cx="0" cy="28" rx="30" ry="24" fill="#f7931a"/>
+    <text x="0" y="36" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff" font-family="Arial, sans-serif">₿</text>
+
+    <!-- Head -->
+    <circle cx="0" cy="-25" r="28" fill="url(#bodyGrad)"/>
+
+    <!-- Face (lighter area) -->
+    <ellipse cx="0" cy="-20" rx="20" ry="18" fill="url(#faceGrad)"/>
+
+    <!-- Eyes -->
+    <ellipse cx="-9" cy="-28" rx="7" ry="8" fill="#fff"/>
+    <ellipse cx="9" cy="-28" rx="7" ry="8" fill="#fff"/>
+    <circle cx="-7" cy="-27" r="4.5" fill="#222"/>
+    <circle cx="11" cy="-27" r="4.5" fill="#222"/>
+    <!-- Eye shine -->
+    <circle cx="-5.5" cy="-29" r="1.8" fill="#fff"/>
+    <circle cx="12.5" cy="-29" r="1.8" fill="#fff"/>
+
+    <!-- Happy mouth -->
+    <path d="M-6 -16 Q0 -10 6 -16" fill="none" stroke="#6b4226" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Nose -->
+    <ellipse cx="0" cy="-19" rx="3.5" ry="2.5" fill="#6b4226"/>
+
+    <!-- Blush -->
+    <ellipse cx="-14" cy="-18" rx="5" ry="3" fill="#ff9999" opacity="0.4"/>
+    <ellipse cx="14" cy="-18" rx="5" ry="3" fill="#ff9999" opacity="0.4"/>
+
+    <!-- Ears -->
+    <ellipse cx="-22" cy="-35" rx="8" ry="5" fill="#b07040" transform="rotate(-20 -22 -35)"/>
+    <ellipse cx="22" cy="-35" rx="8" ry="5" fill="#b07040" transform="rotate(20 22 -35)"/>
+    <ellipse cx="-22" cy="-35" rx="5" ry="3" fill="#e8c9a0" transform="rotate(-20 -22 -35)"/>
+    <ellipse cx="22" cy="-35" rx="5" ry="3" fill="#e8c9a0" transform="rotate(20 22 -35)"/>
+
+    <!-- Antlers -->
+    <g fill="none" stroke="#8B5E3C" stroke-width="3.5" stroke-linecap="round">
+      <path d="M-12 -48 L-18 -70 L-25 -62"/>
+      <path d="M-18 -62 L-12 -58"/>
+      <path d="M12 -48 L18 -70 L25 -62"/>
+      <path d="M18 -62 L12 -58"/>
+    </g>
+
+    <!-- Arms stretched forward (flying!) -->
+    <g fill="#b07040">
+      <ellipse cx="28" cy="-5" rx="14" ry="7" transform="rotate(-30 28 -5)"/>
+      <ellipse cx="-28" cy="-5" rx="14" ry="7" transform="rotate(30 -28 -5)"/>
+    </g>
+
+    <!-- Legs trailing behind -->
+    <g fill="#b07040">
+      <ellipse cx="-12" cy="52" rx="8" ry="6" transform="rotate(15 -12 52)"/>
+      <ellipse cx="12" cy="52" rx="8" ry="6" transform="rotate(-15 12 52)"/>
+    </g>
+  </g>
+
+  <!-- Speed sparkles -->
+  <g fill="#f7931a">
+    <circle cx="40" cy="70" r="2" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;0.1;0.6" dur="1.2s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="40;30;40" dur="1.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="35" cy="130" r="1.5" opacity="0.4">
+      <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="35;25;35" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="50" cy="105" r="2.5" opacity="0.5">
+      <animate attributeName="opacity" values="0.5;0.1;0.5" dur="1s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="50;38;50" dur="1s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>

@@ -19342,7 +19342,7 @@ window._startHalvingTicker = function() {
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<button onclick="exitNachoMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;touch-action:manipulation;" title="Back">←</button>' +
                         '<div id="nachoHeroAvatar" class="nm-hero-avatar" style="position:relative;display:inline-block;width:40px;height:40px;" onclick="nachoModeAvatarTap()">' +
-                            '<img src="nacho-deer.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
+                            '<img src="nacho-fly.svg" alt="Nacho" style="width:40px;height:40px;pointer-events:none;">' +
                             '<div id="nachoModeOverlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;"></div>' +
                         '</div>' +
                         '<div style="min-width:0;overflow:hidden;">' +
@@ -20315,7 +20315,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
             chat.innerHTML =
                 '<div style="text-align:center;padding:30px 20px;">' +
-                    '<div id="nachoModeAvatar" style="width:160px;height:160px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-deer.svg" alt="Nacho" style="width:160px;height:160px;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<div style=\\\'font-size:100px;line-height:160px;text-align:center;\\\'>🦌</div>\';"></div>' +
+                    '<div id="nachoModeAvatar" style="width:180px;height:180px;margin:0 auto 16px;cursor:pointer;" onclick="nachoModeAvatarTap()"><img src="nacho-fly.svg" alt="Nacho" style="width:180px;height:180px;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.innerHTML=\'<div style=\\\'font-size:100px;line-height:180px;text-align:center;\\\'>🦌</div>\';"></div>' +
                     '<div style="color:var(--accent);font-size:0.7rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:6px;">🦌 NACHO MODE</div>' +
                     '<div style="color:var(--heading);font-size:1.2rem;font-weight:800;margin-bottom:12px;">' +
                         (userName ? 'Hey ' + escapeHtml(userName) + '! Let\'s talk Bitcoin.' : 'Hey! Let\'s talk Bitcoin.') +
