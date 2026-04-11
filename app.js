@@ -4132,7 +4132,6 @@ window.nachoQuizAnswer = function(btn, correct) {
                 appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) +
                 appBtn('🎵', 'Bitcoin Beats', "go('bitcoin-beats')", beatsLock, beatsMsg) +
                 appBtn('📺', 'Timechain TV', "go('timechain-tv')", false) +
-                appBtn('₿', 'Wallet', "go('lightning')", false) +
             '</div></div>';
         document.body.insertAdjacentHTML('beforeend', html);
         var menu = document.getElementById('appsMenu');
