@@ -10019,13 +10019,49 @@ function generateAndShowQuest(manual, targetChannelId) {
         freshPool = pool;
     }
 
-    // Shuffle and pick 5
+    // Shuffle
     freshPool.sort(() => Math.random() - 0.5);
+
+    // Deduplicate by topic — extract key words and prevent similar questions in same quest
+    function getTopicKey(q) {
+        var text = q.q.toLowerCase();
+        // Match specific known topics
+        var topics = [
+            [/nostr/i, 'nostr'], [/lightning/i, 'lightning'], [/halving/i, 'halving'],
+            [/mining/i, 'mining'], [/node/i, 'node'], [/wallet/i, 'wallet'],
+            [/seed.?phrase/i, 'seed'], [/private.?key/i, 'privkey'], [/satoshi/i, 'satoshi'],
+            [/block.?chain/i, 'blockchain'], [/proof.?of.?work/i, 'pow'], [/fud\b/i, 'fud'],
+            [/self.?custody/i, 'custody'], [/etf/i, 'etf'], [/taproot/i, 'taproot'],
+            [/difficulty/i, 'difficulty'], [/mempool/i, 'mempool'], [/hash.?rate/i, 'hashrate'],
+            [/white.?paper/i, 'whitepaper'], [/21.?million/i, '21m'], [/inflation/i, 'inflation'],
+            [/kyc/i, 'kyc'], [/privacy/i, 'privacy'], [/multisig/i, 'multisig'],
+            [/dca|dollar.cost/i, 'dca'], [/el.?salvador/i, 'elsalvador'],
+        ];
+        for (var i = 0; i < topics.length; i++) {
+            if (topics[i][0].test(text)) return topics[i][1];
+        }
+        // Fallback: use first 3 significant words
+        return text.replace(/\b(what|which|how|who|when|where|why|is|are|was|the|a|an|of|in|for|to|does|do|can|has|it)\b/g, '').trim().split(/\s+/).slice(0, 3).join('_');
+    }
+
+    var selected = [];
+    var usedTopics = {};
+    for (var si = 0; si < freshPool.length && selected.length < 5; si++) {
+        var topic = getTopicKey(freshPool[si]);
+        if (usedTopics[topic]) continue;
+        usedTopics[topic] = true;
+        selected.push(freshPool[si]);
+    }
+
+    // If dedup was too aggressive, fill remaining from unused pool
+    if (selected.length < 5) {
+        for (var fi = 0; fi < freshPool.length && selected.length < 5; fi++) {
+            if (selected.indexOf(freshPool[fi]) === -1) selected.push(freshPool[fi]);
+        }
+    }
 
     const questId = 'quest_dynamic_' + questCount;
     if (completedQuests.has(questId)) return;
-
-    const selected = freshPool.slice(0, 5);
 
     // Track these questions as asked
     const newAsked = [...askedQuestions, ...selected.map(q => q.q)];
