@@ -266,6 +266,16 @@ var STATIONS = [
             { id: 'DDk6-tdHeXQ', title: 'Bitcoin Technical Analysis — Elliott Wave', duration: 1500 },
             { id: 'HOYnvEVOTJA', title: 'Simply Bitcoin — Daily News Update', duration: 3600 },
             { id: '1nsIy7PWXyY', title: 'Bitcoin Price Analysis — Key Levels', duration: 1200 },
+            { id: 'K4ciiDyUvUo', title: 'Larry Fink: Bitcoin is Digital Gold — CNBC', duration: 480 },
+            { id: '-LPit2bEWAo', title: 'BlackRock CEO on Bitcoin ETF Success — CNBC', duration: 600 },
+            { id: 'wSh_KzcY_dA', title: '60 Minutes: Stories About Cryptocurrency — CBS', duration: 4000 },
+            { id: 'CbEHD0esI_A', title: 'MicroStrategy Bitcoin Reserve Strategy — CNBC', duration: 420 },
+            { id: 'BSiQHfEUabI', title: 'Bitcoin Hits New All-Time High — CNBC', duration: 360 },
+            { id: '5c03NCvohCA', title: 'Bitcoin ETF Record Performance — Bloomberg', duration: 480 },
+            { id: 'N7Z7tpwSlBg', title: 'Strategy CEO on 2026 Bitcoin Outlook — Fox Business', duration: 540 },
+            { id: 'DyMVHXz9Tgs', title: 'Bitcoin ETFs Survive First Stress Test — Bloomberg', duration: 420 },
+            { id: 'dYFMoK1nDmc', title: '60 Minutes: Bitcoin Beach El Salvador — CBS', duration: 780 },
+            { id: 'WaEBc2prSPE', title: 'Next-Gen Bitcoin ETFs Outperforming — Bloomberg', duration: 360 },
         ]
     },
     {
