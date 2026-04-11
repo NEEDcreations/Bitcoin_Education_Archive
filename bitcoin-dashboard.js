@@ -375,12 +375,17 @@ function renderDashboard(data) {
         var halvingTip = 'Every 210,000 blocks (~4 years), the Bitcoin block reward is cut in half. This is called the "halving." It reduces the rate of new Bitcoin created, enforcing scarcity. The reward started at 50 BTC in 2009 and has halved 4 times: 50 → 25 → 12.5 → 6.25 → 3.125 BTC. After the next halving, miners will receive 1.5625 BTC per block. There will only ever be 21 million Bitcoin.';
         html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + halvingTip.replace(/[\\'"]/g, "") + '\')" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.2)\'">';
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
-        html += '<div style="display:flex;justify-content:center;gap:16px;margin-bottom:10px;">';
-        html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
+        // Store halving target for live countdown
+        window._halvingTargetMs = Date.now() + (d.halving * 10 * 60 * 1000);
+
+        html += '<div id="halvingCountdown" style="display:flex;justify-content:center;gap:12px;margin-bottom:10px;">';
+        html += '<div><div id="halvDays" style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
         html += '<div style="font-size:1.4rem;color:var(--text-faint);font-weight:300;">:</div>';
-        html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingHours || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Hours</div></div>';
+        html += '<div><div id="halvHours" style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingHours || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Hours</div></div>';
         html += '<div style="font-size:1.4rem;color:var(--text-faint);font-weight:300;">:</div>';
-        html += '<div><div style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingMins || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Mins</div></div>';
+        html += '<div><div id="halvMins" style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingMins || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Mins</div></div>';
+        html += '<div style="font-size:1.4rem;color:var(--text-faint);font-weight:300;">:</div>';
+        html += '<div><div id="halvSecs" style="font-size:1.8rem;font-weight:900;color:#ea580c;line-height:1;">00</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Secs</div></div>';
         html += '</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Est. <strong style="color:var(--text);">' + etaStr + '</strong> · ' + fmtNum(d.halving) + ' blocks remaining</div>';
         html += '<div style="background:var(--border);height:6px;border-radius:3px;overflow:hidden;max-width:300px;margin:0 auto;">';
@@ -1553,5 +1558,41 @@ function loadTopIndicators() {
             if (flowEl) { flowEl.textContent = 'N/A'; }
         });
 }
+
+// Live halving countdown ticker (updates every second)
+var _halvingTickerInterval = null;
+function startHalvingTicker() {
+    if (_halvingTickerInterval) clearInterval(_halvingTickerInterval);
+    _halvingTickerInterval = setInterval(function() {
+        if (!window._halvingTargetMs) return;
+        var diff = Math.max(0, window._halvingTargetMs - Date.now());
+        var totalSec = Math.floor(diff / 1000);
+        var days = Math.floor(totalSec / 86400);
+        var hours = Math.floor((totalSec % 86400) / 3600);
+        var mins = Math.floor((totalSec % 3600) / 60);
+        var secs = totalSec % 60;
+        var dEl = document.getElementById('halvDays');
+        var hEl = document.getElementById('halvHours');
+        var mEl = document.getElementById('halvMins');
+        var sEl = document.getElementById('halvSecs');
+        if (dEl) dEl.textContent = days;
+        if (hEl) hEl.textContent = hours;
+        if (mEl) mEl.textContent = mins;
+        if (sEl) sEl.textContent = secs < 10 ? '0' + secs : secs;
+    }, 1000);
+}
+// Start ticker when dashboard opens
+var _origToggle = window.toggleDashboard;
+window.toggleDashboard = async function() {
+    await _origToggle.apply(this, arguments);
+    if (document.getElementById('halvSecs')) startHalvingTicker();
+};
+// Clean up when dashboard closes
+document.addEventListener('click', function() {
+    if (!document.getElementById('halvSecs') && _halvingTickerInterval) {
+        clearInterval(_halvingTickerInterval);
+        _halvingTickerInterval = null;
+    }
+});
 
 })();
