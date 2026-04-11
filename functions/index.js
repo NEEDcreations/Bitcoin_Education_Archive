@@ -2233,3 +2233,53 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
         return { success: false, error: e.message || 'Visit recording failed' };
     }
 });
+
+// ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
+exports.pollVote = functions.https.onCall(async (data, context) => {
+    const { side, fingerprint } = data || {};
+    if (side !== 'sats' && side !== 'bits') return { success: false, error: 'Invalid side' };
+
+    const ip = (context.rawRequest && context.rawRequest.ip) || 'unknown';
+    const fp = (fingerprint || '').toString().substring(0, 32) || 'none';
+    const db = admin.firestore();
+    const now = Date.now();
+    const dayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Rate limit: max 200 votes per IP per day, max 200 per fingerprint per day
+    const MAX_PER_DAY = 200;
+    const ratePath = `poll_rate_limits/${dayKey}`;
+    const rateDoc = await db.doc(ratePath).get();
+    const rateData = rateDoc.exists ? rateDoc.data() : {};
+
+    const ipKey = 'ip_' + ip.replace(/[.\/:]/g, '_');
+    const fpKey = 'fp_' + fp;
+    const ipCount = (rateData[ipKey] || 0);
+    const fpCount = (rateData[fpKey] || 0);
+
+    if (ipCount >= MAX_PER_DAY) return { success: false, error: 'Daily IP limit reached' };
+    if (fpCount >= MAX_PER_DAY) return { success: false, error: 'Daily device limit reached' };
+
+    // Atomic increment on poll + rate limit
+    const batch = db.batch();
+
+    // Increment the poll
+    const pollRef = db.doc('polls/sats_vs_bits');
+    const inc = {};
+    inc[side] = admin.firestore.FieldValue.increment(1);
+    batch.set(pollRef, inc, { merge: true });
+
+    // Increment rate limits
+    const rateRef = db.doc(ratePath);
+    const rateInc = {};
+    rateInc[ipKey] = admin.firestore.FieldValue.increment(1);
+    rateInc[fpKey] = admin.firestore.FieldValue.increment(1);
+    batch.set(rateRef, rateInc, { merge: true });
+
+    await batch.commit();
+
+    // Read current totals to return
+    const pollDoc = await pollRef.get();
+    const pollData = pollDoc.exists ? pollDoc.data() : { sats: 0, bits: 0 };
+
+    return { success: true, sats: pollData.sats || 0, bits: pollData.bits || 0 };
+});

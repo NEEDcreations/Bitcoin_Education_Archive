@@ -46,22 +46,35 @@ function getFingerprint() {
 
 function flushVotes() {
     if (pendingSats === 0 && pendingBits === 0) return;
-    var db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
-    if (!db) return;
 
     var s = pendingSats, b = pendingBits;
     pendingSats = 0; pendingBits = 0;
 
-    var update = {};
-    if (s > 0) update.sats = firebase.firestore.FieldValue.increment(s);
-    if (b > 0) update.bits = firebase.firestore.FieldValue.increment(b);
+    // Send individual votes through Cloud Function for server-side rate limiting
+    var fp = getFingerprint();
+    var calls = [];
+    for (var i = 0; i < s; i++) calls.push('sats');
+    for (var j = 0; j < b; j++) calls.push('bits');
 
-    db.doc(FIRESTORE_DOC).update(update).catch(function(e) {
-        // If update fails (doc doesn't exist), try set
-        if (e && e.code === 'not-found') {
-            db.doc(FIRESTORE_DOC).set({ sats: s, bits: b }, { merge: true }).catch(function() {});
+    // Batch: send all pending votes (max ~10 at a time due to debounce)
+    function sendNext() {
+        if (calls.length === 0) return;
+        var side = calls.shift();
+        if (typeof firebase !== 'undefined' && firebase.functions) {
+            firebase.functions().httpsCallable('pollVote')({ side: side, fingerprint: fp })
+                .then(function(result) {
+                    if (result.data && result.data.success) {
+                        // Update display with server-confirmed totals
+                        localSats = result.data.sats || localSats;
+                        localBits = result.data.bits || localBits;
+                        updateDisplay();
+                    }
+                    sendNext();
+                })
+                .catch(function() { sendNext(); });
         }
-    });
+    }
+    sendNext();
 }
 
 var ANON_LIMIT = 10;
