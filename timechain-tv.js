@@ -440,7 +440,7 @@ var _viewerCounts = {};
 
 function joinStation(stationId) {
     leaveStation();
-    _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
+    _currentStation = stationId;
 
     if (typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
@@ -542,7 +542,7 @@ function showWhiteNoise(callback) {
         noiseNode.buffer = buffer;
         noiseNode.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.04;
+        gain.gain.value = 0.08;
         noiseNode.connect(gain);
         gain.connect(audioCtx.destination);
         noiseNode.start();
@@ -609,42 +609,23 @@ function createPlayer(containerId, videoId, startSeconds) {
             },
             onStateChange: function(e) {
                 if (e.data === YT.PlayerState.ENDED) {
-                    // Video ended — sync to next video
+                    // Video ended — sync to next video immediately
                     syncPlayer();
                     setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 300);
-                } else if (e.data === YT.PlayerState.PLAYING) {
-                    // Remove tap-to-play overlay if present
-                    var tapEl = document.getElementById('tctv-tap-play');
-                    if (tapEl) tapEl.remove();
                 } else if (e.data === YT.PlayerState.PAUSED) {
-                    // Resume after short delay
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 200);
+                    // NEVER allow pause — force resume immediately
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 100);
                 } else if (e.data === YT.PlayerState.UNSTARTED || e.data === -1) {
-                    // Try playVideo once — if it fails (mobile autoplay block), show tap overlay
-                    if (_player && _playerReady) {
-                        _player.playVideo();
-                        // Check after 2s if still not playing
-                        setTimeout(function() {
-                            if (!_player || !_playerReady) return;
-                            try {
-                                var st = _player.getPlayerState();
-                                if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) {
-                                    // Show tap to play overlay
-                                    if (!document.getElementById('tctv-tap-play')) {
-                                        var playerDiv = document.getElementById('tctv-player');
-                                        if (playerDiv && playerDiv.parentElement) {
-                                            var tap = document.createElement('div');
-                                            tap.id = 'tctv-tap-play';
-                                            tap.style.cssText = 'position:absolute;inset:0;z-index:5;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;cursor:pointer;';
-                                            tap.innerHTML = '<div style="text-align:center;"><div style="font-size:3rem;">▶️</div><div style="color:#f7931a;font-size:0.9rem;margin-top:8px;">Tap to start</div></div>';
-                                            tap.onclick = function() { if (_player) _player.playVideo(); tap.remove(); };
-                                            playerDiv.parentElement.appendChild(tap);
-                                        }
-                                    }
-                                }
-                            } catch(ex) {}
-                        }, 2000);
+                    // Unstarted — force play with sync
+                    var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+                    if (station) {
+                        var pb = getPlaybackState(station);
+                        if (pb.video) {
+                            _player.loadVideoById({ videoId: pb.video.id, startSeconds: pb.offset });
+                            _currentVideoId = pb.video.id;
+                        }
                     }
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
                 }
             }
         }
@@ -716,7 +697,7 @@ window.renderTimechainTV = function() {
     loadYouTubeAPI();
 
     // Default to first station
-    var activeStation = _currentStation || localStorage.getItem('tctv_last_station') || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
+    var activeStation = _currentStation || STATIONS[0].id;
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
 
@@ -734,9 +715,10 @@ window.renderTimechainTV = function() {
     html += '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span>';
     html += '</div></div>';
 
-    // Video player area
+    // Video player area (click-blocking overlay prevents pause)
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
+    html += '<div id="tctv-overlay" style="position:absolute;inset:0;z-index:2;cursor:default;background:transparent;" title="Live — no pause allowed"></div>';
     html += '</div>';
 
     // Now playing bar
@@ -795,8 +777,7 @@ window.renderTimechainTV = function() {
         _currentStation = activeStation;
         joinStation(activeStation);
 
-        // Wait for YouTube API (poll + callback)
-        window._tctvPendingInit = function() { initPlayer(); };
+        // Wait for YouTube API
         function initPlayer() {
             if (window.YT && window.YT.Player) {
                 var station = STATIONS.find(function(s) { return s.id === activeStation; });
@@ -867,8 +848,11 @@ function _tctvScrollTop() {
 window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
 
+    // IMMEDIATELY scroll to top
+    _tctvScrollTop();
+
     leaveStation();
-    _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
+    _currentStation = stationId;
     joinStation(stationId);
 
     var station = STATIONS.find(function(s) { return s.id === stationId; });
@@ -876,12 +860,13 @@ window.switchStation = function(stationId) {
 
     var state = getPlaybackState(station);
 
-    // Load new video into existing player (no DOM rebuild)
+    // Load new video WITHOUT rebuilding the page
     if (state.video && _player && _playerReady) {
         _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
-        _currentVideoId = state.video.id;
         setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
+        _currentVideoId = state.video.id;
     } else if (state.video) {
+        // Player not ready — recreate it
         createPlayer('tctv-player', state.video.id, state.offset);
         _currentVideoId = state.video.id;
     }
@@ -890,29 +875,27 @@ window.switchStation = function(stationId) {
     var np = document.getElementById('tctv-now-playing');
     if (np && state.video) np.textContent = state.video.title;
 
-    // Update channel list highlighting via data attributes
+    // Update channel list highlighting (without destroying DOM)
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var sid = el.getAttribute('data-station-id');
         var isActive = sid === stationId;
-        el.style.background = isActive ? 'rgba(247,147,26,0.1)' : '';
+        el.style.background = isActive ? 'rgba(247,147,26,0.1)' : 'transparent';
         el.style.borderColor = isActive ? 'rgba(247,147,26,0.3)' : 'transparent';
+        // Update channel number color
         var numEl = el.querySelector('[data-ch-num]');
         if (numEl) numEl.style.color = isActive ? '#f7931a' : '#555';
+        // Update name color
         var nameEl = el.querySelector('[data-ch-name]');
         if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ddd';
+        // Show/hide live dot
         var dot = el.querySelector('[data-live-dot]');
         if (dot) dot.style.display = isActive ? 'inline-block' : 'none';
     });
 
-    // Scroll to top
-    setTimeout(function() {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        var fc = document.getElementById('forumContainer');
-        if (fc) fc.scrollTop = 0;
-        var main = document.getElementById('main');
-        if (main) main.scrollTop = 0;
-    }, 50);
+    // Keep scrolling
+    _tctvScrollTop();
+    setTimeout(_tctvScrollTop, 100);
+    setTimeout(_tctvScrollTop, 300);
 };
 
 // ── Cleanup ──
@@ -930,13 +913,8 @@ window.cleanupTimechainTV = function() {
 window.addEventListener('pagehide', function() { leaveStation(); });
 window.addEventListener('beforeunload', function() { leaveStation(); });
 
-// YouTube API ready callback
-window.onYouTubeIframeAPIReady = function() {
-    if (window._tctvPendingInit) {
-        window._tctvPendingInit();
-        window._tctvPendingInit = null;
-    }
-};
+// YouTube API callback
+window.onYouTubeIframeAPIReady = window.onYouTubeIframeAPIReady || function() {};
 
 console.log('[TIMECHAIN TV] Module loaded — ' + STATIONS.length + ' stations');
 })();

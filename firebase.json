@@ -1,9 +1,14 @@
 {
   "hosting": {
-    "public": "public",
+    "public": ".",
     "ignore": [
       "firebase.json",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "functions/**",
+      ".git/**",
+      ".env",
+      "*.sh",
+      "*.md"
     ]
   },
   "functions": {
