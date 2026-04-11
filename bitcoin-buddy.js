@@ -166,12 +166,25 @@ window.submitBuddyRequest = async function() {
             var learnerIntro = goal === 'learn' ? intro : (match.data.intro || '');
             var teacherIntro = goal === 'teach' ? intro : (match.data.intro || '');
 
-            var nachoWelcome = '🦌 Hey! I\'m Nacho, your Bitcoin education buddy! I matched you two because ' +
-                teacherName + ' wants to teach and ' + learnerName + ' wants to learn (' + learnerLevel + ' level).' +
-                (learnerIntro ? '\n\n📖 ' + learnerName + ' is interested in: "' + learnerIntro + '"' : '') +
-                (teacherIntro ? '\n🎓 ' + teacherName + ' says: "' + teacherIntro + '"' : '') +
-                '\n\n💡 I\'m here to help! Either of you can ask me anything about Bitcoin — just start your message with "Nacho," or "Hey Nacho" and I\'ll jump in with an answer.' +
-                '\n\n🧊 Icebreaker: "What first got you interested in Bitcoin?"';
+            var icebreakers = [
+                'What first got you interested in Bitcoin?',
+                'What\'s the most mind-blowing thing you\'ve learned about Bitcoin so far?',
+                'If you could explain Bitcoin to your parents in one sentence, what would you say?',
+                'What Bitcoin topic are you most curious about right now?',
+                'Have you ever orange-pilled someone? How did it go?'
+            ];
+            var icebreaker = icebreakers[Math.floor(Math.random() * icebreakers.length)];
+
+            var nachoWelcome = '🎉 It\'s a match! Welcome to your Bitcoin Buddy conversation!\n\n' +
+                '🎓 Teacher: @' + teacherName + '\n' +
+                '📖 Learner: @' + learnerName + ' (' + learnerLevel + ')' +
+                (learnerIntro ? '\n\n' + learnerName + ' wants to learn about: "' + learnerIntro + '"' : '') +
+                (teacherIntro ? '\n' + teacherName + ' says: "' + teacherIntro + '"' : '') +
+                '\n\nI\'m Nacho 🦌 — your Bitcoin education deer! Here\'s how this works:' +
+                '\n\n• Ask ANY Bitcoin question and I\'ll answer it right away' +
+                '\n• @' + teacherName + ' can jump in anytime to add real-world context, tips, and personal experience on top of my answers' +
+                '\n• Between Nacho + a real teacher, you\'ve got the best of both worlds! 🧡' +
+                '\n\n🧊 Icebreaker to get started: "' + icebreaker + '"';
 
             // Open DM and send Nacho's welcome message
             var convoId = _getBuddyConvoId(uid, match.data.uid);
