@@ -590,8 +590,10 @@ window.renderTimechainTV = function() {
     html += '<span style="color:var(--text-muted);font-size:0.8rem;">←</span>';
     html += '<span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span>';
     html += '</div>';
-    html += '<div style="display:flex;align-items:center;gap:8px;">';
+    html += '<div style="display:flex;align-items:center;gap:6px;">';
     html += '<span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span>';
+    html += '<button onclick="if(typeof toggleLeaderboard===\'function\')toggleLeaderboard()" style="background:none;border:1px solid rgba(247,147,26,0.3);color:#f7931a;padding:4px 8px;border-radius:6px;font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">🏆</button>';
+    html += '<button onclick="if(typeof toggleChatOverlay===\'function\')toggleChatOverlay();else if(typeof renderChatHub===\'function\')renderChatHub(\'global\')" style="background:none;border:1px solid rgba(247,147,26,0.3);color:#f7931a;padding:4px 8px;border-radius:6px;font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;">💬</button>';
     html += '<span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span>';
     html += '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span>';
     html += '</div></div>';
