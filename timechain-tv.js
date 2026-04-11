@@ -133,6 +133,10 @@ var STATIONS = [
             { id: '1Mr9PknsM_Y', title: 'Michael Saylor\'s Best Explanation of Bitcoin', duration: 1200 },
             { id: 'hrjBK6AXAMk', title: 'Take The Bitcoin Orange Pill — How To Guide', duration: 1500 },
             { id: 'bPYl1-KBE50', title: 'The Ultimate Orange Pill — Bitcoin & Risk', duration: 900 },
+            { id: "qX2fbQgxJig", title: "Why Bitcoin Could Reach $64M — Luke Mikic", duration: 3600 },
+            { id: "jzY_SxnTLNA", title: "Bitcoin Is the Economic Singularity — Luke Mikic", duration: 2400 },
+            { id: "Z51vRLKvco4", title: "Retiring on 0.1 Bitcoin — Luke Mikic", duration: 1800 },
+            { id: "Sxv6wpU1380", title: "Is This Bitcoin Final Cycle? — Luke Mikic", duration: 2700 },
         ]
     },
     {
@@ -158,6 +162,9 @@ var STATIONS = [
             { id: 'dMSv4mgiy1o', title: 'How Bitcoin\'s Early Cypherpunks Paved the Way', duration: 1500 },
             { id: 'f-4Rs3Sqlhc', title: 'History of Bitcoin — Complete Timeline', duration: 2400 },
             { id: '8Z4hGvUET8I', title: 'Bitcoin: Beyond The Bubble — Origins', duration: 4800 },
+            { id: 'iVym9wtopqs', title: 'The History of Bitcoin — Full Timeline', duration: 3600 },
+            { id: 'ZKwqNgG-Sv4', title: 'Bitcoin: The End of Money As We Know It', duration: 5000 },
+            { id: 'DyV0OfU3-FU', title: 'Satoshi Nakamoto — The Hidden History', duration: 2400 },
         ]
     },
     {
@@ -201,6 +208,8 @@ var STATIONS = [
             { id: 'NMDABNK8j_Q', title: 'Funniest Crypto Memes — He Sold? Edition', duration: 480 },
             { id: 'RM1NdTvvtvk', title: 'Bitcoin Comedy Compilation', duration: 720 },
             { id: 'BgZO1ppaneg', title: 'Best Crypto TikToks Compilation', duration: 540 },
+            { id: 'Ner16UBWdEg', title: 'Bitcoin Memes That Hit Different', duration: 480 },
+            { id: 'heA1fZzRAFs', title: 'Funniest Bitcoin Moments Compilation', duration: 600 },
         ]
     },
     {
@@ -229,6 +238,8 @@ var STATIONS = [
             { id: 'eH9b_qNbjEU', title: 'Bitcoin — Official Music Video (Teejay)', duration: 210 },
             { id: 'EPQJHNXdJfM', title: 'Crypto — Takeoff feat. Rich The Kid', duration: 180 },
             { id: 'KQ7rn3oi-Pc', title: 'Blockchain — Money Man', duration: 195 },
+            { id: 'VpvwgDjQLGA', title: 'Bitcoin All The Way Up — Dollar Vigilante', duration: 240 },
+            { id: 'f-4Rs3Sqlhc', title: 'Bitcoin Anthem — Crypto Music', duration: 210 },
         ]
     },
     {
@@ -241,6 +252,8 @@ var STATIONS = [
             { id: 'LGYcl4hwUOI', title: 'Bitcoin at 200-Week Moving Average — Buy Signal?', duration: 1200 },
             { id: 'kN5codbLCCY', title: 'Bitcoin Regulation Becoming National Security', duration: 900 },
             { id: 'DDk6-tdHeXQ', title: 'Bitcoin Technical Analysis — Elliott Wave', duration: 1500 },
+            { id: 'HOYnvEVOTJA', title: 'Simply Bitcoin — Daily News Update', duration: 3600 },
+            { id: '1nsIy7PWXyY', title: 'Bitcoin Price Analysis — Key Levels', duration: 1200 },
         ]
     },
     {
@@ -281,6 +294,8 @@ var STATIONS = [
             { id: 'kN5codbLCCY', title: 'Bitcoin Regulation: National Security Issue', duration: 900 },
             { id: 'pR4t4dRdajw', title: 'Bitcoin vs Authoritarianism — Gladstein', duration: 2400 },
             { id: '_6PvTUqyRt8', title: 'Alex Gladstein on Bitcoin Freedom', duration: 1800 },
+            { id: 'kSbMU5CbFM0', title: 'Bitcoin vs Authoritarianism — HRF', duration: 2100 },
+            { id: 'Y5wgZ3rFayQ', title: 'Financial Sovereignty & Bitcoin Policy', duration: 1800 },
         ]
     },
     {
@@ -295,6 +310,12 @@ var STATIONS = [
             { id: '41JCpzvnn_0', title: 'Bitcoin for Beginners — 99Bitcoins', duration: 720 },
             { id: 'Gc2en3nHxA4', title: 'What is Bitcoin — Simply Explained', duration: 540 },
             { id: 'bBC-nXj3Ng4', title: 'How Bitcoin Works Under the Hood', duration: 1320 },
+            { id: 'c8ytiynbnpk', title: 'Your First Bitcoin Wallet — BTC Sessions', duration: 1500 },
+            { id: '3Grj3Datdfw', title: 'Game-Changing Bitcoin Wallet (Cove) — BTC Sessions', duration: 1600 },
+            { id: 'bsAznpEupIg', title: 'Easiest Bitcoin Wallet Setup (Aqua) — BTC Sessions', duration: 2400 },
+            { id: 'IxgNp2h5j8w', title: 'How To Buy, Use and Secure Bitcoin — BTC Sessions', duration: 1800 },
+            { id: '6b0xTB2sE8E', title: 'Bull Bitcoin Wallet Full Tutorial — BTC Sessions', duration: 5500 },
+            { id: 'mibKrTvtlyQ', title: 'Misty Breez Bitcoin Wallet Setup — BTC Sessions', duration: 900 },
         ]
     }
 ];
@@ -619,15 +640,19 @@ window.renderTimechainTV = function() {
     html += '<div style="padding:12px 16px 8px;"><div style="font-size:0.65rem;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">CHANNELS</div></div>';
 
     html += '<div style="display:flex;flex-direction:column;gap:2px;padding:0 8px 120px;">';
-    STATIONS.forEach(function(s) {
+    STATIONS.forEach(function(s, idx) {
         var isActive = s.id === activeStation;
         var state = getPlaybackState(s);
         var pct = state.video ? Math.round(((state.video.duration - state.remaining) / state.video.duration) * 100) : 0;
+        var chNum = idx + 1;
 
-        html += '<div onclick="switchStation(\'' + s.id + '\')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:0.2s;background:' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + ';border:1px solid ' + (isActive ? 'rgba(247,147,26,0.3)' : 'transparent') + ';" onmouseover="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.15)' : 'rgba(255,255,255,0.03)') + '\'" onmouseout="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + '\'">';
+        html += '<div onclick="switchStation(\'' + s.id + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:0.2s;background:' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + ';border:1px solid ' + (isActive ? 'rgba(247,147,26,0.3)' : 'transparent') + ';" onmouseover="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.15)' : 'rgba(255,255,255,0.03)') + '\'" onmouseout="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + '\'">';
+
+        // Channel number
+        html += '<div style="width:24px;font-size:0.7rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#555') + ';text-align:center;flex-shrink:0;">' + chNum + '</div>';
 
         // Station icon
-        html += '<div style="width:44px;height:44px;border-radius:10px;background:' + s.color + '20;border:1px solid ' + s.color + '40;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + s.emoji + '</div>';
+        html += '<div style="width:40px;height:40px;border-radius:10px;background:' + s.color + '20;border:1px solid ' + s.color + '40;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + s.emoji + '</div>';
 
         // Station info
         html += '<div style="flex:1;min-width:0;">';
@@ -703,6 +728,15 @@ window.switchStation = function(stationId) {
 
     // Update channel guide highlighting
     renderTimechainTV();
+
+    // Auto-scroll to top so user sees the video immediately
+    setTimeout(function() {
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.scrollTop = 0;
+        var main = document.getElementById('main');
+        if (main) main.scrollTop = 0;
+        window.scrollTo(0, 0);
+    }, 100);
 };
 
 // ── Cleanup ──
