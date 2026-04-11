@@ -159,28 +159,30 @@ window.submitBuddyRequest = async function() {
             if (typeof showToast === 'function') showToast('🤝 Bitcoin Buddy found! Opening conversation...');
             if (typeof awardPoints === 'function') awardPoints(20, '🤝 Bitcoin Buddy match!');
 
-            // Send icebreaker via DM
-            setTimeout(function() {
-                if (typeof openDM === 'function') {
-                    openDM(match.data.uid, match.data.username);
-                } else if (typeof showInbox === 'function') {
-                    showInbox();
-                }
-            }, 500);
+            // Build Nacho's welcome message for the DM
+            var learnerName = goal === 'learn' ? username : match.data.username;
+            var teacherName = goal === 'teach' ? username : match.data.username;
+            var learnerLevel = goal === 'learn' ? level : match.data.level;
+            var learnerIntro = goal === 'learn' ? intro : (match.data.intro || '');
+            var teacherIntro = goal === 'teach' ? intro : (match.data.intro || '');
 
-            // Nacho sends an icebreaker suggestion
+            var nachoWelcome = '🦌 Hey! I\'m Nacho, your Bitcoin education buddy! I matched you two because ' +
+                teacherName + ' wants to teach and ' + learnerName + ' wants to learn (' + learnerLevel + ' level).' +
+                (learnerIntro ? '\n\n📖 ' + learnerName + ' is interested in: "' + learnerIntro + '"' : '') +
+                (teacherIntro ? '\n🎓 ' + teacherName + ' says: "' + teacherIntro + '"' : '') +
+                '\n\n💡 I\'m here to help! Either of you can ask me anything about Bitcoin — just start your message with "Nacho," or "Hey Nacho" and I\'ll jump in with an answer.' +
+                '\n\n🧊 Icebreaker: "What first got you interested in Bitcoin?"';
+
+            // Open DM and send Nacho's welcome message
+            var convoId = _getBuddyConvoId(uid, match.data.uid);
             setTimeout(function() {
-                if (typeof showToast === 'function') {
-                    var icebreakers = [
-                        '🦌 Icebreaker: "What first got you interested in Bitcoin?"',
-                        '🦌 Icebreaker: "What\'s the most mind-blowing thing you\'ve learned about Bitcoin?"',
-                        '🦌 Icebreaker: "If you could explain Bitcoin to your parents in one sentence, what would you say?"',
-                        '🦌 Icebreaker: "What Bitcoin topic do you find most confusing?"',
-                        '🦌 Icebreaker: "Have you ever orange-pilled someone? How did it go?"',
-                    ];
-                    showToast(icebreakers[Math.floor(Math.random() * icebreakers.length)]);
-                }
-            }, 3000);
+                _sendNachoBuddyMessage(convoId, uid, match.data.uid, username, match.data.username, nachoWelcome);
+                setTimeout(function() {
+                    if (typeof openDM === 'function') {
+                        openDM(match.data.uid, match.data.username);
+                    }
+                }, 500);
+            }, 300);
 
         } else {
             // No match available — add to pool
@@ -346,5 +348,143 @@ function checkBuddyPoolAlert() {
 // Trigger 2.5 minutes into the session
 setTimeout(checkBuddyPoolAlert, 150000);
 
-console.log('[BUDDY] Bitcoin Buddy matching system loaded');
+// ---- Nacho in Buddy DMs ----
+
+// Generate deterministic conversation ID (must match messaging.js logic)
+function _getBuddyConvoId(uid1, uid2) {
+    return uid1 < uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
+}
+
+// Send a Nacho system message into a DM conversation
+// Uses current user's UID as senderUid (Firestore rules require it) but marks as Nacho
+function _sendNachoBuddyMessage(convoId, uid1, uid2, name1, name2, text) {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    var auth = firebase.auth();
+    if (!auth || !auth.currentUser) return;
+    var _db = firebase.firestore();
+    var convoRef = _db.collection('dm_conversations').doc(convoId);
+    var myUid = auth.currentUser.uid;
+
+    var msgData = {
+        senderUid: myUid,
+        senderName: '🦌 Nacho',
+        text: text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        isNachoAuto: true
+    };
+
+    // Ensure conversation doc exists with buddy flag
+    var convoData = {
+        participants: [uid1, uid2],
+        lastMessage: text.substring(0, 100),
+        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSenderUid: myUid,
+        isBuddyMatch: true
+    };
+    convoData.participantNames = {};
+    convoData.participantNames[uid1] = name1;
+    convoData.participantNames[uid2] = name2;
+
+    convoRef.set(convoData, { merge: true }).then(function() {
+        return convoRef.collection('messages').add(msgData);
+    }).then(function() {
+        console.log('[BUDDY] Nacho welcome message sent to convo:', convoId);
+    }).catch(function(e) {
+        console.error('[BUDDY] Failed to send Nacho message:', e);
+    });
+}
+
+// Listen for new messages in buddy DMs and have Nacho auto-answer questions
+// This hooks into the DM message listener in messaging.js
+var _buddyNachoDebounce = {};
+var _origSendDM = window.sendDM;
+if (_origSendDM) {
+    window.sendDM = function(convoId, recipientUid, recipientName) {
+        // Call original sendDM first
+        _origSendDM.apply(this, arguments);
+
+        // After sending, check if this is a buddy conversation and the message has a question
+        setTimeout(function() {
+            _checkBuddyNachoReply(convoId, recipientUid, recipientName);
+        }, 1000);
+    };
+}
+
+function _checkBuddyNachoReply(convoId, recipientUid, recipientName) {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    var _db = firebase.firestore();
+
+    // Check if this is a buddy conversation
+    _db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
+        if (!doc.exists || !doc.data().isBuddyMatch) return;
+
+        // Get the latest message
+        return _db.collection('dm_conversations').doc(convoId).collection('messages')
+            .orderBy('createdAt', 'desc').limit(1).get().then(function(snap) {
+                if (snap.empty) return;
+                var lastMsg = snap.docs[0].data();
+
+                // Don't reply to Nacho's own messages
+                if (lastMsg.senderUid === 'nacho-bot' || lastMsg.isNachoAuto) return;
+
+                var text = (lastMsg.text || '').trim();
+                // Answer if: has a question mark, OR starts with "nacho"/"hey nacho"
+                var isQuestion = text.includes('?');
+                var isNachoCall = /^(hey\s+)?nacho[,:\s]/i.test(text) || /\bnacho\b/i.test(text);
+
+                if (!isQuestion && !isNachoCall) return;
+
+                // Debounce: don't reply to same convo within 5 seconds
+                if (_buddyNachoDebounce[convoId] && Date.now() - _buddyNachoDebounce[convoId] < 5000) return;
+                _buddyNachoDebounce[convoId] = Date.now();
+
+                // Strip "nacho" prefix for cleaner question parsing
+                var cleanQ = text.replace(/^(hey\s+)?nacho[,:\s]*/i, '').trim();
+                if (!cleanQ) cleanQ = text;
+
+                if (typeof nachoUnifiedAnswer !== 'function') return;
+
+                nachoUnifiedAnswer(cleanQ, function(result) {
+                    if (!result || !result.answer) return;
+                    if (result.type === 'fallback') return; // Don't send generic fallbacks
+
+                    var answer = '🦌 ' + result.answer;
+
+                    // Trim to reasonable length for DM
+                    if (answer.length > 800) answer = answer.substring(0, 797) + '...';
+
+                    // Get current user info for convo update
+                    var auth = firebase.auth();
+                    if (!auth.currentUser) return;
+                    var myUid = auth.currentUser.uid;
+                    var participants = doc.data().participants || [];
+                    var otherUid = participants.find(function(p) { return p !== myUid; }) || recipientUid;
+
+                    var nachoMsg = {
+                        senderUid: auth.currentUser.uid,
+                        senderName: '🦌 Nacho',
+                        text: answer,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        isNachoAuto: true
+                    };
+
+                    // Small delay so it feels natural
+                    setTimeout(function() {
+                        _db.collection('dm_conversations').doc(convoId).collection('messages').add(nachoMsg)
+                            .then(function() {
+                                // Update conversation metadata
+                                _db.collection('dm_conversations').doc(convoId).set({
+                                    lastMessage: answer.substring(0, 100),
+                                    lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+                                    lastSenderUid: auth.currentUser ? auth.currentUser.uid : 'system'
+                                }, { merge: true });
+                                console.log('[BUDDY] Nacho answered in buddy DM:', convoId);
+                            }).catch(function(e) { console.error('[BUDDY] Nacho reply failed:', e); });
+                    }, 1500 + Math.random() * 1500); // 1.5-3s delay for natural feel
+                });
+            });
+    }).catch(function(e) { console.error('[BUDDY] Check failed:', e); });
+}
+
+console.log('[BUDDY] Bitcoin Buddy matching system loaded (with Nacho DM support)');
 })();

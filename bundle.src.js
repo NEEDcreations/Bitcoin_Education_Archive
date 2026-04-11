@@ -14085,6 +14085,21 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
     // Load messages + listen for real-time updates
     loadDMMessages(convoId, myUid, otherUid, otherName);
 
+    // Check if this is a buddy match — show Nacho helper banner
+    db.collection('dm_conversations').doc(convoId).get().then(function(doc) {
+        if (doc.exists && doc.data().isBuddyMatch) {
+            var dmWin = document.getElementById('dmWindow');
+            if (!dmWin) return;
+            var safetyBanner = dmWin.querySelector('div[style*="rgba(234,179,8,0.1)"]');
+            if (safetyBanner) {
+                safetyBanner.style.background = 'rgba(34,197,94,0.08)';
+                safetyBanner.style.borderColor = 'rgba(34,197,94,0.2)';
+                safetyBanner.style.color = '#22c55e';
+                safetyBanner.innerHTML = '🦌 <strong>Nacho is in this chat!</strong> Ask any Bitcoin question and Nacho will jump in. Teachers can add context to help learners.';
+            }
+        }
+    }).catch(function() {});
+
     // Update other user's online status
     db.collection('users').doc(otherUid).get().then(function(doc) {
         if (doc.exists) {
@@ -14127,8 +14142,8 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
             snap.forEach(function(doc) {
                 var m = doc.data();
                 var isMe = m.senderUid === myUid;
-                // [AUDIT FIX] Filter messages from blocked users
-                if (!isMe && typeof isUserBlocked === 'function' && isUserBlocked(m.senderUid)) {
+                // [AUDIT FIX] Filter messages from blocked users (never filter Nacho)
+                if (!isMe && !m.isNachoAuto && typeof isUserBlocked === 'function' && isUserBlocked(m.senderUid)) {
                     return; // Skip rendering this message
                 }
                 var time = m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) : new Date();
@@ -14141,15 +14156,21 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 }
 
                 var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                // Scam warning on incoming messages
-                var scamWarn = (!isMe && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
+                var isNacho = m.senderUid === 'nacho-bot' || m.isNachoAuto === true;
+                // Scam warning on incoming messages (skip for Nacho)
+                var scamWarn = (!isMe && !isNacho && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
                     '<div style="font-size:0.65rem;color:#ef4444;margin-top:4px;padding:3px 6px;background:rgba(239,68,68,0.1);border-radius:4px;">⚠️ This message may contain a scam. Never send money to strangers.</div>' : '';
-                var piiWarn = (!isMe && containsPII(m.text)) ?
+                var piiWarn = (!isMe && !isNacho && containsPII(m.text)) ?
                     '<div style="font-size:0.65rem;color:#eab308;margin-top:4px;padding:3px 6px;background:rgba(234,179,8,0.1);border-radius:4px;">⚠️ This person is asking for personal info. Only share details for Lightning Mart transactions.</div>' : '';
-                container.innerHTML += '<div style="display:flex;justify-content:' + (isMe ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
-                    '<div style="max-width:80%;padding:10px 14px;border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + (isMe ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (isMe ? '#fff' : 'var(--text)') + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
-                        escapeHtml(m.text) + scamWarn + piiWarn +
-                        '<div style="font-size:0.6rem;color:' + (isMe ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
+                var bubbleBg = isNacho ? 'rgba(34,197,94,0.08)' : isMe ? 'var(--accent)' : 'var(--card-bg)';
+                var bubbleBorder = isNacho ? '1px solid rgba(34,197,94,0.25)' : 'none';
+                var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
+                var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
+                var msgText = isNacho ? m.text.replace(/\n/g, '<br>') : escapeHtml(m.text);
+                container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
+                    '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
+                        nachoLabel + msgText + scamWarn + piiWarn +
+                        '<div style="font-size:0.6rem;color:' + (isMe && !isNacho ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
                     '</div></div>';
             });
 

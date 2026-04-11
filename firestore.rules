@@ -270,7 +270,7 @@ service cloud.firestore {
                       && request.resource.data.senderUid == request.auth.uid
                       && request.resource.data.text is string
                       && request.resource.data.text.size() >= 1
-                      && request.resource.data.text.size() <= 500;
+                      && request.resource.data.text.size() <= 1000;
       }
     }
 
