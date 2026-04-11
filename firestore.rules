@@ -684,13 +684,15 @@ service cloud.firestore {
     // Timechain TV viewer counts — increment/decrement by 1 only
     match /timechain_viewers/{stationId} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasOnly(['count', 'lastUpdate'])
-                    && request.resource.data.count is int
-                    && request.resource.data.count == 1;
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'lastUpdate'])
-                    && request.resource.data.count is int
-                    && request.resource.data.count >= resource.data.count - 1
-                    && request.resource.data.count <= resource.data.count + 1;
+      allow write: if false; // deprecated — use tctv_presence
+    }
+
+    match /tctv_presence/{viewerId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['station', 'ts'])
+                            && request.resource.data.station is string
+                            && request.resource.data.station.size() < 50;
+      allow delete: if true;
     }
 
     match /{document=**} {

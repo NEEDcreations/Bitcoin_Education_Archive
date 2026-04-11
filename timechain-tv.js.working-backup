@@ -438,47 +438,26 @@ var _currentStation = null;
 var _viewerDocRef = null;
 var _viewerCounts = {};
 
-// Presence-based viewer tracking — each viewer writes a heartbeat doc
-// Stale docs (>60s) are ignored in the count
-var _viewerId = 'v_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-var _heartbeatInterval = null;
-
 function joinStation(stationId) {
     leaveStation();
     _currentStation = stationId;
 
     if (typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
+        _viewerDocRef = db.collection('timechain_viewers').doc(stationId);
 
-        // Write presence doc
-        db.collection('tctv_presence').doc(_viewerId).set({
-            station: stationId,
-            ts: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function() {});
+        // Increment viewer count
+        _viewerDocRef.set({
+            count: firebase.firestore.FieldValue.increment(1),
+            lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(function() {});
 
-        // Heartbeat every 30s
-        if (_heartbeatInterval) clearInterval(_heartbeatInterval);
-        _heartbeatInterval = setInterval(function() {
-            if (_currentStation) {
-                db.collection('tctv_presence').doc(_viewerId).set({
-                    station: _currentStation,
-                    ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(function() {});
-            }
-        }, 30000);
-
-        // Listen for all presence docs and count by station
+        // Listen for viewer count changes across all stations
         if (!_viewerUnsub) {
-            _viewerUnsub = db.collection('tctv_presence').onSnapshot(function(snap) {
-                var counts = {};
-                var cutoff = Date.now() - 60000; // 60s ago
+            _viewerUnsub = db.collection('timechain_viewers').onSnapshot(function(snap) {
                 snap.forEach(function(doc) {
-                    var d = doc.data();
-                    if (d.ts && d.ts.toMillis && d.ts.toMillis() > cutoff && d.station) {
-                        counts[d.station] = (counts[d.station] || 0) + 1;
-                    }
+                    _viewerCounts[doc.id] = doc.data().count || 0;
                 });
-                _viewerCounts = counts;
                 updateViewerBadges();
             });
         }
@@ -486,20 +465,14 @@ function joinStation(stationId) {
 }
 
 function leaveStation() {
-    if (_heartbeatInterval) { clearInterval(_heartbeatInterval); _heartbeatInterval = null; }
-    if (typeof firebase !== 'undefined' && firebase.firestore) {
-        firebase.firestore().collection('tctv_presence').doc(_viewerId).delete().catch(function() {});
+    if (_currentStation && _viewerDocRef) {
+        _viewerDocRef.set({
+            count: firebase.firestore.FieldValue.increment(-1)
+        }, { merge: true }).catch(function() {});
     }
     _currentStation = null;
     _viewerDocRef = null;
 }
-
-// Clean up on page unload
-window.addEventListener('beforeunload', function() {
-    if (typeof firebase !== 'undefined' && firebase.firestore) {
-        firebase.firestore().collection('tctv_presence').doc(_viewerId).delete().catch(function() {});
-    }
-});
 
 function updateViewerBadges() {
     STATIONS.forEach(function(s) {
@@ -509,6 +482,7 @@ function updateViewerBadges() {
             el.textContent = count > 0 ? count + ' watching' : '';
         }
     });
+    // Also update main viewer count
     var mainCount = document.getElementById('tctv-main-viewers');
     if (mainCount && _currentStation) {
         var c = _viewerCounts[_currentStation] || 0;
@@ -568,7 +542,7 @@ function showWhiteNoise(callback) {
         noiseNode.buffer = buffer;
         noiseNode.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.04;
+        gain.gain.value = 0.08;
         noiseNode.connect(gain);
         gain.connect(audioCtx.destination);
         noiseNode.start();
@@ -723,7 +697,7 @@ window.renderTimechainTV = function() {
     loadYouTubeAPI();
 
     // Default to first station
-    var activeStation = _currentStation || localStorage.getItem('tctv_last_station') || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
+    var activeStation = _currentStation || STATIONS[0].id;
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
 
@@ -878,7 +852,7 @@ window.switchStation = function(stationId) {
     _tctvScrollTop();
 
     leaveStation();
-    _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
+    _currentStation = stationId;
     joinStation(stationId);
 
     var station = STATIONS.find(function(s) { return s.id === stationId; });
