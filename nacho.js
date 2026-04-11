@@ -9,7 +9,7 @@
 (function() {
 
 // ---- Nacho is a cartoon deer with antlers ----
-const NACHO_SVG = '<img src="nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;">';
+const NACHO_SVG = '<img src="nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<div style=\\\'font-size:60px;text-align:center;line-height:1;\\\'>🦌</div>\');">';
 
 // Poses are now expressed through the speech bubble label
 const POSES = {
