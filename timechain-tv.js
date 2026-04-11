@@ -10,25 +10,73 @@
 // Videos play in order, looping forever, synced to global clock
 var STATIONS = [
     {
-        id: 'tutorials',
-        name: 'Tutorials',
-        emoji: '📚',
-        desc: 'Learn Bitcoin step by step',
-        color: '#f7931a',
+        id: 'art-philosophy',
+        name: 'Art & Philosophy',
+        emoji: '🎨',
+        desc: 'Bitcoin art, ordinals & deeper meaning',
+        color: '#a855f7',
         videos: [
-            // { id: 'YOUTUBE_ID', title: 'Video Title', duration: SECONDS },
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
-            { id: '41JCpzvnn_0', title: 'Placeholder 2', duration: 180 },
+            { id: 'QVg0ZmxrYLo', title: 'Bitcoin\'s Most Beautifully Absurd Art Drop', duration: 1020 },
+            { id: 'j3QJlyRMHpI', title: 'Art on Bitcoin: Shaping the Future of Digital Creativity', duration: 2700 },
+            { id: 'XHBydlTt2jM', title: 'The Rise of Ordinals and Art on Bitcoin', duration: 1800 },
+            { id: 'UrCN7oG_4YY', title: 'Bitcoin NFTs: How to Create Ordinal Inscriptions', duration: 900 },
+            { id: 'ic6pDq3OAec', title: 'Philosophy of Bitcoin — First Principles', duration: 3600 },
         ]
     },
     {
-        id: 'mining',
-        name: 'Mining',
-        emoji: '⛏️',
-        desc: 'How Bitcoin mining works',
-        color: '#ea580c',
+        id: 'conferences-events',
+        name: 'Conferences & Events',
+        emoji: '🎤',
+        desc: 'Bitcoin conference speeches & keynotes',
+        color: '#6366f1',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: 'XdgP25UcHB0', title: 'Bitcoin for Corporations — Saylor & Dorsey', duration: 12600 },
+            { id: 'HGyiOlXg-XY', title: 'Top 10 Most Iconic Bitcoin Conference Moments', duration: 1200 },
+            { id: 'pDA2r4AblD0', title: 'How To Orange Pill Anyone — BitBlockBoom', duration: 2400 },
+            { id: 'gCfA1lkmJo4', title: 'Michael Saylor — The Greatest Bitcoin Explanation', duration: 1200 },
+            { id: 'nC37CqWpxfI', title: 'Saylor & Dorsey Interview', duration: 3400 },
+        ]
+    },
+    {
+        id: 'culture-travel',
+        name: 'Culture, Travel & Adoption',
+        emoji: '🌍',
+        desc: 'Bitcoin culture worldwide & global adoption',
+        color: '#f97316',
+        videos: [
+            { id: 'Ve6oLiWO0Mg', title: 'Traveling the World on Bitcoin — Airbtc', duration: 900 },
+            { id: '0hwC6BKJMpc', title: 'How Bitcoin is Revolutionizing Travel', duration: 720 },
+            { id: 'kKSFh5Xxe3w', title: '48 Hours in El Salvador Paying Only With Bitcoin', duration: 1200 },
+            { id: 'R8xZd8v7b50', title: 'Bitcoin Beach: El Salvador\'s Bitcoin Economy', duration: 1500 },
+            { id: '0Ceey82hFTY', title: 'Booking Travel with Bitcoin — Travala', duration: 600 },
+        ]
+    },
+    {
+        id: 'debates',
+        name: 'Debates',
+        emoji: '💬',
+        desc: 'Bull vs bear & maximalist debates',
+        color: '#ef4444',
+        videos: [
+            { id: 'xa5iT1nklyU', title: 'Brian Kelly vs Peter Schiff — Bitcoin Bull vs Bear', duration: 600 },
+            { id: 'XJU8r6WiipM', title: 'Bitcoin vs Gold — Response to Peter Schiff', duration: 2400 },
+            { id: '9DuhDgqx21w', title: 'Peter Schiff: Bitcoin Strategy is a Fraud', duration: 1800 },
+            { id: 'aWtzOQTv8Dc', title: 'Saylor vs Dorsey: Battle for Bitcoin\'s Future', duration: 720 },
+            { id: 'J6I-OzXItfA', title: 'Jack Dorsey Explains Bitcoin', duration: 600 },
+        ]
+    },
+    {
+        id: 'dev-privacy-nodes',
+        name: 'Dev, Privacy & Nodes',
+        emoji: '💻',
+        desc: 'Building on Bitcoin, privacy & running nodes',
+        color: '#22c55e',
+        videos: [
+            { id: 'yKdK-7AtAMQ', title: 'Bitcoin Lightning Network — How It Actually Works', duration: 1276 },
+            { id: 'CG69c71aSLQ', title: 'Lightning Network Explained — Easy Guide', duration: 600 },
+            { id: 'gLCyRFZOdGQ', title: 'How to Run a Bitcoin Lightning Node', duration: 1800 },
+            { id: 'TASQj1hacuI', title: 'Bitcoin Privacy — Alex Gladstein', duration: 2400 },
+            { id: 'MGNvaJyZ25A', title: 'Lightning Network: Everything You Need To Know', duration: 900 },
         ]
     },
     {
@@ -38,17 +86,93 @@ var STATIONS = [
         desc: 'Bitcoin documentaries & films',
         color: '#dc2626',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: '3XEuqixD2Zg', title: 'God Bless Bitcoin — Full Documentary', duration: 5352 },
+            { id: '8Z4hGvUET8I', title: 'Bitcoin: Beyond The Bubble', duration: 4800 },
+            { id: 'mgmVEtSgu3o', title: 'Bitcoin FUD — Full Documentary', duration: 3600 },
+            { id: '4_tAOuMVFd0', title: 'Digital Gold — Full Documentary', duration: 5400 },
+            { id: 'GZI0qo3diUo', title: 'Unlocking Crypto — The Bitcoin Field Guide', duration: 6500 },
         ]
     },
     {
-        id: 'economics',
-        name: 'Economics',
+        id: 'economics-money',
+        name: 'Economics & Money',
         emoji: '💰',
-        desc: 'Money, inflation & Austrian economics',
+        desc: 'Austrian economics, inflation & sound money',
         color: '#eab308',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: 'gp4U5aH_T6A', title: 'Bitcoin, Anarchy & Austrian Economics — Lex Fridman & Saifedean', duration: 10800 },
+            { id: 'DKaZ-h-Wwhg', title: 'Bitcoin & Austrian Economics — Peter St. Onge', duration: 3600 },
+            { id: 'fOpnpECKaY8', title: 'Bitcoin, Austrian Economics & Future of Money — Seb Bunney', duration: 4200 },
+            { id: 'drs6Q_OX0HE', title: 'Austrian Economics Intro — The Bitcoin Way', duration: 3000 },
+            { id: 'AdaHyUmRvCU', title: 'Austrian Economics & Monetary Policy of Bitcoin', duration: 1800 },
+        ]
+    },
+    {
+        id: 'freedom-sovereignty',
+        name: 'Freedom & Self-Sovereignty',
+        emoji: '🗽',
+        desc: 'Human rights, financial freedom & sovereignty',
+        color: '#0ea5e9',
+        videos: [
+            { id: 'xLYYh4aPXAM', title: 'Bitcoin Is Protecting Human Rights — Alex Gladstein', duration: 1800 },
+            { id: 'TASQj1hacuI', title: 'Bitcoin as Freedom Money — Wyoming Symposium', duration: 2400 },
+            { id: 'Z_p70BzkMAs', title: 'Bitcoin Protects Human Rights — Gladstein & Balaji', duration: 3600 },
+            { id: 'A-QpLdoDF14', title: 'Financial Freedom Against Tyranny', duration: 1200 },
+            { id: 'ZYN4X_l1ZXg', title: 'Financial Freedom and Bitcoin — HRF', duration: 1800 },
+        ]
+    },
+    {
+        id: 'future-predictions',
+        name: 'Future & Predictions',
+        emoji: '🔮',
+        desc: 'Hyperbitcoinization & price predictions',
+        color: '#8b5cf6',
+        videos: [
+            { id: 'BpKfLfGbf0Q', title: 'Bitcoin Hyperbitcoinization: $1.5M by 2028?', duration: 1800 },
+            { id: 'iDgDl9jzEmk', title: 'Bitcoin Price Prediction Models Explained', duration: 2400 },
+            { id: '1Mr9PknsM_Y', title: 'Michael Saylor\'s Best Explanation of Bitcoin', duration: 1200 },
+            { id: 'hrjBK6AXAMk', title: 'Take The Bitcoin Orange Pill — How To Guide', duration: 1500 },
+            { id: 'bPYl1-KBE50', title: 'The Ultimate Orange Pill — Bitcoin & Risk', duration: 900 },
+        ]
+    },
+    {
+        id: 'health-fitness',
+        name: 'Health & Fitness',
+        emoji: '💪',
+        desc: 'Bitcoin mindset, carnivore & low time preference',
+        color: '#16a34a',
+        videos: [
+            { id: 'mVMU1AFiSV0', title: 'Low Time Preference, Bitcoin and Health', duration: 3600 },
+            { id: 'BQCOJlFXvpU', title: 'The Carnivore Diet & Bitcoin — Dr. Shawn Baker', duration: 6400 },
+            { id: 'Rm5_wCObeQI', title: 'Carnivore Diet, Health Care Crisis & Bitcoin', duration: 4920 },
+            { id: 'LjCRWwm0Xdk', title: 'Bitcoin Health Stack — Mind Body Sats', duration: 1800 },
+        ]
+    },
+    {
+        id: 'history',
+        name: 'History',
+        emoji: '📜',
+        desc: 'Bitcoin origins, cypherpunks & Satoshi',
+        color: '#92400e',
+        videos: [
+            { id: 'dMSv4mgiy1o', title: 'How Bitcoin\'s Early Cypherpunks Paved the Way', duration: 1500 },
+            { id: 'f-4Rs3Sqlhc', title: 'History of Bitcoin — Complete Timeline', duration: 2400 },
+            { id: '8Z4hGvUET8I', title: 'Bitcoin: Beyond The Bubble — Origins', duration: 4800 },
+        ]
+    },
+    {
+        id: 'kids-family',
+        name: 'Kids & Family',
+        emoji: '👶',
+        desc: 'Bitcoin explained for young audiences',
+        color: '#f472b6',
+        videos: [
+            { id: 'BL5vUVQvmX4', title: 'What is Bitcoin? Explained in 3 Minutes — Tuttle Twins', duration: 180 },
+            { id: 'qnyqQvIii0U', title: 'Cryptocurrency Explained for Kids & Beginners', duration: 600 },
+            { id: '94I9L90h0_s', title: 'What is Cryptocurrency? — Kid-Friendly', duration: 300 },
+            { id: 'Z3xdGIyIV54', title: 'How to Explain Bitcoin to Children — Dad & Daughter', duration: 480 },
+            { id: 'tQ1_8M1K0tM', title: 'Cryptocurrency Explained to Kids — Twins', duration: 360 },
+            { id: 'EfKuZayeksI', title: 'Bitcoin for Kids — Simple Explanation', duration: 420 },
         ]
     },
     {
@@ -56,42 +180,125 @@ var STATIONS = [
         name: 'Lightning',
         emoji: '⚡',
         desc: 'Lightning Network & Layer 2',
-        color: '#8b5cf6',
+        color: '#7c3aed',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: 'yKdK-7AtAMQ', title: 'Lightning Network — How It Actually Works', duration: 1276 },
+            { id: 'CG69c71aSLQ', title: 'Lightning Network Explained — Easy Guide', duration: 600 },
+            { id: '9UIOeoBEjmw', title: 'Lightning Network Explained', duration: 480 },
+            { id: 'zEeMco4KqGs', title: 'Lightning Network for Beginners', duration: 360 },
+            { id: 'bW7hvvjum9o', title: 'Lightning Network: Everything You Need To Know', duration: 900 },
+            { id: 'vmafxrT8eCU', title: 'Getting Started with Lightning Wallets', duration: 720 },
         ]
     },
     {
-        id: 'privacy',
-        name: 'Privacy',
-        emoji: '🔒',
-        desc: 'Privacy, security & self-custody',
-        color: '#22c55e',
+        id: 'memes-comedy',
+        name: 'Memes & Comedy',
+        emoji: '😂',
+        desc: 'Funny Bitcoin videos & meme compilations',
+        color: '#facc15',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: 'UDu5LOf_E-w', title: 'Bitcoin Memes Compilation', duration: 600 },
+            { id: 'NMDABNK8j_Q', title: 'Funniest Crypto Memes — He Sold? Edition', duration: 480 },
+            { id: 'RM1NdTvvtvk', title: 'Bitcoin Comedy Compilation', duration: 720 },
+            { id: 'BgZO1ppaneg', title: 'Best Crypto TikToks Compilation', duration: 540 },
         ]
     },
     {
-        id: 'culture',
-        name: 'Culture',
+        id: 'mining',
+        name: 'Mining',
+        emoji: '⛏️',
+        desc: 'How Bitcoin mining works',
+        color: '#ea580c',
+        videos: [
+            { id: 'El3y8AME8oA', title: 'How Bitcoin Mining Really Happens', duration: 900 },
+            { id: 'lHipE05v4jg', title: 'How Bitcoin Mining Works — Complete Guide', duration: 1200 },
+            { id: '33i1PdSJgwA', title: 'How Bitcoin Mining Actually Works, Simplified', duration: 600 },
+            { id: '4HTtZhhXiAw', title: 'Bitcoin Mining Explained in 3 Minutes', duration: 180 },
+            { id: 'yxfvEK7Nj8s', title: 'Bitcoin Mining Explained in 10 Minutes', duration: 600 },
+            { id: 'DMfv8S8ffKA', title: 'Bitcoin Mining — Bloomberg Animated Explainer', duration: 300 },
+        ]
+    },
+    {
+        id: 'music',
+        name: 'Music',
+        emoji: '🎵',
+        desc: 'Bitcoin songs, rap & music videos',
+        color: '#ec4899',
+        videos: [
+            { id: '8n5k714GOlA', title: 'HODL GANG — Bitcoin Rap Remix', duration: 240 },
+            { id: 'eH9b_qNbjEU', title: 'Bitcoin — Official Music Video (Teejay)', duration: 210 },
+            { id: 'EPQJHNXdJfM', title: 'Crypto — Takeoff feat. Rich The Kid', duration: 180 },
+            { id: 'KQ7rn3oi-Pc', title: 'Blockchain — Money Man', duration: 195 },
+        ]
+    },
+    {
+        id: 'news',
+        name: 'News',
+        emoji: '📰',
+        desc: 'Latest Bitcoin news & market updates',
+        color: '#3b82f6',
+        videos: [
+            { id: 'LGYcl4hwUOI', title: 'Bitcoin at 200-Week Moving Average — Buy Signal?', duration: 1200 },
+            { id: 'kN5codbLCCY', title: 'Bitcoin Regulation Becoming National Security', duration: 900 },
+            { id: 'DDk6-tdHeXQ', title: 'Bitcoin Technical Analysis — Elliott Wave', duration: 1500 },
+        ]
+    },
+    {
+        id: 'orange-pill',
+        name: 'Orange Pill',
         emoji: '🟠',
-        desc: 'Bitcoin culture, memes & community',
-        color: '#f97316',
+        desc: 'Best videos to share with beginners',
+        color: '#f7931a',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: 'gCfA1lkmJo4', title: 'The Greatest Bitcoin Explanation — Michael Saylor', duration: 1200 },
+            { id: '1Mr9PknsM_Y', title: 'Saylor\'s Best Explanation Under 20 Minutes', duration: 1200 },
+            { id: 'xegEpCLT0CQ', title: 'A Practical Approach to Orange Pilling', duration: 1800 },
+            { id: 'heA1fZzRAFs', title: 'Orange Pill: The Bitcoin Guide', duration: 900 },
+            { id: 'Bt2Z-_nhpwQ', title: 'How to Orange Pill Anyone', duration: 600 },
         ]
     },
     {
-        id: 'developers',
-        name: 'Dev',
-        emoji: '💻',
-        desc: 'Building on Bitcoin',
-        color: '#6366f1',
+        id: 'podcasts',
+        name: 'Podcasts',
+        emoji: '🎙️',
+        desc: 'Best Bitcoin podcast clips & episodes',
+        color: '#14b8a6',
         videos: [
-            { id: 'dQw4w9WgXcQ', title: 'Placeholder — Replace with real video', duration: 212 },
+            { id: 'l1Rgq8UY3zo', title: 'Why Bitcoin is Different — Stephan Livera', duration: 3600 },
+            { id: '4Q1AasS6HLU', title: 'Bitcoin 101 — Stephan Livera Podcast', duration: 4200 },
+            { id: 'N_qo_-QRqAM', title: 'No More 4-Year Cycles? — Stephan Livera', duration: 3000 },
+            { id: 'aN2G0Uvahf8', title: 'What Bitcoin Did — Beginner Guide', duration: 5400 },
+            { id: 'oMDHTVwSRHI', title: '1 Bitcoin Is All You Need', duration: 2400 },
+        ]
+    },
+    {
+        id: 'politics-regulation',
+        name: 'Politics & Regulation',
+        emoji: '🏛️',
+        desc: 'Government policy, ETFs & legal battles',
+        color: '#64748b',
+        videos: [
+            { id: 'kN5codbLCCY', title: 'Bitcoin Regulation: National Security Issue', duration: 900 },
+            { id: 'pR4t4dRdajw', title: 'Bitcoin vs Authoritarianism — Gladstein', duration: 2400 },
+            { id: '_6PvTUqyRt8', title: 'Alex Gladstein on Bitcoin Freedom', duration: 1800 },
+        ]
+    },
+    {
+        id: 'tutorials',
+        name: 'Tutorials',
+        emoji: '📚',
+        desc: 'Learn Bitcoin step by step',
+        color: '#f7931a',
+        videos: [
+            { id: 'El3y8AME8oA', title: 'Bitcoin Explained — Breaking It Down Simply', duration: 900 },
+            { id: 'lHipE05v4jg', title: 'How Bitcoin Works — Complete Beginner Guide', duration: 1200 },
+            { id: '41JCpzvnn_0', title: 'Bitcoin for Beginners — 99Bitcoins', duration: 720 },
+            { id: 'Gc2en3nHxA4', title: 'What is Bitcoin — Simply Explained', duration: 540 },
+            { id: 'bBC-nXj3Ng4', title: 'How Bitcoin Works Under the Hood', duration: 1320 },
         ]
     }
 ];
+
 
 // ── Global Clock Engine ──
 // Given current time, calculate which video + offset for a station
