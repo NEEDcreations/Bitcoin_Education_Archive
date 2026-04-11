@@ -138,8 +138,8 @@ var APPS_BY_REGION = {
 
 var SELF_CUSTODY_WALLETS = [
     // Recommended (shown by default)
-    { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner wallet. Bitcoin + Lightning. Open source. Beautiful UI. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
-    { name: 'Aqua Wallet', icon: '💧', url: 'https://aquawallet.io', desc: 'Simple, beautiful Bitcoin & Lightning wallet. Great for beginners. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
+    { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner Bitcoin wallet. Open source. Beautiful UI. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
+    { name: 'Aqua Wallet', icon: '💧', url: 'https://aquawallet.io', desc: 'Simple, beautiful Bitcoin & Lightning wallet. Also supports Liquid and Tether (USDt). Great for beginners. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
     // More mobile apps (hidden by default)
     { name: 'Blockstream Green', icon: '🟢', url: 'https://blockstream.com/green/', desc: 'From the makers of Liquid. Multi-sig option. Very secure. Mobile app for iOS & Android.', tier: 'mobile' },
     { name: 'Muun Wallet', icon: '🌙', url: 'https://muun.com', desc: 'Self-custodial Bitcoin & Lightning. Clean design, easy backups. Mobile app.', tier: 'mobile' },
