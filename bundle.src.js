@@ -21657,7 +21657,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -21673,6 +21673,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             function _routeApp(id, attempt) {
                 attempt = attempt || 0;
                 if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') { renderFirstPurchase(); document.getElementById('main').scrollTop = 0; }
+                if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { renderTimechainTV(); document.getElementById('main').scrollTop = 0; }
                 else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
                 else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
@@ -21971,6 +21972,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
         { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
+        { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining', action: "go('timechain-tv')" },
         { id: '_djmode', title: '🎧 DJ Mode', desc: 'Go live as a DJ — broadcast music, use sound effects, crossfade, and play Bitcoin quotes', keywords: 'dj mode broadcast live music stream turntable crossfade sound effects horn airhorn scratch mixer controls', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('livestream')},300)" },
         { id: '_upload_album', title: '📀 Upload Album/EP', desc: 'Upload up to 20 songs at once — group as Album or EP with cover art', keywords: 'upload album ep discography batch bulk multiple songs tracks artist release collection', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('upload')},300)" },
         { id: '_messages', title: '💬 Messages / DMs', desc: 'Direct messages — chat privately with other users', keywords: 'messages dm direct message inbox chat private conversation contact send receive talk', action: 'showInbox()' },
@@ -22670,6 +22672,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (h === 'nacho') { setTimeout(function() { if (typeof enterNachoMode === 'function') enterNachoMode(true); }, 500); }
         else if (h.indexOf('cert/') === 0) { setTimeout(function() { go(h); }, 1500); }
         else if (h === 'first-purchase' || h === 'buy') { setTimeout(function() { go('first-purchase'); }, 500); }
+        else if (h === 'timechain-tv' || h === 'tv') { setTimeout(function() { go('timechain-tv'); }, 500); }
         else if (h === 'trails' || h === 'learn' || h === 'modules') { setTimeout(function() { go('trails'); }, 500); }
         else if (h === 'meetup-builder' && !window._mbRouted) { window._mbRouted = true; window._skipIRLRules = true; localStorage.setItem('btc_irl_rules_accepted', 'true'); setTimeout(function() { var ro = document.getElementById('irlRulesOverlay'); if (ro) ro.remove(); go('irl-sync'); setTimeout(function() { var ro2 = document.getElementById('irlRulesOverlay'); if (ro2) ro2.remove(); }, 100); history.replaceState({channel:'meetup-builder'}, '', '#meetup-builder'); var _mbTries = 0; var _mbInt = setInterval(function() { var ro3 = document.getElementById('irlRulesOverlay'); if (ro3) ro3.remove(); var el = document.getElementById('meetupBuilderSection'); if (el) { clearInterval(_mbInt); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } if (++_mbTries > 30) clearInterval(_mbInt); }, 300); }, 1500); }
         else if (h === 'irl-sync' || h === 'meet') { go('irl-sync', null, true); }

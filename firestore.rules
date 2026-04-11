@@ -664,6 +664,12 @@ service cloud.firestore {
                         || resource.data.user2.uid == request.auth.uid);
     }
 
+    // Timechain TV viewer counts
+    match /timechain_viewers/{stationId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
