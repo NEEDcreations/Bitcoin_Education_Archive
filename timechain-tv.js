@@ -756,14 +756,24 @@ window.switchStation = function(stationId) {
     // Update channel guide highlighting
     renderTimechainTV();
 
-    // Auto-scroll to top so user sees the video immediately
+    // Auto-scroll to top so user sees the video immediately (after DOM render)
     setTimeout(function() {
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: 'instant' });
         var fc = document.getElementById('forumContainer');
         if (fc) fc.scrollTop = 0;
         var main = document.getElementById('main');
         if (main) main.scrollTop = 0;
-        window.scrollTo(0, 0);
-    }, 100);
+        // Double-tap scroll for slower renders
+        setTimeout(function() {
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            if (fc) fc.scrollTop = 0;
+            if (main) main.scrollTop = 0;
+        }, 300);
+    }, 200);
 };
 
 // ── Cleanup ──
