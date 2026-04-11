@@ -457,20 +457,19 @@ function renderDashboard(data) {
 
     html += '</div>'; // end grid
 
-    // ── Bitcoin vs Gold ──
-    var goldMktCap = 21.7; // trillion USD (approximate, updated periodically)
+    // ── Bitcoin vs Gold (live data) ──
     var btcMktCapT = d.marketCap ? d.marketCap / 1e12 : 0;
-    var goldPct = btcMktCapT > 0 ? (btcMktCapT / goldMktCap * 100).toFixed(1) : '—';
-    var flipPrice = d.supply ? Math.round(goldMktCap * 1e12 / d.supply) : '—';
-    var goldTip = 'Gold has been humanity\'s store of value for 5,000+ years with a market cap of ~$21.7 trillion. Bitcoin is digital gold — scarce, durable, portable, divisible, and verifiable. As Bitcoin\'s market cap grows relative to gold, it signals increasing confidence in Bitcoin as a long-term store of value. The flippening would mean Bitcoin has absorbed gold\'s entire monetary premium.';
-    html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + goldTip.replace(/[\\'"]/g, "") + '\')" style="background:linear-gradient(135deg,rgba(234,179,8,0.06),rgba(247,147,26,0.03));border:1px solid rgba(234,179,8,0.25);border-radius:14px;padding:16px;margin-top:12px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.25)\'">';
+    html += '<div id="goldCompareCard" style="background:linear-gradient(135deg,rgba(234,179,8,0.06),rgba(247,147,26,0.03));border:1px solid rgba(234,179,8,0.25);border-radius:14px;padding:16px;margin-top:12px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.25)\'">';
     html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">⚖️ Bitcoin vs Gold <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
+    html += '<div id="goldCompareData">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="color:var(--text-muted);font-size:0.78rem;">₿ Bitcoin</span><span style="color:var(--heading);font-weight:800;font-size:0.85rem;">$' + btcMktCapT.toFixed(2) + 'T</span></div>';
-    html += '<div style="background:var(--border);height:6px;border-radius:3px;overflow:hidden;margin-bottom:8px;"><div style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:' + Math.min(parseFloat(goldPct) || 0, 100) + '%;border-radius:3px;transition:width 0.5s;"></div></div>';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="color:var(--text-muted);font-size:0.78rem;">🥇 Gold</span><span style="color:var(--heading);font-weight:800;font-size:0.85rem;">~$' + goldMktCap + 'T</span></div>';
-    html += '<div style="text-align:center;margin-top:6px;"><div style="color:var(--accent);font-size:1rem;font-weight:900;">' + goldPct + '% of Gold Market Cap</div>';
-    html += '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">Bitcoin needs ~$' + (typeof flipPrice === 'number' ? fmtNum(flipPrice) : flipPrice) + ' to match Gold</div></div>';
-    html += '</div>';
+    html += '<div style="background:var(--border);height:6px;border-radius:3px;overflow:hidden;margin-bottom:8px;"><div id="goldBar" style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:3%;border-radius:3px;transition:width 0.5s;"></div></div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="color:var(--text-muted);font-size:0.78rem;">🥇 Gold</span><span id="goldMktCapLabel" style="color:var(--heading);font-weight:800;font-size:0.85rem;">Loading...</span></div>';
+    html += '<div id="goldPctArea" style="text-align:center;margin-top:6px;"><div style="color:var(--text-faint);font-size:0.75rem;">Fetching live gold price...</div></div>';
+    html += '</div></div>';
+
+    // Fetch live gold price after render
+    setTimeout(function() { _fetchGoldData(btcMktCapT, d.supply || 0); }, 150);
 
     // ── Bitcoin Treasuries (live data from CoinGecko + government estimates) ──
     html += '<div id="treasuryCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
@@ -1593,6 +1592,61 @@ function loadTopIndicators() {
             var flowEl = document.getElementById('etfNetFlow');
             if (flowEl) { flowEl.textContent = 'N/A'; }
         });
+}
+
+// ── Live Gold vs Bitcoin (CoinGecko tether-gold price → calculate gold market cap) ──
+var _goldCache = null;
+var _goldCacheTs = 0;
+var TOTAL_GOLD_OZ = 212582 * 32150.7; // ~6.83 billion troy oz above-ground gold
+
+function _fetchGoldData(btcMktCapT, btcSupply) {
+    // Cache for 30 minutes
+    if (_goldCache && Date.now() - _goldCacheTs < 1800000) {
+        _renderGold(_goldCache, btcMktCapT, btcSupply);
+        return;
+    }
+
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var goldPrice = data['tether-gold'] ? data['tether-gold'].usd : null;
+            if (goldPrice) {
+                _goldCache = goldPrice;
+                _goldCacheTs = Date.now();
+                _renderGold(goldPrice, btcMktCapT, btcSupply);
+            }
+        })
+        .catch(function() {
+            // Fallback to static estimate
+            _renderGold(3200, btcMktCapT, btcSupply);
+        });
+}
+
+function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
+    var goldMktCapT = (goldPricePerOz * TOTAL_GOLD_OZ) / 1e12;
+    var goldPct = btcMktCapT > 0 ? (btcMktCapT / goldMktCapT * 100).toFixed(1) : '—';
+    var flipPrice = btcSupply > 0 ? Math.round(goldMktCapT * 1e12 / btcSupply) : '—';
+
+    var label = document.getElementById('goldMktCapLabel');
+    if (label) label.textContent = '$' + goldMktCapT.toFixed(1) + 'T';
+
+    var bar = document.getElementById('goldBar');
+    if (bar) bar.style.width = Math.min(parseFloat(goldPct) || 0, 100) + '%';
+
+    var area = document.getElementById('goldPctArea');
+    if (area) {
+        area.innerHTML =
+            '<div style="color:var(--accent);font-size:1rem;font-weight:900;">' + goldPct + '% of Gold Market Cap</div>' +
+            '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">BTC needs ~$' + (typeof flipPrice === 'number' ? fmtNum(flipPrice) : flipPrice) + '/coin to match Gold</div>' +
+            '<div style="color:var(--text-faint);font-size:0.55rem;margin-top:4px;">Gold: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz · Live via CoinGecko</div>';
+    }
+
+    // Add tooltip
+    var card = document.getElementById('goldCompareCard');
+    if (card) {
+        var goldTip = 'Gold has been humanitys store of value for 5,000+ years. Bitcoin is digital gold — scarce, durable, portable, divisible, and verifiable. Gold price: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz. Total above-ground gold: ~212,582 tonnes (~6.83B troy oz). Gold market cap: ~$' + goldMktCapT.toFixed(1) + 'T. The flippening = Bitcoin absorbs golds entire monetary premium.';
+        card.setAttribute('onclick', 'event.stopPropagation();showDashTip(this,\'' + goldTip.replace(/[\\'"]/g, '') + '\')');
+    }
 }
 
 // ── Live Treasury Data (CoinGecko API + government estimates) ──
