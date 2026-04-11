@@ -149,8 +149,8 @@ var SELF_CUSTODY_WALLETS = [
     { name: 'Zeus', icon: '⚡🔧', url: 'https://zeusln.com', desc: 'Connect your own Lightning node. Full control over channels and routing. Mobile app.', tier: 'advanced', note: 'Advanced — connect your own node' },
     { name: 'Sparrow Wallet', icon: '🐦', url: 'https://sparrowwallet.com', desc: 'Desktop-only power-user wallet. Full coin control. Best for privacy. ⚠️ No mobile app — beware of scam apps claiming to be Sparrow.', tier: 'advanced', note: 'Desktop only — no mobile app' },
     // Hardware
-    { name: 'Coldcard', icon: '❄️', url: 'https://coldcard.com', desc: 'Hardware wallet. Air-gapped signing. The gold standard for security.', hardware: true },
-    { name: 'Trezor', icon: '🔐', url: 'https://trezor.io', desc: 'Popular hardware wallet. Open source. User-friendly.', hardware: true },
+    { name: 'Trezor', icon: '🔐', url: 'https://trezor.io', desc: 'Popular hardware wallet. Open source. User-friendly. Includes Bitcoin-only firmware.', hardware: true, rec: true },
+    { name: 'Coldcard', icon: '❄️', url: 'https://coldcard.com', desc: 'Hardware wallet. Air-gapped signing. The gold standard for security.', hardware: true, note: 'Advanced setup' },
 ];
 
 var LIGHTNING_WALLETS = [
