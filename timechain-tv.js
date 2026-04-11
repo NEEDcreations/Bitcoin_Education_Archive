@@ -440,7 +440,7 @@ var _viewerCounts = {};
 
 function joinStation(stationId) {
     leaveStation();
-    _currentStation = stationId;
+    _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
 
     if (typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
@@ -697,7 +697,7 @@ window.renderTimechainTV = function() {
     loadYouTubeAPI();
 
     // Default to first station
-    var activeStation = _currentStation || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
+    var activeStation = _currentStation || localStorage.getItem('tctv_last_station') || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
 
@@ -852,7 +852,7 @@ window.switchStation = function(stationId) {
     _tctvScrollTop();
 
     leaveStation();
-    _currentStation = stationId;
+    _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
     joinStation(stationId);
 
     var station = STATIONS.find(function(s) { return s.id === stationId; });
