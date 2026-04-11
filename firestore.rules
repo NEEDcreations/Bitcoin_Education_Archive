@@ -25,7 +25,8 @@ service cloud.firestore {
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
                             && request.resource.data.username.size() >= 3
-                            && request.resource.data.username.size() <= 20));
+                            && request.resource.data.username.size() <= 20
+                            && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')));
       allow delete: if request.auth != null
                     && request.auth.uid == userId;
 

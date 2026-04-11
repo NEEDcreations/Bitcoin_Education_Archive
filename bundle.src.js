@@ -248,7 +248,7 @@ function initRanking() {
             loadUser(user.uid);
             updateAuthButton();
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
-            showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+            showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
             return user;
         }).catch(function(e) {
             redirectResultResolved = true;
@@ -290,7 +290,7 @@ function initRanking() {
                     loadUser(user.uid).then(function() {
                         if (currentUser && currentUser.username) {
                             setTimeout(function() {
-                                if (typeof showToast === 'function') showToast('👋 Welcome back, ' + currentUser.username + '!');
+                                if (typeof showToast === 'function') showToast('👋 Welcome back, ' + escapeHtml(currentUser.username || '') + '!');
                             }, 2000);
                         }
                     }).catch(function() {});
@@ -515,7 +515,7 @@ async function finishEmailSignIn(email, _signInUrl) {
         localStorage.removeItem('btc_pending_giveaway');
 
         loadUser(emailUid);
-        showToast('✅ Email verified! Signed in as ' + (pendingUsername || email));
+        showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
         if (pendingGiveaway) {
             setTimeout(function() { showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!'); }, 2000);
         }
@@ -1041,7 +1041,7 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
         } catch(e) {}
     } else {
         hideUsernamePrompt();
-        showToast('✅ Signed in as ' + (user.displayName || user.email || 'Bitcoiner'));
+        showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
     }
 }
 
@@ -3011,7 +3011,9 @@ function _showToastNow(msg, duration) {
     var ms = duration || 2500;
     const t = document.createElement('div');
     t.className = 'rank-toast';
-    t.innerHTML = typeof msg === 'object' ? msg.msg : msg;
+    var _raw = typeof msg === 'object' ? msg.msg : msg;
+    // Strip dangerous tags but allow emoji and simple formatting
+    t.innerHTML = _raw.replace(/<(script|svg|img|iframe|object|embed|form|input|link|style|meta|base)[^>]*>/gi, '').replace(/on\w+\s*=/gi, 'data-blocked=');
     if (typeof msg === 'object' && msg.duration) ms = msg.duration;
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));

@@ -197,7 +197,7 @@ window.showOnboardingWizard = function() {
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         }).catch(function() {});
 
-                        if (typeof showToast === 'function') showToast('🤝 Buddy matched with ' + match.data.username + '! Opening DMs...', 6000);
+                        if (typeof showToast === 'function') showToast('🤝 Buddy matched with ' + (typeof escapeHtml === 'function' ? escapeHtml(match.data.username || '') : (match.data.username || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')) + '! Opening DMs...', 6000);
 
                         // Create a DM conversation with a Nacho welcome message
                         var convoId = [uid, match.data.uid].sort().join('_');
