@@ -137,9 +137,18 @@ var APPS_BY_REGION = {
 };
 
 var SELF_CUSTODY_WALLETS = [
-    { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner wallet. Bitcoin + Lightning. Open source. Beautiful UI.', rec: true },
-    { name: 'Blockstream Green', icon: '🟢', url: 'https://blockstream.com/green/', desc: 'From the makers of Liquid. Multi-sig option. Very secure.' },
-    { name: 'Sparrow Wallet', icon: '🐦', url: 'https://sparrowwallet.com', desc: 'Desktop power-user wallet. Full coin control. Best for privacy.' },
+    // Recommended (shown by default)
+    { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner wallet. Bitcoin + Lightning. Open source. Beautiful UI. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
+    { name: 'Aqua Wallet', icon: '💧', url: 'https://aquawallet.io', desc: 'Simple, beautiful Bitcoin & Lightning wallet. Great for beginners. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
+    // More mobile apps (hidden by default)
+    { name: 'Blockstream Green', icon: '🟢', url: 'https://blockstream.com/green/', desc: 'From the makers of Liquid. Multi-sig option. Very secure. Mobile app for iOS & Android.', tier: 'mobile' },
+    { name: 'Muun Wallet', icon: '🌙', url: 'https://muun.com', desc: 'Self-custodial Bitcoin & Lightning. Clean design, easy backups. Mobile app.', tier: 'mobile' },
+    { name: 'Misty Breez', icon: '🌊', url: 'https://breez.technology', desc: 'Non-custodial Lightning wallet. Podcast streaming, point-of-sale mode. Mobile app.', tier: 'mobile' },
+    { name: 'Speed Wallet', icon: '⚡', url: 'https://speed.app', desc: 'Fast Lightning payments. Simple interface for everyday spending. Mobile app.', tier: 'mobile' },
+    // Advanced (hidden by default)
+    { name: 'Zeus', icon: '⚡🔧', url: 'https://zeusln.com', desc: 'Connect your own Lightning node. Full control over channels and routing. Mobile app.', tier: 'advanced', note: 'Advanced — connect your own node' },
+    { name: 'Sparrow Wallet', icon: '🐦', url: 'https://sparrowwallet.com', desc: 'Desktop-only power-user wallet. Full coin control. Best for privacy. ⚠️ No mobile app — beware of scam apps claiming to be Sparrow.', tier: 'advanced', note: 'Desktop only — no mobile app' },
+    // Hardware
     { name: 'Coldcard', icon: '❄️', url: 'https://coldcard.com', desc: 'Hardware wallet. Air-gapped signing. The gold standard for security.', hardware: true },
     { name: 'Trezor', icon: '🔐', url: 'https://trezor.io', desc: 'Popular hardware wallet. Open source. User-friendly.', hardware: true },
 ];
@@ -269,9 +278,24 @@ window.renderFirstPurchase = function() {
             '⚠️ <strong>"Not your keys, not your coins."</strong> If you leave your Bitcoin on an exchange, you\'re trusting them to hold it for you. Exchanges get hacked, go bankrupt (FTX), or freeze accounts. Move it to a wallet <em>you</em> control.' +
         '</div>';
         html += '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:8px;">📱 SOFTWARE WALLETS (free, start here)</div>';
-        SELF_CUSTODY_WALLETS.filter(function(w) { return !w.hardware; }).forEach(function(w) {
+        // Recommended wallets (shown by default)
+        SELF_CUSTODY_WALLETS.filter(function(w) { return w.tier === 'rec'; }).forEach(function(w) {
             html += _walletCard(w);
         });
+        // More mobile apps (collapsed)
+        html += '<button onclick="var p=document.getElementById(\'moreWallets\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.textContent=p.style.display===\'none\'?\'📱 More Mobile Apps ▼\':\'📱 More Mobile Apps ▲\'" style="width:100%;padding:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;color:#6366f1;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">📱 More Mobile Apps ▼</button>';
+        html += '<div id="moreWallets" style="display:none;">';
+        SELF_CUSTODY_WALLETS.filter(function(w) { return w.tier === 'mobile'; }).forEach(function(w) {
+            html += _walletCard(w);
+        });
+        html += '</div>';
+        // Advanced wallets (collapsed)
+        html += '<button onclick="var p=document.getElementById(\'advWallets\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.textContent=p.style.display===\'none\'?\'🔧 Advanced ▼\':\'🔧 Advanced ▲\'" style="width:100%;padding:10px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:10px;color:#a855f7;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">🔧 Advanced ▼</button>';
+        html += '<div id="advWallets" style="display:none;">';
+        SELF_CUSTODY_WALLETS.filter(function(w) { return w.tier === 'advanced'; }).forEach(function(w) {
+            html += _walletCard(w);
+        });
+        html += '</div>';
         html += '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin:16px 0 8px;">🔐 HARDWARE WALLETS (for larger amounts)</div>';
         SELF_CUSTODY_WALLETS.filter(function(w) { return w.hardware; }).forEach(function(w) {
             html += _walletCard(w);
@@ -574,9 +598,11 @@ function _stepHeader(step) {
 }
 
 function _walletCard(w) {
+    var badge = w.rec ? ' <span style="color:var(--accent);font-size:0.6rem;">★ RECOMMENDED</span>' : '';
+    if (w.note) badge = ' <span style="color:#a855f7;font-size:0.6rem;font-weight:600;">' + w.note + '</span>';
     return '<a href="' + w.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:6px;background:var(--card-bg);border:1px solid ' + (w.rec ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;text-decoration:none;color:var(--text);transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + (w.rec ? 'var(--accent)' : 'var(--border)') + '\'">' +
         '<span style="font-size:1.3rem;">' + w.icon + '</span>' +
-        '<div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;">' + w.name + (w.rec ? ' <span style="color:var(--accent);font-size:0.6rem;">★ RECOMMENDED</span>' : '') + ' ↗</div>' +
+        '<div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;">' + w.name + badge + ' ↗</div>' +
         '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-top:1px;">' + w.desc + '</div></div></a>';
 }
 
