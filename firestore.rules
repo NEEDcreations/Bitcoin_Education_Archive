@@ -371,9 +371,15 @@ service cloud.firestore {
                     && request.resource.data.copyrightConfirmed == true;
       allow update: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes'])
+                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
                             && request.resource.data.plays <= resource.data.get('plays', 0) + 1
-                            && request.resource.data.likes <= resource.data.get('likes', 0) + 1));
+                            && request.resource.data.likes <= resource.data.get('likes', 0) + 1
+                            && (!request.resource.data.keys().hasAny(['likedBy']) || (
+                                request.resource.data.likedBy is list
+                                && request.resource.data.likedBy.size() <= resource.data.get('likedBy', []).size() + 1
+                                && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
+                                && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
+                            ))));
       allow delete: if request.auth != null
                     && resource.data.authorId == request.auth.uid;
 

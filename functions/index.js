@@ -59,18 +59,23 @@ exports.totpVerify = functions.https.onCall(async (data, context) => {
     
     const uid = context.auth.uid;
 
-    // Rate limiting: max 5 attempts per 2-minute window
+    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
     const rlRef = db.collection('totp_rate_limits').doc(uid + '_verify');
-    const rlDoc = await rlRef.get();
-    if (rlDoc.exists) {
-        const rd = rlDoc.data();
-        const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-        if (ws && (Date.now() - ws.getTime()) < 120000 && (rd.attempts || 0) >= 5) {
-            throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+    await db.runTransaction(async (tx) => {
+        const rlDoc = await tx.get(rlRef);
+        if (rlDoc.exists) {
+            const rd = rlDoc.data();
+            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+            if (ws && (Date.now() - ws.getTime()) < 120000) {
+                if ((rd.attempts || 0) >= 5) throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+                tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
+            } else {
+                tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+            }
+        } else {
+            tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
         }
-        if (ws && (Date.now() - ws.getTime()) < 120000) { await rlRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
-        else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
-    } else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+    });
     
     // Get pending secret
     const pending = await db.collection('totp_pending').doc(uid).get();
@@ -153,18 +158,23 @@ exports.totpDisable = functions.https.onCall(async (data, context) => {
     
     const uid = context.auth.uid;
 
-    // Rate limiting: max 5 attempts per 2-minute window
+    // Rate limiting: max 5 attempts per 2-minute window (atomic transaction)
     const rlRef = db.collection('totp_rate_limits').doc(uid + '_disable');
-    const rlDoc = await rlRef.get();
-    if (rlDoc.exists) {
-        const rd = rlDoc.data();
-        const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-        if (ws && (Date.now() - ws.getTime()) < 120000 && (rd.attempts || 0) >= 5) {
-            throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+    await db.runTransaction(async (tx) => {
+        const rlDoc = await tx.get(rlRef);
+        if (rlDoc.exists) {
+            const rd = rlDoc.data();
+            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+            if (ws && (Date.now() - ws.getTime()) < 120000) {
+                if ((rd.attempts || 0) >= 5) throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+                tx.update(rlRef, { attempts: (rd.attempts || 0) + 1 });
+            } else {
+                tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+            }
+        } else {
+            tx.set(rlRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
         }
-        if (ws && (Date.now() - ws.getTime()) < 120000) { await rlRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
-        else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
-    } else { await rlRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+    });
     
     const doc = await db.collection('totp_secrets').doc(uid).get();
     if (!doc.exists) throw new functions.https.HttpsError('not-found', 'TOTP not enabled');

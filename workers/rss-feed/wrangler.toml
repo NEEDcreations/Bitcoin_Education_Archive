@@ -1,0 +1,7 @@
+name = "rss-feed"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Secrets (set via `wrangler secret put`):
+# TELEGRAM_BOT_TOKEN
+# ADMIN_KEY

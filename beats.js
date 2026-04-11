@@ -463,7 +463,7 @@ window.beatsToggleLike = function(trackId, btn) {
         liked.push(trackId);
         if (btn) { btn.textContent = '❤️'; btn.style.color = '#ef4444'; }
         if (typeof db !== 'undefined') {
-            db.collection('beats_tracks').doc(trackId).update({ likes: firebase.firestore.FieldValue.increment(1) }).catch(function() {});
+            db.collection('beats_tracks').doc(trackId).update({ likes: firebase.firestore.FieldValue.increment(1), likedBy: firebase.firestore.FieldValue.arrayUnion(auth.currentUser.uid) }).catch(function() {});
             // Notify the artist
             db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
                 if (doc.exists && doc.data().authorId && typeof sendNotification === 'function') {
@@ -477,7 +477,7 @@ window.beatsToggleLike = function(trackId, btn) {
         liked.splice(idx, 1);
         if (btn) { btn.textContent = '🤍'; btn.style.color = 'var(--text-faint)'; }
         if (typeof db !== 'undefined') {
-            db.collection('beats_tracks').doc(trackId).update({ likes: firebase.firestore.FieldValue.increment(-1) }).catch(function() {});
+            db.collection('beats_tracks').doc(trackId).update({ likes: firebase.firestore.FieldValue.increment(-1), likedBy: firebase.firestore.FieldValue.arrayRemove(auth.currentUser.uid) }).catch(function() {});
         }
     }
     localStorage.setItem('btc_beats_liked', JSON.stringify(liked));
