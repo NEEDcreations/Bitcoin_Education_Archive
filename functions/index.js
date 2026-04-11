@@ -2699,3 +2699,80 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
 
     return { success: true, score: result.score, passed: result.passed, type: result.type };
 });
+
+// ── Quest: Server-Side Grading ──
+exports.startQuest = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+
+    const { questions } = data || {};
+    if (!questions || !Array.isArray(questions) || questions.length !== 5) {
+        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 5 questions');
+    }
+
+    const uid = context.auth.uid;
+    const questId = uid + '_quest_' + Date.now();
+
+    // Store answer keys server-side
+    const answerKeys = questions.map((q, i) => ({ index: i, correct: q.answer }));
+
+    await db.collection('quest_answer_keys').doc(questId).set({
+        uid,
+        keys: answerKeys,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        graded: false,
+    });
+
+    return { questId };
+});
+
+exports.gradeQuest = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+
+    const { questId, answers, isRetry } = data || {};
+    if (!questId || !answers || !Array.isArray(answers) || answers.length !== 5) {
+        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 5 answers');
+    }
+
+    const uid = context.auth.uid;
+    const questRef = db.collection('quest_answer_keys').doc(questId);
+
+    const result = await db.runTransaction(async (tx) => {
+        const questDoc = await tx.get(questRef);
+        if (!questDoc.exists) throw new functions.https.HttpsError('not-found', 'Quest not found');
+
+        const quest = questDoc.data();
+        if (quest.uid !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your quest');
+        if (quest.graded) throw new functions.https.HttpsError('already-exists', 'Quest already graded');
+
+        // Grade server-side
+        let score = 0;
+        const keys = quest.keys;
+        for (let i = 0; i < 5; i++) {
+            if (answers[i] === keys[i].correct) score++;
+        }
+
+        // Determine points
+        let pts = 0;
+        if (isRetry) {
+            if (score >= 3) pts = 25;
+        } else {
+            if (score === 5) pts = 100;
+            else if (score >= 3) pts = 50;
+        }
+
+        // Mark as graded
+        tx.update(questRef, { graded: true, score, pts, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+        // Award points atomically
+        if (pts > 0) {
+            const userRef = db.collection('users').doc(uid);
+            tx.update(userRef, {
+                points: admin.firestore.FieldValue.increment(pts),
+            });
+        }
+
+        return { score, pts };
+    });
+
+    return { success: true, score: result.score, pts: result.pts };
+});

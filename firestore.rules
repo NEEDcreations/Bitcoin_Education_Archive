@@ -390,6 +390,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Quest answer keys — server-only, no client access
+    match /quest_answer_keys/{questId} {
+      allow read, write: if false;
+    }
+
     match /pvp_matches/{matchId} {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid

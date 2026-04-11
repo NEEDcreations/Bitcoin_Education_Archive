@@ -10075,6 +10075,17 @@ function generateAndShowQuest(manual, targetChannelId) {
     });
 
     currentQuest = { id: questId, title: getQuestTitle(questCount), questions };
+
+    // Register quest server-side for secure grading
+    window._currentQuestServerId = null;
+    if (typeof firebase !== 'undefined' && firebase.functions) {
+        firebase.functions().httpsCallable('startQuest')({
+            questions: questions.map(function(q) { return { answer: q.answer }; })
+        }).then(function(res) {
+            window._currentQuestServerId = res.data.questId;
+        }).catch(function(e) { console.warn('Quest registration failed:', e); });
+    }
+
     showQuest(currentQuest, false);
 }
 
@@ -10206,8 +10217,26 @@ async function submitQuest() {
     const answers = window._questAnswers;
     const correct = window._questCorrect;
     let score = 0;
+    let pts = 0;
 
-    answers.forEach((a, i) => { if (a === correct[i]) score++; });
+    // Grade server-side if registered
+    if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
+        try {
+            var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
+                questId: window._currentQuestServerId,
+                answers: answers,
+                isRetry: !!isRetry
+            });
+            score = gradeResult.data.score;
+            pts = gradeResult.data.pts;
+        } catch(e) {
+            console.error('Server quest grading failed, falling back:', e);
+            answers.forEach((a, i) => { if (a === correct[i]) score++; });
+        }
+    } else {
+        // Fallback for offline
+        answers.forEach((a, i) => { if (a === correct[i]) score++; });
+    }
 
     // Highlight correct/wrong
     const questions = document.querySelectorAll('.quest-q');
@@ -10220,12 +10249,11 @@ async function submitQuest() {
         });
     });
 
-    let pts = 0;
     let msg = '';
     if (isRetry) {
         if (score >= 3) {
-            pts = 25;
-            msg = '🎉 ' + score + '/5 correct on retry! +25 pts!';
+            if (!pts) pts = 25;
+            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' pts!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else {
@@ -10233,13 +10261,13 @@ async function submitQuest() {
         }
     } else {
         if (score === 5) {
-            pts = 100;
-            msg = '🏆 PERFECT! 5/5! +100 pts!';
+            if (!pts) pts = 100;
+            msg = '🏆 PERFECT! 5/5! +' + pts + ' pts!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else if (score >= 3) {
-            pts = 50;
-            msg = '🎉 ' + score + '/5 correct! +50 pts!';
+            if (!pts) pts = 50;
+            msg = '🎉 ' + score + '/5 correct! +' + pts + ' pts!';
             completedQuests.add(currentQuest.id);
             questCount++;
         } else {
@@ -10247,16 +10275,14 @@ async function submitQuest() {
         }
     }
 
-    if (pts > 0 && typeof awardPoints === 'function') {
-        await awardPoints(pts, 'Quest: ' + currentQuest.title);
+    if (pts > 0) {
+        // Points already awarded server-side by gradeQuest
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
-        // Track daily quest count
         var todayQ = new Date().toISOString().split('T')[0];
         var qLog = safeJSON('btc_quest_daily', {});
         if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
         qLog.count++;
         localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
-        // [AUDIT FIX] Sync quest count to Firestore
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
                 questsCompletedToday: (qLog.count || 0),
