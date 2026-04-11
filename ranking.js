@@ -1812,11 +1812,9 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             }
         }
     } catch (e) {
-        // Fallback: if Cloud Function fails (e.g., cold start timeout), award locally
-        // This prevents broken UX but server is still the source of truth
-        console.warn('[POINTS] Cloud Function failed, local fallback:', e.message);
-        currentUser.points = (currentUser.points || 0) + pts;
-        _showPointsToast(pts, reason);
+        // [SECURITY] No local fallback — server is the only source of truth for points
+        console.warn('[POINTS] Cloud Function failed:', e.message);
+        if (typeof showToast === 'function') showToast('⏳ Points will sync when connection restores');
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();

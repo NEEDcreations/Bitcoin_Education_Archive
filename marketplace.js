@@ -712,14 +712,20 @@ window.sendMarketMessage = function(listingId) {
 
     var buyerName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Buyer';
 
-    db.collection('marketplace_messages').add({
+    // Fetch listing to get sellerUid
+    db.collection('marketplace').doc(listingId).get().then(function(listingDoc) {
+        if (!listingDoc.exists) { showToast('Listing not found'); return; }
+        var sellerUid = listingDoc.data().sellerUid || '';
+
+    return db.collection('marketplace_messages').add({
         listingId: listingId,
         buyerUid: auth.currentUser.uid,
-            sellerUid: listing.sellerUid || '', // [AUDIT FIX] Required for read restriction
+        sellerUid: sellerUid,
         buyerName: buyerName,
         message: msg,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         read: false,
+    });
     }).then(function() {
         var overlay = document.getElementById('contactSellerOverlay');
         if (overlay) overlay.remove();

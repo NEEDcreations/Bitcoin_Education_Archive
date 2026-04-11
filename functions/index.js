@@ -2404,6 +2404,29 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
                 if (a1 && a2 && (a1.won || a2.won)) completedRounds++;
             }
             update.status = completedRounds >= 5 ? 'finished' : 'question_result';
+
+            // If match finished, update PVP stats server-side
+            if (update.status === 'finished') {
+                // Count wins for each player
+                const finalMyAnswers = update[myKey + '.answers'] || match[myKey].answers || [];
+                const finalOppAnswers = update[oppKey + '.answers'] || match[oppKey].answers || [];
+                let myWins = 0, oppWins = 0;
+                for (let r = 0; r < 5; r++) {
+                    if (finalMyAnswers[r] && finalMyAnswers[r].won) myWins++;
+                    if (finalOppAnswers[r] && finalOppAnswers[r].won) oppWins++;
+                }
+                // Update winner/loser stats
+                const myUidFinal = match[myKey].uid;
+                const oppUidFinal = match[oppKey].uid;
+                if (myWins > oppWins) {
+                    tx.update(db.collection('users').doc(myUidFinal), { pvpWins: admin.firestore.FieldValue.increment(1) });
+                    tx.update(db.collection('users').doc(oppUidFinal), { pvpLosses: admin.firestore.FieldValue.increment(1) });
+                } else if (oppWins > myWins) {
+                    tx.update(db.collection('users').doc(oppUidFinal), { pvpWins: admin.firestore.FieldValue.increment(1) });
+                    tx.update(db.collection('users').doc(myUidFinal), { pvpLosses: admin.firestore.FieldValue.increment(1) });
+                }
+                // Draw: no stat changes
+            }
         }
 
         tx.update(matchRef, update);
@@ -2411,4 +2434,67 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
     });
 
     return result;
+});
+
+// ---- Daily Spin (server-side validation + reward) ----
+exports.dailySpin = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot spin');
+    }
+
+    const uid = context.auth.uid;
+    const today = new Date().toISOString().split('T')[0];
+    const userRef = db.collection('users').doc(uid);
+
+    // Atomic check: has user already spun today?
+    const result = await db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+
+        const userData = userDoc.data();
+        if (userData.lastSpinDate === today) {
+            throw new functions.https.HttpsError('already-exists', 'Already spun today');
+        }
+
+        // Mark as spun
+        tx.update(userRef, { lastSpinDate: today });
+
+        // Increment global spin counter
+        const statsRef = db.collection('stats').doc('global');
+        tx.set(statsRef, { spins: admin.firestore.FieldValue.increment(1) }, { merge: true });
+
+        return { spun: true };
+    });
+
+    return { success: true };
+});
+
+// ---- Update PVP Stats (server-side) ----
+exports.updatePvpStats = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    const { won } = data || {};
+    if (typeof won !== 'boolean') throw new functions.https.HttpsError('invalid-argument', 'Missing won boolean');
+
+    const uid = context.auth.uid;
+    const field = won ? 'pvpWins' : 'pvpLosses';
+    await db.collection('users').doc(uid).update({
+        [field]: admin.firestore.FieldValue.increment(1)
+    });
+    return { success: true };
+});
+
+// ---- Increment Forum/Market Stats (server-side) ----
+exports.incrementUserStat = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    const { stat } = data || {};
+    const ALLOWED = ['forumPosts', 'forumReplies', 'marketListings', 'marketMessages'];
+    if (!stat || !ALLOWED.includes(stat)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid stat: ' + stat);
+    }
+    const uid = context.auth.uid;
+    await db.collection('users').doc(uid).update({
+        [stat]: admin.firestore.FieldValue.increment(1)
+    });
+    return { success: true };
 });

@@ -812,17 +812,16 @@
                     // Notify spin result
                     if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
                     
-                    // Mark as spun today
+                    // Mark as spun today (server-side validation)
                     localStorage.setItem('btc_last_spin_date', today);
+                    if (typeof firebase !== 'undefined' && firebase.functions) {
+                        firebase.functions().httpsCallable('dailySpin')({}).catch(function(e) {
+                            // If server says already spun, that's fine — localStorage was stale
+                            console.log('[SPIN] Server validation:', e.message || 'ok');
+                        });
+                    }
                     if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
                         try {
-                            db.collection('users').doc(auth.currentUser.uid).update({
-                                lastSpinDate: today
-                            }).catch(function(){});
-                            // Increment global spin counter
-                            db.collection('stats').doc('global').set({
-                                spins: firebase.firestore.FieldValue.increment(1)
-                            }, { merge: true }).catch(function() {});
                         } catch(e) {}
                     }
                 }

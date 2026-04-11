@@ -1900,11 +1900,9 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             }
         }
     } catch (e) {
-        // Fallback: if Cloud Function fails (e.g., cold start timeout), award locally
-        // This prevents broken UX but server is still the source of truth
-        console.warn('[POINTS] Cloud Function failed, local fallback:', e.message);
-        currentUser.points = (currentUser.points || 0) + pts;
-        _showPointsToast(pts, reason);
+        // [SECURITY] No local fallback — server is the only source of truth for points
+        console.warn('[POINTS] Cloud Function failed:', e.message);
+        if (typeof showToast === 'function') showToast('⏳ Points will sync when connection restores');
     }
     updateRankUI();
     if (typeof renderProgressRings === 'function') renderProgressRings();
@@ -13131,14 +13129,20 @@ window.sendMarketMessage = function(listingId) {
 
     var buyerName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Buyer';
 
-    db.collection('marketplace_messages').add({
+    // Fetch listing to get sellerUid
+    db.collection('marketplace').doc(listingId).get().then(function(listingDoc) {
+        if (!listingDoc.exists) { showToast('Listing not found'); return; }
+        var sellerUid = listingDoc.data().sellerUid || '';
+
+    return db.collection('marketplace_messages').add({
         listingId: listingId,
         buyerUid: auth.currentUser.uid,
-            sellerUid: listing.sellerUid || '', // [AUDIT FIX] Required for read restriction
+        sellerUid: sellerUid,
         buyerName: buyerName,
         message: msg,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         read: false,
+    });
     }).then(function() {
         var overlay = document.getElementById('contactSellerOverlay');
         if (overlay) overlay.remove();
@@ -19090,17 +19094,16 @@ window._startHalvingTicker = function() {
                     // Notify spin result
                     if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
                     
-                    // Mark as spun today
+                    // Mark as spun today (server-side validation)
                     localStorage.setItem('btc_last_spin_date', today);
+                    if (typeof firebase !== 'undefined' && firebase.functions) {
+                        firebase.functions().httpsCallable('dailySpin')({}).catch(function(e) {
+                            // If server says already spun, that's fine — localStorage was stale
+                            console.log('[SPIN] Server validation:', e.message || 'ok');
+                        });
+                    }
                     if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
                         try {
-                            db.collection('users').doc(auth.currentUser.uid).update({
-                                lastSpinDate: today
-                            }).catch(function(){});
-                            // Increment global spin counter
-                            db.collection('stats').doc('global').set({
-                                spins: firebase.firestore.FieldValue.increment(1)
-                            }, { merge: true }).catch(function() {});
                         } catch(e) {}
                     }
                 }

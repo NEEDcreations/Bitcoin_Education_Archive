@@ -18,7 +18,9 @@ service cloud.firestore {
                         'visitedChannelsList', 'channelsVisited', 'readChannels',
                         'orangeTickets', 'streak', 'bestStreak', 'streakFreezes',
                         'totalVisits', 'badges', 'hiddenBadges', 'tickets',
-                        'referralTicketsEarned'
+                        'referralTicketsEarned', 'lastSpinDate', 'spinClosetItems',
+                        'pvpWins', 'pvpLosses', 'forumPosts', 'forumReplies',
+                        'marketListings', 'marketMessages'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
@@ -192,6 +194,13 @@ service cloud.firestore {
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters
                       )
+                      // Un-vote: only if user HAS voted, decrement by exactly 1, remove only own UID
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
+                       && (request.auth.uid in resource.data.get('voters', []))
+                       && request.resource.data.upvotes == resource.data.get('upvotes', 0) - 1
+                       && request.resource.data.voters.size() == resource.data.get('voters', []).size() - 1
+                       && !(request.auth.uid in request.resource.data.voters)
+                      )
                       || resource.data.authorId == request.auth.uid
                       || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
                     );
@@ -240,7 +249,10 @@ service cloud.firestore {
                         || request.resource.data.imageUrl.matches('^data:image/.*'));
       allow update: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
+                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves'])
+                            && request.resource.data.views <= resource.data.get('views', 0) + 1
+                            && request.resource.data.saves <= resource.data.get('saves', 0) + 1));
       allow delete: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
