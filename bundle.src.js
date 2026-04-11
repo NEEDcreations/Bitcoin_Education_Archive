@@ -24188,3 +24188,106 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         if (item) positionTip(item);
     });
 })();
+
+// ---- Trail Channel Highlights ----
+// Highlights sidebar channels that are part of the user's current active trail
+(function() {
+    'use strict';
+
+    function getActiveTrail() {
+        if (typeof window.NACHO_TRAILS === 'undefined') return null;
+        var passed = [];
+        try { passed = JSON.parse(localStorage.getItem('btc_trail_passed') || '[]'); } catch(e) {}
+        var progress = {};
+        try { progress = JSON.parse(localStorage.getItem('btc_trail_progress') || '{}'); } catch(e) {}
+
+        for (var i = 0; i < window.NACHO_TRAILS.length; i++) {
+            var trail = window.NACHO_TRAILS[i];
+            // Skip if already passed
+            if (passed.indexOf(trail.id) !== -1) continue;
+            // Check if prerequisite is met
+            if (trail.requires && passed.indexOf(trail.requires) === -1) break;
+            // This is the active trail
+            return { trail: trail, progress: progress[trail.id] || [] };
+        }
+        return null; // All trails complete
+    }
+
+    function highlightTrailChannels() {
+        var active = getActiveTrail();
+        // Clear all existing highlights first
+        document.querySelectorAll('.ch-btn').forEach(function(btn) {
+            btn.removeAttribute('data-trail');
+            btn.style.removeProperty('border-left');
+            btn.style.removeProperty('border-left-color');
+            var dot = btn.querySelector('.trail-dot');
+            if (dot) dot.remove();
+        });
+
+        if (!active) return;
+
+        var trailChannelIds = active.trail.channels.map(function(c) { return c.id; });
+        var visitedIds = active.progress;
+
+        document.querySelectorAll('.ch-btn').forEach(function(btn) {
+            // Extract channel ID from onclick
+            var onclick = btn.getAttribute('onclick') || '';
+            var match = onclick.match(/go\(['"]([^'"]+)['"]/);
+            if (!match) return;
+            var chId = match[1];
+
+            var idx = trailChannelIds.indexOf(chId);
+            if (idx === -1) return;
+
+            var visited = visitedIds.indexOf(chId) !== -1;
+            var color = active.trail.color || '#f7931a';
+
+            btn.setAttribute('data-trail', active.trail.id);
+            btn.style.borderLeft = '3px solid ' + (visited ? 'rgba(34,197,94,0.6)' : color);
+
+            // Add trail indicator dot
+            var dot = document.createElement('span');
+            dot.className = 'trail-dot';
+            dot.title = active.trail.emoji + ' ' + active.trail.name + (visited ? ' ✓' : ' — ' + active.trail.channels[idx].why);
+            dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:auto;flex-shrink:0;background:' + (visited ? '#22c55e' : color) + ';box-shadow:0 0 4px ' + (visited ? 'rgba(34,197,94,0.5)' : color.replace(')', ',0.5)').replace('rgb', 'rgba')) + ';';
+            if (visited) dot.textContent = '';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.appendChild(dot);
+        });
+    }
+
+    // Run on load and periodically (trail progress can change mid-session)
+    function init() {
+        if (typeof window.NACHO_TRAILS === 'undefined') {
+            setTimeout(init, 2000);
+            return;
+        }
+        highlightTrailChannels();
+        // Re-highlight when user navigates home
+        var _origGoHome = window.goHome;
+        if (_origGoHome) {
+            window.goHome = function() {
+                _origGoHome.apply(this, arguments);
+                setTimeout(highlightTrailChannels, 500);
+            };
+        }
+        // Also re-highlight after channel visits (trail progress may update)
+        var _origGo = window.go;
+        if (_origGo) {
+            window.go = function() {
+                var result = _origGo.apply(this, arguments);
+                // Re-highlight after navigation settles
+                setTimeout(highlightTrailChannels, 1000);
+                return result;
+            };
+        }
+    }
+
+    window.highlightTrailChannels = highlightTrailChannels;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 1500); });
+    } else {
+        setTimeout(init, 1500);
+    }
+})();
