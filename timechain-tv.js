@@ -849,9 +849,6 @@ function _tctvScrollTop() {
 window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
 
-    // IMMEDIATELY scroll to top
-    _tctvScrollTop();
-
     leaveStation();
     _currentStation = stationId; try { localStorage.setItem("tctv_last_station", stationId); } catch(e) {}
     joinStation(stationId);
@@ -861,13 +858,12 @@ window.switchStation = function(stationId) {
 
     var state = getPlaybackState(station);
 
-    // Load new video WITHOUT rebuilding the page
+    // Load new video into existing player (no DOM rebuild)
     if (state.video && _player && _playerReady) {
         _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
-        setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
         _currentVideoId = state.video.id;
+        setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
     } else if (state.video) {
-        // Player not ready — recreate it
         createPlayer('tctv-player', state.video.id, state.offset);
         _currentVideoId = state.video.id;
     }
@@ -876,27 +872,29 @@ window.switchStation = function(stationId) {
     var np = document.getElementById('tctv-now-playing');
     if (np && state.video) np.textContent = state.video.title;
 
-    // Update channel list highlighting (without destroying DOM)
+    // Update channel list highlighting via data attributes
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var sid = el.getAttribute('data-station-id');
         var isActive = sid === stationId;
-        el.style.background = isActive ? 'rgba(247,147,26,0.1)' : 'transparent';
+        el.style.background = isActive ? 'rgba(247,147,26,0.1)' : '';
         el.style.borderColor = isActive ? 'rgba(247,147,26,0.3)' : 'transparent';
-        // Update channel number color
         var numEl = el.querySelector('[data-ch-num]');
         if (numEl) numEl.style.color = isActive ? '#f7931a' : '#555';
-        // Update name color
         var nameEl = el.querySelector('[data-ch-name]');
         if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ddd';
-        // Show/hide live dot
         var dot = el.querySelector('[data-live-dot]');
         if (dot) dot.style.display = isActive ? 'inline-block' : 'none';
     });
 
-    // Keep scrolling
-    _tctvScrollTop();
-    setTimeout(_tctvScrollTop, 100);
-    setTimeout(_tctvScrollTop, 300);
+    // Scroll to top
+    setTimeout(function() {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.scrollTop = 0;
+        var main = document.getElementById('main');
+        if (main) main.scrollTop = 0;
+    }, 50);
 };
 
 // ── Cleanup ──
@@ -914,12 +912,8 @@ window.cleanupTimechainTV = function() {
 window.addEventListener('pagehide', function() { leaveStation(); });
 window.addEventListener('beforeunload', function() { leaveStation(); });
 
-// YouTube API callback
-// YouTube API callback — triggers when iframe API is loaded
-var _origYTCallback = window.onYouTubeIframeAPIReady;
+// YouTube API ready callback
 window.onYouTubeIframeAPIReady = function() {
-    if (_origYTCallback) _origYTCallback();
-    // If we're waiting to start playback, trigger it now
     if (window._tctvPendingInit) {
         window._tctvPendingInit();
         window._tctvPendingInit = null;

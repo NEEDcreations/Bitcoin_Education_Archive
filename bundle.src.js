@@ -18290,6 +18290,9 @@ window._startHalvingTicker = function() {
     var _SEO_APP_PAGES = ['forum','marketplace','bitcoin-beats','irl-sync','chat','dms','lightning','bitcoin-dashboard','pvp','trails','first-purchase','meetup-builder','nacho'];
     window._cleanUrl = function(id) {
         if (!id) return '/';
+        // If we're already on the clean URL path, don't add a hash
+        var path = window.location.pathname;
+        if (path === '/' + id || path === '/app/' + id) return path;
         // Use hash routes for pushState (safe for GitHub Pages — no 404 on refresh)
         return '#' + id;
     };
