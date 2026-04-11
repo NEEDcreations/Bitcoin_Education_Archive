@@ -23929,3 +23929,33 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     }
 })();
 
+
+// Badge tooltip positioning — uses fixed positioning to avoid overflow clipping
+(function() {
+    function positionTip(item) {
+        var tip = item.querySelector('.badge-tooltip');
+        if (!tip) return;
+        var rect = item.getBoundingClientRect();
+        var tipW = 240;
+        var left = rect.left + rect.width / 2 - tipW / 2;
+        if (left < 8) left = 8;
+        if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+        tip.style.left = left + 'px';
+        tip.style.width = tipW + 'px';
+        if (window.innerWidth > 900) {
+            tip.style.top = (rect.top - 8) + 'px';
+            tip.style.transform = 'translateY(-100%)';
+        } else {
+            tip.style.top = (rect.bottom + 8) + 'px';
+            tip.style.transform = 'none';
+        }
+    }
+    document.addEventListener('mouseover', function(e) {
+        var item = e.target.closest('.badge-item');
+        if (item) positionTip(item);
+    });
+    document.addEventListener('click', function(e) {
+        var item = e.target.closest('.badge-item');
+        if (item) positionTip(item);
+    });
+})();
