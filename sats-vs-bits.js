@@ -64,7 +64,22 @@ function flushVotes() {
     });
 }
 
+var ANON_LIMIT = 10;
+var ANON_TAP_KEY = 'btc_svb_anon_taps';
+
 function castVote(side) {
+    // Anonymous user limit
+    var isAnon = !firebase.auth || !firebase.auth().currentUser || firebase.auth().currentUser.isAnonymous;
+    if (isAnon) {
+        var anonTaps = parseInt(localStorage.getItem(ANON_TAP_KEY) || '0');
+        if (anonTaps >= ANON_LIMIT) {
+            if (typeof showToast === 'function') showToast('🔒 Sign in to keep voting! Anonymous users get ' + ANON_LIMIT + ' free votes.');
+            if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 1500);
+            return;
+        }
+        localStorage.setItem(ANON_TAP_KEY, (anonTaps + 1).toString());
+    }
+
     loadDailyTaps();
     if (todayTaps >= DAILY_LIMIT) {
         if (typeof showToast === 'function') showToast('⚡ You\'ve hit ' + DAILY_LIMIT + ' taps today! Come back tomorrow to keep voting.');
