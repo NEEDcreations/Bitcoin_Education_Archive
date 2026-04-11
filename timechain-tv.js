@@ -542,7 +542,7 @@ function showWhiteNoise(callback) {
         noiseNode.buffer = buffer;
         noiseNode.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.08;
+        gain.gain.value = 0.04;
         noiseNode.connect(gain);
         gain.connect(audioCtx.destination);
         noiseNode.start();
