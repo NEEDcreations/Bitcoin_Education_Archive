@@ -769,7 +769,7 @@ window.renderTimechainTV = function() {
         var pct = state.video ? Math.round(((state.video.duration - state.remaining) / state.video.duration) * 100) : 0;
         var chNum = idx + 1;
 
-        html += '<div data-station-id="' + s.id + '" onclick="switchStation(\'' + s.id + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:0.2s;background:' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + ';border:1px solid ' + (isActive ? 'rgba(247,147,26,0.3)' : 'transparent') + ';">';
+        html += '<div data-station-id="' + s.id + '" onclick="document.getElementById(\'main\').scrollTop=0;window.scrollTo(0,0);switchStation(\'' + s.id + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:0.2s;background:' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + ';border:1px solid ' + (isActive ? 'rgba(247,147,26,0.3)' : 'transparent') + ';">';
 
         // Channel number
         html += '<div data-ch-num style="width:24px;font-size:0.7rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#555') + ';text-align:center;flex-shrink:0;">' + chNum + '</div>';
