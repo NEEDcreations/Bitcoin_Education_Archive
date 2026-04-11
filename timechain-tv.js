@@ -609,23 +609,42 @@ function createPlayer(containerId, videoId, startSeconds) {
             },
             onStateChange: function(e) {
                 if (e.data === YT.PlayerState.ENDED) {
-                    // Video ended — sync to next video immediately
+                    // Video ended — sync to next video
                     syncPlayer();
                     setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 300);
+                } else if (e.data === YT.PlayerState.PLAYING) {
+                    // Remove tap-to-play overlay if present
+                    var tapEl = document.getElementById('tctv-tap-play');
+                    if (tapEl) tapEl.remove();
                 } else if (e.data === YT.PlayerState.PAUSED) {
-                    // NEVER allow pause — force resume immediately
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 100);
+                    // Resume after short delay
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 200);
                 } else if (e.data === YT.PlayerState.UNSTARTED || e.data === -1) {
-                    // Unstarted — force play with sync
-                    var station = STATIONS.find(function(s) { return s.id === _currentStation; });
-                    if (station) {
-                        var pb = getPlaybackState(station);
-                        if (pb.video) {
-                            _player.loadVideoById({ videoId: pb.video.id, startSeconds: pb.offset });
-                            _currentVideoId = pb.video.id;
-                        }
+                    // Try playVideo once — if it fails (mobile autoplay block), show tap overlay
+                    if (_player && _playerReady) {
+                        _player.playVideo();
+                        // Check after 2s if still not playing
+                        setTimeout(function() {
+                            if (!_player || !_playerReady) return;
+                            try {
+                                var st = _player.getPlayerState();
+                                if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) {
+                                    // Show tap to play overlay
+                                    if (!document.getElementById('tctv-tap-play')) {
+                                        var playerDiv = document.getElementById('tctv-player');
+                                        if (playerDiv && playerDiv.parentElement) {
+                                            var tap = document.createElement('div');
+                                            tap.id = 'tctv-tap-play';
+                                            tap.style.cssText = 'position:absolute;inset:0;z-index:5;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;cursor:pointer;';
+                                            tap.innerHTML = '<div style="text-align:center;"><div style="font-size:3rem;">▶️</div><div style="color:#f7931a;font-size:0.9rem;margin-top:8px;">Tap to start</div></div>';
+                                            tap.onclick = function() { if (_player) _player.playVideo(); tap.remove(); };
+                                            playerDiv.parentElement.appendChild(tap);
+                                        }
+                                    }
+                                }
+                            } catch(ex) {}
+                        }, 2000);
                     }
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
                 }
             }
         }
@@ -715,10 +734,9 @@ window.renderTimechainTV = function() {
     html += '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span>';
     html += '</div></div>';
 
-    // Video player area (click-blocking overlay prevents pause)
+    // Video player area
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
-    html += '<div id="tctv-overlay" style="position:absolute;inset:0;z-index:2;cursor:default;background:transparent;" title="Live — no pause allowed"></div>';
     html += '</div>';
 
     // Now playing bar
