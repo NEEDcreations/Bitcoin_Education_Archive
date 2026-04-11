@@ -188,11 +188,16 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && (
                       // Upvote: only if user hasn't voted yet, increment by exactly 1, append only own UID
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters', 'replyCount'])
+                      // Upvote: +1, no replyCount manipulation
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters
+                      )
+                      // replyCount: increment by 1 only, separate from votes
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
+                       && request.resource.data.replyCount == resource.data.get('replyCount', 0) + 1
                       )
                       // Un-vote: only if user HAS voted, decrement by exactly 1, remove only own UID
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
@@ -280,7 +285,8 @@ service cloud.firestore {
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
       allow update: if request.auth != null
-                    && request.auth.uid in resource.data.participants;
+                    && request.auth.uid in resource.data.participants
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']);
 
       match /messages/{messageId} {
         allow read: if request.auth != null
@@ -573,8 +579,14 @@ service cloud.firestore {
     match /notifications/{notifId} {
       allow read: if request.auth != null
                   && request.auth.uid == resource.data.recipientId;
-      // [AUDIT FIX M3] Require senderId matches auth uid or is 'system'
+      // [AUDIT FIX] Validate sender, type whitelist, message length, require recipientId
       allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.recipientId is string
+                    && request.resource.data.recipientId.size() > 0
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() <= 200
+                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy']
                     && (request.resource.data.senderId == request.auth.uid
                         || (request.resource.data.senderId == 'system'
                             && (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')));
@@ -664,10 +676,16 @@ service cloud.firestore {
                         || resource.data.user2.uid == request.auth.uid);
     }
 
-    // Timechain TV viewer counts
+    // Timechain TV viewer counts — increment/decrement by 1 only
     match /timechain_viewers/{stationId} {
       allow read: if true;
-      allow write: if true;
+      allow create: if request.resource.data.keys().hasOnly(['count', 'lastUpdate'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count == 1;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'lastUpdate'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count >= resource.data.count - 1
+                    && request.resource.data.count <= resource.data.count + 1;
     }
 
     match /{document=**} {
