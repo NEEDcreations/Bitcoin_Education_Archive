@@ -16,6 +16,152 @@ window.showBuddyFinder = function() {
         return;
     }
 
+    var uid = auth.currentUser.uid;
+    var _db = firebase.firestore();
+
+    // Check for existing match first
+    _db.collection(MATCH_COLLECTION).where('user1.uid', '==', uid).limit(1).get().then(function(snap1) {
+        if (!snap1.empty) { _showExistingMatch(snap1.docs[0], uid); return; }
+        _db.collection(MATCH_COLLECTION).where('user2.uid', '==', uid).limit(1).get().then(function(snap2) {
+            if (!snap2.empty) { _showExistingMatch(snap2.docs[0], uid); return; }
+            // Also check if user is already in the pool waiting
+            _db.collection(COLLECTION).where('uid', '==', uid).limit(1).get().then(function(poolSnap) {
+                if (!poolSnap.empty) { _showWaitingInPool(poolSnap.docs[0]); return; }
+                _showFreshBuddyForm();
+            }).catch(function() { _showFreshBuddyForm(); });
+        }).catch(function() { _showFreshBuddyForm(); });
+    }).catch(function() { _showFreshBuddyForm(); });
+};
+
+function _showExistingMatch(matchDoc, myUid) {
+    var m = matchDoc.data();
+    var isUser1 = m.user1.uid === myUid;
+    var me = isUser1 ? m.user1 : m.user2;
+    var buddy = isUser1 ? m.user2 : m.user1;
+    var matchedAt = m.matchedAt ? (m.matchedAt.toDate ? m.matchedAt.toDate() : new Date(m.matchedAt)) : null;
+    var matchedStr = matchedAt ? matchedAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'recently';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'buddyFinderOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var html = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:20px;max-width:440px;width:100%;padding:28px;animation:fadeSlideIn 0.3s;">';
+    html += '<div style="text-align:center;margin-bottom:20px;">' +
+        '<div style="font-size:3rem;margin-bottom:8px;">🤝🦌</div>' +
+        '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 4px;">You Have a Buddy!</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.8rem;">Matched ' + matchedStr + '</p>' +
+    '</div>';
+
+    html += '<div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:14px;margin-bottom:16px;">';
+    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">';
+    html += '<div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + (buddy.username ? buddy.username.charAt(0).toUpperCase() : '?') + '</div>';
+    html += '<div><div style="font-weight:800;color:var(--heading);font-size:1rem;">@' + (buddy.username || 'User') + '</div>';
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + (buddy.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + ' · ' + (buddy.level || 'beginner').charAt(0).toUpperCase() + (buddy.level || 'beginner').slice(1) + '</div></div>';
+    html += '</div>';
+    if (buddy.intro) html += '<div style="font-size:0.8rem;color:var(--text);font-style:italic;padding:8px 0;border-top:1px solid rgba(34,197,94,0.15);">"' + buddy.intro + '"</div>';
+    html += '</div>';
+
+    html += '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-bottom:16px;">Your role: ' + (me.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + '</div>';
+
+    // Action buttons
+    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(\'' + buddy.uid + '\',\'' + (buddy.username || 'User').replace(/[\\'"]/g, '') + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
+    html += '<button onclick="_rerollBuddy(\'' + matchDoc.id + '\')" id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
+    html += '<div style="text-align:center;font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">This will unmatch you and put you back in the pool</div>';
+    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
+    html += '</div>';
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+}
+
+window._rerollBuddy = async function(matchDocId) {
+    var btn = document.getElementById('rerollBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '🔄 Unmatching...'; }
+
+    try {
+        var _db = firebase.firestore();
+        var auth = firebase.auth();
+        var uid = auth.currentUser.uid;
+        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
+
+        // Get match data before deleting (so we know our preferences)
+        var matchDoc = await _db.collection(MATCH_COLLECTION).doc(matchDocId).get();
+        var matchData = matchDoc.exists ? matchDoc.data() : null;
+        var me = matchData ? (matchData.user1.uid === uid ? matchData.user1 : matchData.user2) : null;
+        var level = me ? me.level : 'beginner';
+        var goal = me ? me.goal : 'learn';
+        var intro = me ? (me.intro || '') : '';
+
+        // Delete the match
+        await _db.collection(MATCH_COLLECTION).doc(matchDocId).delete();
+
+        // Close overlay and show fresh form with previous preferences
+        document.getElementById('buddyFinderOverlay').remove();
+
+        if (typeof showToast === 'function') showToast('🔄 Unmatched! Finding a new buddy...');
+
+        // Re-open the finder with pre-filled preferences
+        setTimeout(function() {
+            _showFreshBuddyForm();
+            // Pre-select previous choices after render
+            setTimeout(function() {
+                if (level) selectBuddyLevel(level);
+                if (goal) selectBuddyGoal(goal);
+                var introEl = document.getElementById('buddyIntro');
+                if (introEl && intro) introEl.value = intro;
+            }, 200);
+        }, 300);
+    } catch(e) {
+        console.error('[BUDDY] Reroll failed:', e);
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Find a New Buddy'; }
+        if (typeof showToast === 'function') showToast('⚠️ Something went wrong. Try again.');
+    }
+};
+
+function _showWaitingInPool(poolDoc) {
+    var d = poolDoc.data();
+    var overlay = document.createElement('div');
+    overlay.id = 'buddyFinderOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    var joinedStr = d.joinedAt ? (d.joinedAt.toDate ? d.joinedAt.toDate() : new Date(d.joinedAt)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'recently';
+
+    var html = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:20px;max-width:440px;width:100%;padding:28px;animation:fadeSlideIn 0.3s;">';
+    html += '<div style="text-align:center;margin-bottom:20px;">' +
+        '<div style="font-size:3rem;margin-bottom:8px;">⏳🦌</div>' +
+        '<h2 style="color:var(--heading);font-size:1.2rem;margin:0 0 4px;">Waiting for a Match</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.8rem;">In the pool since ' + joinedStr + '</p>' +
+    '</div>';
+
+    html += '<div style="padding:14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:12px;margin-bottom:16px;text-align:center;">';
+    html += '<div style="font-size:0.75rem;color:var(--accent);font-weight:700;">Your Profile</div>';
+    html += '<div style="font-size:0.85rem;color:var(--text);margin-top:4px;">📊 ' + (d.level || 'beginner').charAt(0).toUpperCase() + (d.level || 'beginner').slice(1) + ' · ' + (d.goal === 'learn' ? '📖 Looking to learn' : '🎓 Looking to teach') + '</div>';
+    if (d.intro) html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:6px;font-style:italic;">"' + d.intro + '"</div>';
+    html += '</div>';
+
+    html += '<div style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-bottom:16px;line-height:1.5;">We\'ll pair you with a ' + (d.goal === 'learn' ? 'teacher' : 'learner') + ' when one joins.<br>You\'ll get a DM when matched! 🧡</div>';
+
+    html += '<button onclick="_leavePool(\'' + poolDoc.id + '\')" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚪 Leave Pool</button>';
+    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
+    html += '</div>';
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+}
+
+window._leavePool = async function(poolDocId) {
+    try {
+        await firebase.firestore().collection(COLLECTION).doc(poolDocId).delete();
+        document.getElementById('buddyFinderOverlay').remove();
+        if (typeof showToast === 'function') showToast('👋 Left the buddy pool');
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('⚠️ Something went wrong');
+    }
+};
+
+function _showFreshBuddyForm() {
     var overlay = document.createElement('div');
     overlay.id = 'buddyFinderOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
