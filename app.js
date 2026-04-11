@@ -3391,7 +3391,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             function _routeApp(id, attempt) {
                 attempt = attempt || 0;
                 if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') { renderFirstPurchase(); document.getElementById('main').scrollTop = 0; }
-                if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { renderTimechainTV(); document.getElementById('main').scrollTop = 0; }
+                else if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { renderTimechainTV(); document.getElementById('main').scrollTop = 0; }
                 else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
                 else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
