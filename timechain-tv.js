@@ -867,13 +867,23 @@ window.renderTimechainTV = function() {
 // ── Channel Switching ──
 // Scroll everything to top — called immediately and repeatedly
 function _tctvScrollTop() {
+    // Override smooth scroll for instant snap
+    document.documentElement.style.scrollBehavior = 'auto';
+    document.body.style.scrollBehavior = 'auto';
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     window.scrollTo(0, 0);
     var fc = document.getElementById('forumContainer');
-    if (fc) fc.scrollTop = 0;
+    if (fc) { fc.style.scrollBehavior = 'auto'; fc.scrollTop = 0; }
     var main = document.getElementById('main');
-    if (main) main.scrollTop = 0;
+    if (main) { main.style.scrollBehavior = 'auto'; main.scrollTop = 0; }
+    // Restore smooth scroll after
+    setTimeout(function() {
+        document.documentElement.style.scrollBehavior = '';
+        document.body.style.scrollBehavior = '';
+        if (fc) fc.style.scrollBehavior = '';
+        if (main) main.style.scrollBehavior = '';
+    }, 50);
 }
 
 window.switchStation = function(stationId) {
