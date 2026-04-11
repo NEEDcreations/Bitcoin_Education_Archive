@@ -21,6 +21,10 @@ var STATIONS = [
             { id: 'XHBydlTt2jM', title: 'The Rise of Ordinals and Art on Bitcoin', duration: 1800 },
             { id: 'UrCN7oG_4YY', title: 'Bitcoin NFTs: How to Create Ordinal Inscriptions', duration: 900 },
             { id: 'ic6pDq3OAec', title: 'Philosophy of Bitcoin — First Principles', duration: 3600 },
+            { id: 'yMoVGgR6h0Y', title: 'Money: The Language of Power — Robert Breedlove', duration: 3600 },
+            { id: 'NALikCvCyes', title: 'The Truth About Money, Inflation and Bitcoin — Robert Breedlove', duration: 2400 },
+            { id: 'JffTkZZC2z8', title: 'What is Money? — Robert Breedlove', duration: 1800 },
+            { id: '1gnIbVFnuCY', title: 'The Biggest Scam in Human History — Robert Breedlove', duration: 5400 },
         ]
     },
     {
@@ -54,6 +58,8 @@ var STATIONS = [
             { id: 'TauW_pLnstw', title: 'The Bitcoin Paradise You Have Never Heard Of — Joe Nakamoto', duration: 900 },
             { id: 'FelWKV6wVJU', title: 'Living on Bitcoin in a Small Town — Joe Nakamoto', duration: 1080 },
             { id: 'WoN0SVY73zo', title: 'You Can Live on Bitcoin in Lugano — Joe Nakamoto', duration: 1500 },
+            { id: 'waQJEjiPWhg', title: 'Bitcoin Culture Around the World', duration: 1200 },
+            { id: '7A56oZAs7ZQ', title: 'El Salvador Bitcoin Adoption Documentary', duration: 1800 },
         ]
     },
     {
@@ -68,6 +74,11 @@ var STATIONS = [
             { id: '9DuhDgqx21w', title: 'Peter Schiff: Bitcoin Strategy is a Fraud', duration: 1800 },
             { id: 'aWtzOQTv8Dc', title: 'Saylor vs Dorsey: Battle for Bitcoin\'s Future', duration: 720 },
             { id: 'J6I-OzXItfA', title: 'Jack Dorsey Explains Bitcoin', duration: 600 },
+            { id: 'tbCVXyUGO3o', title: 'I Bought This Instead of Bitcoin — Mark Moss', duration: 1200 },
+            { id: 'D_yIKnHOuWg', title: 'Michael Saylor Answers the Question of Our Time', duration: 600 },
+            { id: 'QT_YDxTl1FQ', title: 'Jack Mallers: Bitcoin Maximalist Post-GENIUS Act', duration: 1800 },
+            { id: '3YuscY1L1zE', title: 'Why You Should Be a Bitcoin Maximalist', duration: 900 },
+            { id: 'd5_cYWLpDs8', title: 'A Brief History of Bitcoin Maximalism', duration: 1500 },
         ]
     },
     {
@@ -82,6 +93,9 @@ var STATIONS = [
             { id: 'gLCyRFZOdGQ', title: 'How to Run a Bitcoin Lightning Node', duration: 1800 },
             { id: 'TASQj1hacuI', title: 'Bitcoin Privacy — Alex Gladstein', duration: 2400 },
             { id: 'MGNvaJyZ25A', title: 'Lightning Network: Everything You Need To Know', duration: 900 },
+            { id: 'fsAUhFr1VXU', title: 'Bitcoin Privacy Made Simple: Wasabi Wallet Tutorial', duration: 1860 },
+            { id: '52pSd3I1nac', title: 'Wasabi CoinJoin Tutorial — Self Custody Privacy', duration: 5040 },
+            { id: 'U9hdav36WAo', title: 'How to Use Wasabi Wallet for Bitcoin CoinJoin', duration: 600 },
         ]
     },
     {
@@ -96,6 +110,9 @@ var STATIONS = [
             { id: 'mgmVEtSgu3o', title: 'Bitcoin FUD — Full Documentary', duration: 3600 },
             { id: '4_tAOuMVFd0', title: 'Digital Gold — Full Documentary', duration: 5400 },
             { id: 'GZI0qo3diUo', title: 'Unlocking Crypto — The Bitcoin Field Guide', duration: 6500 },
+            { id: 'ZKwqNgG-Sv4', title: 'Bitcoin: The End of Money As We Know It', duration: 5020 },
+            { id: 'oksraL7wN6Q', title: 'God Bless Bitcoin — HD Version', duration: 5352 },
+            { id: 'iVym9wtopqs', title: 'Banking on Bitcoin — Full Documentary', duration: 5400 },
         ]
     },
     {
@@ -124,6 +141,9 @@ var STATIONS = [
             { id: 'Z_p70BzkMAs', title: 'Bitcoin Protects Human Rights — Gladstein & Balaji', duration: 3600 },
             { id: 'A-QpLdoDF14', title: 'Financial Freedom Against Tyranny', duration: 1200 },
             { id: 'ZYN4X_l1ZXg', title: 'Financial Freedom and Bitcoin — HRF', duration: 1800 },
+            { id: 'BoHNkX4OWQA', title: 'Jack Mallers on Bitcoin for El Salvador', duration: 1200 },
+            { id: 'd5_cYWLpDs8', title: 'A Brief Look at Bitcoin Maximalism — Guy Swann', duration: 1800 },
+            { id: 'Y5wgZ3rFayQ', title: 'Bitcoin is Monetary Free Speech', duration: 1200 },
         ]
     },
     {
@@ -155,6 +175,8 @@ var STATIONS = [
             { id: 'BQCOJlFXvpU', title: 'The Carnivore Diet & Bitcoin — Dr. Shawn Baker', duration: 6400 },
             { id: 'Rm5_wCObeQI', title: 'Carnivore Diet, Health Care Crisis & Bitcoin', duration: 4920 },
             { id: 'LjCRWwm0Xdk', title: 'Bitcoin Health Stack — Mind Body Sats', duration: 1800 },
+            { id: 'c9D8p1kG0Cc', title: 'Bitcoin and Health with Jeff Booth', duration: 2400 },
+            { id: 'lhHKljqRa-M', title: 'Low Time Preference Lifestyle — Bitcoin Way', duration: 1800 },
         ]
     },
     {
@@ -170,6 +192,8 @@ var STATIONS = [
             { id: 'iVym9wtopqs', title: 'The History of Bitcoin — Full Timeline', duration: 3600 },
             { id: 'ZKwqNgG-Sv4', title: 'Bitcoin: The End of Money As We Know It', duration: 5000 },
             { id: 'DyV0OfU3-FU', title: 'Satoshi Nakamoto — The Hidden History', duration: 2400 },
+            { id: 'LjNMgeqUgks', title: 'The Man Who Spent Millions of Bitcoin on Pizza — 60 Minutes', duration: 42 },
+            { id: 'pbFEexyOwkw', title: 'Bitcoin History: From Zero to Hero', duration: 1800 },
         ]
     },
     {
@@ -185,6 +209,7 @@ var STATIONS = [
             { id: 'Z3xdGIyIV54', title: 'How to Explain Bitcoin to Children — Dad & Daughter', duration: 480 },
             { id: 'tQ1_8M1K0tM', title: 'Cryptocurrency Explained to Kids — Twins', duration: 360 },
             { id: 'EfKuZayeksI', title: 'Bitcoin for Kids — Simple Explanation', duration: 420 },
+            { id: '9ymZlz2l53I', title: 'What is Bitcoin? For Kids and Teens', duration: 360 },
         ]
     },
     {
@@ -200,6 +225,9 @@ var STATIONS = [
             { id: 'zEeMco4KqGs', title: 'Lightning Network for Beginners', duration: 360 },
             { id: 'bW7hvvjum9o', title: 'Lightning Network: Everything You Need To Know', duration: 900 },
             { id: 'vmafxrT8eCU', title: 'Getting Started with Lightning Wallets', duration: 720 },
+            { id: 'i4z-2v_0H1k', title: 'How Lightning Network Will Change Bitcoin', duration: 1200 },
+            { id: '4kBCEbCWf1s', title: 'Lightning Network in Practice — Real Payments', duration: 900 },
+            { id: 'Pef22g53zsg', title: 'Why Lightning is the Future of Payments', duration: 1500 },
         ]
     },
     {
@@ -215,6 +243,8 @@ var STATIONS = [
             { id: 'BgZO1ppaneg', title: 'Best Crypto TikToks Compilation', duration: 540 },
             { id: 'Ner16UBWdEg', title: 'Bitcoin Memes That Hit Different', duration: 480 },
             { id: 'heA1fZzRAFs', title: 'Funniest Bitcoin Moments Compilation', duration: 600 },
+            { id: 'mEqr-8-TKrA', title: '30 People Turning Down FREE Bitcoin — Mike Still', duration: 420 },
+            { id: 'd6ham2mibiA', title: 'Bitcoin Street Reactions Compilation', duration: 540 },
         ]
     },
     {
@@ -230,6 +260,11 @@ var STATIONS = [
             { id: '4HTtZhhXiAw', title: 'Bitcoin Mining Explained in 3 Minutes', duration: 180 },
             { id: 'yxfvEK7Nj8s', title: 'Bitcoin Mining Explained in 10 Minutes', duration: 600 },
             { id: 'DMfv8S8ffKA', title: 'Bitcoin Mining — Bloomberg Animated Explainer', duration: 300 },
+            { id: '5Wp6lInPQv0', title: 'The Cruel Reality of Bitcoin Mining — VoskCoin', duration: 1200 },
+            { id: 'rQFWgLQuGzo', title: 'VoskCoin Mining Farm Numbers', duration: 900 },
+            { id: 'CC8wQJuhP5g', title: 'Compass Mining Year in Review', duration: 1800 },
+            { id: 'ACAn_yL-Too', title: 'Bitcoin Mining — Inside a Real Facility', duration: 720 },
+            { id: 'Bjcn5OZwgcs', title: 'Is Bitcoin Mining Still Profitable?', duration: 600 },
         ]
     },
     {
@@ -296,6 +331,8 @@ var STATIONS = [
             { id: 'vclZlAFXpEI', title: 'Give Me 9 Minutes and You Will Understand Bitcoin — Exit Manual', duration: 600 },
             { id: 'HhxcdMIJTLA', title: 'Telling People About Bitcoin Never Works — Exit Manual', duration: 450 },
             { id: 'r34hkJBeE-M', title: 'How I Lost 14 Bitcoins — Exit Manual', duration: 555 },
+            { id: 'IuVkUqdqkcc', title: 'Buy Bitcoin When It Looks Like This — Exit Manual', duration: 653 },
+            { id: '4tqXvMNOuHk', title: 'Bitcoin Ethical Superiority Explained — Exit Manual', duration: 480 },
         ]
     },
     {
@@ -310,6 +347,12 @@ var STATIONS = [
             { id: 'N_qo_-QRqAM', title: 'No More 4-Year Cycles? — Stephan Livera', duration: 3000 },
             { id: 'aN2G0Uvahf8', title: 'What Bitcoin Did — Beginner Guide', duration: 5400 },
             { id: 'oMDHTVwSRHI', title: '1 Bitcoin Is All You Need', duration: 2400 },
+            { id: 'x0kNGaxLg18', title: 'Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories', duration: 3320 },
+            { id: 'HwNSykjO-gI', title: 'Lyn Alden: Changing World Order — Coin Stories', duration: 3630 },
+            { id: 'to7FF7ZmBl0', title: 'Lyn Alden: No Massive Bust or Boom? — Coin Stories', duration: 3383 },
+            { id: 'bhSGC08V47U', title: 'Stephan Livera on Bitcoin Maximalism', duration: 3600 },
+            { id: '6WxdkRk8cs4', title: 'Stephan Livera: Bitcoin Education Deep Dive', duration: 2700 },
+            { id: 'sTxdYxGqYDo', title: 'Stephan Livera: Why Bitcoin Only', duration: 3000 },
         ]
     },
     {
@@ -344,6 +387,15 @@ var STATIONS = [
             { id: 'IxgNp2h5j8w', title: 'How To Buy, Use and Secure Bitcoin — BTC Sessions', duration: 1800 },
             { id: '6b0xTB2sE8E', title: 'Bull Bitcoin Wallet Full Tutorial — BTC Sessions', duration: 5500 },
             { id: 'mibKrTvtlyQ', title: 'Misty Breez Bitcoin Wallet Setup — BTC Sessions', duration: 900 },
+            { id: 'Y3iAwLG6NlA', title: 'Bitcoin Wallets That Change Everything in 2026 — BTC Sessions', duration: 1200 },
+            { id: 'Gc2en3nHxA4', title: 'Bitcoin Simply Explained in 5 Minutes', duration: 300 },
+            { id: 'f-4Rs3Sqlhc', title: 'Complete History of Bitcoin in 12 Minutes', duration: 720 },
+            { id: 'Ner16UBWdEg', title: 'Bitcoin in 2025 — What You Need to Know', duration: 600 },
+            { id: '4Lsr7lsy6Tk', title: 'How to Set Up a Bitcoin Node at Home', duration: 1800 },
+            { id: 'OZK5hdKfb18', title: 'Bitcoin Security Best Practices', duration: 900 },
+            { id: 'vmf_LtnagTs', title: 'Bitcoin Cold Storage Tutorial', duration: 1200 },
+            { id: 'rKjce1jCxSM', title: 'Bitcoin Beginner Mistakes to Avoid', duration: 780 },
+            { id: 'GR-E0aaFf0c', title: 'Bitcoin Explained for Complete Beginners', duration: 600 },
         ]
     }
 ];
