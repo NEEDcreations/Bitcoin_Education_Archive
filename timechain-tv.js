@@ -725,7 +725,7 @@ window.renderTimechainTV = function() {
     // Default to first station
     var activeStation = _currentStation || localStorage.getItem('tctv_last_station') || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
 
-    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
+    var html = '<div style="background:#0a0a0a;height:100vh;color:#fff;font-family:inherit;display:flex;flex-direction:column;overflow:hidden;">';
 
     // Header bar
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);">';
@@ -759,7 +759,8 @@ window.renderTimechainTV = function() {
     // Progress bar
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
 
-    // Channel guide
+    // Channel guide (scrollable area)
+    html += '<div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">';
     html += '<div style="padding:12px 16px 8px;"><div style="font-size:0.65rem;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">CHANNELS</div></div>';
 
     html += '<div style="display:flex;flex-direction:column;gap:2px;padding:0 8px 120px;">';
@@ -794,6 +795,7 @@ window.renderTimechainTV = function() {
         html += '</div>';
     });
     html += '</div>';
+    html += '</div>'; // close scrollable wrapper
 
     html += '</div>';
     fc.innerHTML = html;
