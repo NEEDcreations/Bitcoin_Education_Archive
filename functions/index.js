@@ -2270,37 +2270,33 @@ exports.pollVote = functions.https.onCall(async (data, context) => {
     const now = Date.now();
     const dayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-    // Rate limit: max 200 votes per IP per day, max 200 per fingerprint per day
+    // Rate limit: max 200 votes per IP per day, max 200 per fingerprint per day (atomic)
     const MAX_PER_DAY = 200;
     const ratePath = `poll_rate_limits/${dayKey}`;
-    const rateDoc = await db.doc(ratePath).get();
-    const rateData = rateDoc.exists ? rateDoc.data() : {};
-
     const ipKey = 'ip_' + ip.replace(/[.\/:]/g, '_');
     const fpKey = 'fp_' + fp;
-    const ipCount = (rateData[ipKey] || 0);
-    const fpCount = (rateData[fpKey] || 0);
-
-    if (ipCount >= MAX_PER_DAY) return { success: false, error: 'Daily IP limit reached' };
-    if (fpCount >= MAX_PER_DAY) return { success: false, error: 'Daily device limit reached' };
-
-    // Atomic increment on poll + rate limit
-    const batch = db.batch();
-
-    // Increment the poll
     const pollRef = db.doc('polls/sats_vs_bits');
-    const inc = {};
-    inc[side] = admin.firestore.FieldValue.increment(1);
-    batch.set(pollRef, inc, { merge: true });
-
-    // Increment rate limits
     const rateRef = db.doc(ratePath);
-    const rateInc = {};
-    rateInc[ipKey] = admin.firestore.FieldValue.increment(1);
-    rateInc[fpKey] = admin.firestore.FieldValue.increment(1);
-    batch.set(rateRef, rateInc, { merge: true });
 
-    await batch.commit();
+    await db.runTransaction(async (tx) => {
+        const rateDoc = await tx.get(rateRef);
+        const rateData = rateDoc.exists ? rateDoc.data() : {};
+        const ipCount = (rateData[ipKey] || 0);
+        const fpCount = (rateData[fpKey] || 0);
+
+        if (ipCount >= MAX_PER_DAY) throw new functions.https.HttpsError('resource-exhausted', 'Daily IP limit reached');
+        if (fpCount >= MAX_PER_DAY) throw new functions.https.HttpsError('resource-exhausted', 'Daily device limit reached');
+
+        // Atomic: increment poll + rate limits together
+        const inc = {};
+        inc[side] = admin.firestore.FieldValue.increment(1);
+        tx.set(pollRef, inc, { merge: true });
+
+        const rateInc = {};
+        rateInc[ipKey] = admin.firestore.FieldValue.increment(1);
+        rateInc[fpKey] = admin.firestore.FieldValue.increment(1);
+        tx.set(rateRef, rateInc, { merge: true });
+    });
 
     // Read current totals to return
     const pollDoc = await pollRef.get();
@@ -2471,30 +2467,6 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 });
 
 // ---- Update PVP Stats (server-side) ----
-exports.updatePvpStats = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    const { won } = data || {};
-    if (typeof won !== 'boolean') throw new functions.https.HttpsError('invalid-argument', 'Missing won boolean');
-
-    const uid = context.auth.uid;
-    const field = won ? 'pvpWins' : 'pvpLosses';
-    await db.collection('users').doc(uid).update({
-        [field]: admin.firestore.FieldValue.increment(1)
-    });
-    return { success: true };
-});
-
-// ---- Increment Forum/Market Stats (server-side) ----
-exports.incrementUserStat = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    const { stat } = data || {};
-    const ALLOWED = ['forumPosts', 'forumReplies', 'marketListings', 'marketMessages'];
-    if (!stat || !ALLOWED.includes(stat)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Invalid stat: ' + stat);
-    }
-    const uid = context.auth.uid;
-    await db.collection('users').doc(uid).update({
-        [stat]: admin.firestore.FieldValue.increment(1)
-    });
-    return { success: true };
-});
+// updatePvpStats and incrementUserStat REMOVED — exploitable without verification.
+// PVP stats are handled atomically inside pvpSubmitAnswer when match finishes.
+// Forum/market stats are display-only (not gated or redeemable).
