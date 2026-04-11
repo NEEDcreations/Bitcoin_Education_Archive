@@ -10,21 +10,21 @@
     </radialGradient>
   </defs>
 
-  <!-- Wind trail lines -->
+  <!-- Wind trail lines (trailing from upper-left since tilting clockwise) -->
   <g opacity="0.5" stroke="#f7931a" stroke-width="2.5" stroke-linecap="round" fill="none">
-    <path d="M25 85 Q5 85 -10 82" opacity="0.3">
-      <animate attributeName="d" values="M25 85 Q5 85 -10 82;M25 85 Q8 88 -10 85;M25 85 Q5 85 -10 82" dur="1.5s" repeatCount="indefinite"/>
+    <path d="M45 50 Q25 45 5 42" opacity="0.3">
+      <animate attributeName="d" values="M45 50 Q25 45 5 42;M45 50 Q28 48 5 46;M45 50 Q25 45 5 42" dur="1.5s" repeatCount="indefinite"/>
     </path>
-    <path d="M20 100 Q0 100 -15 98" opacity="0.5">
-      <animate attributeName="d" values="M20 100 Q0 100 -15 98;M20 100 Q3 103 -15 102;M20 100 Q0 100 -15 98" dur="1.8s" repeatCount="indefinite"/>
+    <path d="M35 65 Q15 62 -5 58" opacity="0.5">
+      <animate attributeName="d" values="M35 65 Q15 62 -5 58;M35 65 Q18 66 -5 63;M35 65 Q15 62 -5 58" dur="1.8s" repeatCount="indefinite"/>
     </path>
-    <path d="M30 115 Q10 116 -5 114" opacity="0.25">
-      <animate attributeName="d" values="M30 115 Q10 116 -5 114;M30 115 Q13 119 -5 118;M30 115 Q10 116 -5 114" dur="1.3s" repeatCount="indefinite"/>
+    <path d="M50 80 Q30 78 10 75" opacity="0.25">
+      <animate attributeName="d" values="M50 80 Q30 78 10 75;M50 80 Q33 82 10 80;M50 80 Q30 78 10 75" dur="1.3s" repeatCount="indefinite"/>
     </path>
   </g>
 
   <!-- Cape flowing behind -->
-  <g transform="translate(75, 95) rotate(-15)">
+  <g transform="translate(75, 95) rotate(14)">
     <path d="M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z" fill="#f7931a" opacity="0.9">
       <animate attributeName="d" values="M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z;M-5 10 Q-28 28 -42 58 Q-32 48 -22 62 Q-18 42 -8 52 Q-13 32 -5 20 Z;M-5 10 Q-30 25 -45 55 Q-35 50 -25 60 Q-20 40 -10 50 Q-15 30 -5 20 Z" dur="2s" repeatCount="indefinite"/>
     </path>
@@ -33,8 +33,8 @@
     </path>
   </g>
 
-  <!-- Main body group — tilted for flying pose -->
-  <g transform="translate(110, 100) rotate(-15)">
+  <!-- Main body group — tilted 14° clockwise to match ₿ logo -->
+  <g transform="translate(110, 100) rotate(14)">
     <!-- Body -->
     <ellipse cx="0" cy="20" rx="32" ry="36" fill="url(#bodyGrad)"/>
 
