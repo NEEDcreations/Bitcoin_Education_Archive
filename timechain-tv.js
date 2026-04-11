@@ -704,8 +704,8 @@ window.renderTimechainTV = function() {
     html += '</div>';
     fc.innerHTML = html;
 
-    // Start playback
-    showWhiteNoise(function() {
+    // Start playback (white noise only on first load)
+    var _startPlayback = function() {
         _currentStation = activeStation;
         joinStation(activeStation);
 
@@ -729,12 +729,33 @@ window.renderTimechainTV = function() {
             }
         }
         initPlayer();
-    });
+    };
+
+    if (!window._tctvFirstLoadDone) {
+        window._tctvFirstLoadDone = true;
+        showWhiteNoise(_startPlayback);
+    } else {
+        _startPlayback();
+    }
 };
 
 // ── Channel Switching ──
+// Scroll everything to top — called immediately and repeatedly
+function _tctvScrollTop() {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+    var fc = document.getElementById('forumContainer');
+    if (fc) fc.scrollTop = 0;
+    var main = document.getElementById('main');
+    if (main) main.scrollTop = 0;
+}
+
 window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
+
+    // IMMEDIATELY scroll to top — before anything else
+    _tctvScrollTop();
 
     leaveStation();
     _currentStation = stationId;
@@ -745,7 +766,8 @@ window.switchStation = function(stationId) {
 
     var state = getPlaybackState(station);
     if (state.video && _player && _playerReady) {
-        _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset }); setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
+        _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
+        setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
         _currentVideoId = state.video.id;
     }
 
@@ -753,27 +775,20 @@ window.switchStation = function(stationId) {
     var np = document.getElementById('tctv-now-playing');
     if (np && state.video) np.textContent = state.video.title;
 
-    // Update channel guide highlighting
+    // Scroll again before render
+    _tctvScrollTop();
+
+    // Update channel guide highlighting (rebuilds DOM)
     renderTimechainTV();
 
-    // Auto-scroll to top so user sees the video immediately (after DOM render)
-    setTimeout(function() {
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-        window.scrollTo({ top: 0, behavior: 'instant' });
-        var fc = document.getElementById('forumContainer');
-        if (fc) fc.scrollTop = 0;
-        var main = document.getElementById('main');
-        if (main) main.scrollTop = 0;
-        // Double-tap scroll for slower renders
-        setTimeout(function() {
-            document.documentElement.scrollTop = 0;
-            document.body.scrollTop = 0;
-            window.scrollTo({ top: 0, behavior: 'instant' });
-            if (fc) fc.scrollTop = 0;
-            if (main) main.scrollTop = 0;
-        }, 300);
-    }, 200);
+    // Keep scrolling during and after render
+    _tctvScrollTop();
+    setTimeout(_tctvScrollTop, 50);
+    setTimeout(_tctvScrollTop, 200);
+    setTimeout(_tctvScrollTop, 500);
+    setTimeout(_tctvScrollTop, 1000);
+    setTimeout(_tctvScrollTop, 1500);
+    setTimeout(_tctvScrollTop, 2000);
 };
 
 // ── Cleanup ──
