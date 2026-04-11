@@ -22473,6 +22473,22 @@ window.nachoQuizAnswer = function(btn, correct) {
             var _questModal = document.getElementById('questModal');
             if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
 
+            // Return to guide after exploring a feature
+            if (state.returnToGuide) {
+                if (typeof showGuide === 'function') {
+                    showGuide();
+                    // Restore scroll position
+                    setTimeout(function() {
+                        var overlay = document.getElementById('guideOverlay');
+                        if (overlay && window._guideScrollTop) {
+                            var sheet = overlay.querySelector('div[style*="border-radius:24px"]');
+                            if (sheet) sheet.scrollTop = window._guideScrollTop;
+                        }
+                    }, 500);
+                }
+                return;
+            }
+
             var _overlayIds = ['guideOverlay','onboardingOverlay','pvpNameOverlay','pvpOverlay','tipOverlay','donateModal','lnAuthModal','nostrAuthOverlay','spinModal','hostEventModal','eventDetailOverlay','editEventOverlay','nachoColorPicker','articleLinkDialog','articleImageDialog','eli5Prompt','kbHelpModal','forumRulesOverlay','chatRulesOverlay','marketRulesOverlay','irlRulesOverlay'];
             for (var _oi = 0; _oi < _overlayIds.length; _oi++) {
                 var _oel = document.getElementById(_overlayIds[_oi]);

@@ -180,8 +180,14 @@
     // ---- Minimize guide (show banner) ----
     window.minimizeGuide = function() {
         var overlay = document.getElementById('guideOverlay');
-        if (overlay) overlay.remove();
+        if (!overlay) return;
+        // Save scroll position so we can restore it
+        var sheet = overlay.querySelector('div[style*="border-radius:24px"]');
+        if (sheet) window._guideScrollTop = sheet.scrollTop || 0;
+        overlay.remove();
         localStorage.setItem(GUIDE_DISMISSED_KEY, 'session');
+        // Push state so browser back re-opens guide
+        history.pushState({ returnToGuide: true }, '', window.location.pathname + window.location.hash);
         showGuideBanner();
     };
 
