@@ -16903,38 +16903,14 @@ function renderDashboard(data) {
     html += '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">Bitcoin needs ~$' + (typeof flipPrice === 'number' ? fmtNum(flipPrice) : flipPrice) + ' to match Gold</div></div>';
     html += '</div>';
 
-    // ── Bitcoin Treasuries ──
-    // Static data updated periodically from bitcointreasuries.net
-    var treasuryCompanies = [
-        { name: 'Strategy (MicroStrategy)', btc: 528185 },
-        { name: 'Marathon Digital', btc: 47600 },
-        { name: 'Riot Platforms', btc: 19223 },
-        { name: 'Galaxy Digital', btc: 13704 },
-        { name: 'Tesla', btc: 11509 }
-    ];
-    var treasuryGovs = [
-        { name: '🇺🇸 United States', btc: 198109 },
-        { name: '🇨🇳 China', btc: 194000 },
-        { name: '🇬🇧 United Kingdom', btc: 61245 },
-        { name: '🇧🇹 Bhutan', btc: 10635 },
-        { name: '🇸🇻 El Salvador', btc: 6135 }
-    ];
-    var totalCompanyBtc = 688348; // Total public companies
-    var totalGovBtc = 529604; // Total government
-    var treasuryPrice = d.price || 0;
-
-    var companyList = treasuryCompanies.map(function(c) { return c.name + ': ' + fmtNum(c.btc) + ' BTC (~$' + (treasuryPrice ? fmtDollar(c.btc * treasuryPrice) : '?') + ')'; }).join('\\n');
-    var govList = treasuryGovs.map(function(g) { return g.name + ': ' + fmtNum(g.btc) + ' BTC (~$' + (treasuryPrice ? fmtDollar(g.btc * treasuryPrice) : '?') + ')'; }).join('\\n');
-    var treasuryTip = 'PUBLIC COMPANIES (Top 5):\\n' + companyList + '\\n\\nGOVERNMENTS (Top 5):\\n' + govList + '\\n\\nSource: bitcointreasuries.net. Holdings are approximate and updated periodically.';
-
-    html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + treasuryTip.replace(/[\\'"]/g, "") + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+    // ── Bitcoin Treasuries (live data from CoinGecko + government estimates) ──
+    html += '<div id="treasuryCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
     html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">🏛️ Bitcoin Treasuries <span style="opacity:0.4;font-size:0.55rem;">ⓘ tap for top holders</span></div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-    html += '<div style="text-align:center;padding:10px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;"><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🏢 Public Companies</div><div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + fmtNum(totalCompanyBtc) + '</div><div style="font-size:0.65rem;color:var(--text-muted);">BTC' + (treasuryPrice ? ' · ~$' + fmtDollar(totalCompanyBtc * treasuryPrice) : '') + '</div></div>';
-    html += '<div style="text-align:center;padding:10px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;"><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🏛️ Governments</div><div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + fmtNum(totalGovBtc) + '</div><div style="font-size:0.65rem;color:var(--text-muted);">BTC' + (treasuryPrice ? ' · ~$' + fmtDollar(totalGovBtc * treasuryPrice) : '') + '</div></div>';
+    html += '<div id="treasuryData" style="text-align:center;padding:10px;color:var(--text-muted);font-size:0.8rem;">Loading live treasury data...</div>';
     html += '</div>';
-    html += '<div style="text-align:center;margin-top:8px;font-size:0.6rem;color:var(--text-faint);">Total: ' + fmtNum(totalCompanyBtc + totalGovBtc) + ' BTC (' + ((totalCompanyBtc + totalGovBtc) / 21000000 * 100).toFixed(1) + '% of supply) · <a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
-    html += '</div>';
+
+    // Fetch treasury data after render
+    setTimeout(function() { _fetchTreasuryData(d.price || 0); }, 200);
 
     // Top Indicators (expandable)
     html += '<div style="margin-top:16px;">';
@@ -18048,6 +18024,88 @@ function loadTopIndicators() {
             var flowEl = document.getElementById('etfNetFlow');
             if (flowEl) { flowEl.textContent = 'N/A'; }
         });
+}
+
+// ── Live Treasury Data (CoinGecko API + government estimates) ──
+var _treasuryCache = null;
+var _treasuryCacheTs = 0;
+function _fetchTreasuryData(btcPrice) {
+    var container = document.getElementById('treasuryData');
+    if (!container) return;
+
+    // Cache for 30 minutes
+    if (_treasuryCache && Date.now() - _treasuryCacheTs < 1800000) {
+        _renderTreasury(container, _treasuryCache, btcPrice);
+        return;
+    }
+
+    fetch('https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            _treasuryCache = data;
+            _treasuryCacheTs = Date.now();
+            _renderTreasury(container, data, btcPrice);
+        })
+        .catch(function() {
+            container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Could not load treasury data</div>';
+        });
+}
+
+// Government holdings (updated from bitcointreasuries.net — no free API, so semi-static)
+var GOV_HOLDINGS = [
+    { name: '🇺🇸 United States', btc: 325293 },
+    { name: '🇨🇳 China', btc: 190000 },
+    { name: '🇬🇧 United Kingdom', btc: 61245 },
+    { name: '🇧🇹 Bhutan', btc: 10635 },
+    { name: '🇸🇻 El Salvador', btc: 6135 }
+];
+var GOV_TOTAL = 649864;
+
+function _renderTreasury(container, data, btcPrice) {
+    var companies = (data.companies || []).slice(0, 5);
+    var totalCompany = Math.round(data.total_holdings || 0);
+    var totalCompanyUsd = data.total_value_usd || 0;
+    var price = btcPrice || (totalCompany > 0 ? totalCompanyUsd / totalCompany : 0);
+
+    var companyList = companies.map(function(c) {
+        return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;"><span style="color:var(--text);">' + (c.name || '?') + '</span><span style="color:var(--accent);font-weight:700;">' + fmtNum(c.total_holdings) + ' BTC</span></div>';
+    }).join('');
+
+    var govList = GOV_HOLDINGS.map(function(g) {
+        return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;"><span style="color:var(--text);">' + g.name + '</span><span style="color:var(--accent);font-weight:700;">' + fmtNum(g.btc) + ' BTC</span></div>';
+    }).join('');
+
+    var grandTotal = totalCompany + GOV_TOTAL;
+
+    container.innerHTML =
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">' +
+            '<div style="text-align:center;padding:10px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;">' +
+                '<div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🏢 Public Companies</div>' +
+                '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + fmtNum(totalCompany) + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-muted);">BTC · ~' + fmtDollar(totalCompanyUsd || totalCompany * price) + '</div>' +
+            '</div>' +
+            '<div style="text-align:center;padding:10px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;">' +
+                '<div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🏛️ Governments</div>' +
+                '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + fmtNum(GOV_TOTAL) + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-muted);">BTC · ~' + fmtDollar(GOV_TOTAL * price) + '</div>' +
+            '</div>' +
+        '</div>' +
+        '<div style="text-align:center;margin-bottom:10px;font-size:0.6rem;color:var(--text-faint);">Total: ' + fmtNum(grandTotal) + ' BTC (' + (grandTotal / 21000000 * 100).toFixed(1) + '% of supply)</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+            '<div style="background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.15);border-radius:8px;padding:8px;">' +
+                '<div style="font-size:0.6rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;">TOP 5 COMPANIES</div>' +
+                companyList +
+            '</div>' +
+            '<div style="background:rgba(234,179,8,0.04);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:8px;">' +
+                '<div style="font-size:0.6rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;">TOP 5 GOVERNMENTS</div>' +
+                govList +
+            '</div>' +
+        '</div>' +
+        '<div style="text-align:center;margin-top:8px;font-size:0.55rem;color:var(--text-faint);">Companies: live via <a href="https://www.coingecko.com/en/public-companies-bitcoin" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> · Governments: <a href="https://bitcointreasuries.net/governments" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
+
+    // Remove the onclick tip since we now show data inline
+    var card = document.getElementById('treasuryCard');
+    if (card) card.removeAttribute('onclick');
 }
 
 // Live halving countdown ticker (updates every second)
