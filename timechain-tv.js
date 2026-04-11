@@ -725,7 +725,7 @@ window.renderTimechainTV = function() {
     // Default to first station
     var activeStation = _currentStation || localStorage.getItem('tctv_last_station') || STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
 
-    var html = '<div style="background:#0a0a0a;height:100vh;color:#fff;font-family:inherit;display:flex;flex-direction:column;overflow:hidden;">';
+    var html = '<div style="background:#0a0a0a;height:100vh;color:#fff;font-family:inherit;display:flex;flex-direction:column;">';
 
     // Header bar
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);flex-shrink:0;">';
@@ -744,7 +744,7 @@ window.renderTimechainTV = function() {
     // Video player area (click-blocking overlay prevents pause)
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;flex-shrink:0;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
-    html += '<div id="tctv-overlay" style="position:absolute;inset:0;z-index:2;cursor:default;background:transparent;" title="Live — no pause allowed"></div>';
+    // Overlay removed — was blocking YouTube autoplay interaction
     html += '</div>';
 
     // Now playing bar
