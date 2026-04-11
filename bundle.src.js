@@ -7012,7 +7012,7 @@ function createNacho() {
             position: relative;
             flex-shrink: 0;
             z-index: 2;
-            overflow: hidden;
+            overflow: visible;
         }
         #nacho-avatar { -webkit-user-select: none; }
         #nacho-avatar:hover { transform: scale(1.08) rotate(-3deg); }
