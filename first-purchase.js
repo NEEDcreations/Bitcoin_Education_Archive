@@ -138,7 +138,7 @@ var APPS_BY_REGION = {
 
 var SELF_CUSTODY_WALLETS = [
     // Recommended (shown by default)
-    { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner Bitcoin wallet. Open source. Beautiful UI. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
+    { name: 'Blue Wallet', icon: '🔵', url: 'https://bluewallet.io', desc: 'Best beginner Bitcoin wallet. Open source. Beautiful UI. Mobile app for iOS & Android. Supports watch-only wallets.', rec: true, tier: 'rec', extra: 'watchonly' },
     { name: 'Aqua Wallet', icon: '💧', url: 'https://aquawallet.io', desc: 'Simple, beautiful Bitcoin & Lightning wallet. Also supports Liquid and Tether (USDt). Great for beginners. Mobile app for iOS & Android.', rec: true, tier: 'rec' },
     // More mobile apps (hidden by default)
     { name: 'Blockstream Green', icon: '🟢', url: 'https://blockstream.com/green/', desc: 'From the makers of Liquid. Multi-sig option. Very secure. Mobile app for iOS & Android.', tier: 'mobile' },
@@ -604,10 +604,36 @@ function _stepHeader(step) {
 function _walletCard(w) {
     var badge = w.rec ? ' <span style="color:var(--accent);font-size:0.6rem;">★ RECOMMENDED</span>' : '';
     if (w.note) badge = ' <span style="color:#a855f7;font-size:0.6rem;font-weight:600;">' + w.note + '</span>';
-    return '<a href="' + w.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:6px;background:var(--card-bg);border:1px solid ' + (w.rec ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;text-decoration:none;color:var(--text);transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + (w.rec ? 'var(--accent)' : 'var(--border)') + '\'">' +
+    var html = '<a href="' + w.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:' + (w.extra ? '4px' : '6px') + ';background:var(--card-bg);border:1px solid ' + (w.rec ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;text-decoration:none;color:var(--text);transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + (w.rec ? 'var(--accent)' : 'var(--border)') + '\'">' +
         '<span style="font-size:1.3rem;">' + w.icon + '</span>' +
         '<div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;">' + w.name + badge + ' ↗</div>' +
         '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-top:1px;">' + w.desc + '</div></div></a>';
+    if (w.extra === 'watchonly') {
+        html += '<button onclick="var p=document.getElementById(\'watchOnlyInfo\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.textContent=p.style.display===\'none\'?\'👁️ What is a Watch-Only Wallet? ▼\':\'👁️ What is a Watch-Only Wallet? ▲\'" style="width:100%;padding:8px 12px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;color:#3b82f6;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:6px;transition:0.2s;">👁️ What is a Watch-Only Wallet? ▼</button>' +
+        '<div id="watchOnlyInfo" style="display:none;padding:14px;background:var(--card-bg);border:1px solid rgba(59,130,246,0.2);border-radius:10px;margin-bottom:8px;font-size:0.8rem;color:var(--text);line-height:1.6;">' +
+            '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">👁️ Watch-Only Wallet</div>' +
+            '<p style="margin:0 0 8px;">A watch-only wallet lets you <strong>monitor your Bitcoin balance and transactions</strong> without being able to spend. It only has your public key (xpub) — no private keys.</p>' +
+            '<div style="font-weight:700;color:var(--accent);font-size:0.75rem;margin-bottom:4px;">WHY USE ONE?</div>' +
+            '<div style="margin-bottom:8px;">' +
+                '📊 Check your balance anytime without exposing your keys<br>' +
+                '🔐 Keep your private keys on a hardware wallet or air-gapped device<br>' +
+                '📱 Carry your phone without risk — even if stolen, funds are safe<br>' +
+                '✅ Verify incoming payments without touching cold storage' +
+            '</div>' +
+            '<div style="font-weight:700;color:var(--accent);font-size:0.75rem;margin-bottom:4px;">HOW TO SET UP IN BLUE WALLET</div>' +
+            '<div>' +
+                '1. Open Blue Wallet → tap <strong>+</strong> to add a wallet<br>' +
+                '2. Select <strong>"Import Wallet"</strong><br>' +
+                '3. Paste your <strong>xpub</strong> (extended public key) from your hardware wallet or other wallet<br>' +
+                '4. Blue Wallet detects it as watch-only and shows a 👁️ icon<br>' +
+                '5. You can now see all transactions and balances — but cannot spend' +
+            '</div>' +
+            '<div style="margin-top:8px;padding:8px 10px;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.15);border-radius:6px;font-size:0.72rem;color:var(--text-muted);">' +
+                '💡 <strong>Tip:</strong> Your xpub is found in your wallet\'s settings under "Account Details" or "Export." Never share your xprv (private key) — only your xpub is needed for watch-only.' +
+            '</div>' +
+        '</div>';
+    }
+    return html;
 }
 
 function _navButtons(stepNum) {
