@@ -735,7 +735,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 var bubbleBorder = isNacho ? '1px solid rgba(34,197,94,0.25)' : 'none';
                 var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
                 var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
-                var msgText = isNacho ? m.text.replace(/\n/g, '<br>') : escapeHtml(m.text);
+                var msgText = escapeHtml(m.text).replace(/\n/g, '<br>');
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
                         nachoLabel + msgText + scamWarn + piiWarn +
