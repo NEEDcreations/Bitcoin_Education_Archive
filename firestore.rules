@@ -26,7 +26,17 @@ service cloud.firestore {
                         || (request.resource.data.username is string
                             && request.resource.data.username.size() >= 3
                             && request.resource.data.username.size() <= 20
-                            && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')));
+                            && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')))
+                    && (!('displayBadge' in request.resource.data)
+                        || request.resource.data.displayBadge == ''
+                        || (request.resource.data.displayBadge is string
+                            && request.resource.data.displayBadge.size() <= 50
+                            && request.resource.data.displayBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+                    && (!('equippedBadge' in request.resource.data)
+                        || request.resource.data.equippedBadge == ''
+                        || (request.resource.data.equippedBadge is string
+                            && request.resource.data.equippedBadge.size() <= 50
+                            && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')));
       allow delete: if request.auth != null
                     && request.auth.uid == userId;
 

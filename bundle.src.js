@@ -13908,7 +13908,7 @@ window.showUserProfile = function(uid) {
         var joinDate = u.createdAt ? (u.createdAt.toDate ? u.createdAt.toDate().toLocaleDateString() : 'Unknown') : 'Unknown';
         
         // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
-        var displayBadge = u.displayBadge || u.equippedBadge || '';
+        var displayBadge = (typeof escapeHtml === 'function' ? escapeHtml(u.displayBadge || u.equippedBadge || '') : (u.displayBadge || u.equippedBadge || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
         // Count badges
         var badgeCount = 0;
         if (u.visibleBadges) badgeCount += u.visibleBadges.length;
