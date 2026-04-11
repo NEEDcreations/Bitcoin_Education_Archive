@@ -16545,6 +16545,14 @@ function fmtNum(n, decimals) {
     if (typeof decimals === 'number') return Number(n).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
     return Number(n).toLocaleString();
 }
+function fmtDollar(n) {
+    if (n === null || n === undefined) return '—';
+    if (n >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
+    if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+    return '$' + Math.round(n);
+}
 function fmtCompact(n) {
     if (n === null || n === undefined) return '—';
     if (n >= 1e18) return (n / 1e18).toFixed(2) + ' EH/s';
@@ -16880,6 +16888,54 @@ function renderDashboard(data) {
 
     html += '</div>'; // end grid
 
+    // ── Bitcoin vs Gold ──
+    var goldMktCap = 21.7; // trillion USD (approximate, updated periodically)
+    var btcMktCapT = d.marketCap ? d.marketCap / 1e12 : 0;
+    var goldPct = btcMktCapT > 0 ? (btcMktCapT / goldMktCap * 100).toFixed(1) : '—';
+    var flipPrice = d.supply ? Math.round(goldMktCap * 1e12 / d.supply) : '—';
+    var goldTip = 'Gold has been humanity\'s store of value for 5,000+ years with a market cap of ~$21.7 trillion. Bitcoin is digital gold — scarce, durable, portable, divisible, and verifiable. As Bitcoin\'s market cap grows relative to gold, it signals increasing confidence in Bitcoin as a long-term store of value. The flippening would mean Bitcoin has absorbed gold\'s entire monetary premium.';
+    html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + goldTip.replace(/[\\'"]/g, "") + '\')" style="background:linear-gradient(135deg,rgba(234,179,8,0.06),rgba(247,147,26,0.03));border:1px solid rgba(234,179,8,0.25);border-radius:14px;padding:16px;margin-top:12px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.25)\'">';
+    html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">⚖️ Bitcoin vs Gold <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="color:var(--text-muted);font-size:0.78rem;">₿ Bitcoin</span><span style="color:var(--heading);font-weight:800;font-size:0.85rem;">$' + btcMktCapT.toFixed(2) + 'T</span></div>';
+    html += '<div style="background:var(--border);height:6px;border-radius:3px;overflow:hidden;margin-bottom:8px;"><div style="height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);width:' + Math.min(parseFloat(goldPct) || 0, 100) + '%;border-radius:3px;transition:width 0.5s;"></div></div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="color:var(--text-muted);font-size:0.78rem;">🥇 Gold</span><span style="color:var(--heading);font-weight:800;font-size:0.85rem;">~$' + goldMktCap + 'T</span></div>';
+    html += '<div style="text-align:center;margin-top:6px;"><div style="color:var(--accent);font-size:1rem;font-weight:900;">' + goldPct + '% of Gold Market Cap</div>';
+    html += '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">Bitcoin needs ~$' + (typeof flipPrice === 'number' ? fmtNum(flipPrice) : flipPrice) + ' to match Gold</div></div>';
+    html += '</div>';
+
+    // ── Bitcoin Treasuries ──
+    // Static data updated periodically from bitcointreasuries.net
+    var treasuryCompanies = [
+        { name: 'Strategy (MicroStrategy)', btc: 528185 },
+        { name: 'Marathon Digital', btc: 47600 },
+        { name: 'Riot Platforms', btc: 19223 },
+        { name: 'Galaxy Digital', btc: 13704 },
+        { name: 'Tesla', btc: 11509 }
+    ];
+    var treasuryGovs = [
+        { name: '🇺🇸 United States', btc: 198109 },
+        { name: '🇨🇳 China', btc: 194000 },
+        { name: '🇬🇧 United Kingdom', btc: 61245 },
+        { name: '🇧🇹 Bhutan', btc: 10635 },
+        { name: '🇸🇻 El Salvador', btc: 6135 }
+    ];
+    var totalCompanyBtc = 688348; // Total public companies
+    var totalGovBtc = 529604; // Total government
+    var treasuryPrice = d.price || 0;
+
+    var companyList = treasuryCompanies.map(function(c) { return c.name + ': ' + fmtNum(c.btc) + ' BTC (~$' + (treasuryPrice ? fmtDollar(c.btc * treasuryPrice) : '?') + ')'; }).join('\\n');
+    var govList = treasuryGovs.map(function(g) { return g.name + ': ' + fmtNum(g.btc) + ' BTC (~$' + (treasuryPrice ? fmtDollar(g.btc * treasuryPrice) : '?') + ')'; }).join('\\n');
+    var treasuryTip = 'PUBLIC COMPANIES (Top 5):\\n' + companyList + '\\n\\nGOVERNMENTS (Top 5):\\n' + govList + '\\n\\nSource: bitcointreasuries.net. Holdings are approximate and updated periodically.';
+
+    html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + treasuryTip.replace(/[\\'"]/g, "") + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+    html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">🏛️ Bitcoin Treasuries <span style="opacity:0.4;font-size:0.55rem;">ⓘ tap for top holders</span></div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    html += '<div style="text-align:center;padding:10px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;"><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🏢 Public Companies</div><div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + fmtNum(totalCompanyBtc) + '</div><div style="font-size:0.65rem;color:var(--text-muted);">BTC' + (treasuryPrice ? ' · ~$' + fmtDollar(totalCompanyBtc * treasuryPrice) : '') + '</div></div>';
+    html += '<div style="text-align:center;padding:10px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:10px;"><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🏛️ Governments</div><div style="font-size:1.1rem;font-weight:900;color:var(--heading);">' + fmtNum(totalGovBtc) + '</div><div style="font-size:0.65rem;color:var(--text-muted);">BTC' + (treasuryPrice ? ' · ~$' + fmtDollar(totalGovBtc * treasuryPrice) : '') + '</div></div>';
+    html += '</div>';
+    html += '<div style="text-align:center;margin-top:8px;font-size:0.6rem;color:var(--text-faint);">Total: ' + fmtNum(totalCompanyBtc + totalGovBtc) + ' BTC (' + ((totalCompanyBtc + totalGovBtc) / 21000000 * 100).toFixed(1) + '% of supply) · <a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
+    html += '</div>';
+
     // Top Indicators (expandable)
     html += '<div style="margin-top:16px;">';
     html += '<button id="topIndicatorsBtn" onclick="toggleTopIndicators()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
@@ -16894,7 +16950,8 @@ function renderDashboard(data) {
     html += '<strong>Data Sources:</strong> ';
     html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool) · ';
     html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (price, market cap, supply, volume) · ';
-    html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index)';
+    html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index) · ';
+    html += '<a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">BitcoinTreasuries.net</a> (company & government holdings)';
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
@@ -16918,8 +16975,8 @@ window.showDashTip = function(el, text) {
     
     var tip = document.createElement('div');
     tip.id = 'dashTipPopup';
-    tip.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 8px);z-index:10;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;max-width:260px;width:max-content;box-shadow:0 8px 24px rgba(0,0,0,0.5);animation:fadeSlideIn 0.2s ease-out;pointer-events:auto;';
-    tip.innerHTML = '<div style="color:var(--text);font-size:0.75rem;line-height:1.5;">' + text + '</div>' +
+    tip.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 8px);z-index:10;background:var(--bg-side,#1a1a2e);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;max-width:320px;width:max-content;box-shadow:0 8px 24px rgba(0,0,0,0.5);animation:fadeSlideIn 0.2s ease-out;pointer-events:auto;';
+    tip.innerHTML = '<div style="color:var(--text);font-size:0.75rem;line-height:1.5;">' + text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>') + '</div>' +
         '<div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%) rotate(45deg);width:10px;height:10px;background:var(--bg-side,#1a1a2e);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);"></div>';
     el.style.position = 'relative';
     el.appendChild(tip);
