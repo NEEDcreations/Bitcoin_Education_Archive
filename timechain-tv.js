@@ -656,7 +656,7 @@ window.renderTimechainTV = function() {
     // Video player area (click-blocking overlay prevents pause)
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
-    html += '<div style="position:absolute;inset:0;z-index:2;cursor:default;" title="Live — no pause allowed"></div>';
+    html += '<div id="tctv-overlay" style="position:absolute;inset:0;z-index:2;cursor:default;background:transparent;" title="Live — no pause allowed"></div>';
     html += '</div>';
 
     // Now playing bar
@@ -681,10 +681,10 @@ window.renderTimechainTV = function() {
         var pct = state.video ? Math.round(((state.video.duration - state.remaining) / state.video.duration) * 100) : 0;
         var chNum = idx + 1;
 
-        html += '<div onclick="switchStation(\'' + s.id + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:0.2s;background:' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + ';border:1px solid ' + (isActive ? 'rgba(247,147,26,0.3)' : 'transparent') + ';" onmouseover="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.15)' : 'rgba(255,255,255,0.03)') + '\'" onmouseout="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + '\'">';
+        html += '<div data-station-id="' + s.id + '" onclick="switchStation(\'' + s.id + '\')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:0.2s;background:' + (isActive ? 'rgba(247,147,26,0.1)' : 'transparent') + ';border:1px solid ' + (isActive ? 'rgba(247,147,26,0.3)' : 'transparent') + ';">';
 
         // Channel number
-        html += '<div style="width:24px;font-size:0.7rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#555') + ';text-align:center;flex-shrink:0;">' + chNum + '</div>';
+        html += '<div data-ch-num style="width:24px;font-size:0.7rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#555') + ';text-align:center;flex-shrink:0;">' + chNum + '</div>';
 
         // Station icon
         html += '<div style="width:40px;height:40px;border-radius:10px;background:' + s.color + '20;border:1px solid ' + s.color + '40;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + s.emoji + '</div>';
@@ -692,7 +692,7 @@ window.renderTimechainTV = function() {
         // Station info
         html += '<div style="flex:1;min-width:0;">';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-        html += '<div style="font-weight:700;font-size:0.85rem;color:' + (isActive ? '#f7931a' : '#ddd') + ';">' + s.name + '</div>';
+        html += '<div data-ch-name style="font-weight:700;font-size:0.85rem;color:' + (isActive ? '#f7931a' : '#ddd') + ';">' + s.name + '</div>';
         html += '<span id="tctv-viewers-' + s.id + '" style="font-size:0.6rem;color:#22c55e;font-weight:600;"></span>';
         html += '</div>';
         html += '<div style="font-size:0.72rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (state.video ? state.video.title : s.desc) + '</div>';
@@ -700,10 +700,8 @@ window.renderTimechainTV = function() {
         html += '<div style="height:2px;background:#222;border-radius:1px;margin-top:4px;overflow:hidden;"><div style="height:100%;background:' + s.color + ';width:' + pct + '%;transition:width 1s linear;"></div></div>';
         html += '</div>';
 
-        // Live indicator for active
-        if (isActive) {
-            html += '<div style="width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 6px #ef4444;flex-shrink:0;"></div>';
-        }
+        // Live indicator (always rendered, hidden when not active)
+        html += '<div data-live-dot style="width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 6px #ef4444;flex-shrink:0;display:' + (isActive ? 'inline-block' : 'none') + ';"></div>';
 
         html += '</div>';
     });
@@ -788,7 +786,7 @@ function _tctvScrollTop() {
 window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
 
-    // IMMEDIATELY scroll to top — before anything else
+    // IMMEDIATELY scroll to top
     _tctvScrollTop();
 
     leaveStation();
@@ -799,30 +797,43 @@ window.switchStation = function(stationId) {
     if (!station) return;
 
     var state = getPlaybackState(station);
+
+    // Load new video WITHOUT rebuilding the page
     if (state.video && _player && _playerReady) {
         _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
         setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
         _currentVideoId = state.video.id;
+    } else if (state.video) {
+        // Player not ready — recreate it
+        createPlayer('tctv-player', state.video.id, state.offset);
+        _currentVideoId = state.video.id;
     }
 
-    // Update now playing
+    // Update now playing text
     var np = document.getElementById('tctv-now-playing');
     if (np && state.video) np.textContent = state.video.title;
 
-    // Scroll again before render
-    _tctvScrollTop();
+    // Update channel list highlighting (without destroying DOM)
+    document.querySelectorAll('[data-station-id]').forEach(function(el) {
+        var sid = el.getAttribute('data-station-id');
+        var isActive = sid === stationId;
+        el.style.background = isActive ? 'rgba(247,147,26,0.1)' : 'transparent';
+        el.style.borderColor = isActive ? 'rgba(247,147,26,0.3)' : 'transparent';
+        // Update channel number color
+        var numEl = el.querySelector('[data-ch-num]');
+        if (numEl) numEl.style.color = isActive ? '#f7931a' : '#555';
+        // Update name color
+        var nameEl = el.querySelector('[data-ch-name]');
+        if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ddd';
+        // Show/hide live dot
+        var dot = el.querySelector('[data-live-dot]');
+        if (dot) dot.style.display = isActive ? 'inline-block' : 'none';
+    });
 
-    // Update channel guide highlighting (rebuilds DOM)
-    renderTimechainTV();
-
-    // Keep scrolling during and after render
+    // Keep scrolling
     _tctvScrollTop();
-    setTimeout(_tctvScrollTop, 50);
-    setTimeout(_tctvScrollTop, 200);
-    setTimeout(_tctvScrollTop, 500);
-    setTimeout(_tctvScrollTop, 1000);
-    setTimeout(_tctvScrollTop, 1500);
-    setTimeout(_tctvScrollTop, 2000);
+    setTimeout(_tctvScrollTop, 100);
+    setTimeout(_tctvScrollTop, 300);
 };
 
 // ── Cleanup ──
