@@ -24345,3 +24345,84 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         setTimeout(init, 1500);
     }
 })();
+
+// ---- PVP Answer: Server-Side Validation Override ----
+// Routes pvpAnswer through Cloud Function instead of direct Firestore write
+(function() {
+    'use strict';
+    var _origPvpAnswer = null;
+    function patchPvpAnswer() {
+        if (typeof window.pvpAnswer !== 'function') return;
+        if (window._pvpAnswerPatched) return;
+        window._pvpAnswerPatched = true;
+        _origPvpAnswer = window.pvpAnswer;
+
+        window.pvpAnswer = function(questionIdx, answerIdx, btnEl) {
+            // Still do the UI updates from original (disable buttons, show colors)
+            var t = window._pvpState || {};
+            if (t.answered) return;
+            t.answered = true;
+            if (t._questionTimeout) { clearTimeout(t._questionTimeout); t._questionTimeout = null; }
+
+            // UI feedback
+            var questions = t.questions || [];
+            var q = questions[questionIdx];
+            if (q && btnEl) {
+                var opts = btnEl.parentElement;
+                if (opts) {
+                    var btns = opts.querySelectorAll('button');
+                    for (var i = 0; i < btns.length; i++) {
+                        btns[i].disabled = true;
+                        btns[i].style.cursor = 'default';
+                        btns[i].style.opacity = '0.7';
+                    }
+                    if (btns[q.correct]) {
+                        btns[q.correct].style.borderColor = '#22c55e';
+                        btns[q.correct].style.background = 'rgba(34,197,94,0.15)';
+                        btns[q.correct].style.opacity = '1';
+                    }
+                    if (answerIdx >= 0 && answerIdx !== q.correct && btns[answerIdx]) {
+                        btns[answerIdx].style.borderColor = '#ef4444';
+                        btns[answerIdx].style.background = 'rgba(239,68,68,0.15)';
+                    }
+                }
+                if (opts) opts.insertAdjacentHTML('afterend', '<div style="text-align:center;margin-top:12px;color:var(--text-muted);font-size:0.8rem;">' + (answerIdx === q.correct ? '✅ Correct! Waiting...' : answerIdx < 0 ? '⏰ Time\'s up!' : '❌ Wrong! Waiting...') + '</div>');
+            }
+
+            // Submit via Cloud Function
+            if (typeof firebase !== 'undefined' && firebase.functions && t.matchId) {
+                firebase.functions().httpsCallable('pvpSubmitAnswer')({
+                    matchId: t.matchId,
+                    questionIndex: questionIdx,
+                    answerIndex: answerIdx
+                }).then(function(result) {
+                    if (result.data && result.data.alreadyAnswered) {
+                        console.log('[PVP] Already answered, idempotent');
+                    }
+                }).catch(function(err) {
+                    console.error('[PVP] Server answer submission failed:', err);
+                    if (typeof showToast === 'function') showToast('⚠️ Answer submit failed — check connection');
+                });
+            }
+        };
+    }
+
+    // Patch after PVP loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(patchPvpAnswer, 3000); });
+    } else {
+        setTimeout(patchPvpAnswer, 3000);
+    }
+    // Also re-patch on enterPVPMode
+    var _origEnterPVP = null;
+    setTimeout(function() {
+        if (typeof window.enterPVPMode === 'function' && !window._pvpEnterPatched) {
+            window._pvpEnterPatched = true;
+            _origEnterPVP = window.enterPVPMode;
+            window.enterPVPMode = function() {
+                _origEnterPVP.apply(this, arguments);
+                setTimeout(patchPvpAnswer, 500);
+            };
+        }
+    }, 3000);
+})();

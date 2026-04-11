@@ -354,13 +354,17 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid
                       || resource.data.player2.uid == request.auth.uid);
-      // [AUDIT FIX] Creator must be one of the players
+      // Match creation still client-side (lobby system), but answers go through Cloud Function
       allow create: if request.auth != null
                     && (request.resource.data.player1.uid == request.auth.uid
                         || request.resource.data.player2.uid == request.auth.uid);
+      // Only allow: status changes (countdown→active, forfeit), heartbeat, questionStartedAt
+      // Answers/scores handled by pvpSubmitAnswer Cloud Function (Admin SDK)
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
-                        || resource.data.player2.uid == request.auth.uid);
+                        || resource.data.player2.uid == request.auth.uid)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt', 'player1LastSeen', 'player2LastSeen', 'forfeitedBy', 'forfeitReason']);
     }
 
     // =============================================

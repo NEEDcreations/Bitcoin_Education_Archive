@@ -2308,3 +2308,107 @@ exports.pollVote = functions.https.onCall(async (data, context) => {
 
     return { success: true, sats: pollData.sats || 0, bits: pollData.bits || 0 };
 });
+
+// ---- PVP Answer Submission (server-side validation) ----
+exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+
+    const { matchId, questionIndex, answerIndex } = data || {};
+    if (!matchId || typeof questionIndex !== 'number' || typeof answerIndex !== 'number') {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing matchId, questionIndex, or answerIndex');
+    }
+    if (questionIndex < 0 || questionIndex > 4 || answerIndex < -1 || answerIndex > 3) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid question or answer index');
+    }
+
+    const uid = context.auth.uid;
+    const matchRef = db.collection('pvp_matches').doc(matchId);
+
+    const result = await db.runTransaction(async (tx) => {
+        const matchDoc = await tx.get(matchRef);
+        if (!matchDoc.exists) throw new functions.https.HttpsError('not-found', 'Match not found');
+
+        const match = matchDoc.data();
+        if (match.status !== 'active') throw new functions.https.HttpsError('failed-precondition', 'Match not active');
+        if (match.currentQ !== questionIndex) throw new functions.https.HttpsError('failed-precondition', 'Wrong question index');
+
+        // Determine which player this is
+        let myKey, oppKey;
+        if (match.player1.uid === uid) { myKey = 'player1'; oppKey = 'player2'; }
+        else if (match.player2.uid === uid) { myKey = 'player2'; oppKey = 'player1'; }
+        else throw new functions.https.HttpsError('permission-denied', 'Not a player in this match');
+
+        const myAnswers = match[myKey].answers || [];
+        if (myAnswers.length > questionIndex) {
+            return { alreadyAnswered: true }; // Idempotent
+        }
+
+        // Server validates correctness from the stored questions
+        const question = match.questions[questionIndex];
+        if (!question) throw new functions.https.HttpsError('internal', 'Question not found');
+
+        const isCorrect = answerIndex === question.correct;
+        const answerObj = {
+            selected: answerIndex,
+            correct: isCorrect,
+            answeredAt: new Date().toISOString(),
+            won: false
+        };
+
+        const newMyAnswers = myAnswers.slice();
+        newMyAnswers.push(answerObj);
+
+        const oppAnswers = match[oppKey].answers || [];
+        const update = {};
+        update[myKey + '.answers'] = newMyAnswers;
+
+        // If both have answered this question, resolve the round
+        if (oppAnswers.length > questionIndex) {
+            const oppAnswer = oppAnswers[questionIndex];
+            const myCorrect = isCorrect;
+            const oppCorrect = oppAnswer.correct;
+
+            if (myCorrect && !oppCorrect) {
+                // I win this round
+                newMyAnswers[questionIndex] = Object.assign({}, answerObj, { won: true });
+                update[myKey + '.answers'] = newMyAnswers;
+                update[myKey + '.score'] = (match[myKey].score || 0) + 10;
+                update[myKey + '.correct'] = (match[myKey].correct || 0) + 1;
+                update.questionWinner = myKey;
+            } else if (!myCorrect && oppCorrect) {
+                // Opponent wins this round
+                const newOppAnswers = oppAnswers.slice();
+                newOppAnswers[questionIndex] = Object.assign({}, oppAnswer, { won: true });
+                update[oppKey + '.answers'] = newOppAnswers;
+                update[oppKey + '.score'] = (match[oppKey].score || 0) + 10;
+                update[oppKey + '.correct'] = (match[oppKey].correct || 0) + 1;
+                update.questionWinner = oppKey;
+            } else if (myCorrect && oppCorrect) {
+                // Both correct — second answerer wins (already answered = opponent was first)
+                const newOppAnswers = oppAnswers.slice();
+                newOppAnswers[questionIndex] = Object.assign({}, oppAnswer, { won: true });
+                update[oppKey + '.answers'] = newOppAnswers;
+                update[oppKey + '.score'] = (match[oppKey].score || 0) + 10;
+                update[oppKey + '.correct'] = (match[oppKey].correct || 0) + 1;
+                update.questionWinner = oppKey;
+            } else {
+                // Both wrong — reroll
+                update.questionWinner = 'reroll';
+            }
+
+            // Count completed rounds to check if match is finished
+            let completedRounds = 0;
+            for (let i = 0; i <= questionIndex; i++) {
+                const a1 = (i === questionIndex ? newMyAnswers : (match[myKey].answers || []))[i];
+                const a2 = (i === questionIndex ? (update[oppKey + '.answers'] || oppAnswers) : oppAnswers)[i];
+                if (a1 && a2 && (a1.won || a2.won)) completedRounds++;
+            }
+            update.status = completedRounds >= 5 ? 'finished' : 'question_result';
+        }
+
+        tx.update(matchRef, update);
+        return { success: true, correct: isCorrect };
+    });
+
+    return result;
+});
