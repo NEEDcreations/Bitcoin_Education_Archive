@@ -2344,7 +2344,17 @@ exports.pvpSubmitAnswer = functions.https.onCall(async (data, context) => {
         const question = match.questions[questionIndex];
         if (!question) throw new functions.https.HttpsError('internal', 'Question not found');
 
-        const isCorrect = answerIndex === question.correct;
+        // Read answer key from server-only collection (or fallback to match doc for legacy matches)
+        let correctAnswer;
+        const keyDoc = await tx.get(db.collection('pvp_answer_keys').doc(matchId));
+        if (keyDoc.exists && keyDoc.data().keys && keyDoc.data().keys[questionIndex] !== undefined) {
+            correctAnswer = keyDoc.data().keys[questionIndex].correct;
+        } else {
+            // Legacy fallback — old matches still have correct in the match doc
+            correctAnswer = question.correct;
+        }
+
+        const isCorrect = answerIndex === correctAnswer;
         const answerObj = {
             selected: answerIndex,
             correct: isCorrect,
@@ -2471,3 +2481,64 @@ exports.dailySpin = functions.https.onCall(async (data, context) => {
 // updatePvpStats and incrementUserStat REMOVED — exploitable without verification.
 // PVP stats are handled atomically inside pvpSubmitAnswer when match finishes.
 // Forum/market stats are display-only (not gated or redeemable).
+
+// ── PVP Match Creation (server-side, hides answer keys) ──
+exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+
+    const { lobbyDocId, player1, player2, questions } = data || {};
+    if (!lobbyDocId || !player1 || !player2 || !questions || !Array.isArray(questions)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+    if (questions.length < 1 || questions.length > 10) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid question count');
+    }
+
+    // Store answer keys separately (not readable by clients)
+    const answerKeys = questions.map((q, i) => ({ questionIndex: i, correct: q.correct }));
+
+    // Strip correct answers from client-visible questions
+    const clientQuestions = questions.map(q => ({
+        q: q.q,
+        options: q.options
+        // NO correct field
+    }));
+
+    const matchRef = await db.collection('pvp_matches').add({
+        player1: {
+            uid: player1.uid,
+            name: (player1.name || 'Anonymous').substring(0, 30),
+            profilePic: player1.profilePic || '',
+            score: 0, correct: 0, answers: []
+        },
+        player2: {
+            uid: player2.uid,
+            name: (player2.name || 'Anonymous').substring(0, 30),
+            profilePic: player2.profilePic || '',
+            score: 0, correct: 0, answers: []
+        },
+        questions: clientQuestions,
+        currentQ: 0,
+        status: 'countdown',
+        questionWinner: null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        questionStartedAt: null
+    });
+
+    // Store answer keys in server-only collection
+    await db.collection('pvp_answer_keys').doc(matchRef.id).set({
+        keys: answerKeys,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Update lobby doc
+    await db.collection('pvp_lobby').doc(lobbyDocId).update({
+        status: 'matched',
+        matchId: matchRef.id,
+        opponentName: (player2.name || 'Anonymous').substring(0, 30),
+        opponentUid: player2.uid,
+        opponentProfilePic: player2.profilePic || ''
+    });
+
+    return { matchId: matchRef.id };
+});
