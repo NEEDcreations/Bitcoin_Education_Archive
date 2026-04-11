@@ -403,11 +403,14 @@ function renderChatMessages(msgs) {
         var hasReactions = Object.keys(reactions).length > 0;
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:' + (hasReactions ? '4px' : '0') + ';">';
         for (var emoji in reactions) {
+            // Validate: reaction keys must be 1-4 char emoji only (no HTML/scripts)
+            if (!emoji || emoji.length > 10 || /[<>"'\\&;(){}]/.test(emoji)) continue;
             var users = reactions[emoji] || [];
             var count = users.length;
             if (count === 0) continue;
             var iReacted = myUid && users.indexOf(myUid) !== -1;
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + emoji + '\')" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + emoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            var safeEmoji = esc(emoji);
+            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
@@ -1261,6 +1264,8 @@ window.showReactPicker = function(msgId, btnEl) {
 
 window.toggleReaction = function(msgId, emoji) {
     if (!auth || !auth.currentUser) return;
+    // Validate emoji: must be short, no HTML/script chars
+    if (!emoji || emoji.length > 10 || /[<>"'\\&;(){}]/.test(emoji)) return;
     var uid = auth.currentUser.uid;
     var ref = db.collection(CHAT_COLLECTION).doc(msgId);
 

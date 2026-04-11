@@ -2150,12 +2150,26 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
                 return { alreadyVisited: true, streak: user.streak || 0 };
             }
 
+            // Sanity check: streak cannot exceed account age in days
+            // Uses Firebase Auth metadata (immutable) to get true account creation date
+            let accountAgeDays = 9999;
+            try {
+                const userRecord = await admin.auth().getUser(uid);
+                const creationDate = new Date(userRecord.metadata.creationTime);
+                accountAgeDays = Math.max(1, Math.floor((Date.now() - creationDate.getTime()) / 86400000));
+            } catch(e) {}
+
             // Calculate streak
             let newStreak = 1;
             let usedFreeze = false;
             let bonusTickets = 0;
-            const oldStreak = user.streak || 0;
+            let oldStreak = user.streak || 0;
             const streakFreezes = user.streakFreezes || 0;
+
+            // Cap existing streak to account age (fixes pre-patch inflated values)
+            if (oldStreak > accountAgeDays) {
+                oldStreak = accountAgeDays;
+            }
 
             if (lastVisit) {
                 const lastDate = new Date(lastVisit);
@@ -2181,7 +2195,10 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
             else if (newStreak === 100) bonusTickets = 25;
             else if (newStreak === 365) bonusTickets = 50;
 
-            const currentBest = user.bestStreak || 0;
+            // Cap streak to account age
+            if (newStreak > accountAgeDays) newStreak = accountAgeDays;
+
+            const currentBest = Math.min(user.bestStreak || 0, accountAgeDays);
             const newBest = Math.max(currentBest, newStreak);
 
             const updateData = {
