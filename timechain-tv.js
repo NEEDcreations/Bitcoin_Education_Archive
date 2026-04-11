@@ -742,7 +742,7 @@ window.renderTimechainTV = function() {
     html += '</div></div>';
 
     // Video player area (click-blocking overlay prevents pause)
-    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;flex-shrink:0;">';
+    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;flex-shrink:0;max-height:45vh;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
     // Overlay removed — was blocking YouTube autoplay interaction
     html += '</div>';
