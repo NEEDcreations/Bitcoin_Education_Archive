@@ -546,17 +546,24 @@ function createPlayer(containerId, videoId, startSeconds) {
                 e.target.playVideo();
             },
             onStateChange: function(e) {
-                // If video ended or paused/unstarted, force sync and play
                 if (e.data === YT.PlayerState.ENDED) {
+                    // Video ended — sync to next video immediately
                     syncPlayer();
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
-                } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.UNSTARTED || e.data === -1) {
-                    // Auto-resume after brief delay (handles autoplay blocks)
-                    setTimeout(function() {
-                        if (_player && _playerReady && _player.getPlayerState && _player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                            _player.playVideo();
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 300);
+                } else if (e.data === YT.PlayerState.PAUSED) {
+                    // NEVER allow pause — force resume immediately
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 100);
+                } else if (e.data === YT.PlayerState.UNSTARTED || e.data === -1) {
+                    // Unstarted — force play with sync
+                    var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+                    if (station) {
+                        var pb = getPlaybackState(station);
+                        if (pb.video) {
+                            _player.loadVideoById({ videoId: pb.video.id, startSeconds: pb.offset });
+                            _currentVideoId = pb.video.id;
                         }
-                    }, 1000);
+                    }
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
                 }
             }
         }
@@ -646,9 +653,10 @@ window.renderTimechainTV = function() {
     html += '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span>';
     html += '</div></div>';
 
-    // Video player area
+    // Video player area (click-blocking overlay prevents pause)
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
+    html += '<div style="position:absolute;inset:0;z-index:2;cursor:default;" title="Live — no pause allowed"></div>';
     html += '</div>';
 
     // Now playing bar
@@ -724,6 +732,32 @@ window.renderTimechainTV = function() {
                 // Sync every second
                 if (_syncInterval) clearInterval(_syncInterval);
                 _syncInterval = setInterval(updateTimeline, 1000);
+
+                // Play enforcer — ensures video is ALWAYS playing, re-syncs if paused
+                if (window._tctvPlayEnforcer) clearInterval(window._tctvPlayEnforcer);
+                window._tctvPlayEnforcer = setInterval(function() {
+                    if (!_player || !_playerReady || !_currentStation) return;
+                    try {
+                        var state = _player.getPlayerState();
+                        // If not playing (paused, ended, unstarted, buffering too long)
+                        if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                            // Re-sync to correct position and force play
+                            var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+                            if (station) {
+                                var pb = getPlaybackState(station);
+                                if (pb.video) {
+                                    if (pb.video.id !== _currentVideoId) {
+                                        _player.loadVideoById({ videoId: pb.video.id, startSeconds: pb.offset });
+                                        _currentVideoId = pb.video.id;
+                                    } else {
+                                        _player.seekTo(pb.offset, true);
+                                    }
+                                    _player.playVideo();
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                }, 2000);
             } else {
                 setTimeout(initPlayer, 500);
             }
@@ -795,6 +829,7 @@ window.switchStation = function(stationId) {
 window.cleanupTimechainTV = function() {
     leaveStation();
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
+    if (window._tctvPlayEnforcer) { clearInterval(window._tctvPlayEnforcer); window._tctvPlayEnforcer = null; }
     if (_viewerUnsub) { _viewerUnsub(); _viewerUnsub = null; }
     if (_player) { try { _player.destroy(); } catch(e) {} _player = null; }
     _playerReady = false;
