@@ -284,9 +284,9 @@ export default {
         if (path === '/announce' && request.method === 'POST') {
             // Auth via header (not query string — avoids logging in URLs)
             const authHeader = request.headers.get('Authorization') || '';
-            const authQuery = url.searchParams.get('key') || '';
+
             const adminKey = env.ADMIN_KEY;
-            if (!adminKey || (authHeader !== 'Bearer ' + adminKey && authQuery !== adminKey)) {
+            if (!adminKey || authHeader !== 'Bearer ' + adminKey) {
                 return new Response('Unauthorized', { status: 401 });
             }
             try {

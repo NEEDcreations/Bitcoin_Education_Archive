@@ -374,25 +374,27 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('invalid-argument', 'Missing pubkey, sig, or event');
     }
 
-    // Rate limiting: max 5 nostrAuth calls per IP per hour
+    // Rate limiting: max 5 nostrAuth calls per IP per hour (atomic transaction)
     const nostrIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (nostrIP !== 'unknown') {
         const nostrRateRef = db.collection('rate_limits').doc('nostr_' + nostrIP.replace(/[./]/g, '_'));
-        const nostrRateDoc = await nostrRateRef.get();
-        if (nostrRateDoc.exists) {
-            const rd = nostrRateDoc.data();
-            const windowStart = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (windowStart && (Date.now() - windowStart.getTime()) < 3600000) {
-                if ((rd.attempts || 0) >= 5) {
-                    throw new functions.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
+        await db.runTransaction(async (tx) => {
+            const nostrRateDoc = await tx.get(nostrRateRef);
+            if (nostrRateDoc.exists) {
+                const rd = nostrRateDoc.data();
+                const windowStart = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+                if (windowStart && (Date.now() - windowStart.getTime()) < 3600000) {
+                    if ((rd.attempts || 0) >= 5) {
+                        throw new functions.https.HttpsError('resource-exhausted', 'Too many sign-in attempts. Try again later.');
+                    }
+                    tx.update(nostrRateRef, { attempts: (rd.attempts || 0) + 1 });
+                } else {
+                    tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
                 }
-                await nostrRateRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
             } else {
-                await nostrRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                tx.set(nostrRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
             }
-        } else {
-            await nostrRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
-        }
+        });
     }
 
     // Validate pubkey format (64 hex chars)
@@ -528,20 +530,25 @@ exports.nostrAuth = functions.https.onCall(async (data, context) => {
 
 // Step 1: Generate a challenge (k1) and return LNURL
 exports.lnAuthChallenge = functions.https.onCall(async (data, context) => {
-    // Rate limiting: max 10 challenges per IP per hour
+    // Rate limiting: max 10 challenges per IP per hour (atomic transaction)
     const lnIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (lnIP !== 'unknown') {
         const lnRateRef = db.collection('rate_limits').doc('lnauth_' + lnIP.replace(/[./]/g, '_'));
-        const lnRateDoc = await lnRateRef.get();
-        if (lnRateDoc.exists) {
-            const rd = lnRateDoc.data();
-            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (ws && (Date.now() - ws.getTime()) < 3600000 && (rd.attempts || 0) >= 10) {
-                throw new functions.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
+        await db.runTransaction(async (tx) => {
+            const lnRateDoc = await tx.get(lnRateRef);
+            if (lnRateDoc.exists) {
+                const rd = lnRateDoc.data();
+                const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+                if (ws && (Date.now() - ws.getTime()) < 3600000) {
+                    if ((rd.attempts || 0) >= 10) throw new functions.https.HttpsError('resource-exhausted', 'Too many requests. Try again later.');
+                    tx.update(lnRateRef, { attempts: (rd.attempts || 0) + 1 });
+                } else {
+                    tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                }
+            } else {
+                tx.set(lnRateRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
             }
-            if (ws && (Date.now() - ws.getTime()) < 3600000) { await lnRateRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
-            else { await lnRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
-        } else { await lnRateRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+        });
     }
 
     const crypto = require('crypto');
@@ -690,20 +697,25 @@ exports.lnAuthVerify = functions.https.onCall(async (data, context) => {
     const { k1 } = data;
     if (!k1) throw new functions.https.HttpsError('invalid-argument', 'Missing k1');
 
-    // Rate limiting: max 20 polls per IP per minute
+    // Rate limiting: max 20 polls per IP per minute (atomic transaction)
     const verifyIP = (context.rawRequest && context.rawRequest.ip) || 'unknown';
     if (verifyIP !== 'unknown') {
         const vrRef = db.collection('rate_limits').doc('lnverify_' + verifyIP.replace(/[./]/g, '_'));
-        const vrDoc = await vrRef.get();
-        if (vrDoc.exists) {
-            const rd = vrDoc.data();
-            const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
-            if (ws && (Date.now() - ws.getTime()) < 60000 && (rd.attempts || 0) >= 20) {
-                throw new functions.https.HttpsError('resource-exhausted', 'Too many requests');
+        await db.runTransaction(async (tx) => {
+            const vrDoc = await tx.get(vrRef);
+            if (vrDoc.exists) {
+                const rd = vrDoc.data();
+                const ws = rd.windowStart ? (rd.windowStart.toDate ? rd.windowStart.toDate() : new Date(rd.windowStart)) : null;
+                if (ws && (Date.now() - ws.getTime()) < 60000) {
+                    if ((rd.attempts || 0) >= 20) throw new functions.https.HttpsError('resource-exhausted', 'Too many requests');
+                    tx.update(vrRef, { attempts: (rd.attempts || 0) + 1 });
+                } else {
+                    tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
+                }
+            } else {
+                tx.set(vrRef, { attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() });
             }
-            if (ws && (Date.now() - ws.getTime()) < 60000) { await vrRef.update({ attempts: admin.firestore.FieldValue.increment(1) }); }
-            else { await vrRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
-        } else { await vrRef.set({ attempts: 1, windowStart: admin.firestore.FieldValue.serverTimestamp() }); }
+        });
     }
 
     const doc = await db.collection('lnauth_challenges').doc(k1).get();
@@ -1238,15 +1250,18 @@ exports.bridgeToTelegram = functions.https.onCall(async (data, context) => {
 
     // Rate limit: 1 bridge call per 3 seconds per user
     const uid = context.auth.uid;
+        // Rate limit bridge: 3 seconds between calls (atomic transaction)
     const rateLimitRef = db.collection('rate_limits').doc('bridge_' + uid);
-    const rateLimitDoc = await rateLimitRef.get();
-    if (rateLimitDoc.exists) {
-        const lastCall = rateLimitDoc.data().lastCall;
-        if (lastCall && Date.now() - lastCall.toDate().getTime() < 3000) {
-            throw new functions.https.HttpsError('resource-exhausted', 'Too fast — wait 3 seconds');
+    await db.runTransaction(async (tx) => {
+        const rateLimitDoc = await tx.get(rateLimitRef);
+        if (rateLimitDoc.exists) {
+            const lastCall = rateLimitDoc.data().lastCall;
+            if (lastCall && Date.now() - (lastCall.toDate ? lastCall.toDate() : new Date(lastCall)).getTime() < 3000) {
+                throw new functions.https.HttpsError('resource-exhausted', 'Too fast — wait 3 seconds');
+            }
         }
-    }
-    await rateLimitRef.set({ lastCall: admin.firestore.FieldValue.serverTimestamp() });
+        tx.set(rateLimitRef, { lastCall: admin.firestore.FieldValue.serverTimestamp() });
+    });
 
     // Secret lives ONLY in server-side environment variables (.env)
     const BRIDGE_URL = process.env.BRIDGE_URL || 'https://chat-bridge.needcreations.workers.dev/webhook/firestore';
