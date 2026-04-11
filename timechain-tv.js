@@ -49,6 +49,11 @@ var STATIONS = [
             { id: 'kKSFh5Xxe3w', title: '48 Hours in El Salvador Paying Only With Bitcoin', duration: 1200 },
             { id: 'R8xZd8v7b50', title: 'Bitcoin Beach: El Salvador\'s Bitcoin Economy', duration: 1500 },
             { id: '0Ceey82hFTY', title: 'Booking Travel with Bitcoin — Travala', duration: 600 },
+            { id: 'e0EPQg20SaQ', title: 'What 1792 Days in Bitcoin Taught Me — Get Based TV', duration: 540 },
+            { id: 'LRSQSkiil0M', title: 'Inside the Bitcoin Revolution in Africa — Joe Nakamoto', duration: 1200 },
+            { id: 'TauW_pLnstw', title: 'The Bitcoin Paradise You Have Never Heard Of — Joe Nakamoto', duration: 900 },
+            { id: 'FelWKV6wVJU', title: 'Living on Bitcoin in a Small Town — Joe Nakamoto', duration: 1080 },
+            { id: 'WoN0SVY73zo', title: 'You Can Live on Bitcoin in Lugano — Joe Nakamoto', duration: 1500 },
         ]
     },
     {
@@ -240,6 +245,13 @@ var STATIONS = [
             { id: 'KQ7rn3oi-Pc', title: 'Blockchain — Money Man', duration: 195 },
             { id: 'VpvwgDjQLGA', title: 'Bitcoin All The Way Up — Dollar Vigilante', duration: 240 },
             { id: 'f-4Rs3Sqlhc', title: 'Bitcoin Anthem — Crypto Music', duration: 210 },
+            { id: 'dgKlBQmGQ98', title: 'Most Toxic Bitcoin Maxi — Robbie P', duration: 240 },
+            { id: 'IrcN-zmCZMI', title: 'If It Was Not For Satoshi — Robbie P', duration: 210 },
+            { id: 'lG08pD-8upE', title: 'Bitcoin Slang Remix — Robbie P', duration: 225 },
+            { id: 'CnTxBAeGfaQ', title: 'Diamond Hands & Laser Eyes — Robbie P', duration: 240 },
+            { id: 'fG5PKg81mEQ', title: 'Fliponomics — Robbie P', duration: 210 },
+            { id: 'A7TuFy0fcuw', title: 'Bitcoin Song — Community Playlist', duration: 240 },
+            { id: 'c5wbgDLr-u0', title: 'Bitcoin Lofi Beats — Study & HODL', duration: 3600 },
         ]
     },
     {
@@ -268,6 +280,12 @@ var STATIONS = [
             { id: 'xegEpCLT0CQ', title: 'A Practical Approach to Orange Pilling', duration: 1800 },
             { id: 'heA1fZzRAFs', title: 'Orange Pill: The Bitcoin Guide', duration: 900 },
             { id: 'Bt2Z-_nhpwQ', title: 'How to Orange Pill Anyone', duration: 600 },
+            { id: 'YT-38EneBWw', title: 'Bitcoin Street Interviews London — Mike Still', duration: 1440 },
+            { id: 'og5zZssEWIc', title: 'Bitcoin Street Interviews Birmingham — Mike Still', duration: 1500 },
+            { id: 'Uh-eTnRXCr8', title: 'Bitcoin Street Interviews Edinburgh — Mike Still', duration: 1400 },
+            { id: 'vclZlAFXpEI', title: 'Give Me 9 Minutes and You Will Understand Bitcoin — Exit Manual', duration: 600 },
+            { id: 'HhxcdMIJTLA', title: 'Telling People About Bitcoin Never Works — Exit Manual', duration: 450 },
+            { id: 'r34hkJBeE-M', title: 'How I Lost 14 Bitcoins — Exit Manual', duration: 555 },
         ]
     },
     {
@@ -524,12 +542,21 @@ function createPlayer(containerId, videoId, startSeconds) {
         events: {
             onReady: function(e) {
                 _playerReady = true;
+                e.target.setVolume(100);
                 e.target.playVideo();
             },
             onStateChange: function(e) {
-                // If video ended, sync to next video
+                // If video ended or paused/unstarted, force sync and play
                 if (e.data === YT.PlayerState.ENDED) {
                     syncPlayer();
+                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
+                } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.UNSTARTED || e.data === -1) {
+                    // Auto-resume after brief delay (handles autoplay blocks)
+                    setTimeout(function() {
+                        if (_player && _playerReady && _player.getPlayerState && _player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                            _player.playVideo();
+                        }
+                    }, 1000);
                 }
             }
         }
@@ -559,7 +586,7 @@ function syncPlayer() {
     // Check if we need to switch videos
     if (state.video.id !== _currentVideoId) {
         if (_player && _playerReady) {
-            _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
+            _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset }); setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
             _currentVideoId = state.video.id;
         }
     }
@@ -718,7 +745,7 @@ window.switchStation = function(stationId) {
 
     var state = getPlaybackState(station);
     if (state.video && _player && _playerReady) {
-        _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
+        _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset }); setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
         _currentVideoId = state.video.id;
     }
 

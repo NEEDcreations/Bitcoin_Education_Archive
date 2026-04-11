@@ -1372,8 +1372,9 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
     }
 
     // 5. Check account age FIRST (cheap check, fail fast)
+    let userRecord;
     try {
-        const userRecord = await admin.auth().getUser(uid);
+        userRecord = await admin.auth().getUser(uid);
         const creationDate = new Date(userRecord.metadata.creationTime);
         const ageDays = Math.floor((Date.now() - creationDate.getTime()) / 86400000);
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
