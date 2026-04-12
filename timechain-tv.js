@@ -706,6 +706,10 @@ window.renderTimechainTV = function() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
+    // Prevent double-render from destroying the YouTube player
+    if (window._tctvActive && document.getElementById('tctv-player')) return;
+    window._tctvActive = true;
+
     loadYouTubeAPI();
 
     // Default to first station
@@ -912,6 +916,7 @@ window.switchStation = function(stationId) {
 
 // ── Cleanup ──
 window.cleanupTimechainTV = function() {
+    window._tctvActive = false;
     leaveStation();
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
     if (window._tctvPlayEnforcer) { clearInterval(window._tctvPlayEnforcer); window._tctvPlayEnforcer = null; }
