@@ -103,6 +103,7 @@ var STATIONS = [
             { id: 'MmdQKU0YNX4', title: 'Bitcoin Will Hit $850K — Max Keiser Prediction', duration: 1200 },
             { id: 'wBEqw-PSBlg', title: 'Why Selling Bitcoin for Fiat Misses the Picture — Mark Moss', duration: 1800 },
             { id: '2ZaMzWZyXe8', title: 'Wall Street Meets Bitcoin: Orange-Pilling Finance — Strive CEO', duration: 1320 },
+            { id: 'JaMJi1_1tkA', title: 'Bitcoin Rap Battle: Hamilton vs. Satoshi — ft. EpicLloyd', duration: 600 },
         ]
     },
     {
@@ -299,6 +300,9 @@ var STATIONS = [
             { id: 'heA1fZzRAFs', title: 'Funniest Bitcoin Moments Compilation', duration: 600 },
             { id: 'mEqr-8-TKrA', title: '30 People Turning Down FREE Bitcoin — Mike Still', duration: 420 },
             { id: 'd6ham2mibiA', title: 'Bitcoin Street Reactions Compilation', duration: 540 },
+            { id: 'UX1GIhOhkAE', title: 'Me Saying Bitcoin', duration: 180 },
+            { id: '61i2iDz7u04', title: 'BITCONNECT REMIX', duration: 240 },
+            { id: 'fUFnLPblsBg', title: '100% Saylor — Michael Saylor Best Moments', duration: 600 },
         ]
     },
     {
@@ -343,6 +347,34 @@ var STATIONS = [
             { id: 'A7TuFy0fcuw', title: 'Bitcoin Song — Community Playlist', duration: 240 },
             { id: 'c5wbgDLr-u0', title: 'Bitcoin Lofi Beats — Study & HODL', duration: 3600 },
             { id: 'gSxKJJ9k3lA', title: 'The Ultimate Crypto Anthem — Betawi CryptoCoin', duration: 394 },
+            { id: '_c9WOks2mvg', title: 'Pump It Higher', duration: 210 },
+            { id: 'FCA9i6MUCK0', title: 'Bitcoin Beats Mix — Volume 1', duration: 1800 },
+            { id: 'XcerPhwbIFs', title: 'Orange Pill rApp — Wallet Stay Stackin\'!', duration: 240 },
+            { id: 'Y5r6e1VcIBE', title: 'BITCOIN SONG — Pat Ryan', duration: 210 },
+            { id: 'fZfg1Gtcg08', title: 'Bitcoin Baron — ytcracker', duration: 270 },
+            { id: 'yp0diaVLPrQ', title: 'Mark Zuckerberg\'s Sister Sings to Crypto', duration: 240 },
+            { id: 'YbzNJr26H-4', title: 'Welcome To The Blockchain — Toby Ganger + Decap', duration: 240 },
+            { id: 'U5NGVH8HDaw', title: 'Bitcoin Boomdeyada!', duration: 180 },
+            { id: 'kdvTkddp1F0', title: 'Don\'t Get Zhou Tonged!!! — Zhou Tonged', duration: 210 },
+            { id: 'nO6A4N9zjgE', title: 'Rich Men North of Richmond — Full Band Cover', duration: 210 },
+            { id: 'RIsZyg8OXlI', title: '10,000 Bitcoins — Laura Saggers', duration: 240 },
+            { id: 'RglKdIovlX0', title: 'BANK — Bitcoin Music Video', duration: 210 },
+            { id: 's3UtbslfqS8', title: 'Gary Gensler, Isn\'t That True? — Bitcoin Heavy Metal', duration: 240 },
+            { id: '9I9l8vlTvJE', title: 'Toxic Maximalist — The Orange Pill Jam Project', duration: 270 },
+            { id: 'DNYzHGM50Ys', title: 'Too Bit To Fail — Proof of Word EP', duration: 240 },
+            { id: 'VMLakjlz6us', title: 'Ode to Satoshi — Roger 9000', duration: 300 },
+            { id: 'BifVGcvJpxc', title: 'WAGMI', duration: 210 },
+            { id: 'AQwyOhLBsI4', title: 'Stacking Sats — Jack Mallers', duration: 240 },
+            { id: '9johJ8eyucQ', title: 'It\'s Math — Greg Foss & Pleb Music', duration: 270 },
+            { id: '6ZKzapbQPZA', title: 'Banksters Paradise — A Bitcoin Song', duration: 270 },
+            { id: 'Vz9iCgiSZrM', title: 'Bitcoin\'s Back — Lil Bubble (Backstreet Boys Parody)', duration: 210 },
+            { id: 'GZ0YMSLZjfQ', title: 'Welcome To The Blockchain — Music Video', duration: 240 },
+            { id: 'Otkg4Ftx6GI', title: 'The Bitcoin Song', duration: 210 },
+            { id: '7gfBP8kPzRA', title: 'The Bitcoin Song — Jay-Z Empire State of Mind Parody', duration: 270 },
+            { id: 'WrEVpNdYkrs', title: 'B.R.E.A.M. — Zhou Tonged (Wu-Tang C.R.E.A.M. Parody)', duration: 240 },
+            { id: 'AKqdUAhX3nA', title: 'Bitcoin Is Hope ft. Michael Saylor', duration: 240 },
+            { id: 'KRopo3nofl4', title: '10,000 Bitcoin Remix — Laura Saggers', duration: 240 },
+            { id: 'U252iiG8YP0', title: 'Jingle Bells, Bank Cartels! A Bitcoin Christmas Song', duration: 210 },
         ]
     },
     {
@@ -393,6 +425,8 @@ var STATIONS = [
             { id: 'IuVkUqdqkcc', title: 'Buy Bitcoin When It Looks Like This — Exit Manual', duration: 653 },
             { id: '4tqXvMNOuHk', title: 'Bitcoin Ethical Superiority Explained — Exit Manual', duration: 480 },
             { id: 'Sv9VAocAA80', title: 'Max Keiser: Bitcoin Will Replace the Dollar', duration: 1200 },
+            { id: 'exK5yFEuBsk', title: 'Remember, Remember the 5th of November — Bitcoin', duration: 180 },
+            { id: 'MQvvLwxxxdM', title: 'The Banks are BROKE', duration: 600 },
         ]
     },
     {
