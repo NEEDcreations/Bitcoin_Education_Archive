@@ -15288,25 +15288,28 @@ window.getPredictionStats = function(user) {
 var _communityStatsCache = null;
 var _communityStatsCacheTs = 0;
 
+var _communityStatsUnsub = null;
 window.loadCommunityStats = function() {
     var el = document.getElementById('communityStatsInner');
     if (!el) return;
     var wrap = el.parentElement;
 
-    // Cache for 5 minutes
-    if (_communityStatsCache && Date.now() - _communityStatsCacheTs < 300000) {
+    // If already listening in real-time, just render cached
+    if (_communityStatsUnsub && _communityStatsCache) {
         _renderCommunityStats(el, wrap, _communityStatsCache);
         return;
     }
 
     if (typeof db === 'undefined' || typeof firebase === 'undefined') return;
     try {
-        db.collection('stats').doc('global').get().then(function(doc) {
+        // Real-time listener — stats update live
+        _communityStatsUnsub = db.collection('stats').doc('global').onSnapshot(function(doc) {
             var data = doc.exists ? doc.data() : {};
             _communityStatsCache = data;
             _communityStatsCacheTs = Date.now();
-            _renderCommunityStats(el, wrap, data);
-        }).catch(function() {});
+            var el2 = document.getElementById('communityStatsInner');
+            if (el2) _renderCommunityStats(el2, el2.parentElement, data);
+        });
     } catch(e) {}
 };
 
@@ -15320,6 +15323,7 @@ function _renderCommunityStats(el, wrap, data) {
     var visitEl = document.getElementById('visitCount');
     if (visitEl && visitEl.textContent !== '—') items.push('👥 <strong>' + visitEl.textContent + '</strong> total visits');
     if (data.userCount) items.push('🧑‍🤝‍🧑 <strong>' + _fmtNum(data.userCount) + '</strong> registered users');
+    if (data.watchTimeMinutes) { var hrs = Math.floor(data.watchTimeMinutes / 60); items.push('📺 <strong>' + (hrs > 0 ? _fmtNum(hrs) + ' hours' : data.watchTimeMinutes + ' min') + '</strong> Timechain TV watched'); }
     if (items.length === 0) { el.innerHTML = 'No stats yet'; return; }
     el.innerHTML = items.join(' &nbsp;·&nbsp; ');
 
@@ -15331,6 +15335,7 @@ function _renderCommunityStats(el, wrap, data) {
     _set('csSpins', data.spins);
     _set('csPvp', data.pvpMatches);
     _set('csUsers', data.userCount);
+    if (data.watchTimeMinutes) { var wh = Math.floor(data.watchTimeMinutes / 60); _set('csWatchTime', wh > 0 ? wh : data.watchTimeMinutes); }
 }
 
 function _fmtNum(n) {

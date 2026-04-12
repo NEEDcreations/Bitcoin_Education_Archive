@@ -1015,6 +1015,7 @@ window.renderTimechainTV = function() {
         // Sync every second for timeline bar + video transitions
         if (_syncInterval) clearInterval(_syncInterval);
         _syncInterval = setInterval(updateTimeline, 1000);
+        _startWatchTimeTracking();
     };
 
     if (!window._tctvFirstLoadDone) {
@@ -1142,8 +1143,29 @@ window.switchStation = function(stationId) {
 
 };
 
+// ── Watch Time Tracking ──
+// Increment global watchTimeMinutes every 60s while actively watching
+var _watchTimeInterval = null;
+function _startWatchTimeTracking() {
+    if (_watchTimeInterval) return;
+    _watchTimeInterval = setInterval(function() {
+        if (!_currentStation) return;
+        if (typeof firebase === 'undefined' || !firebase.firestore) return;
+        if (!firebase.auth || !firebase.auth().currentUser) return;
+        try {
+            firebase.firestore().collection('stats').doc('global').set({
+                watchTimeMinutes: firebase.firestore.FieldValue.increment(1)
+            }, { merge: true }).catch(function() {});
+        } catch(e) {}
+    }, 60000);
+}
+function _stopWatchTimeTracking() {
+    if (_watchTimeInterval) { clearInterval(_watchTimeInterval); _watchTimeInterval = null; }
+}
+
 // ── Cleanup ──
 window.cleanupTimechainTV = function() {
+    _stopWatchTimeTracking();
     leaveStation();
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
     if (window._tctvPlayEnforcer) { clearInterval(window._tctvPlayEnforcer); window._tctvPlayEnforcer = null; }
