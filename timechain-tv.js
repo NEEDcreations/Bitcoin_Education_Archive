@@ -591,7 +591,7 @@ function createPlayer(containerId, videoId, startSeconds) {
         playerVars: {
             start: Math.floor(startSeconds),
             autoplay: 1,
-            controls: 0,
+            controls: 1,
             modestbranding: 1,
             rel: 0,
             showinfo: 0,
@@ -722,7 +722,7 @@ window.renderTimechainTV = function() {
     // Video player area (click-blocking overlay prevents pause)
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
     html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
-    html += '<div id="tctv-overlay" style="position:absolute;inset:0;z-index:2;cursor:default;background:transparent;" title="Live — no pause allowed"></div>';
+    // Click overlay removed — controls enabled for user interaction
     html += '</div>';
 
     // Now playing bar
