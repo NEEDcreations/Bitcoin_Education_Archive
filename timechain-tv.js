@@ -825,7 +825,7 @@ window.renderTimechainTV = function() {
     html += '</div></div>';
 
     // Video player area (click-blocking overlay prevents pause)
-    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
+    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;">';
     html += '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
     html += '</div>';
 
