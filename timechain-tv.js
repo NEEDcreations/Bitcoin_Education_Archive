@@ -915,7 +915,7 @@ window.renderTimechainTV = function() {
 
 // ── Channel Switch White Noise ──
 // Brief noise overlay on the video area while new station loads underneath
-function showChannelNoise() {
+function showChannelNoise(stationName) {
     var playerWrap = document.getElementById('tctv-player') ? document.getElementById('tctv-player').parentElement : null;
     if (!playerWrap) return;
 
@@ -929,9 +929,10 @@ function showChannelNoise() {
     canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0.6;';
     overlay.appendChild(canvas);
 
-    // Station name flash
+    // Station name flash — centered within the overlay
     var label = document.createElement('div');
-    label.style.cssText = 'position:absolute;z-index:2;color:#f7931a;font-weight:900;font-size:1.2rem;letter-spacing:3px;text-shadow:0 0 20px rgba(247,147,26,0.5);';
+    label.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;color:#f7931a;font-weight:900;font-size:1.1rem;letter-spacing:3px;text-shadow:0 0 20px rgba(247,147,26,0.5);text-align:center;white-space:nowrap;';
+    label.textContent = stationName || '';
     overlay.appendChild(label);
 
     playerWrap.style.position = 'relative';
@@ -994,7 +995,8 @@ window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
 
     // Show white noise overlay while video loads underneath
-    showChannelNoise();
+    var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
+    showChannelNoise(stationObj ? stationObj.emoji + ' ' + stationObj.name : '');
 
     leaveStation();
     _currentStation = stationId;
