@@ -563,74 +563,22 @@ function showWhiteNoise(callback) {
 }
 
 // ── YouTube Player ──
-var _player = null;
-var _playerReady = false;
 var _currentVideoId = null;
 var _syncInterval = null;
 var _channelSwitchTimer = null;
 
-function loadYouTubeAPI() {
-    if (window.YT && window.YT.Player) return;
-    if (document.getElementById('yt-api-script')) return;
-    var tag = document.createElement('script');
-    tag.id = 'yt-api-script';
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-}
-
-function createPlayer(containerId, videoId, startSeconds) {
-    if (_player) {
-        try { _player.destroy(); } catch(e) {}
-        _player = null;
-    }
-    _playerReady = false;
+// Simple iframe embed — no YouTube API needed
+function loadVideo(videoId, startSeconds) {
+    var iframe = document.getElementById('tctv-player');
+    if (!iframe) return;
     _currentVideoId = videoId;
-
-    _player = new YT.Player(containerId, {
-        videoId: videoId,
-        playerVars: {
-            start: Math.floor(startSeconds),
-            autoplay: 1,
-            controls: 1,
-            modestbranding: 1,
-            rel: 0,
-            showinfo: 0,
-            iv_load_policy: 3,
-            fs: 0,
-            playsinline: 1,
-            disablekb: 1,
-            origin: window.location.origin
-        },
-        events: {
-            onReady: function(e) {
-                _playerReady = true;
-                e.target.setVolume(100);
-                e.target.playVideo();
-            },
-            onStateChange: function(e) {
-                if (e.data === YT.PlayerState.ENDED) {
-                    // Video ended — sync to next video immediately
-                    syncPlayer();
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 300);
-                } else if (e.data === YT.PlayerState.PAUSED) {
-                    // NEVER allow pause — force resume immediately
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 100);
-                } else if (e.data === YT.PlayerState.UNSTARTED || e.data === -1) {
-                    // Unstarted — force play with sync
-                    var station = STATIONS.find(function(s) { return s.id === _currentStation; });
-                    if (station) {
-                        var pb = getPlaybackState(station);
-                        if (pb.video) {
-                            _player.loadVideoById({ videoId: pb.video.id, startSeconds: pb.offset });
-                            _currentVideoId = pb.video.id;
-                        }
-                    }
-                    setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
-                }
-            }
-        }
-    });
+    iframe.src = 'https://www.youtube.com/embed/' + videoId +
+        '?start=' + Math.floor(startSeconds) +
+        '&autoplay=1&controls=1&modestbranding=1&rel=0' +
+        '&showinfo=0&iv_load_policy=3&playsinline=1';
 }
+
+// createPlayer removed — using simple iframe embeds
 
 function syncPlayer() {
     if (!_currentStation) return;
@@ -654,10 +602,7 @@ function syncPlayer() {
 
     // Check if we need to switch videos
     if (state.video.id !== _currentVideoId) {
-        if (_player && _playerReady) {
-            _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset }); setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
-            _currentVideoId = state.video.id;
-        }
+        loadVideo(state.video.id, state.offset);
     }
 }
 
@@ -694,11 +639,8 @@ window.renderTimechainTV = function() {
     var fc = document.getElementById('forumContainer');
     if (!fc) return;
 
-    // Prevent double-render from destroying the YouTube player
     if (window._tctvActive && document.getElementById('tctv-player')) return;
     window._tctvActive = true;
-
-    loadYouTubeAPI();
 
     // Default to first station
     var activeStation = _currentStation || STATIONS[0].id;
@@ -721,8 +663,7 @@ window.renderTimechainTV = function() {
 
     // Video player area (click-blocking overlay prevents pause)
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;">';
-    html += '<div id="tctv-player" style="width:100%;height:100%;"></div>';
-    // Click overlay removed — controls enabled for user interaction
+    html += '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
     html += '</div>';
 
     // Now playing bar
@@ -782,51 +723,18 @@ window.renderTimechainTV = function() {
         joinStation(activeStation);
 
         // Wait for YouTube API
-        function initPlayer() {
-            if (window.YT && window.YT.Player) {
-                var station = STATIONS.find(function(s) { return s.id === activeStation; });
-                if (station) {
-                    var state = getPlaybackState(station);
-                    if (state.video) {
-                        createPlayer('tctv-player', state.video.id, state.offset);
-                        var np = document.getElementById('tctv-now-playing');
-                        if (np) np.textContent = state.video.title;
-                    }
-                }
-                // Sync every second
-                if (_syncInterval) clearInterval(_syncInterval);
-                _syncInterval = setInterval(updateTimeline, 1000);
-
-                // Play enforcer — ensures video is ALWAYS playing, re-syncs if paused
-                if (window._tctvPlayEnforcer) clearInterval(window._tctvPlayEnforcer);
-                window._tctvPlayEnforcer = setInterval(function() {
-                    if (!_player || !_playerReady || !_currentStation) return;
-                    try {
-                        var state = _player.getPlayerState();
-                        // If not playing (paused, ended, unstarted, buffering too long)
-                        if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-                            // Re-sync to correct position and force play
-                            var station = STATIONS.find(function(s) { return s.id === _currentStation; });
-                            if (station) {
-                                var pb = getPlaybackState(station);
-                                if (pb.video) {
-                                    if (pb.video.id !== _currentVideoId) {
-                                        _player.loadVideoById({ videoId: pb.video.id, startSeconds: pb.offset });
-                                        _currentVideoId = pb.video.id;
-                                    } else {
-                                        _player.seekTo(pb.offset, true);
-                                    }
-                                    _player.playVideo();
-                                }
-                            }
-                        }
-                    } catch(e) {}
-                }, 2000);
-            } else {
-                setTimeout(initPlayer, 500);
+        var station = STATIONS.find(function(s) { return s.id === activeStation; });
+        if (station) {
+            var state = getPlaybackState(station);
+            if (state.video) {
+                loadVideo(state.video.id, state.offset);
+                var np = document.getElementById('tctv-now-playing');
+                if (np) np.textContent = state.video.title;
             }
         }
-        initPlayer();
+        // Sync every second for timeline bar + video transitions
+        if (_syncInterval) clearInterval(_syncInterval);
+        _syncInterval = setInterval(updateTimeline, 1000);
     };
 
     if (!window._tctvFirstLoadDone) {
@@ -864,15 +772,9 @@ window.switchStation = function(stationId) {
 
     var state = getPlaybackState(station);
 
-    // Load new video WITHOUT rebuilding the page
-    if (state.video && _player && _playerReady) {
-        _player.loadVideoById({ videoId: state.video.id, startSeconds: state.offset });
-        setTimeout(function() { if (_player && _playerReady) _player.playVideo(); }, 500);
-        _currentVideoId = state.video.id;
-    } else if (state.video) {
-        // Player not ready — recreate it
-        createPlayer('tctv-player', state.video.id, state.offset);
-        _currentVideoId = state.video.id;
+    // Load new video
+    if (state.video) {
+        loadVideo(state.video.id, state.offset);
     }
 
     // Update now playing text
@@ -904,22 +806,19 @@ window.switchStation = function(stationId) {
 
 // ── Cleanup ──
 window.cleanupTimechainTV = function() {
-    window._tctvActive = false;
     leaveStation();
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
     if (window._tctvPlayEnforcer) { clearInterval(window._tctvPlayEnforcer); window._tctvPlayEnforcer = null; }
     if (_viewerUnsub) { _viewerUnsub(); _viewerUnsub = null; }
-    if (_player) { try { _player.destroy(); } catch(e) {} _player = null; }
-    _playerReady = false;
+    var iframe = document.getElementById('tctv-player');
+    if (iframe) iframe.src = '';
     _currentVideoId = null;
+    window._tctvActive = false;
 };
 
 // Handle leaving the page
 window.addEventListener('pagehide', function() { leaveStation(); });
 window.addEventListener('beforeunload', function() { leaveStation(); });
-
-// YouTube API callback
-window.onYouTubeIframeAPIReady = window.onYouTubeIframeAPIReady || function() {};
 
 console.log('[TIMECHAIN TV] Module loaded — ' + STATIONS.length + ' stations');
 })();
