@@ -667,7 +667,7 @@ function loadVideo(videoId, startSeconds) {
     iframe.setAttribute('allowfullscreen', '');
     iframe.src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
-        '&autoplay=1&mute=1&controls=1&modestbranding=1&rel=0' +
+        '&autoplay=1&controls=1&modestbranding=1&rel=0' +
         '&showinfo=0&iv_load_policy=3&playsinline=1';
     wrap.appendChild(iframe);
 }
