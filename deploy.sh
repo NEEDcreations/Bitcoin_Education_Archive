@@ -10,6 +10,10 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
+# ---- Update data feeds ----
+echo "📊 Updating ETF holdings data..."
+bash scripts/update-etf-holdings.sh 2>&1 || echo "⚠️ ETF update failed (non-blocking)"
+
 # ---- Build: concatenate and minify bundle ----
 echo "🔨 Building bundle..."
 if [ -f build.sh ]; then

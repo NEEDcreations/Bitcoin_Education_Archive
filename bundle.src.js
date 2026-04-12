@@ -16917,7 +16917,7 @@ function renderDashboard(data) {
         var halvingPct = d.halving ? ((210000 - d.halving) / 210000 * 100).toFixed(1) : 0;
         var etaStr = d.halvingEta ? d.halvingEta.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—';
         var halvingTip = 'Every 210,000 blocks (~4 years), the Bitcoin block reward is cut in half. This is called the "halving." It reduces the rate of new Bitcoin created, enforcing scarcity. The reward started at 50 BTC in 2009 and has halved 4 times: 50 → 25 → 12.5 → 6.25 → 3.125 BTC. After the next halving, miners will receive 1.5625 BTC per block. There will only ever be 21 million Bitcoin.';
-        html += '<div onclick="event.stopPropagation();showDashTip(this,\'' + halvingTip.replace(/[\\'"]/g, "") + '\')" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.2)\'">';
+        html += '<div data-dash-tip="' + halvingTip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;">';
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
         // Store halving target for live countdown
         window._halvingTargetMs = Date.now() + (d.halving * 10 * 60 * 1000);
@@ -16995,7 +16995,7 @@ function renderDashboard(data) {
 
     // ── Bitcoin vs Gold (live data) ──
     var btcMktCapT = d.marketCap ? d.marketCap / 1e12 : 0;
-    html += '<div id="goldCompareCard" style="background:linear-gradient(135deg,rgba(234,179,8,0.06),rgba(247,147,26,0.03));border:1px solid rgba(234,179,8,0.25);border-radius:14px;padding:16px;margin-top:12px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(234,179,8,0.25)\'">';
+    html += '<div id="goldCompareCard" style="background:linear-gradient(135deg,rgba(234,179,8,0.06),rgba(247,147,26,0.03));border:1px solid rgba(234,179,8,0.25);border-radius:14px;padding:16px;margin-top:12px;cursor:help;position:relative;transition:0.2s;">';
     html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">⚖️ Bitcoin vs Gold <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
     html += '<div id="goldCompareData">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="color:var(--text-muted);font-size:0.78rem;">₿ Bitcoin</span><span style="color:var(--heading);font-weight:800;font-size:0.85rem;">$' + btcMktCapT.toFixed(2) + 'T</span></div>';
@@ -17008,13 +17008,22 @@ function renderDashboard(data) {
     setTimeout(function() { _fetchGoldData(btcMktCapT, d.supply || 0); }, 150);
 
     // ── Bitcoin Treasuries (live data from CoinGecko + government estimates) ──
-    html += '<div id="treasuryCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+    html += '<div id="treasuryCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;">';
     html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">🏛️ Bitcoin Treasuries <span style="opacity:0.4;font-size:0.55rem;">ⓘ tap for top holders</span></div>';
     html += '<div id="treasuryData" style="text-align:center;padding:10px;color:var(--text-muted);font-size:0.8rem;">Loading live treasury data...</div>';
     html += '</div>';
 
     // Fetch treasury data after render
     setTimeout(function() { _fetchTreasuryData(d.price || 0); }, 200);
+
+    // ── Bitcoin ETFs (top 5 by BTC holdings) ──
+    html += '<div id="etfHoldingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;position:relative;transition:0.2s;">';
+    html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px;">🏦 Bitcoin ETFs <span style="opacity:0.4;font-size:0.55rem;">top 5 by BTC in custody</span></div>';
+    html += '<div id="etfHoldingsData" style="text-align:center;padding:10px;color:var(--text-muted);font-size:0.8rem;">Loading ETF holdings...</div>';
+    html += '</div>';
+
+    // Render ETF holdings after DOM is ready
+    setTimeout(function() { _renderEtfHoldings(d.price || 0, d.supply || 0); }, 250);
 
     // Top Indicators (expandable)
     html += '<div style="margin-top:16px;">';
@@ -17035,14 +17044,17 @@ function renderDashboard(data) {
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
-    // Start halving countdown ticker after DOM renders
-    setTimeout(function() { if (window._halvingTargetMs && document.getElementById('halvSecs') && typeof window._startHalvingTicker === 'function') window._startHalvingTicker(); }, 100);
+    // Start halving countdown ticker + attach tooltip listeners after DOM renders
+    setTimeout(function() {
+        if (window._halvingTargetMs && document.getElementById('halvSecs') && typeof window._startHalvingTicker === 'function') window._startHalvingTicker();
+        if (typeof window._attachTipListeners === 'function') window._attachTipListeners();
+    }, 100);
 
     return html;
 }
 
 function metricCard(emoji, label, value, sub, tip) {
-    var tipAttr = tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"';
+    var tipAttr = tip ? ' data-dash-tip="' + tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;"' : ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;"';
     return '<div' + tipAttr + '>' +
         '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;">' + emoji + ' ' + label + (tip ? ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span>' : '') + '</div>' +
         '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-top:4px;letter-spacing:-0.3px;">' + (value || '—') + '</div>' +
@@ -17050,7 +17062,9 @@ function metricCard(emoji, label, value, sub, tip) {
     '</div>';
 }
 
-// Tooltip display
+// Tooltip display — hover on desktop, press on mobile
+var _isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
 window.showDashTip = function(el, text) {
     // Remove any existing tooltip
     var existing = document.getElementById('dashTipPopup');
@@ -17064,13 +17078,45 @@ window.showDashTip = function(el, text) {
     el.style.position = 'relative';
     el.appendChild(tip);
     
-    // Close on click anywhere else
+    // Close on click/tap anywhere else (mobile), or handled by mouseleave (desktop)
     setTimeout(function() {
         document.addEventListener('click', function _closeTip(e) {
             if (tip.parentNode) tip.remove();
             document.removeEventListener('click', _closeTip);
         }, { once: true });
     }, 50);
+};
+
+window.hideDashTip = function(el) {
+    var tip = el ? el.querySelector('#dashTipPopup') : document.getElementById('dashTipPopup');
+    if (tip) tip.remove();
+};
+
+// Attach hover/touch tooltip listeners to an element after it's rendered
+window._attachTipListeners = function() {
+    var cards = document.querySelectorAll('[data-dash-tip]:not([data-tip-bound])');
+    cards.forEach(function(card) {
+        card.setAttribute('data-tip-bound', '1');
+        var tipText = card.getAttribute('data-dash-tip');
+        if (!tipText) return;
+        if (_isTouchDevice) {
+            // Mobile: show on tap, dismiss on tap elsewhere
+            card.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var existing = card.querySelector('#dashTipPopup');
+                if (existing) { existing.remove(); return; }
+                showDashTip(card, tipText);
+            });
+        } else {
+            // Desktop: show on hover, hide on leave
+            card.addEventListener('mouseenter', function() {
+                showDashTip(card, tipText);
+            });
+            card.addEventListener('mouseleave', function() {
+                hideDashTip(card);
+            });
+        }
+    });
 };
 
 // ---- Dashboard Button now lives in userDisplay bar (ranking.js) — no separate fixed button ----
@@ -17788,7 +17834,7 @@ function loadTopIndicators() {
     indicators.forEach(function(ind) {
         var borderCol = ind.flashing ? 'rgba(239,68,68,0.5)' : 'var(--border)';
         var bgExtra = ind.flashing ? 'background:rgba(239,68,68,0.04);' : '';
-        html += '<div' + (ind.tip ? ' onclick="event.stopPropagation();showDashTip(this,\'' + ind.tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '\')" style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + borderCol + '\'"' : ' style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;position:relative;"') + '>';
+        html += '<div' + (ind.tip ? ' data-dash-tip="' + ind.tip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;cursor:help;transition:0.2s;position:relative;"' : ' style="' + bgExtra + 'border:1px solid ' + borderCol + ';border-radius:12px;padding:12px;position:relative;"') + '>';
         // Flashing badge
         if (!ind.noFlashLogic) {
             if (ind.flashing) {
@@ -17807,6 +17853,9 @@ function loadTopIndicators() {
     html += '<div style="grid-column:1/-1;text-align:center;padding:10px;"><a href="https://www.coinglass.com/pro/i/top-indicators" target="_blank" rel="noopener" style="color:var(--accent);font-size:0.75rem;font-weight:600;text-decoration:none;">View all indicators on CoinGlass →</a></div>';
 
     el.innerHTML = html;
+
+    // Attach tooltip listeners for indicator cards
+    setTimeout(function() { if (typeof window._attachTipListeners === 'function') window._attachTipListeners(); }, 50);
 
     // Cache the rendered indicators HTML
     try { localStorage.setItem(TOP_IND_CACHE_KEY, JSON.stringify({ html: html, ts: Date.now() })); } catch(e) {}
@@ -18102,9 +18151,9 @@ function loadTopIndicators() {
                 }
             }
             // ETF/BTC Ratio: ETF AUM / BTC market cap
-            // Estimate AUM from total BTC held (~1.05M BTC * current price)
-            // CoinGlass shows ~1.05M BTC total; use that as baseline
-            var etfBtcHeld = 1045000; // update periodically
+            // Try to get total from cached ETF JSON, fall back to estimate
+            var etfBtcHeld = ETF_TOTAL_BTC_FALLBACK;
+            try { var _ec = JSON.parse(localStorage.getItem('btc_etf_holdings_cache')); if (_ec && _ec.totalBtc) etfBtcHeld = _ec.totalBtc; } catch(e) {}
             var btcPrice = parseFloat(localStorage.getItem('btc_last_price')) || 83000;
             var etfAum = etfBtcHeld * btcPrice;
             var btcMktCap = btcPrice * 19840000; // supply
@@ -18186,11 +18235,12 @@ function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
             '<div style="color:var(--text-faint);font-size:0.55rem;margin-top:4px;">Gold: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz · Live via CoinGecko</div>';
     }
 
-    // Add tooltip
+    // Add tooltip via data attribute + re-attach listeners
     var card = document.getElementById('goldCompareCard');
     if (card) {
         var goldTip = 'Gold has been humanitys store of value for 5,000+ years. Bitcoin is digital gold — scarce, durable, portable, divisible, and verifiable. Gold price: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz. Total above-ground gold: ~212,582 tonnes (~6.83B troy oz). Gold market cap: ~$' + goldMktCapT.toFixed(1) + 'T. The flippening = Bitcoin absorbs golds entire monetary premium.';
-        card.setAttribute('onclick', 'event.stopPropagation();showDashTip(this,\'' + goldTip.replace(/[\\'"]/g, '') + '\')');
+        card.setAttribute('data-dash-tip', goldTip);
+        if (typeof window._attachTipListeners === 'function') window._attachTipListeners();
     }
 }
 
@@ -18281,6 +18331,83 @@ function _renderTreasury(container, data, btcPrice) {
     // Remove the onclick tip since we now show data inline
     var card = document.getElementById('treasuryCard');
     if (card) card.removeAttribute('onclick');
+}
+
+// ── Bitcoin ETF Holdings (loaded from data/etf-holdings.json, updated by cron) ──
+// Fallback data if JSON fetch fails
+var ETF_HOLDINGS_FALLBACK = [
+    { ticker: 'IBIT', name: 'BlackRock', btc: 798000, color: '#6366f1' },
+    { ticker: 'FBTC', name: 'Fidelity', btc: 217000, color: '#22c55e' },
+    { ticker: 'GBTC', name: 'Grayscale', btc: 183000, color: '#eab308' },
+    { ticker: 'ARKB', name: 'ARK 21Shares', btc: 65000, color: '#f97316' },
+    { ticker: 'BITB', name: 'Bitwise', btc: 55000, color: '#06b6d4' }
+];
+var ETF_TOTAL_BTC_FALLBACK = 1387000;
+
+function _renderEtfHoldings(btcPrice, supply) {
+    var container = document.getElementById('etfHoldingsData');
+    if (!container) return;
+    var price = btcPrice || parseFloat(localStorage.getItem('btc_last_price')) || 83000;
+    var totalSupply = supply || 19840000;
+
+    // Try to load from cached JSON first (instant render)
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem('btc_etf_holdings_cache')); } catch(e) {}
+    if (cached && cached.holdings) _renderEtfData(container, cached.holdings, cached.totalBtc, price, totalSupply, cached.updated);
+
+    // Fetch fresh data from JSON file (updated by cron: scripts/update-etf-holdings.sh)
+    fetch('data/etf-holdings.json?v=' + Math.floor(Date.now() / 3600000))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.holdings && data.holdings.length) {
+                try { localStorage.setItem('btc_etf_holdings_cache', JSON.stringify(data)); } catch(e) {}
+                _renderEtfData(container, data.holdings, data.totalBtc, price, totalSupply, data.updated);
+            }
+        })
+        .catch(function() {
+            // Use fallback if no cached data either
+            if (!cached) _renderEtfData(container, ETF_HOLDINGS_FALLBACK, ETF_TOTAL_BTC_FALLBACK, price, totalSupply, null);
+        });
+}
+
+function _renderEtfData(container, holdings, totalBtc, price, totalSupply, updatedStr) {
+    var totalAum = totalBtc * price;
+    var supplyPct = (totalBtc / totalSupply * 100).toFixed(1);
+    var maxBtc = holdings[0].btc;
+
+    var listHtml = holdings.map(function(etf) {
+        var barW = Math.max(4, (etf.btc / maxBtc * 100)).toFixed(0);
+        var aum = fmtDollar(etf.btc * price);
+        return '<div style="margin-bottom:8px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
+                '<span style="font-size:0.72rem;font-weight:700;color:var(--text);">' + etf.ticker + ' <span style="font-weight:400;color:var(--text-muted);">' + etf.name + '</span></span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:var(--accent);">' + fmtNum(etf.btc) + ' BTC</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;">' +
+                '<div style="flex:1;background:var(--border);height:5px;border-radius:3px;overflow:hidden;">' +
+                    '<div style="height:100%;background:' + etf.color + ';width:' + barW + '%;border-radius:3px;transition:width 0.5s;"></div>' +
+                '</div>' +
+                '<span style="font-size:0.55rem;color:var(--text-faint);min-width:36px;text-align:right;">' + aum + '</span>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    var updateLabel = '';
+    if (updatedStr) {
+        var ageHrs = Math.round((Date.now() - new Date(updatedStr).getTime()) / 3600000);
+        updateLabel = ageHrs < 1 ? 'Updated just now' : ageHrs < 24 ? 'Updated ' + ageHrs + 'h ago' : 'Updated ' + Math.round(ageHrs / 24) + 'd ago';
+    }
+
+    container.innerHTML =
+        '<div style="text-align:center;margin-bottom:10px;">' +
+            '<div style="font-size:1.2rem;font-weight:900;color:var(--heading);">' + fmtNum(totalBtc) + ' BTC</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-muted);">~' + fmtDollar(totalAum) + ' AUM · ' + supplyPct + '% of supply held in ETFs</div>' +
+        '</div>' +
+        '<div style="padding:0 4px;">' + listHtml + '</div>' +
+        '<div style="text-align:center;margin-top:8px;font-size:0.55rem;color:var(--text-faint);">' +
+            'Data: SEC filings + <a href="https://www.coinglass.com/BitcoinETF" target="_blank" rel="noopener" style="color:var(--accent);">CoinGlass</a>' +
+            (updateLabel ? ' · ' + updateLabel : '') +
+        '</div>';
 }
 
 // Live halving countdown ticker (updates every second)
