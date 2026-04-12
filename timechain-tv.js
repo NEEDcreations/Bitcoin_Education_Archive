@@ -830,6 +830,71 @@ window.renderTimechainTV = function() {
     }
 };
 
+// ── Channel Switch White Noise ──
+// Brief noise overlay on the video area while new station loads underneath
+function showChannelNoise() {
+    var playerWrap = document.getElementById('tctv-player') ? document.getElementById('tctv-player').parentElement : null;
+    if (!playerWrap) return;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'tctvChNoise';
+    overlay.style.cssText = 'position:absolute;inset:0;z-index:10;background:#000;display:flex;align-items:center;justify-content:center;';
+
+    var canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 90;
+    canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0.6;';
+    overlay.appendChild(canvas);
+
+    // Station name flash
+    var label = document.createElement('div');
+    label.style.cssText = 'position:absolute;z-index:2;color:#f7931a;font-weight:900;font-size:1.2rem;letter-spacing:3px;text-shadow:0 0 20px rgba(247,147,26,0.5);';
+    overlay.appendChild(label);
+
+    playerWrap.style.position = 'relative';
+    playerWrap.appendChild(overlay);
+
+    var ctx = canvas.getContext('2d');
+    var noiseInterval = setInterval(function() {
+        var imgData = ctx.createImageData(canvas.width, canvas.height);
+        var d = imgData.data;
+        for (var i = 0; i < d.length; i += 4) {
+            var v = Math.random() * 255;
+            d[i] = v; d[i+1] = v; d[i+2] = v; d[i+3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
+    }, 50);
+
+    // Brief audio burst
+    var audioCtx = null;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var bufSize = audioCtx.sampleRate * 0.3;
+        var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        var ch = buf.getChannelData(0);
+        for (var s = 0; s < bufSize; s++) ch[s] = Math.random() * 2 - 1;
+        var node = audioCtx.createBufferSource();
+        node.buffer = buf;
+        node.loop = true;
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0.06;
+        node.connect(gain);
+        gain.connect(audioCtx.destination);
+        node.start();
+        setTimeout(function() { try { node.stop(); audioCtx.close(); } catch(e) {} }, 800);
+    } catch(e) {}
+
+    // Fade out after 0.8s
+    setTimeout(function() {
+        overlay.style.transition = 'opacity 0.3s';
+        overlay.style.opacity = '0';
+        setTimeout(function() {
+            clearInterval(noiseInterval);
+            overlay.remove();
+        }, 300);
+    }, 800);
+}
+
 // ── Channel Switching ──
 // Scroll everything to top — called immediately and repeatedly
 function _tctvScrollTop() {
@@ -848,6 +913,9 @@ window.switchStation = function(stationId) {
     // IMMEDIATELY scroll to top
     _tctvScrollTop();
 
+    // Show white noise overlay while video loads underneath
+    showChannelNoise();
+
     leaveStation();
     _currentStation = stationId;
     saveStation(stationId);
@@ -858,7 +926,7 @@ window.switchStation = function(stationId) {
 
     var state = getPlaybackState(station);
 
-    // Load new video
+    // Load new video (starts loading behind the noise overlay)
     if (state.video) {
         loadVideo(state.video.id, state.offset);
     }
