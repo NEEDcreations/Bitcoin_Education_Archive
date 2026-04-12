@@ -604,8 +604,20 @@ function createPlayer(containerId, videoId, startSeconds) {
         events: {
             onReady: function(e) {
                 _playerReady = true;
-                e.target.setVolume(100);
+                // Start muted (Chrome allows muted autoplay without user gesture)
+                e.target.mute();
                 e.target.playVideo();
+                // Unmute after playback starts
+                setTimeout(function() {
+                    if (_player && _playerReady) {
+                        try {
+                            if (_player.getPlayerState() === YT.PlayerState.PLAYING) {
+                                _player.unMute();
+                                _player.setVolume(100);
+                            }
+                        } catch(ex) {}
+                    }
+                }, 1500);
             },
             onStateChange: function(e) {
                 if (e.data === YT.PlayerState.ENDED) {
