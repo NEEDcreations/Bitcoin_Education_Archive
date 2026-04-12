@@ -625,7 +625,7 @@ function showWhiteNoise(callback) {
         noiseNode.buffer = buffer;
         noiseNode.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.08;
+        gain.gain.value = 0.06;
         noiseNode.connect(gain);
         gain.connect(audioCtx.destination);
         noiseNode.start();
@@ -652,13 +652,24 @@ var _channelSwitchTimer = null;
 
 // Simple iframe embed — no YouTube API needed
 function loadVideo(videoId, startSeconds) {
-    var iframe = document.getElementById('tctv-player');
-    if (!iframe) return;
+    var old = document.getElementById('tctv-player');
+    if (!old) return;
+    var wrap = old.parentElement;
     _currentVideoId = videoId;
+
+    // Destroy and recreate iframe — browsers grant autoplay more reliably
+    // on a fresh iframe element vs. changing src on an existing one
+    old.remove();
+    var iframe = document.createElement('iframe');
+    iframe.id = 'tctv-player';
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    iframe.setAttribute('allowfullscreen', '');
     iframe.src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
-        '&autoplay=1&controls=1&modestbranding=1&rel=0' +
+        '&autoplay=1&mute=1&controls=1&modestbranding=1&rel=0' +
         '&showinfo=0&iv_load_policy=3&playsinline=1';
+    wrap.appendChild(iframe);
 }
 
 // createPlayer removed — using simple iframe embeds
@@ -877,7 +888,7 @@ function showChannelNoise() {
         node.buffer = buf;
         node.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.06;
+        gain.gain.value = 0.045;
         node.connect(gain);
         gain.connect(audioCtx.destination);
         node.start();
