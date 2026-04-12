@@ -811,6 +811,13 @@ window.renderTimechainTV = function() {
     if (window._tctvActive && document.getElementById('tctv-player')) return;
     window._tctvActive = true;
 
+    // Lock to portrait on mobile so channel guide stays accessible
+    try {
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(function() {});
+        }
+    } catch(e) {}
+
     // Restore last station or pick random on first visit
     var activeStation = _currentStation || getInitialStation();
 
@@ -856,7 +863,7 @@ window.renderTimechainTV = function() {
     var PX_PER_MIN = 10;
     var GUIDE_HOURS = 3;
     var GUIDE_WIDTH = GUIDE_HOURS * 60 * PX_PER_MIN; // 1800px
-    var CH_LABEL_W = 90; // station label column width
+    var CH_LABEL_W = 160; // station label column width (wide enough for longest names)
     var ROW_H = 52; // row height per station
 
     var now = new Date();
@@ -894,7 +901,7 @@ window.renderTimechainTV = function() {
         html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:' + ROW_H + 'px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.08)' : 'transparent') + ';">';
         html += '<span style="font-size:1rem;">' + s.emoji + '</span>';
         html += '<div style="min-width:0;">';
-        html += '<div data-ch-name style="font-size:0.65rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + s.name + '</div>';
+        html += '<div data-ch-name style="font-size:0.72rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';white-space:normal;line-height:1.15;">' + s.name + '</div>';
         html += '<span id="tctv-viewers-' + s.id + '" style="font-size:0.55rem;color:#22c55e;font-weight:600;"></span>';
         html += '</div>';
         html += '</div>';
@@ -1174,6 +1181,13 @@ window.cleanupTimechainTV = function() {
     if (iframe) iframe.src = '';
     _currentVideoId = null;
     window._tctvActive = false;
+
+    // Unlock orientation when leaving Timechain TV
+    try {
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+    } catch(e) {}
 };
 
 // Handle leaving the page
