@@ -4478,6 +4478,10 @@ window.nachoQuizAnswer = function(btn, correct) {
                 case 'lightning':
                     if (typeof go === 'function') { go('lightning'); return; }
                     break;
+                case 'timechain-tv':
+                case 'tv':
+                    if (typeof go === 'function') { go('timechain-tv'); return; }
+                    break;
                 case 'dashboard':
                 case 'bitcoin-dashboard':
                 case 'metrics':
