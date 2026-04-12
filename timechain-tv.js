@@ -549,46 +549,80 @@ function getPlaybackState(station) {
     return { videoIndex: 0, offset: 0, video: station.videos[0] };
 }
 
-// ── Viewer Counting ──
+// ── Viewer Counting (Presence-Based) ──
+// Each viewer writes a personal doc with timestamp + station.
+// Docs older than 60s are stale (viewer gone). Heartbeat every 30s.
 var _viewerUnsub = null;
 var _currentStation = null;
-var _viewerDocRef = null;
+var _viewerId = null;
+var _viewerHeartbeat = null;
 var _viewerCounts = {};
+
+function _getViewerId() {
+    if (_viewerId) return _viewerId;
+    try {
+        _viewerId = localStorage.getItem('tctv_viewerId');
+        if (_viewerId) return _viewerId;
+    } catch(e) {}
+    _viewerId = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { localStorage.setItem('tctv_viewerId', _viewerId); } catch(e) {}
+    return _viewerId;
+}
+
+function _writePresence(stationId) {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    var db = firebase.firestore();
+    db.collection('tctv_presence').doc(_getViewerId()).set({
+        station: stationId,
+        ts: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+}
+
+function _deletePresence() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    var db = firebase.firestore();
+    db.collection('tctv_presence').doc(_getViewerId()).delete().catch(function() {});
+}
 
 function joinStation(stationId) {
     leaveStation();
     _currentStation = stationId;
 
-    if (typeof firebase !== 'undefined' && firebase.firestore) {
+    // Write presence immediately
+    _writePresence(stationId);
+
+    // Heartbeat every 30s to stay "alive"
+    _viewerHeartbeat = setInterval(function() {
+        if (_currentStation) _writePresence(_currentStation);
+    }, 30000);
+
+    // Listen for all presence docs (real-time)
+    if (!_viewerUnsub && typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
-        _viewerDocRef = db.collection('timechain_viewers').doc(stationId);
-
-        // Increment viewer count
-        _viewerDocRef.set({
-            count: firebase.firestore.FieldValue.increment(1),
-            lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(function() {});
-
-        // Listen for viewer count changes across all stations
-        if (!_viewerUnsub) {
-            _viewerUnsub = db.collection('timechain_viewers').onSnapshot(function(snap) {
-                snap.forEach(function(doc) {
-                    _viewerCounts[doc.id] = doc.data().count || 0;
-                });
-                updateViewerBadges();
+        _viewerUnsub = db.collection('tctv_presence').onSnapshot(function(snap) {
+            var counts = {};
+            var now = Date.now();
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                if (!d.station || !d.ts) return;
+                // Only count docs with timestamp within last 60s
+                var docTime = d.ts.toMillis ? d.ts.toMillis() : 0;
+                if (now - docTime < 65000) {
+                    counts[d.station] = (counts[d.station] || 0) + 1;
+                }
             });
-        }
+            _viewerCounts = counts;
+            updateViewerBadges();
+        });
     }
 }
 
 function leaveStation() {
-    if (_currentStation && _viewerDocRef) {
-        _viewerDocRef.set({
-            count: firebase.firestore.FieldValue.increment(-1)
-        }, { merge: true }).catch(function() {});
+    if (_currentStation) {
+        _deletePresence();
     }
+    if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
     _currentStation = null;
-    _viewerDocRef = null;
 }
 
 function updateViewerBadges() {
