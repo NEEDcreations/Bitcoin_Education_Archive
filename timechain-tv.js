@@ -899,6 +899,8 @@ window.renderTimechainTV = function() {
     STATIONS.forEach(function(s, idx) {
         var isActive = s.id === activeStation;
         html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:' + ROW_H + 'px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.08)' : 'transparent') + ';">';
+        var chNum = idx + 1;
+        html += '<span style="font-size:0.6rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#666') + ';min-width:14px;text-align:right;">' + chNum + '</span>';
         html += '<span style="font-size:1rem;">' + s.emoji + '</span>';
         html += '<div style="min-width:0;">';
         html += '<div data-ch-name style="font-size:0.72rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';white-space:normal;line-height:1.15;">' + s.name + '</div>';
