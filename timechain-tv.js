@@ -591,6 +591,7 @@ function createPlayer(containerId, videoId, startSeconds) {
         playerVars: {
             start: Math.floor(startSeconds),
             autoplay: 1,
+            mute: 1,
             controls: 0,
             modestbranding: 1,
             rel: 0,
