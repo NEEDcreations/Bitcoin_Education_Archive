@@ -758,7 +758,6 @@ function _tctvScrollTop() {
 }
 
 window.switchStation = function(stationId) {
-    console.log('[TCTV] switchStation called:', stationId, 'current:', _currentStation);
     if (stationId === _currentStation) return;
 
     // IMMEDIATELY scroll to top
@@ -774,10 +773,8 @@ window.switchStation = function(stationId) {
     var state = getPlaybackState(station);
 
     // Load new video
-    console.log('[TCTV] state.video:', state.video ? state.video.id : 'NONE', 'offset:', state.offset);
     if (state.video) {
         loadVideo(state.video.id, state.offset);
-        console.log('[TCTV] loadVideo called, iframe src:', document.getElementById('tctv-player')?.src?.substring(0, 80));
     }
 
     // Update now playing text
