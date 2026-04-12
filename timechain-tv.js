@@ -775,6 +775,9 @@ window.renderTimechainTV = function() {
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
 
+    // Sticky top section: header + video + now playing + progress
+    html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
+
     // Header bar
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);">';
     html += '<div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;">';
@@ -805,6 +808,9 @@ window.renderTimechainTV = function() {
 
     // Progress bar
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
+
+    // Close sticky top section
+    html += '</div>';
 
     // Channel guide
     html += '<div style="padding:12px 16px 8px;"><div style="font-size:0.65rem;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">CHANNELS</div></div>';
@@ -955,9 +961,6 @@ function _tctvScrollTop() {
 window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
 
-    // IMMEDIATELY scroll to top
-    _tctvScrollTop();
-
     // Show white noise overlay while video loads underneath
     showChannelNoise();
 
@@ -997,10 +1000,6 @@ window.switchStation = function(stationId) {
         if (dot) dot.style.display = isActive ? 'inline-block' : 'none';
     });
 
-    // Keep scrolling
-    _tctvScrollTop();
-    setTimeout(_tctvScrollTop, 100);
-    setTimeout(_tctvScrollTop, 300);
 };
 
 // ── Cleanup ──
