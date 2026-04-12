@@ -492,9 +492,12 @@ function updateViewerBadges() {
 
 // ── White Noise Loading Screen ──
 function showWhiteNoise(callback) {
+    var existing = document.getElementById('tctvNoise');
+    if (existing) existing.remove();
+
     var overlay = document.createElement('div');
     overlay.id = 'tctvNoise';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:200000;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:200000;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;';
 
     // Canvas for static noise
     var canvas = document.createElement('canvas');
@@ -503,16 +506,17 @@ function showWhiteNoise(callback) {
     canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.6;';
     overlay.appendChild(canvas);
 
-    // Title overlay
+    // Title overlay with tap prompt
     var title = document.createElement('div');
     title.style.cssText = 'position:relative;z-index:2;text-align:center;';
     title.innerHTML = '<div style="font-size:2.5rem;font-weight:900;color:#f7931a;text-shadow:0 0 30px rgba(247,147,26,0.5);letter-spacing:4px;margin-bottom:8px;">TIMECHAIN TV</div>' +
-        '<div style="font-size:0.85rem;color:#888;letter-spacing:2px;">TUNING IN...</div>';
+        '<div style="font-size:1rem;color:#f7931a;letter-spacing:2px;margin-top:16px;animation:tctvPulse 1.5s ease-in-out infinite;">▶ TAP TO TUNE IN</div>' +
+        '<style>@keyframes tctvPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }</style>';
     overlay.appendChild(title);
 
     document.body.appendChild(overlay);
 
-    // Animate static noise
+    // Animate static noise immediately (visual only, no sound yet)
     var ctx = canvas.getContext('2d');
     var noiseInterval = setInterval(function() {
         var imgData = ctx.createImageData(canvas.width, canvas.height);
@@ -527,39 +531,53 @@ function showWhiteNoise(callback) {
         ctx.putImageData(imgData, 0, 0);
     }, 50);
 
-    // White noise audio
-    var audioCtx = null;
-    var noiseNode = null;
-    try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        var bufferSize = audioCtx.sampleRate * 0.5; // 0.5 seconds
-        var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        var channelData = buffer.getChannelData(0);
-        for (var s = 0; s < bufferSize; s++) {
-            channelData[s] = Math.random() * 2 - 1;
-        }
-        noiseNode = audioCtx.createBufferSource();
-        noiseNode.buffer = buffer;
-        noiseNode.loop = true;
-        var gain = audioCtx.createGain();
-        gain.gain.value = 0.08;
-        noiseNode.connect(gain);
-        gain.connect(audioCtx.destination);
-        noiseNode.start();
-    } catch(e) {}
+    // User tap — this provides the gesture that unlocks audio
+    function onTap() {
+        overlay.removeEventListener('click', onTap);
+        overlay.style.cursor = 'default';
 
-    // Fade out after 1.5s
-    setTimeout(function() {
-        overlay.style.transition = 'opacity 0.5s';
-        overlay.style.opacity = '0';
-        if (noiseNode) { try { noiseNode.stop(); } catch(e) {} }
-        if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
+        // Mark that user has interacted — videos can now play with sound
+        window._tctvUserGesture = true;
+
+        // Play white noise audio (now allowed because of tap)
+        var audioCtx = null;
+        var noiseNode = null;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var bufferSize = audioCtx.sampleRate * 0.5;
+            var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            var channelData = buffer.getChannelData(0);
+            for (var s = 0; s < bufferSize; s++) {
+                channelData[s] = Math.random() * 2 - 1;
+            }
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = buffer;
+            noiseNode.loop = true;
+            var gain = audioCtx.createGain();
+            gain.gain.value = 0.04;
+            noiseNode.connect(gain);
+            gain.connect(audioCtx.destination);
+            noiseNode.start();
+        } catch(e) {}
+
+        // Update text
+        title.innerHTML = '<div style="font-size:2.5rem;font-weight:900;color:#f7931a;text-shadow:0 0 30px rgba(247,147,26,0.5);letter-spacing:4px;margin-bottom:8px;">TIMECHAIN TV</div>' +
+            '<div style="font-size:0.85rem;color:#888;letter-spacing:2px;">TUNING IN...</div>';
+
+        // Fade out after 1s
         setTimeout(function() {
-            clearInterval(noiseInterval);
-            overlay.remove();
-            if (callback) callback();
+            overlay.style.transition = 'opacity 0.5s';
+            overlay.style.opacity = '0';
+            if (noiseNode) { try { noiseNode.stop(); } catch(e) {} }
+            if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
+            setTimeout(function() {
+                clearInterval(noiseInterval);
+                overlay.remove();
+                if (callback) callback();
         }, 500);
-    }, 1500);
+    }, 1000);
+    }
+    overlay.addEventListener('click', onTap);
 }
 
 // ── YouTube Player ──
@@ -574,7 +592,7 @@ function loadVideo(videoId, startSeconds) {
     _currentVideoId = videoId;
     var src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
-        '&autoplay=1&mute=1&controls=1&modestbranding=1&rel=0' +
+        '&autoplay=1' + (window._tctvUserGesture ? '' : '&mute=1') + '&controls=1&modestbranding=1&rel=0' +
         '&showinfo=0&iv_load_policy=3&fs=0&playsinline=1&disablekb=1';
     iframe.src = src;
 }
