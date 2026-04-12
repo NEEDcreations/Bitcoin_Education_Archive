@@ -575,8 +575,7 @@ function loadVideo(videoId, startSeconds) {
     var src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
         '&autoplay=1&mute=1&controls=0&modestbranding=1&rel=0' +
-        '&showinfo=0&iv_load_policy=3&fs=0&playsinline=1&disablekb=1' +
-        '&origin=' + encodeURIComponent(window.location.origin);
+        '&showinfo=0&iv_load_policy=3&fs=0&playsinline=1&disablekb=1';
     iframe.src = src;
 }
 
