@@ -2840,7 +2840,7 @@ window.renderTimechainTV = function() {
             #tctv-remote { position: relative; top: 0; right: 0; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 15px; border-radius: 0; border: none; border-bottom: 1px solid #222; box-shadow: none; transform: none !important; opacity: 1 !important; z-index: 10; gap: 20px; }
             #tctv-remote.collapsed { transform: none; opacity: 1; }
             .remote-btn { width: 50px; height: 50px; box-shadow: 0 3px 0 #111; }
-            #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 20px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; }
+            #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 20px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; z-index: 1 !important; }
             @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
