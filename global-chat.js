@@ -252,9 +252,10 @@ function renderGlobalChat() {
             ) +
         '</div>';
 
-    // Input handling: character counter + autocomplete
+    // Input handling: character counter + autocomplete + paste
     var input = document.getElementById('globalChatInput');
     if (input) {
+        input.addEventListener('paste', handlePaste);
         input.addEventListener('input', function() {
             var counter = document.getElementById('globalChatCharCount');
             if (counter) counter.textContent = this.value.length;
@@ -631,6 +632,29 @@ window.cancelReply = function() {
     var banner = document.getElementById('chatReplyBanner');
     if (banner) banner.style.display = 'none';
 };
+
+// ---- Paste Image Handling ----
+function handlePaste(e) {
+    var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            var file = items[i].getAsFile();
+            if (file) {
+                if (file.size > 10 * 1024 * 1024) {
+                    if (typeof showToast === 'function') showToast('Pasted image too large (max 10MB)');
+                    continue;
+                }
+                if (file.type === 'image/gif') {
+                    readAndPreview(file);
+                } else {
+                    compressAndPreview(file);
+                }
+                // Preemptively prevent text paste if an image was handled
+                // (though usually you want both if both are present)
+            }
+        }
+    }
+}
 
 // ---- Send Message ----
 window.sendGlobalChat = function() {
@@ -1141,6 +1165,7 @@ function renderOverlayChat() {
     // Wire up input handlers
     var input = document.getElementById('globalChatInput');
     if (input) {
+        input.addEventListener('paste', handlePaste);
         input.addEventListener('input', function() {
             handleAutocomplete(this);
         });
