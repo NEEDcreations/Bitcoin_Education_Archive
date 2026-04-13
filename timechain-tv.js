@@ -145,6 +145,21 @@ var STATIONS = [
                 "id": "occ9L0dMMO4",
                 "duration": 600,
                 "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob"
+            },
+            {
+                "id": "RnducAborVw",
+                "duration": 180,
+                "title": "Bitcoin Art Gallery - Miami 2022"
+            },
+            {
+                "id": "2Jf8sxF8QFQ",
+                "duration": 120,
+                "title": "Miami debuts Bitcoin Bull Statue"
+            },
+            {
+                "id": "vPUpdXZPpbQ",
+                "duration": 180,
+                "title": "Nashville Bitcoin Mural - Sound Money"
             }
         ]
     },
