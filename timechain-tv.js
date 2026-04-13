@@ -156,7 +156,7 @@ var STATIONS = [
                 "title": "Nashville Bitcoin Mural - Sound Money"
             },
             {
-                "id": "mu7e3KMTI-Q",
+                "id": "9UxAUryUKXM",
                 "duration": 36000,
                 "title": "10 Hours of Bitcoin Lofi & Philosophy"
             }
@@ -652,22 +652,22 @@ var STATIONS = [
                 "duration": 2400
             },
             {
-                "id": "q0QUo6Qt09s",
+                "id": "LtcbR98uTJQ",
                 "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
                 "duration": 7200
             },
             {
-                "id": "bHv7lE42Yus",
+                "id": "1Ms7ql_S63A",
                 "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
                 "duration": 7800
             },
             {
-                "id": "x7jDW5j9kC4",
+                "id": "ssEMtaRwra0",
                 "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
                 "duration": 8100
             },
             {
-                "id": "fD3ppjX7ISc",
+                "id": "bjvMt0xaSUQ",
                 "title": "The Saylor Series | Part 4: The Future of Bitcoin & Civilization",
                 "duration": 7500
             },
@@ -727,12 +727,12 @@ var STATIONS = [
                 "duration": 720
             },
             {
-                "id": "j4nP9HjT1Lw",
+                "id": "yQL9yua9Yq0",
                 "title": "Michael Saylor on Bitcoin: The Digital Transformation",
                 "duration": 3600
             },
             {
-                "id": "sI9p70_Wc6o",
+                "id": "KxTWC3ShYDE",
                 "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
                 "duration": 1800
             },
@@ -752,7 +752,7 @@ var STATIONS = [
                 "duration": 646
             },
             {
-                "id": "T7X9b8yC5nM",
+                "id": "coHC_9ApBdg",
                 "title": "Michael Saylor: The Bitcoin Standard for Corporations",
                 "duration": 5400
             },
@@ -2283,42 +2283,42 @@ var STATIONS = [
                 "duration": 600
             },
             {
-                "id": "rJ26X7Z5hX8",
+                "id": "6xIq0FdmsIA",
                 "duration": 4320,
                 "title": "Andreas Antonopoulos: Internet of Money - Keynote"
             },
             {
-                "id": "8Y-5rE5f5V0",
+                "id": "rc744Z9IjhY",
                 "duration": 3600,
                 "title": "Andreas Antonopoulos: The Internet of Money - What is Bitcoin?"
             },
             {
-                "id": "j23Hh0vQ7zQ",
+                "id": "y1KXs3uE42I",
                 "duration": 5400,
                 "title": "Andreas Antonopoulos: Why Bitcoin Matters - Internet of Money"
             },
             {
-                "id": "q3X4z5Y6wQ8",
+                "id": "KW_wYvZ1eZg",
                 "duration": 4800,
                 "title": "Andreas Antonopoulos: Decentralization & The Future of Money"
             },
             {
-                "id": "lN9G5H0oK9J",
+                "id": "y37M6WJks0A",
                 "duration": 4200,
                 "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking"
             },
             {
-                "id": "sM2N5P7pL7M",
+                "id": "oXjY5A7jW2Q",
                 "duration": 3900,
                 "title": "Andreas Antonopoulos: The Architecture of Trust"
             },
             {
-                "id": "tR4K6N8qN3O",
+                "id": "xS2F7G8H9I0",
                 "duration": 4500,
                 "title": "Andreas Antonopoulos: Money as a Content Type"
             },
             {
-                "id": "uP8S7Q1rS5T",
+                "id": "p6kBKStI-Q1",
                 "duration": 3600,
                 "title": "Andreas Antonopoulos: Bitcoin for Beginners - Full Explainer"
             },
