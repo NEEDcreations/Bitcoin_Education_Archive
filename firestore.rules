@@ -104,17 +104,19 @@ service cloud.firestore {
       allow create, update: if statId == 'predictions'
                             && request.auth != null
                             && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
-      // Global community stats — increment by 1 only, authenticated
+      // Global community stats — increment by 1 only, authenticated, 1 key at a time
       allow update: if statId == 'global'
                     && request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatMessages', 'channelVisits', 'questsCompleted', 'spins', 'pvpMatches', 'userCount', 'watchTimeMinutes'])
-                    && request.resource.data.chatMessages <= resource.data.get('chatMessages', 0) + 1
-                    && request.resource.data.channelVisits <= resource.data.get('channelVisits', 0) + 1
-                    && request.resource.data.questsCompleted <= resource.data.get('questsCompleted', 0) + 1
-                    && request.resource.data.spins <= resource.data.get('spins', 0) + 1
-                    && request.resource.data.pvpMatches <= resource.data.get('pvpMatches', 0) + 1
-                    && request.resource.data.userCount <= resource.data.get('userCount', 0) + 1
-                    && request.resource.data.watchTimeMinutes <= resource.data.get('watchTimeMinutes', 0) + 1;
+                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
+                    && (
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatMessages']) && request.resource.data.chatMessages == resource.data.get('chatMessages', 0) + 1) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['channelVisits']) && request.resource.data.channelVisits == resource.data.get('channelVisits', 0) + 1) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['questsCompleted']) && request.resource.data.questsCompleted == resource.data.get('questsCompleted', 0) + 1) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spins']) && request.resource.data.spins == resource.data.get('spins', 0) + 1) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pvpMatches']) && request.resource.data.pvpMatches == resource.data.get('pvpMatches', 0) + 1) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userCount']) && request.resource.data.userCount == resource.data.get('userCount', 0) + 1) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watchTimeMinutes']) && request.resource.data.watchTimeMinutes == resource.data.get('watchTimeMinutes', 0) + 1)
+                    );
     }
 
     // Active predictions (for server-side resolution)
