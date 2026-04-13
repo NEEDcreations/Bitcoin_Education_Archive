@@ -2691,7 +2691,7 @@ function _renderEPG() {
         html += '<span style="font-size:0.65rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#666') + ';min-width:16px;text-align:right;">' + (idx + 1) + '</span>';
         html += '<span style="font-size:1.1rem;">' + s.emoji + '</span>';
         html += '<div style="min-width:0;">';
-        html += '<div data-ch-name style="font-size:0.75rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + s.name + '</div>';
+        html += '<div data-ch-name style="font-size:0.72rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';line-height:1.1;">' + s.name + '</div>';
         html += '<span id="tctv-viewers-' + s.id + '" style="font-size:0.55rem;color:#22c55e;font-weight:600;"></span>';
         html += '</div></div>';
     });
