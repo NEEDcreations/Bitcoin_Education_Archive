@@ -747,9 +747,9 @@ var STATIONS = [
                 "duration": 600
             },
             {
-                "id": "M4gF3X7P9mQ",
+                "id": "9jsmGd9puYU",
                 "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
-                "duration": 2400
+                "duration": 646
             },
             {
                 "id": "T7X9b8yC5nM",
@@ -3009,13 +3009,20 @@ window.renderTimechainTV = function() {
         @media (min-width: 901px) { 
             #nacho-couch { display: block; } 
         }
-        /* Mobile — stack Nacho and Remote between video and list */
+        /* Mobile — maximize video, minimize other UI */
         @media (max-width: 900px) { 
-            #tctv-remote { position: relative; top: 0; right: 0; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 15px; border-radius: 0; border: none; border-bottom: 1px solid #222; box-shadow: none; transform: none !important; opacity: 1 !important; z-index: 10; gap: 20px; }
+            #tctv-remote { position: relative; top: 0; right: 0; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 6px; border-radius: 0; border: none; border-bottom: 1px solid #222; box-shadow: none; transform: none !important; opacity: 1 !important; z-index: 10; gap: 10px; }
             #tctv-remote.collapsed { transform: none; opacity: 1; }
-            .remote-btn { width: 50px; height: 50px; box-shadow: 0 3px 0 #111; }
-            #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 20px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; z-index: 1 !important; }
+            .remote-btn { width: 38px; height: 38px; font-size: 1rem; box-shadow: 0 2px 0 #111; }
+            .remote-label { display: none; }
+            .remote-input { width: 34px; font-size: 0.8rem; }
+            #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 4px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; z-index: 1 !important; height: 60px; overflow: hidden; }
+            #nacho-couch > div { height: 60px !important; transform: scale(0.7); transform-origin: center; }
             #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
+            /* Make video larger on mobile */
+            .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
+            #tctv-video-container { max-height: 65vh !important; border-radius: 0 !important; }
+            #tctv-player { max-height: 65vh !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
@@ -3058,9 +3065,9 @@ window.renderTimechainTV = function() {
             '<span style="position:absolute;top:-20px;right:-20px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.65rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
             '</div>' +
             '</div></div>';
-    // Center - Video player (narrower to make room)
-    html += '<div style="flex:0 1 auto;max-width:calc(100% - 280px);min-width:0;">' +
-            '<div style="position:relative;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;border-radius:8px;">' +
+    // Center - Video player (narrower on desktop, full width on mobile)
+    html += '<div style="flex:0 1 auto;max-width:calc(100% - 280px);min-width:0;" class="tctv-video-wrap">' +
+            '<div style="position:relative;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;border-radius:8px;" id="tctv-video-container">' +
             '<div id="tctv-pause-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;">' +
                 '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
                 '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
