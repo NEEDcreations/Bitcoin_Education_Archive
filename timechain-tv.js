@@ -10,495 +10,2312 @@
 // Videos play in order, looping forever, synced to global clock
 var STATIONS = [
     {
-        id: 'art-philosophy',
-        name: 'Art & Philosophy',
-        emoji: '🎨',
-        desc: 'Bitcoin art, ordinals & deeper meaning',
-        color: '#a855f7',
-        videos: [
-            { id: 'QVg0ZmxrYLo', title: 'Bitcoin\'s Most Beautifully Absurd Art Drop', duration: 1020 },
-            { id: 'j3QJlyRMHpI', title: 'Art on Bitcoin: Shaping the Future of Digital Creativity', duration: 2700 },
-            { id: 'XHBydlTt2jM', title: 'The Rise of Ordinals and Art on Bitcoin', duration: 1800 },
-            { id: 'UrCN7oG_4YY', title: 'Bitcoin NFTs: How to Create Ordinal Inscriptions', duration: 900 },
-            { id: 'ic6pDq3OAec', title: 'Philosophy of Bitcoin — First Principles', duration: 3600 },
-            { id: 'yMoVGgR6h0Y', title: 'Money: The Language of Power — Robert Breedlove', duration: 3600 },
-            { id: 'NALikCvCyes', title: 'The Truth About Money, Inflation and Bitcoin — Robert Breedlove', duration: 2400 },
-            { id: 'JffTkZZC2z8', title: 'What is Money? — Robert Breedlove', duration: 1800 },
-            { id: '1gnIbVFnuCY', title: 'The Biggest Scam in Human History — Robert Breedlove', duration: 5400 },
-            { id: 'PqFz8R1CZYo', title: 'Bitcoin as a Kardashev-Scale Technology — Robert Breedlove', duration: 2400 },
-            { id: 'cKkokcMMnpc', title: 'Bitcoin Aligns with the Laws of Nature — Robert Breedlove', duration: 1800 },
-            { id: 'N3J868zhH9g', title: 'Bitcoin Is Encrypted Energy — Breedlove & Saylor', duration: 2400 },
-            { id: '7DIp6D-68cQ', title: 'Can Bitcoin Rebuild Civilization? — Saifedean Ammous', duration: 3033 },
-            { id: 'gb2S1Filtic', title: 'How Bitcoin Fixes Fiat\'s Millennium of Mistakes — Saifedean', duration: 1587 },
-            { id: 'SKIIif9WQok', title: 'Bitcoin Renaissance Legacy: Beyond Digital Gold', duration: 1242 },
+        "id": "art-philosophy",
+        "name": "Art & Philosophy",
+        "emoji": "🎨",
+        "desc": "Bitcoin art, ordinals & deeper meaning",
+        "color": "#a855f7",
+        "videos": [
+            {
+                "id": "QVg0ZmxrYLo",
+                "title": "Bitcoin's Most Beautifully Absurd Art Drop",
+                "duration": 1020
+            },
+            {
+                "id": "j3QJlyRMHpI",
+                "title": "Art on Bitcoin: Shaping the Future of Digital Creativity",
+                "duration": 2700
+            },
+            {
+                "id": "XHBydlTt2jM",
+                "title": "The Rise of Ordinals and Art on Bitcoin",
+                "duration": 1800
+            },
+            {
+                "id": "UrCN7oG_4YY",
+                "title": "Bitcoin NFTs: How to Create Ordinal Inscriptions",
+                "duration": 900
+            },
+            {
+                "id": "ic6pDq3OAec",
+                "title": "Philosophy of Bitcoin — First Principles",
+                "duration": 3600
+            },
+            {
+                "id": "yMoVGgR6h0Y",
+                "title": "Money: The Language of Power — Robert Breedlove",
+                "duration": 3600
+            },
+            {
+                "id": "NALikCvCyes",
+                "title": "The Truth About Money, Inflation and Bitcoin — Robert Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "JffTkZZC2z8",
+                "title": "What is Money? — Robert Breedlove",
+                "duration": 1800
+            },
+            {
+                "id": "1gnIbVFnuCY",
+                "title": "The Biggest Scam in Human History — Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "PqFz8R1CZYo",
+                "title": "Bitcoin as a Kardashev-Scale Technology — Robert Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "cKkokcMMnpc",
+                "title": "Bitcoin Aligns with the Laws of Nature — Robert Breedlove",
+                "duration": 1800
+            },
+            {
+                "id": "N3J868zhH9g",
+                "title": "Bitcoin Is Encrypted Energy — Breedlove & Saylor",
+                "duration": 2400
+            },
+            {
+                "id": "7DIp6D-68cQ",
+                "title": "Can Bitcoin Rebuild Civilization? — Saifedean Ammous",
+                "duration": 3033
+            },
+            {
+                "id": "gb2S1Filtic",
+                "title": "How Bitcoin Fixes Fiat's Millennium of Mistakes — Saifedean",
+                "duration": 1587
+            },
+            {
+                "id": "SKIIif9WQok",
+                "title": "Bitcoin Renaissance Legacy: Beyond Digital Gold",
+                "duration": 1242
+            },
+            {
+                "id": "MRnmP7pbR0s",
+                "duration": 3600,
+                "title": "Creating Meaningful Art with FractalEncrypt"
+            },
+            {
+                "id": "33emHIL1IoU",
+                "duration": 900,
+                "title": "The Bitcoin Full Node Sculpture - Eric Weiss"
+            },
+            {
+                "id": "9-S17oAxIqA",
+                "duration": 600,
+                "title": "Bitcoin Pencil Art Timelapse - Bitcoin Apex"
+            },
+            {
+                "id": "KxTWC3ShYDE",
+                "duration": 7200,
+                "title": "Just-B on Airbrush Mastery - Bitcoin Art Podcast"
+            },
+            {
+                "id": "lRr9ofu0tnk",
+                "duration": 180,
+                "title": "Bitcoin Art Magazine Unleashed"
+            },
+            {
+                "id": "edyO5-L9un8",
+                "duration": 3600,
+                "title": "Marcus Connor & The Bitcoin Roller Coaster Guy"
+            },
+            {
+                "id": "yvdZsN5s9sc",
+                "duration": 2400,
+                "title": "Based Trading Cards Movement"
+            },
+            {
+                "id": "Mqc6M8rZRi8",
+                "duration": 600,
+                "title": "BITCOIN TRADING CARDS?"
+            }
         ]
     },
     {
-        id: 'conferences-events',
-        name: 'Conferences & Events',
-        emoji: '🎤',
-        desc: 'Bitcoin conference speeches & keynotes',
-        color: '#6366f1',
-        videos: [
-            { id: 'XdgP25UcHB0', title: 'Bitcoin for Corporations — Saylor & Dorsey', duration: 12600 },
-            { id: 'HGyiOlXg-XY', title: 'Top 10 Most Iconic Bitcoin Conference Moments', duration: 1200 },
-            { id: 'pDA2r4AblD0', title: 'How To Orange Pill Anyone — BitBlockBoom', duration: 2400 },
-            { id: 'gCfA1lkmJo4', title: 'Michael Saylor — The Greatest Bitcoin Explanation', duration: 1200 },
-            { id: 'nC37CqWpxfI', title: 'Saylor & Dorsey Interview', duration: 3400 },
-            { id: 'reVebuAf_Cs', title: 'Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote', duration: 2211 },
-            { id: 'RoRZE2DpEzE', title: 'Jack Mallers: The HODLers Dilemma — Bitcoin 2025 Keynote', duration: 2098 },
-            { id: '6fgFyQEWiK4', title: 'Saifedean Ammous: How Bitcoin Could End Wars — Amsterdam 2025', duration: 1691 },
-            { id: 'hqoagNBtIps', title: 'Michael Saylor: Bitcoin Prophecy — BTC Prague 2025', duration: 2400 },
-            { id: 'SFUiGTayVL8', title: 'Saifedean: Bitcoin & Tether — Drinking the Dollar Milkshake', duration: 857 },
-            { id: 'dWaHWT15sOQ', title: 'Paolo Ardoino: Why Tether Loves Bitcoin — Bitcoin 2025', duration: 1029 },
-            { id: 'R4gyS5mb9dE', title: 'Alex Gladstein: Dictators Should Be Afraid — Policy Summit 2025', duration: 1800 },
+        "id": "conferences-events",
+        "name": "Conferences & Events",
+        "emoji": "🎤",
+        "desc": "Bitcoin conference speeches & keynotes",
+        "color": "#6366f1",
+        "videos": [
+            {
+                "id": "XdgP25UcHB0",
+                "title": "Bitcoin for Corporations — Saylor & Dorsey",
+                "duration": 12600
+            },
+            {
+                "id": "HGyiOlXg-XY",
+                "title": "Top 10 Most Iconic Bitcoin Conference Moments",
+                "duration": 1200
+            },
+            {
+                "id": "pDA2r4AblD0",
+                "title": "How To Orange Pill Anyone — BitBlockBoom",
+                "duration": 2400
+            },
+            {
+                "id": "gCfA1lkmJo4",
+                "title": "Michael Saylor — The Greatest Bitcoin Explanation",
+                "duration": 1200
+            },
+            {
+                "id": "nC37CqWpxfI",
+                "title": "Saylor & Dorsey Interview",
+                "duration": 3400
+            },
+            {
+                "id": "reVebuAf_Cs",
+                "title": "Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote",
+                "duration": 2211
+            },
+            {
+                "id": "RoRZE2DpEzE",
+                "title": "Jack Mallers: The HODLers Dilemma — Bitcoin 2025 Keynote",
+                "duration": 2098
+            },
+            {
+                "id": "6fgFyQEWiK4",
+                "title": "Saifedean Ammous: How Bitcoin Could End Wars — Amsterdam 2025",
+                "duration": 1691
+            },
+            {
+                "id": "hqoagNBtIps",
+                "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
+                "duration": 2400
+            },
+            {
+                "id": "SFUiGTayVL8",
+                "title": "Saifedean: Bitcoin & Tether — Drinking the Dollar Milkshake",
+                "duration": 857
+            },
+            {
+                "id": "dWaHWT15sOQ",
+                "title": "Paolo Ardoino: Why Tether Loves Bitcoin — Bitcoin 2025",
+                "duration": 1029
+            },
+            {
+                "id": "R4gyS5mb9dE",
+                "title": "Alex Gladstein: Dictators Should Be Afraid — Policy Summit 2025",
+                "duration": 1800
+            },
+            {
+                "id": "O9KnBcWMkpw",
+                "duration": 2243,
+                "title": "Michael Saylor 2024 Keynote - Nashville"
+            },
+            {
+                "id": "9UxAUryUKXM",
+                "duration": 2979,
+                "title": "Donald Trump 2024 Keynote - Nashville"
+            },
+            {
+                "id": "f3NBhSXtE5g",
+                "duration": 1840,
+                "title": "Edward Snowden 2024 Keynote - Privacy"
+            },
+            {
+                "id": "IjR3Hj0aRW4",
+                "duration": 1250,
+                "title": "Howard Lutnick 2024 Keynote - Nashville"
+            },
+            {
+                "id": "1PkMFIa7rmQ",
+                "duration": 2415,
+                "title": "21 Rules of Bitcoin - Saylor Prague 2024"
+            },
+            {
+                "id": "--IFcOIEfl4",
+                "duration": 2632,
+                "title": "No Second Best - Jack Mallers Prague 2024"
+            },
+            {
+                "id": "vRuPeBAjLTI",
+                "duration": 1948,
+                "title": "JIMMY SONG | DESTROYING RENT SEEKING"
+            },
+            {
+                "id": "75O56lhJMJI",
+                "duration": 3600,
+                "title": "Welcome to Bitcoin Country - Adopting BTC 2024"
+            },
+            {
+                "id": "0XnB_ZqL6fo",
+                "duration": 1200,
+                "title": "Freedom Festival 2024 - Mass Adoption"
+            },
+            {
+                "id": "TTHU_N_n5Ks",
+                "duration": 2820,
+                "title": "PlanB Forum Lugano 2024 - Stephan Livera"
+            },
+            {
+                "id": "TUO10-HcdvY",
+                "duration": 2880,
+                "title": "DEBATE: Bitcoin Ossification | Lugano 2024"
+            },
+            {
+                "id": "kE3TpVS27os",
+                "duration": 1200,
+                "title": "JD Vance Keynote - Bitcoin 2025 Las Vegas"
+            },
+            {
+                "id": "jc4lkDeozCQ",
+                "duration": 3600,
+                "title": "Eric Trump speaks at Bitcoin Asia 2024"
+            },
+            {
+                "id": "0OiZY1MRHXo",
+                "duration": 600,
+                "title": "Nostr Wallet Connect Workshop - BBB 2024"
+            },
+            {
+                "id": "I3Qld_HXQuM",
+                "duration": 600,
+                "title": "Nostrability Workshop - BBB 2024"
+            }
         ]
     },
     {
-        id: 'culture-travel',
-        name: 'Culture, Travel & Adoption',
-        emoji: '🌍',
-        desc: 'Bitcoin culture worldwide & global adoption',
-        color: '#f97316',
-        videos: [
-            { id: 'Ve6oLiWO0Mg', title: 'Traveling the World on Bitcoin — Airbtc', duration: 900 },
-            { id: '0hwC6BKJMpc', title: 'How Bitcoin is Revolutionizing Travel', duration: 720 },
-            { id: 'kKSFh5Xxe3w', title: '48 Hours in El Salvador Paying Only With Bitcoin', duration: 1200 },
-            { id: 'R8xZd8v7b50', title: 'Bitcoin Beach: El Salvador\'s Bitcoin Economy', duration: 1500 },
-            { id: '0Ceey82hFTY', title: 'Booking Travel with Bitcoin — Travala', duration: 600 },
-            { id: 'e0EPQg20SaQ', title: 'What 1792 Days in Bitcoin Taught Me — Get Based TV', duration: 540 },
-            { id: 'LRSQSkiil0M', title: 'Inside the Bitcoin Revolution in Africa — Joe Nakamoto', duration: 1200 },
-            { id: 'TauW_pLnstw', title: 'The Bitcoin Paradise You Have Never Heard Of — Joe Nakamoto', duration: 900 },
-            { id: 'FelWKV6wVJU', title: 'Living on Bitcoin in a Small Town — Joe Nakamoto', duration: 1080 },
-            { id: 'WoN0SVY73zo', title: 'You Can Live on Bitcoin in Lugano — Joe Nakamoto', duration: 1500 },
-            { id: 'waQJEjiPWhg', title: 'Bitcoin Culture Around the World', duration: 1200 },
-            { id: '7A56oZAs7ZQ', title: 'El Salvador Bitcoin Adoption Documentary', duration: 1800 },
-            { id: 'BnR_kB44hy0', title: 'Bitcoin Berlín: The Secret Bitcoin City of El Salvador — Joe Nakamoto', duration: 1200 },
-            { id: 'DfDWubdqU5I', title: 'I Begged Strangers for Bitcoin in Madeira — Joe Nakamoto', duration: 900 },
-            { id: 'pxvDunp9820', title: 'Bitcoin in Peru: How a Poisoned Town Survives — Joe Nakamoto', duration: 1080 },
-            { id: 'ic_4-EFJogY', title: 'From Accenture to Bitcoin Maximalist — Alexandre Laizet', duration: 503 },
-            { id: 'cs3nEVX9ZWA', title: 'Bitcoin Is Transforming Access to Electricity and Finance — Gladstein', duration: 1800 },
+        "id": "culture-travel",
+        "name": "Culture, Travel & Adoption",
+        "emoji": "🌍",
+        "desc": "Bitcoin culture worldwide & global adoption",
+        "color": "#f97316",
+        "videos": [
+            {
+                "id": "Ve6oLiWO0Mg",
+                "title": "Traveling the World on Bitcoin — Airbtc",
+                "duration": 900
+            },
+            {
+                "id": "0hwC6BKJMpc",
+                "title": "How Bitcoin is Revolutionizing Travel",
+                "duration": 720
+            },
+            {
+                "id": "kKSFh5Xxe3w",
+                "title": "48 Hours in El Salvador Paying Only With Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "R8xZd8v7b50",
+                "title": "Bitcoin Beach: El Salvador's Bitcoin Economy",
+                "duration": 1500
+            },
+            {
+                "id": "0Ceey82hFTY",
+                "title": "Booking Travel with Bitcoin — Travala",
+                "duration": 600
+            },
+            {
+                "id": "e0EPQg20SaQ",
+                "title": "What 1792 Days in Bitcoin Taught Me — Get Based TV",
+                "duration": 540
+            },
+            {
+                "id": "LRSQSkiil0M",
+                "title": "Inside the Bitcoin Revolution in Africa — Joe Nakamoto",
+                "duration": 1200
+            },
+            {
+                "id": "TauW_pLnstw",
+                "title": "The Bitcoin Paradise You Have Never Heard Of — Joe Nakamoto",
+                "duration": 900
+            },
+            {
+                "id": "FelWKV6wVJU",
+                "title": "Living on Bitcoin in a Small Town — Joe Nakamoto",
+                "duration": 1080
+            },
+            {
+                "id": "WoN0SVY73zo",
+                "title": "You Can Live on Bitcoin in Lugano — Joe Nakamoto",
+                "duration": 1500
+            },
+            {
+                "id": "waQJEjiPWhg",
+                "title": "Bitcoin Culture Around the World",
+                "duration": 1200
+            },
+            {
+                "id": "7A56oZAs7ZQ",
+                "title": "El Salvador Bitcoin Adoption Documentary",
+                "duration": 1800
+            },
+            {
+                "id": "BnR_kB44hy0",
+                "title": "Bitcoin Berlín: The Secret Bitcoin City of El Salvador — Joe Nakamoto",
+                "duration": 1200
+            },
+            {
+                "id": "DfDWubdqU5I",
+                "title": "I Begged Strangers for Bitcoin in Madeira — Joe Nakamoto",
+                "duration": 900
+            },
+            {
+                "id": "pxvDunp9820",
+                "title": "Bitcoin in Peru: How a Poisoned Town Survives — Joe Nakamoto",
+                "duration": 1080
+            },
+            {
+                "id": "ic_4-EFJogY",
+                "title": "From Accenture to Bitcoin Maximalist — Alexandre Laizet",
+                "duration": 503
+            },
+            {
+                "id": "cs3nEVX9ZWA",
+                "title": "Bitcoin Is Transforming Access to Electricity and Finance — Gladstein",
+                "duration": 1800
+            },
+            {
+                "id": "twjTUa8njRo",
+                "duration": 456,
+                "title": "Run with Bitcoin - Paco De La India"
+            },
+            {
+                "id": "eNOYnGtIm9E",
+                "duration": 2700,
+                "title": "Paco de la India | My Latin Life Podcast 210"
+            },
+            {
+                "id": "BdaiLtKNFQA",
+                "duration": 1800,
+                "title": "The plan 40 Countries in 400 Days - Paco"
+            },
+            {
+                "id": "5hMZkxQtstU",
+                "duration": 3600,
+                "title": "167. Run with Bitcoin with Paco de la India"
+            },
+            {
+                "id": "gCi5jPHWVNE",
+                "duration": 1200,
+                "title": "Run with Bitcoin | Paco De la India Mumbai"
+            }
         ]
     },
     {
-        id: 'debates',
-        name: 'Debates',
-        emoji: '💬',
-        desc: 'Bull vs bear & maximalist debates',
-        color: '#ef4444',
-        videos: [
-            { id: 'xa5iT1nklyU', title: 'Brian Kelly vs Peter Schiff — Bitcoin Bull vs Bear', duration: 600 },
-            { id: 'XJU8r6WiipM', title: 'Bitcoin vs Gold — Response to Peter Schiff', duration: 2400 },
-            { id: '9DuhDgqx21w', title: 'Peter Schiff: Bitcoin Strategy is a Fraud', duration: 1800 },
-            { id: 'aWtzOQTv8Dc', title: 'Saylor vs Dorsey: Battle for Bitcoin\'s Future', duration: 720 },
-            { id: 'J6I-OzXItfA', title: 'Jack Dorsey Explains Bitcoin', duration: 600 },
-            { id: 'tbCVXyUGO3o', title: 'I Bought This Instead of Bitcoin — Mark Moss', duration: 1200 },
-            { id: 'D_yIKnHOuWg', title: 'Michael Saylor Answers the Question of Our Time', duration: 600 },
-            { id: 'QT_YDxTl1FQ', title: 'Jack Mallers: Bitcoin Maximalist Post-GENIUS Act', duration: 1800 },
-            { id: '3YuscY1L1zE', title: 'Why You Should Be a Bitcoin Maximalist', duration: 900 },
-            { id: 'd5_cYWLpDs8', title: 'A Brief History of Bitcoin Maximalism', duration: 1500 },
-            { id: 'yCtVkIEIhCg', title: 'Bitcoin Can Never Go to Zero — Robert Breedlove', duration: 1200 },
-            { id: 'unCR7k3-aoE', title: 'Bitcoin Is the Apex Asset — Robert Breedlove', duration: 1500 },
-            { id: '1jZQNo_rRsQ', title: 'Bitcoin Poised for Cycle Top? Corporate Treasuries — Saifedean', duration: 1763 },
-            { id: 'MmdQKU0YNX4', title: 'Bitcoin Will Hit $850K — Max Keiser Prediction', duration: 1200 },
-            { id: 'wBEqw-PSBlg', title: 'Why Selling Bitcoin for Fiat Misses the Picture — Mark Moss', duration: 1800 },
-            { id: '2ZaMzWZyXe8', title: 'Wall Street Meets Bitcoin: Orange-Pilling Finance — Strive CEO', duration: 1320 },
-            { id: 'JaMJi1_1tkA', title: 'Bitcoin Rap Battle: Hamilton vs. Satoshi — ft. EpicLloyd', duration: 600 },
+        "id": "debates",
+        "name": "Debates",
+        "emoji": "💬",
+        "desc": "Bull vs bear & maximalist debates",
+        "color": "#ef4444",
+        "videos": [
+            {
+                "id": "xa5iT1nklyU",
+                "title": "Brian Kelly vs Peter Schiff — Bitcoin Bull vs Bear",
+                "duration": 600
+            },
+            {
+                "id": "XJU8r6WiipM",
+                "title": "Bitcoin vs Gold — Response to Peter Schiff",
+                "duration": 2400
+            },
+            {
+                "id": "9DuhDgqx21w",
+                "title": "Peter Schiff: Bitcoin Strategy is a Fraud",
+                "duration": 1800
+            },
+            {
+                "id": "aWtzOQTv8Dc",
+                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
+                "duration": 720
+            },
+            {
+                "id": "J6I-OzXItfA",
+                "title": "Jack Dorsey Explains Bitcoin",
+                "duration": 600
+            },
+            {
+                "id": "tbCVXyUGO3o",
+                "title": "I Bought This Instead of Bitcoin — Mark Moss",
+                "duration": 1200
+            },
+            {
+                "id": "D_yIKnHOuWg",
+                "title": "Michael Saylor Answers the Question of Our Time",
+                "duration": 600
+            },
+            {
+                "id": "QT_YDxTl1FQ",
+                "title": "Jack Mallers: Bitcoin Maximalist Post-GENIUS Act",
+                "duration": 1800
+            },
+            {
+                "id": "3YuscY1L1zE",
+                "title": "Why You Should Be a Bitcoin Maximalist",
+                "duration": 900
+            },
+            {
+                "id": "d5_cYWLpDs8",
+                "title": "A Brief History of Bitcoin Maximalism",
+                "duration": 1500
+            },
+            {
+                "id": "yCtVkIEIhCg",
+                "title": "Bitcoin Can Never Go to Zero — Robert Breedlove",
+                "duration": 1200
+            },
+            {
+                "id": "unCR7k3-aoE",
+                "title": "Bitcoin Is the Apex Asset — Robert Breedlove",
+                "duration": 1500
+            },
+            {
+                "id": "1jZQNo_rRsQ",
+                "title": "Bitcoin Poised for Cycle Top? Corporate Treasuries — Saifedean",
+                "duration": 1763
+            },
+            {
+                "id": "MmdQKU0YNX4",
+                "title": "Bitcoin Will Hit $850K — Max Keiser Prediction",
+                "duration": 1200
+            },
+            {
+                "id": "wBEqw-PSBlg",
+                "title": "Why Selling Bitcoin for Fiat Misses the Picture — Mark Moss",
+                "duration": 1800
+            },
+            {
+                "id": "2ZaMzWZyXe8",
+                "title": "Wall Street Meets Bitcoin: Orange-Pilling Finance — Strive CEO",
+                "duration": 1320
+            },
+            {
+                "id": "JaMJi1_1tkA",
+                "title": "Bitcoin Rap Battle: Hamilton vs. Satoshi — ft. EpicLloyd",
+                "duration": 600
+            }
         ]
     },
     {
-        id: 'dev-privacy-nodes',
-        name: 'Dev, Privacy & Nodes',
-        emoji: '💻',
-        desc: 'Building on Bitcoin, privacy & running nodes',
-        color: '#22c55e',
-        videos: [
-            { id: 'yKdK-7AtAMQ', title: 'Bitcoin Lightning Network — How It Actually Works', duration: 1276 },
-            { id: 'CG69c71aSLQ', title: 'Lightning Network Explained — Easy Guide', duration: 600 },
-            { id: 'gLCyRFZOdGQ', title: 'How to Run a Bitcoin Lightning Node', duration: 1800 },
-            { id: 'TASQj1hacuI', title: 'Bitcoin Privacy — Alex Gladstein', duration: 2400 },
-            { id: 'MGNvaJyZ25A', title: 'Lightning Network: Everything You Need To Know', duration: 900 },
-            { id: 'fsAUhFr1VXU', title: 'Bitcoin Privacy Made Simple: Wasabi Wallet Tutorial', duration: 1860 },
-            { id: '52pSd3I1nac', title: 'Wasabi CoinJoin Tutorial — Self Custody Privacy', duration: 5040 },
-            { id: 'U9hdav36WAo', title: 'How to Use Wasabi Wallet for Bitcoin CoinJoin', duration: 600 },
-            { id: 'KNaOeLlD6NA', title: 'Build a Bitcoin Node on Raspberry Pi with Umbrel', duration: 1200 },
-            { id: 'QeCIVUH89KY', title: 'Switch to Bitcoin Knots on Start9 — Full Sovereignty', duration: 900 },
-            { id: 't4yuwtIhQIg', title: 'Start9: One-Click Bitcoin Node Setup Guide', duration: 1500 },
-            { id: 'cmTrCoJKoig', title: 'Bitcoin Node From Scratch — Ubuntu + Bitcoin Knots + Solo Mining', duration: 1800 },
-            { id: 'TpwnoPUyumA', title: 'Phoenix Wallet Tutorial — Self-Custody Lightning', duration: 1500 },
-            { id: 'ZZKoSmQu30Q', title: 'Best Bitcoin Hardware Wallets Compared — BTC Sessions', duration: 3621 },
+        "id": "dev-privacy-nodes",
+        "name": "Dev, Privacy & Nodes",
+        "emoji": "💻",
+        "desc": "Building on Bitcoin, privacy & running nodes",
+        "color": "#22c55e",
+        "videos": [
+            {
+                "id": "yKdK-7AtAMQ",
+                "title": "Bitcoin Lightning Network — How It Actually Works",
+                "duration": 1276
+            },
+            {
+                "id": "CG69c71aSLQ",
+                "title": "Lightning Network Explained — Easy Guide",
+                "duration": 600
+            },
+            {
+                "id": "gLCyRFZOdGQ",
+                "title": "How to Run a Bitcoin Lightning Node",
+                "duration": 1800
+            },
+            {
+                "id": "TASQj1hacuI",
+                "title": "Bitcoin Privacy — Alex Gladstein",
+                "duration": 2400
+            },
+            {
+                "id": "MGNvaJyZ25A",
+                "title": "Lightning Network: Everything You Need To Know",
+                "duration": 900
+            },
+            {
+                "id": "fsAUhFr1VXU",
+                "title": "Bitcoin Privacy Made Simple: Wasabi Wallet Tutorial",
+                "duration": 1860
+            },
+            {
+                "id": "52pSd3I1nac",
+                "title": "Wasabi CoinJoin Tutorial — Self Custody Privacy",
+                "duration": 5040
+            },
+            {
+                "id": "U9hdav36WAo",
+                "title": "How to Use Wasabi Wallet for Bitcoin CoinJoin",
+                "duration": 600
+            },
+            {
+                "id": "KNaOeLlD6NA",
+                "title": "Build a Bitcoin Node on Raspberry Pi with Umbrel",
+                "duration": 1200
+            },
+            {
+                "id": "QeCIVUH89KY",
+                "title": "Switch to Bitcoin Knots on Start9 — Full Sovereignty",
+                "duration": 900
+            },
+            {
+                "id": "t4yuwtIhQIg",
+                "title": "Start9: One-Click Bitcoin Node Setup Guide",
+                "duration": 1500
+            },
+            {
+                "id": "cmTrCoJKoig",
+                "title": "Bitcoin Node From Scratch — Ubuntu + Bitcoin Knots + Solo Mining",
+                "duration": 1800
+            },
+            {
+                "id": "TpwnoPUyumA",
+                "title": "Phoenix Wallet Tutorial — Self-Custody Lightning",
+                "duration": 1500
+            },
+            {
+                "id": "ZZKoSmQu30Q",
+                "title": "Best Bitcoin Hardware Wallets Compared — BTC Sessions",
+                "duration": 3621
+            },
+            {
+                "id": "XRxbrfbeThg",
+                "duration": 5910,
+                "title": "Gigi on Internet Business Models & Freedom"
+            },
+            {
+                "id": "JtzwTd9Ur5c",
+                "duration": 900,
+                "title": "Competing with Free | DerGigi"
+            },
+            {
+                "id": "6Tr4-DL1c1s",
+                "duration": 1800,
+                "title": "Freedom Money: Der Gigi l Episode 1"
+            },
+            {
+                "id": "ekRzqy7D1wk",
+                "duration": 3600,
+                "title": "Cybersecurity Secrets for Protecting Bitcoin"
+            },
+            {
+                "id": "kL0Yc8ngzS0",
+                "duration": 1200,
+                "title": "Bitcoin Fixes Double Standards - Guest Gigi"
+            },
+            {
+                "id": "9FE4mTr_6EI",
+                "duration": 1200,
+                "title": "How to Set Up a Bitcoin Node (MyNode)"
+            },
+            {
+                "id": "lhzooru_B-o",
+                "duration": 1200,
+                "title": "Set Up a Bitcoin Node for just 00"
+            },
+            {
+                "id": "Ld2s9MyMKMU",
+                "duration": 600,
+                "title": "Fastest way to build a Bitcoin Node in 2024"
+            }
         ]
     },
     {
-        id: 'documentaries',
-        name: 'Documentaries',
-        emoji: '🎬',
-        desc: 'Bitcoin documentaries & films',
-        color: '#dc2626',
-        videos: [
-            { id: '3XEuqixD2Zg', title: 'God Bless Bitcoin — Full Documentary', duration: 5352 },
-            { id: '8Z4hGvUET8I', title: 'Bitcoin: Beyond The Bubble', duration: 4800 },
-            { id: 'mgmVEtSgu3o', title: 'Bitcoin FUD — Full Documentary', duration: 3600 },
-            { id: '4_tAOuMVFd0', title: 'Digital Gold — Full Documentary', duration: 5400 },
-            { id: 'GZI0qo3diUo', title: 'Unlocking Crypto — The Bitcoin Field Guide', duration: 6500 },
-            { id: 'ZKwqNgG-Sv4', title: 'Bitcoin: The End of Money As We Know It', duration: 5020 },
-            { id: 'oksraL7wN6Q', title: 'God Bless Bitcoin — HD Version', duration: 5352 },
-            { id: 'iVym9wtopqs', title: 'Banking on Bitcoin — Full Documentary', duration: 5400 },
-            { id: 'm7_WDzPyoqU', title: 'I Live 500 Feet From a Bitcoin Mine — Investigative Doc', duration: 1260 },
-            { id: 'tEnDP6p_9rY', title: 'Bitcoin Mining\'s Days Are Numbered — Cormint CEO', duration: 2940 },
-            { id: 'd9DqvX7CJOc', title: 'The Fiat Standard: Can Bitcoin Fix This? — Saifedean', duration: 5591 },
-            { id: 'M1JKLXxFDZc', title: 'Unconditional Advice for the Next Decade — Saifedean Ammous', duration: 1282 },
+        "id": "documentaries",
+        "name": "Documentaries",
+        "emoji": "🎬",
+        "desc": "Bitcoin documentaries & films",
+        "color": "#dc2626",
+        "videos": [
+            {
+                "id": "3XEuqixD2Zg",
+                "title": "God Bless Bitcoin — Full Documentary",
+                "duration": 5352
+            },
+            {
+                "id": "8Z4hGvUET8I",
+                "title": "Bitcoin: Beyond The Bubble",
+                "duration": 4800
+            },
+            {
+                "id": "mgmVEtSgu3o",
+                "title": "Bitcoin FUD — Full Documentary",
+                "duration": 3600
+            },
+            {
+                "id": "4_tAOuMVFd0",
+                "title": "Digital Gold — Full Documentary",
+                "duration": 5400
+            },
+            {
+                "id": "GZI0qo3diUo",
+                "title": "Unlocking Crypto — The Bitcoin Field Guide",
+                "duration": 6500
+            },
+            {
+                "id": "ZKwqNgG-Sv4",
+                "title": "Bitcoin: The End of Money As We Know It",
+                "duration": 5020
+            },
+            {
+                "id": "oksraL7wN6Q",
+                "title": "God Bless Bitcoin — HD Version",
+                "duration": 5352
+            },
+            {
+                "id": "iVym9wtopqs",
+                "title": "Banking on Bitcoin — Full Documentary",
+                "duration": 5400
+            },
+            {
+                "id": "m7_WDzPyoqU",
+                "title": "I Live 500 Feet From a Bitcoin Mine — Investigative Doc",
+                "duration": 1260
+            },
+            {
+                "id": "tEnDP6p_9rY",
+                "title": "Bitcoin Mining's Days Are Numbered — Cormint CEO",
+                "duration": 2940
+            },
+            {
+                "id": "d9DqvX7CJOc",
+                "title": "The Fiat Standard: Can Bitcoin Fix This? — Saifedean",
+                "duration": 5591
+            },
+            {
+                "id": "M1JKLXxFDZc",
+                "title": "Unconditional Advice for the Next Decade — Saifedean Ammous",
+                "duration": 1282
+            },
+            {
+                "id": "Yh1dOmQJoWQ",
+                "duration": 5820,
+                "title": "The Rise and Rise of Bitcoin (FULL)"
+            },
+            {
+                "id": "gQ8XKns2ipc",
+                "duration": 3120,
+                "title": "The Satoshi Mystery: Origins of Bitcoin"
+            },
+            {
+                "id": "4_4lFX8t3I8",
+                "duration": 3600,
+                "title": "Evolution of Cryptocurrency: 1983–2100"
+            },
+            {
+                "id": "gcwnpvODd-8",
+                "duration": 120,
+                "title": "The Rise and Rise of Bitcoin | Official Trailer"
+            },
+            {
+                "id": "iSF0KGsFuI8",
+                "duration": 180,
+                "title": "Money Electric: The Bitcoin Mystery | HBO Trailer"
+            },
+            {
+                "id": "QpbTljF0vY8",
+                "duration": 2400,
+                "title": "The History of Bitcoin Mining - Doc"
+            },
+            {
+                "id": "iqVuthH57wY",
+                "duration": 1800,
+                "title": "The Evolution of Bitcoin Mining!"
+            }
         ]
     },
     {
-        id: 'economics-money',
-        name: 'Economics & Money',
-        emoji: '💰',
-        desc: 'Austrian economics, inflation & sound money',
-        color: '#eab308',
-        videos: [
-            { id: 'gp4U5aH_T6A', title: 'Bitcoin, Anarchy & Austrian Economics — Lex Fridman & Saifedean', duration: 10800 },
-            { id: 'DKaZ-h-Wwhg', title: 'Bitcoin & Austrian Economics — Peter St. Onge', duration: 3600 },
-            { id: 'fOpnpECKaY8', title: 'Bitcoin, Austrian Economics & Future of Money — Seb Bunney', duration: 4200 },
-            { id: 'drs6Q_OX0HE', title: 'Austrian Economics Intro — The Bitcoin Way', duration: 3000 },
-            { id: 'AdaHyUmRvCU', title: 'Austrian Economics & Monetary Policy of Bitcoin', duration: 1800 },
-            { id: 'pZvy0JRz9GE', title: 'Saifedean: Bitcoin & Tether — Las Vegas Keynote', duration: 2576 },
-            { id: 'hdtY_iMeVEg', title: 'Bitcoin Will Hit $100 Trillion Market — Saifedean Ammous', duration: 123 },
-            { id: 'dlCbXoQokx0', title: 'Governments Will Accumulate Bitcoin — Mike Alfred on Coin Stories', duration: 1800 },
-            { id: '8rYl8wEotZk', title: 'Strategy CEO on Bitcoin Yields & Adoption — Coin Stories', duration: 2400 },
-            { id: 'V2r0EaJQwLA', title: 'Lyn Alden: Bitcoin Long-Term Bull Case — Coin Stories', duration: 2400 },
-            { id: 'yDpMGUZZC4c', title: 'Bitcoin Is the Internet of Money — David Marcus on Coin Stories', duration: 1800 },
+        "id": "economics-money",
+        "name": "Economics & Money",
+        "emoji": "💰",
+        "desc": "Austrian economics, inflation & sound money",
+        "color": "#eab308",
+        "videos": [
+            {
+                "id": "gp4U5aH_T6A",
+                "title": "Bitcoin, Anarchy & Austrian Economics — Lex Fridman & Saifedean",
+                "duration": 10800
+            },
+            {
+                "id": "DKaZ-h-Wwhg",
+                "title": "Bitcoin & Austrian Economics — Peter St. Onge",
+                "duration": 3600
+            },
+            {
+                "id": "fOpnpECKaY8",
+                "title": "Bitcoin, Austrian Economics & Future of Money — Seb Bunney",
+                "duration": 4200
+            },
+            {
+                "id": "drs6Q_OX0HE",
+                "title": "Austrian Economics Intro — The Bitcoin Way",
+                "duration": 3000
+            },
+            {
+                "id": "AdaHyUmRvCU",
+                "title": "Austrian Economics & Monetary Policy of Bitcoin",
+                "duration": 1800
+            },
+            {
+                "id": "pZvy0JRz9GE",
+                "title": "Saifedean: Bitcoin & Tether — Las Vegas Keynote",
+                "duration": 2576
+            },
+            {
+                "id": "hdtY_iMeVEg",
+                "title": "Bitcoin Will Hit $100 Trillion Market — Saifedean Ammous",
+                "duration": 123
+            },
+            {
+                "id": "dlCbXoQokx0",
+                "title": "Governments Will Accumulate Bitcoin — Mike Alfred on Coin Stories",
+                "duration": 1800
+            },
+            {
+                "id": "8rYl8wEotZk",
+                "title": "Strategy CEO on Bitcoin Yields & Adoption — Coin Stories",
+                "duration": 2400
+            },
+            {
+                "id": "V2r0EaJQwLA",
+                "title": "Lyn Alden: Bitcoin Long-Term Bull Case — Coin Stories",
+                "duration": 2400
+            },
+            {
+                "id": "yDpMGUZZC4c",
+                "title": "Bitcoin Is the Internet of Money — David Marcus on Coin Stories",
+                "duration": 1800
+            },
+            {
+                "id": "jk_HWmmwiAs",
+                "duration": 1800,
+                "title": "How Money & Banking Work - Lyn Alden"
+            },
+            {
+                "id": "Ih0e8AXT_-s",
+                "duration": 1200,
+                "title": "Broken Money | Oslo Freedom Forum"
+            },
+            {
+                "id": "soGXgiGoMRU",
+                "duration": 3960,
+                "title": "Broken Money Thesis Presentation - Lyn Alden"
+            },
+            {
+                "id": "k3NN_NZOdhY",
+                "duration": 3060,
+                "title": "Lyn Alden Content: Broken Money Thesis"
+            },
+            {
+                "id": "_nSF9yZWalA",
+                "duration": 3600,
+                "title": "Principles of Economics Lecture 10: Money"
+            },
+            {
+                "id": "dIqs9hGNU9A",
+                "duration": 3600,
+                "title": "Inflation & the Collapse of Civilization"
+            },
+            {
+                "id": "PQ2wj8dnpqo",
+                "duration": 3600,
+                "title": "What is money? | Ammous & Fridman"
+            },
+            {
+                "id": "TLhbc3moELQ",
+                "duration": 3600,
+                "title": "The Gold Standard: Chapters 1-4"
+            },
+            {
+                "id": "bs_pYdK8CU8",
+                "duration": 2400,
+                "title": "Lyn Alden: Why Our Financial System Fails"
+            },
+            {
+                "id": "TmV4Ns_ngSM",
+                "duration": 3600,
+                "title": "The Economics of Bitcoin - Saifedean"
+            }
         ]
     },
     {
-        id: 'freedom-sovereignty',
-        name: 'Freedom & Self-Sovereignty',
-        emoji: '🗽',
-        desc: 'Human rights, financial freedom & sovereignty',
-        color: '#0ea5e9',
-        videos: [
-            { id: 'xLYYh4aPXAM', title: 'Bitcoin Is Protecting Human Rights — Alex Gladstein', duration: 1800 },
-            { id: 'TASQj1hacuI', title: 'Bitcoin as Freedom Money — Wyoming Symposium', duration: 2400 },
-            { id: 'Z_p70BzkMAs', title: 'Bitcoin Protects Human Rights — Gladstein & Balaji', duration: 3600 },
-            { id: 'A-QpLdoDF14', title: 'Financial Freedom Against Tyranny', duration: 1200 },
-            { id: 'ZYN4X_l1ZXg', title: 'Financial Freedom and Bitcoin — HRF', duration: 1800 },
-            { id: 'BoHNkX4OWQA', title: 'Jack Mallers on Bitcoin for El Salvador', duration: 1200 },
-            { id: 'd5_cYWLpDs8', title: 'A Brief Look at Bitcoin Maximalism — Guy Swann', duration: 1800 },
-            { id: 'Y5wgZ3rFayQ', title: 'Bitcoin is Monetary Free Speech', duration: 1200 },
-            { id: 'zV_A2yMZl0w', title: 'Alex Gladstein: Bitcoin Privacy & Freedom — Bitcoin Magazine', duration: 1800 },
-            { id: 'n5K1lEDv8aM', title: 'Afghan Women Using Bitcoin Under Taliban — Gladstein', duration: 1500 },
-            { id: 'IBY8SdA3W4Y', title: 'Bitcoin for Generational Wealth & Freedom — Breedlove', duration: 1500 },
-            { id: 'dKDnkf6c250', title: 'Why Sell Your House for Bitcoin? — Breedlove Defense', duration: 1200 },
-            { id: '8Aofh-rx_l8', title: 'Bitcoin\'s Censorship Resistance Makes It Superior — Breedlove', duration: 1500 },
+        "id": "freedom-sovereignty",
+        "name": "Freedom & Self-Sovereignty",
+        "emoji": "🗽",
+        "desc": "Human rights, financial freedom & sovereignty",
+        "color": "#0ea5e9",
+        "videos": [
+            {
+                "id": "xLYYh4aPXAM",
+                "title": "Bitcoin Is Protecting Human Rights — Alex Gladstein",
+                "duration": 1800
+            },
+            {
+                "id": "TASQj1hacuI",
+                "title": "Bitcoin as Freedom Money — Wyoming Symposium",
+                "duration": 2400
+            },
+            {
+                "id": "Z_p70BzkMAs",
+                "title": "Bitcoin Protects Human Rights — Gladstein & Balaji",
+                "duration": 3600
+            },
+            {
+                "id": "A-QpLdoDF14",
+                "title": "Financial Freedom Against Tyranny",
+                "duration": 1200
+            },
+            {
+                "id": "ZYN4X_l1ZXg",
+                "title": "Financial Freedom and Bitcoin — HRF",
+                "duration": 1800
+            },
+            {
+                "id": "BoHNkX4OWQA",
+                "title": "Jack Mallers on Bitcoin for El Salvador",
+                "duration": 1200
+            },
+            {
+                "id": "d5_cYWLpDs8",
+                "title": "A Brief Look at Bitcoin Maximalism — Guy Swann",
+                "duration": 1800
+            },
+            {
+                "id": "Y5wgZ3rFayQ",
+                "title": "Bitcoin is Monetary Free Speech",
+                "duration": 1200
+            },
+            {
+                "id": "zV_A2yMZl0w",
+                "title": "Alex Gladstein: Bitcoin Privacy & Freedom — Bitcoin Magazine",
+                "duration": 1800
+            },
+            {
+                "id": "n5K1lEDv8aM",
+                "title": "Afghan Women Using Bitcoin Under Taliban — Gladstein",
+                "duration": 1500
+            },
+            {
+                "id": "IBY8SdA3W4Y",
+                "title": "Bitcoin for Generational Wealth & Freedom — Breedlove",
+                "duration": 1500
+            },
+            {
+                "id": "dKDnkf6c250",
+                "title": "Why Sell Your House for Bitcoin? — Breedlove Defense",
+                "duration": 1200
+            },
+            {
+                "id": "8Aofh-rx_l8",
+                "title": "Bitcoin's Censorship Resistance Makes It Superior — Breedlove",
+                "duration": 1500
+            },
+            {
+                "id": "oDaTIFKe3k4",
+                "duration": 900,
+                "title": "4 Best Countries for Crypto Millionaires"
+            },
+            {
+                "id": "lfPZteWuH3k",
+                "duration": 900,
+                "title": "Crypto-Friendly Countries Interview"
+            },
+            {
+                "id": "KY72n6UFg1s",
+                "duration": 900,
+                "title": "Tax-Friendly Countries for Investors"
+            },
+            {
+                "id": "6QiDB-RwGGw",
+                "duration": 1200,
+                "title": "Best Countries for Digital Nomads"
+            },
+            {
+                "id": "mB0U_22_q4s",
+                "duration": 1200,
+                "title": "Living in El Salvador - First Hand Report"
+            },
+            {
+                "id": "p8vLlp67UnA",
+                "duration": 1800,
+                "title": "Why I Moved to Dubai - Nomad Capitalist"
+            },
+            {
+                "id": "PesTO9MRqJo",
+                "duration": 2400,
+                "title": "Bitcoin and Time with Gigi"
+            }
         ]
     },
     {
-        id: 'future-predictions',
-        name: 'Future & Predictions',
-        emoji: '🔮',
-        desc: 'Hyperbitcoinization & price predictions',
-        color: '#8b5cf6',
-        videos: [
-            { id: 'BpKfLfGbf0Q', title: 'Bitcoin Hyperbitcoinization: $1.5M by 2028?', duration: 1800 },
-            { id: 'iDgDl9jzEmk', title: 'Bitcoin Price Prediction Models Explained', duration: 2400 },
-            { id: '1Mr9PknsM_Y', title: 'Michael Saylor\'s Best Explanation of Bitcoin', duration: 1200 },
-            { id: 'hrjBK6AXAMk', title: 'Take The Bitcoin Orange Pill — How To Guide', duration: 1500 },
-            { id: 'bPYl1-KBE50', title: 'The Ultimate Orange Pill — Bitcoin & Risk', duration: 900 },
-            { id: "qX2fbQgxJig", title: "Why Bitcoin Could Reach $64M — Luke Mikic", duration: 3600 },
-            { id: "jzY_SxnTLNA", title: "Bitcoin Is the Economic Singularity — Luke Mikic", duration: 2400 },
-            { id: "Z51vRLKvco4", title: "Retiring on 0.1 Bitcoin — Luke Mikic", duration: 1800 },
-            { id: "Sxv6wpU1380", title: "Is This Bitcoin Final Cycle? — Luke Mikic", duration: 2700 },
-            { id: 'bw5Gepxo2Ps', title: 'Bitcoin Network Effects Model — 10x Users = 100x Price', duration: 2400 },
-            { id: 'uF6Wx4Hr6iU', title: 'Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries — Coin Stories', duration: 1800 },
-            { id: 'C9KPRcmFJWI', title: 'Bitcoin to $180K — Pomp Investments Prediction', duration: 1500 },
-            { id: '3-vBBYEXv6M', title: 'Saylor: Bitcoin as Apex Capital Strategy in the AI Age', duration: 2100 },
+        "id": "future-predictions",
+        "name": "Future & Predictions",
+        "emoji": "🔮",
+        "desc": "Hyperbitcoinization & price predictions",
+        "color": "#8b5cf6",
+        "videos": [
+            {
+                "id": "BpKfLfGbf0Q",
+                "title": "Bitcoin Hyperbitcoinization: $1.5M by 2028?",
+                "duration": 1800
+            },
+            {
+                "id": "iDgDl9jzEmk",
+                "title": "Bitcoin Price Prediction Models Explained",
+                "duration": 2400
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Michael Saylor's Best Explanation of Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "hrjBK6AXAMk",
+                "title": "Take The Bitcoin Orange Pill — How To Guide",
+                "duration": 1500
+            },
+            {
+                "id": "bPYl1-KBE50",
+                "title": "The Ultimate Orange Pill — Bitcoin & Risk",
+                "duration": 900
+            },
+            {
+                "id": "qX2fbQgxJig",
+                "title": "Why Bitcoin Could Reach $64M — Luke Mikic",
+                "duration": 3600
+            },
+            {
+                "id": "jzY_SxnTLNA",
+                "title": "Bitcoin Is the Economic Singularity — Luke Mikic",
+                "duration": 2400
+            },
+            {
+                "id": "Z51vRLKvco4",
+                "title": "Retiring on 0.1 Bitcoin — Luke Mikic",
+                "duration": 1800
+            },
+            {
+                "id": "Sxv6wpU1380",
+                "title": "Is This Bitcoin Final Cycle? — Luke Mikic",
+                "duration": 2700
+            },
+            {
+                "id": "bw5Gepxo2Ps",
+                "title": "Bitcoin Network Effects Model — 10x Users = 100x Price",
+                "duration": 2400
+            },
+            {
+                "id": "uF6Wx4Hr6iU",
+                "title": "Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries — Coin Stories",
+                "duration": 1800
+            },
+            {
+                "id": "C9KPRcmFJWI",
+                "title": "Bitcoin to $180K — Pomp Investments Prediction",
+                "duration": 1500
+            },
+            {
+                "id": "3-vBBYEXv6M",
+                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
+                "duration": 2100
+            },
+            {
+                "id": "vjwFusEnfiE",
+                "duration": 840,
+                "title": "The Power Law Lens on Bitcoin - Santostasi"
+            },
+            {
+                "id": "nlvx2-3LUhM",
+                "duration": 3600,
+                "title": "Bitcoin Power Law Explained | SLP624"
+            },
+            {
+                "id": "_rMwlS1aHFs",
+                "duration": 1800,
+                "title": "The Physics of Bitcoins 10M Future"
+            },
+            {
+                "id": "yM06uqse6Ks",
+                "duration": 3600,
+                "title": "The Science Behind M Bitcoin"
+            },
+            {
+                "id": "XW1GUeBe0Rs",
+                "duration": 7200,
+                "title": "The Bitcoin Power Law WiM509"
+            },
+            {
+                "id": "6WdwTR_S2Ig",
+                "duration": 900,
+                "title": "Bitcoin Stock-To-Flow Model"
+            },
+            {
+                "id": "tPQs6eQ4zIU",
+                "duration": 900,
+                "title": "Stock to Flow - Prediciting Price?"
+            },
+            {
+                "id": "Bh7LBF9cU6w",
+                "duration": 900,
+                "title": "Plan B Model Will Break in 2026"
+            },
+            {
+                "id": "wjObfPHlPOk",
+                "duration": 900,
+                "title": "Understanding S2F Live Charts"
+            },
+            {
+                "id": "KR8EZo5IesE",
+                "duration": 300,
+                "title": "Tom Lee: Bitcoin to  Million Path"
+            },
+            {
+                "id": "LU5RqsGwvBg",
+                "duration": 600,
+                "title": "Bitcoins Path to M: Schwab"
+            },
+            {
+                "id": "GzZecXEUJTI",
+                "duration": 900,
+                "title": "Realistically Reaching  Million"
+            }
         ]
     },
     {
-        id: 'health-fitness',
-        name: 'Health & Fitness',
-        emoji: '💪',
-        desc: 'Bitcoin mindset, carnivore & low time preference',
-        color: '#16a34a',
-        videos: [
-            { id: 'mVMU1AFiSV0', title: 'Low Time Preference, Bitcoin and Health', duration: 3600 },
-            { id: 'BQCOJlFXvpU', title: 'The Carnivore Diet & Bitcoin — Dr. Shawn Baker', duration: 6400 },
-            { id: 'Rm5_wCObeQI', title: 'Carnivore Diet, Health Care Crisis & Bitcoin', duration: 4920 },
-            { id: 'LjCRWwm0Xdk', title: 'Bitcoin Health Stack — Mind Body Sats', duration: 1800 },
-            { id: 'c9D8p1kG0Cc', title: 'Bitcoin and Health with Jeff Booth', duration: 2400 },
-            { id: 'lhHKljqRa-M', title: 'Low Time Preference Lifestyle — Bitcoin Way', duration: 1800 },
-            { id: 'jn8uc92Oymo', title: 'Bitcoin Is Transforming Health & Energy Access Globally', duration: 1500 },
+        "id": "health-fitness",
+        "name": "Health & Fitness",
+        "emoji": "💪",
+        "desc": "Bitcoin mindset, carnivore & low time preference",
+        "color": "#16a34a",
+        "videos": [
+            {
+                "id": "mVMU1AFiSV0",
+                "title": "Low Time Preference, Bitcoin and Health",
+                "duration": 3600
+            },
+            {
+                "id": "BQCOJlFXvpU",
+                "title": "The Carnivore Diet & Bitcoin — Dr. Shawn Baker",
+                "duration": 6400
+            },
+            {
+                "id": "Rm5_wCObeQI",
+                "title": "Carnivore Diet, Health Care Crisis & Bitcoin",
+                "duration": 4920
+            },
+            {
+                "id": "LjCRWwm0Xdk",
+                "title": "Bitcoin Health Stack — Mind Body Sats",
+                "duration": 1800
+            },
+            {
+                "id": "c9D8p1kG0Cc",
+                "title": "Bitcoin and Health with Jeff Booth",
+                "duration": 2400
+            },
+            {
+                "id": "lhHKljqRa-M",
+                "title": "Low Time Preference Lifestyle — Bitcoin Way",
+                "duration": 1800
+            },
+            {
+                "id": "jn8uc92Oymo",
+                "title": "Bitcoin Is Transforming Health & Energy Access Globally",
+                "duration": 1500
+            },
+            {
+                "id": "Pvmp0L5cbl8",
+                "duration": 60,
+                "title": "Iron Sharpens Iron - Proof of Work Fitness"
+            },
+            {
+                "id": "W4OQaqqFKj0",
+                "duration": 1200,
+                "title": "Proof of Work Ep1: Fitness and Bitcoin"
+            },
+            {
+                "id": "TWkKPijaDyQ",
+                "duration": 1200,
+                "title": "Proof of Work Ep2: Fitness and Bitcoin"
+            },
+            {
+                "id": "FJB7e8PP0wU",
+                "duration": 300,
+                "title": "Proof Of Work(out) - July 2022"
+            },
+            {
+                "id": "O3jeBF7S9ss",
+                "duration": 1800,
+                "title": "Treadmill, Chat, and Bitcoin"
+            },
+            {
+                "id": "KfNkDQ-NI9U",
+                "duration": 3600,
+                "title": "Shawn Baker, the Carnivore MD"
+            },
+            {
+                "id": "urKG9oi0krc",
+                "duration": 600,
+                "title": "Exit The Matrix - Buy BTC Eat Meat"
+            }
         ]
     },
     {
-        id: 'history',
-        name: 'History',
-        emoji: '📜',
-        desc: 'Bitcoin origins, cypherpunks & Satoshi',
-        color: '#92400e',
-        videos: [
-            { id: 'dMSv4mgiy1o', title: 'How Bitcoin\'s Early Cypherpunks Paved the Way', duration: 1500 },
-            { id: 'f-4Rs3Sqlhc', title: 'History of Bitcoin — Complete Timeline', duration: 2400 },
-            { id: '8Z4hGvUET8I', title: 'Bitcoin: Beyond The Bubble — Origins', duration: 4800 },
-            { id: 'iVym9wtopqs', title: 'The History of Bitcoin — Full Timeline', duration: 3600 },
-            { id: 'ZKwqNgG-Sv4', title: 'Bitcoin: The End of Money As We Know It', duration: 5000 },
-            { id: 'DyV0OfU3-FU', title: 'Satoshi Nakamoto — The Hidden History', duration: 2400 },
-            { id: 'LjNMgeqUgks', title: 'The Man Who Spent Millions of Bitcoin on Pizza — 60 Minutes', duration: 42 },
-            { id: 'pbFEexyOwkw', title: 'Bitcoin History: From Zero to Hero', duration: 1800 },
-            { id: 'dYFMoK1nDmc', title: '60 Minutes: Bitcoin Beach El Salvador — CBS', duration: 780 },
-            { id: 'wSh_KzcY_dA', title: '60 Minutes: Stories About Cryptocurrency — CBS', duration: 4000 },
+        "id": "history",
+        "name": "History",
+        "emoji": "📜",
+        "desc": "Bitcoin origins, cypherpunks & Satoshi",
+        "color": "#92400e",
+        "videos": [
+            {
+                "id": "dMSv4mgiy1o",
+                "title": "How Bitcoin's Early Cypherpunks Paved the Way",
+                "duration": 1500
+            },
+            {
+                "id": "f-4Rs3Sqlhc",
+                "title": "History of Bitcoin — Complete Timeline",
+                "duration": 2400
+            },
+            {
+                "id": "8Z4hGvUET8I",
+                "title": "Bitcoin: Beyond The Bubble — Origins",
+                "duration": 4800
+            },
+            {
+                "id": "iVym9wtopqs",
+                "title": "The History of Bitcoin — Full Timeline",
+                "duration": 3600
+            },
+            {
+                "id": "ZKwqNgG-Sv4",
+                "title": "Bitcoin: The End of Money As We Know It",
+                "duration": 5000
+            },
+            {
+                "id": "DyV0OfU3-FU",
+                "title": "Satoshi Nakamoto — The Hidden History",
+                "duration": 2400
+            },
+            {
+                "id": "LjNMgeqUgks",
+                "title": "The Man Who Spent Millions of Bitcoin on Pizza — 60 Minutes",
+                "duration": 42
+            },
+            {
+                "id": "pbFEexyOwkw",
+                "title": "Bitcoin History: From Zero to Hero",
+                "duration": 1800
+            },
+            {
+                "id": "dYFMoK1nDmc",
+                "title": "60 Minutes: Bitcoin Beach El Salvador — CBS",
+                "duration": 780
+            },
+            {
+                "id": "wSh_KzcY_dA",
+                "title": "60 Minutes: Stories About Cryptocurrency — CBS",
+                "duration": 4000
+            },
+            {
+                "id": "Mcz_4MvPlOE",
+                "duration": 3600,
+                "title": "Cypherpunks & Bitcoin: End of History"
+            },
+            {
+                "id": "9vM0oIEhMag",
+                "duration": 3600,
+                "title": "Cypherpunks Write Code - ReasonTV"
+            },
+            {
+                "id": "HDKQulqVCQg",
+                "duration": 1800,
+                "title": "Bitcoin and the End of History"
+            },
+            {
+                "id": "eoBmOf4GDyo",
+                "duration": 1800,
+                "title": "Arrivano i Cypherpunk - History"
+            },
+            {
+                "id": "gQ8XKns2ipc",
+                "duration": 3120,
+                "title": "The Satoshi Mystery: Origins of Bitcoin"
+            },
+            {
+                "id": "h3nlVsy81wI",
+                "duration": 3600,
+                "title": "The Bitcoin Mystery Revealed! - Swan"
+            },
+            {
+                "id": "7RlaC9ZJNtA",
+                "duration": 2400,
+                "title": "Unmasking the Creator of Bitcoin"
+            },
+            {
+                "id": "3n_WnVPhRTo",
+                "duration": 1800,
+                "title": "The Satoshi Nakamoto Enigma"
+            },
+            {
+                "id": "tWU3O3X5kKE",
+                "duration": 600,
+                "title": "The Story behind Bitcoin Pizza Day"
+            },
+            {
+                "id": "iqVuthH57wY",
+                "duration": 1800,
+                "title": "The Evolution of Bitcoin Mining!"
+            }
         ]
     },
     {
-        id: 'kids-family',
-        name: 'Kids & Family',
-        emoji: '👶',
-        desc: 'Bitcoin explained for young audiences',
-        color: '#f472b6',
-        videos: [
-            { id: 'BL5vUVQvmX4', title: 'What is Bitcoin? Explained in 3 Minutes — Tuttle Twins', duration: 180 },
-            { id: 'qnyqQvIii0U', title: 'Cryptocurrency Explained for Kids & Beginners', duration: 600 },
-            { id: '94I9L90h0_s', title: 'What is Cryptocurrency? — Kid-Friendly', duration: 300 },
-            { id: 'Z3xdGIyIV54', title: 'How to Explain Bitcoin to Children — Dad & Daughter', duration: 480 },
-            { id: 'tQ1_8M1K0tM', title: 'Cryptocurrency Explained to Kids — Twins', duration: 360 },
-            { id: 'EfKuZayeksI', title: 'Bitcoin for Kids — Simple Explanation', duration: 420 },
-            { id: '9ymZlz2l53I', title: 'What is Bitcoin? For Kids and Teens', duration: 360 },
+        "id": "kids-family",
+        "name": "Kids & Family",
+        "emoji": "👶",
+        "desc": "Bitcoin explained for young audiences",
+        "color": "#f472b6",
+        "videos": [
+            {
+                "id": "BL5vUVQvmX4",
+                "title": "What is Bitcoin? Explained in 3 Minutes — Tuttle Twins",
+                "duration": 180
+            },
+            {
+                "id": "qnyqQvIii0U",
+                "title": "Cryptocurrency Explained for Kids & Beginners",
+                "duration": 600
+            },
+            {
+                "id": "94I9L90h0_s",
+                "title": "What is Cryptocurrency? — Kid-Friendly",
+                "duration": 300
+            },
+            {
+                "id": "Z3xdGIyIV54",
+                "title": "How to Explain Bitcoin to Children — Dad & Daughter",
+                "duration": 480
+            },
+            {
+                "id": "tQ1_8M1K0tM",
+                "title": "Cryptocurrency Explained to Kids — Twins",
+                "duration": 360
+            },
+            {
+                "id": "EfKuZayeksI",
+                "title": "Bitcoin for Kids — Simple Explanation",
+                "duration": 420
+            },
+            {
+                "id": "9ymZlz2l53I",
+                "title": "What is Bitcoin? For Kids and Teens",
+                "duration": 360
+            },
+            {
+                "id": "B-IpiKURs3I",
+                "duration": 3600,
+                "title": "1 Hour Tuttle Twins Compilation"
+            },
+            {
+                "id": "_ekzsZZGfsk",
+                "duration": 3600,
+                "title": "First Kids Cartoon about Bitcoin!"
+            }
         ]
     },
     {
-        id: 'lightning',
-        name: 'Lightning',
-        emoji: '⚡',
-        desc: 'Lightning Network & Layer 2',
-        color: '#7c3aed',
-        videos: [
-            { id: 'yKdK-7AtAMQ', title: 'Lightning Network — How It Actually Works', duration: 1276 },
-            { id: 'CG69c71aSLQ', title: 'Lightning Network Explained — Easy Guide', duration: 600 },
-            { id: '9UIOeoBEjmw', title: 'Lightning Network Explained', duration: 480 },
-            { id: 'zEeMco4KqGs', title: 'Lightning Network for Beginners', duration: 360 },
-            { id: 'bW7hvvjum9o', title: 'Lightning Network: Everything You Need To Know', duration: 900 },
-            { id: 'vmafxrT8eCU', title: 'Getting Started with Lightning Wallets', duration: 720 },
-            { id: 'i4z-2v_0H1k', title: 'How Lightning Network Will Change Bitcoin', duration: 1200 },
-            { id: '4kBCEbCWf1s', title: 'Lightning Network in Practice — Real Payments', duration: 900 },
-            { id: 'Pef22g53zsg', title: 'Why Lightning is the Future of Payments', duration: 1500 },
-            { id: '69QUHgHErx0', title: 'TOP Lightning Wallets in 2025 — How to Spend Bitcoin', duration: 1200 },
-            { id: 'bDzbKH5dwys', title: 'Zeus Wallet Tutorial — Embedded Lightning Node', duration: 1500 },
+        "id": "lightning",
+        "name": "Lightning",
+        "emoji": "⚡",
+        "desc": "Lightning Network & Layer 2",
+        "color": "#7c3aed",
+        "videos": [
+            {
+                "id": "yKdK-7AtAMQ",
+                "title": "Lightning Network — How It Actually Works",
+                "duration": 1276
+            },
+            {
+                "id": "CG69c71aSLQ",
+                "title": "Lightning Network Explained — Easy Guide",
+                "duration": 600
+            },
+            {
+                "id": "9UIOeoBEjmw",
+                "title": "Lightning Network Explained",
+                "duration": 480
+            },
+            {
+                "id": "zEeMco4KqGs",
+                "title": "Lightning Network for Beginners",
+                "duration": 360
+            },
+            {
+                "id": "bW7hvvjum9o",
+                "title": "Lightning Network: Everything You Need To Know",
+                "duration": 900
+            },
+            {
+                "id": "vmafxrT8eCU",
+                "title": "Getting Started with Lightning Wallets",
+                "duration": 720
+            },
+            {
+                "id": "i4z-2v_0H1k",
+                "title": "How Lightning Network Will Change Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "4kBCEbCWf1s",
+                "title": "Lightning Network in Practice — Real Payments",
+                "duration": 900
+            },
+            {
+                "id": "Pef22g53zsg",
+                "title": "Why Lightning is the Future of Payments",
+                "duration": 1500
+            },
+            {
+                "id": "69QUHgHErx0",
+                "title": "TOP Lightning Wallets in 2025 — How to Spend Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "bDzbKH5dwys",
+                "title": "Zeus Wallet Tutorial — Embedded Lightning Node",
+                "duration": 1500
+            },
+            {
+                "id": "qug6tCHPXtw",
+                "duration": 300,
+                "title": "Bitfury Lightning Coffee Machine"
+            },
+            {
+                "id": "bVC4795helY",
+                "duration": 300,
+                "title": "Lightning payment in Malaysia Cafe"
+            },
+            {
+                "id": "39KpscRXyXY",
+                "duration": 300,
+                "title": "Buying Coffee Using Bitcoin - LN"
+            },
+            {
+                "id": "sQPKdozYhQ8",
+                "duration": 600,
+                "title": "Beginners Guide to Coffee LN Payments"
+            },
+            {
+                "id": "rrr_zPmEiME",
+                "duration": 600,
+                "title": "Bitcoins Lightning Network Explained"
+            },
+            {
+                "id": "to8XItlplac",
+                "duration": 3600,
+                "title": "Lightning Transactions & Protocol Deep Dive"
+            },
+            {
+                "id": "TpwnoPUyumA",
+                "duration": 1500,
+                "title": "Phoenix Wallet Setup & Tutorial"
+            }
         ]
     },
     {
-        id: 'memes-comedy',
-        name: 'Memes & Comedy',
-        emoji: '😂',
-        desc: 'Funny Bitcoin videos & meme compilations',
-        color: '#facc15',
-        videos: [
-            { id: 'UDu5LOf_E-w', title: 'Bitcoin Memes Compilation', duration: 600 },
-            { id: 'NMDABNK8j_Q', title: 'Funniest Crypto Memes — He Sold? Edition', duration: 480 },
-            { id: 'RM1NdTvvtvk', title: 'Bitcoin Comedy Compilation', duration: 720 },
-            { id: 'BgZO1ppaneg', title: 'Best Crypto TikToks Compilation', duration: 540 },
-            { id: 'Ner16UBWdEg', title: 'Bitcoin Memes That Hit Different', duration: 480 },
-            { id: 'heA1fZzRAFs', title: 'Funniest Bitcoin Moments Compilation', duration: 600 },
-            { id: 'mEqr-8-TKrA', title: '30 People Turning Down FREE Bitcoin — Mike Still', duration: 420 },
-            { id: 'd6ham2mibiA', title: 'Bitcoin Street Reactions Compilation', duration: 540 },
-            { id: 'UX1GIhOhkAE', title: 'Me Saying Bitcoin', duration: 180 },
-            { id: '61i2iDz7u04', title: 'BITCONNECT REMIX', duration: 240 },
-            { id: 'fUFnLPblsBg', title: '100% Saylor — Michael Saylor Best Moments', duration: 600 },
+        "id": "memes-comedy",
+        "name": "Memes & Comedy",
+        "emoji": "😂",
+        "desc": "Funny Bitcoin videos & meme compilations",
+        "color": "#facc15",
+        "videos": [
+            {
+                "id": "UDu5LOf_E-w",
+                "title": "Bitcoin Memes Compilation",
+                "duration": 600
+            },
+            {
+                "id": "NMDABNK8j_Q",
+                "title": "Funniest Crypto Memes — He Sold? Edition",
+                "duration": 480
+            },
+            {
+                "id": "RM1NdTvvtvk",
+                "title": "Bitcoin Comedy Compilation",
+                "duration": 720
+            },
+            {
+                "id": "BgZO1ppaneg",
+                "title": "Best Crypto TikToks Compilation",
+                "duration": 540
+            },
+            {
+                "id": "Ner16UBWdEg",
+                "title": "Bitcoin Memes That Hit Different",
+                "duration": 480
+            },
+            {
+                "id": "heA1fZzRAFs",
+                "title": "Funniest Bitcoin Moments Compilation",
+                "duration": 600
+            },
+            {
+                "id": "mEqr-8-TKrA",
+                "title": "30 People Turning Down FREE Bitcoin — Mike Still",
+                "duration": 420
+            },
+            {
+                "id": "d6ham2mibiA",
+                "title": "Bitcoin Street Reactions Compilation",
+                "duration": 540
+            },
+            {
+                "id": "UX1GIhOhkAE",
+                "title": "Me Saying Bitcoin",
+                "duration": 180
+            },
+            {
+                "id": "61i2iDz7u04",
+                "title": "BITCONNECT REMIX",
+                "duration": 240
+            },
+            {
+                "id": "fUFnLPblsBg",
+                "title": "100% Saylor — Michael Saylor Best Moments",
+                "duration": 600
+            },
+            {
+                "id": "tWU3O3X5kKE",
+                "duration": 600,
+                "title": "The Story of Bitcoin Pizza Day"
+            }
         ]
     },
     {
-        id: 'mining',
-        name: 'Mining',
-        emoji: '⛏️',
-        desc: 'How Bitcoin mining works',
-        color: '#ea580c',
-        videos: [
-            { id: 'El3y8AME8oA', title: 'How Bitcoin Mining Really Happens', duration: 900 },
-            { id: 'lHipE05v4jg', title: 'How Bitcoin Mining Works — Complete Guide', duration: 1200 },
-            { id: '33i1PdSJgwA', title: 'How Bitcoin Mining Actually Works, Simplified', duration: 600 },
-            { id: '4HTtZhhXiAw', title: 'Bitcoin Mining Explained in 3 Minutes', duration: 180 },
-            { id: 'yxfvEK7Nj8s', title: 'Bitcoin Mining Explained in 10 Minutes', duration: 600 },
-            { id: 'DMfv8S8ffKA', title: 'Bitcoin Mining — Bloomberg Animated Explainer', duration: 300 },
-            { id: '5Wp6lInPQv0', title: 'The Cruel Reality of Bitcoin Mining — VoskCoin', duration: 1200 },
-            { id: 'rQFWgLQuGzo', title: 'VoskCoin Mining Farm Numbers', duration: 900 },
-            { id: 'CC8wQJuhP5g', title: 'Compass Mining Year in Review', duration: 1800 },
-            { id: 'ACAn_yL-Too', title: 'Bitcoin Mining — Inside a Real Facility', duration: 720 },
-            { id: 'Bjcn5OZwgcs', title: 'Is Bitcoin Mining Still Profitable?', duration: 600 },
-            { id: 'C4Z5yoWfnAU', title: 'Is Bitcoin Mining At Home Still Worth It in 2025?', duration: 1200 },
+        "id": "mining",
+        "name": "Mining",
+        "emoji": "⛏️",
+        "desc": "How Bitcoin mining works",
+        "color": "#ea580c",
+        "videos": [
+            {
+                "id": "El3y8AME8oA",
+                "title": "How Bitcoin Mining Really Happens",
+                "duration": 900
+            },
+            {
+                "id": "lHipE05v4jg",
+                "title": "How Bitcoin Mining Works — Complete Guide",
+                "duration": 1200
+            },
+            {
+                "id": "33i1PdSJgwA",
+                "title": "How Bitcoin Mining Actually Works, Simplified",
+                "duration": 600
+            },
+            {
+                "id": "4HTtZhhXiAw",
+                "title": "Bitcoin Mining Explained in 3 Minutes",
+                "duration": 180
+            },
+            {
+                "id": "yxfvEK7Nj8s",
+                "title": "Bitcoin Mining Explained in 10 Minutes",
+                "duration": 600
+            },
+            {
+                "id": "DMfv8S8ffKA",
+                "title": "Bitcoin Mining — Bloomberg Animated Explainer",
+                "duration": 300
+            },
+            {
+                "id": "5Wp6lInPQv0",
+                "title": "The Cruel Reality of Bitcoin Mining — VoskCoin",
+                "duration": 1200
+            },
+            {
+                "id": "rQFWgLQuGzo",
+                "title": "VoskCoin Mining Farm Numbers",
+                "duration": 900
+            },
+            {
+                "id": "CC8wQJuhP5g",
+                "title": "Compass Mining Year in Review",
+                "duration": 1800
+            },
+            {
+                "id": "ACAn_yL-Too",
+                "title": "Bitcoin Mining — Inside a Real Facility",
+                "duration": 720
+            },
+            {
+                "id": "Bjcn5OZwgcs",
+                "title": "Is Bitcoin Mining Still Profitable?",
+                "duration": 600
+            },
+            {
+                "id": "C4Z5yoWfnAU",
+                "title": "Is Bitcoin Mining At Home Still Worth It in 2025?",
+                "duration": 1200
+            },
+            {
+                "id": "lDafxxAgmUI",
+                "duration": 900,
+                "title": "MARA Granbury Facility Tour"
+            },
+            {
+                "id": "UAhQoKhzzbA",
+                "duration": 600,
+                "title": "Marathon 200MW Mining Site Acquisition"
+            },
+            {
+                "id": "YsYk8vyv32w",
+                "duration": 300,
+                "title": "The History of Bitcoin Mining"
+            },
+            {
+                "id": "5Y2fkldA-lQ",
+                "duration": 1800,
+                "title": "The Early Days of Bitcoin Mining"
+            },
+            {
+                "id": "JPanr1nsPA4",
+                "duration": 600,
+                "title": "Mining BTC in Paraguay via Hydro - MARA"
+            },
+            {
+                "id": "YGkLWGM8os4",
+                "duration": 300,
+                "title": "UAE Immersion Facility Ribbon Cutting"
+            },
+            {
+                "id": "iQiWQAtThns",
+                "duration": 600,
+                "title": "Marathon Digital Portfolio Overview"
+            },
+            {
+                "id": "t5S1Y6OopHo",
+                "duration": 900,
+                "title": "BEST Home Miners 2024 Guide"
+            }
         ]
     },
     {
-        id: 'music',
-        name: 'Music',
-        emoji: '🎵',
-        desc: 'Bitcoin songs, rap & music videos',
-        color: '#ec4899',
-        videos: [
-            { id: '8n5k714GOlA', title: 'HODL GANG — Bitcoin Rap Remix', duration: 240 },
-            { id: 'eH9b_qNbjEU', title: 'Bitcoin — Official Music Video (Teejay)', duration: 210 },
-            { id: 'EPQJHNXdJfM', title: 'Crypto — Takeoff feat. Rich The Kid', duration: 180 },
-            { id: 'KQ7rn3oi-Pc', title: 'Blockchain — Money Man', duration: 195 },
-            { id: 'VpvwgDjQLGA', title: 'Bitcoin All The Way Up — Dollar Vigilante', duration: 240 },
-            { id: 'f-4Rs3Sqlhc', title: 'Bitcoin Anthem — Crypto Music', duration: 210 },
-            { id: 'dgKlBQmGQ98', title: 'Most Toxic Bitcoin Maxi — Robbie P', duration: 240 },
-            { id: 'IrcN-zmCZMI', title: 'If It Was Not For Satoshi — Robbie P', duration: 210 },
-            { id: 'lG08pD-8upE', title: 'Bitcoin Slang Remix — Robbie P', duration: 225 },
-            { id: 'CnTxBAeGfaQ', title: 'Diamond Hands & Laser Eyes — Robbie P', duration: 240 },
-            { id: 'fG5PKg81mEQ', title: 'Fliponomics — Robbie P', duration: 210 },
-            { id: 'A7TuFy0fcuw', title: 'Bitcoin Song — Community Playlist', duration: 240 },
-            { id: 'c5wbgDLr-u0', title: 'Bitcoin Lofi Beats — Study & HODL', duration: 3600 },
-            { id: 'gSxKJJ9k3lA', title: 'The Ultimate Crypto Anthem — Betawi CryptoCoin', duration: 394 },
-            { id: '_c9WOks2mvg', title: 'Pump It Higher', duration: 210 },
-            { id: 'FCA9i6MUCK0', title: 'Bitcoin Beats Mix — Volume 1', duration: 1800 },
-            { id: 'XcerPhwbIFs', title: 'Orange Pill rApp — Wallet Stay Stackin\'!', duration: 240 },
-            { id: 'Y5r6e1VcIBE', title: 'BITCOIN SONG — Pat Ryan', duration: 210 },
-            { id: 'fZfg1Gtcg08', title: 'Bitcoin Baron — ytcracker', duration: 270 },
-            { id: 'yp0diaVLPrQ', title: 'Mark Zuckerberg\'s Sister Sings to Crypto', duration: 240 },
-            { id: 'YbzNJr26H-4', title: 'Welcome To The Blockchain — Toby Ganger + Decap', duration: 240 },
-            { id: 'U5NGVH8HDaw', title: 'Bitcoin Boomdeyada!', duration: 180 },
-            { id: 'kdvTkddp1F0', title: 'Don\'t Get Zhou Tonged!!! — Zhou Tonged', duration: 210 },
-            { id: 'nO6A4N9zjgE', title: 'Rich Men North of Richmond — Full Band Cover', duration: 210 },
-            { id: 'RIsZyg8OXlI', title: '10,000 Bitcoins — Laura Saggers', duration: 240 },
-            { id: 'RglKdIovlX0', title: 'BANK — Bitcoin Music Video', duration: 210 },
-            { id: 's3UtbslfqS8', title: 'Gary Gensler, Isn\'t That True? — Bitcoin Heavy Metal', duration: 240 },
-            { id: '9I9l8vlTvJE', title: 'Toxic Maximalist — The Orange Pill Jam Project', duration: 270 },
-            { id: 'DNYzHGM50Ys', title: 'Too Bit To Fail — Proof of Word EP', duration: 240 },
-            { id: 'VMLakjlz6us', title: 'Ode to Satoshi — Roger 9000', duration: 300 },
-            { id: 'BifVGcvJpxc', title: 'WAGMI', duration: 210 },
-            { id: 'AQwyOhLBsI4', title: 'Stacking Sats — Jack Mallers', duration: 240 },
-            { id: '9johJ8eyucQ', title: 'It\'s Math — Greg Foss & Pleb Music', duration: 270 },
-            { id: '6ZKzapbQPZA', title: 'Banksters Paradise — A Bitcoin Song', duration: 270 },
-            { id: 'Vz9iCgiSZrM', title: 'Bitcoin\'s Back — Lil Bubble (Backstreet Boys Parody)', duration: 210 },
-            { id: 'GZ0YMSLZjfQ', title: 'Welcome To The Blockchain — Music Video', duration: 240 },
-            { id: 'Otkg4Ftx6GI', title: 'The Bitcoin Song', duration: 210 },
-            { id: '7gfBP8kPzRA', title: 'The Bitcoin Song — Jay-Z Empire State of Mind Parody', duration: 270 },
-            { id: 'WrEVpNdYkrs', title: 'B.R.E.A.M. — Zhou Tonged (Wu-Tang C.R.E.A.M. Parody)', duration: 240 },
-            { id: 'AKqdUAhX3nA', title: 'Bitcoin Is Hope ft. Michael Saylor', duration: 240 },
-            { id: 'KRopo3nofl4', title: '10,000 Bitcoin Remix — Laura Saggers', duration: 240 },
-            { id: 'U252iiG8YP0', title: 'Jingle Bells, Bank Cartels! A Bitcoin Christmas Song', duration: 210 },
+        "id": "music",
+        "name": "Music",
+        "emoji": "🎵",
+        "desc": "Bitcoin songs, rap & music videos",
+        "color": "#ec4899",
+        "videos": [
+            {
+                "id": "8n5k714GOlA",
+                "title": "HODL GANG — Bitcoin Rap Remix",
+                "duration": 240
+            },
+            {
+                "id": "eH9b_qNbjEU",
+                "title": "Bitcoin — Official Music Video (Teejay)",
+                "duration": 210
+            },
+            {
+                "id": "EPQJHNXdJfM",
+                "title": "Crypto — Takeoff feat. Rich The Kid",
+                "duration": 180
+            },
+            {
+                "id": "KQ7rn3oi-Pc",
+                "title": "Blockchain — Money Man",
+                "duration": 195
+            },
+            {
+                "id": "VpvwgDjQLGA",
+                "title": "Bitcoin All The Way Up — Dollar Vigilante",
+                "duration": 240
+            },
+            {
+                "id": "f-4Rs3Sqlhc",
+                "title": "Bitcoin Anthem — Crypto Music",
+                "duration": 210
+            },
+            {
+                "id": "dgKlBQmGQ98",
+                "title": "Most Toxic Bitcoin Maxi — Robbie P",
+                "duration": 240
+            },
+            {
+                "id": "IrcN-zmCZMI",
+                "title": "If It Was Not For Satoshi — Robbie P",
+                "duration": 210
+            },
+            {
+                "id": "lG08pD-8upE",
+                "title": "Bitcoin Slang Remix — Robbie P",
+                "duration": 225
+            },
+            {
+                "id": "CnTxBAeGfaQ",
+                "title": "Diamond Hands & Laser Eyes — Robbie P",
+                "duration": 240
+            },
+            {
+                "id": "fG5PKg81mEQ",
+                "title": "Fliponomics — Robbie P",
+                "duration": 210
+            },
+            {
+                "id": "A7TuFy0fcuw",
+                "title": "Bitcoin Song — Community Playlist",
+                "duration": 240
+            },
+            {
+                "id": "c5wbgDLr-u0",
+                "title": "Bitcoin Lofi Beats — Study & HODL",
+                "duration": 3600
+            },
+            {
+                "id": "gSxKJJ9k3lA",
+                "title": "The Ultimate Crypto Anthem — Betawi CryptoCoin",
+                "duration": 394
+            },
+            {
+                "id": "_c9WOks2mvg",
+                "title": "Pump It Higher",
+                "duration": 210
+            },
+            {
+                "id": "FCA9i6MUCK0",
+                "title": "Bitcoin Beats Mix — Volume 1",
+                "duration": 1800
+            },
+            {
+                "id": "XcerPhwbIFs",
+                "title": "Orange Pill rApp — Wallet Stay Stackin'!",
+                "duration": 240
+            },
+            {
+                "id": "Y5r6e1VcIBE",
+                "title": "BITCOIN SONG — Pat Ryan",
+                "duration": 210
+            },
+            {
+                "id": "fZfg1Gtcg08",
+                "title": "Bitcoin Baron — ytcracker",
+                "duration": 270
+            },
+            {
+                "id": "yp0diaVLPrQ",
+                "title": "Mark Zuckerberg's Sister Sings to Crypto",
+                "duration": 240
+            },
+            {
+                "id": "YbzNJr26H-4",
+                "title": "Welcome To The Blockchain — Toby Ganger + Decap",
+                "duration": 240
+            },
+            {
+                "id": "U5NGVH8HDaw",
+                "title": "Bitcoin Boomdeyada!",
+                "duration": 180
+            },
+            {
+                "id": "kdvTkddp1F0",
+                "title": "Don't Get Zhou Tonged!!! — Zhou Tonged",
+                "duration": 210
+            },
+            {
+                "id": "nO6A4N9zjgE",
+                "title": "Rich Men North of Richmond — Full Band Cover",
+                "duration": 210
+            },
+            {
+                "id": "RIsZyg8OXlI",
+                "title": "10,000 Bitcoins — Laura Saggers",
+                "duration": 240
+            },
+            {
+                "id": "RglKdIovlX0",
+                "title": "BANK — Bitcoin Music Video",
+                "duration": 210
+            },
+            {
+                "id": "s3UtbslfqS8",
+                "title": "Gary Gensler, Isn't That True? — Bitcoin Heavy Metal",
+                "duration": 240
+            },
+            {
+                "id": "9I9l8vlTvJE",
+                "title": "Toxic Maximalist — The Orange Pill Jam Project",
+                "duration": 270
+            },
+            {
+                "id": "DNYzHGM50Ys",
+                "title": "Too Bit To Fail — Proof of Word EP",
+                "duration": 240
+            },
+            {
+                "id": "VMLakjlz6us",
+                "title": "Ode to Satoshi — Roger 9000",
+                "duration": 300
+            },
+            {
+                "id": "BifVGcvJpxc",
+                "title": "WAGMI",
+                "duration": 210
+            },
+            {
+                "id": "AQwyOhLBsI4",
+                "title": "Stacking Sats — Jack Mallers",
+                "duration": 240
+            },
+            {
+                "id": "9johJ8eyucQ",
+                "title": "It's Math — Greg Foss & Pleb Music",
+                "duration": 270
+            },
+            {
+                "id": "6ZKzapbQPZA",
+                "title": "Banksters Paradise — A Bitcoin Song",
+                "duration": 270
+            },
+            {
+                "id": "Vz9iCgiSZrM",
+                "title": "Bitcoin's Back — Lil Bubble (Backstreet Boys Parody)",
+                "duration": 210
+            },
+            {
+                "id": "GZ0YMSLZjfQ",
+                "title": "Welcome To The Blockchain — Music Video",
+                "duration": 240
+            },
+            {
+                "id": "Otkg4Ftx6GI",
+                "title": "The Bitcoin Song",
+                "duration": 210
+            },
+            {
+                "id": "7gfBP8kPzRA",
+                "title": "The Bitcoin Song — Jay-Z Empire State of Mind Parody",
+                "duration": 270
+            },
+            {
+                "id": "WrEVpNdYkrs",
+                "title": "B.R.E.A.M. — Zhou Tonged (Wu-Tang C.R.E.A.M. Parody)",
+                "duration": 240
+            },
+            {
+                "id": "AKqdUAhX3nA",
+                "title": "Bitcoin Is Hope ft. Michael Saylor",
+                "duration": 240
+            },
+            {
+                "id": "KRopo3nofl4",
+                "title": "10,000 Bitcoin Remix — Laura Saggers",
+                "duration": 240
+            },
+            {
+                "id": "U252iiG8YP0",
+                "title": "Jingle Bells, Bank Cartels! A Bitcoin Christmas Song",
+                "duration": 210
+            }
         ]
     },
     {
-        id: 'news',
-        name: 'News',
-        emoji: '📰',
-        desc: 'Latest Bitcoin news & market updates',
-        color: '#3b82f6',
-        videos: [
-            { id: 'LGYcl4hwUOI', title: 'Bitcoin at 200-Week Moving Average — Buy Signal?', duration: 1200 },
-            { id: 'kN5codbLCCY', title: 'Bitcoin Regulation Becoming National Security', duration: 900 },
-            { id: 'DDk6-tdHeXQ', title: 'Bitcoin Technical Analysis — Elliott Wave', duration: 1500 },
-            { id: 'HOYnvEVOTJA', title: 'Simply Bitcoin — Daily News Update', duration: 3600 },
-            { id: '1nsIy7PWXyY', title: 'Bitcoin Price Analysis — Key Levels', duration: 1200 },
-            { id: 'K4ciiDyUvUo', title: 'Larry Fink: Bitcoin is Digital Gold — CNBC', duration: 480 },
-            { id: '-LPit2bEWAo', title: 'BlackRock CEO on Bitcoin ETF Success — CNBC', duration: 600 },
-            { id: 'wSh_KzcY_dA', title: '60 Minutes: Stories About Cryptocurrency — CBS', duration: 4000 },
-            { id: 'CbEHD0esI_A', title: 'MicroStrategy Bitcoin Reserve Strategy — CNBC', duration: 420 },
-            { id: 'BSiQHfEUabI', title: 'Bitcoin Hits New All-Time High — CNBC', duration: 360 },
-            { id: '5c03NCvohCA', title: 'Bitcoin ETF Record Performance — Bloomberg', duration: 480 },
-            { id: 'N7Z7tpwSlBg', title: 'Strategy CEO on 2026 Bitcoin Outlook — Fox Business', duration: 540 },
-            { id: 'DyMVHXz9Tgs', title: 'Bitcoin ETFs Survive First Stress Test — Bloomberg', duration: 420 },
-            { id: 'dYFMoK1nDmc', title: '60 Minutes: Bitcoin Beach El Salvador — CBS', duration: 780 },
-            { id: 'WaEBc2prSPE', title: 'Next-Gen Bitcoin ETFs Outperforming — Bloomberg', duration: 360 },
-            { id: 'wC4nzqrgvik', title: 'Iran Used Bitcoin To Break US Sanctions — Simply Bitcoin', duration: 1800 },
-            { id: 'c3LyvfHQ9BE', title: 'Why Bitcoin Booms in October — Simply Bitcoin', duration: 1200 },
-            { id: 'zo1pZlgAvpY', title: 'Is This the Final Bitcoin Crash Before All-Time Highs? — Simply Bitcoin', duration: 1500 },
+        "id": "news",
+        "name": "News",
+        "emoji": "📰",
+        "desc": "Latest Bitcoin news & market updates",
+        "color": "#3b82f6",
+        "videos": [
+            {
+                "id": "LGYcl4hwUOI",
+                "title": "Bitcoin at 200-Week Moving Average — Buy Signal?",
+                "duration": 1200
+            },
+            {
+                "id": "kN5codbLCCY",
+                "title": "Bitcoin Regulation Becoming National Security",
+                "duration": 900
+            },
+            {
+                "id": "DDk6-tdHeXQ",
+                "title": "Bitcoin Technical Analysis — Elliott Wave",
+                "duration": 1500
+            },
+            {
+                "id": "HOYnvEVOTJA",
+                "title": "Simply Bitcoin — Daily News Update",
+                "duration": 3600
+            },
+            {
+                "id": "1nsIy7PWXyY",
+                "title": "Bitcoin Price Analysis — Key Levels",
+                "duration": 1200
+            },
+            {
+                "id": "K4ciiDyUvUo",
+                "title": "Larry Fink: Bitcoin is Digital Gold — CNBC",
+                "duration": 480
+            },
+            {
+                "id": "-LPit2bEWAo",
+                "title": "BlackRock CEO on Bitcoin ETF Success — CNBC",
+                "duration": 600
+            },
+            {
+                "id": "wSh_KzcY_dA",
+                "title": "60 Minutes: Stories About Cryptocurrency — CBS",
+                "duration": 4000
+            },
+            {
+                "id": "CbEHD0esI_A",
+                "title": "MicroStrategy Bitcoin Reserve Strategy — CNBC",
+                "duration": 420
+            },
+            {
+                "id": "BSiQHfEUabI",
+                "title": "Bitcoin Hits New All-Time High — CNBC",
+                "duration": 360
+            },
+            {
+                "id": "5c03NCvohCA",
+                "title": "Bitcoin ETF Record Performance — Bloomberg",
+                "duration": 480
+            },
+            {
+                "id": "N7Z7tpwSlBg",
+                "title": "Strategy CEO on 2026 Bitcoin Outlook — Fox Business",
+                "duration": 540
+            },
+            {
+                "id": "DyMVHXz9Tgs",
+                "title": "Bitcoin ETFs Survive First Stress Test — Bloomberg",
+                "duration": 420
+            },
+            {
+                "id": "dYFMoK1nDmc",
+                "title": "60 Minutes: Bitcoin Beach El Salvador — CBS",
+                "duration": 780
+            },
+            {
+                "id": "WaEBc2prSPE",
+                "title": "Next-Gen Bitcoin ETFs Outperforming — Bloomberg",
+                "duration": 360
+            },
+            {
+                "id": "wC4nzqrgvik",
+                "title": "Iran Used Bitcoin To Break US Sanctions — Simply Bitcoin",
+                "duration": 1800
+            },
+            {
+                "id": "c3LyvfHQ9BE",
+                "title": "Why Bitcoin Booms in October — Simply Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "zo1pZlgAvpY",
+                "title": "Is This the Final Bitcoin Crash Before All-Time Highs? — Simply Bitcoin",
+                "duration": 1500
+            }
         ]
     },
     {
-        id: 'orange-pill',
-        name: 'Orange Pill',
-        emoji: '🟠',
-        desc: 'Best videos to share with beginners',
-        color: '#f7931a',
-        videos: [
-            { id: 'gCfA1lkmJo4', title: 'The Greatest Bitcoin Explanation — Michael Saylor', duration: 1200 },
-            { id: '1Mr9PknsM_Y', title: 'Saylor\'s Best Explanation Under 20 Minutes', duration: 1200 },
-            { id: 'xegEpCLT0CQ', title: 'A Practical Approach to Orange Pilling', duration: 1800 },
-            { id: 'heA1fZzRAFs', title: 'Orange Pill: The Bitcoin Guide', duration: 900 },
-            { id: 'Bt2Z-_nhpwQ', title: 'How to Orange Pill Anyone', duration: 600 },
-            { id: 'YT-38EneBWw', title: 'Bitcoin Street Interviews London — Mike Still', duration: 1440 },
-            { id: 'og5zZssEWIc', title: 'Bitcoin Street Interviews Birmingham — Mike Still', duration: 1500 },
-            { id: 'Uh-eTnRXCr8', title: 'Bitcoin Street Interviews Edinburgh — Mike Still', duration: 1400 },
-            { id: 'vclZlAFXpEI', title: 'Give Me 9 Minutes and You Will Understand Bitcoin — Exit Manual', duration: 600 },
-            { id: 'HhxcdMIJTLA', title: 'Telling People About Bitcoin Never Works — Exit Manual', duration: 450 },
-            { id: 'r34hkJBeE-M', title: 'How I Lost 14 Bitcoins — Exit Manual', duration: 555 },
-            { id: 'IuVkUqdqkcc', title: 'Buy Bitcoin When It Looks Like This — Exit Manual', duration: 653 },
-            { id: '4tqXvMNOuHk', title: 'Bitcoin Ethical Superiority Explained — Exit Manual', duration: 480 },
-            { id: 'Sv9VAocAA80', title: 'Max Keiser: Bitcoin Will Replace the Dollar', duration: 1200 },
-            { id: 'exK5yFEuBsk', title: 'Remember, Remember the 5th of November — Bitcoin', duration: 180 },
-            { id: 'MQvvLwxxxdM', title: 'The Banks are BROKE', duration: 600 },
+        "id": "orange-pill",
+        "name": "Orange Pill",
+        "emoji": "🟠",
+        "desc": "Best videos to share with beginners",
+        "color": "#f7931a",
+        "videos": [
+            {
+                "id": "gCfA1lkmJo4",
+                "title": "The Greatest Bitcoin Explanation — Michael Saylor",
+                "duration": 1200
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Saylor's Best Explanation Under 20 Minutes",
+                "duration": 1200
+            },
+            {
+                "id": "xegEpCLT0CQ",
+                "title": "A Practical Approach to Orange Pilling",
+                "duration": 1800
+            },
+            {
+                "id": "heA1fZzRAFs",
+                "title": "Orange Pill: The Bitcoin Guide",
+                "duration": 900
+            },
+            {
+                "id": "Bt2Z-_nhpwQ",
+                "title": "How to Orange Pill Anyone",
+                "duration": 600
+            },
+            {
+                "id": "YT-38EneBWw",
+                "title": "Bitcoin Street Interviews London — Mike Still",
+                "duration": 1440
+            },
+            {
+                "id": "og5zZssEWIc",
+                "title": "Bitcoin Street Interviews Birmingham — Mike Still",
+                "duration": 1500
+            },
+            {
+                "id": "Uh-eTnRXCr8",
+                "title": "Bitcoin Street Interviews Edinburgh — Mike Still",
+                "duration": 1400
+            },
+            {
+                "id": "vclZlAFXpEI",
+                "title": "Give Me 9 Minutes and You Will Understand Bitcoin — Exit Manual",
+                "duration": 600
+            },
+            {
+                "id": "HhxcdMIJTLA",
+                "title": "Telling People About Bitcoin Never Works — Exit Manual",
+                "duration": 450
+            },
+            {
+                "id": "r34hkJBeE-M",
+                "title": "How I Lost 14 Bitcoins — Exit Manual",
+                "duration": 555
+            },
+            {
+                "id": "IuVkUqdqkcc",
+                "title": "Buy Bitcoin When It Looks Like This — Exit Manual",
+                "duration": 653
+            },
+            {
+                "id": "4tqXvMNOuHk",
+                "title": "Bitcoin Ethical Superiority Explained — Exit Manual",
+                "duration": 480
+            },
+            {
+                "id": "Sv9VAocAA80",
+                "title": "Max Keiser: Bitcoin Will Replace the Dollar",
+                "duration": 1200
+            },
+            {
+                "id": "exK5yFEuBsk",
+                "title": "Remember, Remember the 5th of November — Bitcoin",
+                "duration": 180
+            },
+            {
+                "id": "MQvvLwxxxdM",
+                "title": "The Banks are BROKE",
+                "duration": 600
+            }
         ]
     },
     {
-        id: 'podcasts',
-        name: 'Podcasts',
-        emoji: '🎙️',
-        desc: 'Best Bitcoin podcast clips & episodes',
-        color: '#14b8a6',
-        videos: [
-            { id: 'l1Rgq8UY3zo', title: 'Why Bitcoin is Different — Stephan Livera', duration: 3600 },
-            { id: '4Q1AasS6HLU', title: 'Bitcoin 101 — Stephan Livera Podcast', duration: 4200 },
-            { id: 'N_qo_-QRqAM', title: 'No More 4-Year Cycles? — Stephan Livera', duration: 3000 },
-            { id: 'aN2G0Uvahf8', title: 'What Bitcoin Did — Beginner Guide', duration: 5400 },
-            { id: 'oMDHTVwSRHI', title: '1 Bitcoin Is All You Need', duration: 2400 },
-            { id: 'x0kNGaxLg18', title: 'Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories', duration: 3320 },
-            { id: 'HwNSykjO-gI', title: 'Lyn Alden: Changing World Order — Coin Stories', duration: 3630 },
-            { id: 'to7FF7ZmBl0', title: 'Lyn Alden: No Massive Bust or Boom? — Coin Stories', duration: 3383 },
-            { id: 'bhSGC08V47U', title: 'Stephan Livera on Bitcoin Maximalism', duration: 3600 },
-            { id: '6WxdkRk8cs4', title: 'Stephan Livera: Bitcoin Education Deep Dive', duration: 2700 },
-            { id: 'sTxdYxGqYDo', title: 'Stephan Livera: Why Bitcoin Only', duration: 3000 },
-            { id: 'x0kNGaxLg18', title: 'Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories', duration: 3320 },
-            { id: 'HwNSykjO-gI', title: 'Lyn Alden: Changing World Order — Coin Stories', duration: 3630 },
-            { id: 'to7FF7ZmBl0', title: 'Lyn Alden: No Massive Bust or Boom? — Coin Stories', duration: 3383 },
+        "id": "podcasts",
+        "name": "Podcasts",
+        "emoji": "🎙️",
+        "desc": "Best Bitcoin podcast clips & episodes",
+        "color": "#14b8a6",
+        "videos": [
+            {
+                "id": "l1Rgq8UY3zo",
+                "title": "Why Bitcoin is Different — Stephan Livera",
+                "duration": 3600
+            },
+            {
+                "id": "4Q1AasS6HLU",
+                "title": "Bitcoin 101 — Stephan Livera Podcast",
+                "duration": 4200
+            },
+            {
+                "id": "N_qo_-QRqAM",
+                "title": "No More 4-Year Cycles? — Stephan Livera",
+                "duration": 3000
+            },
+            {
+                "id": "aN2G0Uvahf8",
+                "title": "What Bitcoin Did — Beginner Guide",
+                "duration": 5400
+            },
+            {
+                "id": "oMDHTVwSRHI",
+                "title": "1 Bitcoin Is All You Need",
+                "duration": 2400
+            },
+            {
+                "id": "x0kNGaxLg18",
+                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
+                "duration": 3320
+            },
+            {
+                "id": "HwNSykjO-gI",
+                "title": "Lyn Alden: Changing World Order — Coin Stories",
+                "duration": 3630
+            },
+            {
+                "id": "to7FF7ZmBl0",
+                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
+                "duration": 3383
+            },
+            {
+                "id": "bhSGC08V47U",
+                "title": "Stephan Livera on Bitcoin Maximalism",
+                "duration": 3600
+            },
+            {
+                "id": "6WxdkRk8cs4",
+                "title": "Stephan Livera: Bitcoin Education Deep Dive",
+                "duration": 2700
+            },
+            {
+                "id": "sTxdYxGqYDo",
+                "title": "Stephan Livera: Why Bitcoin Only",
+                "duration": 3000
+            },
+            {
+                "id": "x0kNGaxLg18",
+                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
+                "duration": 3320
+            },
+            {
+                "id": "HwNSykjO-gI",
+                "title": "Lyn Alden: Changing World Order — Coin Stories",
+                "duration": 3630
+            },
+            {
+                "id": "to7FF7ZmBl0",
+                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
+                "duration": 3383
+            },
+            {
+                "id": "j89aAqfezX8",
+                "duration": 6434,
+                "title": "Saving Bedford - Peter McCormack"
+            },
+            {
+                "id": "K5bZ4HPpwxw",
+                "duration": 6182,
+                "title": "Fixing Government Corruption - WBD"
+            },
+            {
+                "id": "nMicPEQM4HY",
+                "duration": 1541,
+                "title": "Maximalism is Dead? | Peter McCormack"
+            },
+            {
+                "id": "0rlnVQoiVyc",
+                "duration": 3000,
+                "title": "History of Bitcoin w/ Marty Bent"
+            },
+            {
+                "id": "meCoGKugjMQ",
+                "duration": 3600,
+                "title": "Marty Bent on the Power of Bitcoin"
+            },
+            {
+                "id": "ANtyYqcXR9w",
+                "duration": 3600,
+                "title": "Marty Bent: Tales from The Crypt"
+            }
         ]
     },
     {
-        id: 'politics-regulation',
-        name: 'Politics & Regulation',
-        emoji: '🏛️',
-        desc: 'Government policy, ETFs & legal battles',
-        color: '#64748b',
-        videos: [
-            { id: 'kN5codbLCCY', title: 'Bitcoin Regulation: National Security Issue', duration: 900 },
-            { id: 'pR4t4dRdajw', title: 'Bitcoin vs Authoritarianism — Gladstein', duration: 2400 },
-            { id: '_6PvTUqyRt8', title: 'Alex Gladstein on Bitcoin Freedom', duration: 1800 },
-            { id: 'kSbMU5CbFM0', title: 'Bitcoin vs Authoritarianism — HRF', duration: 2100 },
-            { id: 'Y5wgZ3rFayQ', title: 'Financial Sovereignty & Bitcoin Policy', duration: 1800 },
-            { id: 'R4gyS5mb9dE', title: 'Gladstein: Bitcoin Is a Tool Dictators Should Fear — 2025 Summit', duration: 1800 },
-            { id: 'zV_A2yMZl0w', title: 'Gladstein: Bitcoin Privacy Technologies Redefining Money', duration: 1800 },
+        "id": "politics-regulation",
+        "name": "Politics & Regulation",
+        "emoji": "🏛️",
+        "desc": "Government policy, ETFs & legal battles",
+        "color": "#64748b",
+        "videos": [
+            {
+                "id": "kN5codbLCCY",
+                "title": "Bitcoin Regulation: National Security Issue",
+                "duration": 900
+            },
+            {
+                "id": "pR4t4dRdajw",
+                "title": "Bitcoin vs Authoritarianism — Gladstein",
+                "duration": 2400
+            },
+            {
+                "id": "_6PvTUqyRt8",
+                "title": "Alex Gladstein on Bitcoin Freedom",
+                "duration": 1800
+            },
+            {
+                "id": "kSbMU5CbFM0",
+                "title": "Bitcoin vs Authoritarianism — HRF",
+                "duration": 2100
+            },
+            {
+                "id": "Y5wgZ3rFayQ",
+                "title": "Financial Sovereignty & Bitcoin Policy",
+                "duration": 1800
+            },
+            {
+                "id": "R4gyS5mb9dE",
+                "title": "Gladstein: Bitcoin Is a Tool Dictators Should Fear — 2025 Summit",
+                "duration": 1800
+            },
+            {
+                "id": "zV_A2yMZl0w",
+                "title": "Gladstein: Bitcoin Privacy Technologies Redefining Money",
+                "duration": 1800
+            },
+            {
+                "id": "MuobSz7534s",
+                "duration": 3119,
+                "title": "Paving the Frontier - Dennis Porter"
+            },
+            {
+                "id": "boZ7yJOFBk0",
+                "duration": 2932,
+                "title": "Crushing Anti-BTC Legislation - Porter"
+            },
+            {
+                "id": "YqWoj2eFDp4",
+                "duration": 1800,
+                "title": "Right To Mine Policy - Dennis Porter"
+            },
+            {
+                "id": "R-Rd12saPh8",
+                "duration": 1200,
+                "title": "The Fight for Bitcoin in America"
+            },
+            {
+                "id": "_E_5Hk-vRj8",
+                "duration": 1410,
+                "title": "Bitcoin U.S. Reserve in 30 Days?"
+            },
+            {
+                "id": "tWWb0-A0Rdk",
+                "duration": 1200,
+                "title": "Bitcoin Laws Are Changing | SAF"
+            },
+            {
+                "id": "jfUX8d80ifw",
+                "duration": 1200,
+                "title": "Mined In America Act FT. Dennis Porter"
+            },
+            {
+                "id": "lwJpvqMeLJg",
+                "duration": 340,
+                "title": "Bitcoin Breaking Records - SuperTalk"
+            }
         ]
     },
     {
-        id: 'tutorials',
-        name: 'Tutorials',
-        emoji: '📚',
-        desc: 'Learn Bitcoin step by step',
-        color: '#f7931a',
-        videos: [
-            { id: 'El3y8AME8oA', title: 'Bitcoin Explained — Breaking It Down Simply', duration: 900 },
-            { id: 'lHipE05v4jg', title: 'How Bitcoin Works — Complete Beginner Guide', duration: 1200 },
-            { id: '41JCpzvnn_0', title: 'Bitcoin for Beginners — 99Bitcoins', duration: 720 },
-            { id: 'Gc2en3nHxA4', title: 'What is Bitcoin — Simply Explained', duration: 540 },
-            { id: 'bBC-nXj3Ng4', title: 'How Bitcoin Works Under the Hood', duration: 1320 },
-            { id: 'c8ytiynbnpk', title: 'Your First Bitcoin Wallet — BTC Sessions', duration: 1500 },
-            { id: '3Grj3Datdfw', title: 'Game-Changing Bitcoin Wallet (Cove) — BTC Sessions', duration: 1600 },
-            { id: 'bsAznpEupIg', title: 'Easiest Bitcoin Wallet Setup (Aqua) — BTC Sessions', duration: 2400 },
-            { id: 'IxgNp2h5j8w', title: 'How To Buy, Use and Secure Bitcoin — BTC Sessions', duration: 1800 },
-            { id: '6b0xTB2sE8E', title: 'Bull Bitcoin Wallet Full Tutorial — BTC Sessions', duration: 5500 },
-            { id: 'mibKrTvtlyQ', title: 'Misty Breez Bitcoin Wallet Setup — BTC Sessions', duration: 900 },
-            { id: 'Y3iAwLG6NlA', title: 'Bitcoin Wallets That Change Everything in 2026 — BTC Sessions', duration: 1200 },
-            { id: 'Gc2en3nHxA4', title: 'Bitcoin Simply Explained in 5 Minutes', duration: 300 },
-            { id: 'f-4Rs3Sqlhc', title: 'Complete History of Bitcoin in 12 Minutes', duration: 720 },
-            { id: 'Ner16UBWdEg', title: 'Bitcoin in 2025 — What You Need to Know', duration: 600 },
-            { id: '4Lsr7lsy6Tk', title: 'How to Set Up a Bitcoin Node at Home', duration: 1800 },
-            { id: 'OZK5hdKfb18', title: 'Bitcoin Security Best Practices', duration: 900 },
-            { id: 'vmf_LtnagTs', title: 'Bitcoin Cold Storage Tutorial', duration: 1200 },
-            { id: 'rKjce1jCxSM', title: 'Bitcoin Beginner Mistakes to Avoid', duration: 780 },
-            { id: 'GR-E0aaFf0c', title: 'Bitcoin Explained for Complete Beginners', duration: 600 },
-            { id: 'Y3iAwLG6NlA', title: 'Bitcoin Wallets That Change Everything in 2026 — BTC Sessions', duration: 1906 },
-            { id: 'ZZKoSmQu30Q', title: 'Best Hardware Wallet Comparison 2025 — BTC Sessions', duration: 3621 },
-            { id: 'KNaOeLlD6NA', title: 'Build Your Own Bitcoin Node with Umbrel — Raspberry Pi', duration: 1200 },
-            { id: 'TpwnoPUyumA', title: 'Phoenix Wallet Setup — Self-Custody Lightning Made Easy', duration: 1500 },
+        "id": "tutorials",
+        "name": "Tutorials",
+        "emoji": "📚",
+        "desc": "Learn Bitcoin step by step",
+        "color": "#f7931a",
+        "videos": [
+            {
+                "id": "El3y8AME8oA",
+                "title": "Bitcoin Explained — Breaking It Down Simply",
+                "duration": 900
+            },
+            {
+                "id": "lHipE05v4jg",
+                "title": "How Bitcoin Works — Complete Beginner Guide",
+                "duration": 1200
+            },
+            {
+                "id": "41JCpzvnn_0",
+                "title": "Bitcoin for Beginners — 99Bitcoins",
+                "duration": 720
+            },
+            {
+                "id": "Gc2en3nHxA4",
+                "title": "What is Bitcoin — Simply Explained",
+                "duration": 540
+            },
+            {
+                "id": "bBC-nXj3Ng4",
+                "title": "How Bitcoin Works Under the Hood",
+                "duration": 1320
+            },
+            {
+                "id": "c8ytiynbnpk",
+                "title": "Your First Bitcoin Wallet — BTC Sessions",
+                "duration": 1500
+            },
+            {
+                "id": "3Grj3Datdfw",
+                "title": "Game-Changing Bitcoin Wallet (Cove) — BTC Sessions",
+                "duration": 1600
+            },
+            {
+                "id": "bsAznpEupIg",
+                "title": "Easiest Bitcoin Wallet Setup (Aqua) — BTC Sessions",
+                "duration": 2400
+            },
+            {
+                "id": "IxgNp2h5j8w",
+                "title": "How To Buy, Use and Secure Bitcoin — BTC Sessions",
+                "duration": 1800
+            },
+            {
+                "id": "6b0xTB2sE8E",
+                "title": "Bull Bitcoin Wallet Full Tutorial — BTC Sessions",
+                "duration": 5500
+            },
+            {
+                "id": "mibKrTvtlyQ",
+                "title": "Misty Breez Bitcoin Wallet Setup — BTC Sessions",
+                "duration": 900
+            },
+            {
+                "id": "Y3iAwLG6NlA",
+                "title": "Bitcoin Wallets That Change Everything in 2026 — BTC Sessions",
+                "duration": 1200
+            },
+            {
+                "id": "Gc2en3nHxA4",
+                "title": "Bitcoin Simply Explained in 5 Minutes",
+                "duration": 300
+            },
+            {
+                "id": "f-4Rs3Sqlhc",
+                "title": "Complete History of Bitcoin in 12 Minutes",
+                "duration": 720
+            },
+            {
+                "id": "Ner16UBWdEg",
+                "title": "Bitcoin in 2025 — What You Need to Know",
+                "duration": 600
+            },
+            {
+                "id": "4Lsr7lsy6Tk",
+                "title": "How to Set Up a Bitcoin Node at Home",
+                "duration": 1800
+            },
+            {
+                "id": "OZK5hdKfb18",
+                "title": "Bitcoin Security Best Practices",
+                "duration": 900
+            },
+            {
+                "id": "vmf_LtnagTs",
+                "title": "Bitcoin Cold Storage Tutorial",
+                "duration": 1200
+            },
+            {
+                "id": "rKjce1jCxSM",
+                "title": "Bitcoin Beginner Mistakes to Avoid",
+                "duration": 780
+            },
+            {
+                "id": "GR-E0aaFf0c",
+                "title": "Bitcoin Explained for Complete Beginners",
+                "duration": 600
+            },
+            {
+                "id": "Y3iAwLG6NlA",
+                "title": "Bitcoin Wallets That Change Everything in 2026 — BTC Sessions",
+                "duration": 1906
+            },
+            {
+                "id": "ZZKoSmQu30Q",
+                "title": "Best Hardware Wallet Comparison 2025 — BTC Sessions",
+                "duration": 3621
+            },
+            {
+                "id": "KNaOeLlD6NA",
+                "title": "Build Your Own Bitcoin Node with Umbrel — Raspberry Pi",
+                "duration": 1200
+            },
+            {
+                "id": "TpwnoPUyumA",
+                "title": "Phoenix Wallet Setup — Self-Custody Lightning Made Easy",
+                "duration": 1500
+            }
         ]
     }
 ];
