@@ -3745,7 +3745,7 @@ function incrementAICount() {
     localStorage.setItem('btc_nacho_ai_uses', JSON.stringify(data));
 }
 
-function nachoAIAnswer(question, callback) {
+async function nachoAIAnswer(question, callback) {
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (getAICount() >= NACHO_AI_DAILY_LIMIT) { callback(null); return; }
     incrementAICount();
@@ -3797,7 +3797,9 @@ function nachoAIAnswer(question, callback) {
 
     var fetchOpts = {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
             question: question,
             lang: userLang,
@@ -3809,6 +3811,15 @@ function nachoAIAnswer(question, callback) {
             forceMaxi: NACHO_SYSTEM_PROMPT 
         })
     };
+
+    // 🔒 SECURITY (M-NEW-16): Attach Firebase Auth token if available
+    if (typeof auth !== 'undefined' && auth.currentUser) {
+        try {
+            var token = await auth.currentUser.getIdToken();
+            fetchOpts.headers['Authorization'] = 'Bearer ' + token;
+        } catch(e) { console.warn('[NachoAI] Token fetch failed:', e); }
+    }
+
     if (controller) { fetchOpts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 15000); }
 
     fetch(NACHO_SEARCH_PROXY + '/ai', fetchOpts)
