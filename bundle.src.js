@@ -4019,6 +4019,20 @@ function showSettingsPage(tab) {
             '<button onclick="if(typeof toggleTickerSetting===\'function\')toggleTickerSetting();else{localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'prefs\');}" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tickerOn ? 'ON' : 'OFF') + '</button></div>' +
             '</div>';
 
+        // Timechain TV Settings
+        const tctvAuto = localStorage.getItem('btc_tctv_autoplay') !== 'false';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📺 Timechain TV</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Autoplay Videos</span><div style="color:var(--text-faint);font-size:0.7rem;">Start video playback immediately on tune-in</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_tctv_autoplay\',localStorage.getItem(\'btc_tctv_autoplay\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tctvAuto ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tctvAuto ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tctvAuto ? 'ON' : 'OFF') + '</button></div>';
+        
+        const tctvRemotePersistent = localStorage.getItem('btc_tctv_remote_open') === 'true';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Persistent Remote</span><div style="color:var(--text-faint);font-size:0.7rem;">Keep the TV remote open by default</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_tctv_remote_open\',localStorage.getItem(\'btc_tctv_remote_open\')===\'true\'?\'false\':\'true\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tctvRemotePersistent ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tctvRemotePersistent ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tctvRemotePersistent ? 'ON' : 'OFF') + '</button></div>' +
+            '</div>';
+
         // Keyboard Shortcuts (collapsible — takes lots of space)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div onclick="window._expanded_shortcuts=!window._expanded_shortcuts;showSettingsPage(\'prefs\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
@@ -22136,7 +22150,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
         { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
-        { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining', action: "go('timechain-tv')" },
+        { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining sync broadcast cinema', action: "go('timechain-tv')" },
         { id: '_djmode', title: '🎧 DJ Mode', desc: 'Go live as a DJ — broadcast music, use sound effects, crossfade, and play Bitcoin quotes', keywords: 'dj mode broadcast live music stream turntable crossfade sound effects horn airhorn scratch mixer controls', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('livestream')},300)" },
         { id: '_upload_album', title: '📀 Upload Album/EP', desc: 'Upload up to 20 songs at once — group as Album or EP with cover art', keywords: 'upload album ep discography batch bulk multiple songs tracks artist release collection', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('upload')},300)" },
         { id: '_messages', title: '💬 Messages / DMs', desc: 'Direct messages — chat privately with other users', keywords: 'messages dm direct message inbox chat private conversation contact send receive talk', action: 'showInbox()' },

@@ -3931,6 +3931,20 @@ function showSettingsPage(tab) {
             '<button onclick="if(typeof toggleTickerSetting===\'function\')toggleTickerSetting();else{localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'prefs\');}" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tickerOn ? 'ON' : 'OFF') + '</button></div>' +
             '</div>';
 
+        // Timechain TV Settings
+        const tctvAuto = localStorage.getItem('btc_tctv_autoplay') !== 'false';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📺 Timechain TV</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Autoplay Videos</span><div style="color:var(--text-faint);font-size:0.7rem;">Start video playback immediately on tune-in</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_tctv_autoplay\',localStorage.getItem(\'btc_tctv_autoplay\')===\'false\'?\'true\':\'false\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tctvAuto ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tctvAuto ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tctvAuto ? 'ON' : 'OFF') + '</button></div>';
+        
+        const tctvRemotePersistent = localStorage.getItem('btc_tctv_remote_open') === 'true';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Persistent Remote</span><div style="color:var(--text-faint);font-size:0.7rem;">Keep the TV remote open by default</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_tctv_remote_open\',localStorage.getItem(\'btc_tctv_remote_open\')===\'true\'?\'false\':\'true\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (tctvRemotePersistent ? '#22c55e' : 'var(--bg-side)') + ';color:' + (tctvRemotePersistent ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (tctvRemotePersistent ? 'ON' : 'OFF') + '</button></div>' +
+            '</div>';
+
         // Keyboard Shortcuts (collapsible — takes lots of space)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div onclick="window._expanded_shortcuts=!window._expanded_shortcuts;showSettingsPage(\'prefs\')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +

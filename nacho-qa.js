@@ -239,6 +239,26 @@ const NACHO_KB = [
       answer: "Can you eat your Bitcoin? No, {name}, and trust me — I've tried. Tastes like math. 🦌🍽️ But here's the thing: you can't eat a gold bar or a dollar bill either! What you CAN do is use Bitcoin to buy the best steak dinner of your life — with Lightning, it'll be paid for before the waiter brings the check! ⚡🥩 Proof of steak > proof of stake!",
       channel: 'use-cases', channelName: 'Use Cases' },
 
+    { keys: ['what is timechain tv','what is tctv','timechain tv','watch videos','bitcoin tv','is there a tv','what can i watch','bitcoin youtube'],
+      answer: "📺 **Timechain TV** is our curated, 24/7 Bitcoin television experience! We have 8 specialized channels covering everything from documentaries and technical deep-dives to Bitcoin art and culture. It’s like a linear broadcast for the orange-pilled—everyone watching a channel sees the same thing at the same time! 🛰️🦌",
+      channel: 'timechain-tv', channelName: 'Timechain TV' },
+
+    { keys: ['how many channels','tctv channels','tv stations','channel list','what channels'],
+      answer: "🎥 We currently broadcast on **8 channels**: \n1. 🎨 Art & Philosophy\n2. 🎤 Conferences & Events\n3. 🌍 Culture & Travel\n4. 💬 Debates\n5. 💻 Dev, Privacy & Nodes\n6. 🎬 Documentaries\n7. 💰 Economics & Money\n8. 🗽 Freedom & Self-Sovereignty\n\nJust use the remote or the guide to switch! 🦌⚡",
+      channel: 'timechain-tv', channelName: 'Timechain TV' },
+
+    { keys: ['nacho on couch','lounging','couch','watching tv','why are you on a couch','popcorn'],
+      answer: "🛋️ Just chilling! I love catching up on the latest Bitcoin documentaries. Grab some popcorn and join me on Timechain TV—the vibes are immaculate! 🍿🦌",
+      channel: 'timechain-tv', channelName: 'Timechain TV' },
+
+    { keys: ['how does the tv work','is it really live','sync','synchronized','linear broadcast'],
+      answer: "📡 Timechain TV uses a 'linear broadcast' simulation. While the videos are hosted on YouTube, our system calculates exactly where the video *should* be based on the current time. This means if you and a friend tune in to the same channel, you're watching the exact same moment together! 🌍🤝",
+      channel: 'timechain-tv', channelName: 'Timechain TV' },
+
+    { keys: ['how to use remote','tv remote','remote control','remote buttons','back button','pause tv'],
+      answer: "🎮 Use the **Retro Remote** on the right side of the screen! \n• **CH ▲/▼**: Flip through stations.\n• **BACK**: Jump back to the last station you watched.\n• **PWR**: Pause the stream (enters Standby).\n• **JUMP TO LIVE**: Re-syncs your player if you've been paused. \n\nYou can even collapse the remote if it's in your way! 🦌⚡",
+      channel: 'timechain-tv', channelName: 'Timechain TV' },
+
     { keys: ['energy','environment','electricity','bad for environment','waste energy','carbon','climate','carbon footprint','global warming'],
       answer: "Bitcoin uses about 0.1% of global energy and over 50% comes from renewables! ♻️ Miners seek the cheapest energy — which is usually stranded hydroelectric, solar, or wasted methane gas. Bitcoin actually INCENTIVIZES clean energy development. The banking system uses far more energy when you count all its offices, ATMs, armored trucks, and data centers!",
       channel: 'energy', channelName: 'Environment & Energy' },
