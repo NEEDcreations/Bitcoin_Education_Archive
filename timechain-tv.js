@@ -3148,12 +3148,15 @@ window.renderTimechainTV = function() {
     // Center - Video player (narrower on desktop, full width on mobile)
     html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
             '<div style="position:relative;aspect-ratio:16/9;max-height:45vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
-            '<div id="tctv-pause-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;">' +
+            '<div id="tctv-pause-overlay" style="position:absolute;inset:0;bottom:48px;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;pointer-events:none;">' +
                 '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
                 '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
-                '<button onclick="tctvRemotePause()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;">RESUME LIVE</button>' +
+                '<button onclick="tctvRemotePause()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;pointer-events:auto;">JUMP TO LIVE</button>' +
             '</div>' +
-            '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe>' +
+            '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
+                '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
+            '</div>' +
+            '<div id="tctv-player"></div>' +
             '</div></div>';
     // Right side - Remote (desktop only, inside layout flow)
     html += '<div id="tctv-remote-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
