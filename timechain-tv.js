@@ -2609,19 +2609,19 @@ function loadVideo(videoId, startSeconds) {
 }
 
 function syncPlayer() {
-    var np = document.getElementById("tctv-now-playing");
     if (!_currentStation) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
     var state = getPlaybackState(station);
-    var np = document.getElementById("tctv-now-playing");
-    if (np && state.video) np.textContent = state.video.title;
     if (!state.video) return;
-    var nowPlaying = document.getElementById('tctv-now-playing');
-    if (nowPlaying) nowPlaying.textContent = state.video.title;
-    if (state.video.id !== _currentVideoId) {
-        loadVideo(state.video.id, state.offset);
-    }
+    
+    var np = document.getElementById('tctv-now-playing');
+    if (np) np.textContent = state.video.title;
+    
+    loadVideo(state.video.id, state.offset);
+    
+    var syncBtn = document.getElementById('tctv-sync-btn');
+    if (syncBtn) syncBtn.style.display = 'none';
 }
 
 // ── Timeline & Moving EPG ──
@@ -2754,6 +2754,11 @@ window.renderTimechainTV = function() {
     if (!fc) return;
     if (window._tctvActive && document.getElementById('tctv-player')) return;
     window._tctvActive = true;
+    
+    showWhiteNoise(function() {
+        console.log('[TCTV] Initial Tuning Complete');
+    });
+
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function() {}); } catch(e) {}
     
     var activeStation = _currentStation || getInitialStation();
@@ -2761,7 +2766,8 @@ window.renderTimechainTV = function() {
     html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
     html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;"><iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe></div>';
-    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;margin-left:12px;font-variant-numeric:tabular-nums;"></div></div>';
+    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
+            '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="display:none;background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:2px 6px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;">SYNC TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
     html += _renderEPG();
     html += '<div style="height:120px;"></div></div>';
@@ -2770,11 +2776,7 @@ window.renderTimechainTV = function() {
     _currentStation = activeStation;
     saveStation(activeStation);
     joinStation(activeStation);
-    var station = STATIONS.find(function(s) { return s.id === activeStation; });
-    if (station) {
-        var state = getPlaybackState(station);
-        if (state.video) loadVideo(state.video.id, state.offset);
-    }
+    syncPlayer();
     if (_syncInterval) clearInterval(_syncInterval);
     _syncInterval = setInterval(updateTimeline, 1000);
 };
