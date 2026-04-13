@@ -1,13 +1,7 @@
-// © 2024-2026 603BTC LLC. All rights reserved.
-// timechain-tv.js — Timechain TV: Live Bitcoin Television
-// All users watch the same content at the same time — no rewind, no fast forward.
 
 (function() {
 'use strict';
 
-// ── Station Definitions ──
-// Each station is a "channel" with a themed playlist of YouTube videos
-// Videos play in order, looping forever, synced to global clock
 var STATIONS = [
     {
         "id": "art-philosophy",
@@ -2405,15 +2399,12 @@ var STATIONS = [
     }
 ];
 
-
 // ── Station Persistence ──
-// Save last station so user returns to it; first visit picks random
 function getInitialStation() {
     try {
         var saved = localStorage.getItem('tctv_lastStation');
         if (saved && STATIONS.some(function(s) { return s.id === saved; })) return saved;
     } catch(e) {}
-    // First visit: random station
     return STATIONS[Math.floor(Math.random() * STATIONS.length)].id;
 }
 function saveStation(stationId) {
@@ -2421,19 +2412,14 @@ function saveStation(stationId) {
 }
 
 // ── Global Clock Engine ──
-// Given current time, calculate which video + offset for a station
 function getPlaybackState(station) {
     var totalDuration = 0;
     for (var i = 0; i < station.videos.length; i++) {
         totalDuration += station.videos[i].duration;
     }
     if (totalDuration === 0) return { videoIndex: 0, offset: 0, video: station.videos[0] };
-
-    // Position in the loop based on Unix timestamp (seconds)
     var globalSec = Math.floor(Date.now() / 1000);
     var position = globalSec % totalDuration;
-
-    // Find which video we're in
     var elapsed = 0;
     for (var j = 0; j < station.videos.length; j++) {
         if (position < elapsed + station.videos[j].duration) {
@@ -2451,9 +2437,7 @@ function getPlaybackState(station) {
     return { videoIndex: 0, offset: 0, video: station.videos[0] };
 }
 
-// ── Viewer Counting (Presence-Based) ──
-// Each viewer writes a personal doc with timestamp + station.
-// Docs older than 60s are stale (viewer gone). Heartbeat every 30s.
+// ── Presence System ──
 var _viewerUnsub = null;
 var _currentStation = null;
 var _viewerId = null;
@@ -2480,25 +2464,14 @@ function _writePresence(stationId) {
     }).catch(function() {});
 }
 
-function _deletePresence() {
-    if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    var db = firebase.firestore();
-    db.collection('tctv_presence').doc(_getViewerId()).delete().catch(function() {});
-}
-
 function joinStation(stationId) {
-    leaveStation();
+    if (_currentStation) _deletePresence();
     _currentStation = stationId;
-
-    // Write presence immediately
     _writePresence(stationId);
-
-    // Heartbeat every 30s to stay "alive"
+    if (_viewerHeartbeat) clearInterval(_viewerHeartbeat);
     _viewerHeartbeat = setInterval(function() {
         if (_currentStation) _writePresence(_currentStation);
     }, 30000);
-
-    // Listen for all presence docs (real-time)
     if (!_viewerUnsub && typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
         _viewerUnsub = db.collection('tctv_presence').onSnapshot(function(snap) {
@@ -2507,7 +2480,6 @@ function joinStation(stationId) {
             snap.forEach(function(doc) {
                 var d = doc.data();
                 if (!d.station || !d.ts) return;
-                // Only count docs with timestamp within last 60s
                 var docTime = d.ts.toMillis ? d.ts.toMillis() : 0;
                 if (now - docTime < 65000) {
                     counts[d.station] = (counts[d.station] || 0) + 1;
@@ -2519,12 +2491,9 @@ function joinStation(stationId) {
     }
 }
 
-function leaveStation() {
-    if (_currentStation) {
-        _deletePresence();
-    }
-    if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
-    _currentStation = null;
+function _deletePresence() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    firebase.firestore().collection('tctv_presence').doc(_getViewerId()).delete().catch(function() {});
 }
 
 function updateViewerBadges() {
@@ -2535,7 +2504,6 @@ function updateViewerBadges() {
             el.textContent = count > 0 ? count + ' watching' : '';
         }
     });
-    // Also update main viewer count
     var mainCount = document.getElementById('tctv-main-viewers');
     if (mainCount && _currentStation) {
         var c = _viewerCounts[_currentStation] || 0;
@@ -2543,70 +2511,34 @@ function updateViewerBadges() {
     }
 }
 
-// ── White Noise Loading Screen ──
+// ── White Noise Loading ──
 function showWhiteNoise(callback) {
     var overlay = document.createElement('div');
     overlay.id = 'tctvNoise';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:200000;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
-
-    // Canvas for static noise
     var canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 240;
+    canvas.width = 320; canvas.height = 240;
     canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.6;';
     overlay.appendChild(canvas);
-
-    // Title overlay
     var title = document.createElement('div');
     title.style.cssText = 'position:relative;z-index:2;text-align:center;';
     title.innerHTML = '<div style="font-size:2.5rem;font-weight:900;color:#f7931a;text-shadow:0 0 30px rgba(247,147,26,0.5);letter-spacing:4px;margin-bottom:8px;">TIMECHAIN TV</div>' +
         '<div style="font-size:0.85rem;color:#888;letter-spacing:2px;">TUNING IN...</div>';
     overlay.appendChild(title);
-
     document.body.appendChild(overlay);
-
-    // Animate static noise
     var ctx = canvas.getContext('2d');
     var noiseInterval = setInterval(function() {
         var imgData = ctx.createImageData(canvas.width, canvas.height);
         var data = imgData.data;
         for (var i = 0; i < data.length; i += 4) {
             var v = Math.random() * 255;
-            data[i] = v;
-            data[i + 1] = v;
-            data[i + 2] = v;
-            data[i + 3] = 255;
+            data[i] = v; data[i + 1] = v; data[i + 2] = v; data[i + 3] = 255;
         }
         ctx.putImageData(imgData, 0, 0);
     }, 50);
-
-    // White noise audio
-    var audioCtx = null;
-    var noiseNode = null;
-    try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        var bufferSize = audioCtx.sampleRate * 0.5; // 0.5 seconds
-        var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        var channelData = buffer.getChannelData(0);
-        for (var s = 0; s < bufferSize; s++) {
-            channelData[s] = Math.random() * 2 - 1;
-        }
-        noiseNode = audioCtx.createBufferSource();
-        noiseNode.buffer = buffer;
-        noiseNode.loop = true;
-        var gain = audioCtx.createGain();
-        gain.gain.value = 0.06;
-        noiseNode.connect(gain);
-        gain.connect(audioCtx.destination);
-        noiseNode.start();
-    } catch(e) {}
-
-    // Fade out after 1.5s
     setTimeout(function() {
         overlay.style.transition = 'opacity 0.5s';
         overlay.style.opacity = '0';
-        if (noiseNode) { try { noiseNode.stop(); } catch(e) {} }
-        if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
         setTimeout(function() {
             clearInterval(noiseInterval);
             overlay.remove();
@@ -2618,17 +2550,12 @@ function showWhiteNoise(callback) {
 // ── YouTube Player ──
 var _currentVideoId = null;
 var _syncInterval = null;
-var _channelSwitchTimer = null;
 
-// Simple iframe embed — no YouTube API needed
 function loadVideo(videoId, startSeconds) {
     var old = document.getElementById('tctv-player');
     if (!old) return;
     var wrap = old.parentElement;
     _currentVideoId = videoId;
-
-    // Destroy and recreate iframe — browsers grant autoplay more reliably
-    // on a fresh iframe element vs. changing src on an existing one
     old.remove();
     var iframe = document.createElement('iframe');
     iframe.id = 'tctv-player';
@@ -2642,49 +2569,32 @@ function loadVideo(videoId, startSeconds) {
     wrap.appendChild(iframe);
 }
 
-// createPlayer removed — using simple iframe embeds
-
 function syncPlayer() {
     if (!_currentStation) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
-
     var state = getPlaybackState(station);
     if (!state.video) return;
-
-    // Update now playing info
     var nowPlaying = document.getElementById('tctv-now-playing');
-    if (nowPlaying) {
-        nowPlaying.textContent = state.video.title;
-    }
-    var timeLeft = document.getElementById('tctv-time-left');
-    if (timeLeft) {
-        var mins = Math.floor(state.remaining / 60);
-        var secs = state.remaining % 60;
-        timeLeft.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs + ' left';
-    }
-
-    // Check if we need to switch videos
+    if (nowPlaying) nowPlaying.textContent = state.video.title;
     if (state.video.id !== _currentVideoId) {
         loadVideo(state.video.id, state.offset);
     }
 }
 
-// ── Timeline Bar ──
+// ── Timeline & Moving EPG ──
 function updateTimeline() {
     if (!_currentStation) return;
+    var nowMs = Date.now();
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
-    if (!station) return;
     var state = getPlaybackState(station);
 
-    // Update progress within current video
     var bar = document.getElementById('tctv-progress');
     if (bar && state.video) {
         var pct = ((state.video.duration - state.remaining) / state.video.duration) * 100;
         bar.style.width = pct + '%';
     }
 
-    // Update time display
     var timeLeft = document.getElementById('tctv-time-left');
     if (timeLeft) {
         var mins = Math.floor(state.remaining / 60);
@@ -2692,278 +2602,174 @@ function updateTimeline() {
         timeLeft.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
     }
 
-    // Check for video transition
+    // Shift EPG Slider
+    var slider = document.getElementById('tctv-epg-slider');
+    var container = document.getElementById('tctv-epg-container');
+    if (slider && container && window._tctvGridStartMs) {
+        var nowOffsetPx = ((nowMs - window._tctvGridStartMs) / 60000) * 10;
+        var containerWidth = container.clientWidth;
+        var nowLineTargetPx = containerWidth * 0.25;
+        var shiftX = nowLineTargetPx - nowOffsetPx;
+        slider.style.transform = 'translateX(' + shiftX + 'px)';
+    }
+
+    // Refresh block colors tracker
+    STATIONS.forEach(function(s) {
+        var sState = getPlaybackState(s);
+        var blocks = document.querySelectorAll('[data-vid-id^="' + s.id + '-"]');
+        blocks.forEach(function(b) {
+            var idx = parseInt(b.getAttribute('data-vid-id').split('-').pop());
+            var isNow = (idx === sState.videoIndex);
+            b.style.background = isNow ? (s.color + '40') : '#1a1a1a';
+            b.style.borderColor = isNow ? s.color : '#2a2a2a';
+            var text = b.querySelector('span');
+            if (text) text.style.color = isNow ? '#fff' : '#999';
+        });
+    });
+
     if (state.video && state.video.id !== _currentVideoId) {
         syncPlayer();
     }
-
-    // Update NOW line position in EPG
-    var nowLine = document.getElementById('tctv-now-line');
-    if (nowLine && window._tctvGridStartMs) {
-        var elapsed = (Date.now() - window._tctvGridStartMs) / 60000;
-        nowLine.style.left = (elapsed * 10) + 'px'; // PX_PER_MIN = 10
-    }
 }
 
-// ── Main Render ──
-window.renderTimechainTV = function() {
-    var fc = document.getElementById('forumContainer');
-    if (!fc) return;
-
-    if (window._tctvActive && document.getElementById('tctv-player')) return;
-    window._tctvActive = true;
-
-    // Lock to portrait on mobile so channel guide stays accessible
-    try {
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('portrait').catch(function() {});
-        }
-    } catch(e) {}
-
-    // Restore last station or pick random on first visit
-    var activeStation = _currentStation || getInitialStation();
-
-    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
-
-    // Sticky top section: header + video + now playing + progress
-    html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
-
-    // Header bar
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);">';
-    html += '<div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;">';
-    html += '<span style="color:var(--text-muted);font-size:0.8rem;">←</span>';
-    html += '<span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span>';
-    html += '</div>';
-    html += '<div style="display:flex;align-items:center;gap:6px;">';
-    html += '<span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span>';
-    html += '<span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span>';
-    html += '<span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span>';
-    html += '</div></div>';
-
-    // Video player area (click-blocking overlay prevents pause)
-    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;">';
-    html += '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
-    html += '</div>';
-
-    // Now playing bar
-    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;">';
-    html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div>';
-    html += '<div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div>';
-    html += '</div>';
-    html += '<div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;margin-left:12px;font-variant-numeric:tabular-nums;"></div>';
-    html += '</div>';
-
-    // Progress bar
-    html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
-
-    // Close sticky top section
-    html += '</div>';
-
-    // ── EPG-Style Channel Guide ──
-    // Timeline config: show 3 hours ahead, 1px per 6 seconds = 10px per minute
-    var PX_PER_MIN = 10;
-    var GUIDE_HOURS = 3;
-    var GUIDE_WIDTH = GUIDE_HOURS * 60 * PX_PER_MIN; // 1800px
-    var CH_LABEL_W = 160; // station label column width (wide enough for longest names)
-    var ROW_H = 52; // row height per station
-
+function _renderEPG() {
     var now = new Date();
     var nowMs = now.getTime();
-    // Round down to previous half hour for grid start
-    var gridStart = new Date(now);
-    gridStart.setMinutes(now.getMinutes() < 30 ? 0 : 30, 0, 0);
-    var gridStartMs = gridStart.getTime();
+    var gridStartMs = nowMs - (60 * 60 * 1000); 
     window._tctvGridStartMs = gridStartMs;
-    // Offset of "now" from grid start in px
-    var nowOffsetPx = ((nowMs - gridStartMs) / 60000) * PX_PER_MIN;
 
-    // Format time for labels (local)
-    function _fmtTime(d) {
-        var h = d.getHours(), m = d.getMinutes();
-        var ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
-        return h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
-    }
+    var html = '<div style="padding:8px 0 0;">';
+    html += '<div style="display:flex;position:relative;background:#0a0a0a;">';
 
-    // Number of half-hour slots to cover grid
-    var numSlots = GUIDE_HOURS * 2 + 1;
-
-    html += '<div style="padding:8px 0 0;">';
-
-    // Container: fixed labels on left, scrollable grid on right
-    html += '<div style="display:flex;position:relative;">';
-
-    // Left column: station labels (fixed)
-    html += '<div style="width:' + CH_LABEL_W + 'px;flex-shrink:0;z-index:2;background:#0a0a0a;">';
-    // Empty cell above timeline header
+    html += '<div style="width:160px;flex-shrink:0;z-index:10;background:#0a0a0a;border-right:1px solid #222;">';
     html += '<div style="height:24px;"></div>';
     STATIONS.forEach(function(s, idx) {
-        var isActive = s.id === activeStation;
-        html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:' + ROW_H + 'px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.08)' : 'transparent') + ';">';
-        var chNum = idx + 1;
-        html += '<span style="font-size:0.6rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#666') + ';min-width:14px;text-align:right;">' + chNum + '</span>';
-        html += '<span style="font-size:1rem;">' + s.emoji + '</span>';
+        var isActive = s.id === _currentStation;
+        html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:54px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.12)' : 'transparent') + ';">';
+        html += '<span style="font-size:0.65rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#666') + ';min-width:16px;text-align:right;">' + (idx + 1) + '</span>';
+        html += '<span style="font-size:1.1rem;">' + s.emoji + '</span>';
         html += '<div style="min-width:0;">';
-        html += '<div data-ch-name style="font-size:0.72rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';white-space:normal;line-height:1.15;">' + s.name + '</div>';
+        html += '<div data-ch-name style="font-size:0.75rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + s.name + '</div>';
         html += '<span id="tctv-viewers-' + s.id + '" style="font-size:0.55rem;color:#22c55e;font-weight:600;"></span>';
-        html += '</div>';
-        html += '</div>';
+        html += '</div></div>';
     });
     html += '</div>';
 
-    // Right: scrollable timeline area
-    html += '<div id="tctv-epg-scroll" style="flex:1;overflow-x:auto;overflow-y:hidden;position:relative;-webkit-overflow-scrolling:touch;">';
-
-    // Time header row
-    html += '<div style="height:24px;position:relative;width:' + GUIDE_WIDTH + 'px;border-bottom:1px solid #333;">';
-    for (var sl = 0; sl < numSlots; sl++) {
-        var slotTime = new Date(gridStartMs + sl * 30 * 60000);
-        var slotX = sl * 30 * PX_PER_MIN;
-        html += '<div style="position:absolute;left:' + slotX + 'px;top:0;height:24px;border-left:1px solid #333;padding-left:4px;font-size:0.6rem;color:#777;font-weight:600;line-height:24px;white-space:nowrap;">' + _fmtTime(slotTime) + '</div>';
+    html += '<div id="tctv-epg-container" style="flex:1;overflow:hidden;position:relative;background:#0a0a0a;cursor:grab;">';
+    html += '<div id="tctv-epg-slider" style="position:absolute;top:0;left:0;height:100%;transition:transform 1s linear;">';
+    html += '<div style="height:24px;position:relative;border-bottom:1px solid #333;display:flex;">';
+    for (var i = 0; i < 13; i++) {
+        var markMs = gridStartMs - (gridStartMs % 1800000) + (i * 1800000);
+        var markX = ((markMs - gridStartMs) / 60000) * 10;
+        var d = new Date(markMs);
+        var h = d.getHours(), m = d.getMinutes();
+        var label = (h % 12 || 12) + ":" + (m < 10 ? '0' : '') + m + (h >= 12 ? ' PM' : ' AM');
+        html += '<div style="position:absolute;left:' + markX + 'px;top:0;font-size:0.6rem;color:#777;font-weight:700;border-left:1px solid #333;padding-left:4px;height:24px;line-height:24px;">' + label + '</div>';
     }
     html += '</div>';
 
-    // Grid rows for each station
-    STATIONS.forEach(function(s, idx) {
-        var isActive = s.id === activeStation;
-        html += '<div onclick="switchStation(\'' + s.id + '\')" style="height:' + ROW_H + 'px;position:relative;width:' + GUIDE_WIDTH + 'px;border-bottom:1px solid #1a1a1a;cursor:pointer;">';
-
-        // Half-hour gridlines
-        for (var g = 0; g < numSlots; g++) {
-            var gx = g * 30 * PX_PER_MIN;
-            html += '<div style="position:absolute;left:' + gx + 'px;top:0;bottom:0;width:1px;background:#1a1a1a;"></div>';
-        }
-
-        // Render video blocks for this station starting from grid start
+    STATIONS.forEach(function(s) {
+        html += '<div onclick="switchStation(\'' + s.id + '\')" style="height:54px;position:relative;border-bottom:1px solid #1a1a1a;">';
         var state = getPlaybackState(s);
         if (state.video) {
-            // Walk through videos from current position forward
-            var totalDur = 0;
-            for (var v = 0; v < s.videos.length; v++) totalDur += s.videos[v].duration;
-
-            // Current video starts at (now - offset into current video)
-            var vidStartMs = nowMs - (state.offset * 1000);
-            var vidIdx = state.videoIndex;
-            var drawn = 0;
-
-            // Go back to find the video that overlaps gridStart
-            var tempMs = vidStartMs;
-            var tempIdx = vidIdx;
+            var gridEndMs = gridStartMs + (6 * 3600000);
+            var tempMs = Date.now() - (state.offset * 1000);
+            var tempIdx = state.videoIndex;
             while (tempMs > gridStartMs) {
                 tempIdx = (tempIdx - 1 + s.videos.length) % s.videos.length;
                 tempMs -= s.videos[tempIdx].duration * 1000;
             }
-
-            // Now draw forward from tempMs/tempIdx until we exceed grid end
-            var gridEndMs = gridStartMs + GUIDE_HOURS * 3600000;
-            while (tempMs < gridEndMs && drawn < 50) {
+            while (tempMs < gridEndMs) {
                 var vid = s.videos[tempIdx];
-                var vidEndMs = tempMs + vid.duration * 1000;
-
-                // Clamp to grid bounds
                 var drawStart = Math.max(tempMs, gridStartMs);
-                var drawEnd = Math.min(vidEndMs, gridEndMs);
-                var leftPx = ((drawStart - gridStartMs) / 60000) * PX_PER_MIN;
-                var widthPx = ((drawEnd - drawStart) / 60000) * PX_PER_MIN;
-
+                var drawEnd = Math.min(tempMs + vid.duration * 1000, gridEndMs);
+                var leftPx = ((drawStart - gridStartMs) / 60000) * 10;
+                var widthPx = ((drawEnd - drawStart) / 60000) * 10;
                 if (widthPx > 2) {
-                    var isCurrent = (tempMs <= nowMs && vidEndMs > nowMs);
-                    var bgColor = isCurrent ? s.color + '40' : '#1e1e1e';
-                    var borderColor = isCurrent ? s.color : '#2a2a2a';
-                    html += '<div style="position:absolute;left:' + leftPx + 'px;top:4px;height:' + (ROW_H - 8) + 'px;width:' + widthPx + 'px;background:' + bgColor + ';border:1px solid ' + borderColor + ';border-radius:4px;overflow:hidden;display:flex;align-items:center;padding:0 6px;">';
-                    html += '<span style="font-size:0.6rem;color:' + (isCurrent ? '#fff' : '#999') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:' + (isCurrent ? '600' : '400') + ';">' + vid.title + '</span>';
+                    var isLive = (tempMs <= Date.now() && (tempMs + vid.duration * 1000) > Date.now());
+                    var bg = isLive ? s.color + '40' : '#1a1a1a';
+                    var br = isLive ? s.color : '#2a2a2a';
+                    html += '<div data-vid-id="' + s.id + '-' + tempIdx + '" style="position:absolute;left:' + leftPx + 'px;top:6px;height:42px;width:' + (widthPx - 4) + 'px;background:' + bg + ';border:1px solid ' + br + ';border-radius:4px;display:flex;align-items:center;padding:0 8px;overflow:hidden;">';
+                    html += '<span style="font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + (isLive ? '#fff' : '#999') + ';">' + vid.title + '</span>';
                     html += '</div>';
                 }
-
-                tempMs = vidEndMs;
+                tempMs += vid.duration * 1000;
                 tempIdx = (tempIdx + 1) % s.videos.length;
-                drawn++;
             }
         }
-
         html += '</div>';
     });
-
-    // NOW line — vertical red line at current time
-    html += '<div id="tctv-now-line" style="position:absolute;left:' + nowOffsetPx + 'px;top:0;bottom:0;width:2px;background:#ef4444;z-index:5;pointer-events:none;">';
-    html += '<div style="position:absolute;top:0;left:-12px;width:26px;text-align:center;font-size:0.5rem;font-weight:800;color:#ef4444;background:#0a0a0a;padding:1px 2px;border-radius:2px;">NOW</div>';
     html += '</div>';
-
-    html += '</div>'; // close epg-scroll
-    html += '</div>'; // close flex container
-    html += '</div>'; // close padding wrapper
-
-    // Bottom padding for mobile nav
-    html += '<div style="height:120px;"></div>';
-
+    html += '<div id="tctv-fixed-now" style="position:absolute;left:25%;top:0;bottom:0;width:2px;background:#ef4444;box-shadow:0 0 10px #ef4444;z-index:20;pointer-events:none;">';
+    html += '<div style="position:absolute;top:0;left:-14px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:900;padding:1px 4px;border-radius:2px;">NOW</div>';
     html += '</div>';
+    html += '</div></div></div>';
+    return html;
+}
+
+window.renderTimechainTV = function() {
+    var fc = document.getElementById('forumContainer');
+    if (!fc) return;
+    if (window._tctvActive && document.getElementById('tctv-player')) return;
+    window._tctvActive = true;
+    try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function() {}); } catch(e) {}
+    
+    var activeStation = _currentStation || getInitialStation();
+    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
+    html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
+    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;"><iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe></div>';
+    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;margin-left:12px;font-variant-numeric:tabular-nums;"></div></div>';
+    html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
+    html += _renderEPG();
+    html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
 
-    // Auto-scroll EPG so NOW line is visible (offset a bit from left edge)
-    var epgScroll = document.getElementById('tctv-epg-scroll');
-    if (epgScroll) {
-        var scrollTo = nowOffsetPx - 40;
-        if (scrollTo < 0) scrollTo = 0;
-        epgScroll.scrollLeft = scrollTo;
+    _currentStation = activeStation;
+    saveStation(activeStation);
+    joinStation(activeStation);
+    var station = STATIONS.find(function(s) { return s.id === activeStation; });
+    if (station) {
+        var state = getPlaybackState(station);
+        if (state.video) loadVideo(state.video.id, state.offset);
     }
-
-    // Start playback
-    var _startPlayback = function() {
-        _currentStation = activeStation;
-        saveStation(activeStation);
-        joinStation(activeStation);
-
-        var station = STATIONS.find(function(s) { return s.id === activeStation; });
-        if (station) {
-            var state = getPlaybackState(station);
-            if (state.video) {
-                loadVideo(state.video.id, state.offset);
-                var np = document.getElementById('tctv-now-playing');
-                if (np) np.textContent = state.video.title;
-            }
-        }
-        // Sync every second for timeline bar + video transitions
-        if (_syncInterval) clearInterval(_syncInterval);
-        _syncInterval = setInterval(updateTimeline, 1000);
-        _startWatchTimeTracking();
-    };
-
-    if (!window._tctvFirstLoadDone) {
-        window._tctvFirstLoadDone = true;
-        // Start loading video DURING white noise so it's ready when noise ends
-        _startPlayback();
-        showWhiteNoise(null);
-    } else {
-        _startPlayback();
-    }
+    if (_syncInterval) clearInterval(_syncInterval);
+    _syncInterval = setInterval(updateTimeline, 1000);
 };
 
-// ── Channel Switch White Noise ──
-// Brief noise overlay on the video area while new station loads underneath
+window.switchStation = function(stationId) {
+    if (stationId === _currentStation) return;
+    var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
+    showChannelNoise(stationObj ? stationObj.emoji + ' ' + stationObj.name : '');
+    _currentStation = stationId;
+    saveStation(stationId);
+    joinStation(stationId);
+    var state = getPlaybackState(stationObj);
+    if (state.video) loadVideo(state.video.id, state.offset);
+    document.querySelectorAll('[data-station-id]').forEach(function(el) {
+        var isActive = el.getAttribute('data-station-id') === stationId;
+        el.style.background = isActive ? 'rgba(247,147,26,0.12)' : 'transparent';
+        var nameEl = el.querySelector('[data-ch-name]');
+        if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
+    });
+};
+
 function showChannelNoise(stationName) {
     var playerWrap = document.getElementById('tctv-player') ? document.getElementById('tctv-player').parentElement : null;
     if (!playerWrap) return;
-
     var overlay = document.createElement('div');
     overlay.id = 'tctvChNoise';
     overlay.style.cssText = 'position:absolute;inset:0;z-index:10;background:#000;display:flex;align-items:center;justify-content:center;';
-
     var canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 90;
+    canvas.width = 160; canvas.height = 90;
     canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0.6;';
     overlay.appendChild(canvas);
-
-    // Station name flash — centered within the overlay
     var label = document.createElement('div');
     label.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;color:#f7931a;font-weight:900;font-size:1.1rem;letter-spacing:3px;text-shadow:0 0 20px rgba(247,147,26,0.5);text-align:center;white-space:nowrap;';
     label.textContent = stationName || '';
     overlay.appendChild(label);
-
     playerWrap.style.position = 'relative';
     playerWrap.appendChild(overlay);
-
     var ctx = canvas.getContext('2d');
     var noiseInterval = setInterval(function() {
         var imgData = ctx.createImageData(canvas.width, canvas.height);
@@ -2974,129 +2780,20 @@ function showChannelNoise(stationName) {
         }
         ctx.putImageData(imgData, 0, 0);
     }, 50);
-
-    // Brief audio burst
-    var audioCtx = null;
-    try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        var bufSize = audioCtx.sampleRate * 0.3;
-        var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
-        var ch = buf.getChannelData(0);
-        for (var s = 0; s < bufSize; s++) ch[s] = Math.random() * 2 - 1;
-        var node = audioCtx.createBufferSource();
-        node.buffer = buf;
-        node.loop = true;
-        var gain = audioCtx.createGain();
-        gain.gain.value = 0.045;
-        node.connect(gain);
-        gain.connect(audioCtx.destination);
-        node.start();
-        setTimeout(function() { try { node.stop(); audioCtx.close(); } catch(e) {} }, 800);
-    } catch(e) {}
-
-    // Fade out after 0.8s
     setTimeout(function() {
         overlay.style.transition = 'opacity 0.3s';
         overlay.style.opacity = '0';
-        setTimeout(function() {
-            clearInterval(noiseInterval);
-            overlay.remove();
-        }, 300);
+        setTimeout(function() { clearInterval(noiseInterval); overlay.remove(); }, 300);
     }, 800);
 }
 
-// ── Channel Switching ──
-// Scroll everything to top — called immediately and repeatedly
-function _tctvScrollTop() {
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    window.scrollTo(0, 0);
-    var fc = document.getElementById('forumContainer');
-    if (fc) fc.scrollTop = 0;
-    var main = document.getElementById('main');
-    if (main) main.scrollTop = 0;
-}
-
-window.switchStation = function(stationId) {
-    if (stationId === _currentStation) return;
-
-    // Show white noise overlay while video loads underneath
-    var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
-    showChannelNoise(stationObj ? stationObj.emoji + ' ' + stationObj.name : '');
-
-    leaveStation();
-    _currentStation = stationId;
-    saveStation(stationId);
-    joinStation(stationId);
-
-    var station = STATIONS.find(function(s) { return s.id === stationId; });
-    if (!station) return;
-
-    var state = getPlaybackState(station);
-
-    // Load new video (starts loading behind the noise overlay)
-    if (state.video) {
-        loadVideo(state.video.id, state.offset);
-    }
-
-    // Update now playing text
-    var np = document.getElementById('tctv-now-playing');
-    if (np && state.video) np.textContent = state.video.title;
-
-    // Update channel list highlighting (without destroying DOM)
-    document.querySelectorAll('[data-station-id]').forEach(function(el) {
-        var sid = el.getAttribute('data-station-id');
-        var isActive = sid === stationId;
-        el.style.background = isActive ? 'rgba(247,147,26,0.08)' : 'transparent';
-        var nameEl = el.querySelector('[data-ch-name]');
-        if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
-    });
-
-};
-
-// ── Watch Time Tracking ──
-// Increment global watchTimeMinutes every 60s while actively watching
-var _watchTimeInterval = null;
-function _startWatchTimeTracking() {
-    if (_watchTimeInterval) return;
-    _watchTimeInterval = setInterval(function() {
-        if (!_currentStation) return;
-        if (typeof firebase === 'undefined' || !firebase.firestore) return;
-        if (!firebase.auth || !firebase.auth().currentUser) return;
-        try {
-            firebase.firestore().collection('stats').doc('global').set({
-                watchTimeMinutes: firebase.firestore.FieldValue.increment(1)
-            }, { merge: true }).catch(function() {});
-        } catch(e) {}
-    }, 60000);
-}
-function _stopWatchTimeTracking() {
-    if (_watchTimeInterval) { clearInterval(_watchTimeInterval); _watchTimeInterval = null; }
-}
-
-// ── Cleanup ──
 window.cleanupTimechainTV = function() {
-    _stopWatchTimeTracking();
-    leaveStation();
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
-    if (window._tctvPlayEnforcer) { clearInterval(window._tctvPlayEnforcer); window._tctvPlayEnforcer = null; }
     if (_viewerUnsub) { _viewerUnsub(); _viewerUnsub = null; }
     var iframe = document.getElementById('tctv-player');
     if (iframe) iframe.src = '';
     _currentVideoId = null;
     window._tctvActive = false;
-
-    // Unlock orientation when leaving Timechain TV
-    try {
-        if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-        }
-    } catch(e) {}
 };
 
-// Handle leaving the page
-window.addEventListener('pagehide', function() { leaveStation(); });
-window.addEventListener('beforeunload', function() { leaveStation(); });
-
-console.log('[TIMECHAIN TV] Module loaded — ' + STATIONS.length + ' stations');
 })();
