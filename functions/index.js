@@ -852,24 +852,40 @@ exports.onForumPost = functions.firestore
     .onCreate(async (snap, context) => {
         const post = snap.data();
         const postId = context.params.postId;
-
-        // Send notification email via Firebase's built-in mail
-        // Using a simple HTTPS fetch to a mail service
-        // For now, store in a notifications collection for polling
-        // OR use nodemailer if SMTP is configured
+        const authorId = post.authorId || 'unknown';
 
         try {
-            // Store notification for admin
+            // 🔒 SECURITY (M-NEW-21): Rate limit admin emails to prevent amplification attacks
+            // Check for other forum post notifications from this user in the last hour
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const recentNotifsSnap = await db.collection('admin_notifications')
+                .where('type', '==', 'forum_post')
+                .where('authorId', '==', authorId)
+                .where('createdAt', '>', oneHourAgo)
+                .limit(5)
+                .get();
+
+            // If user has triggered > 3 notification emails in an hour, skip the email (but log the notif)
+            const skipEmail = recentNotifsSnap.size >= 3;
+
+            // Store notification for admin (server-side only)
             await db.collection('admin_notifications').add({
                 type: 'forum_post',
                 postId: postId,
+                authorId: authorId,
                 title: post.title || '',
                 author: post.authorName || 'Unknown',
                 category: post.category || 'general',
                 body: (post.body || '').substring(0, 200),
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                read: false
+                read: false,
+                emailSent: !skipEmail
             });
+
+            if (skipEmail) {
+                console.log(`[ForumNotif] Skipping email for user ${authorId} (rate limit exceeded)`);
+                return null;
+            }
 
             // Send email via nodemailer
             const nodemailer = require('nodemailer');
