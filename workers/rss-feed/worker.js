@@ -264,20 +264,38 @@ async function cronBroadcast(botToken) {
 // ── Worker entry ──
 
 export default {
-    async fetch(request, env) {
+    async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
 
         // RSS Feed
         if (path === '/feed.xml' || path === '/feed' || path === '/rss') {
-            const items = await getRecentContent();
-            return new Response(buildRSS(items), {
-                headers: {
-                    'Content-Type': 'application/rss+xml; charset=UTF-8',
-                    'Cache-Control': 'public, max-age=1800', // 30 min cache
-                    'Access-Control-Allow-Origin': 'https://bitcoineducation.quest'
-                }
-            });
+            // 🔒 SECURITY (M-NEW-17): Cache at the worker level to prevent Firestore read amplification
+            const cacheUrl = new URL(request.url);
+            const cacheKey = new Request(cacheUrl.toString(), request);
+            const cache = caches.default;
+
+            // Try to get from cache first
+            let response = await cache.match(cacheKey);
+            if (!response) {
+                console.log('[RSS] Cache miss — fetching from Firestore');
+                const items = await getRecentContent();
+                const rssXml = buildRSS(items);
+                response = new Response(rssXml, {
+                    headers: {
+                        'Content-Type': 'application/rss+xml; charset=UTF-8',
+                        'Cache-Control': 'public, s-maxage=1800, max-age=1800', // 30 min (s-maxage for CDN)
+                        'Access-Control-Allow-Origin': 'https://bitcoineducation.quest',
+                        'X-Content-Type-Options': 'nosniff'
+                    }
+                });
+                
+                // Store in cache for 30 minutes
+                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+            } else {
+                console.log('[RSS] Cache hit');
+            }
+            return response;
         }
 
         // Manual announcement endpoint
