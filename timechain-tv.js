@@ -2822,6 +2822,23 @@ function showChannelNoise(stationName) {
         }
         ctx.putImageData(imgData, 0, 0);
     }, 50);
+    var audioCtx = null;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var bufSize = audioCtx.sampleRate * 0.3;
+        var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        var ch = buf.getChannelData(0);
+        for (var s = 0; s < bufSize; s++) ch[s] = Math.random() * 2 - 1;
+        var node = audioCtx.createBufferSource();
+        node.buffer = buf;
+        node.loop = true;
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0.045;
+        node.connect(gain);
+        gain.connect(audioCtx.destination);
+        node.start();
+        setTimeout(function() { try { node.stop(); audioCtx.close(); } catch(e) {} }, 800);
+    } catch(e) {}
     setTimeout(function() {
         overlay.style.transition = 'opacity 0.3s';
         overlay.style.opacity = '0';
