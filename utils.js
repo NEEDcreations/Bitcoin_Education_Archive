@@ -4,6 +4,20 @@
 // Load BEFORE all other local scripts in index.html.
 // ============================================================
 
+/**
+ * Safe cover image URL helper
+ * Returns provided URL or a placeholder if missing/invalid
+ * @param {string} url - image URL
+ * @returns {string} - sanitized or fallback URL
+ */
+function _safeCover(url) {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+        // Safe SVG placeholder (gray with a music note icon style)
+        return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUxYTJlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNmNzkzMWEiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wnY61PC90ZXh0Pjwvc3ZnPg==';
+    }
+    return url;
+}
+
 // ---- Safe JSON parse from localStorage ----
 // [AUDIT FIX #16] Prevents uncaught exceptions from corrupted localStorage
 function safeJSON(key, fallback) {

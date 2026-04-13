@@ -404,13 +404,13 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && (request.resource.data.player1.uid == request.auth.uid
                         || request.resource.data.player2.uid == request.auth.uid);
-      // Only allow: status changes (countdown→active, forfeit), heartbeat, questionStartedAt
-      // Answers/scores handled by pvpSubmitAnswer Cloud Function (Admin SDK)
+      // Only allow: heartbeat and questionStartedAt (for local client sync)
+      // Answers, scores, status, and currentQ handled by pvpSubmitAnswer Cloud Function (Admin SDK)
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt', 'player1LastSeen', 'player2LastSeen', 'forfeitedBy', 'forfeitReason']);
+                       .hasOnly(['questionStartedAt', 'player1LastSeen', 'player2LastSeen']);
     }
 
     // =============================================
@@ -637,11 +637,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Certificates (public read, authenticated write)
+    // Certificates (public read, Cloud Function writes only via Admin SDK)
     match /certs/{certId} {
       allow read: if true;
-      allow create: if request.auth != null
-                    && request.resource.data.uid == request.auth.uid;
+      allow write: if false;
     }
 
     // Buddy matching pool
@@ -717,10 +716,13 @@ service cloud.firestore {
 
     match /tctv_presence/{viewerId} {
       allow read: if true;
-      allow create, update: if request.resource.data.keys().hasOnly(['station', 'ts'])
+      allow create, update: if request.auth != null
+                            && (viewerId == request.auth.uid || viewerId.startsWith('v_'))
+                            && request.resource.data.keys().hasOnly(['station', 'ts'])
                             && request.resource.data.station is string
                             && request.resource.data.station.size() < 50;
-      allow delete: if true;
+      allow delete: if request.auth != null
+                    && (viewerId == request.auth.uid || resource.data.uid == request.auth.uid);
     }
 
     match /{document=**} {

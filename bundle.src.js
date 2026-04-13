@@ -4,6 +4,20 @@ var CHANNELS = {"decentralized":{"cat":"Properties Layer 1","title":"👪decentr
 // Load BEFORE all other local scripts in index.html.
 // ============================================================
 
+/**
+ * Safe cover image URL helper
+ * Returns provided URL or a placeholder if missing/invalid
+ * @param {string} url - image URL
+ * @returns {string} - sanitized or fallback URL
+ */
+function _safeCover(url) {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+        // Safe SVG placeholder (gray with a music note icon style)
+        return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUxYTJlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNmNzkzMWEiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wnY61PC90ZXh0Pjwvc3ZnPg==';
+    }
+    return url;
+}
+
 // ---- Safe JSON parse from localStorage ----
 // [AUDIT FIX #16] Prevents uncaught exceptions from corrupted localStorage
 function safeJSON(key, fallback) {
@@ -5436,6 +5450,11 @@ const BADGE_DEFS = [
     { id: 'chat_50', name: 'Conversationalist', emoji: '🎤', desc: 'Sent 50 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 50, pts: 25 },
     { id: 'chat_100', name: 'Town Crier', emoji: '📢', desc: 'Sent 100 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 100, pts: 50 },
     { id: 'chat_500', name: 'Chat Legend', emoji: '👑', desc: 'Sent 500 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 500, pts: 100 },
+
+    // ---- Timechain TV Badges ----
+    { id: 'tctv_viewer', name: 'Tune In', emoji: '👁️', desc: 'Watch Timechain TV for 10 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 10, pts: 10 },
+    { id: 'tctv_binge', name: 'TV Binge', emoji: '🍿', desc: 'Watch Timechain TV for 60 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 60, pts: 25 },
+    { id: 'tctv_marathon', name: 'Digital Marathon', emoji: '📺', desc: 'Watch Timechain TV for 300 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 300, pts: 100 },
     { id: 'chat_streak_3', name: 'Regular', emoji: '📅', desc: 'Chatted 3 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 3, pts: 20 },
     { id: 'chat_streak_7', name: 'Devoted Chatter', emoji: '🔥', desc: 'Chatted 7 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 7, pts: 50 },
     { id: 'chat_streak_30', name: 'Chat Addict', emoji: '💎', desc: 'Chatted 30 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 30, pts: 150 },
@@ -5949,13 +5968,14 @@ async function awardDailyTicket() {
         const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
         const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
-        await db.collection('users').doc(currentUser.uid).update({
-            lastTicketDate: today,
-        });
-
+        // Award tickets + points through server-side Cloud Function (Fix permission error)
+        // Cloud Function now handles 'lastTicketDate' update server-side for security
+        if (typeof awardPoints === 'function') {
+            const result = await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
+            if (!result || !result.success) return; // Silent return if already claimed or error
+        }
+        
         currentUser.lastTicketDate = today;
-        // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
         // Delay toast so page is settled and user can see it
@@ -21169,6 +21189,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         // Reset leaderboard button position (may have been shifted up for chat)
@@ -21865,6 +21886,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         if (window._nachoMode && !fromPopState) {
             if (typeof nachoChatSave === 'function') nachoChatSave();
             window._nachoReturnPending = true;
@@ -21940,7 +21962,12 @@ window.nachoQuizAnswer = function(btn, correct) {
             function _routeApp(id, attempt) {
                 attempt = attempt || 0;
                 if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') { renderFirstPurchase(); document.getElementById('main').scrollTop = 0; }
-                else if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { renderTimechainTV(); document.getElementById('main').scrollTop = 0; }
+                else if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { 
+                    renderTimechainTV(); 
+                    document.getElementById('main').scrollTop = 0; 
+                    // Start TV watch tracker (H-NEW-12 / Phil request)
+                    if (typeof _tctvStartTracker === 'function') _tctvStartTracker();
+                }
                 else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
                 else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
@@ -23115,6 +23142,64 @@ window.playSpinTick = function() {
         osc.stop(ctx.currentTime + 0.08);
     } catch(e) {}
 };
+
+// =============================================
+// Timechain TV Watch Time Tracker (Phil request 2026-04-13)
+// This tracks minutes watched while the TV route is active and awards points / checks badges.
+// =============================================
+window._tctvTimer = null;
+window._tctvMinutesSession = 0;
+window._tctvStartTracker = function() {
+    if (window._tctvTimer) return; // Already running
+    window._tctvMinutesSession = 0; // Reset session count on re-entry
+    console.log('[TCTV] Watch tracker started.');
+
+    window._tctvTimer = setInterval(function() {
+        // Track the current route to ensure we only count when TCTV is actually active
+        var id = (window.currentChannelId || '');
+        if (id !== 'timechain-tv') {
+            window._tctvStopTracker();
+            return;
+        }
+
+        // Only track if tab is actually visible (don't farm points in background)
+        if (document.hidden) return;
+
+        // Increment total watch time (persisted to localStorage)
+        var total = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') + 1;
+        localStorage.setItem('btc_tctv_watch_time', total.toString());
+        
+        window._tctvMinutesSession++;
+        console.log('[TCTV] Watch time:', total, 'min (Session:', window._tctvMinutesSession, 'min)');
+
+        // Every 10 minutes (cumulative) award 10 points
+        if (total % 10 === 0) {
+            if (typeof awardPoints === 'function') {
+                awardPoints(10, 'tctv_watch_10m'); // Use server-side action name
+            }
+            if (typeof checkBadges === 'function') {
+                checkBadges();
+            }
+            if (typeof showToast === 'function') {
+                showToast('👁️ +10 Points — Thanks for watching Timechain TV!');
+            }
+        } else if (total === 1) {
+            // First minute toast
+            if (typeof showToast === 'function') {
+                showToast('📺 Watching Timechain TV — Points awarded every 10 min!');
+            }
+        }
+    }, 60000); // 1 minute interval
+};
+
+window._tctvStopTracker = function() {
+    if (window._tctvTimer) {
+        clearInterval(window._tctvTimer);
+        window._tctvTimer = null;
+        console.log('[TCTV] Watch tracker stopped. Total minutes watched:', window._tctvMinutesSession);
+    }
+};
+
 window.playSpinWin = function() {
     if (localStorage.getItem('btc_audio') === 'false') return;
     if (document.hidden) return;

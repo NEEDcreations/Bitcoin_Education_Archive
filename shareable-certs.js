@@ -10,26 +10,19 @@ function generateCertId() {
     return 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
 }
 
-// Save cert to Firestore and return the ID
-async function saveCertToFirestore(certData) {
-    var db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
-    if (!db) return null;
+// Save cert via Cloud Function (Fix M-NEW-15)
+async function saveCertToServer(type, name) {
+    if (typeof firebase === 'undefined' || !firebase.functions) return null;
     try {
-        var id = certData.id || generateCertId();
-        await db.collection('certs').doc(id).set({
-            id: id,
-            name: certData.name,
-            type: certData.type, // 'scholar', 'technical', 'trail_meadow', 'trail_mountain', 'trail_summit'
-            title: certData.title,
-            date: certData.date,
-            score: certData.score || null,
-            uid: certData.uid || null,
-            username: certData.username || null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        return id;
+        var issueFn = firebase.functions().httpsCallable('issueCertificate');
+        var result = await issueFn({ type: type, name: name });
+        if (result.data && result.data.success) {
+            return result.data;
+        }
+        return null;
     } catch(e) {
-        console.error('[CERT] Save error:', e);
+        console.error('[CERT] Issuance error:', e);
+        if (typeof showToast === 'function') showToast('⚠️ ' + (e.message || 'Cert issuance failed'), 5000);
         return null;
     }
 }
@@ -38,29 +31,16 @@ async function saveCertToFirestore(certData) {
 var _origDownloadCert = window.downloadCertificate;
 if (_origDownloadCert) {
     window.downloadCertificate = async function(type) {
-        // Call original to download the PNG
+        // Call original to download the PNG (local overlay capture)
         _origDownloadCert(type);
 
-        // Also save to Firestore for sharing
-        var certType = type || 'properties';
-        var title = certType === 'technical' ? 'Bitcoin Protocol Expert' : 'Bitcoin Scholar';
+        // Also issue server-verified cert for share-URL
+        var certType = type === 'technical' ? 'technical' : 'scholar';
         var name = (document.getElementById('certName') ? document.getElementById('certName').value.trim() : '') || 'Bitcoiner';
-        var auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
 
-        var certId = generateCertId();
-        var saved = await saveCertToFirestore({
-            id: certId,
-            name: name,
-            type: certType === 'technical' ? 'technical' : 'scholar',
-            title: title,
-            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-            uid: auth && auth.currentUser ? auth.currentUser.uid : null,
-            username: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null
-        });
-
-        if (saved) {
-            // Show share UI after a brief delay
-            setTimeout(function() { showShareUI(certId, title, name); }, 1500);
+        var result = await saveCertToServer(certType, name);
+        if (result && result.certId) {
+            setTimeout(function() { showShareUI(result.certId, result.title, result.name); }, 1500);
         }
     };
 }
@@ -187,19 +167,12 @@ if (_realGoCert) {
 
 // Expose for trail certs too
 window.generateShareableCert = async function(type, title, name) {
-    var auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
-    var certId = generateCertId();
-    var saved = await saveCertToFirestore({
-        id: certId,
-        name: name || 'Bitcoiner',
-        type: type,
-        title: title,
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        uid: auth && auth.currentUser ? auth.currentUser.uid : null,
-        username: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null
-    });
-    if (saved) showShareUI(certId, title, name);
-    return certId;
+    var result = await saveCertToServer(type, name);
+    if (result && result.certId) {
+        showShareUI(result.certId, result.title, result.name);
+        return result.certId;
+    }
+    return null;
 };
 
 console.log('[CERTS] Shareable certificates loaded');

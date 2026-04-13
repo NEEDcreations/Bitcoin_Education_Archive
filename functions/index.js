@@ -1120,6 +1120,7 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
     const uid = context.auth.uid;
     const action = data.action || '';
     const today = new Date().toISOString().split('T')[0];
+    const userRef = db.collection('users').doc(uid);
     
     const allowedActions = {
         'spin': { max: 1, field: 'lastSpinDate' },
@@ -1132,34 +1133,42 @@ exports.checkDailyLimit = functions.https.onCall(async (data, context) => {
     }
     
     const config = allowedActions[action];
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
     
-    const userData = userDoc.data();
-    const lastDate = userData[config.field] || '';
-    
-    if (config.countField) {
-        // Count-based limit (quests)
-        const count = (lastDate === today) ? (userData[config.countField] || 0) : 0;
-        if (count >= config.max) {
-            return { allowed: false, reason: 'Daily limit reached (' + config.max + '/' + config.max + ')' };
-        }
-        // Increment count
-        await db.collection('users').doc(uid).update({
-            [config.field]: today,
-            [config.countField]: (lastDate === today) ? admin.firestore.FieldValue.increment(1) : 1
+    try {
+        const result = await db.runTransaction(async (t) => {
+            const userDoc = await t.get(userRef);
+            if (!userDoc.exists) throw new Error('NOT_FOUND');
+            
+            const userData = userDoc.data();
+            const lastDate = userData[config.field] || '';
+            
+            if (config.countField) {
+                // Count-based limit (quests)
+                const count = (lastDate === today) ? (userData[config.countField] || 0) : 0;
+                if (count >= config.max) {
+                    return { allowed: false, reason: 'Daily limit reached (' + config.max + '/' + config.max + ')' };
+                }
+                t.update(userRef, {
+                    [config.field]: today,
+                    [config.countField]: (lastDate === today) ? admin.firestore.FieldValue.increment(1) : 1
+                });
+            } else {
+                // Simple date-based limit (spin, exam)
+                if (lastDate === today) {
+                    return { allowed: false, reason: 'Already done today. Come back tomorrow!' };
+                }
+                t.update(userRef, { [config.field]: today });
+            }
+            return { allowed: true };
         });
-    } else {
-        // Simple date-based limit (spin, exam)
-        if (lastDate === today) {
-            return { allowed: false, reason: 'Already done today. Come back tomorrow!' };
+        return result;
+    } catch (e) {
+        if (e.message === 'NOT_FOUND') {
+            throw new functions.https.HttpsError('not-found', 'User not found');
         }
-        await db.collection('users').doc(uid).update({
-            [config.field]: today
-        });
+        console.error('[CHECK_DAILY_LIMIT_TRANS_ERR]', e);
+        throw new functions.https.HttpsError('internal', 'Internal transaction error');
     }
-    
-    return { allowed: true };
 });
 
 // =============================================
@@ -1418,18 +1427,21 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
         // Log this IP claim (after payment succeeds — moved to post-payment batch below)
     }
 
-    // 6b. DEVICE FINGERPRINT CHECK (Fix #3)
+    // 6b. DEVICE FINGERPRINT CHECK (Mandatory - Fix M-NEW-12)
     const fingerprint = (data.fingerprint || '').trim();
-    if (fingerprint && fingerprint.length >= 8) {
-        const fpRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
-        const fpDoc = await fpRef.get();
-        if (fpDoc.exists) {
-            const fpData = fpDoc.data();
-            const fpUids = fpData.uids || [];
-            if (fpUids.length >= 2 && !fpUids.includes(uid)) {
-                console.error('[FAUCET] FINGERPRINT ABUSE: fp=' + fingerprint.substring(0, 16) + ' used by ' + fpUids.length + ' accounts + uid=' + uid);
-                return { success: false, error: 'This device has been used by multiple accounts. Each person may only claim from one account.' };
-            }
+    if (!fingerprint || fingerprint.length < 8) {
+        console.warn('[FAUCET] FINGERPRINT MISSING: uid=' + uid);
+        return { success: false, error: 'Device verification required.' };
+    }
+    
+    const fpRef = db.collection('faucet_fingerprints').doc(fingerprint.substring(0, 64));
+    const fpDoc = await fpRef.get();
+    if (fpDoc.exists) {
+        const fpData = fpDoc.data();
+        const fpUids = fpData.uids || [];
+        if (fpUids.length >= 2 && !fpUids.includes(uid)) {
+            console.error('[FAUCET] FINGERPRINT ABUSE: fp=' + fingerprint.substring(0, 16) + ' used by ' + fpUids.length + ' accounts + uid=' + uid);
+            return { success: false, error: 'This device has been used by multiple accounts. Each person may only claim from one account.' };
         }
     }
 
@@ -1803,61 +1815,101 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
     const reason = action;
 
-    // ── ACTION COOLDOWN ENFORCEMENT ──
-    // Prevent rapid-fire calls for the same action type
-    const ACTION_COOLDOWNS = {
-        'chat_message': 3000,       // 3 seconds
-        'forum_post': 60000,        // 1 minute
-        'forum_reply': 10000,       // 10 seconds
-        'beats_comment': 10000,     // 10 seconds
-        'article_comment': 10000,   // 10 seconds
-    };
-    if (matchedAction && ACTION_COOLDOWNS[matchedAction]) {
-        const cooldownMs = ACTION_COOLDOWNS[matchedAction];
-        const cooldownRef = db.collection('action_cooldowns').doc(uid + '_' + matchedAction);
-        const cooldownDoc = await cooldownRef.get();
-        if (cooldownDoc.exists) {
-            const lastAction = cooldownDoc.data().ts;
-            const lastTime = lastAction ? (lastAction.toDate ? lastAction.toDate() : new Date(lastAction)) : null;
-            if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
-                return { success: false, error: 'Too fast — wait a moment', cooldown: true };
-            }
-        }
-        await cooldownRef.set({ ts: admin.firestore.FieldValue.serverTimestamp() });
-    }
-
-    // ── ONE-TIME AWARD DEDUPLICATION ──
-    // Badges and high-value one-time awards can only be claimed once per user
-    const ONE_TIME_ACTIONS = ['badge_earned', 'scholar_cert', 'story_complete', 'explore_100', 'anon_merge'];
-    if (ONE_TIME_ACTIONS.includes(matchedAction)) {
-        const dedupKey = matchedAction === 'badge_earned'
-            ? (action.match(/Badge:\s*(.+)/i) || [])[1] || action
-            : matchedAction;
-        const dedupId = dedupKey.trim().substring(0, 60).replace(/[^a-zA-Z0-9_-]/g, '_');
-        const awardsRef = db.collection('users').doc(uid).collection('badge_awards');
-        const existing = await awardsRef.where('badge', '==', dedupId).limit(1).get();
-        if (!existing.empty) {
-            return { success: true, awarded: 0, capped: false, duplicate: true, dailyUsed: 0 };
-        }
-        await awardsRef.add({
-            badge: dedupId,
-            pts: pts,
-            action: matchedAction,
-            ts: admin.firestore.FieldValue.serverTimestamp()
-        });
-    }
-
+    // ── ATOMIC UPDATES ──
     const DAILY_CAP = 500;
     const today = new Date().toISOString().split('T')[0];
     const userRef = db.collection('users').doc(uid);
     const dailyPtsRef = userRef.collection('daily_points').doc(today);
 
+    // ACTION COOLDOWN: Atomic read-then-write (Fix M-NEW-13)
+    const ACTION_COOLDOWNS = {
+        'chat_message': 3000,
+        'forum_post': 60000,
+        'forum_reply': 10000,
+        'beats_comment': 10000,
+        'article_comment': 10000,
+        'tctv_watch_10m': 600000, // 10 minutes (Fix: server-side verification)
+    };
+    const cooldownRef = (matchedAction && ACTION_COOLDOWNS[matchedAction]) 
+        ? db.collection('action_cooldowns').doc(uid + '_' + matchedAction)
+        : null;
+
+    let transactionResult = null;
     try {
-        const result = await db.runTransaction(async (t) => {
+        transactionResult = await db.runTransaction(async (t) => {
+            // 1. Check Cooldown (Atomic)
+            if (cooldownRef) {
+                const cooldownDoc = await t.get(cooldownRef);
+                if (cooldownDoc.exists) {
+                    const lastAction = cooldownDoc.data().ts;
+                    const lastTime = lastAction ? (lastAction.toDate ? lastAction.toDate() : new Date(lastAction)) : null;
+                    const cooldownMs = ACTION_COOLDOWNS[matchedAction];
+                    if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
+                        throw new Error('TOO_FAST');
+                    }
+                }
+            }
+
             const userDoc = await t.get(userRef);
             if (!userDoc.exists) throw new Error('User not found');
+            const userData = userDoc.data();
 
+            // 2. Throttling for Daily Tickets (Server-side Fix)
+            if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
+                if (userData.lastTicketDate === today) {
+                    throw new Error('ALREADY_CLAIMED_TODAY');
+                }
+            }
+
+            // 3. Daily Cap Logic
             const dailyDoc = await t.get(dailyPtsRef);
+            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+            if (dailyUsed >= DAILY_CAP) {
+                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
+            }
+
+            let awarded = pts;
+            if (dailyUsed + pts > DAILY_CAP) {
+                awarded = DAILY_CAP - dailyUsed;
+            }
+            if (awarded <= 0) {
+                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
+            }
+
+            // 4. Update Atomic State
+            const userUpdate = {
+                points: admin.firestore.FieldValue.increment(awarded)
+            };
+            if (tickets) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
+            if (streakFreezes) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
+            
+            // Marks daily tickets as used
+            if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
+                userUpdate.lastTicketDate = today;
+            }
+
+            t.update(userRef, userUpdate);
+            t.set(dailyPtsRef, { total: dailyUsed + awarded, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            if (cooldownRef) {
+                t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
+            }
+
+            return { awarded: awarded, capped: (dailyUsed + awarded >= DAILY_CAP), dailyUsed: dailyUsed + awarded };
+        });
+    } catch (e) {
+        if (e.message === 'TOO_FAST') {
+            return { success: false, error: 'Too fast — wait a moment', cooldown: true };
+        }
+        if (e.message === 'ALREADY_CLAIMED_TODAY') {
+            return { success: false, error: 'Daily tickets already claimed today.' };
+        }
+        console.error('[AWARD_POINTS_TRANS_ERR]', e);
+        return { success: false, error: e.message || 'Internal error' };
+    }
+
+    if (transactionResult && transactionResult.awarded !== undefined) {
+        return { success: true, ...transactionResult };
+    }
             const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
 
             if (dailyUsed >= DAILY_CAP) {
@@ -2774,5 +2826,67 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
         return { score, pts };
     });
 
-    return { success: true, score: result.score, pts: result.pts };
+
+// =============================================
+// AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
+// Only issues certificates if user has passed the exam server-side
+// =============================================
+exports.issueCertificate = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    
+    const uid = context.auth.uid;
+    const { type, name } = data || {};
+    
+    if (!type || !['scholar', 'technical', 'trail_meadow', 'trail_mountain', 'trail_summit'].includes(type)) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid certificate type');
+    }
+
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User not found');
+    const userData = userDoc.data();
+
+    // Verify passing status from server-authoritative fields only
+    // Note: These fields are updated via Admin SDK in grading functions
+    let passed = false;
+    let title = 'Bitcoiner';
+    let score = null;
+
+    if (type === 'scholar') {
+        passed = userData.scholar_exam_passed === true;
+        title = 'Bitcoin Scholar';
+        score = userData.scholar_exam_score || 'Passed';
+    } else if (type === 'technical') {
+        passed = userData.scholar_tech_passed === true;
+        title = 'Bitcoin Protocol Expert';
+        score = userData.scholar_tech_score || 'Passed';
+    } else if (type.startsWith('trail_')) {
+        // Find the specific trail in the list of passed trails
+        const passedTrails = userData.trails_passed || [];
+        passed = passedTrails.includes(type.replace('trail_', ''));
+        title = 'Nacho Trail Complete';
+    }
+
+    if (!passed) {
+        throw new functions.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
+    }
+
+    // Generate unique Cert ID
+    const certId = 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
+    
+    const certData = {
+        id: certId,
+        uid: uid,
+        name: (name || userData.username || 'Bitcoiner').substring(0, 50),
+        username: userData.username || null,
+        type: type,
+        title: title,
+        score: score,
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('certs').doc(certId).set(certData);
+
+    return { success: true, certId: certId, title: title, name: certData.name };
 });

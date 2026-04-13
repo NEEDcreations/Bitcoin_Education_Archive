@@ -2624,6 +2624,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         // Reset leaderboard button position (may have been shifted up for chat)
@@ -3320,6 +3321,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.go = async function go(id, btn, fromPopState) {
+        if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         if (window._nachoMode && !fromPopState) {
             if (typeof nachoChatSave === 'function') nachoChatSave();
             window._nachoReturnPending = true;
@@ -3395,7 +3397,12 @@ window.nachoQuizAnswer = function(btn, correct) {
             function _routeApp(id, attempt) {
                 attempt = attempt || 0;
                 if (id === 'first-purchase' && typeof renderFirstPurchase === 'function') { renderFirstPurchase(); document.getElementById('main').scrollTop = 0; }
-                else if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { renderTimechainTV(); document.getElementById('main').scrollTop = 0; }
+                else if (id === 'timechain-tv' && typeof renderTimechainTV === 'function') { 
+                    renderTimechainTV(); 
+                    document.getElementById('main').scrollTop = 0; 
+                    // Start TV watch tracker (H-NEW-12 / Phil request)
+                    if (typeof _tctvStartTracker === 'function') _tctvStartTracker();
+                }
                 else if (id === 'marketplace' && typeof renderMarketplace === 'function') renderMarketplace();
                 else if (id === 'bitcoin-beats' && typeof renderBitcoinBeats === 'function') renderBitcoinBeats();
                 else if (id === 'irl-sync' && typeof renderIRLSync === 'function') renderIRLSync();
@@ -4570,6 +4577,64 @@ window.playSpinTick = function() {
         osc.stop(ctx.currentTime + 0.08);
     } catch(e) {}
 };
+
+// =============================================
+// Timechain TV Watch Time Tracker (Phil request 2026-04-13)
+// This tracks minutes watched while the TV route is active and awards points / checks badges.
+// =============================================
+window._tctvTimer = null;
+window._tctvMinutesSession = 0;
+window._tctvStartTracker = function() {
+    if (window._tctvTimer) return; // Already running
+    window._tctvMinutesSession = 0; // Reset session count on re-entry
+    console.log('[TCTV] Watch tracker started.');
+
+    window._tctvTimer = setInterval(function() {
+        // Track the current route to ensure we only count when TCTV is actually active
+        var id = (window.currentChannelId || '');
+        if (id !== 'timechain-tv') {
+            window._tctvStopTracker();
+            return;
+        }
+
+        // Only track if tab is actually visible (don't farm points in background)
+        if (document.hidden) return;
+
+        // Increment total watch time (persisted to localStorage)
+        var total = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') + 1;
+        localStorage.setItem('btc_tctv_watch_time', total.toString());
+        
+        window._tctvMinutesSession++;
+        console.log('[TCTV] Watch time:', total, 'min (Session:', window._tctvMinutesSession, 'min)');
+
+        // Every 10 minutes (cumulative) award 10 points
+        if (total % 10 === 0) {
+            if (typeof awardPoints === 'function') {
+                awardPoints(10, 'tctv_watch_10m'); // Use server-side action name
+            }
+            if (typeof checkBadges === 'function') {
+                checkBadges();
+            }
+            if (typeof showToast === 'function') {
+                showToast('👁️ +10 Points — Thanks for watching Timechain TV!');
+            }
+        } else if (total === 1) {
+            // First minute toast
+            if (typeof showToast === 'function') {
+                showToast('📺 Watching Timechain TV — Points awarded every 10 min!');
+            }
+        }
+    }, 60000); // 1 minute interval
+};
+
+window._tctvStopTracker = function() {
+    if (window._tctvTimer) {
+        clearInterval(window._tctvTimer);
+        window._tctvTimer = null;
+        console.log('[TCTV] Watch tracker stopped. Total minutes watched:', window._tctvMinutesSession);
+    }
+};
+
 window.playSpinWin = function() {
     if (localStorage.getItem('btc_audio') === 'false') return;
     if (document.hidden) return;

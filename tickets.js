@@ -56,13 +56,14 @@ async function awardDailyTicket() {
         const bonusPoints = ticketsToAdd * TICKET_CONFIG.pointsPerTicket;
         const newTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
-        await db.collection('users').doc(currentUser.uid).update({
-            lastTicketDate: today,
-        });
-
+        // Award tickets + points through server-side Cloud Function (Fix permission error)
+        // Cloud Function now handles 'lastTicketDate' update server-side for security
+        if (typeof awardPoints === 'function') {
+            const result = await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
+            if (!result || !result.success) return; // Silent return if already claimed or error
+        }
+        
         currentUser.lastTicketDate = today;
-        // Award tickets + points through server-side Cloud Function
-        if (typeof awardPoints === 'function') await awardPoints(bonusPoints, '🎟️ Daily tickets', null, ticketsToAdd);
         currentUser.orangeTickets = (currentUser.orangeTickets || 0) + ticketsToAdd;
 
         // Delay toast so page is settled and user can see it

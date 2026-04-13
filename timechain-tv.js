@@ -446,329 +446,6 @@ var STATIONS = [
         ]
     },
     {
-        "id": "podcasts-debates",
-        "name": "Podcasts & Debates",
-        "emoji": "🎙️",
-        "desc": "Bitcoin podcasts, debates & discussions",
-        "color": "#ef4444",
-        "videos": [
-            {
-                "id": "xa5iT1nklyU",
-                "title": "Brian Kelly vs Peter Schiff — Bitcoin Bull vs Bear",
-                "duration": 600
-            },
-            {
-                "id": "XJU8r6WiipM",
-                "title": "Bitcoin vs Gold — Response to Peter Schiff",
-                "duration": 2400
-            },
-            {
-                "id": "9DuhDgqx21w",
-                "title": "Peter Schiff: Bitcoin Strategy is a Fraud",
-                "duration": 1800
-            },
-            {
-                "id": "aWtzOQTv8Dc",
-                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
-                "duration": 720
-            },
-            {
-                "id": "J6I-OzXItfA",
-                "title": "Jack Dorsey Explains Bitcoin",
-                "duration": 600
-            },
-            {
-                "id": "tbCVXyUGO3o",
-                "title": "I Bought This Instead of Bitcoin — Mark Moss",
-                "duration": 1200
-            },
-            {
-                "id": "D_yIKnHOuWg",
-                "title": "Michael Saylor Answers the Question of Our Time",
-                "duration": 600
-            },
-            {
-                "id": "QT_YDxTl1FQ",
-                "title": "Jack Mallers: Bitcoin Maximalist Post-GENIUS Act",
-                "duration": 1800
-            },
-            {
-                "id": "3YuscY1L1zE",
-                "title": "Why You Should Be a Bitcoin Maximalist",
-                "duration": 900
-            },
-            {
-                "id": "d5_cYWLpDs8",
-                "title": "A Brief History of Bitcoin Maximalism",
-                "duration": 1500
-            },
-            {
-                "id": "yCtVkIEIhCg",
-                "title": "Bitcoin Can Never Go to Zero — Robert Breedlove",
-                "duration": 1200
-            },
-            {
-                "id": "unCR7k3-aoE",
-                "title": "Bitcoin Is the Apex Asset — Robert Breedlove",
-                "duration": 1500
-            },
-            {
-                "id": "1jZQNo_rRsQ",
-                "title": "Bitcoin Poised for Cycle Top? Corporate Treasuries — Saifedean",
-                "duration": 1763
-            },
-            {
-                "id": "MmdQKU0YNX4",
-                "title": "Bitcoin Will Hit $850K — Max Keiser Prediction",
-                "duration": 1200
-            },
-            {
-                "id": "wBEqw-PSBlg",
-                "title": "Why Selling Bitcoin for Fiat Misses the Picture — Mark Moss",
-                "duration": 1800
-            },
-            {
-                "id": "2ZaMzWZyXe8",
-                "title": "Wall Street Meets Bitcoin: Orange-Pilling Finance — Strive CEO",
-                "duration": 1320
-            },
-            {
-                "id": "JaMJi1_1tkA",
-                "title": "Bitcoin Rap Battle: Hamilton vs. Satoshi — ft. EpicLloyd",
-                "duration": 600
-            },
-            {
-                "id": "gp4U5aH_T6A",
-                "duration": 10800,
-                "title": "Economics & Bitcoin Debate - Lex Fridman & Saifedean"
-            },
-            {
-                "id": "TUO10-HcdvY",
-                "duration": 36000,
-                "title": "The Ultimate Bitcoin vs. Everything Debate Loop"
-            },
-            {
-                "id": "Bh7LBF9cU6w",
-                "duration": 18000,
-                "title": "Stock-to-Flow & Power Law Debate Marathon"
-            },
-            {
-                "id": "l1Rgq8UY3zo",
-                "title": "Why Bitcoin is Different — Stephan Livera",
-                "duration": 3600
-            },
-            {
-                "id": "4Q1AasS6HLU",
-                "title": "Bitcoin 101 — Stephan Livera Podcast",
-                "duration": 4200
-            },
-            {
-                "id": "N_qo_-QRqAM",
-                "title": "No More 4-Year Cycles? — Stephan Livera",
-                "duration": 3000
-            },
-            {
-                "id": "aN2G0Uvahf8",
-                "title": "What Bitcoin Did — Beginner Guide",
-                "duration": 5400
-            },
-            {
-                "id": "oMDHTVwSRHI",
-                "title": "1 Bitcoin Is All You Need",
-                "duration": 2400
-            },
-            {
-                "id": "x0kNGaxLg18",
-                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
-                "duration": 3320
-            },
-            {
-                "id": "HwNSykjO-gI",
-                "title": "Lyn Alden: Changing World Order — Coin Stories",
-                "duration": 3630
-            },
-            {
-                "id": "to7FF7ZmBl0",
-                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
-                "duration": 3383
-            },
-            {
-                "id": "bhSGC08V47U",
-                "title": "Stephan Livera on Bitcoin Maximalism",
-                "duration": 3600
-            },
-            {
-                "id": "6WxdkRk8cs4",
-                "title": "Stephan Livera: Bitcoin Education Deep Dive",
-                "duration": 2700
-            },
-            {
-                "id": "sTxdYxGqYDo",
-                "title": "Stephan Livera: Why Bitcoin Only",
-                "duration": 3000
-            },
-            {
-                "id": "j89aAqfezX8",
-                "title": "Saving Bedford - Peter McCormack",
-                "duration": 6434
-            },
-            {
-                "id": "K5bZ4HPpwxw",
-                "title": "Fixing Government Corruption - WBD",
-                "duration": 6182
-            },
-            {
-                "id": "nMicPEQM4HY",
-                "title": "Maximalism is Dead? | Peter McCormack",
-                "duration": 1541
-            },
-            {
-                "id": "0rlnVQoiVyc",
-                "title": "History of Bitcoin w/ Marty Bent",
-                "duration": 3000
-            },
-            {
-                "id": "meCoGKugjMQ",
-                "title": "Marty Bent on the Power of Bitcoin",
-                "duration": 3600
-            },
-            {
-                "id": "ANtyYqcXR9w",
-                "title": "Marty Bent: Tales from The Crypt",
-                "duration": 3600
-            }
-        ]
-    },
-    {
-        "id": "saylor",
-        "name": "Saylor Series",
-        "emoji": "👑",
-        "desc": "Michael Saylor's complete Bitcoin masterclass - strategy, philosophy & the future of money",
-        "color": "#f7931a",
-        "videos": [
-            {
-                "id": "N3J868zhH9g",
-                "title": "Bitcoin Is Encrypted Energy — Saylor & Breedlove",
-                "duration": 2400
-            },
-            {
-                "id": "LtcbR98uTJQ",
-                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
-                "duration": 7200
-            },
-            {
-                "id": "1Ms7ql_S63A",
-                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
-                "duration": 7800
-            },
-            {
-                "id": "ssEMtaRwra0",
-                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
-                "duration": 8100
-            },
-            {
-                "id": "bjvMt0xaSUQ",
-                "title": "The Saylor Series | Part 4: The Future of Bitcoin & Civilization",
-                "duration": 7500
-            },
-            {
-                "id": "1Mr9PknsM_Y",
-                "title": "Michael Saylor's Best Explanation of Bitcoin",
-                "duration": 1200
-            },
-            {
-                "id": "reVebuAf_Cs",
-                "title": "Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote",
-                "duration": 2211
-            },
-            {
-                "id": "hqoagNBtIps",
-                "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
-                "duration": 2400
-            },
-            {
-                "id": "1PkMFIa7rmQ",
-                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
-                "duration": 2415
-            },
-            {
-                "id": "gCfA1lkmJo4",
-                "title": "Michael Saylor — The Greatest Bitcoin Explanation",
-                "duration": 1200
-            },
-            {
-                "id": "O9KnBcWMkpw",
-                "duration": 2243,
-                "title": "Michael Saylor 2024 Keynote - Nashville"
-            },
-            {
-                "id": "XdgP25UcHB0",
-                "title": "Bitcoin for Corporations — Saylor & Dorsey",
-                "duration": 12600
-            },
-            {
-                "id": "nC37CqWpxfI",
-                "title": "Saylor & Dorsey Interview",
-                "duration": 3400
-            },
-            {
-                "id": "D_yIKnHOuWg",
-                "title": "Michael Saylor Answers the Question of Our Time",
-                "duration": 600
-            },
-            {
-                "id": "3-vBBYEXv6M",
-                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
-                "duration": 2100
-            },
-            {
-                "id": "aWtzOQTv8Dc",
-                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
-                "duration": 720
-            },
-            {
-                "id": "yQL9yua9Yq0",
-                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
-                "duration": 3600
-            },
-            {
-                "id": "KxTWC3ShYDE",
-                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
-                "duration": 1800
-            },
-            {
-                "id": "1R0J-myYPM0",
-                "title": "Michael Saylor: Bitcoin is Hope",
-                "duration": 2700
-            },
-            {
-                "id": "fZfg1Gtcg08",
-                "title": "100% Saylor — Michael Saylor Best Moments",
-                "duration": 600
-            },
-            {
-                "id": "9jsmGd9puYU",
-                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
-                "duration": 646
-            },
-            {
-                "id": "coHC_9ApBdg",
-                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
-                "duration": 5400
-            },
-            {
-                "id": "MSMJBmo_q4s",
-                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
-                "duration": 4200
-            },
-            {
-                "id": "B4nK8mP2qS6",
-                "title": "Michael Saylor on Bitcoin and the Future of Finance",
-                "duration": 4800
-            }
-        ]
-    },
-    {
         "id": "dev-privacy-nodes",
         "name": "Dev, Privacy & Nodes",
         "emoji": "💻",
@@ -1211,140 +888,6 @@ var STATIONS = [
                 "id": "PesTO9MRqJo",
                 "duration": 2400,
                 "title": "Bitcoin and Time with Gigi"
-            }
-        ]
-    },
-    {
-        "id": "future-predictions",
-        "name": "Trading & Predictions",
-        "emoji": "🔮",
-        "desc": "Analysis, price models & market theories",
-        "color": "#8b5cf6",
-        "videos": [
-            {
-                "id": "BpKfLfGbf0Q",
-                "title": "Bitcoin Hyperbitcoinization: $1.5M by 2028?",
-                "duration": 1800
-            },
-            {
-                "id": "iDgDl9jzEmk",
-                "title": "Bitcoin Price Prediction Models Explained",
-                "duration": 2400
-            },
-            {
-                "id": "1Mr9PknsM_Y",
-                "title": "Michael Saylor's Best Explanation of Bitcoin",
-                "duration": 1200
-            },
-            {
-                "id": "hrjBK6AXAMk",
-                "title": "Take The Bitcoin Orange Pill — How To Guide",
-                "duration": 1500
-            },
-            {
-                "id": "bPYl1-KBE50",
-                "title": "The Ultimate Orange Pill — Bitcoin & Risk",
-                "duration": 900
-            },
-            {
-                "id": "qX2fbQgxJig",
-                "title": "Why Bitcoin Could Reach $64M — Luke Mikic",
-                "duration": 3600
-            },
-            {
-                "id": "jzY_SxnTLNA",
-                "title": "Bitcoin Is the Economic Singularity — Luke Mikic",
-                "duration": 2400
-            },
-            {
-                "id": "Z51vRLKvco4",
-                "title": "Retiring on 0.1 Bitcoin — Luke Mikic",
-                "duration": 1800
-            },
-            {
-                "id": "Sxv6wpU1380",
-                "title": "Is This Bitcoin Final Cycle? — Luke Mikic",
-                "duration": 2700
-            },
-            {
-                "id": "bw5Gepxo2Ps",
-                "title": "Bitcoin Network Effects Model — 10x Users = 100x Price",
-                "duration": 2400
-            },
-            {
-                "id": "uF6Wx4Hr6iU",
-                "title": "Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries — Coin Stories",
-                "duration": 1800
-            },
-            {
-                "id": "C9KPRcmFJWI",
-                "title": "Bitcoin to $180K — Pomp Investments Prediction",
-                "duration": 1500
-            },
-            {
-                "id": "3-vBBYEXv6M",
-                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
-                "duration": 2100
-            },
-            {
-                "id": "vjwFusEnfiE",
-                "duration": 840,
-                "title": "The Power Law Lens on Bitcoin - Santostasi"
-            },
-            {
-                "id": "nlvx2-3LUhM",
-                "duration": 3600,
-                "title": "Bitcoin Power Law Explained | SLP624"
-            },
-            {
-                "id": "_rMwlS1aHFs",
-                "duration": 1800,
-                "title": "The Physics of Bitcoins 10M Future"
-            },
-            {
-                "id": "yM06uqse6Ks",
-                "duration": 3600,
-                "title": "The Science Behind M Bitcoin"
-            },
-            {
-                "id": "XW1GUeBe0Rs",
-                "duration": 7200,
-                "title": "The Bitcoin Power Law WiM509"
-            },
-            {
-                "id": "6WdwTR_S2Ig",
-                "duration": 900,
-                "title": "Bitcoin Stock-To-Flow Model"
-            },
-            {
-                "id": "tPQs6eQ4zIU",
-                "duration": 900,
-                "title": "Stock to Flow - Prediciting Price?"
-            },
-            {
-                "id": "Bh7LBF9cU6w",
-                "duration": 900,
-                "title": "Plan B Model Will Break in 2026"
-            },
-            {
-                "id": "wjObfPHlPOk",
-                "duration": 900,
-                "title": "Understanding S2F Live Charts"
-            },
-            {
-                "id": "KR8EZo5IesE",
-                "duration": 300,
-                "title": "Tom Lee: Bitcoin to  Million Path"
-            },
-            {
-                "id": "LU5RqsGwvBg",
-                "duration": 600,
-                "title": "Bitcoins Path to M: Schwab"
-            },
-            {
-                "id": "GzZecXEUJTI",
-                "duration": 900,
-                "title": "Realistically Reaching  Million"
             }
         ]
     },
@@ -2335,6 +1878,200 @@ var STATIONS = [
         ]
     },
     {
+        "id": "podcasts-debates",
+        "name": "Podcasts & Debates",
+        "emoji": "🎙️",
+        "desc": "Bitcoin podcasts, debates & discussions",
+        "color": "#ef4444",
+        "videos": [
+            {
+                "id": "xa5iT1nklyU",
+                "title": "Brian Kelly vs Peter Schiff — Bitcoin Bull vs Bear",
+                "duration": 600
+            },
+            {
+                "id": "XJU8r6WiipM",
+                "title": "Bitcoin vs Gold — Response to Peter Schiff",
+                "duration": 2400
+            },
+            {
+                "id": "9DuhDgqx21w",
+                "title": "Peter Schiff: Bitcoin Strategy is a Fraud",
+                "duration": 1800
+            },
+            {
+                "id": "aWtzOQTv8Dc",
+                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
+                "duration": 720
+            },
+            {
+                "id": "J6I-OzXItfA",
+                "title": "Jack Dorsey Explains Bitcoin",
+                "duration": 600
+            },
+            {
+                "id": "tbCVXyUGO3o",
+                "title": "I Bought This Instead of Bitcoin — Mark Moss",
+                "duration": 1200
+            },
+            {
+                "id": "D_yIKnHOuWg",
+                "title": "Michael Saylor Answers the Question of Our Time",
+                "duration": 600
+            },
+            {
+                "id": "QT_YDxTl1FQ",
+                "title": "Jack Mallers: Bitcoin Maximalist Post-GENIUS Act",
+                "duration": 1800
+            },
+            {
+                "id": "3YuscY1L1zE",
+                "title": "Why You Should Be a Bitcoin Maximalist",
+                "duration": 900
+            },
+            {
+                "id": "d5_cYWLpDs8",
+                "title": "A Brief History of Bitcoin Maximalism",
+                "duration": 1500
+            },
+            {
+                "id": "yCtVkIEIhCg",
+                "title": "Bitcoin Can Never Go to Zero — Robert Breedlove",
+                "duration": 1200
+            },
+            {
+                "id": "unCR7k3-aoE",
+                "title": "Bitcoin Is the Apex Asset — Robert Breedlove",
+                "duration": 1500
+            },
+            {
+                "id": "1jZQNo_rRsQ",
+                "title": "Bitcoin Poised for Cycle Top? Corporate Treasuries — Saifedean",
+                "duration": 1763
+            },
+            {
+                "id": "MmdQKU0YNX4",
+                "title": "Bitcoin Will Hit $850K — Max Keiser Prediction",
+                "duration": 1200
+            },
+            {
+                "id": "wBEqw-PSBlg",
+                "title": "Why Selling Bitcoin for Fiat Misses the Picture — Mark Moss",
+                "duration": 1800
+            },
+            {
+                "id": "2ZaMzWZyXe8",
+                "title": "Wall Street Meets Bitcoin: Orange-Pilling Finance — Strive CEO",
+                "duration": 1320
+            },
+            {
+                "id": "JaMJi1_1tkA",
+                "title": "Bitcoin Rap Battle: Hamilton vs. Satoshi — ft. EpicLloyd",
+                "duration": 600
+            },
+            {
+                "id": "gp4U5aH_T6A",
+                "duration": 10800,
+                "title": "Economics & Bitcoin Debate - Lex Fridman & Saifedean"
+            },
+            {
+                "id": "TUO10-HcdvY",
+                "duration": 36000,
+                "title": "The Ultimate Bitcoin vs. Everything Debate Loop"
+            },
+            {
+                "id": "Bh7LBF9cU6w",
+                "duration": 18000,
+                "title": "Stock-to-Flow & Power Law Debate Marathon"
+            },
+            {
+                "id": "l1Rgq8UY3zo",
+                "title": "Why Bitcoin is Different — Stephan Livera",
+                "duration": 3600
+            },
+            {
+                "id": "4Q1AasS6HLU",
+                "title": "Bitcoin 101 — Stephan Livera Podcast",
+                "duration": 4200
+            },
+            {
+                "id": "N_qo_-QRqAM",
+                "title": "No More 4-Year Cycles? — Stephan Livera",
+                "duration": 3000
+            },
+            {
+                "id": "aN2G0Uvahf8",
+                "title": "What Bitcoin Did — Beginner Guide",
+                "duration": 5400
+            },
+            {
+                "id": "oMDHTVwSRHI",
+                "title": "1 Bitcoin Is All You Need",
+                "duration": 2400
+            },
+            {
+                "id": "x0kNGaxLg18",
+                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
+                "duration": 3320
+            },
+            {
+                "id": "HwNSykjO-gI",
+                "title": "Lyn Alden: Changing World Order — Coin Stories",
+                "duration": 3630
+            },
+            {
+                "id": "to7FF7ZmBl0",
+                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
+                "duration": 3383
+            },
+            {
+                "id": "bhSGC08V47U",
+                "title": "Stephan Livera on Bitcoin Maximalism",
+                "duration": 3600
+            },
+            {
+                "id": "6WxdkRk8cs4",
+                "title": "Stephan Livera: Bitcoin Education Deep Dive",
+                "duration": 2700
+            },
+            {
+                "id": "sTxdYxGqYDo",
+                "title": "Stephan Livera: Why Bitcoin Only",
+                "duration": 3000
+            },
+            {
+                "id": "j89aAqfezX8",
+                "title": "Saving Bedford - Peter McCormack",
+                "duration": 6434
+            },
+            {
+                "id": "K5bZ4HPpwxw",
+                "title": "Fixing Government Corruption - WBD",
+                "duration": 6182
+            },
+            {
+                "id": "nMicPEQM4HY",
+                "title": "Maximalism is Dead? | Peter McCormack",
+                "duration": 1541
+            },
+            {
+                "id": "0rlnVQoiVyc",
+                "title": "History of Bitcoin w/ Marty Bent",
+                "duration": 3000
+            },
+            {
+                "id": "meCoGKugjMQ",
+                "title": "Marty Bent on the Power of Bitcoin",
+                "duration": 3600
+            },
+            {
+                "id": "ANtyYqcXR9w",
+                "title": "Marty Bent: Tales from The Crypt",
+                "duration": 3600
+            }
+        ]
+    },
+    {
         "id": "politics-regulation",
         "name": "Politics & Regulation",
         "emoji": "🏛️",
@@ -2415,6 +2152,269 @@ var STATIONS = [
                 "id": "lwJpvqMeLJg",
                 "duration": 340,
                 "title": "Bitcoin Breaking Records - SuperTalk"
+            }
+        ]
+    },
+    {
+        "id": "saylor",
+        "name": "Saylor Series",
+        "emoji": "👑",
+        "desc": "Michael Saylor's complete Bitcoin masterclass - strategy, philosophy & the future of money",
+        "color": "#f7931a",
+        "videos": [
+            {
+                "id": "N3J868zhH9g",
+                "title": "Bitcoin Is Encrypted Energy — Saylor & Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "LtcbR98uTJQ",
+                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
+                "duration": 7200
+            },
+            {
+                "id": "1Ms7ql_S63A",
+                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
+                "duration": 7800
+            },
+            {
+                "id": "ssEMtaRwra0",
+                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
+                "duration": 8100
+            },
+            {
+                "id": "bjvMt0xaSUQ",
+                "title": "The Saylor Series | Part 4: The Future of Bitcoin & Civilization",
+                "duration": 7500
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Michael Saylor's Best Explanation of Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "reVebuAf_Cs",
+                "title": "Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote",
+                "duration": 2211
+            },
+            {
+                "id": "hqoagNBtIps",
+                "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
+                "duration": 2400
+            },
+            {
+                "id": "1PkMFIa7rmQ",
+                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
+                "duration": 2415
+            },
+            {
+                "id": "gCfA1lkmJo4",
+                "title": "Michael Saylor — The Greatest Bitcoin Explanation",
+                "duration": 1200
+            },
+            {
+                "id": "O9KnBcWMkpw",
+                "duration": 2243,
+                "title": "Michael Saylor 2024 Keynote - Nashville"
+            },
+            {
+                "id": "XdgP25UcHB0",
+                "title": "Bitcoin for Corporations — Saylor & Dorsey",
+                "duration": 12600
+            },
+            {
+                "id": "nC37CqWpxfI",
+                "title": "Saylor & Dorsey Interview",
+                "duration": 3400
+            },
+            {
+                "id": "D_yIKnHOuWg",
+                "title": "Michael Saylor Answers the Question of Our Time",
+                "duration": 600
+            },
+            {
+                "id": "3-vBBYEXv6M",
+                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
+                "duration": 2100
+            },
+            {
+                "id": "aWtzOQTv8Dc",
+                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
+                "duration": 720
+            },
+            {
+                "id": "yQL9yua9Yq0",
+                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
+                "duration": 3600
+            },
+            {
+                "id": "KxTWC3ShYDE",
+                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
+                "duration": 1800
+            },
+            {
+                "id": "1R0J-myYPM0",
+                "title": "Michael Saylor: Bitcoin is Hope",
+                "duration": 2700
+            },
+            {
+                "id": "fZfg1Gtcg08",
+                "title": "100% Saylor — Michael Saylor Best Moments",
+                "duration": 600
+            },
+            {
+                "id": "9jsmGd9puYU",
+                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
+                "duration": 646
+            },
+            {
+                "id": "coHC_9ApBdg",
+                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
+                "duration": 5400
+            },
+            {
+                "id": "MSMJBmo_q4s",
+                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
+                "duration": 4200
+            },
+            {
+                "id": "B4nK8mP2qS6",
+                "title": "Michael Saylor on Bitcoin and the Future of Finance",
+                "duration": 4800
+            }
+        ]
+    },
+    {
+        "id": "future-predictions",
+        "name": "Trading & Predictions",
+        "emoji": "🔮",
+        "desc": "Analysis, price models & market theories",
+        "color": "#8b5cf6",
+        "videos": [
+            {
+                "id": "BpKfLfGbf0Q",
+                "title": "Bitcoin Hyperbitcoinization: $1.5M by 2028?",
+                "duration": 1800
+            },
+            {
+                "id": "iDgDl9jzEmk",
+                "title": "Bitcoin Price Prediction Models Explained",
+                "duration": 2400
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Michael Saylor's Best Explanation of Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "hrjBK6AXAMk",
+                "title": "Take The Bitcoin Orange Pill — How To Guide",
+                "duration": 1500
+            },
+            {
+                "id": "bPYl1-KBE50",
+                "title": "The Ultimate Orange Pill — Bitcoin & Risk",
+                "duration": 900
+            },
+            {
+                "id": "qX2fbQgxJig",
+                "title": "Why Bitcoin Could Reach $64M — Luke Mikic",
+                "duration": 3600
+            },
+            {
+                "id": "jzY_SxnTLNA",
+                "title": "Bitcoin Is the Economic Singularity — Luke Mikic",
+                "duration": 2400
+            },
+            {
+                "id": "Z51vRLKvco4",
+                "title": "Retiring on 0.1 Bitcoin — Luke Mikic",
+                "duration": 1800
+            },
+            {
+                "id": "Sxv6wpU1380",
+                "title": "Is This Bitcoin Final Cycle? — Luke Mikic",
+                "duration": 2700
+            },
+            {
+                "id": "bw5Gepxo2Ps",
+                "title": "Bitcoin Network Effects Model — 10x Users = 100x Price",
+                "duration": 2400
+            },
+            {
+                "id": "uF6Wx4Hr6iU",
+                "title": "Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries — Coin Stories",
+                "duration": 1800
+            },
+            {
+                "id": "C9KPRcmFJWI",
+                "title": "Bitcoin to $180K — Pomp Investments Prediction",
+                "duration": 1500
+            },
+            {
+                "id": "3-vBBYEXv6M",
+                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
+                "duration": 2100
+            },
+            {
+                "id": "vjwFusEnfiE",
+                "duration": 840,
+                "title": "The Power Law Lens on Bitcoin - Santostasi"
+            },
+            {
+                "id": "nlvx2-3LUhM",
+                "duration": 3600,
+                "title": "Bitcoin Power Law Explained | SLP624"
+            },
+            {
+                "id": "_rMwlS1aHFs",
+                "duration": 1800,
+                "title": "The Physics of Bitcoins 10M Future"
+            },
+            {
+                "id": "yM06uqse6Ks",
+                "duration": 3600,
+                "title": "The Science Behind M Bitcoin"
+            },
+            {
+                "id": "XW1GUeBe0Rs",
+                "duration": 7200,
+                "title": "The Bitcoin Power Law WiM509"
+            },
+            {
+                "id": "6WdwTR_S2Ig",
+                "duration": 900,
+                "title": "Bitcoin Stock-To-Flow Model"
+            },
+            {
+                "id": "tPQs6eQ4zIU",
+                "duration": 900,
+                "title": "Stock to Flow - Prediciting Price?"
+            },
+            {
+                "id": "Bh7LBF9cU6w",
+                "duration": 900,
+                "title": "Plan B Model Will Break in 2026"
+            },
+            {
+                "id": "wjObfPHlPOk",
+                "duration": 900,
+                "title": "Understanding S2F Live Charts"
+            },
+            {
+                "id": "KR8EZo5IesE",
+                "duration": 300,
+                "title": "Tom Lee: Bitcoin to  Million Path"
+            },
+            {
+                "id": "LU5RqsGwvBg",
+                "duration": 600,
+                "title": "Bitcoins Path to M: Schwab"
+            },
+            {
+                "id": "GzZecXEUJTI",
+                "duration": 900,
+                "title": "Realistically Reaching  Million"
             }
         ]
     },
@@ -2603,6 +2603,10 @@ var _viewerHeartbeat = null;
 var _viewerCounts = {};
 
 function _getViewerId() {
+    // Prefer auth UID (Fix L-NEW-2)
+    var auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
+    if (auth && auth.currentUser) return auth.currentUser.uid;
+
     if (_viewerId) return _viewerId;
     try {
         _viewerId = localStorage.getItem('tctv_viewerId');
@@ -3057,19 +3061,19 @@ window.renderTimechainTV = function() {
     html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
     // Desktop: side-by-side layout with couch left, video center, remote right
-    html += '<div style="display:flex;align-items:center;justify-content:center;gap:20px;background:#0a0a0a;padding:10px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:10px;">';
     // Left side - Couch Nacho (desktop only, inside layout flow)
     html += '<div id="nacho-couch-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
-            '<div style="position:relative;width:200px;height:160px;display:flex;align-items:center;justify-content:center;">' +
-            '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
-            '<div style="position:absolute;bottom:45px;left:60px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
-            '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
-            '<span style="position:absolute;top:-20px;right:-20px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.65rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
+            '<div style="position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center;">' +
+            '<span style="font-size:5rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
+            '<div style="position:absolute;bottom:30px;left:40px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
+            '<img src="nacho-deer.svg" style="width:55px;height:55px;">' +
+            '<span style="position:absolute;top:-15px;right:-15px;background:white;color:black;padding:3px 8px;border-radius:10px;font-size:0.5rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
             '</div>' +
             '</div></div>';
     // Center - Video player (narrower on desktop, full width on mobile)
-    html += '<div style="flex:0 1 auto;max-width:calc(100% - 280px);min-width:0;" class="tctv-video-wrap">' +
-            '<div style="position:relative;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;border-radius:8px;" id="tctv-video-container">' +
+    html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
+            '<div style="position:relative;aspect-ratio:16/9;max-height:60vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
             '<div id="tctv-pause-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;">' +
                 '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
                 '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
@@ -3081,13 +3085,18 @@ window.renderTimechainTV = function() {
     html += '<div id="tctv-remote-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
             '<div id="tctv-remote-inline" class="collapsed" style="width:80px;background:#222;border:3px solid #111;border-radius:20px;padding:15px 10px;box-shadow:0 10px 40px rgba(0,0,0,0.8),inset 0 2px 5px rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:12px;align-items:center;">' +
             '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
-            '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn-inline" title="Pause/Play">⏸</button><span class="remote-label">PWR</span>' +
+            // PWR Button (Red, returns to Home)
+            '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn-inline" title="Power OFF">⏻</button><span class="remote-label">PWR</span>' +
             '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
                 '<span class="remote-label" style="margin:0">CH</span>' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
             '</div>' +
-            '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            // Bottom Controls (Pause and Back)
+            '<div style="display:flex;flex-direction:column;gap:8px;align-items:center;">' +
+                '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn-inline" title="Pause/Play">⏸</button>' +
+                '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '</div>' +
             '</div></div>';
     html += '</div>';
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
@@ -3108,10 +3117,11 @@ window.renderTimechainTV = function() {
             '</div>' +
             '</div></div>';
 
-    // Remote
+    // Remote (Mobile stacked flow)
     html += '<div id="tctv-remote" class="collapsed">' +
             '<div onclick="tctvToggleRemote()" class="desktop-only" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
-            '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button>' +
+            // PWR Button (Red)
+            '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">⏻</button>' +
             '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:row;align-items:center;gap:12px;">' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
                 '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
@@ -3120,6 +3130,8 @@ window.renderTimechainTV = function() {
                 '</div>' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
             '</div>' +
+            // Added Blue Pause button for mobile flow (horizontal layout)
+            '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button>' +
             '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
             '</div>';
             

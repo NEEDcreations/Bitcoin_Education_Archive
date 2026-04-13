@@ -48,6 +48,11 @@ const BADGE_DEFS = [
     { id: 'chat_50', name: 'Conversationalist', emoji: '🎤', desc: 'Sent 50 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 50, pts: 25 },
     { id: 'chat_100', name: 'Town Crier', emoji: '📢', desc: 'Sent 100 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 100, pts: 50 },
     { id: 'chat_500', name: 'Chat Legend', emoji: '👑', desc: 'Sent 500 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 500, pts: 100 },
+
+    // ---- Timechain TV Badges ----
+    { id: 'tctv_viewer', name: 'Tune In', emoji: '👁️', desc: 'Watch Timechain TV for 10 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 10, pts: 10 },
+    { id: 'tctv_binge', name: 'TV Binge', emoji: '🍿', desc: 'Watch Timechain TV for 60 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 60, pts: 25 },
+    { id: 'tctv_marathon', name: 'Digital Marathon', emoji: '📺', desc: 'Watch Timechain TV for 300 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 300, pts: 100 },
     { id: 'chat_streak_3', name: 'Regular', emoji: '📅', desc: 'Chatted 3 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 3, pts: 20 },
     { id: 'chat_streak_7', name: 'Devoted Chatter', emoji: '🔥', desc: 'Chatted 7 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 7, pts: 50 },
     { id: 'chat_streak_30', name: 'Chat Addict', emoji: '💎', desc: 'Chatted 30 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 30, pts: 150 },
