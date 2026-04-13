@@ -2624,6 +2624,14 @@ window.tctvRemoteBack = function() {
     if (_lastStation) window.switchStation(_lastStation);
 };
 
+window.tctvDirectChannel = function(val) {
+    var num = parseInt(val);
+    if (isNaN(num) || num < 1 || num > STATIONS.length) return;
+    window.switchStation(STATIONS[num - 1].id);
+    var input = document.getElementById('remote-ch-input');
+    if (input) { input.value = ''; input.blur(); }
+};
+
 window.tctvRemotePause = function() {
     _isPaused = !_isPaused;
     var btn = document.getElementById('remote-pause-btn');
@@ -2823,6 +2831,8 @@ window.renderTimechainTV = function() {
         .remote-btn.red { background: #dc2626; border-color: #ef4444; }
         .remote-btn.blue { background: #2563eb; border-color: #3b82f6; }
         .remote-label { font-size: 0.55rem; color: #666; font-weight: 800; margin-top: -8px; text-transform: uppercase; }
+        .remote-input { width: 44px; padding: 4px; background: #111; border: 1px solid #444; border-radius: 6px; color: var(--accent); font-family: 'Courier New', monospace; font-weight: 800; font-size: 0.9rem; text-align: center; outline: none; }
+        .remote-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(247,147,26,0.3); }
         #nacho-couch { position: fixed; left: 10px; bottom: 100px; z-index: 10000; pointer-events: none; transition: 0.5s; display: none; }
         @media (min-width: 901px) { #nacho-couch { display: block; } }
         /* Mobile — stack Nacho and Remote between video and list */
@@ -2892,9 +2902,12 @@ window.renderTimechainTV = function() {
     html += '<div id="tctv-remote" class="collapsed">' +
             '<div onclick="tctvToggleRemote()" class="desktop-only" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
             '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button>' +
-            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:row;align-items:center;gap:15px;">' +
+            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:row;align-items:center;gap:12px;">' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
-                '<span class="remote-label" style="margin:0">CH</span>' +
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                    '<span style="color:#666;font-size:0.7rem;font-weight:900;">#</span>' +
+                    '<input type="text" id="remote-ch-input" class="remote-input" placeholder="--" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
+                '</div>' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
             '</div>' +
             '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
