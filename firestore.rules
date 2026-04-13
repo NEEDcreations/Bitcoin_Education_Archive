@@ -92,9 +92,11 @@ service cloud.firestore {
     // =============================================
     match /stats/{statId} {
       allow read: if true;
-      allow update: if statId == 'visits'
+      allow update: if request.auth != null
+                    && statId == 'visits'
                     && request.resource.data.total == resource.data.total + 1;
-      allow create: if statId == 'visits';
+      allow create: if request.auth != null
+                    && statId == 'visits';
       // [AUDIT FIX] Require auth for analytics writes
       allow create, update: if statId == 'nacho-analytics'
                             && request.auth != null;
