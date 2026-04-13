@@ -751,11 +751,19 @@ service cloud.firestore {
     }
 
     // Buddy matches
+    // [AUDIT FIX L-NEW-10] Prevent fake matches via deterministic ID and ownership
     match /buddy_matches/{docId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+                  && (resource.data.user1.uid == request.auth.uid
+                      || resource.data.user2.uid == request.auth.uid);
+      
+      // Prevent arbitrary match creation — enforce deterministic UID-based document ID
       allow create: if request.auth != null
-                    && (request.resource.data.user1.uid == request.auth.uid
-                        || request.resource.data.user2.uid == request.auth.uid);
+                    && (request.resource.data.user1.uid == request.auth.uid || request.resource.data.user2.uid == request.auth.uid)
+                    && (request.resource.data.user1.uid < request.resource.data.user2.uid ? 
+                        docId == request.resource.data.user1.uid + '_' + request.resource.data.user2.uid : 
+                        docId == request.resource.data.user2.uid + '_' + request.resource.data.user1.uid);
+      
       allow delete: if request.auth != null
                     && (resource.data.user1.uid == request.auth.uid
                         || resource.data.user2.uid == request.auth.uid);

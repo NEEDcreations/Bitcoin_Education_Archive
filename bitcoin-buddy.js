@@ -291,7 +291,9 @@ window.submitBuddyRequest = async function() {
             // Match found! Remove both from pool and create match record
             await _db.collection(COLLECTION).doc(match.id).delete();
 
-            await _db.collection(MATCH_COLLECTION).add({
+            // 🔒 SECURITY (L-NEW-10): Use deterministic ID for match document
+            var convoId = _getBuddyConvoId(uid, match.data.uid);
+            await _db.collection(MATCH_COLLECTION).doc(convoId).set({
                 user1: { uid: uid, username: username, level: level, goal: goal, intro: intro },
                 user2: { uid: match.data.uid, username: match.data.username, level: match.data.level, goal: match.data.goal, intro: match.data.intro || '' },
                 matchedAt: firebase.firestore.FieldValue.serverTimestamp(),
