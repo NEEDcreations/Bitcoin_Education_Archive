@@ -13056,7 +13056,7 @@ function renderListingDetail(container, listingId) {
                 '<div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;font-weight:700;">' + (l.sellerName ? l.sellerName.charAt(0).toUpperCase() : '?') + '</div>' +
                 '<div style="flex:1;">' +
                     '<div style="font-weight:700;color:var(--heading);font-size:0.9rem;">' + escapeHtml(l.sellerName || 'Anonymous') + '</div>' +
-                    (l.sellerRank ? '<div style="font-size:0.7rem;color:var(--text-muted);">' + l.sellerRank + '</div>' : '') +
+                    (l.sellerRank ? '<div style="font-size:0.7rem;color:var(--text-muted);">' + escapeHtml(l.sellerRank) + '</div>' : '') +
                 '</div>' +
                 '<div style="color:var(--text-faint);font-size:0.8rem;">👤</div>' +
             '</div>' +
