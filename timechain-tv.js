@@ -2992,11 +2992,11 @@ window.renderTimechainTV = function() {
         /* Desktop: sidebar layout (couch left, video center, remote right) */
         @media (min-width: 901px) {
             #nacho-couch-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
-            #tctv-remote { display: none !important; }
+            #tctv-remote, .tctv-mobile-ui-stack { display: none !important; }
         }
         @media (max-width: 900px) {
             #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
-            #tctv-remote { display: flex !important; }
+            #tctv-remote, .tctv-mobile-ui-stack { display: flex !important; flex-direction: column; }
         }
         /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
         #tctv-remote { position: fixed; right: 20px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
@@ -3042,29 +3042,6 @@ window.renderTimechainTV = function() {
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
     
-// Remote
-    var remoteHtml = '<div id="tctv-remote" class="collapsed desktop-only">' +
-            '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
-            '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button><span class="remote-label">PWR</span>' +
-            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
-                '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
-                '<span class="remote-label" style="margin:0">CH</span>' +
-                '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
-            '</div>' +
-            '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
-            '</div>';
-
-    // Nacho on Couch
-    var couchHtml = '<div id="nacho-couch" class="desktop-only">' +
-            '<div style="position:relative;width:240px;height:160px;display:flex;align-items:center;justify-content:center;">' +
-            '<span style="font-size:8rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
-            '<div style="position:absolute;bottom:45px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
-            '<img src="nacho-deer.svg" style="width:85px;height:85px;">' +
-            '<span style="position:absolute;bottom:0;right:-10px;font-size:2.5rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span>' +
-            '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
-            '</div>' +
-            '</div></div>';
-
     html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
     // Desktop: side-by-side layout with couch left, video center, remote right
