@@ -129,15 +129,18 @@ service cloud.firestore {
     }
 
     // Active predictions (for server-side resolution)
+    // [AUDIT FIX L-NEW-11] Prevent backdating predictions
     match /active_predictions/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create: if request.auth != null
                     && request.auth.uid == uid
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.keys().hasAll(['direction', 'price', 'uid'])
+                    && request.resource.data.keys().hasAll(['direction', 'price', 'uid', 'time'])
                     && request.resource.data.direction is string
                     && (request.resource.data.direction == 'up' || request.resource.data.direction == 'down')
-                    && request.resource.data.uid == request.auth.uid;
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.price > 0
+                    && request.resource.data.time == request.time;
       // No updates allowed — predictions are immutable once placed
       allow update: if false;
       allow delete: if request.auth != null && request.auth.uid == uid;
