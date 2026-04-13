@@ -2400,6 +2400,9 @@ var STATIONS = [
 ];
 
 // ── Station Persistence ──
+var _lastStation = null;
+var _isPaused = false;
+
 function getInitialStation() {
     try {
         var saved = localStorage.getItem('tctv_lastStation');
@@ -2593,6 +2596,10 @@ var _syncInterval = null;
 function loadVideo(videoId, startSeconds) {
     var old = document.getElementById('tctv-player');
     if (!old) return;
+    if (_isPaused) {
+        _currentVideoId = videoId; // Keep track but don't load
+        return;
+    }
     var wrap = old.parentElement;
     _currentVideoId = videoId;
     old.remove();
@@ -2607,6 +2614,42 @@ function loadVideo(videoId, startSeconds) {
         '&showinfo=0&iv_load_policy=3&playsinline=1';
     wrap.appendChild(iframe);
 }
+
+// ── Remote Functions ──
+window.tctvRemoteChannel = function(dir) {
+    var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
+    var nextIdx = (idx + dir + STATIONS.length) % STATIONS.length;
+    window.switchStation(STATIONS[nextIdx].id);
+};
+
+window.tctvRemoteBack = function() {
+    if (_lastStation) window.switchStation(_lastStation);
+};
+
+window.tctvRemotePause = function() {
+    _isPaused = !_isPaused;
+    var btn = document.getElementById('remote-pause-btn');
+    var p = document.getElementById('tctv-player');
+    var overlay = document.getElementById('tctv-pause-overlay');
+    
+    if (_isPaused) {
+        if (btn) btn.textContent = '▶';
+        if (p) p.style.display = 'none';
+        if (overlay) overlay.style.display = 'flex';
+        // Stop audio by clearing src
+        if (p) p.src = 'about:blank';
+    } else {
+        if (btn) btn.textContent = '⏸';
+        if (p) p.style.display = 'block';
+        if (overlay) overlay.style.display = 'none';
+        syncPlayer();
+    }
+};
+
+window.tctvToggleRemote = function() {
+    var r = document.getElementById('tctv-remote');
+    if (r) r.classList.toggle('collapsed');
+};
 
 function syncPlayer() {
     if (!_currentStation) return;
@@ -2754,6 +2797,7 @@ window.renderTimechainTV = function() {
     if (!fc) return;
     if (window._tctvActive && document.getElementById('tctv-player')) return;
     window._tctvActive = true;
+    _isPaused = false;
     
     showWhiteNoise(function() {
         console.log('[TCTV] Initial Tuning Complete');
@@ -2762,10 +2806,58 @@ window.renderTimechainTV = function() {
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function() {}); } catch(e) {}
     
     var activeStation = _currentStation || getInitialStation();
+    
+    var style = document.createElement('style');
+    style.id = 'tctv-remote-styles';
+    style.textContent = `
+        #tctv-remote { position: fixed; right: 20px; top: 120px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 1000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
+        #tctv-remote.collapsed { transform: translateX(70px); opacity: 0.6; }
+        #tctv-remote:hover { opacity: 1; transform: translateX(0); }
+        .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
+        .remote-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #111; }
+        .remote-btn.red { background: #dc2626; border-color: #ef4444; }
+        .remote-btn.blue { background: #2563eb; border-color: #3b82f6; }
+        .remote-label { font-size: 0.55rem; color: #666; font-weight: 800; margin-top: -8px; text-transform: uppercase; }
+        #nacho-couch { position: fixed; left: -20px; bottom: 100px; z-index: 999; pointer-events: none; transition: 0.5s; display: none; }
+        @media (min-width: 1200px) { #nacho-couch { display: block; } }
+        @media (max-width: 900px) { #tctv-remote { top: auto; bottom: 80px; transform: scale(0.85) translateX(70px); } }
+    `;
+    document.head.appendChild(style);
+
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
+    
+    // Remote
+    html += '<div id="tctv-remote" class="collapsed">' +
+            '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
+            '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button><span class="remote-label">PWR</span>' +
+            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
+                '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
+                '<span class="remote-label" style="margin:0">CH</span>' +
+                '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
+            '</div>' +
+            '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '</div>';
+
+    // Nacho on Couch
+    html += '<div id="nacho-couch">' +
+            '<div style="position:relative;width:240px;height:160px;display:flex;align-items:center;justify-content:center;">' +
+            '<span style="font-size:8rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
+            '<div style="position:absolute;bottom:45px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
+            '<img src="nacho-deer.svg" style="width:85px;height:85px;">' +
+            '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
+            '</div>' +
+            '</div></div>';
+
     html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
-    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;"><iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe></div>';
+    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;">' +
+            '<div id="tctv-pause-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;">' +
+                '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
+                '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
+                '<button onclick="tctvRemotePause()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;">RESUME LIVE</button>' +
+            '</div>' +
+            '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe>' +
+            '</div>';
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="display:none;background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:2px 6px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;">SYNC TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
@@ -2783,6 +2875,7 @@ window.renderTimechainTV = function() {
 
 window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
+    _lastStation = _currentStation;
     var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
     showChannelNoise(stationObj ? stationObj.emoji + ' ' + stationObj.name : '');
     _currentStation = stationId;
@@ -2855,6 +2948,8 @@ window.cleanupTimechainTV = function() {
     if (iframe) iframe.src = '';
     _currentVideoId = null;
     window._tctvActive = false;
+    var s = document.getElementById('tctv-remote-styles');
+    if (s) s.remove();
 };
 
 })();
