@@ -280,9 +280,21 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com')
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves'])
-                            && request.resource.data.views <= resource.data.get('views', 0) + 1
-                            && request.resource.data.saves <= resource.data.get('saves', 0) + 1));
+                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves', 'savedBy'])
+                            && request.resource.data.views == resource.data.get('views', 0) + 1
+                            && (
+                                // No change to saves
+                                request.resource.data.saves == resource.data.get('saves', 0) 
+                                || 
+                                // New save: must append UID to savedBy, increment saves by 1
+                                (
+                                  !(request.auth.uid in resource.data.get('savedBy', []))
+                                  && request.resource.data.saves == resource.data.get('saves', 0) + 1
+                                  && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
+                                  && request.auth.uid in request.resource.data.savedBy
+                                )
+                            )
+                        ));
       allow delete: if request.auth != null
                     && (resource.data.sellerUid == request.auth.uid
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
