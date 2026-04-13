@@ -6577,6 +6577,14 @@ window.toggleTickerSetting = function() {
 // ---- Nacho is a cartoon deer with antlers ----
 const NACHO_SVG = '<img src="nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<div style=\\\'font-size:60px;text-align:center;line-height:1;\\\'>🦌</div>\');">';
 
+// Couch Nacho variant for Timechain TV (same functionality, different visual)
+const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:5rem;position:absolute;bottom:-10px;filter:drop-shadow(0 8px 15px rgba(0,0,0,0.4));z-index:1;">🛋️</span><div style="position:absolute;bottom:25px;left:50%;transform:translateX(-50%);z-index:2;animation:nachoSway 4s ease-in-out infinite;"><img src="nacho-deer.svg" style="width:55px;height:55px;display:block;"></div></div>';
+
+// Check if we're on Timechain TV page
+function isTimechainTVPage() {
+    return window.currentPage === 'timechain-tv' || window.location.hash === '#timechain-tv';
+}
+
 // Poses are now expressed through the speech bubble label
 const POSES = {
     default: '🦌',
@@ -7290,6 +7298,11 @@ function createNacho() {
             50% { transform: translateY(3px) rotate(5deg); }
             70% { transform: translateY(2px) rotate(3deg); }
         }
+        /* 9. Couch sway — for Timechain TV */
+        @keyframes nachoSway {
+            0%, 100% { transform: rotate(-1deg) translateY(0); }
+            50% { transform: rotate(1deg) translateY(-3px); }
+        }
 
         #nacho-avatar.anim-tap { animation: nachoTap 2s ease-in-out infinite; }
         #nacho-avatar.anim-lean { animation: nachoLean 3.5s ease-in-out infinite; }
@@ -7365,9 +7378,12 @@ function createNacho() {
     const container = document.createElement('div');
     container.id = 'nacho-container';
     if (!nachoVisible) container.classList.add('hidden');
+    // Use couch nacho visual on Timechain TV, sprite elsewhere
+    const avatarContent = isTimechainTVPage() ? COUCH_NACHO_HTML : NACHO_SVG;
+    const avatarStyle = isTimechainTVPage() ? 'width:120px;height:100px;' : '';
     container.innerHTML =
-        '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!">' +
-            NACHO_SVG +
+        '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!" style="' + avatarStyle + '" data-tctv="' + (isTimechainTVPage() ? '1' : '0') + '">' +
+            avatarContent +
             '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
             '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
             '<div class="nacho-btn-stack">' +
@@ -8962,6 +8978,71 @@ setInterval(function() {
         el.remove();
     });
 }, 3000);
+
+// Update nacho avatar when navigating to/from Timechain TV
+window.updateNachoAvatarForPage = function() {
+    var avatar = document.getElementById('nacho-avatar');
+    if (!avatar) return;
+    var isTCTV = isTimechainTVPage();
+    var currentlyTCTV = avatar.getAttribute('data-tctv') === '1';
+    if (isTCTV === currentlyTCTV) return; // no change needed
+    
+    // Update content and attributes
+    avatar.setAttribute('data-tctv', isTCTV ? '1' : '0');
+    if (isTCTV) {
+        avatar.style.width = '120px';
+        avatar.style.height = '100px';
+        avatar.innerHTML = COUCH_NACHO_HTML +
+            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
+            '<div class="nacho-btn-stack">' +
+                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '</div>' +
+            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>';
+    } else {
+        avatar.style.width = '';
+        avatar.style.height = '';
+        avatar.innerHTML = NACHO_SVG +
+            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
+            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
+            '<div class="nacho-btn-stack">' +
+                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '</div>' +
+            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>';
+    }
+    // Re-attach closet button listeners
+    var closetBtn = document.getElementById('nachoClosetBtn');
+    if (closetBtn) {
+        var closetTouched = false;
+        closetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); }, false);
+        closetBtn.addEventListener('touchstart', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); closetTouched = true; }, { passive: false });
+        closetBtn.addEventListener('touchend', function(e) {
+            e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
+            if (closetTouched) {
+                closetTouched = false;
+                window._expanded_closet = true;
+                window._pendingClosetScroll = true;
+                if (typeof showSettings === 'function') showSettings();
+                setTimeout(function() {
+                    if (typeof showSettingsPage === 'function') showSettingsPage('data');
+                }, 200);
+                if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
+            }
+        }, { passive: false });
+    }
+};
+
+// Hook into navigation to update avatar when page changes
+var _origGo = window.go;
+if (_origGo) {
+    window.go = function() {
+        var result = _origGo.apply(this, arguments);
+        setTimeout(window.updateNachoAvatarForPage, 100);
+        return result;
+    };
+}
 
 })();
 // © 2024-2026 603BTC LLC. All rights reserved.
