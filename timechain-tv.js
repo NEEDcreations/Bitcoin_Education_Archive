@@ -2525,8 +2525,47 @@ function showWhiteNoise(callback) {
     title.innerHTML = '<div style="font-size:2.5rem;font-weight:900;color:#f7931a;text-shadow:0 0 30px rgba(247,147,26,0.5);letter-spacing:4px;margin-bottom:8px;">TIMECHAIN TV</div>' +
         '<div style="font-size:0.85rem;color:#888;letter-spacing:2px;">TUNING IN...</div>';
     overlay.appendChild(title);
-    document.body.appendChild(overlay);
-    var ctx = canvas.getContext('2d');
+document.body.appendChild(overlay);
+
+    // White noise audio
+    var audioCtx = null;
+    var noiseNode = null;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var bufferSize = audioCtx.sampleRate * 0.5;
+        var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        var chData = buffer.getChannelData(0);
+        for (var s = 0; s < bufferSize; s++) chData[s] = Math.random() * 2 - 1;
+        noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = buffer;
+        noiseNode.loop = true;
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0.06;
+        noiseNode.connect(gain);
+        gain.connect(audioCtx.destination);
+        noiseNode.start();
+    } catch(e) {}
+
+    
+    var audioCtx = null;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var bufSize = audioCtx.sampleRate * 0.3;
+        var buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        var ch = buf.getChannelData(0);
+        for (var s = 0; s < bufSize; s++) ch[s] = Math.random() * 2 - 1;
+        var node = audioCtx.createBufferSource();
+        node.buffer = buf;
+        node.loop = true;
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0.045;
+        node.connect(gain);
+        gain.connect(audioCtx.destination);
+        node.start();
+        setTimeout(function() { try { node.stop(); audioCtx.close(); } catch(e) {} }, 800);
+    } catch(e) {}
+
+var ctx = canvas.getContext("2d");
     var noiseInterval = setInterval(function() {
         var imgData = ctx.createImageData(canvas.width, canvas.height);
         var data = imgData.data;
@@ -2538,7 +2577,7 @@ function showWhiteNoise(callback) {
     }, 50);
     setTimeout(function() {
         overlay.style.transition = 'opacity 0.5s';
-        overlay.style.opacity = '0';
+        overlay.style.opacity = "0"; if (noiseNode) { try { noiseNode.stop(); } catch(e) {} } if (audioCtx) { try { audioCtx.close(); } catch(e) {} }
         setTimeout(function() {
             clearInterval(noiseInterval);
             overlay.remove();
@@ -2570,10 +2609,13 @@ function loadVideo(videoId, startSeconds) {
 }
 
 function syncPlayer() {
+    var np = document.getElementById("tctv-now-playing");
     if (!_currentStation) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
     var state = getPlaybackState(station);
+    var np = document.getElementById("tctv-now-playing");
+    if (np && state.video) np.textContent = state.video.title;
     if (!state.video) return;
     var nowPlaying = document.getElementById('tctv-now-playing');
     if (nowPlaying) nowPlaying.textContent = state.video.title;
