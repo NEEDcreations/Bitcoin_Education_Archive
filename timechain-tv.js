@@ -160,6 +160,11 @@ var STATIONS = [
                 "id": "vPUpdXZPpbQ",
                 "duration": 180,
                 "title": "Nashville Bitcoin Mural - Sound Money"
+            },
+            {
+                "id": "mu7e3KMTI-Q",
+                "duration": 36000,
+                "title": "10 Hours of Bitcoin Lofi & Philosophy"
             }
         ]
     },
@@ -309,6 +314,16 @@ var STATIONS = [
                 "id": "gu9OulAijy4",
                 "duration": 7200,
                 "title": "The Pacific Bitcoin Conference"
+            },
+            {
+                "id": "P1n7XipTCck",
+                "duration": 33805,
+                "title": "Bitcoin 2024 Nashville: Full GA Day 2 Livestream"
+            },
+            {
+                "id": "p6kBKSZqjn4",
+                "duration": 18000,
+                "title": "Bitcoin Conference 2025: Opening Day Marathon"
             }
         ]
     },
@@ -428,6 +443,11 @@ var STATIONS = [
                 "id": "gCi5jPHWVNE",
                 "duration": 1200,
                 "title": "Run with Bitcoin | Paco De la India Mumbai"
+            },
+            {
+                "id": "mB0U_22_q4s",
+                "duration": 36000,
+                "title": "10 Hours of Bitcoin Travel & Adoption Stories"
             }
         ]
     },
@@ -522,6 +542,21 @@ var STATIONS = [
                 "id": "JaMJi1_1tkA",
                 "title": "Bitcoin Rap Battle: Hamilton vs. Satoshi — ft. EpicLloyd",
                 "duration": 600
+            },
+            {
+                "id": "gp4U5aH_T6A",
+                "duration": 10800,
+                "title": "Economics & Bitcoin Debate - Lex Fridman & Saifedean"
+            },
+            {
+                "id": "TUO10-HcdvY",
+                "duration": 36000,
+                "title": "The Ultimate Bitcoin vs. Everything Debate Loop"
+            },
+            {
+                "id": "Bh7LBF9cU6w",
+                "duration": 18000,
+                "title": "Stock-to-Flow & Power Law Debate Marathon"
             }
         ]
     },
@@ -1512,6 +1547,16 @@ var STATIONS = [
                 "id": "tWU3O3X5kKE",
                 "duration": 600,
                 "title": "The Story of Bitcoin Pizza Day"
+            },
+            {
+                "id": "EFDMum1vs7Q",
+                "duration": 36000,
+                "title": "Pump It Up (Bitcoin Maximalist) 10 Hour Loop"
+            },
+            {
+                "id": "uql_VKemddY",
+                "duration": 36000,
+                "title": "Vibing with the Fed and Bitcoin 10 Hour Loop"
             }
         ]
     },
@@ -2350,6 +2395,11 @@ var STATIONS = [
                 "id": "TpwnoPUyumA",
                 "title": "Phoenix Wallet Setup — Self-Custody Lightning Made Easy",
                 "duration": 1500
+            },
+            {
+                "id": "lhzooru_B-o",
+                "duration": 36000,
+                "title": "10 Hours of Bitcoin Tutorials: Node & Wallet Setup"
             }
         ]
     }
