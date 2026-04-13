@@ -130,6 +130,21 @@ var STATIONS = [
                 "id": "Mqc6M8rZRi8",
                 "duration": 600,
                 "title": "BITCOIN TRADING CARDS?"
+            },
+            {
+                "id": "RwO9lB-rloo",
+                "duration": 3600,
+                "title": "Bitcoin, Art, and Freedom with Madex"
+            },
+            {
+                "id": "lo7eeL1E_VQ",
+                "duration": 300,
+                "title": "A Madex Manifesto"
+            },
+            {
+                "id": "occ9L0dMMO4",
+                "duration": 600,
+                "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob"
             }
         ]
     },
@@ -274,6 +289,11 @@ var STATIONS = [
                 "id": "I3Qld_HXQuM",
                 "duration": 600,
                 "title": "Nostrability Workshop - BBB 2024"
+            },
+            {
+                "id": "gu9OulAijy4",
+                "duration": 7200,
+                "title": "The Pacific Bitcoin Conference"
             }
         ]
     },
