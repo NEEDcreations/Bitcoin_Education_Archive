@@ -2625,6 +2625,9 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     window.goHome = function goHome(fromPopState) {
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
+        
+        // Update SEO metrics
+        if (typeof _updateSEO === 'function') _updateSEO('home', 'Learn Bitcoin', 'A curated Bitcoin education archive with 146 topics, 8800+ messages, and community tools.');
         var fb = document.getElementById('floatingRandomBtn');
         if (fb) fb.style.display = 'none';
         // Reset leaderboard button position (may have been shifted up for chat)
@@ -3541,6 +3544,12 @@ window.nachoQuizAnswer = function(btn, correct) {
         currentChannelId = id;
         window.currentChannelId = id; // Expose for inline onclick handlers
         galleryMode = false;
+
+        // Update SEO metrics (id, title, desc)
+        if (typeof _updateSEO === 'function' && typeof CHANNELS !== 'undefined' && CHANNELS[id]) {
+            var ch = CHANNELS[id];
+            _updateSEO(id, ch.title || ch.name, ch.desc || '');
+        }
 
         renderContent(id);
 
@@ -4632,6 +4641,38 @@ window._tctvStopTracker = function() {
         clearInterval(window._tctvTimer);
         window._tctvTimer = null;
         console.log('[TCTV] Watch tracker stopped. Total minutes watched:', window._tctvMinutesSession);
+    }
+};
+
+
+// =============================================
+// AUDIT FIX: SEO & Dynamic Metadata (Phil request 2026-04-13)
+// Updates canonical links, titles, and descriptions for better Google indexing.
+// =============================================
+window._updateSEO = function(id, title, desc) {
+    if (!id) return;
+    
+    // 1. Update Title
+    var baseTitle = 'Bitcoin Education Archive';
+    document.title = (title ? title + ' | ' : '') + baseTitle;
+    
+    // 2. Update Canonical URL
+    var canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) {
+        var path = (id === 'home' || id === '/') ? '' : '/app/' + id;
+        canonical.setAttribute('href', 'https://bitcoineducation.quest' + path);
+    }
+    
+    // 3. Update Meta Description
+    var metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc && desc) {
+        metaDesc.setAttribute('content', desc.substring(0, 160));
+    }
+    
+    // 4. Update URL if not already correct (avoid loops)
+    var targetUrl = window._cleanUrl(id);
+    if (!window.location.href.includes(targetUrl)) {
+        history.replaceState({ channel: id }, '', targetUrl);
     }
 };
 
