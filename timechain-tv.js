@@ -2631,6 +2631,7 @@ window.tctvRemotePause = function() {
     var btn = document.getElementById('remote-pause-btn');
     var p = document.getElementById('tctv-player');
     var overlay = document.getElementById('tctv-pause-overlay');
+    var syncBtn = document.getElementById('tctv-sync-btn');
     
     if (_isPaused) {
         if (btn) btn.textContent = '▶';
@@ -2642,6 +2643,7 @@ window.tctvRemotePause = function() {
         if (btn) btn.textContent = '⏸';
         if (p) p.style.display = 'block';
         if (overlay) overlay.style.display = 'none';
+        if (syncBtn) syncBtn.style.display = 'inline-block';
         syncPlayer();
     }
 };
@@ -2859,7 +2861,7 @@ window.renderTimechainTV = function() {
             '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe>' +
             '</div>';
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
-            '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="display:none;background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:2px 6px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;">SYNC TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
+            '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:4px 8px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;display:none;">JUMP TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
     html += _renderEPG();
     html += '<div style="height:120px;"></div></div>';
