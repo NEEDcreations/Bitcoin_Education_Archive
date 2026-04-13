@@ -133,6 +133,8 @@ function _renderQRCode(container, data, size) {
     if (window.qrcode && typeof window.qrcode === 'function') { _drawQR(container, data, size); return; }
     var script = document.createElement('script');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    script.integrity = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
+    script.crossOrigin = 'anonymous';
     script.onload = function() { _drawQR(container, data, size); };
     script.onerror = function() { container.innerHTML = '<div style="word-break:break-all;font-size:0.6rem;max-width:' + size + 'px;">' + data + '</div>'; };
     document.head.appendChild(script);
@@ -760,6 +762,8 @@ window.nostrSignInWithNsec = async function() {
             await new Promise(function(resolve, reject) {
                 var script = document.createElement('script');
                 script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js';
+                script.integrity = 'sha384-GwmNxV/GnZt+zRBR/Hhtu5D4MKfbxeJSApW44ARryGYtj3MFheHMFgiEZ7tVnrln';
+                script.crossOrigin = 'anonymous';
                 script.onload = resolve;
                 script.onerror = function() { reject(new Error('Failed to load nostr-tools')); };
                 document.head.appendChild(script);

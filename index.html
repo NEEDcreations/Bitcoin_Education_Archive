@@ -533,8 +533,8 @@
     #desktopDMBtn { display: flex; } @media (max-width: 600px) { #desktopDMBtn { display: none !important; } }
     .no-desktop { display: none !important; } .mobile-back-btn { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } .mobile-back-btn { display: inline-flex !important; } }
     </style>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer integrity="sha384-6sbgl0TqaSfZMEAiqQTDbG56eodhsI8HM5qGjX8jgJIB/AFiF33kzJd8hnNTy8uM" crossorigin="anonymous"></script>
+    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js" integrity="sha384-f7yO6sr2qrvOa6/1Yh/+PnBJyeuC8AvZwVNBWdF/60cWQ1kSpWmT64yiLZEh6T0u"></script>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -1172,11 +1172,11 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer integrity="sha384-XMIl1b2Ez9tKAM0R5q67/iLdfnlLBl9kfo40X5WMtCPb+3OLplrjnOxZTYCg1SKY" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js" defer integrity="sha384-oFrOL1TiREYNET0lsYF3LjQuyi2gL7vhjH1X8vFr+umcmzAdPELopeSgbcrv4uRm" crossorigin="anonymous"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js" defer integrity="sha384-G+YlsltNcQL59QCo5N1zoQkhGqujKRb2RBu6JuFYNU/ZjoPfdw1Ckm7M6wgDW3eR" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <!-- App Check disabled: not enforced, reCAPTCHA adds 724KB -->
     <!-- App Check: lazy-loaded to avoid 724KB reCAPTCHA on first paint -->
-    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
+    <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
     <script src="bundle.js?v=20260413jt2" defer fetchpriority="high"></script>
