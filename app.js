@@ -4048,7 +4048,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                     username: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anonymous'
                 };
                 if (email) data.email = email;
-                await firebase.firestore().collection('suggestions').add(data);
+                const uid = data.uid || 'anon_' + Date.now();
+                await firebase.firestore().collection('suggestions').doc(uid).set(data);
             }
             status.innerHTML = '<span style="color:#22c55e;">✅ Thank you! Your suggestion has been submitted.</span>';
             document.getElementById('suggestText').value = '';

@@ -136,10 +136,17 @@ service cloud.firestore {
 
     // =============================================
     // SUGGESTIONS COLLECTION
+    // [AUDIT FIX L-NEW-4] Enforce 1 suggestion per user via document ID
     // =============================================
     match /suggestions/{suggestionId} {
       allow read: if false;
       allow create: if request.auth != null
+                    && suggestionId == request.auth.uid
+                    && request.resource.data.keys().hasAny(['text', 'suggestion'])
+                    && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
+                       || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000));
+      allow update: if request.auth != null
+                    && suggestionId == request.auth.uid
                     && request.resource.data.keys().hasAny(['text', 'suggestion'])
                     && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
                        || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000));
