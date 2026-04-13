@@ -304,7 +304,7 @@ window.beatsLoadTracks = function(tab) {
         });
         listEl.innerHTML = html;
     }).catch(function(e) {
-        console.error('Beats load error:', e);
+        console.error('Beats load error:', e); if (e && e.message) { console.log('Firestore Error Details:', e.message); }
         listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-faint);">Error loading tracks. Try again.</div>';
     });
 };
