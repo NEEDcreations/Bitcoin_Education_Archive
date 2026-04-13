@@ -2990,11 +2990,13 @@ window.renderTimechainTV = function() {
     style.id = 'tctv-remote-styles';
     style.textContent = `
         /* Desktop: sidebar layout (couch left, video center, remote right) */
-        @media (min-width: 1200px) {
+        @media (min-width: 901px) {
             #nacho-couch-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
+            #tctv-remote { display: none !important; }
         }
-        @media (max-width: 1199px) {
+        @media (max-width: 900px) {
             #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
+            #tctv-remote { display: flex !important; }
         }
         /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
         #tctv-remote { position: fixed; right: 20px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
@@ -3016,18 +3018,23 @@ window.renderTimechainTV = function() {
         }
         /* Mobile — maximize video, minimize other UI */
         @media (max-width: 900px) { 
-            #tctv-remote { position: relative; top: 0; right: 0; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 6px; border-radius: 0; border: none; border-bottom: 1px solid #222; box-shadow: none; transform: none !important; opacity: 1 !important; z-index: 10; gap: 10px; }
-            #tctv-remote.collapsed { transform: none; opacity: 1; }
-            .remote-btn { width: 38px; height: 38px; font-size: 1rem; box-shadow: 0 2px 0 #111; }
-            .remote-label { display: none; }
-            .remote-input { width: 34px; font-size: 0.8rem; }
-            #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 4px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; z-index: 1 !important; height: 60px; overflow: hidden; }
-            #nacho-couch > div { height: 60px !important; transform: scale(0.7); transform-origin: center; }
-            #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
+            #tctv-remote-sidebar { display: none !important; }
+            #tctv-remote { position: fixed !important; top: 160px !important; right: 20px !important; width: 80px !important; height: auto !important; flex-direction: column !important; justify-content: center; padding: 15px 10px !important; border-radius: 20px !important; border: 3px solid #111 !important; box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important; display: flex !important; z-index: 200000 !important; }
+            
+            .remote-btn { width: 44px !important; height: 44px !important; font-size: 1.2rem !important; box-shadow: 0 4px 0 #111 !important; }
+            .remote-label { display: block !important; margin: 0 !important; }
+            .remote-input { width: 44px !important; font-size: 0.9rem !important; }
+            
+            #nacho-couch { position: fixed; bottom: 140px; left: 20px; display: block !important; width: auto !important; padding: 0 !important; background: transparent !important; border: none !important; z-index: 200000 !important; height: auto !important; }
+            #nacho-couch > div { height: 160px !important; transform: scale(1) !important; }
+            
+            /* Fix guest sign-up banner visibility */
+            #guestPointsBanner { z-index: 300000 !important; }
+            
             /* Make video larger on mobile */
             .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
-            #tctv-video-container { max-height: 65vh !important; border-radius: 0 !important; }
-            #tctv-player { max-height: 65vh !important; }
+            #tctv-video-container { max-height: 50vh !important; border-radius: 0 !important; }
+            #tctv-player { max-height: 50vh !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
@@ -3073,7 +3080,7 @@ window.renderTimechainTV = function() {
             '</div></div>';
     // Center - Video player (narrower on desktop, full width on mobile)
     html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
-            '<div style="position:relative;aspect-ratio:16/9;max-height:60vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
+            '<div style="position:relative;aspect-ratio:16/9;max-height:45vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
             '<div id="tctv-pause-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;">' +
                 '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
                 '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
