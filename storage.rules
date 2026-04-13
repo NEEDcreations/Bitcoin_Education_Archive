@@ -15,7 +15,7 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+                   && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     // Article images (inline images from toolbar)
     match /article-images/{userId}/{fileName} {
@@ -23,7 +23,7 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+                   && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     // Article cover images
     match /articles/{userId}/{fileName} {
@@ -31,7 +31,7 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+                   && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     // IRL event photos
     match /irl-events/{userId}/{fileName} {
@@ -39,7 +39,7 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.size < 3 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+                   && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
     // Default: deny
     match /{allPaths=**} {
