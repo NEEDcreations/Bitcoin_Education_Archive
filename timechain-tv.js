@@ -2809,6 +2809,11 @@ window.renderTimechainTV = function() {
     
     var activeStation = _currentStation || getInitialStation();
     
+    // ── History Sync ──
+    if (window.location.hash !== '#timechain-tv') {
+        history.replaceState({ channel: 'timechain-tv' }, '', '#timechain-tv');
+    }
+    
     var style = document.createElement('style');
     style.id = 'tctv-remote-styles';
     style.textContent = `
@@ -2873,6 +2878,9 @@ window.renderTimechainTV = function() {
     syncPlayer();
     if (_syncInterval) clearInterval(_syncInterval);
     _syncInterval = setInterval(updateTimeline, 1000);
+    
+    // Ensure we are tracked as the current "channel" for the system's scroll/back logic
+    window.currentChannelId = 'timechain-tv';
 };
 
 window.switchStation = function(stationId) {
