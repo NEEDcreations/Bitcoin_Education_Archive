@@ -220,10 +220,6 @@ service cloud.firestore {
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters
                       )
-                      // replyCount: increment by 1 only, separate from votes
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
-                       && request.resource.data.replyCount == resource.data.get('replyCount', 0) + 1
-                      )
                       // Un-vote: only if user HAS voted, decrement by exactly 1, remove only own UID
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (request.auth.uid in resource.data.get('voters', []))
