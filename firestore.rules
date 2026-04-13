@@ -163,13 +163,17 @@ service cloud.firestore {
 
     // =============================================
     // REFERRALS COLLECTION
+    // [AUDIT FIX M-NEW-24] Prevent fake referral creation 
+    // Format: docId is the UID of the new user being referred
     // =============================================
     match /referrals/{referralId} {
       allow read: if request.auth != null;
+      // Only the referred user can create their own referral record
       allow create: if request.auth != null
-                    && request.auth.uid == referralId;
+                    && referralId == request.auth.uid
+                    && request.resource.data.referredUserUid == request.auth.uid;
       allow update: if request.auth != null
-                    && (request.auth.uid == referralId
+                    && (referralId == request.auth.uid
                         || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
