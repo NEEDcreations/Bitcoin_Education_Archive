@@ -98,6 +98,12 @@
             --secondary: #e2e8f0; --text-secondary: #475569;
         }
 
+        /* TCTV fixed UI elements high z-index Fix */
+        #tctvNoise, #tctvOverlay { z-index: 100000 !important; }
+        /* Fix guest sign-up banner visibility globally across all apps */
+        #guestPointsBanner { z-index: 2000002 !important; pointer-events: auto !important; }
+        #guestPointsBanner * { pointer-events: auto !important; }
+
         body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; display: flex; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
         /* Display font for major headings */
         h1, h2, .channel-title { font-family: var(--display-font, 'Segoe UI', system-ui, sans-serif); }

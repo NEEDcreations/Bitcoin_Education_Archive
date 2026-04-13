@@ -2764,11 +2764,11 @@ function loadVideo(videoId, startSeconds) {
     iframe.setAttribute('allow', 'autoplay; encrypted-media');
     iframe.setAttribute('allowfullscreen', '');
     
-    // Force autoplay=1. Note: muted=1 is often required for autoplay, but if the user has interacted with the page earlier audio may play.
+    // Force autoplay=1. Note: muted=0 is explicitly set to ensure audio starts if allowed by browser interaction.
     iframe.src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
         '&autoplay=1&controls=1&modestbranding=1&rel=0' +
-        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque';
+        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque&mute=0';
     wrap.appendChild(iframe);
 }
 
