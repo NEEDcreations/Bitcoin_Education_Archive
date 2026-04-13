@@ -2749,27 +2749,103 @@ var ctx = canvas.getContext("2d");
 }
 
 // ── YouTube Player ──
+var _ytPlayer = null;
 var _currentVideoId = null;
 var _syncInterval = null;
+var _apiReady = false;
+
+// Load YT API once
+(function loadYTApi() {
+    if (window.YT) { _apiReady = true; return; }
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    window.onYouTubeIframeAPIReady = function() { _apiReady = true; };
+})();
 
 function loadVideo(videoId, startSeconds) {
-    var old = document.getElementById('tctv-player');
-    if (!old) return;
-    var wrap = old.parentElement;
     _currentVideoId = videoId;
-    old.remove();
-    var iframe = document.createElement('iframe');
-    iframe.id = 'tctv-player';
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    iframe.setAttribute('allow', 'autoplay; encrypted-media');
-    iframe.setAttribute('allowfullscreen', '');
     
-    // Force autoplay=1. Note: muted=0 is explicitly set to ensure audio starts if allowed by browser interaction.
-    iframe.src = 'https://www.youtube.com/embed/' + videoId +
-        '?start=' + Math.floor(startSeconds) +
-        '&autoplay=1&controls=1&modestbranding=1&rel=0' +
-        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque&mute=0';
-    wrap.appendChild(iframe);
+    if (_ytPlayer && _ytPlayer.destroy) {
+        try { _ytPlayer.destroy(); } catch(e) {}
+        _ytPlayer = null;
+    }
+
+    // Create placeholder if needed
+    var wrap = document.getElementById('tctv-video-container');
+    if (!wrap) return;
+    
+    // Clear old player/iframe manually to be sure
+    var old = document.getElementById('tctv-player');
+    if (old) old.remove();
+    
+    var playerDiv = document.createElement('div');
+    playerDiv.id = 'tctv-player';
+    wrap.appendChild(playerDiv);
+
+    if (!_apiReady) {
+        setTimeout(function() { loadVideo(videoId, startSeconds); }, 200);
+        return;
+    }
+
+    _ytPlayer = new YT.Player('tctv-player', {
+        height: '100%',
+        width: '100%',
+        videoId: videoId,
+        playerVars: {
+            'autoplay': 1,
+            'controls': 1,
+            'modestbranding': 1,
+            'rel': 0,
+            'showinfo': 0,
+            'iv_load_policy': 3,
+            'playsinline': 1,
+            'start': Math.floor(startSeconds)
+        },
+        events: {
+            'onStateChange': onPlayerStateChange,
+            'onReady': function(event) {
+                event.target.playVideo();
+            }
+        }
+    });
+}
+
+function onPlayerStateChange(event) {
+    var syncBtn = document.getElementById('tctv-sync-btn');
+    var overlay = document.getElementById('tctv-pause-overlay');
+    
+    // User paused video manually
+    if (event.data === YT.PlayerState.PAUSED && !_isPaused) {
+        if (overlay) overlay.style.display = 'flex';
+        var p = document.getElementById('tctv-player');
+        if (p) p.style.opacity = '0.3';
+    } 
+    
+    // User resumed video
+    if (event.data === YT.PlayerState.PLAYING) {
+        if (overlay) overlay.style.display = 'none';
+        var p = document.getElementById('tctv-player');
+        if (p) p.style.opacity = '1';
+        
+        // Check for time drift (seek)
+        checkDrift();
+    }
+}
+
+function checkDrift() {
+    if (!_ytPlayer || !window._currentStation || _isPaused) return;
+    var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+    var state = getPlaybackState(station);
+    var currentTime = _ytPlayer.getCurrentTime();
+    
+    // If user is more than 5 seconds away from "live", show sync button
+    var drift = Math.abs(currentTime - state.offset);
+    var syncBtn = document.getElementById('tctv-sync-btn');
+    if (syncBtn) {
+        syncBtn.style.display = (drift > 5) ? 'inline-block' : 'none';
+    }
 }
 
 // ── Remote Functions ──
@@ -2803,16 +2879,16 @@ window.tctvRemotePause = function() {
     if (_isPaused) {
         if (btn) btn.textContent = '▶';
         if (btn2) btn2.textContent = '▶';
-        if (p) p.style.display = 'none';
         if (overlay) overlay.style.display = 'flex';
-        // Stop audio by clearing src
-        if (p) p.src = 'about:blank';
+        if (_ytPlayer) _ytPlayer.pauseVideo();
+        if (p) p.style.opacity = '0.3';
     } else {
         if (btn) btn.textContent = '⏸';
         if (btn2) btn2.textContent = '⏸';
-        if (p) p.style.display = 'block';
         if (overlay) overlay.style.display = 'none';
+        if (p) p.style.opacity = '1';
         if (syncBtn) syncBtn.style.display = 'inline-block';
+        if (_ytPlayer) _ytPlayer.playVideo();
         syncPlayer();
     }
 };
@@ -2897,6 +2973,11 @@ function updateTimeline() {
 
     if (state.video && state.video.id !== _currentVideoId) {
         syncPlayer();
+    }
+
+    // Periodic drift check
+    if (!_isPaused && Date.now() % 5000 < 1000) {
+        checkDrift();
     }
 }
 
@@ -3137,6 +3218,18 @@ window.renderTimechainTV = function() {
     _currentStation = activeStation;
     saveStation(activeStation);
     joinStation(activeStation);
+    
+    // Highlight initial station in EPG UI
+    setTimeout(function() {
+        var stationId = activeStation;
+        document.querySelectorAll('[data-station-id]').forEach(function(el) {
+            var isActive = el.getAttribute('data-station-id') === stationId;
+            el.style.background = isActive ? 'rgba(247,147,26,0.12)' : 'transparent';
+            var nameEl = el.querySelector('[data-ch-name]');
+            if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
+        });
+    }, 100);
+
     syncPlayer();
     if (_syncInterval) clearInterval(_syncInterval);
     _syncInterval = setInterval(updateTimeline, 1000);
