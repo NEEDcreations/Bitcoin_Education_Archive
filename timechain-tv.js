@@ -737,7 +737,7 @@ var STATIONS = [
                 "duration": 1800
             },
             {
-                "id": "k0cE2U8F8_Q",
+                "id": "1R0J-myYPM0",
                 "title": "Michael Saylor: Bitcoin is Hope",
                 "duration": 2700
             },
@@ -757,7 +757,7 @@ var STATIONS = [
                 "duration": 5400
             },
             {
-                "id": "W2R5h8K9jL0",
+                "id": "MSMJBmo_q4s",
                 "title": "Saylor: Bitcoin as Treasury Reserve Asset",
                 "duration": 4200
             },
@@ -2303,17 +2303,17 @@ var STATIONS = [
                 "title": "Andreas Antonopoulos: Decentralization & The Future of Money"
             },
             {
-                "id": "y37M6WJks0A",
+                "id": "jNQpZ2T-WcQ",
                 "duration": 4200,
                 "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking"
             },
             {
-                "id": "oXjY5A7jW2Q",
+                "id": "vQ8MvR1sW2X",
                 "duration": 3900,
                 "title": "Andreas Antonopoulos: The Architecture of Trust"
             },
             {
-                "id": "xS2F7G8H9I0",
+                "id": "y1KXs3uE42I",
                 "duration": 4500,
                 "title": "Andreas Antonopoulos: Money as a Content Type"
             },
