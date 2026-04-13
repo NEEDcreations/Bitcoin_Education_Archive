@@ -2825,15 +2825,22 @@ window.renderTimechainTV = function() {
         .remote-label { font-size: 0.55rem; color: #666; font-weight: 800; margin-top: -8px; text-transform: uppercase; }
         #nacho-couch { position: fixed; left: 10px; bottom: 100px; z-index: 10000; pointer-events: none; transition: 0.5s; display: none; }
         @media (min-width: 901px) { #nacho-couch { display: block; } }
-        @media (max-width: 900px) { #tctv-remote { top: auto; bottom: 100px; transform: scale(0.8) translateX(65px); } }
+        /* Mobile — stack Nacho and Remote between video and list */
+        @media (max-width: 900px) { 
+            #tctv-remote { position: relative; top: 0; right: 0; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 15px; border-radius: 0; border: none; border-bottom: 1px solid #222; box-shadow: none; transform: none !important; opacity: 1 !important; z-index: 10; gap: 20px; }
+            #tctv-remote.collapsed { transform: none; opacity: 1; }
+            .remote-btn { width: 50px; height: 50px; box-shadow: 0 3px 0 #111; }
+            #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 20px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; }
+            @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+        }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
     document.head.appendChild(style);
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
     
-    // Remote
-    html += '<div id="tctv-remote" class="collapsed">' +
+// Remote
+    var remoteHtml = '<div id="tctv-remote" class="collapsed desktop-only">' +
             '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
             '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button><span class="remote-label">PWR</span>' +
             '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
@@ -2845,7 +2852,7 @@ window.renderTimechainTV = function() {
             '</div>';
 
     // Nacho on Couch
-    html += '<div id="nacho-couch">' +
+    var couchHtml = '<div id="nacho-couch" class="desktop-only">' +
             '<div style="position:relative;width:240px;height:160px;display:flex;align-items:center;justify-content:center;">' +
             '<span style="font-size:8rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
             '<div style="position:absolute;bottom:45px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
@@ -2867,6 +2874,34 @@ window.renderTimechainTV = function() {
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:4px 8px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;display:none;">JUMP TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
+
+    // Mobile Lounge & Remote Area (Stays sticky/fixed on desktop, injected here for mobile flow)
+    html += '<div class="tctv-mobile-ui-stack">';
+    
+    // Nacho on Couch
+    html += '<div id="nacho-couch">' +
+            '<div style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;">' +
+            '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
+            '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
+            '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
+            '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
+            '</div>' +
+            '</div></div>';
+
+    // Remote
+    html += '<div id="tctv-remote" class="collapsed">' +
+            '<div onclick="tctvToggleRemote()" class="desktop-only" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
+            '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button>' +
+            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:row;align-items:center;gap:15px;">' +
+                '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
+                '<span class="remote-label" style="margin:0">CH</span>' +
+                '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
+            '</div>' +
+            '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '</div>';
+            
+    html += '</div>'; // end mobile-ui-stack
+
     html += _renderEPG();
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
