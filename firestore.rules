@@ -661,13 +661,14 @@ service cloud.firestore {
     }
 
     // Buddy matching pool
+    // [AUDIT FIX L-NEW-6] Enforce 1 entry per user via document ID
     match /buddy_pool/{docId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
+                    && docId == request.auth.uid
                     && request.resource.data.uid == request.auth.uid;
       allow delete: if request.auth != null
-                    && (resource.data.uid == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
     }
 
     // Faucet invoice dedup (Cloud Function only)
