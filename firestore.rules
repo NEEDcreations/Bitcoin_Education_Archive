@@ -376,21 +376,22 @@ service cloud.firestore {
 
     // =============================================
     // PVP LOBBY
-    // [AUDIT FIX S3] Restrict updates/deletes to document owner
+    // [AUDIT FIX L-NEW-7] Enforce 1 entry per user via document ID
     // =============================================
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
+                    && docId == request.auth.uid
                     && request.resource.data.uid == request.auth.uid;
       // Owner can update anything; opponent can only claim the match with their own UID
       allow update: if request.auth != null
-                    && (resource.data.uid == request.auth.uid
+                    && (docId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'opponentName', 'opponentProfilePic', 'matchId', 'status'])
                             && request.resource.data.opponentUid == request.auth.uid
                             && request.resource.data.status == 'matched'));
       // [AUDIT FIX] Only lobby owner can delete their entry
       allow delete: if request.auth != null
-                    && resource.data.uid == request.auth.uid;
+                    && docId == request.auth.uid;
     }
 
     // =============================================
