@@ -422,6 +422,14 @@ window.nachoPlaySound = function(type) {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'tctv-beep') {
+            // Retro TV remote beep
+            osc.frequency.value = 2400;
+            osc.type = 'square';
+            gain.gain.setValueAtTime(0.03, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.06);
         }
     } catch(e) {}
 };

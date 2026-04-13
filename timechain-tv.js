@@ -2788,6 +2788,7 @@ window.tctvDirectChannel = function(val) {
 };
 
 window.tctvRemotePause = function() {
+    if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
     _isPaused = !_isPaused;
     var btn = document.getElementById('remote-pause-btn');
     var btn2 = document.getElementById('remote-pause-btn-inline');
@@ -3048,6 +3049,7 @@ window.renderTimechainTV = function() {
             '<span style="font-size:8rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
             '<div style="position:absolute;bottom:45px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
             '<img src="nacho-deer.svg" style="width:85px;height:85px;">' +
+            '<span style="position:absolute;bottom:0;right:-10px;font-size:2.5rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span>' +
             '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
             '</div>' +
             '</div></div>';
@@ -3101,6 +3103,7 @@ window.renderTimechainTV = function() {
             '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
             '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
             '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
+            '<span style="position:absolute;bottom:0;right:-4px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span>' +
             '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
             '</div>' +
             '</div></div>';
@@ -3133,6 +3136,9 @@ window.renderTimechainTV = function() {
     if (_syncInterval) clearInterval(_syncInterval);
     _syncInterval = setInterval(updateTimeline, 1000);
     
+    // Start Nacho reactions
+    if (typeof startTctvReactions === 'function') startTctvReactions();
+    
     // Ensure we are tracked as the current "channel" for the system's scroll/back logic
     window.currentChannelId = 'timechain-tv';
 };
@@ -3153,7 +3159,43 @@ window.switchStation = function(stationId) {
         var nameEl = el.querySelector('[data-ch-name]');
         if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
     });
+    
+    // #3 Sound effect
+    if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
+    
+    // #4 Pre-fetch next/prev
+    try {
+        var idx = STATIONS.findIndex(s => s.id === stationId);
+        [STATIONS[(idx+1)%STATIONS.length], STATIONS[(idx-1+STATIONS.length)%STATIONS.length]].forEach(s => {
+            if (s.file && (!V[s.id] || Date.now() - (V[s.id].ts||0) > 3600000)) {
+                fetch(s.file).then(r => r.json()).then(d => { d.ts=Date.now(); V[s.id]=d; });
+            }
+        });
+    } catch(e) {}
 };
+
+// #5 Nacho Reactions
+var _tctvReactionInterval = null;
+function startTctvReactions() {
+    if (_tctvReactionInterval) clearInterval(_tctvReactionInterval);
+    _tctvReactionInterval = setInterval(function() {
+        if (window.currentPage !== 'timechain-tv') return;
+        var s = STATIONS.find(st => st.id === _currentStation);
+        if (!s) return;
+        var q = [
+            "This " + s.name + " channel is legit! 🍿",
+            "Mmm... freshly popped corn and Bitcoin knowledge! ⚡",
+            "Proof of Steak? No, I prefer Proof of Popcorn! 🥩🍿",
+            "The blockchain is looking extra HARD today! 🛡️"
+        ];
+        if (s.id === 'saylor') q.push("Saylor really knows how to channel that energy! ⚡");
+        var msg = q[Math.floor(Math.random()*q.length)];
+        if (typeof forceShowBubble === 'function') {
+            forceShowBubble(msg, 'cheese');
+            setTimeout(() => { if (typeof hideBubble === 'function') hideBubble(true); }, 7000);
+        }
+    }, 600000); // 10 mins
+}
 
 function showChannelNoise(stationName) {
     var playerWrap = document.getElementById('tctv-player') ? document.getElementById('tctv-player').parentElement : null;
@@ -3207,6 +3249,7 @@ function showChannelNoise(stationName) {
 
 window.cleanupTimechainTV = function() {
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
+    if (_tctvReactionInterval) { clearInterval(_tctvReactionInterval); _tctvReactionInterval = null; }
     if (_viewerUnsub) { _viewerUnsub(); _viewerUnsub = null; }
     var iframe = document.getElementById('tctv-player');
     if (iframe) iframe.src = '';

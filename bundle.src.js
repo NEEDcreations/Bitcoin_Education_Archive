@@ -6578,7 +6578,7 @@ window.toggleTickerSetting = function() {
 const NACHO_SVG = '<img src="nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<div style=\\\'font-size:60px;text-align:center;line-height:1;\\\'>🦌</div>\');">';
 
 // Couch Nacho variant for Timechain TV (same functionality, different visual)
-const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:5rem;position:absolute;bottom:-10px;filter:drop-shadow(0 8px 15px rgba(0,0,0,0.4));z-index:1;">🛋️</span><div style="position:absolute;bottom:25px;left:50%;transform:translateX(-50%);z-index:2;animation:nachoSway 4s ease-in-out infinite;"><img src="nacho-deer.svg" style="width:55px;height:55px;display:block;"></div></div>';
+const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:5rem;position:absolute;bottom:-10px;filter:drop-shadow(0 8px 15px rgba(0,0,0,0.4));z-index:1;">🛋️</span><div style="position:absolute;bottom:25px;left:50%;transform:translateX(-50%);z-index:2;animation:nachoSway 4s ease-in-out infinite;"><img src="nacho-deer.svg" style="width:55px;height:55px;display:block;"><span style="position:absolute;bottom:-5px;right:-15px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span></div></div>';
 
 // Check if we're on Timechain TV page
 function isTimechainTVPage() {
@@ -9469,6 +9469,14 @@ window.nachoPlaySound = function(type) {
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'tctv-beep') {
+            // Retro TV remote beep
+            osc.frequency.value = 2400;
+            osc.type = 'square';
+            gain.gain.setValueAtTime(0.03, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.06);
         }
     } catch(e) {}
 };
