@@ -124,11 +124,22 @@ async function connectNWC(nwcUri) {
 
 /**
  * Send a NWC request via Nostr relay
- * This is a simplified NIP-47 implementation
+ * Implements NIP-47 and NIP-04 encryption/signing
  */
 async function nwcRequest(method, params) {
     if (!_ln.nwcRelay || !_ln.nwcPubkey || !_ln.nwcSecret) {
         throw new Error('NWC not connected');
+    }
+
+    // Ensure nostr-tools is loaded for encryption and signing
+    if (typeof window.NostrTools === 'undefined') {
+        await new Promise(function(resolve, reject) {
+            var script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
     }
 
     return new Promise(function(resolve, reject) {
@@ -139,51 +150,69 @@ async function nwcRequest(method, params) {
 
         var ws = new WebSocket(_ln.nwcRelay);
 
-        ws.onopen = function() {
-            // Build NIP-47 request event
-            var content = JSON.stringify({ method: method, params: params || {} });
-            var eventId = generateEventId();
-            
-            // Create unsigned event
-            var event = {
-                id: eventId,
-                pubkey: _ln.nwcSecret.substr(0, 64), // Derived pubkey from secret
-                created_at: Math.floor(Date.now() / 1000),
-                kind: 23194, // NIP-47 request
-                tags: [['p', _ln.nwcPubkey]],
-                content: content, // In production, this should be NIP-04 encrypted
-                sig: '', // Simplified — production needs proper signing
-            };
+        ws.onopen = async function() {
+            try {
+                var nt = window.NostrTools;
+                var sk = _ln.nwcSecret;
+                var pk = nt.getPublicKey(sk);
+                var walletPk = _ln.nwcPubkey;
 
-            // Subscribe to responses
-            var subId = 'nwc_' + Math.random().toString(36).substr(2, 8);
-            ws.send(JSON.stringify(['REQ', subId, {
-                kinds: [23195], // NIP-47 response
-                '#e': [eventId],
-                limit: 1,
-            }]));
+                // Build NIP-47 request content
+                var contentObj = { method: method, params: params || {} };
+                var contentStr = JSON.stringify(contentObj);
+                
+                // NIP-04 Encryption (AES-256-CBC)
+                var encryptedContent = await nt.nip04.encrypt(sk, walletPk, contentStr);
 
-            // Send request
-            ws.send(JSON.stringify(['EVENT', event]));
+                // Create and sign event
+                var event = {
+                    pubkey: pk,
+                    created_at: Math.floor(Date.now() / 1000),
+                    kind: 23194, // NIP-47 request
+                    tags: [['p', walletPk]],
+                    content: encryptedContent,
+                };
+
+                event.id = nt.getEventHash(event);
+                event.sig = nt.getSignature(event, sk);
+
+                // Subscribe to responses
+                var subId = 'nwc_' + Math.random().toString(36).substr(2, 8);
+                ws.send(JSON.stringify(['REQ', subId, {
+                    kinds: [23195], // NIP-47 response
+                    '#e': [event.id],
+                    limit: 1,
+                }]));
+
+                // Send request
+                ws.send(JSON.stringify(['EVENT', event]));
+            } catch(e) {
+                clearTimeout(timeout);
+                ws.close();
+                reject(e);
+            }
         };
 
-        ws.onmessage = function(msg) {
+        ws.onmessage = async function(msg) {
             try {
                 var data = JSON.parse(msg.data);
                 if (data[0] === 'EVENT' && data[2]) {
-                    var content = data[2].content;
-                    // In production, decrypt NIP-04 content
+                    var nt = window.NostrTools;
+                    var event = data[2];
+                    
+                    // Decrypt NIP-04 content
                     try {
-                        var response = JSON.parse(content);
+                        var decrypted = await nt.nip04.decrypt(_ln.nwcSecret, _ln.nwcPubkey, event.content);
+                        var response = JSON.parse(decrypted);
                         clearTimeout(timeout);
                         ws.close();
                         if (response.error) reject(new Error(response.error.message || 'NWC error'));
                         else resolve(response.result);
                     } catch(e) {
-                        // Content might be encrypted — simplified demo
+                        console.error('[NWC] Decryption failed:', e);
                         clearTimeout(timeout);
                         ws.close();
-                        resolve({ note: 'Response received (encrypted — full NIP-04 decryption needed for production)' });
+                        reject(new Error('Failed to decrypt NWC response'));
                     }
                 }
             } catch(e) { /* ignore parse errors on non-event messages */ }

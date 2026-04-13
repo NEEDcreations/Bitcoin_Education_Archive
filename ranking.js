@@ -425,6 +425,9 @@ async function finishEmailSignIn(email, _signInUrl) {
         localStorage.removeItem('btc_pending_username');
         localStorage.removeItem('btc_pending_email');
         localStorage.removeItem('btc_pending_giveaway');
+        // 🗑️ SECURITY HARDENING (C-NEW-13): Wipe ghost on-chain wallet data
+        localStorage.removeItem('btc_wallet_enc');
+        localStorage.removeItem('btc_wallet_addrs');
 
         loadUser(emailUid);
         showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
