@@ -3868,24 +3868,41 @@ function nachoWebSearch(query, callback) {
     if (!NACHO_SEARCH_PROXY) { callback(null); return; }
     if (!canWebSearch()) { callback(null); return; }
     incrementWebSearchCount();
+
+    // Use current search proxy URL
     var url = NACHO_SEARCH_PROXY + '?q=' + encodeURIComponent('Bitcoin ' + query);
-    // Use AbortController with manual timeout for broader browser support
-    var controller = null;
-    var timeoutId = null;
-    try { controller = new AbortController(); } catch(e) {}
-    var fetchOpts = controller ? { signal: controller.signal } : {};
-    if (controller) { timeoutId = setTimeout(function() { controller.abort(); }, 6000); }
-    fetch(url, fetchOpts)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (timeoutId) clearTimeout(timeoutId);
-            if (data && data.results && data.results.length > 0) {
-                callback(data.results.slice(0, 3));
-            } else {
-                callback(null);
-            }
-        })
-        .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
+    
+    // Prepare fetch options
+    var fetchOpts = { method: 'GET', headers: {} };
+
+    // 🔒 SECURITY (M-NEW-29): Attach Firebase Auth token if available
+    var _sendRequest = function(opts) {
+        var controller = null;
+        var timeoutId = null;
+        try { controller = new AbortController(); } catch(e) {}
+        if (controller) { opts.signal = controller.signal; timeoutId = setTimeout(function() { controller.abort(); }, 6000); }
+
+        fetch(url, opts)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (timeoutId) clearTimeout(timeoutId);
+                if (data && data.results && data.results.length > 0) {
+                    callback(data.results.slice(0, 3));
+                } else {
+                    callback(null);
+                }
+            })
+            .catch(function() { if (timeoutId) clearTimeout(timeoutId); callback(null); });
+    };
+
+    if (typeof auth !== 'undefined' && auth.currentUser) {
+        auth.currentUser.getIdToken().then(function(token) {
+            fetchOpts.headers['Authorization'] = 'Bearer ' + token;
+            _sendRequest(fetchOpts);
+        }).catch(function() { _sendRequest(fetchOpts); });
+    } else {
+        _sendRequest(fetchOpts);
+    }
 }
 
 // ---- Thinking animation ----
