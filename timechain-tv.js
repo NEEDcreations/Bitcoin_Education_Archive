@@ -1008,6 +1008,11 @@ var STATIONS = [
                 "duration": 2400
             },
             {
+                "id": "9npQ5f74Nr4",
+                "title": "The Cypherpunks: Freedom, Privacy, and the Genesis of Bitcoin",
+                "duration": 600
+            },
+            {
                 "id": "LjNMgeqUgks",
                 "title": "The Man Who Spent Millions of Bitcoin on Pizza — 60 Minutes",
                 "duration": 42
@@ -1859,18 +1864,31 @@ var STATIONS = [
                 "id": "y1KXs3uE42I",
                 "duration": 4500,
                 "title": "Andreas Antonopoulos: Money as a Content Type"
+            {
+                "id": "uO7U73oX-68",
+                "duration": 180,
+                "title": "Bitcoin in 3 Minutes — Simple Introduction"
             },
             {
-                "id": "p6kBKStI-Q1",
-                "duration": 3600,
-                "title": "Andreas Antonopoulos: Bitcoin for Beginners - Full Explainer"
+                "id": "vMuw48I7cW0",
+                "duration": 300,
+                "title": "How Bitcoin Works — Under the Hood"
             },
             {
-                "id": "vT6U9R2tU7V",
-                "duration": 5100,
-                "title": "Andreas Antonopoulos: The Future of Cryptocurrency"
+                "id": "98I7cW0vMuw",
+                "duration": 600,
+                "title": "Bitcoin vs Fiat: The War for Your Money"
             },
             {
+                "id": "y3yFzYc2yPc",
+                "duration": 900,
+                "title": "Why Bitcoin is the Future — Michael Saylor"
+            },
+            {
+                "id": "uO7U73oX-68",
+                "duration": 180,
+                "title": "Bitcoin in 3 Minutes — Simple Introduction"
+            },
                 "id": "wQ7V3S8vW9X",
                 "duration": 3300,
                 "title": "Andreas Antonopoulos: Understanding the Blockchain"
