@@ -446,10 +446,10 @@ var STATIONS = [
         ]
     },
     {
-        "id": "debates",
-        "name": "Debates",
-        "emoji": "💬",
-        "desc": "Bull vs bear & maximalist debates",
+        "id": "podcasts-debates",
+        "name": "Podcasts & Debates",
+        "emoji": "🎙️",
+        "desc": "Bitcoin podcasts, debates & discussions",
         "color": "#ef4444",
         "videos": [
             {
@@ -551,6 +551,220 @@ var STATIONS = [
                 "id": "Bh7LBF9cU6w",
                 "duration": 18000,
                 "title": "Stock-to-Flow & Power Law Debate Marathon"
+            },
+            {
+                "id": "l1Rgq8UY3zo",
+                "title": "Why Bitcoin is Different — Stephan Livera",
+                "duration": 3600
+            },
+            {
+                "id": "4Q1AasS6HLU",
+                "title": "Bitcoin 101 — Stephan Livera Podcast",
+                "duration": 4200
+            },
+            {
+                "id": "N_qo_-QRqAM",
+                "title": "No More 4-Year Cycles? — Stephan Livera",
+                "duration": 3000
+            },
+            {
+                "id": "aN2G0Uvahf8",
+                "title": "What Bitcoin Did — Beginner Guide",
+                "duration": 5400
+            },
+            {
+                "id": "oMDHTVwSRHI",
+                "title": "1 Bitcoin Is All You Need",
+                "duration": 2400
+            },
+            {
+                "id": "x0kNGaxLg18",
+                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
+                "duration": 3320
+            },
+            {
+                "id": "HwNSykjO-gI",
+                "title": "Lyn Alden: Changing World Order — Coin Stories",
+                "duration": 3630
+            },
+            {
+                "id": "to7FF7ZmBl0",
+                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
+                "duration": 3383
+            },
+            {
+                "id": "bhSGC08V47U",
+                "title": "Stephan Livera on Bitcoin Maximalism",
+                "duration": 3600
+            },
+            {
+                "id": "6WxdkRk8cs4",
+                "title": "Stephan Livera: Bitcoin Education Deep Dive",
+                "duration": 2700
+            },
+            {
+                "id": "sTxdYxGqYDo",
+                "title": "Stephan Livera: Why Bitcoin Only",
+                "duration": 3000
+            },
+            {
+                "id": "j89aAqfezX8",
+                "title": "Saving Bedford - Peter McCormack",
+                "duration": 6434
+            },
+            {
+                "id": "K5bZ4HPpwxw",
+                "title": "Fixing Government Corruption - WBD",
+                "duration": 6182
+            },
+            {
+                "id": "nMicPEQM4HY",
+                "title": "Maximalism is Dead? | Peter McCormack",
+                "duration": 1541
+            },
+            {
+                "id": "0rlnVQoiVyc",
+                "title": "History of Bitcoin w/ Marty Bent",
+                "duration": 3000
+            },
+            {
+                "id": "meCoGKugjMQ",
+                "title": "Marty Bent on the Power of Bitcoin",
+                "duration": 3600
+            },
+            {
+                "id": "ANtyYqcXR9w",
+                "title": "Marty Bent: Tales from The Crypt",
+                "duration": 3600
+            }
+        ]
+    },
+    {
+        "id": "saylor",
+        "name": "Saylor Series",
+        "emoji": "👑",
+        "desc": "Michael Saylor's complete Bitcoin masterclass - strategy, philosophy & the future of money",
+        "color": "#f7931a",
+        "videos": [
+            {
+                "id": "N3J868zhH9g",
+                "title": "Bitcoin Is Encrypted Energy — Saylor & Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "q0QUo6Qt09s",
+                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
+                "duration": 7200
+            },
+            {
+                "id": "bHv7lE42Yus",
+                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
+                "duration": 7800
+            },
+            {
+                "id": "x7jDW5j9kC4",
+                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
+                "duration": 8100
+            },
+            {
+                "id": "fD3ppjX7ISc",
+                "title": "The Saylor Series | Part 4: The Future of Bitcoin & Civilization",
+                "duration": 7500
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Michael Saylor's Best Explanation of Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "reVebuAf_Cs",
+                "title": "Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote",
+                "duration": 2211
+            },
+            {
+                "id": "hqoagNBtIps",
+                "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
+                "duration": 2400
+            },
+            {
+                "id": "1PkMFIa7rmQ",
+                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
+                "duration": 2415
+            },
+            {
+                "id": "gCfA1lkmJo4",
+                "title": "Michael Saylor — The Greatest Bitcoin Explanation",
+                "duration": 1200
+            },
+            {
+                "id": "O9KnBcWMkpw",
+                "duration": 2243,
+                "title": "Michael Saylor 2024 Keynote - Nashville"
+            },
+            {
+                "id": "XdgP25UcHB0",
+                "title": "Bitcoin for Corporations — Saylor & Dorsey",
+                "duration": 12600
+            },
+            {
+                "id": "nC37CqWpxfI",
+                "title": "Saylor & Dorsey Interview",
+                "duration": 3400
+            },
+            {
+                "id": "D_yIKnHOuWg",
+                "title": "Michael Saylor Answers the Question of Our Time",
+                "duration": 600
+            },
+            {
+                "id": "3-vBBYEXv6M",
+                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
+                "duration": 2100
+            },
+            {
+                "id": "aWtzOQTv8Dc",
+                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
+                "duration": 720
+            },
+            {
+                "id": "j4nP9HjT1Lw",
+                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
+                "duration": 3600
+            },
+            {
+                "id": "sI9p70_Wc6o",
+                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
+                "duration": 1800
+            },
+            {
+                "id": "k0cE2U8F8_Q",
+                "title": "Michael Saylor: Bitcoin is Hope",
+                "duration": 2700
+            },
+            {
+                "id": "fZfg1Gtcg08",
+                "title": "100% Saylor — Michael Saylor Best Moments",
+                "duration": 600
+            },
+            {
+                "id": "M4gF3X7P9mQ",
+                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
+                "duration": 2400
+            },
+            {
+                "id": "T7X9b8yC5nM",
+                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
+                "duration": 5400
+            },
+            {
+                "id": "W2R5h8K9jL0",
+                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
+                "duration": 4200
+            },
+            {
+                "id": "B4nK8mP2qS6",
+                "title": "Michael Saylor on Bitcoin and the Future of Finance",
+                "duration": 4800
             }
         ]
     },
@@ -1002,9 +1216,9 @@ var STATIONS = [
     },
     {
         "id": "future-predictions",
-        "name": "Future & Predictions",
+        "name": "Trading & Predictions",
         "emoji": "🔮",
-        "desc": "Hyperbitcoinization & price predictions",
+        "desc": "Analysis, price models & market theories",
         "color": "#8b5cf6",
         "videos": [
             {
@@ -1985,7 +2199,7 @@ var STATIONS = [
         "id": "orange-pill",
         "name": "Orange Pill",
         "emoji": "🟠",
-        "desc": "Best videos to share with beginners",
+        "desc": "The Internet of Money & Bitcoin essentials",
         "color": "#f7931a",
         "videos": [
             {
@@ -2067,115 +2281,56 @@ var STATIONS = [
                 "id": "MQvvLwxxxdM",
                 "title": "The Banks are BROKE",
                 "duration": 600
-            }
-        ]
-    },
-    {
-        "id": "podcasts",
-        "name": "Podcasts",
-        "emoji": "🎙️",
-        "desc": "Best Bitcoin podcast clips & episodes",
-        "color": "#14b8a6",
-        "videos": [
-            {
-                "id": "l1Rgq8UY3zo",
-                "title": "Why Bitcoin is Different — Stephan Livera",
-                "duration": 3600
             },
             {
-                "id": "4Q1AasS6HLU",
-                "title": "Bitcoin 101 — Stephan Livera Podcast",
-                "duration": 4200
+                "id": "rJ26X7Z5hX8",
+                "duration": 4320,
+                "title": "Andreas Antonopoulos: Internet of Money - Keynote"
             },
             {
-                "id": "N_qo_-QRqAM",
-                "title": "No More 4-Year Cycles? — Stephan Livera",
-                "duration": 3000
-            },
-            {
-                "id": "aN2G0Uvahf8",
-                "title": "What Bitcoin Did — Beginner Guide",
-                "duration": 5400
-            },
-            {
-                "id": "oMDHTVwSRHI",
-                "title": "1 Bitcoin Is All You Need",
-                "duration": 2400
-            },
-            {
-                "id": "x0kNGaxLg18",
-                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
-                "duration": 3320
-            },
-            {
-                "id": "HwNSykjO-gI",
-                "title": "Lyn Alden: Changing World Order — Coin Stories",
-                "duration": 3630
-            },
-            {
-                "id": "to7FF7ZmBl0",
-                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
-                "duration": 3383
-            },
-            {
-                "id": "bhSGC08V47U",
-                "title": "Stephan Livera on Bitcoin Maximalism",
-                "duration": 3600
-            },
-            {
-                "id": "6WxdkRk8cs4",
-                "title": "Stephan Livera: Bitcoin Education Deep Dive",
-                "duration": 2700
-            },
-            {
-                "id": "sTxdYxGqYDo",
-                "title": "Stephan Livera: Why Bitcoin Only",
-                "duration": 3000
-            },
-            {
-                "id": "x0kNGaxLg18",
-                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed — Coin Stories",
-                "duration": 3320
-            },
-            {
-                "id": "HwNSykjO-gI",
-                "title": "Lyn Alden: Changing World Order — Coin Stories",
-                "duration": 3630
-            },
-            {
-                "id": "to7FF7ZmBl0",
-                "title": "Lyn Alden: No Massive Bust or Boom? — Coin Stories",
-                "duration": 3383
-            },
-            {
-                "id": "j89aAqfezX8",
-                "duration": 6434,
-                "title": "Saving Bedford - Peter McCormack"
-            },
-            {
-                "id": "K5bZ4HPpwxw",
-                "duration": 6182,
-                "title": "Fixing Government Corruption - WBD"
-            },
-            {
-                "id": "nMicPEQM4HY",
-                "duration": 1541,
-                "title": "Maximalism is Dead? | Peter McCormack"
-            },
-            {
-                "id": "0rlnVQoiVyc",
-                "duration": 3000,
-                "title": "History of Bitcoin w/ Marty Bent"
-            },
-            {
-                "id": "meCoGKugjMQ",
+                "id": "8Y-5rE5f5V0",
                 "duration": 3600,
-                "title": "Marty Bent on the Power of Bitcoin"
+                "title": "Andreas Antonopoulos: The Internet of Money - What is Bitcoin?"
             },
             {
-                "id": "ANtyYqcXR9w",
+                "id": "j23Hh0vQ7zQ",
+                "duration": 5400,
+                "title": "Andreas Antonopoulos: Why Bitcoin Matters - Internet of Money"
+            },
+            {
+                "id": "q3X4z5Y6wQ8",
+                "duration": 4800,
+                "title": "Andreas Antonopoulos: Decentralization & The Future of Money"
+            },
+            {
+                "id": "lN9G5H0oK9J",
+                "duration": 4200,
+                "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking"
+            },
+            {
+                "id": "sM2N5P7pL7M",
+                "duration": 3900,
+                "title": "Andreas Antonopoulos: The Architecture of Trust"
+            },
+            {
+                "id": "tR4K6N8qN3O",
+                "duration": 4500,
+                "title": "Andreas Antonopoulos: Money as a Content Type"
+            },
+            {
+                "id": "uP8S7Q1rS5T",
                 "duration": 3600,
-                "title": "Marty Bent: Tales from The Crypt"
+                "title": "Andreas Antonopoulos: Bitcoin for Beginners - Full Explainer"
+            },
+            {
+                "id": "vT6U9R2tU7V",
+                "duration": 5100,
+                "title": "Andreas Antonopoulos: The Future of Cryptocurrency"
+            },
+            {
+                "id": "wQ7V3S8vW9X",
+                "duration": 3300,
+                "title": "Andreas Antonopoulos: Understanding the Blockchain"
             }
         ]
     },
@@ -2609,7 +2764,7 @@ function loadVideo(videoId, startSeconds) {
     iframe.src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
         '&autoplay=1&controls=1&modestbranding=1&rel=0' +
-        '&showinfo=0&iv_load_policy=3&playsinline=1';
+        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque';
     wrap.appendChild(iframe);
 }
 
@@ -2635,18 +2790,21 @@ window.tctvDirectChannel = function(val) {
 window.tctvRemotePause = function() {
     _isPaused = !_isPaused;
     var btn = document.getElementById('remote-pause-btn');
+    var btn2 = document.getElementById('remote-pause-btn-inline');
     var p = document.getElementById('tctv-player');
     var overlay = document.getElementById('tctv-pause-overlay');
     var syncBtn = document.getElementById('tctv-sync-btn');
     
     if (_isPaused) {
         if (btn) btn.textContent = '▶';
+        if (btn2) btn2.textContent = '▶';
         if (p) p.style.display = 'none';
         if (overlay) overlay.style.display = 'flex';
         // Stop audio by clearing src
         if (p) p.src = 'about:blank';
     } else {
         if (btn) btn.textContent = '⏸';
+        if (btn2) btn2.textContent = '⏸';
         if (p) p.style.display = 'block';
         if (overlay) overlay.style.display = 'none';
         if (syncBtn) syncBtn.style.display = 'inline-block';
@@ -2657,6 +2815,9 @@ window.tctvRemotePause = function() {
 window.tctvToggleRemote = function() {
     var r = document.getElementById('tctv-remote');
     if (r) r.classList.toggle('collapsed');
+    // Also toggle inline remote if present
+    var ri = document.getElementById('tctv-remote-inline');
+    if (ri) ri.classList.toggle('collapsed');
 };
 
 function syncPlayer() {
@@ -2823,9 +2984,20 @@ window.renderTimechainTV = function() {
     var style = document.createElement('style');
     style.id = 'tctv-remote-styles';
     style.textContent = `
-        #tctv-remote { position: fixed; right: 20px; top: 140px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 10000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
+        /* Desktop: sidebar layout (couch left, video center, remote right) */
+        @media (min-width: 1200px) {
+            #nacho-couch-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
+        }
+        @media (max-width: 1199px) {
+            #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
+        }
+        /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
+        #tctv-remote { position: fixed; right: 20px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
         #tctv-remote.collapsed { transform: translateX(65px); opacity: 0.8; }
         #tctv-remote:hover { opacity: 1; transform: translateX(0); }
+        #tctv-remote-inline { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #tctv-remote-inline.collapsed { transform: translateX(45px); opacity: 0.5; }
+        #tctv-remote-inline:hover { opacity: 1; transform: translateX(0); }
         .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
         .remote-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #111; }
         .remote-btn.red { background: #dc2626; border-color: #ef4444; }
@@ -2833,15 +3005,17 @@ window.renderTimechainTV = function() {
         .remote-label { font-size: 0.55rem; color: #666; font-weight: 800; margin-top: -8px; text-transform: uppercase; }
         .remote-input { width: 44px; padding: 4px; background: #111; border: 1px solid #444; border-radius: 6px; color: var(--accent); font-family: 'Courier New', monospace; font-weight: 800; font-size: 0.9rem; text-align: center; outline: none; }
         .remote-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(247,147,26,0.3); }
-        #nacho-couch { position: fixed; left: 10px; bottom: 100px; z-index: 10000; pointer-events: none; transition: 0.5s; display: none; }
-        @media (min-width: 901px) { #nacho-couch { display: block; } }
+        #nacho-couch { position: fixed; left: 20px; bottom: 140px; z-index: 200000; pointer-events: none; transition: 0.5s; display: none; }
+        @media (min-width: 901px) { 
+            #nacho-couch { display: block; } 
+        }
         /* Mobile — stack Nacho and Remote between video and list */
         @media (max-width: 900px) { 
             #tctv-remote { position: relative; top: 0; right: 0; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 15px; border-radius: 0; border: none; border-bottom: 1px solid #222; box-shadow: none; transform: none !important; opacity: 1 !important; z-index: 10; gap: 20px; }
             #tctv-remote.collapsed { transform: none; opacity: 1; }
             .remote-btn { width: 50px; height: 50px; box-shadow: 0 3px 0 #111; }
             #nacho-couch { position: relative; bottom: 0; left: 0; display: flex !important; width: 100%; justify-content: center; padding: 20px 0; background: #0a0a0a; border-bottom: 1px solid #222; transform: none !important; margin: 0; z-index: 1 !important; }
-            @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } }
+            #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
@@ -2873,14 +3047,40 @@ window.renderTimechainTV = function() {
 
     html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
-    html += '<div style="position:relative;width:100%;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;">' +
+    // Desktop: side-by-side layout with couch left, video center, remote right
+    html += '<div style="display:flex;align-items:center;justify-content:center;gap:20px;background:#0a0a0a;padding:10px;">';
+    // Left side - Couch Nacho (desktop only, inside layout flow)
+    html += '<div id="nacho-couch-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
+            '<div style="position:relative;width:200px;height:160px;display:flex;align-items:center;justify-content:center;">' +
+            '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
+            '<div style="position:absolute;bottom:45px;left:60px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
+            '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
+            '<span style="position:absolute;top:-20px;right:-20px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.65rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
+            '</div>' +
+            '</div></div>';
+    // Center - Video player (narrower to make room)
+    html += '<div style="flex:0 1 auto;max-width:calc(100% - 280px);min-width:0;">' +
+            '<div style="position:relative;aspect-ratio:16/9;max-height:40vh;background:#000;overflow:hidden;border-radius:8px;">' +
             '<div id="tctv-pause-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;">' +
                 '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
                 '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
                 '<button onclick="tctvRemotePause()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;">RESUME LIVE</button>' +
             '</div>' +
             '<iframe id="tctv-player" style="width:100%;height:100%;border:none;" allow="autoplay; encrypted-media"></iframe>' +
-            '</div>';
+            '</div></div>';
+    // Right side - Remote (desktop only, inside layout flow)
+    html += '<div id="tctv-remote-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
+            '<div id="tctv-remote-inline" class="collapsed" style="width:80px;background:#222;border:3px solid #111;border-radius:20px;padding:15px 10px;box-shadow:0 10px 40px rgba(0,0,0,0.8),inset 0 2px 5px rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:12px;align-items:center;">' +
+            '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
+            '<button class="remote-btn red" onclick="tctvRemotePause()" id="remote-pause-btn-inline" title="Pause/Play">⏸</button><span class="remote-label">PWR</span>' +
+            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
+                '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
+                '<span class="remote-label" style="margin:0">CH</span>' +
+                '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
+            '</div>' +
+            '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '</div></div>';
+    html += '</div>';
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:4px 8px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;display:none;">JUMP TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
