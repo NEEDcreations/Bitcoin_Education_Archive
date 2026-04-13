@@ -2817,7 +2817,7 @@ window.renderTimechainTV = function() {
     var style = document.createElement('style');
     style.id = 'tctv-remote-styles';
     style.textContent = `
-        #tctv-remote { position: fixed; right: 20px; top: 120px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 1000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
+        #tctv-remote { position: fixed; right: 20px; top: 120px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 10000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
         #tctv-remote.collapsed { transform: translateX(70px); opacity: 0.6; }
         #tctv-remote:hover { opacity: 1; transform: translateX(0); }
         .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
@@ -2825,7 +2825,7 @@ window.renderTimechainTV = function() {
         .remote-btn.red { background: #dc2626; border-color: #ef4444; }
         .remote-btn.blue { background: #2563eb; border-color: #3b82f6; }
         .remote-label { font-size: 0.55rem; color: #666; font-weight: 800; margin-top: -8px; text-transform: uppercase; }
-        #nacho-couch { position: fixed; left: -20px; bottom: 100px; z-index: 999; pointer-events: none; transition: 0.5s; display: none; }
+        #nacho-couch { position: fixed; left: -20px; bottom: 100px; z-index: 10000; pointer-events: none; transition: 0.5s; display: none; }
         @media (min-width: 1200px) { #nacho-couch { display: block; } }
         @media (max-width: 900px) { #tctv-remote { top: auto; bottom: 80px; transform: scale(0.85) translateX(70px); } }
     `;
