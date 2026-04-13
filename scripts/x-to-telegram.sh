@@ -3,9 +3,20 @@
 # Checks RSS feed for new tweets and posts them to the Telegram channel
 # Run via cron every 15 minutes
 
+# Load environment variables
+if [ -f "/root/simple-archive/.env" ]; then
+  export $(grep -v '^#' /root/simple-archive/.env | xargs)
+fi
+
 FEED_URL="https://rss.app/feeds/8jCjlT8E16kCeBrO.xml"
-BOT_TOKEN="8031722550:AAHrVcgOyovJKpBYmT01BwWhS3LFt57xzM0"
-CHAT_ID="-1003745860336"
+BOT_TOKEN="$X_BRIDGE_BOT_TOKEN"
+CHAT_ID="$X_BRIDGE_CHAT_ID"
+
+if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
+  echo "Error: X_BRIDGE_BOT_TOKEN or X_BRIDGE_CHAT_ID not set in .env"
+  exit 1
+fi
+
 SEEN_FILE="/root/simple-archive/scripts/.x_seen_guids"
 
 # Create seen file if missing

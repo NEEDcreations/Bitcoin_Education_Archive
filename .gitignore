@@ -1,3 +1,4 @@
 .env
 functions/.env
 test.sh
+scripts/
