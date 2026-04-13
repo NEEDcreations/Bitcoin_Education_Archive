@@ -2833,7 +2833,10 @@ function syncPlayer() {
     if (!state.video) return;
     
     var np = document.getElementById('tctv-now-playing');
-    if (np) np.textContent = state.video.title;
+    if (np) {
+        np.textContent = state.video.title;
+        np.setAttribute('data-current-vid', state.video.id);
+    }
     
     loadVideo(state.video.id, state.offset);
     
@@ -2847,6 +2850,12 @@ function updateTimeline() {
     var nowMs = Date.now();
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     var state = getPlaybackState(station);
+
+    var np = document.getElementById('tctv-now-playing');
+    if (np && state.video && np.getAttribute('data-current-vid') !== state.video.id) {
+        np.textContent = state.video.title;
+        np.setAttribute('data-current-vid', state.video.id);
+    }
 
     var bar = document.getElementById('tctv-progress');
     if (bar && state.video) {
@@ -3143,6 +3152,10 @@ window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
     _lastStation = _currentStation;
     var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
+    
+    var np = document.getElementById('tctv-now-playing');
+    if (np) np.textContent = 'Tuning...';
+    
     showChannelNoise(stationObj ? stationObj.emoji + ' ' + stationObj.name : '');
     _currentStation = stationId;
     saveStation(stationId);
