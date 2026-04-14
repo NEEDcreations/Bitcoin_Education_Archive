@@ -5662,6 +5662,44 @@ function onPlayerStateChange(event) {
         // Check for time drift (seek)
         checkDrift();
     }
+
+    // Video ended — advance to next video immediately
+    if (event.data === YT.PlayerState.ENDED) {
+        _advanceToNextVideo();
+    }
+}
+
+// Advance to the next scheduled video on the current station
+function _advanceToNextVideo() {
+    if (_isPaused || !_currentStation) return;
+    var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+    if (!station) return;
+    var state = getPlaybackState(station);
+    if (!state.video) return;
+
+    // Update NOW PLAYING text
+    var np = document.getElementById('tctv-now-playing');
+    if (np) {
+        np.textContent = state.video.title;
+        np.setAttribute('data-current-vid', state.video.id);
+    }
+    _updateChNum();
+
+    // Reuse existing YT player if possible (avoids autoplay restrictions)
+    if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById) {
+        _currentVideoId = state.video.id;
+        _ytPlayer.loadVideoById({
+            videoId: state.video.id,
+            startSeconds: Math.floor(state.offset)
+        });
+        var syncBtn = document.getElementById('tctv-sync-btn');
+        if (syncBtn) syncBtn.style.display = 'none';
+        return;
+    }
+
+    // Fallback: full reload (iframe path or no player)
+    _currentVideoId = state.video.id;
+    loadVideo(state.video.id, state.offset);
 }
 
 function checkDrift() {
@@ -5860,7 +5898,7 @@ function updateTimeline() {
     });
 
     if (state.video && state.video.id !== _currentVideoId) {
-        syncPlayer();
+        _advanceToNextVideo();
     }
 
     // Periodic drift check
