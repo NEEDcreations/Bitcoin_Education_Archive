@@ -2230,99 +2230,24 @@ var STATIONS = [
         "color": "#facc15",
         "videos": [
             {
-                "id": "heA1fZzRAFs",
-                "title": "Funniest Bitcoin Moments Compilation",
-                "duration": 600
-            },
-            {
-                "id": "l-aVgXwnESM",
-                "title": "When Bitcoin Encounters Fiat (No.2) — Crypto Memes",
-                "duration": 120
-            },
-            {
-                "id": "uql_VKemddY",
-                "duration": 36000,
-                "title": "Vibing with the Fed and Bitcoin 10 Hour Loop"
-            },
-            {
-                "id": "mEqr-8-TKrA",
-                "title": "30 People Turning Down FREE Bitcoin — Mike Still",
-                "duration": 420
-            },
-            {
-                "id": "61i2iDz7u04",
-                "title": "BITCONNECT REMIX",
-                "duration": 240
-            },
-            {
-                "id": "UDu5LOf_E-w",
-                "title": "Bitcoin Memes Compilation",
-                "duration": 600
-            },
-            {
                 "id": "tWU3O3X5kKE",
                 "duration": 600,
                 "title": "The Story of Bitcoin Pizza Day"
             },
             {
-                "id": "BgZO1ppaneg",
-                "title": "Best Crypto TikToks Compilation",
-                "duration": 540
-            },
-            {
-                "id": "wIhTGB3wqV0",
-                "title": "Michael Saylor Meme — NO SECOND BEST",
-                "duration": 60
-            },
-            {
-                "id": "RM1NdTvvtvk",
-                "title": "Bitcoin Comedy Compilation",
-                "duration": 720
-            },
-            {
-                "id": "hAxfwE9Oj2g",
-                "title": "BIG BEAUTIFUL BITCOIN!",
+                "id": "1RV2Fpqpe48",
+                "title": "Michael Saylor in The Age of Revolution — Google Ngram Meme",
                 "duration": 120
             },
             {
-                "id": "8EoxggHmWxY",
-                "title": "How to Mine Bitcoins (Classic)",
-                "duration": 240
-            },
-            {
-                "id": "BgHEOhciWcQ",
-                "title": "What Happens If You Never Buy Bitcoin?",
-                "duration": 300
-            },
-            {
-                "id": "d6ham2mibiA",
-                "title": "Bitcoin Street Reactions Compilation",
-                "duration": 540
-            },
-            {
-                "id": "Ner16UBWdEg",
-                "title": "Bitcoin Memes That Hit Different",
-                "duration": 480
-            },
-            {
-                "id": "aTqT5TDLtT8",
-                "title": "Bitcoin History As Told By Memes",
+                "id": "heA1fZzRAFs",
+                "title": "Funniest Bitcoin Moments Compilation",
                 "duration": 600
             },
             {
-                "id": "UX1GIhOhkAE",
-                "title": "Me Saying Bitcoin",
-                "duration": 180
-            },
-            {
-                "id": "fUFnLPblsBg",
-                "title": "100% Saylor — Michael Saylor Best Moments",
-                "duration": 600
-            },
-            {
-                "id": "EFDMum1vs7Q",
-                "duration": 36000,
-                "title": "Pump It Up (Bitcoin Maximalist) 10 Hour Loop"
+                "id": "EiZSozfvKMQ",
+                "title": "Michael Saylor Lost His Mind — There Is No Second Best Meme",
+                "duration": 120
             },
             {
                 "id": "NMDABNK8j_Q",
@@ -2330,14 +2255,124 @@ var STATIONS = [
                 "duration": 480
             },
             {
-                "id": "E6mK2aZbuSo",
-                "title": "Recovery of a Lost Bitcoin Wallet from 2010",
-                "duration": 180
+                "id": "UDu5LOf_E-w",
+                "title": "Bitcoin Memes Compilation",
+                "duration": 600
+            },
+            {
+                "id": "aTqT5TDLtT8",
+                "title": "Bitcoin History As Told By Memes",
+                "duration": 600
             },
             {
                 "id": "3mA_U4tYS8s",
                 "title": "Hank Finds Out About Crypto Crash",
                 "duration": 180
+            },
+            {
+                "id": "mEqr-8-TKrA",
+                "title": "30 People Turning Down FREE Bitcoin — Mike Still",
+                "duration": 420
+            },
+            {
+                "id": "aJIt3dUWEAs",
+                "title": "Unleashing the Cyber Hornets: Michael Saylor on the Power of Bitcoin",
+                "duration": 180
+            },
+            {
+                "id": "AKvWwZJ6gfA",
+                "title": "Sigma Chad Michael Saylor — It's Going Up Forever Laura",
+                "duration": 120
+            },
+            {
+                "id": "fUFnLPblsBg",
+                "title": "100% Saylor — Michael Saylor Best Moments",
+                "duration": 600
+            },
+            {
+                "id": "uql_VKemddY",
+                "duration": 36000,
+                "title": "Vibing with the Fed and Bitcoin 10 Hour Loop"
+            },
+            {
+                "id": "wIhTGB3wqV0",
+                "title": "Michael Saylor Meme — NO SECOND BEST",
+                "duration": 60
+            },
+            {
+                "id": "UX1GIhOhkAE",
+                "title": "Me Saying Bitcoin",
+                "duration": 180
+            },
+            {
+                "id": "BgHEOhciWcQ",
+                "title": "What Happens If You Never Buy Bitcoin?",
+                "duration": 300
+            },
+            {
+                "id": "RM1NdTvvtvk",
+                "title": "Bitcoin Comedy Compilation",
+                "duration": 720
+            },
+            {
+                "id": "Fvi6pdG_jZw",
+                "title": "GigaChad Michael Saylor Best Moments — Bitcoin Song",
+                "duration": 240
+            },
+            {
+                "id": "Ner16UBWdEg",
+                "title": "Bitcoin Memes That Hit Different",
+                "duration": 480
+            },
+            {
+                "id": "8EoxggHmWxY",
+                "title": "How to Mine Bitcoins (Classic)",
+                "duration": 240
+            },
+            {
+                "id": "0Y7qcaIkgMY",
+                "title": "Appeasing Michael Saylor — Bitcoin Singularity",
+                "duration": 180
+            },
+            {
+                "id": "-weaa5SrVEU",
+                "title": "Michael Saylor Needs Some Rest",
+                "duration": 120
+            },
+            {
+                "id": "E6mK2aZbuSo",
+                "title": "Recovery of a Lost Bitcoin Wallet from 2010",
+                "duration": 180
+            },
+            {
+                "id": "BgZO1ppaneg",
+                "title": "Best Crypto TikToks Compilation",
+                "duration": 540
+            },
+            {
+                "id": "61i2iDz7u04",
+                "title": "BITCONNECT REMIX",
+                "duration": 240
+            },
+            {
+                "id": "d6ham2mibiA",
+                "title": "Bitcoin Street Reactions Compilation",
+                "duration": 540
+            },
+            {
+                "id": "l-aVgXwnESM",
+                "title": "When Bitcoin Encounters Fiat (No.2) — Crypto Memes",
+                "duration": 120
+            },
+            {
+                "id": "EFDMum1vs7Q",
+                "duration": 36000,
+                "title": "Pump It Up (Bitcoin Maximalist) 10 Hour Loop"
+            },
+            {
+                "id": "hAxfwE9Oj2g",
+                "title": "BIG BEAUTIFUL BITCOIN!",
+                "duration": 120
             }
         ]
     },
@@ -3778,79 +3813,9 @@ var STATIONS = [
         "color": "#f7931a",
         "videos": [
             {
-                "id": "UADTd7gCuXo",
-                "title": "THERE IS NO SECOND BEST — Saylor at BTCPrague 2023",
-                "duration": 1800
-            },
-            {
-                "id": "6P97_koDGtA",
-                "title": "Bitcoin vs Manhattan Real Estate in 1776 — Michael Saylor",
-                "duration": 300
-            },
-            {
-                "id": "OA3DGM0vgtM",
-                "title": "Michael Saylor Keynote — 2024 Cantor Fitzgerald Conference",
+                "id": "w2e3nL7xMz0",
+                "title": "Why Corporations Are Putting Bitcoin on Their Balance Sheet — Pomp Podcast #595",
                 "duration": 3600
-            },
-            {
-                "id": "59vC4JxWIQU",
-                "title": "Michael Saylor Keynote Address — BTC in DC 2025",
-                "duration": 2400
-            },
-            {
-                "id": "4Buu1h_89hY",
-                "title": "Michael Saylor: Bitcoin Is As Risky As Crossing a Street",
-                "duration": 600
-            },
-            {
-                "id": "hqoagNBtIps",
-                "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
-                "duration": 2400
-            },
-            {
-                "id": "MSMJBmo_q4s",
-                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
-                "duration": 4200
-            },
-            {
-                "id": "SojzZxhMf00",
-                "title": "The Virtues of Strong Money — The Saylor Series Episode 7",
-                "duration": 5400
-            },
-            {
-                "id": "O9KnBcWMkpw",
-                "duration": 2243,
-                "title": "Michael Saylor 2024 Keynote - Nashville"
-            },
-            {
-                "id": "coHC_9ApBdg",
-                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
-                "duration": 5400
-            },
-            {
-                "id": "Yd1UFNvqwWQ",
-                "title": "How Bitcoin Changes Everything — The Saylor Series Episode 17",
-                "duration": 5400
-            },
-            {
-                "id": "ssEMtaRwra0",
-                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
-                "duration": 8100
-            },
-            {
-                "id": "8Mhu6dxj7qk",
-                "title": "WE HAVE LASER EYES — Michael Saylor at BTCPrague 2023",
-                "duration": 2400
-            },
-            {
-                "id": "TXvvMGrZDAw",
-                "title": "Billionaire Destroys Peter Schiff's Gold Argument — Michael Saylor",
-                "duration": 1200
-            },
-            {
-                "id": "D_yIKnHOuWg",
-                "title": "Michael Saylor Answers the Question of Our Time",
-                "duration": 600
             },
             {
                 "id": "v4na2pycrcc",
@@ -3858,104 +3823,19 @@ var STATIONS = [
                 "duration": 3600
             },
             {
-                "id": "CA_XnoCk4sY",
-                "title": "Michael Saylor Has DOUBLED His Bitcoin Investment!",
-                "duration": 1200
+                "id": "ssEMtaRwra0",
+                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
+                "duration": 8100
             },
             {
-                "id": "tSAvXsMQjYg",
-                "title": "What is Bitcoin? — Michael Saylor & Tucker Carlson (Nov 2021)",
-                "duration": 1800
-            },
-            {
-                "id": "fzg9I7hHdzs",
-                "title": "Economics, Inflation, Interest Rates & Competition — The Saylor Series Episode 9",
-                "duration": 5400
-            },
-            {
-                "id": "ig9pu0XRtNM",
-                "title": "Bitcoin as Power to the People — Saylor & Robert Breedlove",
-                "duration": 5400
-            },
-            {
-                "id": "LP5W_BUXnEw",
-                "title": "Bitcoin, Economics & Mimetics — Saylor & Robert Breedlove",
-                "duration": 5400
-            },
-            {
-                "id": "fZfg1Gtcg08",
-                "title": "100% Saylor — Michael Saylor Best Moments",
-                "duration": 600
-            },
-            {
-                "id": "qBPtUf50XVg",
-                "title": "Saylor BEST Bitcoin Podcast: Why You NEED 0.1 Bitcoin in 2025",
+                "id": "ykvjtK30HiA",
+                "title": "Michael Saylor & The Ultimate Bitcoin Strategy",
                 "duration": 3600
             },
             {
-                "id": "aFGCKwPNH4I",
-                "title": "The Defining Question of Our Time in History — Michael Saylor",
-                "duration": 1800
-            },
-            {
-                "id": "reVebuAf_Cs",
-                "title": "Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote",
-                "duration": 2211
-            },
-            {
-                "id": "6osK1CXno80",
-                "title": "Michael Saylor GETS ANGRY Talking About Bitcoin",
-                "duration": 600
-            },
-            {
-                "id": "9jgoAqTErfs",
-                "title": "Michael Saylor Brilliantly Explains Bitcoin's Superiority",
-                "duration": 1200
-            },
-            {
-                "id": "fCkABdwjxtE",
-                "title": "Michael Saylor at Bitcoin Atlantis 2024",
-                "duration": 2400
-            },
-            {
-                "id": "7hyoONj4nEY",
-                "title": "What One Billionaire Knows About Outlasting a Dollar Collapse — Jordan Peterson EP 554",
-                "duration": 7200
-            },
-            {
-                "id": "PXC0spZ2M4U",
-                "title": "Is Bitcoin Digital Gold? — Michael Saylor",
-                "duration": 600
-            },
-            {
-                "id": "1R0J-myYPM0",
-                "title": "Michael Saylor: Bitcoin is Hope",
-                "duration": 2700
-            },
-            {
-                "id": "XbEOeRylUCw",
-                "title": "Michael Saylor: Bitcoin, FTX, Bear Market",
-                "duration": 3600
-            },
-            {
-                "id": "hzcmndorLwQ",
-                "title": "Saylor: Bitcoin + Digital Credit = The Future of Money (Full Keynote)",
-                "duration": 3600
-            },
-            {
-                "id": "TWSl9mdoYds",
-                "title": "Expert Analyzes the Impact of a Bitcoin ETF — Michael Saylor",
-                "duration": 600
-            },
-            {
-                "id": "aWtzOQTv8Dc",
-                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
-                "duration": 720
-            },
-            {
-                "id": "RbkLz9C39y0",
-                "title": "Bitcoin's Seven Layers of Security — The Saylor Series Episode 14",
-                "duration": 5400
+                "id": "3-vBBYEXv6M",
+                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
+                "duration": 2100
             },
             {
                 "id": "ytmhmixeCRo",
@@ -3963,43 +3843,63 @@ var STATIONS = [
                 "duration": 3600
             },
             {
-                "id": "blkHhCz5_nY",
-                "title": "Tucker Carlson Interview with Michael Saylor about Bitcoin",
+                "id": "yQL9yua9Yq0",
+                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
                 "duration": 3600
             },
             {
-                "id": "1PkMFIa7rmQ",
-                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
-                "duration": 2415
+                "id": "Rty7BQyUkHM",
+                "title": "NEW Michael Saylor Interview on Bitcoin (12-Minute Summary)",
+                "duration": 720
             },
             {
-                "id": "PyYogQEnPNE",
-                "title": "Should You Buy Bitcoin? — Michael Saylor",
+                "id": "swoZxZyqpT8",
+                "title": "Michael Saylor On How Bitcoin Can Change Everything",
+                "duration": 1800
+            },
+            {
+                "id": "PXC0spZ2M4U",
+                "title": "Is Bitcoin Digital Gold? — Michael Saylor",
                 "duration": 600
             },
             {
-                "id": "N3J868zhH9g",
-                "title": "Bitcoin Is Encrypted Energy — Saylor & Breedlove",
-                "duration": 2400
+                "id": "VTCzVWgJJWs",
+                "title": "Bitcoin As The Apex Predator — Robert Breedlove (Pomp Podcast)",
+                "duration": 4200
             },
             {
-                "id": "XdgP25UcHB0",
-                "title": "Bitcoin for Corporations — Saylor & Dorsey",
-                "duration": 12600
+                "id": "RI4xEHI7tGg",
+                "title": "Michael Saylor — PBD Podcast Ep. 212",
+                "duration": 7200
             },
             {
-                "id": "sjYANTSww34",
-                "title": "Michael Saylor Briefly Explains Why Bitcoin Is The Best Store of Value",
-                "duration": 600
+                "id": "nC37CqWpxfI",
+                "title": "Saylor & Dorsey Interview",
+                "duration": 3400
             },
             {
-                "id": "y8IH0OwFyW4",
-                "title": "Michael Saylor: Why Bitcoin is a Truth Machine",
+                "id": "TXvvMGrZDAw",
+                "title": "Billionaire Destroys Peter Schiff's Gold Argument — Michael Saylor",
                 "duration": 1200
             },
             {
-                "id": "WrR95PFYDFQ",
-                "title": "Michael Saylor On Buying Bitcoin With His Balance Sheet — Pomp Podcast #385",
+                "id": "aFGCKwPNH4I",
+                "title": "The Defining Question of Our Time in History — Michael Saylor",
+                "duration": 1800
+            },
+            {
+                "id": "ZcjFrIMw2sI",
+                "title": "Michael Saylor Keynote — The 2022 Atlas Society Gala",
+                "duration": 2400
+            },
+            {
+                "id": "1Ms7ql_S63A",
+                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
+                "duration": 7800
+            },
+            {
+                "id": "Yd1UFNvqwWQ",
+                "title": "How Bitcoin Changes Everything — The Saylor Series Episode 17",
                 "duration": 5400
             },
             {
@@ -4008,9 +3908,24 @@ var STATIONS = [
                 "duration": 3600
             },
             {
-                "id": "VTCzVWgJJWs",
-                "title": "Bitcoin As The Apex Predator — Robert Breedlove (Pomp Podcast)",
-                "duration": 4200
+                "id": "fzg9I7hHdzs",
+                "title": "Economics, Inflation, Interest Rates & Competition — The Saylor Series Episode 9",
+                "duration": 5400
+            },
+            {
+                "id": "9jgoAqTErfs",
+                "title": "Michael Saylor Brilliantly Explains Bitcoin's Superiority",
+                "duration": 1200
+            },
+            {
+                "id": "4Buu1h_89hY",
+                "title": "Michael Saylor: Bitcoin Is As Risky As Crossing a Street",
+                "duration": 600
+            },
+            {
+                "id": "7gvogsnkjdc",
+                "title": "SaylorWaves — 1 Hour of Relaxing Saylor Speaking about Bitcoin",
+                "duration": 3600
             },
             {
                 "id": "tNJp3qBH1sw",
@@ -4018,59 +3933,69 @@ var STATIONS = [
                 "duration": 5400
             },
             {
-                "id": "S2ziezeoK4E",
-                "title": "What's Actually Happening To Bitcoin & The Economy Right Now — Saylor",
-                "duration": 1800
+                "id": "O9KnBcWMkpw",
+                "duration": 2243,
+                "title": "Michael Saylor 2024 Keynote - Nashville"
             },
             {
-                "id": "gCfA1lkmJo4",
-                "title": "Michael Saylor — The Greatest Bitcoin Explanation",
-                "duration": 1200
-            },
-            {
-                "id": "gRnspOucXNg",
-                "title": "Michael Saylor — Bitcoin Zen",
-                "duration": 300
-            },
-            {
-                "id": "B4nK8mP2qS6",
-                "title": "Michael Saylor on Bitcoin and the Future of Finance",
-                "duration": 4800
-            },
-            {
-                "id": "3GkA2grVaNw",
-                "title": "Michael Saylor Explains Why Bitcoin is Superior to Gold",
-                "duration": 1200
-            },
-            {
-                "id": "aUEhwe2GvtY",
-                "title": "Bitcoin Economics and Evolution — The Saylor Series Episode 16",
-                "duration": 5400
-            },
-            {
-                "id": "ykvjtK30HiA",
-                "title": "Michael Saylor & The Ultimate Bitcoin Strategy",
+                "id": "wSwQxTq147Q",
+                "title": "Chill SaylorVibes — The Margin Call (Bitcoin Lo-fi)",
                 "duration": 3600
             },
             {
-                "id": "d4XxuxnreBs",
-                "title": "True Cost of Inflation — Michael Saylor & Lex Fridman",
+                "id": "wdJFeSY8UVk",
+                "title": "Michael Saylor on Tucker Carlson Today — Full Interview",
+                "duration": 3600
+            },
+            {
+                "id": "1PkMFIa7rmQ",
+                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
+                "duration": 2415
+            },
+            {
+                "id": "Hfdq-Wl1fRQ",
+                "title": "Michael Saylor Explains Why Going All In on Bitcoin Could Be Genius",
+                "duration": 1200
+            },
+            {
+                "id": "D_yIKnHOuWg",
+                "title": "Michael Saylor Answers the Question of Our Time",
                 "duration": 600
             },
             {
-                "id": "WvUE_Yvktwk",
-                "title": "Bitcoin's Seven Layers of Security #2 — The Saylor Series Episode 15",
+                "id": "OA3DGM0vgtM",
+                "title": "Michael Saylor Keynote — 2024 Cantor Fitzgerald Conference",
+                "duration": 3600
+            },
+            {
+                "id": "WrR95PFYDFQ",
+                "title": "Michael Saylor On Buying Bitcoin With His Balance Sheet — Pomp Podcast #385",
                 "duration": 5400
             },
             {
-                "id": "RI4xEHI7tGg",
-                "title": "Michael Saylor — PBD Podcast Ep. 212",
+                "id": "9jsmGd9puYU",
+                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
+                "duration": 646
+            },
+            {
+                "id": "reVebuAf_Cs",
+                "title": "Michael Saylor: 21 Ways To Wealth — Bitcoin 2025 Keynote",
+                "duration": 2211
+            },
+            {
+                "id": "HrehEWYj16s",
+                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles — Lex Fridman",
                 "duration": 7200
             },
             {
-                "id": "gSc6BC1Kh2g",
-                "title": "Digital Gold: Harder, Smarter, Stronger, Faster — The Saylor Series Episode 6",
-                "duration": 5400
+                "id": "c3E91-RGjQE",
+                "title": "EXCLUSIVE: Michael Saylor Masterclass On Bitcoin",
+                "duration": 7200
+            },
+            {
+                "id": "kFP_1ulQ4uI",
+                "title": "SaylorRain — Relaxing Saylor Speaks on Bitcoin with Rain Sounds (1H)",
+                "duration": 3600
             },
             {
                 "id": "Uc26OItd0JU",
@@ -4083,19 +4008,9 @@ var STATIONS = [
                 "duration": 600
             },
             {
-                "id": "KxTWC3ShYDE",
-                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
-                "duration": 1800
-            },
-            {
-                "id": "dAFJzsJdfJI",
-                "title": "Why Michael Saylor Went ALL IN On Bitcoin",
-                "duration": 1800
-            },
-            {
-                "id": "mC43pZkpTec",
-                "title": "Michael Saylor: Bitcoin, Inflation & Future of Money — Lex Fridman #276",
-                "duration": 10800
+                "id": "fZfg1Gtcg08",
+                "title": "100% Saylor — Michael Saylor Best Moments",
+                "duration": 600
             },
             {
                 "id": "uUUwuxTquws",
@@ -4103,119 +4018,14 @@ var STATIONS = [
                 "duration": 1800
             },
             {
-                "id": "9jsmGd9puYU",
-                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
-                "duration": 646
+                "id": "gRnspOucXNg",
+                "title": "Michael Saylor — Bitcoin Zen",
+                "duration": 300
             },
             {
-                "id": "nC37CqWpxfI",
-                "title": "Saylor & Dorsey Interview",
-                "duration": 3400
-            },
-            {
-                "id": "wdJFeSY8UVk",
-                "title": "Michael Saylor on Tucker Carlson Today — Full Interview",
-                "duration": 3600
-            },
-            {
-                "id": "LBKld0QdXnk",
-                "title": "Bitcoin Is Being Adopted By A Country As Sovereign Money — Pomp Podcast #585",
-                "duration": 3600
-            },
-            {
-                "id": "swoZxZyqpT8",
-                "title": "Michael Saylor On How Bitcoin Can Change Everything",
+                "id": "dAFJzsJdfJI",
+                "title": "Why Michael Saylor Went ALL IN On Bitcoin",
                 "duration": 1800
-            },
-            {
-                "id": "1Mr9PknsM_Y",
-                "title": "Michael Saylor's Best Explanation of Bitcoin",
-                "duration": 1200
-            },
-            {
-                "id": "3-vBBYEXv6M",
-                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
-                "duration": 2100
-            },
-            {
-                "id": "VGkyVoNw9v8",
-                "title": "Tech Themes thru History — The Saylor Series Episode 3",
-                "duration": 5400
-            },
-            {
-                "id": "J38-PQ6X8HI",
-                "title": "Michael Saylor: Satoshi Opened A Portal Into Cyberspace",
-                "duration": 1200
-            },
-            {
-                "id": "s_0ggp41rT4",
-                "title": "Bitcoin Common Misconceptions — Saylor & Robert Breedlove",
-                "duration": 5400
-            },
-            {
-                "id": "wba5XJHKPqg",
-                "title": "Saylor: Bitcoin Halving Will Drive Demand Through the Roof",
-                "duration": 600
-            },
-            {
-                "id": "MhNrsdAwaUM",
-                "title": "The Death of Gold — The Saylor Series Episode 10",
-                "duration": 5400
-            },
-            {
-                "id": "ItvfKfYUd0c",
-                "title": "BTC Prague 2025 — Michael Saylor FULL KEYNOTE",
-                "duration": 3600
-            },
-            {
-                "id": "Rty7BQyUkHM",
-                "title": "NEW Michael Saylor Interview on Bitcoin (12-Minute Summary)",
-                "duration": 720
-            },
-            {
-                "id": "8h8Pyy4s12w",
-                "title": "Michael Saylor on Fox News: Why El Salvador Adopted Bitcoin",
-                "duration": 600
-            },
-            {
-                "id": "1Ms7ql_S63A",
-                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
-                "duration": 7800
-            },
-            {
-                "id": "7aJTOCN501g",
-                "title": "Saylor Reveals the TOP Bitcoin Secrets — Digital Asset Summit 2025",
-                "duration": 2400
-            },
-            {
-                "id": "XU5u5gl6EIs",
-                "title": "Why Bitcoin is the Perfect Monetary System — Saylor Explains in Plain English",
-                "duration": 1800
-            },
-            {
-                "id": "LtcbR98uTJQ",
-                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
-                "duration": 7200
-            },
-            {
-                "id": "yQL9yua9Yq0",
-                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
-                "duration": 3600
-            },
-            {
-                "id": "DAXC9km8Wlk",
-                "title": "Bitcoin: Zero Percent Inflation — Saylor & Robert Breedlove",
-                "duration": 5400
-            },
-            {
-                "id": "H99AdvqhUE0",
-                "title": "Michael Saylor: Why 21 Million Changes Everything",
-                "duration": 2400
-            },
-            {
-                "id": "QBLGZqYTmn8",
-                "title": "MicroStrategy's Bitcoin Strategy Is INSANE — Pomp Podcast",
-                "duration": 1200
             },
             {
                 "id": "gHpnTOoGv7Q",
@@ -4223,13 +4033,63 @@ var STATIONS = [
                 "duration": 1800
             },
             {
-                "id": "w2e3nL7xMz0",
-                "title": "Why Corporations Are Putting Bitcoin on Their Balance Sheet — Pomp Podcast #595",
+                "id": "S2ziezeoK4E",
+                "title": "What's Actually Happening To Bitcoin & The Economy Right Now — Saylor",
+                "duration": 1800
+            },
+            {
+                "id": "_Nvh_xScNPY",
+                "title": "SaylorJungle — 1 Hour Relaxing Saylor with Forest Rain Sounds",
                 "duration": 3600
             },
             {
-                "id": "HrehEWYj16s",
-                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles — Lex Fridman",
+                "id": "gCfA1lkmJo4",
+                "title": "Michael Saylor — The Greatest Bitcoin Explanation",
+                "duration": 1200
+            },
+            {
+                "id": "sjYANTSww34",
+                "title": "Michael Saylor Briefly Explains Why Bitcoin Is The Best Store of Value",
+                "duration": 600
+            },
+            {
+                "id": "N3J868zhH9g",
+                "title": "Bitcoin Is Encrypted Energy — Saylor & Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Michael Saylor's Best Explanation of Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "ig9pu0XRtNM",
+                "title": "Bitcoin as Power to the People — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "VGkyVoNw9v8",
+                "title": "Tech Themes thru History — The Saylor Series Episode 3",
+                "duration": 5400
+            },
+            {
+                "id": "7aJTOCN501g",
+                "title": "Saylor Reveals the TOP Bitcoin Secrets — Digital Asset Summit 2025",
+                "duration": 2400
+            },
+            {
+                "id": "B4nK8mP2qS6",
+                "title": "Michael Saylor on Bitcoin and the Future of Finance",
+                "duration": 4800
+            },
+            {
+                "id": "TWSl9mdoYds",
+                "title": "Expert Analyzes the Impact of a Bitcoin ETF — Michael Saylor",
+                "duration": 600
+            },
+            {
+                "id": "7hyoONj4nEY",
+                "title": "What One Billionaire Knows About Outlasting a Dollar Collapse — Jordan Peterson EP 554",
                 "duration": 7200
             },
             {
@@ -4238,19 +4098,49 @@ var STATIONS = [
                 "duration": 7500
             },
             {
-                "id": "ZcjFrIMw2sI",
-                "title": "Michael Saylor Keynote — The 2022 Atlas Society Gala",
+                "id": "8Mhu6dxj7qk",
+                "title": "WE HAVE LASER EYES — Michael Saylor at BTCPrague 2023",
                 "duration": 2400
             },
             {
-                "id": "c3E91-RGjQE",
-                "title": "EXCLUSIVE: Michael Saylor Masterclass On Bitcoin",
-                "duration": 7200
+                "id": "y8IH0OwFyW4",
+                "title": "Michael Saylor: Why Bitcoin is a Truth Machine",
+                "duration": 1200
             },
             {
-                "id": "GUrt5xVBWMk",
-                "title": "Michael Saylor Is A Bitcoin Genius — Pomp Podcast",
+                "id": "UQjmBvmyfqA",
+                "title": "Listening to Michael Saylor ALL Day — Transcendental Bitcoin Meditation",
+                "duration": 3600
+            },
+            {
+                "id": "H99AdvqhUE0",
+                "title": "Michael Saylor: Why 21 Million Changes Everything",
+                "duration": 2400
+            },
+            {
+                "id": "KxTWC3ShYDE",
+                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
                 "duration": 1800
+            },
+            {
+                "id": "CA_XnoCk4sY",
+                "title": "Michael Saylor Has DOUBLED His Bitcoin Investment!",
+                "duration": 1200
+            },
+            {
+                "id": "ItvfKfYUd0c",
+                "title": "BTC Prague 2025 — Michael Saylor FULL KEYNOTE",
+                "duration": 3600
+            },
+            {
+                "id": "fCkABdwjxtE",
+                "title": "Michael Saylor at Bitcoin Atlantis 2024",
+                "duration": 2400
+            },
+            {
+                "id": "J38-PQ6X8HI",
+                "title": "Michael Saylor: Satoshi Opened A Portal Into Cyberspace",
+                "duration": 1200
             },
             {
                 "id": "IdPKzulKdFI",
@@ -4258,9 +4148,54 @@ var STATIONS = [
                 "duration": 900
             },
             {
+                "id": "XbEOeRylUCw",
+                "title": "Michael Saylor: Bitcoin, FTX, Bear Market",
+                "duration": 3600
+            },
+            {
+                "id": "UADTd7gCuXo",
+                "title": "THERE IS NO SECOND BEST — Saylor at BTCPrague 2023",
+                "duration": 1800
+            },
+            {
+                "id": "LBKld0QdXnk",
+                "title": "Bitcoin Is Being Adopted By A Country As Sovereign Money — Pomp Podcast #585",
+                "duration": 3600
+            },
+            {
+                "id": "PyYogQEnPNE",
+                "title": "Should You Buy Bitcoin? — Michael Saylor",
+                "duration": 600
+            },
+            {
+                "id": "6osK1CXno80",
+                "title": "Michael Saylor GETS ANGRY Talking About Bitcoin",
+                "duration": 600
+            },
+            {
+                "id": "Y7FsiPuF3z4",
+                "title": "SaylorSpace — Travel Through Cosmos with Michael Saylor on Bitcoin",
+                "duration": 3600
+            },
+            {
+                "id": "tSAvXsMQjYg",
+                "title": "What is Bitcoin? — Michael Saylor & Tucker Carlson (Nov 2021)",
+                "duration": 1800
+            },
+            {
                 "id": "WOpTi_qJUiw",
                 "title": "Bitcoin's Transaction Volume Exceeded American Express — Saylor",
                 "duration": 600
+            },
+            {
+                "id": "WvUE_Yvktwk",
+                "title": "Bitcoin's Seven Layers of Security #2 — The Saylor Series Episode 15",
+                "duration": 5400
+            },
+            {
+                "id": "SojzZxhMf00",
+                "title": "The Virtues of Strong Money — The Saylor Series Episode 7",
+                "duration": 5400
             },
             {
                 "id": "CYT0AxQxa7o",
@@ -4268,9 +4203,149 @@ var STATIONS = [
                 "duration": 5400
             },
             {
-                "id": "Hfdq-Wl1fRQ",
-                "title": "Michael Saylor Explains Why Going All In on Bitcoin Could Be Genius",
+                "id": "aWtzOQTv8Dc",
+                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
+                "duration": 720
+            },
+            {
+                "id": "wba5XJHKPqg",
+                "title": "Saylor: Bitcoin Halving Will Drive Demand Through the Roof",
+                "duration": 600
+            },
+            {
+                "id": "LtcbR98uTJQ",
+                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
+                "duration": 7200
+            },
+            {
+                "id": "hV_sgkHhApo",
+                "title": "SaylorNight — Relaxing Saylor Speaks on Bitcoin in the Night (1H)",
+                "duration": 3600
+            },
+            {
+                "id": "hzcmndorLwQ",
+                "title": "Saylor: Bitcoin + Digital Credit = The Future of Money (Full Keynote)",
+                "duration": 3600
+            },
+            {
+                "id": "mC43pZkpTec",
+                "title": "Michael Saylor: Bitcoin, Inflation & Future of Money — Lex Fridman #276",
+                "duration": 10800
+            },
+            {
+                "id": "XdgP25UcHB0",
+                "title": "Bitcoin for Corporations — Saylor & Dorsey",
+                "duration": 12600
+            },
+            {
+                "id": "coHC_9ApBdg",
+                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
+                "duration": 5400
+            },
+            {
+                "id": "d4XxuxnreBs",
+                "title": "True Cost of Inflation — Michael Saylor & Lex Fridman",
+                "duration": 600
+            },
+            {
+                "id": "MSMJBmo_q4s",
+                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
+                "duration": 4200
+            },
+            {
+                "id": "blkHhCz5_nY",
+                "title": "Tucker Carlson Interview with Michael Saylor about Bitcoin",
+                "duration": 3600
+            },
+            {
+                "id": "RbkLz9C39y0",
+                "title": "Bitcoin's Seven Layers of Security — The Saylor Series Episode 14",
+                "duration": 5400
+            },
+            {
+                "id": "GUrt5xVBWMk",
+                "title": "Michael Saylor Is A Bitcoin Genius — Pomp Podcast",
+                "duration": 1800
+            },
+            {
+                "id": "6P97_koDGtA",
+                "title": "Bitcoin vs Manhattan Real Estate in 1776 — Michael Saylor",
+                "duration": 300
+            },
+            {
+                "id": "aUEhwe2GvtY",
+                "title": "Bitcoin Economics and Evolution — The Saylor Series Episode 16",
+                "duration": 5400
+            },
+            {
+                "id": "1R0J-myYPM0",
+                "title": "Michael Saylor: Bitcoin is Hope",
+                "duration": 2700
+            },
+            {
+                "id": "XU5u5gl6EIs",
+                "title": "Why Bitcoin is the Perfect Monetary System — Saylor Explains in Plain English",
+                "duration": 1800
+            },
+            {
+                "id": "QBLGZqYTmn8",
+                "title": "MicroStrategy's Bitcoin Strategy Is INSANE — Pomp Podcast",
                 "duration": 1200
+            },
+            {
+                "id": "qBPtUf50XVg",
+                "title": "Saylor BEST Bitcoin Podcast: Why You NEED 0.1 Bitcoin in 2025",
+                "duration": 3600
+            },
+            {
+                "id": "MhNrsdAwaUM",
+                "title": "The Death of Gold — The Saylor Series Episode 10",
+                "duration": 5400
+            },
+            {
+                "id": "DAXC9km8Wlk",
+                "title": "Bitcoin: Zero Percent Inflation — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "3GkA2grVaNw",
+                "title": "Michael Saylor Explains Why Bitcoin is Superior to Gold",
+                "duration": 1200
+            },
+            {
+                "id": "dogJz_CfQW8",
+                "title": "Inspiring and Relaxing Michael Saylor Speaks about Bitcoin for 1H",
+                "duration": 3600
+            },
+            {
+                "id": "hqoagNBtIps",
+                "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
+                "duration": 2400
+            },
+            {
+                "id": "s_0ggp41rT4",
+                "title": "Bitcoin Common Misconceptions — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "LP5W_BUXnEw",
+                "title": "Bitcoin, Economics & Mimetics — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "59vC4JxWIQU",
+                "title": "Michael Saylor Keynote Address — BTC in DC 2025",
+                "duration": 2400
+            },
+            {
+                "id": "8h8Pyy4s12w",
+                "title": "Michael Saylor on Fox News: Why El Salvador Adopted Bitcoin",
+                "duration": 600
+            },
+            {
+                "id": "gSc6BC1Kh2g",
+                "title": "Digital Gold: Harder, Smarter, Stronger, Faster — The Saylor Series Episode 6",
+                "duration": 5400
             }
         ]
     },
