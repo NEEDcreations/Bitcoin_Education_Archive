@@ -5636,6 +5636,7 @@ function loadVideo(videoId, startSeconds) {
             'onStateChange': onPlayerStateChange,
             'onReady': function(event) {
                 event.target.playVideo();
+                _syncYTVolume();
             }
         }
     });
@@ -5692,6 +5693,7 @@ function _advanceToNextVideo() {
             videoId: state.video.id,
             startSeconds: Math.floor(state.offset)
         });
+        _syncYTVolume();
         var syncBtn = document.getElementById('tctv-sync-btn');
         if (syncBtn) syncBtn.style.display = 'none';
         return;
@@ -5760,6 +5762,51 @@ window.tctvRemotePause = function() {
         syncPlayer();
     }
 };
+
+window.tctvRemoteVolume = function(dir) {
+    // Get current volume (0-100 for YT, 0-1 for app)
+    var current = 50;
+    if (_ytPlayer && _ytPlayer.getVolume) {
+        try { current = _ytPlayer.getVolume(); } catch(e) {}
+    } else if (typeof window.audioVolume === 'number') {
+        current = Math.round(window.audioVolume * 100);
+    }
+    var next = Math.max(0, Math.min(100, current + (dir * 10)));
+    
+    // Apply to YT player
+    if (_ytPlayer && _ytPlayer.setVolume) {
+        try {
+            _ytPlayer.setVolume(next);
+            if (next === 0) _ytPlayer.mute();
+            else _ytPlayer.unMute();
+        } catch(e) {}
+    }
+    
+    // Sync with app volume system (0-1 scale)
+    if (typeof window.setVolume === 'function') {
+        window.setVolume(next / 100);
+    }
+    
+    // Show toast
+    var icon = next === 0 ? '\ud83d\udd07' : next <= 30 ? '\ud83d\udd08' : next <= 60 ? '\ud83d\udd09' : '\ud83d\udd0a';
+    if (typeof showToast === 'function') showToast(icon + ' Volume: ' + next + '%');
+    
+    // Update label if visible
+    var label = document.getElementById('tctv-vol-label');
+    if (label) label.textContent = next + '%';
+};
+
+// Sync YT player volume with app volume on player ready/load
+function _syncYTVolume() {
+    if (_ytPlayer && _ytPlayer.setVolume && typeof window.audioVolume === 'number') {
+        var vol = Math.round(window.audioVolume * 100);
+        try {
+            _ytPlayer.setVolume(vol);
+            if (vol === 0) _ytPlayer.mute();
+            else _ytPlayer.unMute();
+        } catch(e) {}
+    }
+}
 
 window.tctvToggleRemote = function() {
     var r = document.getElementById('tctv-remote');
@@ -6125,6 +6172,12 @@ window.renderTimechainTV = function() {
                 '<span class="remote-label" style="margin:0">CH</span>' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
             '</div>' +
+            // Volume controls
+            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
+                '<button class="remote-btn" onclick="tctvRemoteVolume(1)">▲</button>' +
+                '<span class="remote-label" style="margin:0">VOL</span>' +
+                '<button class="remote-btn" onclick="tctvRemoteVolume(-1)">▼</button>' +
+            '</div>' +
             // Bottom Controls (Pause and Back)
             '<div style="display:flex;flex-direction:column;gap:8px;align-items:center;">' +
                 '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn-inline" title="Pause/Play">⏸</button>' +
@@ -6164,6 +6217,12 @@ window.renderTimechainTV = function() {
                     '<input type="text" id="remote-ch-input" class="remote-input" placeholder="--" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
                 '</div>' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
+            '</div>' +
+            // Volume controls (mobile horizontal)
+            '<div style="background:#1a1a1a;border-radius:12px;padding:4px 8px;display:flex;flex-direction:row;align-items:center;gap:8px;">' +
+                '<button class="remote-btn" style="width:28px;height:28px;font-size:0.7rem;" onclick="tctvRemoteVolume(-1)">▼</button>' +
+                '<span style="color:#666;font-size:0.6rem;font-weight:900;min-width:24px;text-align:center;" id="tctv-vol-label">VOL</span>' +
+                '<button class="remote-btn" style="width:28px;height:28px;font-size:0.7rem;" onclick="tctvRemoteVolume(1)">▲</button>' +
             '</div>' +
             // Added Blue Pause button for mobile flow (horizontal layout)
             '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button>' +
