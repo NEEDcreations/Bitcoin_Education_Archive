@@ -176,6 +176,67 @@ var STATIONS = [
                 "title": "Bitcoin Art with FractalEncrypt — Freedom Footprint",
                 "duration": 3600
             }
+        ,
+            {
+                "id": "W03SVhhOaEU",
+                "title": "The Bitcoin Full Node Sculpture 7.0 — A Cypherpunk Chronometer (MirrorNode)",
+                "duration": 600
+            },
+            {
+                "id": "Q5Wxg53qu9s",
+                "title": "The Bitcoin Full Node Sculpture #2 of 10",
+                "duration": 300
+            },
+            {
+                "id": "bHj-a4_nX78",
+                "title": "FractalEncrypt Bitcoin Full Node Sculpture",
+                "duration": 300
+            },
+            {
+                "id": "YZ2B-Qnm0eM",
+                "title": "The Timechain Codex by FractalEncrypt",
+                "duration": 300
+            },
+            {
+                "id": "H1oc5HKixBg",
+                "title": "The Bitcoin Full Node Sculpture 4.0 — A Cypherpunk Chronometer",
+                "duration": 600
+            },
+            {
+                "id": "HVKq5qfZSqU",
+                "title": "FractalEncrypt Bitcoin Full Node Book & Canvas — Bitcoin 2022 Conference",
+                "duration": 300
+            },
+            {
+                "id": "XrD617FIfJM",
+                "title": "FractalEncrypt's Bitcoin Full Node — DESIGN Feature for Block04",
+                "duration": 600
+            },
+            {
+                "id": "KORJr5ZfzWI",
+                "title": "Bitcoin Full Node Sculpture",
+                "duration": 300
+            },
+            {
+                "id": "EQSyE-EzOqM",
+                "title": "Bitcoin Full Node Sculpture Auction Close",
+                "duration": 180
+            },
+            {
+                "id": "I0SecXkqums",
+                "title": "Bitcoin Full Node Sculpture Lightning Auction Launch",
+                "duration": 300
+            },
+            {
+                "id": "l5a6-9mNqho",
+                "title": "World's Largest Bitcoin Sculpture",
+                "duration": 300
+            },
+            {
+                "id": "0qS_oBk-tbY",
+                "title": "FractalEncrypt: Artistic Bitcoin Education — Bitcoin With Jake #44",
+                "duration": 3600
+            }
         ]
     },
     {
@@ -3141,6 +3202,127 @@ var STATIONS = [
                 "id": "B4nK8mP2qS6",
                 "title": "Michael Saylor on Bitcoin and the Future of Finance",
                 "duration": 4800
+            }
+        ,
+            {
+                "id": "s_0ggp41rT4",
+                "title": "Bitcoin Common Misconceptions — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "ig9pu0XRtNM",
+                "title": "Bitcoin as Power to the People — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "LP5W_BUXnEw",
+                "title": "Bitcoin, Economics & Mimetics — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "DAXC9km8Wlk",
+                "title": "Bitcoin: Zero Percent Inflation — Saylor & Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "VTCzVWgJJWs",
+                "title": "Bitcoin As The Apex Predator — Robert Breedlove (Pomp Podcast)",
+                "duration": 4200
+            },
+            {
+                "id": "HrehEWYj16s",
+                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles — Lex Fridman",
+                "duration": 7200
+            },
+            {
+                "id": "CYT0AxQxa7o",
+                "title": "Why Bitcoin Succeeds — The Saylor Series Episode 12",
+                "duration": 5400
+            },
+            {
+                "id": "RbkLz9C39y0",
+                "title": "Bitcoin's Seven Layers of Security — The Saylor Series Episode 14",
+                "duration": 5400
+            },
+            {
+                "id": "aUEhwe2GvtY",
+                "title": "Bitcoin Economics and Evolution — The Saylor Series Episode 16",
+                "duration": 5400
+            },
+            {
+                "id": "Yd1UFNvqwWQ",
+                "title": "How Bitcoin Changes Everything — The Saylor Series Episode 17",
+                "duration": 5400
+            },
+            {
+                "id": "mC43pZkpTec",
+                "title": "Michael Saylor: Bitcoin, Inflation & Future of Money — Lex Fridman #276",
+                "duration": 10800
+            },
+            {
+                "id": "7hyoONj4nEY",
+                "title": "What One Billionaire Knows About Outlasting a Dollar Collapse — Jordan Peterson EP 554",
+                "duration": 7200
+            },
+            {
+                "id": "9jgoAqTErfs",
+                "title": "Michael Saylor Brilliantly Explains Bitcoin's Superiority",
+                "duration": 1200
+            },
+            {
+                "id": "XU5u5gl6EIs",
+                "title": "Why Bitcoin is the Perfect Monetary System — Saylor Explains in Plain English",
+                "duration": 1800
+            },
+            {
+                "id": "3GkA2grVaNw",
+                "title": "Michael Saylor Explains Why Bitcoin is Superior to Gold",
+                "duration": 1200
+            },
+            {
+                "id": "4Buu1h_89hY",
+                "title": "Michael Saylor: Bitcoin Is As Risky As Crossing a Street",
+                "duration": 600
+            },
+            {
+                "id": "swoZxZyqpT8",
+                "title": "Michael Saylor On How Bitcoin Can Change Everything",
+                "duration": 1800
+            },
+            {
+                "id": "sjYANTSww34",
+                "title": "Michael Saylor Briefly Explains Why Bitcoin Is The Best Store of Value",
+                "duration": 600
+            },
+            {
+                "id": "IdPKzulKdFI",
+                "title": "Is Michael Saylor a Threat For Owning So Much Bitcoin?",
+                "duration": 900
+            },
+            {
+                "id": "gHpnTOoGv7Q",
+                "title": "Saylor: Why Bitcoin Will Birth a New Generation of Trillion-Dollar Companies",
+                "duration": 1800
+            },
+            {
+                "id": "7aJTOCN501g",
+                "title": "Saylor Reveals the TOP Bitcoin Secrets — Digital Asset Summit 2025",
+                "duration": 2400
+            },
+            {
+                "id": "Hfdq-Wl1fRQ",
+                "title": "Michael Saylor Explains Why Going All In on Bitcoin Could Be Genius",
+                "duration": 1200
+            },
+            {
+                "id": "qBPtUf50XVg",
+                "title": "Saylor BEST Bitcoin Podcast: Why You NEED 0.1 Bitcoin in 2025",
+                "duration": 3600
+            },
+            {
+                "id": "H99AdvqhUE0",
+                "title": "Michael Saylor: Why 21 Million Changes Everything",
+                "duration": 2400
             }
         ]
     },
