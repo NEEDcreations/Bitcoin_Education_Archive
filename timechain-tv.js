@@ -666,6 +666,27 @@ var STATIONS = [
                 "duration": 1800,
                 "title": "The Evolution of Bitcoin Mining!"
             }
+        ,
+            {
+                "id": "QTyzyP2Afys",
+                "title": "Cryptocurrencies — The Future of Money? (DW Documentary)",
+                "duration": 2700
+            },
+            {
+                "id": "OH-xRaHdqy4",
+                "title": "Japan Bitcoin Documentary — Why One Tokyo Company Is Changing Finance",
+                "duration": 1800
+            },
+            {
+                "id": "S70MSDaLAKw",
+                "title": "Why Bitcoin's Creator Disappeared Forever",
+                "duration": 1200
+            },
+            {
+                "id": "jsccmbOT6FU",
+                "title": "Biggest Bitcoin Holders 2024",
+                "duration": 900
+            }
         ]
     },
     {
@@ -968,6 +989,12 @@ var STATIONS = [
                 "duration": 600,
                 "title": "Exit The Matrix - Buy BTC Eat Meat"
             }
+        ,
+            {
+                "id": "hL54mn7vW8w",
+                "title": "Surf, Eat Meat, Repeat — Bitcoin Lifestyle",
+                "duration": 1200
+            }
         ]
     },
     {
@@ -1136,6 +1163,57 @@ var STATIONS = [
                 "duration": 3600,
                 "title": "First Kids Cartoon about Bitcoin!"
             }
+        ,
+            {
+                "id": "xvo_m_r2ubg",
+                "title": "What is Bitcoin? Simple Explanation for Teens & Beginners",
+                "duration": 480
+            },
+            {
+                "id": "s4g1XFU8Gto",
+                "title": "Bitcoin Explained and Made Simple",
+                "duration": 360
+            },
+            {
+                "id": "nqdv6Ad9Nt4",
+                "title": "What is Bitcoin? (for kids)",
+                "duration": 300
+            },
+            {
+                "id": "Bv9LCSMEgGQ",
+                "title": "BITCOIN EXPLAINED FOR KIDS",
+                "duration": 420
+            },
+            {
+                "id": "dAujdH8Iwcg",
+                "title": "Bitcoin Explained for Kids & Beginners — Digital Money Made Easy",
+                "duration": 360
+            },
+            {
+                "id": "vPMDpb9ho4s",
+                "title": "Blockchain for Kids — Blockchain Explained for Beginners",
+                "duration": 420
+            },
+            {
+                "id": "61G4YhJsSNo",
+                "title": "What is BITCOIN — Bitcoin Explained to Kids, Teens and Adults",
+                "duration": 480
+            },
+            {
+                "id": "3nwprNzztQE",
+                "title": "Bitcoin Explained for Kids & Teens (Parents: Show This to Your Kids!)",
+                "duration": 600
+            },
+            {
+                "id": "rT4ThQ55SD8",
+                "title": "Who Invented Bitcoin? (for kids)",
+                "duration": 300
+            },
+            {
+                "id": "t0ZAXwV1CI8",
+                "title": "Cryptocurrency Explained For Kids",
+                "duration": 360
+            }
         ]
     },
     {
@@ -1235,6 +1313,57 @@ var STATIONS = [
                 "duration": 1500,
                 "title": "Phoenix Wallet Setup & Tutorial"
             }
+        ,
+            {
+                "id": "vyDtzx_PYNk",
+                "title": "Bitcoin Lightning Wallets Compared",
+                "duration": 900
+            },
+            {
+                "id": "OQ2o5LUgOqE",
+                "title": "Mutiny Wallet Tutorial — Bitcoin Lightning (self-custody)",
+                "duration": 1200
+            },
+            {
+                "id": "7VyUqRyYT9w",
+                "title": "Best Lightning Network Wallet — Low BTC Transaction Fees",
+                "duration": 900
+            },
+            {
+                "id": "c9hnntAwSYg",
+                "title": "Bitcoin's Lightning Network Surprises Us All!",
+                "duration": 600
+            },
+            {
+                "id": "x3Q9mEdelK4",
+                "title": "Understanding Aqua Wallet — Bitcoin, Lightning, and Liquid",
+                "duration": 900
+            },
+            {
+                "id": "fympoUHx2b8",
+                "title": "Creating A Custom Self-Custodial Bitcoin Lightning Address",
+                "duration": 900
+            },
+            {
+                "id": "ldUwf_s44Zg",
+                "title": "Bitcoin Wallets Explained — Lightning Session",
+                "duration": 600
+            },
+            {
+                "id": "7QAmlcrZD2U",
+                "title": "The Lightning Network Explained in Under 3 Minutes",
+                "duration": 180
+            },
+            {
+                "id": "gkZJ1P-D0c4",
+                "title": "Paying at McDonald's with Bitcoin Lightning in Lugano",
+                "duration": 120
+            },
+            {
+                "id": "GKXQiDhRy34",
+                "title": "How To Back Up A Bitcoin Wallet — Lightning Session",
+                "duration": 600
+            }
         ]
     },
     {
@@ -1313,6 +1442,47 @@ var STATIONS = [
                 "id": "uql_VKemddY",
                 "duration": 36000,
                 "title": "Vibing with the Fed and Bitcoin 10 Hour Loop"
+            }
+        ,
+            {
+                "id": "wIhTGB3wqV0",
+                "title": "Michael Saylor Meme — NO SECOND BEST",
+                "duration": 60
+            },
+            {
+                "id": "l-aVgXwnESM",
+                "title": "When Bitcoin Encounters Fiat (No.2) — Crypto Memes",
+                "duration": 120
+            },
+            {
+                "id": "BgHEOhciWcQ",
+                "title": "What Happens If You Never Buy Bitcoin?",
+                "duration": 300
+            },
+            {
+                "id": "hAxfwE9Oj2g",
+                "title": "BIG BEAUTIFUL BITCOIN!",
+                "duration": 120
+            },
+            {
+                "id": "3mA_U4tYS8s",
+                "title": "Hank Finds Out About Crypto Crash",
+                "duration": 180
+            },
+            {
+                "id": "aTqT5TDLtT8",
+                "title": "Bitcoin History As Told By Memes",
+                "duration": 600
+            },
+            {
+                "id": "E6mK2aZbuSo",
+                "title": "Recovery of a Lost Bitcoin Wallet from 2010",
+                "duration": 180
+            },
+            {
+                "id": "8EoxggHmWxY",
+                "title": "How to Mine Bitcoins (Classic)",
+                "duration": 240
             }
         ]
     },
@@ -1422,6 +1592,32 @@ var STATIONS = [
                 "id": "t5S1Y6OopHo",
                 "duration": 900,
                 "title": "BEST Home Miners 2024 Guide"
+            }
+        ,
+            {
+                "id": "Py3voZGT1To",
+                "title": "Bitcoin Mining Explained Simply — Real ASIC Miner Running at Home",
+                "duration": 900
+            },
+            {
+                "id": "TVR0E6KVb-c",
+                "title": "What is a Bitcoin Miner? Disassembling an S19 While Explaining",
+                "duration": 1200
+            },
+            {
+                "id": "WbEn-fsAEqs",
+                "title": "I Mined Bitcoin for 1 Year (Honest Results)",
+                "duration": 1200
+            },
+            {
+                "id": "hN0VH__AZSE",
+                "title": "This Thing Earns $914 PER DAY?! Here's How",
+                "duration": 900
+            },
+            {
+                "id": "e4BtAMXuRKI",
+                "title": "What is Bitcoin Mining? How to Earn from Cryptocurrency Mining",
+                "duration": 600
             }
         ]
     },
@@ -1981,6 +2177,37 @@ var STATIONS = [
                 "title": "Is This the Final Bitcoin Crash Before All-Time Highs? — Simply Bitcoin",
                 "duration": 1500
             }
+        ,
+            {
+                "id": "W-ArTN0Xj4c",
+                "title": "Bitcoin Surges and Vanguard Allows Crypto ETF Trading — CNBC",
+                "duration": 600
+            },
+            {
+                "id": "G0csA1i4rtU",
+                "title": "Bitcoin ETFs Explained: The Future of Crypto in 2025",
+                "duration": 900
+            },
+            {
+                "id": "dy2ZTOq22bQ",
+                "title": "Cathie Wood Increased Her Bitcoin Price Prediction for 2025",
+                "duration": 600
+            },
+            {
+                "id": "kh-YqlKC23k",
+                "title": "Why Bitcoin Is Still King in 2025 — USA & UK Adoption",
+                "duration": 900
+            },
+            {
+                "id": "241nNtbdXaA",
+                "title": "Bitcoin Experts Predict 2025 Will Be the Year of Mass Adoption",
+                "duration": 900
+            },
+            {
+                "id": "b_u1O9qzG6U",
+                "title": "Big Bitcoin Adoption News!",
+                "duration": 600
+            }
         ]
     },
     {
@@ -2388,6 +2615,47 @@ var STATIONS = [
                 "duration": 340,
                 "title": "Bitcoin Breaking Records - SuperTalk"
             }
+        ,
+            {
+                "id": "nDSPY2XMmL0",
+                "title": "New Hampshire's Strategic Crypto Reserve — What to Know",
+                "duration": 900
+            },
+            {
+                "id": "tja-5y_FvgY",
+                "title": "Regulatory Shackles Are Off",
+                "duration": 600
+            },
+            {
+                "id": "vr1M2anvbWU",
+                "title": "Trump's Bitcoin Reserve Plan — Power Move or Trap?",
+                "duration": 1200
+            },
+            {
+                "id": "YwZseBZOc6U",
+                "title": "The Bitcoin Strategic Reserve",
+                "duration": 900
+            },
+            {
+                "id": "jMg3U-51Obw",
+                "title": "GOP Rep Unveils Bold Crypto Tax Twist — No Capital Gains",
+                "duration": 600
+            },
+            {
+                "id": "TE0eFKTJEfQ",
+                "title": "Bitcoin Policy Outlook 2025 — Strategic Reserves, BitBonds & Privacy",
+                "duration": 1800
+            },
+            {
+                "id": "5IHNLgkO6Ls",
+                "title": "Trump Signs Order to Establish Strategic Reserve of Cryptocurrencies",
+                "duration": 600
+            },
+            {
+                "id": "kJEzpYjVsB4",
+                "title": "Trump's Policies — Strategic Bitcoin Reserve & Stablecoin Law",
+                "duration": 900
+            }
         ]
     },
     {
@@ -2651,6 +2919,22 @@ var STATIONS = [
                 "duration": 900,
                 "title": "Realistically Reaching  Million"
             }
+        ,
+            {
+                "id": "lyTHPcHDOk8",
+                "title": "Rational Root: Bitcoin Will Hit $600k then $6 Million",
+                "duration": 1800
+            },
+            {
+                "id": "yhcbMUh3YTo",
+                "title": "The Generational Bitcoin Price Run Begins",
+                "duration": 1200
+            },
+            {
+                "id": "wOi9XqeJy2E",
+                "title": "Cathie Wood — New 2025 Prediction for Bitcoin & Ethereum",
+                "duration": 900
+            }
         ]
     },
     {
@@ -2784,6 +3068,22 @@ var STATIONS = [
                 "id": "lhzooru_B-o",
                 "duration": 36000,
                 "title": "10 Hours of Bitcoin Tutorials: Node & Wallet Setup"
+            }
+        ,
+            {
+                "id": "3QH7ZTibV-Q",
+                "title": "How to Buy Bitcoin (in 2 minutes) — 2024 Updated",
+                "duration": 120
+            },
+            {
+                "id": "O1KaAboPX44",
+                "title": "How To Buy Bitcoin For Beginners — Step by Step",
+                "duration": 600
+            },
+            {
+                "id": "tuUO-Q4_b5c",
+                "title": "How to Buy Bitcoins in 2024 (4 Methods Reviewed)",
+                "duration": 900
             }
         ]
     }
