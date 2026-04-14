@@ -5644,30 +5644,50 @@ function loadVideo(videoId, startSeconds) {
 
 function onPlayerStateChange(event) {
     if (_apiFailed || typeof YT === 'undefined') return;
-    var syncBtn = document.getElementById('tctv-sync-btn');
     var overlay = document.getElementById('tctv-pause-overlay');
+    var p = document.getElementById('tctv-player');
     
-    // User paused video manually
-    if (event.data === YT.PlayerState.PAUSED && !_isPaused) {
+    // User paused video manually (via YT controls or our remote)
+    if (event.data === YT.PlayerState.PAUSED) {
+        _isPaused = true;
         if (overlay) overlay.style.display = 'flex';
-        var p = document.getElementById('tctv-player');
         if (p) p.style.opacity = '0.3';
+        _updatePauseButtons(true);
+        _showSyncButtons(true);
     } 
     
-    // User resumed video
+    // Video playing
     if (event.data === YT.PlayerState.PLAYING) {
+        _isPaused = false;
         if (overlay) overlay.style.display = 'none';
-        var p = document.getElementById('tctv-player');
         if (p) p.style.opacity = '1';
-        
-        // Check for time drift (seek)
+        _updatePauseButtons(false);
         checkDrift();
     }
 
     // Video ended — advance to next video immediately
     if (event.data === YT.PlayerState.ENDED) {
+        _isPaused = false;
         _advanceToNextVideo();
     }
+
+    // Buffering
+    if (event.data === YT.PlayerState.BUFFERING) {
+        _isPaused = false;
+    }
+}
+
+function _updatePauseButtons(paused) {
+    var btn = document.getElementById('remote-pause-btn');
+    var btn2 = document.getElementById('remote-pause-btn-inline');
+    if (btn) btn.textContent = paused ? '\u25b6' : '\u23f8';
+    if (btn2) btn2.textContent = paused ? '\u25b6' : '\u23f8';
+}
+
+function _showSyncButtons(show) {
+    document.querySelectorAll('[id="tctv-sync-btn"]').forEach(function(el) {
+        el.style.display = show ? 'inline-block' : 'none';
+    });
 }
 
 // Advance to the next scheduled video on the current station
@@ -5705,17 +5725,21 @@ function _advanceToNextVideo() {
 }
 
 function checkDrift() {
-    if (_apiFailed || !_ytPlayer || !_ytPlayer.getCurrentTime || !window._currentStation || _isPaused) return;
+    if (_apiFailed || !_ytPlayer || !_ytPlayer.getCurrentTime || !_currentStation || _isPaused) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+    if (!station) return;
     var state = getPlaybackState(station);
-    var currentTime = _ytPlayer.getCurrentTime();
+    if (!state.video) return;
     
-    // If user is more than 5 seconds away from "live", show sync button
-    var drift = Math.abs(currentTime - state.offset);
-    var syncBtn = document.getElementById('tctv-sync-btn');
-    if (syncBtn) {
-        syncBtn.style.display = (drift > 5) ? 'inline-block' : 'none';
-    }
+    var currentTime;
+    try { currentTime = _ytPlayer.getCurrentTime(); } catch(e) { return; }
+    
+    // Check if we're on the wrong video entirely
+    var wrongVideo = (state.video.id !== _currentVideoId);
+    
+    // Check time drift within the correct video
+    var drift = wrongVideo ? 999 : Math.abs(currentTime - state.offset);
+    _showSyncButtons(drift > 5);
 }
 
 // ── Remote Functions ──
@@ -5739,26 +5763,20 @@ window.tctvDirectChannel = function(val) {
 
 window.tctvRemotePause = function() {
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
-    _isPaused = !_isPaused;
-    var btn = document.getElementById('remote-pause-btn');
-    var btn2 = document.getElementById('remote-pause-btn-inline');
-    var p = document.getElementById('tctv-player');
-    var overlay = document.getElementById('tctv-pause-overlay');
-    var syncBtn = document.getElementById('tctv-sync-btn');
     
-    if (_isPaused) {
-        if (btn) btn.textContent = '▶';
-        if (btn2) btn2.textContent = '▶';
-        if (overlay) overlay.style.display = 'flex';
+    if (!_isPaused) {
+        // Pause
+        _isPaused = true;
         if (_ytPlayer && _ytPlayer.pauseVideo) _ytPlayer.pauseVideo();
+        // UI updates handled by onPlayerStateChange PAUSED event
+        // But also set directly in case YT event doesn't fire (iframe fallback)
+        _updatePauseButtons(true);
+        var overlay = document.getElementById('tctv-pause-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        var p = document.getElementById('tctv-player');
         if (p) p.style.opacity = '0.3';
     } else {
-        if (btn) btn.textContent = '⏸';
-        if (btn2) btn2.textContent = '⏸';
-        if (overlay) overlay.style.display = 'none';
-        if (p) p.style.opacity = '1';
-        if (syncBtn) syncBtn.style.display = 'inline-block';
-        if (_ytPlayer && _ytPlayer.playVideo) _ytPlayer.playVideo();
+        // Resume — jump to live (sync to global clock)
         syncPlayer();
     }
 };
@@ -5943,17 +5961,33 @@ function syncPlayer() {
     var state = getPlaybackState(station);
     if (!state.video) return;
     
+    // Force unpause state
+    _isPaused = false;
+    var overlay = document.getElementById('tctv-pause-overlay');
+    if (overlay) overlay.style.display = 'none';
+    var p = document.getElementById('tctv-player');
+    if (p) p.style.opacity = '1';
+    _updatePauseButtons(false);
+    
     var np = document.getElementById('tctv-now-playing');
     if (np) {
         np.textContent = state.video.title;
         np.setAttribute('data-current-vid', state.video.id);
     }
     
-    loadVideo(state.video.id, state.offset);
+    // Reuse existing player when possible (better autoplay)
+    if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById) {
+        _currentVideoId = state.video.id;
+        _ytPlayer.loadVideoById({
+            videoId: state.video.id,
+            startSeconds: Math.floor(state.offset)
+        });
+        _syncYTVolume();
+    } else {
+        loadVideo(state.video.id, state.offset);
+    }
     _updateChNum();
-    
-    var syncBtn = document.getElementById('tctv-sync-btn');
-    if (syncBtn) syncBtn.style.display = 'none';
+    _showSyncButtons(false);
 }
 
 // ── Timeline & Moving EPG ──
@@ -6011,9 +6045,12 @@ function updateTimeline() {
         _advanceToNextVideo();
     }
 
-    // Periodic drift check
-    if (!_isPaused && Date.now() % 5000 < 1000) {
-        checkDrift();
+    // Periodic drift check (every ~3 seconds)
+    if (!_isPaused) {
+        if (!window._tctvLastDriftCheck || Date.now() - window._tctvLastDriftCheck > 3000) {
+            window._tctvLastDriftCheck = Date.now();
+            checkDrift();
+        }
     }
 }
 
@@ -6194,7 +6231,7 @@ window.renderTimechainTV = function() {
             '<div id="tctv-pause-overlay" style="position:absolute;inset:0;bottom:48px;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;pointer-events:none;">' +
                 '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
                 '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
-                '<button onclick="tctvRemotePause()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;pointer-events:auto;">JUMP TO LIVE</button>' +
+                '<button onclick="syncPlayer()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;pointer-events:auto;">JUMP TO LIVE</button>' +
             '</div>' +
             '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
                 '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
