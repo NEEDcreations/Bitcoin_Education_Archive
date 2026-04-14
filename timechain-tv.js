@@ -1525,6 +1525,132 @@ var STATIONS = [
                 "title": "Cryptocurrency Explained For Kids",
                 "duration": 360
             }
+        ,
+            {
+                "id": "hSZyUI6rbC8",
+                "title": "A Bitcoin Bash & Corrupted Cash — Full Episode (Tuttle Twins)",
+                "duration": 1320
+            },
+            {
+                "id": "Kt-QIFlZTik",
+                "title": "Tuttle Twins S1E1 Full Episode",
+                "duration": 1320
+            },
+            {
+                "id": "gS05vIvAW9I",
+                "title": "Dollars or Bitcoin? Which One is Better? — Economics Explained (Tuttle Twins)",
+                "duration": 600
+            },
+            {
+                "id": "LuboVKBFnl0",
+                "title": "When Money Is Controlled, Money Is Corrupted — Full Song (Tuttle Twins)",
+                "duration": 180
+            },
+            {
+                "id": "Y9RdoOBVmbI",
+                "title": "Is School Failing You? — Albert Einstein (Tuttle Twins)",
+                "duration": 1320
+            },
+            {
+                "id": "DQhF_4J2GKo",
+                "title": "What is Cryptocurrency? Learn with Jess — STEM Kids Clubhouse",
+                "duration": 480
+            },
+            {
+                "id": "GZ7y-yFdX9M",
+                "title": "Who Invented Money? History of Money & Barter System — Dr Binocs Show",
+                "duration": 600
+            },
+            {
+                "id": "3I81-P_lwvw",
+                "title": "What is Inflation for Kids — Financial Education",
+                "duration": 420
+            },
+            {
+                "id": "9CchpWy29es",
+                "title": "Investing & Stocks — Cash Course (PragerU Kids)",
+                "duration": 300
+            },
+            {
+                "id": "cv7SRW_kYLk",
+                "title": "How to Teach Kids Where Money Comes From (5 Different Places)",
+                "duration": 480
+            },
+            {
+                "id": "fTTGALaRZoc",
+                "title": "Banking Explained — Money and Credit",
+                "duration": 360
+            },
+            {
+                "id": "qyCXpr-ZDhE",
+                "title": "What are Taxes? Simple Explanation for Teens and Beginners",
+                "duration": 420
+            },
+            {
+                "id": "Iyq4khMiM9A",
+                "title": "Saving vs Investing for Kids — Types of Investments Explained!",
+                "duration": 360
+            },
+            {
+                "id": "RqJOqyzOmjw",
+                "title": "Understanding Inflation — The Basics Explained (It's a Money Thing)",
+                "duration": 300
+            },
+            {
+                "id": "mwSAuNb44lU",
+                "title": "How Money Works Explained in One Minute",
+                "duration": 60
+            },
+            {
+                "id": "aRcXutXvfmM",
+                "title": "Financial Literacy — Needs and Wants (Opportunity Costs)",
+                "duration": 360
+            },
+            {
+                "id": "wgU-Xou0xYM",
+                "title": "Tiny Economists Ep. 3 — What Is Money?",
+                "duration": 300
+            },
+            {
+                "id": "o-PNlhhVhZ8",
+                "title": "Hyperinflation Explained in One Minute",
+                "duration": 60
+            },
+            {
+                "id": "auIOUn0ubDk",
+                "title": "What is Inflation? Explained for Kids (The Invisible Money Nibbler!)",
+                "duration": 300
+            },
+            {
+                "id": "XNu5ppFZbHo",
+                "title": "What Gives a Dollar Bill Its Value? — TED-Ed",
+                "duration": 240
+            },
+            {
+                "id": "lV9aSAIVYok",
+                "title": "Kids Finance — Inflation Explained",
+                "duration": 300
+            },
+            {
+                "id": "agUawDBjwv4",
+                "title": "Investing In Crypto For Your Kids — Should You?",
+                "duration": 600
+            },
+            {
+                "id": "ZxEqoaFT73c",
+                "title": "Bitcoin Is The Evolution Of Money — My Kids Won't Know Coins!",
+                "duration": 300
+            },
+            {
+                "id": "Td32UyXW9HE",
+                "title": "How to Teach a Kid About Bitcoin (and Money)",
+                "duration": 1800
+            },
+            {
+                "id": "9NZTMmVBfK4",
+                "title": "What My Kids Think of Bitcoin",
+                "duration": 300
+            }
         ]
     },
     {
