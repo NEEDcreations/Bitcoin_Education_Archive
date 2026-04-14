@@ -3001,6 +3001,13 @@ window.tctvRestoreCouch = function() {
     });
 })();
 
+function _updateChNum() {
+    var chEl = document.getElementById('tctv-now-ch');
+    if (!chEl || !_currentStation) return;
+    var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
+    chEl.textContent = idx >= 0 ? 'CH. ' + (idx + 1) : '';
+}
+
 function syncPlayer() {
     if (!_currentStation) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
@@ -3015,6 +3022,7 @@ function syncPlayer() {
     }
     
     loadVideo(state.video.id, state.offset);
+    _updateChNum();
     
     var syncBtn = document.getElementById('tctv-sync-btn');
     if (syncBtn) syncBtn.style.display = 'none';
@@ -3277,7 +3285,7 @@ window.renderTimechainTV = function() {
             '</div>' +
             '</div></div>';
     html += '</div>';
-    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING</div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
+    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING <span id="tctv-now-ch" style="color:#aaa;"></span></div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:4px 8px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;display:none;">JUMP TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
 
@@ -3368,6 +3376,7 @@ window.switchStation = function(stationId) {
             np2.textContent = state.video.title;
             np2.setAttribute('data-current-vid', state.video.id);
         }
+        _updateChNum();
     }
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var isActive = el.getAttribute('data-station-id') === stationId;
