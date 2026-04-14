@@ -2746,11 +2746,6 @@ var STATIONS = [
                 "title": "Andreas Antonopoulos: The Architecture of Trust"
             },
             {
-                "id": "y1KXs3uE42I",
-                "duration": 4500,
-                "title": "Andreas Antonopoulos: Money as a Content Type"
-            },
-            {
                 "id": "wQ7V3S8vW9X",
                 "duration": 3300,
                 "title": "Andreas Antonopoulos: Understanding the Blockchain"
@@ -3544,11 +3539,6 @@ var STATIONS = [
                 "duration": 1200
             },
             {
-                "id": "Gc2en3nHxA4",
-                "title": "Bitcoin Simply Explained in 5 Minutes",
-                "duration": 300
-            },
-            {
                 "id": "f-4Rs3Sqlhc",
                 "title": "Complete History of Bitcoin in 12 Minutes",
                 "duration": 720
@@ -3582,11 +3572,6 @@ var STATIONS = [
                 "id": "GR-E0aaFf0c",
                 "title": "Bitcoin Explained for Complete Beginners",
                 "duration": 600
-            },
-            {
-                "id": "Y3iAwLG6NlA",
-                "title": "Bitcoin Wallets That Change Everything in 2026 — BTC Sessions",
-                "duration": 1906
             },
             {
                 "id": "ZZKoSmQu30Q",
