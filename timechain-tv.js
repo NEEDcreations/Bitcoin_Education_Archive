@@ -2951,6 +2951,56 @@ window.tctvToggleRemote = function() {
     if (ri) ri.classList.toggle('collapsed');
 };
 
+// Couch Nacho collapse/restore
+window.tctvToggleCouch = function() {
+    var couch = document.getElementById('nacho-couch');
+    var restoreBtn = document.getElementById('nacho-couch-restore');
+    if (couch) couch.style.display = 'none';
+    if (restoreBtn) restoreBtn.style.display = 'flex';
+};
+
+window.tctvRestoreCouch = function() {
+    var couch = document.getElementById('nacho-couch');
+    var restoreBtn = document.getElementById('nacho-couch-restore');
+    if (couch) couch.style.display = 'block';
+    if (restoreBtn) restoreBtn.style.display = 'none';
+};
+
+// Couch Nacho drag (mobile touch)
+(function() {
+    var _dragging = false, _startX = 0, _startY = 0, _origLeft = 0, _origBottom = 0;
+    document.addEventListener('touchstart', function(e) {
+        var couch = document.getElementById('nacho-couch');
+        if (!couch || 'none' === couch.style.display) return;
+        var inner = document.getElementById('nacho-couch-inner');
+        if (!inner || !inner.contains(e.target)) return;
+        if (e.target.tagName === 'BUTTON') return;
+        _dragging = true;
+        _startX = e.touches[0].clientX;
+        _startY = e.touches[0].clientY;
+        var rect = couch.getBoundingClientRect();
+        _origLeft = rect.left;
+        _origBottom = window.innerHeight - rect.bottom;
+        couch.style.transition = 'none';
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+        if (!_dragging) return;
+        var couch = document.getElementById('nacho-couch');
+        if (!couch) return;
+        var dx = e.touches[0].clientX - _startX;
+        var dy = e.touches[0].clientY - _startY;
+        couch.style.left = (_origLeft + dx) + 'px';
+        couch.style.bottom = (_origBottom - dy) + 'px';
+        couch.style.right = 'auto';
+    }, { passive: true });
+    document.addEventListener('touchend', function() {
+        if (!_dragging) return;
+        _dragging = false;
+        var couch = document.getElementById('nacho-couch');
+        if (couch) couch.style.transition = '0.3s';
+    });
+})();
+
 function syncPlayer() {
     if (!_currentStation) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
@@ -3159,7 +3209,8 @@ window.renderTimechainTV = function() {
         /* Mobile — maximize video, minimize other UI */
         @media (max-width: 900px) { 
             #tctv-remote-sidebar { display: none !important; }
-            #tctv-remote { position: fixed !important; top: 160px !important; right: 20px !important; width: 80px !important; height: auto !important; flex-direction: column !important; justify-content: center; padding: 15px 10px !important; border-radius: 20px !important; border: 3px solid #111 !important; box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important; display: flex !important; z-index: 200000 !important; }
+            #tctv-remote { position: fixed !important; top: 160px !important; right: 0px !important; width: 80px !important; height: auto !important; flex-direction: column !important; justify-content: center; padding: 15px 10px !important; border-radius: 20px 0 0 20px !important; border: 3px solid #111 !important; box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important; display: flex !important; z-index: 200000 !important; transition: transform 0.3s ease !important; }
+            #tctv-remote.collapsed { transform: translateX(75px) !important; opacity: 1 !important; }
             
             .remote-btn { width: 44px !important; height: 44px !important; font-size: 1.2rem !important; box-shadow: 0 4px 0 #111 !important; }
             .remote-label { display: block !important; margin: 0 !important; }
@@ -3233,20 +3284,22 @@ window.renderTimechainTV = function() {
     // Mobile Lounge & Remote Area (Stays sticky/fixed on desktop, injected here for mobile flow)
     html += '<div class="tctv-mobile-ui-stack">';
     
-    // Nacho on Couch
+    // Nacho on Couch (with drag + collapse)
     html += '<div id="nacho-couch">' +
-            '<div style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;">' +
+            '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;">' +
             '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
             '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
             '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
             '<span style="position:absolute;bottom:0;right:-4px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span>' +
             '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
             '</div>' +
-            '</div></div>';
+            '<button onclick="tctvToggleCouch()" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#333;border:1px solid #555;color:#aaa;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">✕</button>' +
+            '</div></div>' +
+            '<button id="nacho-couch-restore" onclick="tctvRestoreCouch()" style="display:none;position:fixed;bottom:140px;left:8px;z-index:200000;width:40px;height:40px;border-radius:50%;background:#222;border:2px solid #f7931a;cursor:pointer;font-size:1.3rem;box-shadow:0 4px 15px rgba(0,0,0,0.5);">🦌</button>';
 
     // Remote (Mobile stacked flow)
     html += '<div id="tctv-remote" class="collapsed">' +
-            '<div onclick="tctvToggleRemote()" class="desktop-only" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
+            '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#555;border-radius:3px;cursor:pointer;margin-bottom:5px;min-height:5px;"></div>' +
             // PWR Button (Red)
             '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">⏻</button>' +
             '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:row;align-items:center;gap:12px;">' +
@@ -3307,7 +3360,15 @@ window.switchStation = function(stationId) {
     saveStation(stationId);
     joinStation(stationId);
     var state = getPlaybackState(stationObj);
-    if (state.video) loadVideo(state.video.id, state.offset);
+    if (state.video) {
+        loadVideo(state.video.id, state.offset);
+        // Update NOW PLAYING immediately with the new video title
+        var np2 = document.getElementById('tctv-now-playing');
+        if (np2) {
+            np2.textContent = state.video.title;
+            np2.setAttribute('data-current-vid', state.video.id);
+        }
+    }
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var isActive = el.getAttribute('data-station-id') === stationId;
         el.style.background = isActive ? 'rgba(247,147,26,0.12)' : 'transparent';
