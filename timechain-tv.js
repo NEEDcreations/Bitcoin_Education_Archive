@@ -1651,6 +1651,67 @@ var STATIONS = [
                 "title": "What My Kids Think of Bitcoin",
                 "duration": 300
             }
+        ,
+            {
+                "id": "uRU4ifbGolg",
+                "title": "Tuttle Twins S1E7 — Full Episode (The Miraculous Pencil)",
+                "duration": 1320
+            },
+            {
+                "id": "bDcGUxS9DHw",
+                "title": "Tuttle Twins S1E9 — Full Episode (Fate of the Future)",
+                "duration": 1320
+            },
+            {
+                "id": "iy3n39Gnlpw",
+                "title": "Tuttle Twins S1E5 — Full Episode (The Golden Rule)",
+                "duration": 1320
+            },
+            {
+                "id": "J7mMQ3ERNdg",
+                "title": "Tuttle Twins S1E11 — Full Episode (No Free Lunch)",
+                "duration": 1320
+            },
+            {
+                "id": "FtaUelnAXrc",
+                "title": "Tuttle Twins S1E6 — Full Episode (Regulation Station)",
+                "duration": 1320
+            },
+            {
+                "id": "jcu3hsaLO0Q",
+                "title": "Tuttle Twins S1E12 — Full Episode (Season Finale)",
+                "duration": 1320
+            },
+            {
+                "id": "DuR0KMBefj0",
+                "title": "Tuttle Twins S2E2 — Don't Trash Success (Full Episode)",
+                "duration": 1320
+            },
+            {
+                "id": "Z-qP41O-NxY",
+                "title": "The Lesson on SOCIALISM School Didn't Teach You — Tuttle Twins Full Episode",
+                "duration": 1320
+            },
+            {
+                "id": "0SDCdQcnKuQ",
+                "title": "What Everyone Should Know About College — Tuttle Twins Full Episode",
+                "duration": 1320
+            },
+            {
+                "id": "qVGWCJJcDXM",
+                "title": "60 Minutes Tuttle Twins — Wholesome Cartoon Compilation for Family",
+                "duration": 3600
+            },
+            {
+                "id": "aHVuaASswgA",
+                "title": "The Truth About CBDCs (Central Bank Digital Currencies) — Economics Explained",
+                "duration": 600
+            },
+            {
+                "id": "zJHeIJGVCKI",
+                "title": "How War Makes Millionaires?! — Economics Explained",
+                "duration": 600
+            }
         ]
     },
     {
