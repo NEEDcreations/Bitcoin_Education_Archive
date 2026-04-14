@@ -5787,6 +5787,8 @@ window.tctvRestoreCouch = function() {
 window.tctvDismissAd = function() {
     var ad = document.getElementById('tctv-ad-sidebar');
     if (ad) { ad.style.visibility = 'hidden'; ad.style.width = '0'; ad.style.overflow = 'hidden'; }
+    var adM = document.getElementById('tctv-ad-mobile');
+    if (adM) adM.remove();
     try { localStorage.setItem('tctv_ad_dismissed', '1'); } catch(e) {}
 };
 
@@ -6171,6 +6173,15 @@ window.renderTimechainTV = function() {
     html += '</div>'; // end mobile-ui-stack
 
     html += _renderEPG();
+    // Mobile ad (below channel guide, dismissible)
+    if (!_tctvAdDismissed) {
+        html += '<div id="tctv-ad-mobile" style="margin:16px auto;max-width:340px;padding:14px 18px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;position:relative;">' +
+            '<button onclick="tctvDismissAd()" style="position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Dismiss">\u2715</button>' +
+            '<div style="font-size:1.3rem;margin-bottom:4px;">\ud83d\udcfa</div>' +
+            '<div style="font-size:0.7rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
+            '<a href="mailto:info.603btc@gmail.com" style="display:inline-block;margin-top:6px;font-size:0.65rem;color:#f7931a;text-decoration:none;font-weight:700;">info.603btc@gmail.com</a>' +
+            '</div>';
+    }
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
 
