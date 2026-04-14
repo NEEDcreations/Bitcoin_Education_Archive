@@ -2771,16 +2771,37 @@ var _ytPlayer = null;
 var _currentVideoId = null;
 var _syncInterval = null;
 var _apiReady = false;
+var _apiFailed = false;
+var _apiRetries = 0;
+var _API_MAX_RETRIES = 25; // ~5 seconds (25 * 200ms)
 
 // Load YT API once
 (function loadYTApi() {
-    if (window.YT) { _apiReady = true; return; }
+    if (window.YT && window.YT.Player) { _apiReady = true; return; }
     var tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
+    tag.onerror = function() { _apiFailed = true; console.warn('[TCTV] YouTube API failed to load, using iframe fallback'); };
     var firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     window.onYouTubeIframeAPIReady = function() { _apiReady = true; };
 })();
+
+function loadVideoFallback(videoId, startSeconds) {
+    var wrap = document.getElementById('tctv-video-container');
+    if (!wrap) return;
+    var old = document.getElementById('tctv-player');
+    if (old) old.remove();
+    var iframe = document.createElement('iframe');
+    iframe.id = 'tctv-player';
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.src = 'https://www.youtube.com/embed/' + videoId +
+        '?start=' + Math.floor(startSeconds) +
+        '&autoplay=1&controls=1&modestbranding=1&rel=0' +
+        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque&mute=0';
+    wrap.appendChild(iframe);
+}
 
 function loadVideo(videoId, startSeconds) {
     _currentVideoId = videoId;
@@ -2797,15 +2818,33 @@ function loadVideo(videoId, startSeconds) {
     // Clear old player/iframe manually to be sure
     var old = document.getElementById('tctv-player');
     if (old) old.remove();
-    
-    var playerDiv = document.createElement('div');
-    playerDiv.id = 'tctv-player';
-    wrap.appendChild(playerDiv);
+
+    // If API failed or timed out, use plain iframe fallback
+    if (_apiFailed) {
+        loadVideoFallback(videoId, startSeconds);
+        return;
+    }
 
     if (!_apiReady) {
+        _apiRetries++;
+        if (_apiRetries > _API_MAX_RETRIES) {
+            console.warn('[TCTV] YouTube API timed out after ' + _API_MAX_RETRIES + ' retries, falling back to iframe');
+            _apiFailed = true;
+            loadVideoFallback(videoId, startSeconds);
+            return;
+        }
+        // Create a temporary placeholder div while waiting
+        var tmpDiv = document.createElement('div');
+        tmpDiv.id = 'tctv-player';
+        wrap.appendChild(tmpDiv);
         setTimeout(function() { loadVideo(videoId, startSeconds); }, 200);
         return;
     }
+    
+    _apiRetries = 0; // Reset on success
+    var playerDiv = document.createElement('div');
+    playerDiv.id = 'tctv-player';
+    wrap.appendChild(playerDiv);
 
     _ytPlayer = new YT.Player('tctv-player', {
         height: '100%',
@@ -2831,6 +2870,7 @@ function loadVideo(videoId, startSeconds) {
 }
 
 function onPlayerStateChange(event) {
+    if (_apiFailed || typeof YT === 'undefined') return;
     var syncBtn = document.getElementById('tctv-sync-btn');
     var overlay = document.getElementById('tctv-pause-overlay');
     
@@ -2853,7 +2893,7 @@ function onPlayerStateChange(event) {
 }
 
 function checkDrift() {
-    if (!_ytPlayer || !window._currentStation || _isPaused) return;
+    if (_apiFailed || !_ytPlayer || !_ytPlayer.getCurrentTime || !window._currentStation || _isPaused) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     var state = getPlaybackState(station);
     var currentTime = _ytPlayer.getCurrentTime();
@@ -2898,7 +2938,7 @@ window.tctvRemotePause = function() {
         if (btn) btn.textContent = '▶';
         if (btn2) btn2.textContent = '▶';
         if (overlay) overlay.style.display = 'flex';
-        if (_ytPlayer) _ytPlayer.pauseVideo();
+        if (_ytPlayer && _ytPlayer.pauseVideo) _ytPlayer.pauseVideo();
         if (p) p.style.opacity = '0.3';
     } else {
         if (btn) btn.textContent = '⏸';
@@ -2906,7 +2946,7 @@ window.tctvRemotePause = function() {
         if (overlay) overlay.style.display = 'none';
         if (p) p.style.opacity = '1';
         if (syncBtn) syncBtn.style.display = 'inline-block';
-        if (_ytPlayer) _ytPlayer.playVideo();
+        if (_ytPlayer && _ytPlayer.playVideo) _ytPlayer.playVideo();
         syncPlayer();
     }
 };
