@@ -1528,6 +1528,21 @@ var STATIONS = [
                 "duration": 270
             },
             {
+                "id": "ZLYx-SXUjUk",
+                "title": "Richard — The Flood ft Tomer Strolight",
+                "duration": 240
+            },
+            {
+                "id": "6AfHKbpgsi4",
+                "title": "Too Bit To Fail & Hanspanzer — FOMO",
+                "duration": 240
+            },
+            {
+                "id": "PYeUQpbMy1o",
+                "title": "Love You Like A Bitcoin",
+                "duration": 240
+            },
+            {
                 "id": "yp0diaVLPrQ",
                 "title": "Mark Zuckerberg's Sister Sings to Crypto",
                 "duration": 240
