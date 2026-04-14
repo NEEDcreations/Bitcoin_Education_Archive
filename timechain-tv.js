@@ -1656,6 +1656,231 @@ var STATIONS = [
                 "id": "U252iiG8YP0",
                 "title": "Jingle Bells, Bank Cartels! A Bitcoin Christmas Song",
                 "duration": 210
+            },
+            {
+                "id": "K2ku1A5Ox8U",
+                "title": "Blame it on MT.GOX",
+                "duration": 240
+            },
+            {
+                "id": "ZAmIm2TkrUM",
+                "title": "Bitcoin's Going To The Moon (Jpop)",
+                "duration": 210
+            },
+            {
+                "id": "J4pLMsk-nVA",
+                "title": "SATS OVER EVERYTHING — Manlikekweks x Encorebeats",
+                "duration": 210
+            },
+            {
+                "id": "ipDpjANJ7fU",
+                "title": "Save The Young",
+                "duration": 240
+            },
+            {
+                "id": "eqxNbGvNamY",
+                "title": "Lovesong for Satoshi Nakamoto (Bitcoin Whitepaper)",
+                "duration": 240
+            },
+            {
+                "id": "_YvLh4pUB4Y",
+                "title": "The Times They Are A-Changin' (Bitcoin version)",
+                "duration": 240
+            },
+            {
+                "id": "o5XBSF6w7I4",
+                "title": "MusicSnake — Stack Sats (feat. Michael Saylor)",
+                "duration": 240
+            },
+            {
+                "id": "2991v7Mt1_g",
+                "title": "MusicSnake — Cold Storage (Tiny Desk edition)",
+                "duration": 240
+            },
+            {
+                "id": "6mJF3c90xe0",
+                "title": "Shitcoin Casinos — Annonymal (Bitcoin Heavy Metal)",
+                "duration": 240
+            },
+            {
+                "id": "rDCrlgKGACo",
+                "title": "Anik The First — Be The Change (B.T.C.)",
+                "duration": 240
+            },
+            {
+                "id": "VdAcvUVy7FE",
+                "title": "We Will Bitcoin",
+                "duration": 210
+            },
+            {
+                "id": "109WLnpYkqE",
+                "title": "Vibing with the FED and Bitcoin",
+                "duration": 210
+            },
+            {
+                "id": "nUUXOZAPWFQ",
+                "title": "Crypto to Heaven (Stairway to Heaven Parody)",
+                "duration": 300
+            },
+            {
+                "id": "lvw5XX6IQkc",
+                "title": "Sell in May (Thunderstruck Crypto Parody)",
+                "duration": 240
+            },
+            {
+                "id": "27BwXfrJxcs",
+                "title": "Death to Fiat — The Skull of Satoshi (Bitcoin Heavy Metal)",
+                "duration": 240
+            },
+            {
+                "id": "BRbVhsoPzmI",
+                "title": "Crypto Weekly Rap Up (Bitcoin Rap) — Week 4",
+                "duration": 240
+            },
+            {
+                "id": "PL0yOu0dNwo",
+                "title": "Mainframe — Proof of Freedom",
+                "duration": 240
+            },
+            {
+                "id": "Wtj1x9aT9Zk",
+                "title": "Crypto Weekly Rap Up (Bitcoin Rap) — Week 1",
+                "duration": 240
+            },
+            {
+                "id": "6KNOqrjkNaE",
+                "title": "Crypto Weekly Rap Up (Bitcoin Rap) — Week 2",
+                "duration": 240
+            },
+            {
+                "id": "e2cl0_jqu4I",
+                "title": "Halvingbird (a Bitcoin Halving song)",
+                "duration": 210
+            },
+            {
+                "id": "bJKGdKqd3sc",
+                "title": "The Hodler",
+                "duration": 240
+            },
+            {
+                "id": "3lUUDwSSkWo",
+                "title": "Bitcoin Miner's Daughter",
+                "duration": 240
+            },
+            {
+                "id": "htTL7C23684",
+                "title": "Build The Chain",
+                "duration": 210
+            },
+            {
+                "id": "W-Z_hlzZYBw",
+                "title": "Jason Saulnier — Bitcoin We're in Love",
+                "duration": 240
+            },
+            {
+                "id": "bZb2qBrVHVY",
+                "title": "Bitcoins from Heaven",
+                "duration": 240
+            },
+            {
+                "id": "UdbOaVdIUTM",
+                "title": "The Bitcoin Song — Ohio Toast Ska Man",
+                "duration": 210
+            },
+            {
+                "id": "iqbScnkmf0s",
+                "title": "Elaine Diane Taylor — Bitcoin Barbarians",
+                "duration": 300
+            },
+            {
+                "id": "DZNUMcOGbq4",
+                "title": "All The Way Up (Bitcoin Rap Parody)",
+                "duration": 240
+            },
+            {
+                "id": "vyKA1pW0CBA",
+                "title": "BITCOIN — Music Video",
+                "duration": 210
+            },
+            {
+                "id": "UjkYo7t15yk",
+                "title": "Bitcoin (Official Video) — Shehbaaz",
+                "duration": 240
+            },
+            {
+                "id": "UG7zLhEWanc",
+                "title": "Remy: Bitcoin Billionaire",
+                "duration": 210
+            },
+            {
+                "id": "_hQRxuYBx0w",
+                "title": "Chuty — Bitcoin (Videoclip Oficial)",
+                "duration": 210
+            },
+            {
+                "id": "vQkXrct78A4",
+                "title": "Tileks — BITCOIN",
+                "duration": 210
+            },
+            {
+                "id": "9EuH_ZGOlIs",
+                "title": "Proof of Work: A Bitcoin Experience",
+                "duration": 300
+            },
+            {
+                "id": "pADgAmNzxek",
+                "title": "We Are All Bitcoins",
+                "duration": 240
+            },
+            {
+                "id": "nvlvG18AcCo",
+                "title": "Bitcoin Bob: Money Monopoly",
+                "duration": 240
+            },
+            {
+                "id": "VT_aEKr0BVY",
+                "title": "Bitcoin Song — 13inlet",
+                "duration": 210
+            },
+            {
+                "id": "mkKFR5sB44s",
+                "title": "Pizza Day",
+                "duration": 210
+            },
+            {
+                "id": "-UyRTltUv7w",
+                "title": "Genesis Block",
+                "duration": 240
+            },
+            {
+                "id": "_pv-uKXaBFc",
+                "title": "Bitcoin's Better Than Gold",
+                "duration": 240
+            },
+            {
+                "id": "AJzCQaIXelE",
+                "title": "Bitcoin Girl — Original Music Video",
+                "duration": 210
+            },
+            {
+                "id": "emcT185BXMQ",
+                "title": "Carlos Matos — Take On Me (autotuned)",
+                "duration": 210
+            },
+            {
+                "id": "c21GLKrC2Gg",
+                "title": "Bitcoin Only (feat. C. Scott Muzic) — Wonx316",
+                "duration": 240
+            },
+            {
+                "id": "XEBWtbhq0Ts",
+                "title": "All About That Bitcoin — Naomi van der Velde",
+                "duration": 210
+            },
+            {
+                "id": "-Y13lkBvsQw",
+                "title": "Ghost Town Remix (Orange Pill Edition)",
+                "duration": 240
             }
         ]
     },
