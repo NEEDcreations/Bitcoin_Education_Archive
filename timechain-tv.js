@@ -160,6 +160,22 @@ var STATIONS = [
                 "duration": 36000,
                 "title": "10 Hours of Bitcoin Lofi & Philosophy"
             }
+        ,
+            {
+                "id": "iFb2MMUZBYs",
+                "title": "Bitcoin Artist Trevor Jones Augments Reality",
+                "duration": 600
+            },
+            {
+                "id": "GRby6vAPwHI",
+                "title": "Bitcoin, Art, and Our Divine Lost Knowledge — Ariel Birdie",
+                "duration": 3600
+            },
+            {
+                "id": "8TN7mq6cK7g",
+                "title": "Bitcoin Art with FractalEncrypt — Freedom Footprint",
+                "duration": 3600
+            }
         ]
     },
     {
@@ -318,6 +334,62 @@ var STATIONS = [
                 "id": "p6kBKSZqjn4",
                 "duration": 18000,
                 "title": "Bitcoin Conference 2025: Opening Day Marathon"
+            }
+        ,
+            {
+                "id": "3e3KE40r_WM",
+                "title": "The Bitcoin Conference 2025 — Day 1 Full Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "9e5JejAWrwY",
+                "title": "The Bitcoin Conference 2025 — Day 1 Main Stage",
+                "duration": 28800
+            },
+            {
+                "id": "2qiJIFBJPIU",
+                "title": "The Bitcoin Conference 2025 — Day 3 Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "pt-Wv-M5uNA",
+                "title": "Bitcoin MENA 2025 — Day 1 Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "rQMFrpUFcNM",
+                "title": "Michael Saylor Keynote — Bitcoin MENA 2025",
+                "duration": 2400
+            },
+            {
+                "id": "YQrfB9327jI",
+                "title": "Bitcoin Amsterdam 2025 — Day 1 Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "XVGME04z_3k",
+                "title": "Bitcoin Amsterdam 2025 — Day 2 Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "eRgHb8BGs18",
+                "title": "Adopting Bitcoin 2024 — Day 1 Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "Ps3BU0edwqE",
+                "title": "Adopting Bitcoin 2024 — Day 2 Livestream",
+                "duration": 28800
+            },
+            {
+                "id": "Hp-HlJ0PbpI",
+                "title": "Bitcoin Thailand 2024 — Day 1",
+                "duration": 18000
+            },
+            {
+                "id": "r8rQUEyAksg",
+                "title": "BITCOIN DAY 2024",
+                "duration": 14400
             }
         ]
     },
@@ -561,6 +633,72 @@ var STATIONS = [
                 "id": "Ld2s9MyMKMU",
                 "duration": 600,
                 "title": "Fastest way to build a Bitcoin Node in 2024"
+            }
+        ,
+            {
+                "id": "a0ycGl4jN8w",
+                "title": "Run Bitcoin & Lightning Node in 30 mins — Umbrel Home",
+                "duration": 1800
+            },
+            {
+                "id": "nRoAyZG2taE",
+                "title": "Switch from Bitcoin Core to Knots (Windows, Mac, Start9, Umbrel)",
+                "duration": 1200
+            },
+            {
+                "id": "9JKpA7gqbW0",
+                "title": "How To Run Your Own Bitcoin Node (And Fight Bitcoin Spam)",
+                "duration": 1200
+            },
+            {
+                "id": "qFfhr4sApso",
+                "title": "RUN A BITCOIN NODE — Simple Tutorial With Umbrel Home",
+                "duration": 1500
+            },
+            {
+                "id": "-O-BgOiV9AM",
+                "title": "UMBREL TO START9 — Migrate Your Lightning Node",
+                "duration": 900
+            },
+            {
+                "id": "7fvG11BByD4",
+                "title": "Running Bitcoin Knots On Start9",
+                "duration": 900
+            },
+            {
+                "id": "1XxG_qjY3EY",
+                "title": "Home Bitcoin Solo Node Setup Guide (Umbrel)",
+                "duration": 1200
+            },
+            {
+                "id": "DKBJ3_3ZomU",
+                "title": "Start9 Embassy — Bitcoin Node And Personal Server Tutorial",
+                "duration": 1800
+            },
+            {
+                "id": "kmfzATMxCj4",
+                "title": "Start9 vs Umbrel — What's the Difference? CEO Matt Hill Explains",
+                "duration": 1200
+            },
+            {
+                "id": "cDYQ6A69-D4",
+                "title": "Enhance Your Bitcoin Journey with Start9's Server Pure Upgrade",
+                "duration": 900
+            },
+            {
+                "id": "ubj5wpsmqN8",
+                "title": "Bitcoin Full Node Security — 11 Tips To Keep Your Node Safe",
+                "duration": 1200
+            },
+            {
+                "id": "wihMTwJ_wWs",
+                "title": "Sovereign Computing with Matt Hill of Start9",
+                "duration": 2400
+            },
+            {
+                "id": "BNRvyrmBUhM",
+                "title": "Become a Digital Sovereign with Start9",
+                "duration": 1800
             }
         ]
     },
@@ -1731,6 +1869,67 @@ var STATIONS = [
                 "title": "What is Bitcoin Mining? How to Earn from Cryptocurrency Mining",
                 "duration": 600
             }
+        ,
+            {
+                "id": "ENQQXeEv2gI",
+                "title": "Why Should You Run a Bitaxe?",
+                "duration": 900
+            },
+            {
+                "id": "F1ot1qS-VtQ",
+                "title": "The POWERFUL $680 Home Bitcoin Miner — Nerd Octaxe",
+                "duration": 1200
+            },
+            {
+                "id": "FMR1LO1rNYA",
+                "title": "Perfect BEGINNER Home Bitcoin Miner in 2026!",
+                "duration": 900
+            },
+            {
+                "id": "Gsswul2h5vE",
+                "title": "This NEW Mini Home Bitcoin Miner Could Earn You 3.125 BTC!",
+                "duration": 1200
+            },
+            {
+                "id": "dm4PljluiYM",
+                "title": "Best Bitcoin Solo Miner 2025 — Bitaxe, NerdQaxe, Avalon Compared",
+                "duration": 1500
+            },
+            {
+                "id": "q7c00PE7khk",
+                "title": "How To Set Up a Bitaxe To Mine Bitcoin (Step-by-Step)",
+                "duration": 900
+            },
+            {
+                "id": "L67es0ydJjE",
+                "title": "Bitaxe Solo Mining Difficulty Explained",
+                "duration": 600
+            },
+            {
+                "id": "xQ7HwJ-voME",
+                "title": "The PERFECT Mini Home Bitcoin Miner on a Budget!",
+                "duration": 900
+            },
+            {
+                "id": "xxhPn52mdxA",
+                "title": "This Solo Bitcoin Miner Found A Block! NerdQaxe++ Unboxing & Setup",
+                "duration": 1200
+            },
+            {
+                "id": "jDDIyqHvRUY",
+                "title": "Mining BITCOIN at Home is EASY — Bitaxe Gamma",
+                "duration": 900
+            },
+            {
+                "id": "vOOh9CHUZQQ",
+                "title": "5 Solo Mining Projects for Your Bitaxe or Avalon Nano",
+                "duration": 1200
+            },
+            {
+                "id": "cJo839Sg1ek",
+                "title": "The 3 BEST Home Crypto Miners Under $500",
+                "duration": 900
+            }
         ]
     },
     {
@@ -2318,6 +2517,52 @@ var STATIONS = [
             {
                 "id": "b_u1O9qzG6U",
                 "title": "Big Bitcoin Adoption News!",
+                "duration": 600
+            }
+        ,
+            {
+                "id": "WSBQunQ2jJA",
+                "title": "The Time Has Come — El Salvador Makes Bitcoin Legal Tender",
+                "duration": 600
+            },
+            {
+                "id": "uX4jfBZWpkY",
+                "title": "What's Behind Bitcoin's Remarkable Surge?",
+                "duration": 600
+            },
+            {
+                "id": "wR6SJgMnstE",
+                "title": "Using Bitcoin as an Inflationary Hedge",
+                "duration": 600
+            },
+            {
+                "id": "iQOiQZ_g97I",
+                "title": "Wall Street Week — The Crypto Craze",
+                "duration": 900
+            },
+            {
+                "id": "S2WPt7ZO1rk",
+                "title": "Bitcoin Touches 13-Month High — Valkyrie Refiles for Spot ETF (CNBC)",
+                "duration": 600
+            },
+            {
+                "id": "Q_FFfWvq-z8",
+                "title": "CNBC: The Greatest Crypto Bull Run Of Our Lifetime HAPPENING NOW",
+                "duration": 600
+            },
+            {
+                "id": "inSLOPC8grc",
+                "title": "Bitcoin: Better Than Bonds",
+                "duration": 600
+            },
+            {
+                "id": "2PvvIoi7l_Y",
+                "title": "Lebanon Banks Close Doors on Customers — Bitcoin Fixes This",
+                "duration": 900
+            },
+            {
+                "id": "zyUxPX7Mp2U",
+                "title": "Bitcoin Could Go Past $100k This Year — Chainalysis CEO",
                 "duration": 600
             }
         ]
