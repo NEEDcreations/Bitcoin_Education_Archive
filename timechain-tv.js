@@ -11,164 +11,9 @@ var STATIONS = [
         "color": "#a855f7",
         "videos": [
             {
-                "id": "j3QJlyRMHpI",
-                "title": "Art on Bitcoin: Shaping the Future of Digital Creativity",
-                "duration": 2700
-            },
-            {
-                "id": "GRby6vAPwHI",
-                "title": "Bitcoin, Art, and Our Divine Lost Knowledge — Ariel Birdie",
-                "duration": 3600
-            },
-            {
-                "id": "W03SVhhOaEU",
-                "title": "The Bitcoin Full Node Sculpture 7.0 — A Cypherpunk Chronometer (MirrorNode)",
-                "duration": 600
-            },
-            {
-                "id": "P0WZCTDDGXQ",
-                "title": "Create and List Your Own Bitcoin Ordinals — Ordinals Explained Ep. 5",
-                "duration": 900
-            },
-            {
-                "id": "FiFwaHCRz7s",
-                "title": "Bitcoin's BRC-20 Explosion: Everything You Need To Know About Ordinals",
-                "duration": 1200
-            },
-            {
-                "id": "vPUpdXZPpbQ",
-                "duration": 180,
-                "title": "Nashville Bitcoin Mural - Sound Money"
-            },
-            {
-                "id": "H1oc5HKixBg",
-                "title": "The Bitcoin Full Node Sculpture 4.0 — A Cypherpunk Chronometer",
-                "duration": 600
-            },
-            {
-                "id": "Z0_9Jw56l4k",
-                "title": "Opening 2 Packs Of Bitcoin Trading Cards",
-                "duration": 600
-            },
-            {
-                "id": "Q5Wxg53qu9s",
-                "title": "The Bitcoin Full Node Sculpture #2 of 10",
-                "duration": 300
-            },
-            {
-                "id": "33emHIL1IoU",
-                "duration": 900,
-                "title": "The Bitcoin Full Node Sculpture - Eric Weiss"
-            },
-            {
-                "id": "SogEkk3-XnA",
-                "title": "I BOUGHT THIS BITCOIN NFT! (BRC-20, NFTs, Ordinals)",
-                "duration": 900
-            },
-            {
-                "id": "wSLejJ88VGQ",
-                "title": "Ripping Spirit of Satoshi Packs (Bitcoin Trading Cards)",
-                "duration": 600
-            },
-            {
-                "id": "xwufPksmi9w",
-                "title": "Cracking A Pack Of Based Trading Cards Series 3 — Warriors Vs Villains",
-                "duration": 600
-            },
-            {
-                "id": "sntmLivV56M",
-                "title": "Adam O'Brien & Brandon Gentile Ripping BitBlockBoom 2024 Packs",
-                "duration": 600
-            },
-            {
-                "id": "KxTWC3ShYDE",
-                "duration": 7200,
-                "title": "Just-B on Airbrush Mastery - Bitcoin Art Podcast"
-            },
-            {
-                "id": "bHj-a4_nX78",
-                "title": "FractalEncrypt Bitcoin Full Node Sculpture",
-                "duration": 300
-            },
-            {
-                "id": "occ9L0dMMO4",
-                "duration": 600,
-                "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob"
-            },
-            {
-                "id": "yMoVGgR6h0Y",
-                "title": "Money: The Language of Power — Robert Breedlove",
-                "duration": 3600
-            },
-            {
-                "id": "indFxEWINDA",
-                "title": "We Gave Bitcoin Trading Cards to No-Coiners — Here's What Happened",
-                "duration": 600
-            },
-            {
-                "id": "KORJr5ZfzWI",
-                "title": "Bitcoin Full Node Sculpture",
-                "duration": 300
-            },
-            {
-                "id": "ic6pDq3OAec",
-                "title": "Philosophy of Bitcoin — First Principles",
-                "duration": 3600
-            },
-            {
-                "id": "8FxyOC26TYE",
-                "title": "What's In A Based Trading Cards Bitcoin Pack?",
-                "duration": 600
-            },
-            {
-                "id": "RnducAborVw",
-                "duration": 180,
-                "title": "Bitcoin Art Gallery - Miami 2022"
-            },
-            {
-                "id": "UrCN7oG_4YY",
-                "title": "Bitcoin NFTs: How to Create Ordinal Inscriptions",
-                "duration": 900
-            },
-            {
-                "id": "omKlwzKmKBE",
-                "title": "Bitcoin Trading Cards: Understanding True Scarcity and Value",
-                "duration": 600
-            },
-            {
-                "id": "IUpIoZIoO2Q",
-                "title": "Ripping BitBlockBoom Packs (Bitcoin Trading Cards)",
-                "duration": 600
-            },
-            {
-                "id": "ImZDBBjdX6s",
-                "title": "Opening The BOX! 24 Packs of BTC Trading Cards — Crypto Viking",
-                "duration": 1200
-            },
-            {
-                "id": "NALikCvCyes",
-                "title": "The Truth About Money, Inflation and Bitcoin — Robert Breedlove",
-                "duration": 2400
-            },
-            {
-                "id": "JffTkZZC2z8",
-                "title": "What is Money? — Robert Breedlove",
-                "duration": 1800
-            },
-            {
-                "id": "lo7eeL1E_VQ",
-                "duration": 300,
-                "title": "A Madex Manifesto"
-            },
-            {
-                "id": "cgzH1jScIn0",
-                "title": "Bitcoin NFTs — Ordinals Explained Full Guide (Wallet Setup & Mint)",
-                "duration": 1200
-            },
-            {
-                "id": "I0SecXkqums",
-                "title": "Bitcoin Full Node Sculpture Lightning Auction Launch",
-                "duration": 300
+                "id": "2Jf8sxF8QFQ",
+                "duration": 120,
+                "title": "Miami debuts Bitcoin Bull Statue"
             },
             {
                 "id": "83mw71TLYjY",
@@ -176,39 +21,29 @@ var STATIONS = [
                 "duration": 600
             },
             {
-                "id": "9UxAUryUKXM",
-                "duration": 36000,
-                "title": "10 Hours of Bitcoin Lofi & Philosophy"
+                "id": "YZ2B-Qnm0eM",
+                "title": "The Timechain Codex by FractalEncrypt",
+                "duration": 300
             },
             {
-                "id": "gNOnNz4d_mI",
-                "title": "Tone Vays Rips BitBlockBoom 2024 Bitcoin Trading Cards Packs",
-                "duration": 600
+                "id": "nvPJ_F845ms",
+                "title": "Sam Kimbrow & Asanoha on Bitcoin Culture — Movement of Art Ep. 1",
+                "duration": 3600
             },
             {
-                "id": "-vKBCrUyCEU",
-                "title": "Bitcoin Ordinals Explained",
-                "duration": 600
+                "id": "7DIp6D-68cQ",
+                "title": "Can Bitcoin Rebuild Civilization? — Saifedean Ammous",
+                "duration": 3033
             },
             {
-                "id": "edyO5-L9un8",
-                "duration": 3600,
-                "title": "Marcus Connor & The Bitcoin Roller Coaster Guy"
+                "id": "occ9L0dMMO4",
+                "duration": 600,
+                "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob"
             },
             {
-                "id": "MRnmP7pbR0s",
-                "duration": 3600,
-                "title": "Creating Meaningful Art with FractalEncrypt"
-            },
-            {
-                "id": "gb2S1Filtic",
-                "title": "How Bitcoin Fixes Fiat's Millennium of Mistakes — Saifedean",
-                "duration": 1587
-            },
-            {
-                "id": "OszL_Q2wvNQ",
-                "title": "Welcome to Ordinals! What is Ordinal Theory? — Ordinals Explained Ep. 1",
-                "duration": 600
+                "id": "ic6pDq3OAec",
+                "title": "Philosophy of Bitcoin — First Principles",
+                "duration": 3600
             },
             {
                 "id": "9-S17oAxIqA",
@@ -216,19 +51,129 @@ var STATIONS = [
                 "title": "Bitcoin Pencil Art Timelapse - Bitcoin Apex"
             },
             {
+                "id": "Q4owb6f9gbM",
+                "title": "FractalEncrypt & Rebel Money on Bitcoin Art & Time — Movement of Art Ep. 5",
+                "duration": 3600
+            },
+            {
+                "id": "SogEkk3-XnA",
+                "title": "I BOUGHT THIS BITCOIN NFT! (BRC-20, NFTs, Ordinals)",
+                "duration": 900
+            },
+            {
+                "id": "b4Q8Y3Rg7Rc",
+                "title": "Frederic Guimont on Ratel & Bitcoin Comics — Bitcoin Art Podcast",
+                "duration": 3600
+            },
+            {
+                "id": "1gnIbVFnuCY",
+                "title": "The Biggest Scam in Human History — Robert Breedlove",
+                "duration": 5400
+            },
+            {
+                "id": "vPUpdXZPpbQ",
+                "duration": 180,
+                "title": "Nashville Bitcoin Mural - Sound Money"
+            },
+            {
+                "id": "edyO5-L9un8",
+                "duration": 3600,
+                "title": "Marcus Connor & The Bitcoin Roller Coaster Guy"
+            },
+            {
+                "id": "P0WZCTDDGXQ",
+                "title": "Create and List Your Own Bitcoin Ordinals — Ordinals Explained Ep. 5",
+                "duration": 900
+            },
+            {
+                "id": "JffTkZZC2z8",
+                "title": "What is Money? — Robert Breedlove",
+                "duration": 1800
+            },
+            {
+                "id": "cgzH1jScIn0",
+                "title": "Bitcoin NFTs — Ordinals Explained Full Guide (Wallet Setup & Mint)",
+                "duration": 1200
+            },
+            {
+                "id": "IUpIoZIoO2Q",
+                "title": "Ripping BitBlockBoom Packs (Bitcoin Trading Cards)",
+                "duration": 600
+            },
+            {
+                "id": "N3J868zhH9g",
+                "title": "Bitcoin Is Encrypted Energy — Breedlove & Saylor",
+                "duration": 2400
+            },
+            {
+                "id": "Tr7XO-SQw5g",
+                "title": "Marcus Connor, Pepenardo & Rare Scrilla on Memes — Movement of Art Ep. 3",
+                "duration": 3600
+            },
+            {
+                "id": "9UxAUryUKXM",
+                "duration": 36000,
+                "title": "10 Hours of Bitcoin Lofi & Philosophy"
+            },
+            {
+                "id": "gb2S1Filtic",
+                "title": "How Bitcoin Fixes Fiat's Millennium of Mistakes — Saifedean",
+                "duration": 1587
+            },
+            {
+                "id": "yMoVGgR6h0Y",
+                "title": "Money: The Language of Power — Robert Breedlove",
+                "duration": 3600
+            },
+            {
+                "id": "lRr9ofu0tnk",
+                "duration": 180,
+                "title": "Bitcoin Art Magazine Unleashed"
+            },
+            {
+                "id": "Z0_9Jw56l4k",
+                "title": "Opening 2 Packs Of Bitcoin Trading Cards",
+                "duration": 600
+            },
+            {
+                "id": "yvdZsN5s9sc",
+                "duration": 2400,
+                "title": "Based Trading Cards Movement"
+            },
+            {
+                "id": "VLRt0QOZ3TE",
+                "title": "Bitcoin Trading Cards: The Scarcest Collectibles on Earth",
+                "duration": 300
+            },
+            {
+                "id": "h9jO1cipnc8",
+                "title": "2024 Bitcoin Trading Cards Halving Edition Whale Packs — Launch Announcement",
+                "duration": 300
+            },
+            {
+                "id": "xwufPksmi9w",
+                "title": "Cracking A Pack Of Based Trading Cards Series 3 — Warriors Vs Villains",
+                "duration": 600
+            },
+            {
                 "id": "Ifi-Hg3n3bc",
                 "title": "Bitcoin Ordinals Explained: How To Make Your First Bitcoin NFT",
                 "duration": 900
             },
             {
-                "id": "2Jf8sxF8QFQ",
-                "duration": 120,
-                "title": "Miami debuts Bitcoin Bull Statue"
+                "id": "l5a6-9mNqho",
+                "title": "World's Largest Bitcoin Sculpture",
+                "duration": 300
             },
             {
-                "id": "HVKq5qfZSqU",
-                "title": "FractalEncrypt Bitcoin Full Node Book & Canvas — Bitcoin 2022 Conference",
-                "duration": 300
+                "id": "FiFwaHCRz7s",
+                "title": "Bitcoin's BRC-20 Explosion: Everything You Need To Know About Ordinals",
+                "duration": 1200
+            },
+            {
+                "id": "W03SVhhOaEU",
+                "title": "The Bitcoin Full Node Sculpture 7.0 — A Cypherpunk Chronometer (MirrorNode)",
+                "duration": 600
             },
             {
                 "id": "N3a8IQXKjeY",
@@ -241,13 +186,8 @@ var STATIONS = [
                 "title": "Bitcoin, Art, and Freedom with Madex"
             },
             {
-                "id": "EQSyE-EzOqM",
-                "title": "Bitcoin Full Node Sculpture Auction Close",
-                "duration": 180
-            },
-            {
-                "id": "l5a6-9mNqho",
-                "title": "World's Largest Bitcoin Sculpture",
+                "id": "uIaUj6Nsi70",
+                "title": "2024: A Landmark Year for Bitcoin Trading Cards — Bold New Look",
                 "duration": 300
             },
             {
@@ -256,104 +196,9 @@ var STATIONS = [
                 "duration": 1200
             },
             {
-                "id": "SKIIif9WQok",
-                "title": "Bitcoin Renaissance Legacy: Beyond Digital Gold",
-                "duration": 1242
-            },
-            {
-                "id": "0qS_oBk-tbY",
-                "title": "FractalEncrypt: Artistic Bitcoin Education — Bitcoin With Jake #44",
-                "duration": 3600
-            },
-            {
-                "id": "1gnIbVFnuCY",
-                "title": "The Biggest Scam in Human History — Robert Breedlove",
-                "duration": 5400
-            },
-            {
-                "id": "cKkokcMMnpc",
-                "title": "Bitcoin Aligns with the Laws of Nature — Robert Breedlove",
-                "duration": 1800
-            },
-            {
-                "id": "PqFz8R1CZYo",
-                "title": "Bitcoin as a Kardashev-Scale Technology — Robert Breedlove",
-                "duration": 2400
-            },
-            {
-                "id": "Mqc6M8rZRi8",
-                "duration": 600,
-                "title": "BITCOIN TRADING CARDS?"
-            },
-            {
-                "id": "N3J868zhH9g",
-                "title": "Bitcoin Is Encrypted Energy — Breedlove & Saylor",
-                "duration": 2400
-            },
-            {
-                "id": "lRr9ofu0tnk",
-                "duration": 180,
-                "title": "Bitcoin Art Magazine Unleashed"
-            },
-            {
-                "id": "VLRt0QOZ3TE",
-                "title": "Bitcoin Trading Cards: The Scarcest Collectibles on Earth",
-                "duration": 300
-            },
-            {
-                "id": "wYhpD6Y6E8E",
-                "title": "Meet Based Trading Cards — Bitcoin Culture You Can Hold",
-                "duration": 600
-            },
-            {
-                "id": "8TN7mq6cK7g",
-                "title": "Bitcoin Art with FractalEncrypt — Freedom Footprint",
-                "duration": 3600
-            },
-            {
-                "id": "pcVCt2utTW4",
-                "title": "How to Make a Bitcoin Ordinal Inscription in Under Two Minutes",
-                "duration": 120
-            },
-            {
-                "id": "5gl2xVJ9mTw",
-                "title": "What are Satributes & Recursions? — Ordinals Explained Ep. 3",
-                "duration": 600
-            },
-            {
-                "id": "h9jO1cipnc8",
-                "title": "2024 Bitcoin Trading Cards Halving Edition Whale Packs — Launch Announcement",
-                "duration": 300
-            },
-            {
-                "id": "YZ2B-Qnm0eM",
-                "title": "The Timechain Codex by FractalEncrypt",
-                "duration": 300
-            },
-            {
-                "id": "QVg0ZmxrYLo",
-                "title": "Bitcoin's Most Beautifully Absurd Art Drop",
-                "duration": 1020
-            },
-            {
-                "id": "EPUNITbXwEM",
-                "title": "Bitcoin Trading Cards: Collectible Art To Orange Pill The World",
-                "duration": 600
-            },
-            {
-                "id": "yvdZsN5s9sc",
-                "duration": 2400,
-                "title": "Based Trading Cards Movement"
-            },
-            {
-                "id": "XrD617FIfJM",
-                "title": "FractalEncrypt's Bitcoin Full Node — DESIGN Feature for Block04",
-                "duration": 600
-            },
-            {
-                "id": "iFb2MMUZBYs",
-                "title": "Bitcoin Artist Trevor Jones Augments Reality",
-                "duration": 600
+                "id": "33emHIL1IoU",
+                "duration": 900,
+                "title": "The Bitcoin Full Node Sculpture - Eric Weiss"
             },
             {
                 "id": "XHBydlTt2jM",
@@ -361,18 +206,233 @@ var STATIONS = [
                 "duration": 1800
             },
             {
+                "id": "KxTWC3ShYDE",
+                "duration": 7200,
+                "title": "Just-B on Airbrush Mastery - Bitcoin Art Podcast"
+            },
+            {
+                "id": "XrD617FIfJM",
+                "title": "FractalEncrypt's Bitcoin Full Node — DESIGN Feature for Block04",
+                "duration": 600
+            },
+            {
+                "id": "gNOnNz4d_mI",
+                "title": "Tone Vays Rips BitBlockBoom 2024 Bitcoin Trading Cards Packs",
+                "duration": 600
+            },
+            {
+                "id": "sntmLivV56M",
+                "title": "Adam O'Brien & Brandon Gentile Ripping BitBlockBoom 2024 Packs",
+                "duration": 600
+            },
+            {
+                "id": "indFxEWINDA",
+                "title": "We Gave Bitcoin Trading Cards to No-Coiners — Here's What Happened",
+                "duration": 600
+            },
+            {
+                "id": "pcVCt2utTW4",
+                "title": "How to Make a Bitcoin Ordinal Inscription in Under Two Minutes",
+                "duration": 120
+            },
+            {
+                "id": "iFb2MMUZBYs",
+                "title": "Bitcoin Artist Trevor Jones Augments Reality",
+                "duration": 600
+            },
+            {
+                "id": "bHj-a4_nX78",
+                "title": "FractalEncrypt Bitcoin Full Node Sculpture",
+                "duration": 300
+            },
+            {
+                "id": "3e36FXH5Hlw",
+                "title": "Amy DiGi on Community, Craft & Handmade Bitcoin Art — Bitcoin Art Podcast Ep. 2",
+                "duration": 3600
+            },
+            {
+                "id": "KORJr5ZfzWI",
+                "title": "Bitcoin Full Node Sculpture",
+                "duration": 300
+            },
+            {
+                "id": "UrCN7oG_4YY",
+                "title": "Bitcoin NFTs: How to Create Ordinal Inscriptions",
+                "duration": 900
+            },
+            {
+                "id": "tgM5wwpwpzA",
+                "title": "Ariel B., Flo M., Antonio B. & Psyfer on Stories & Myths — Movement of Art Ep. 2",
+                "duration": 3600
+            },
+            {
+                "id": "8TN7mq6cK7g",
+                "title": "Bitcoin Art with FractalEncrypt — Freedom Footprint",
+                "duration": 3600
+            },
+            {
+                "id": "EPUNITbXwEM",
+                "title": "Bitcoin Trading Cards: Collectible Art To Orange Pill The World",
+                "duration": 600
+            },
+            {
+                "id": "GRby6vAPwHI",
+                "title": "Bitcoin, Art, and Our Divine Lost Knowledge — Ariel Birdie",
+                "duration": 3600
+            },
+            {
                 "id": "JQg_s0wt96M",
                 "title": "Bitcoin Trading Cards Are Back With Series Two",
                 "duration": 600
             },
             {
-                "id": "7DIp6D-68cQ",
-                "title": "Can Bitcoin Rebuild Civilization? — Saifedean Ammous",
-                "duration": 3033
+                "id": "e1ojV8YwA2c",
+                "title": "Gus Grillasca on Rare Pepes, BTC Art & Creative Engineering — Bitcoin Art Podcast Ep. 1",
+                "duration": 3600
             },
             {
-                "id": "uIaUj6Nsi70",
-                "title": "2024: A Landmark Year for Bitcoin Trading Cards — Bold New Look",
+                "id": "I0SecXkqums",
+                "title": "Bitcoin Full Node Sculpture Lightning Auction Launch",
+                "duration": 300
+            },
+            {
+                "id": "5gl2xVJ9mTw",
+                "title": "What are Satributes & Recursions? — Ordinals Explained Ep. 3",
+                "duration": 600
+            },
+            {
+                "id": "PqFz8R1CZYo",
+                "title": "Bitcoin as a Kardashev-Scale Technology — Robert Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "0qS_oBk-tbY",
+                "title": "FractalEncrypt: Artistic Bitcoin Education — Bitcoin With Jake #44",
+                "duration": 3600
+            },
+            {
+                "id": "wYhpD6Y6E8E",
+                "title": "Meet Based Trading Cards — Bitcoin Culture You Can Hold",
+                "duration": 600
+            },
+            {
+                "id": "cKkokcMMnpc",
+                "title": "Bitcoin Aligns with the Laws of Nature — Robert Breedlove",
+                "duration": 1800
+            },
+            {
+                "id": "wSLejJ88VGQ",
+                "title": "Ripping Spirit of Satoshi Packs (Bitcoin Trading Cards)",
+                "duration": 600
+            },
+            {
+                "id": "rYiWd-qIRQA",
+                "title": "Kontext on Writing, Music & Stoicism — Bitcoin Art Podcast Ep. 5",
+                "duration": 3600
+            },
+            {
+                "id": "j3QJlyRMHpI",
+                "title": "Art on Bitcoin: Shaping the Future of Digital Creativity",
+                "duration": 2700
+            },
+            {
+                "id": "NALikCvCyes",
+                "title": "The Truth About Money, Inflation and Bitcoin — Robert Breedlove",
+                "duration": 2400
+            },
+            {
+                "id": "RnducAborVw",
+                "duration": 180,
+                "title": "Bitcoin Art Gallery - Miami 2022"
+            },
+            {
+                "id": "8FxyOC26TYE",
+                "title": "What's In A Based Trading Cards Bitcoin Pack?",
+                "duration": 600
+            },
+            {
+                "id": "-vKBCrUyCEU",
+                "title": "Bitcoin Ordinals Explained",
+                "duration": 600
+            },
+            {
+                "id": "omKlwzKmKBE",
+                "title": "Bitcoin Trading Cards: Understanding True Scarcity and Value",
+                "duration": 600
+            },
+            {
+                "id": "HVKq5qfZSqU",
+                "title": "FractalEncrypt Bitcoin Full Node Book & Canvas — Bitcoin 2022 Conference",
+                "duration": 300
+            },
+            {
+                "id": "EaU5yFi61hg",
+                "title": "Yonat Vaks on Her Artistic Journey & Bitcoin Art — Bitcoin Art Podcast Ep. 3",
+                "duration": 3600
+            },
+            {
+                "id": "ImZDBBjdX6s",
+                "title": "Opening The BOX! 24 Packs of BTC Trading Cards — Crypto Viking",
+                "duration": 1200
+            },
+            {
+                "id": "3nA4HhsbZMQ",
+                "title": "Anik Malcolm on Finding Purpose in Bitcoin Art — Bitcoin Art Podcast Ep. 4",
+                "duration": 3600
+            },
+            {
+                "id": "MRnmP7pbR0s",
+                "duration": 3600,
+                "title": "Creating Meaningful Art with FractalEncrypt"
+            },
+            {
+                "id": "H1oc5HKixBg",
+                "title": "The Bitcoin Full Node Sculpture 4.0 — A Cypherpunk Chronometer",
+                "duration": 600
+            },
+            {
+                "id": "Mqc6M8rZRi8",
+                "duration": 600,
+                "title": "BITCOIN TRADING CARDS?"
+            },
+            {
+                "id": "SKIIif9WQok",
+                "title": "Bitcoin Renaissance Legacy: Beyond Digital Gold",
+                "duration": 1242
+            },
+            {
+                "id": "lo7eeL1E_VQ",
+                "duration": 300,
+                "title": "A Madex Manifesto"
+            },
+            {
+                "id": "OszL_Q2wvNQ",
+                "title": "Welcome to Ordinals! What is Ordinal Theory? — Ordinals Explained Ep. 1",
+                "duration": 600
+            },
+            {
+                "id": "EQSyE-EzOqM",
+                "title": "Bitcoin Full Node Sculpture Auction Close",
+                "duration": 180
+            },
+            {
+                "id": "BrfJgr19MPY",
+                "title": "Alex Schaefer on Burning Banks & Protest Art — The Whole Entire Universe",
+                "duration": 3600
+            },
+            {
+                "id": "bgDwvJOtSSY",
+                "title": "Naomi Olson on Ocean Art & Aloha Energy — The Whole Entire Universe",
+                "duration": 3600
+            },
+            {
+                "id": "QVg0ZmxrYLo",
+                "title": "Bitcoin's Most Beautifully Absurd Art Drop",
+                "duration": 1020
+            },
+            {
+                "id": "Q5Wxg53qu9s",
+                "title": "The Bitcoin Full Node Sculpture #2 of 10",
                 "duration": 300
             }
         ]
