@@ -1370,74 +1370,14 @@ var STATIONS = [
         "color": "#0ea5e9",
         "videos": [
             {
-                "id": "xLYYh4aPXAM",
-                "title": "Bitcoin Is Protecting Human Rights — Alex Gladstein",
-                "duration": 1800
-            },
-            {
-                "id": "p8vLlp67UnA",
-                "duration": 1800,
-                "title": "Why I Moved to Dubai - Nomad Capitalist"
-            },
-            {
-                "id": "6QiDB-RwGGw",
-                "duration": 1200,
-                "title": "Best Countries for Digital Nomads"
-            },
-            {
-                "id": "ZYN4X_l1ZXg",
-                "title": "Financial Freedom and Bitcoin — HRF",
-                "duration": 1800
-            },
-            {
-                "id": "n5K1lEDv8aM",
-                "title": "Afghan Women Using Bitcoin Under Taliban — Gladstein",
-                "duration": 1500
-            },
-            {
-                "id": "8Aofh-rx_l8",
-                "title": "Bitcoin's Censorship Resistance Makes It Superior — Breedlove",
-                "duration": 1500
-            },
-            {
-                "id": "d5_cYWLpDs8",
-                "title": "A Brief Look at Bitcoin Maximalism — Guy Swann",
-                "duration": 1800
-            },
-            {
-                "id": "Z_p70BzkMAs",
-                "title": "Bitcoin Protects Human Rights — Gladstein & Balaji",
-                "duration": 3600
-            },
-            {
-                "id": "KY72n6UFg1s",
-                "duration": 900,
-                "title": "Tax-Friendly Countries for Investors"
-            },
-            {
-                "id": "A-QpLdoDF14",
-                "title": "Financial Freedom Against Tyranny",
-                "duration": 1200
-            },
-            {
-                "id": "IBY8SdA3W4Y",
-                "title": "Bitcoin for Generational Wealth & Freedom — Breedlove",
-                "duration": 1500
-            },
-            {
-                "id": "dKDnkf6c250",
-                "title": "Why Sell Your House for Bitcoin? — Breedlove Defense",
-                "duration": 1200
-            },
-            {
                 "id": "oDaTIFKe3k4",
                 "duration": 900,
                 "title": "4 Best Countries for Crypto Millionaires"
             },
             {
-                "id": "PesTO9MRqJo",
-                "duration": 2400,
-                "title": "Bitcoin and Time with Gigi"
+                "id": "mB0U_22_q4s",
+                "duration": 1200,
+                "title": "Living in El Salvador - First Hand Report"
             },
             {
                 "id": "BoHNkX4OWQA",
@@ -1450,9 +1390,9 @@ var STATIONS = [
                 "duration": 2400
             },
             {
-                "id": "mB0U_22_q4s",
-                "duration": 1200,
-                "title": "Living in El Salvador - First Hand Report"
+                "id": "R7Z3IF5AgJI",
+                "title": "Whitney Webb's Urgent Warning to the Bitcoin Community — Get Based TV",
+                "duration": 1800
             },
             {
                 "id": "Y5wgZ3rFayQ",
@@ -1460,14 +1400,104 @@ var STATIONS = [
                 "duration": 1200
             },
             {
+                "id": "p8vLlp67UnA",
+                "duration": 1800,
+                "title": "Why I Moved to Dubai - Nomad Capitalist"
+            },
+            {
+                "id": "d5_cYWLpDs8",
+                "title": "A Brief Look at Bitcoin Maximalism — Guy Swann",
+                "duration": 1800
+            },
+            {
+                "id": "IBY8SdA3W4Y",
+                "title": "Bitcoin for Generational Wealth & Freedom — Breedlove",
+                "duration": 1500
+            },
+            {
+                "id": "n5K1lEDv8aM",
+                "title": "Afghan Women Using Bitcoin Under Taliban — Gladstein",
+                "duration": 1500
+            },
+            {
+                "id": "iWpeSs4yWZ8",
+                "title": "THESE CELEBRITIES Might Be Arrested for Promoting Cryptocurrency? — Get Based TV",
+                "duration": 900
+            },
+            {
+                "id": "dKDnkf6c250",
+                "title": "Why Sell Your House for Bitcoin? — Breedlove Defense",
+                "duration": 1200
+            },
+            {
+                "id": "8Aofh-rx_l8",
+                "title": "Bitcoin's Censorship Resistance Makes It Superior — Breedlove",
+                "duration": 1500
+            },
+            {
+                "id": "KY72n6UFg1s",
+                "duration": 900,
+                "title": "Tax-Friendly Countries for Investors"
+            },
+            {
+                "id": "Z_p70BzkMAs",
+                "title": "Bitcoin Protects Human Rights — Gladstein & Balaji",
+                "duration": 3600
+            },
+            {
+                "id": "A-QpLdoDF14",
+                "title": "Financial Freedom Against Tyranny",
+                "duration": 1200
+            },
+            {
+                "id": "1jdFBnoNuOU",
+                "title": "Debt. Greed. Inflation. The Bible Saw It Coming. — Get Based TV",
+                "duration": 1200
+            },
+            {
+                "id": "lwbUwl8cNAI",
+                "title": "Did The Bible Warn Us About Bitcoin? — Get Based TV",
+                "duration": 1200
+            },
+            {
+                "id": "6QiDB-RwGGw",
+                "duration": 1200,
+                "title": "Best Countries for Digital Nomads"
+            },
+            {
+                "id": "ZYN4X_l1ZXg",
+                "title": "Financial Freedom and Bitcoin — HRF",
+                "duration": 1800
+            },
+            {
+                "id": "GNzyaxizrNo",
+                "title": "This Video Is For Ross Ulbricht — Get Based TV",
+                "duration": 900
+            },
+            {
+                "id": "xLYYh4aPXAM",
+                "title": "Bitcoin Is Protecting Human Rights — Alex Gladstein",
+                "duration": 1800
+            },
+            {
                 "id": "lfPZteWuH3k",
                 "duration": 900,
                 "title": "Crypto-Friendly Countries Interview"
             },
             {
+                "id": "RNHi8Qj2KrY",
+                "title": "Ethereum — How A Lie Became Worth Billions — Get Based TV",
+                "duration": 1200
+            },
+            {
                 "id": "zV_A2yMZl0w",
                 "title": "Alex Gladstein: Bitcoin Privacy & Freedom — Bitcoin Magazine",
                 "duration": 1800
+            },
+            {
+                "id": "PesTO9MRqJo",
+                "duration": 2400,
+                "title": "Bitcoin and Time with Gigi"
             }
         ]
     },
@@ -3101,39 +3131,39 @@ var STATIONS = [
         "color": "#f7931a",
         "videos": [
             {
-                "id": "Nls1keqHlz8",
-                "title": "Show This Video At The Dinner Table To Orange Pill Your Family!",
+                "id": "Qaj7TfHxVBU",
+                "title": "El Salvador's Broken Bitcoin Revolution — Get Based TV",
+                "duration": 1200
+            },
+            {
+                "id": "N5aAkIo-93Q",
+                "title": "Crypto Street Interviews: Las Vegas Episode 1",
                 "duration": 600
             },
             {
-                "id": "exK5yFEuBsk",
-                "title": "Remember, Remember the 5th of November — Bitcoin",
-                "duration": 180
+                "id": "l3c8l4rgp6s",
+                "title": "Inside Costa Rica's Secret Bitcoin Community — Get Based TV",
+                "duration": 1200
             },
             {
-                "id": "KW_wYvZ1eZg",
-                "duration": 4800,
-                "title": "Andreas Antonopoulos: Decentralization & The Future of Money"
-            },
-            {
-                "id": "gt4HBSUjENE",
-                "title": "Would You Rather Have $100 Or 1 Bitcoin?",
-                "duration": 480
-            },
-            {
-                "id": "4xGTGqsy4SM",
-                "title": "ORANGE PILL PODCAST — Episode 0001",
-                "duration": 3600
-            },
-            {
-                "id": "4QVuQH2DEJM",
-                "title": "Orange Pill [OP23] — Bitcoin Reveals the Fiat Dark Ages",
-                "duration": 3600
-            },
-            {
-                "id": "LKYVbahTjQM",
-                "title": "Giving Strangers $50 Bitcoin or $5 Cash (Social Experiment)",
+                "id": "ExUeCIscbNU",
+                "title": "Something is Deeply Wrong with the Economy Right Now — Julian Figueroa",
                 "duration": 600
+            },
+            {
+                "id": "ztTICG37kxA",
+                "title": "I Asked Strangers About Bitcoin... It Got Awkward",
+                "duration": 600
+            },
+            {
+                "id": "NuKcDkaH2fc",
+                "title": "Orange Pill [OP40] — The Dust Bowl of Money",
+                "duration": 3600
+            },
+            {
+                "id": "Uh-eTnRXCr8",
+                "title": "Bitcoin Street Interviews Edinburgh — Mike Still",
+                "duration": 1400
             },
             {
                 "id": "IuVkUqdqkcc",
@@ -3141,14 +3171,84 @@ var STATIONS = [
                 "duration": 653
             },
             {
-                "id": "y1KXs3uE42I",
-                "duration": 5400,
-                "title": "Andreas Antonopoulos: Why Bitcoin Matters - Internet of Money"
+                "id": "7O10xS_sQoE",
+                "title": "The Hidden Tax You Pay to Rich People — Julian Figueroa",
+                "duration": 600
+            },
+            {
+                "id": "LuZ0XN3eH5I",
+                "title": "The Fatal Flaw in Bitcoin's Lightning Network? — Get Based TV",
+                "duration": 900
+            },
+            {
+                "id": "SS8-qjP-yAo",
+                "title": "We Investigated Canada's Secret Bitcoin City — Get Based TV",
+                "duration": 1200
+            },
+            {
+                "id": "og5zZssEWIc",
+                "title": "Bitcoin Street Interviews Birmingham — Mike Still",
+                "duration": 1500
+            },
+            {
+                "id": "4xGTGqsy4SM",
+                "title": "ORANGE PILL PODCAST — Episode 0001",
+                "duration": 3600
+            },
+            {
+                "id": "gCfA1lkmJo4",
+                "title": "The Greatest Bitcoin Explanation — Michael Saylor",
+                "duration": 1200
             },
             {
                 "id": "HhxcdMIJTLA",
                 "title": "Telling People About Bitcoin Never Works — Exit Manual",
                 "duration": 450
+            },
+            {
+                "id": "ZkgkxB8s9bw",
+                "title": "Can Bitcoin Be Futureproof? — w/ Adam O'Brien — Get Based TV",
+                "duration": 3600
+            },
+            {
+                "id": "sLcNmZwMOz0",
+                "title": "Drunk People React To Bitcoin — Street Interviews!",
+                "duration": 480
+            },
+            {
+                "id": "vQ8MvR1sW2X",
+                "duration": 3900,
+                "title": "Andreas Antonopoulos: The Architecture of Trust"
+            },
+            {
+                "id": "vclZlAFXpEI",
+                "title": "Give Me 9 Minutes and You Will Understand Bitcoin — Exit Manual",
+                "duration": 600
+            },
+            {
+                "id": "iXxeIahvAOQ",
+                "title": "Building a Bitcoin World — Interview with BTC Sessions — Get Based TV",
+                "duration": 3600
+            },
+            {
+                "id": "T_hXPEh8S60",
+                "title": "Becoming A Bitcoin Maximalist: The Journey (Asking REAL People)",
+                "duration": 900
+            },
+            {
+                "id": "KW_wYvZ1eZg",
+                "duration": 4800,
+                "title": "Andreas Antonopoulos: Decentralization & The Future of Money"
+            },
+            {
+                "id": "4QVuQH2DEJM",
+                "title": "Orange Pill [OP23] — Bitcoin Reveals the Fiat Dark Ages",
+                "duration": 3600
+            },
+            {
+                "id": "heA1fZzRAFs",
+                "title": "Orange Pill: The Bitcoin Guide",
+                "duration": 900
             },
             {
                 "id": "H85UfhYV_pA",
@@ -3161,49 +3261,49 @@ var STATIONS = [
                 "title": "Andreas Antonopoulos: The Internet of Money - What is Bitcoin?"
             },
             {
-                "id": "NuKcDkaH2fc",
-                "title": "Orange Pill [OP40] — The Dust Bowl of Money",
-                "duration": 3600
+                "id": "1Mr9PknsM_Y",
+                "title": "Saylor's Best Explanation Under 20 Minutes",
+                "duration": 1200
             },
             {
-                "id": "vclZlAFXpEI",
-                "title": "Give Me 9 Minutes and You Will Understand Bitcoin — Exit Manual",
-                "duration": 600
+                "id": "wQ7V3S8vW9X",
+                "duration": 3300,
+                "title": "Andreas Antonopoulos: Understanding the Blockchain"
             },
             {
-                "id": "4tqXvMNOuHk",
-                "title": "Bitcoin Ethical Superiority Explained — Exit Manual",
-                "duration": 480
-            },
-            {
-                "id": "jNQpZ2T-WcQ",
-                "duration": 4200,
-                "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking"
-            },
-            {
-                "id": "HPkjH3Yeih4",
-                "title": "What is the ONE THING Preventing Bitcoin from Reaching $100k?",
-                "duration": 600
-            },
-            {
-                "id": "r34hkJBeE-M",
-                "title": "How I Lost 14 Bitcoins — Exit Manual",
-                "duration": 555
-            },
-            {
-                "id": "sLcNmZwMOz0",
-                "title": "Drunk People React To Bitcoin — Street Interviews!",
-                "duration": 480
-            },
-            {
-                "id": "T_hXPEh8S60",
-                "title": "Becoming A Bitcoin Maximalist: The Journey (Asking REAL People)",
+                "id": "nTRdmYX-0h8",
+                "title": "Warming Up to Bitcoin — The Future of Sustainable Heating? — Get Based TV",
                 "duration": 900
             },
             {
-                "id": "gCfA1lkmJo4",
-                "title": "The Greatest Bitcoin Explanation — Michael Saylor",
-                "duration": 1200
+                "id": "CgCX1K-uD7o",
+                "title": "IS CRYPTO A SCAM? (Asking The Public)",
+                "duration": 600
+            },
+            {
+                "id": "gt4HBSUjENE",
+                "title": "Would You Rather Have $100 Or 1 Bitcoin?",
+                "duration": 480
+            },
+            {
+                "id": "y1KXs3uE42I",
+                "duration": 5400,
+                "title": "Andreas Antonopoulos: Why Bitcoin Matters - Internet of Money"
+            },
+            {
+                "id": "rJlgpOQp7Ig",
+                "title": "Orange Pill [OP26] — Monetizing Dissent",
+                "duration": 3600
+            },
+            {
+                "id": "D22zHDCE6-0",
+                "title": "Did El Salvador Just Give Up On Bitcoin? — Get Based TV",
+                "duration": 900
+            },
+            {
+                "id": "xyxRCwJVBUc",
+                "title": "Bitcoin Expert Breaks Down Historic RFK Jr. Speech — Get Based TV",
+                "duration": 900
             },
             {
                 "id": "XG7v4XFL7mc",
@@ -3211,14 +3311,9 @@ var STATIONS = [
                 "duration": 900
             },
             {
-                "id": "YT-38EneBWw",
-                "title": "Bitcoin Street Interviews London — Mike Still",
-                "duration": 1440
-            },
-            {
-                "id": "N5aAkIo-93Q",
-                "title": "Crypto Street Interviews: Las Vegas Episode 1",
-                "duration": 600
+                "id": "6xIq0FdmsIA",
+                "duration": 4320,
+                "title": "Andreas Antonopoulos: Internet of Money - Keynote"
             },
             {
                 "id": "xegEpCLT0CQ",
@@ -3231,49 +3326,44 @@ var STATIONS = [
                 "duration": 600
             },
             {
-                "id": "Uh-eTnRXCr8",
-                "title": "Bitcoin Street Interviews Edinburgh — Mike Still",
-                "duration": 1400
-            },
-            {
-                "id": "Bt2Z-_nhpwQ",
-                "title": "How to Orange Pill Anyone",
-                "duration": 600
-            },
-            {
-                "id": "wQ7V3S8vW9X",
-                "duration": 3300,
-                "title": "Andreas Antonopoulos: Understanding the Blockchain"
-            },
-            {
-                "id": "heA1fZzRAFs",
-                "title": "Orange Pill: The Bitcoin Guide",
+                "id": "zdJiltpWi3A",
+                "title": "The 3 Biggest Bitcoin Myths (Stop Believing Them) — Get Based TV",
                 "duration": 900
             },
             {
-                "id": "rJlgpOQp7Ig",
-                "title": "Orange Pill [OP26] — Monetizing Dissent",
-                "duration": 3600
+                "id": "exK5yFEuBsk",
+                "title": "Remember, Remember the 5th of November — Bitcoin",
+                "duration": 180
             },
             {
-                "id": "og5zZssEWIc",
-                "title": "Bitcoin Street Interviews Birmingham — Mike Still",
-                "duration": 1500
+                "id": "r34hkJBeE-M",
+                "title": "How I Lost 14 Bitcoins — Exit Manual",
+                "duration": 555
             },
             {
-                "id": "vQ8MvR1sW2X",
-                "duration": 3900,
-                "title": "Andreas Antonopoulos: The Architecture of Trust"
-            },
-            {
-                "id": "MQvvLwxxxdM",
-                "title": "The Banks are BROKE",
+                "id": "6qVq7T-NJdE",
+                "title": "Gen Z Knows the System Is Broken… Bitcoin is the Escape Plan — Julian Figueroa",
                 "duration": 600
             },
             {
-                "id": "6xIq0FdmsIA",
-                "duration": 4320,
-                "title": "Andreas Antonopoulos: Internet of Money - Keynote"
+                "id": "YT-38EneBWw",
+                "title": "Bitcoin Street Interviews London — Mike Still",
+                "duration": 1440
+            },
+            {
+                "id": "4hWMHLF-OEg",
+                "title": "Inside Peru's Hidden Bitcoin Revolution — Get Based TV (Full Movie)",
+                "duration": 3600
+            },
+            {
+                "id": "jNQpZ2T-WcQ",
+                "duration": 4200,
+                "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking"
+            },
+            {
+                "id": "03V2j-KUFho",
+                "title": "Is Bitcoin Actually Just a Cult? — Get Based TV",
+                "duration": 900
             },
             {
                 "id": "Sv9VAocAA80",
@@ -3286,19 +3376,34 @@ var STATIONS = [
                 "duration": 600
             },
             {
-                "id": "ztTICG37kxA",
-                "title": "I Asked Strangers About Bitcoin... It Got Awkward",
+                "id": "Nls1keqHlz8",
+                "title": "Show This Video At The Dinner Table To Orange Pill Your Family!",
                 "duration": 600
             },
             {
-                "id": "CgCX1K-uD7o",
-                "title": "IS CRYPTO A SCAM? (Asking The Public)",
+                "id": "4tqXvMNOuHk",
+                "title": "Bitcoin Ethical Superiority Explained — Exit Manual",
+                "duration": 480
+            },
+            {
+                "id": "LKYVbahTjQM",
+                "title": "Giving Strangers $50 Bitcoin or $5 Cash (Social Experiment)",
                 "duration": 600
             },
             {
-                "id": "1Mr9PknsM_Y",
-                "title": "Saylor's Best Explanation Under 20 Minutes",
-                "duration": 1200
+                "id": "HPkjH3Yeih4",
+                "title": "What is the ONE THING Preventing Bitcoin from Reaching $100k?",
+                "duration": 600
+            },
+            {
+                "id": "MQvvLwxxxdM",
+                "title": "The Banks are BROKE",
+                "duration": 600
+            },
+            {
+                "id": "Bt2Z-_nhpwQ",
+                "title": "How to Orange Pill Anyone",
+                "duration": 600
             }
         ]
     },
