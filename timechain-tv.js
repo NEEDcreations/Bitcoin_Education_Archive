@@ -452,6 +452,132 @@ var STATIONS = [
                 "title": "BITCOIN DAY 2024",
                 "duration": 14400
             }
+        ,
+            {
+                "id": "XT-B9k9t5B8",
+                "title": "LIVE: The MIT Bitcoin Expo 2025 — Day 2 Full Stream",
+                "duration": 28800
+            },
+            {
+                "id": "wAv0T2nX0v0",
+                "title": "Strategy CEO Phong Le: MIT Bitcoin Expo 2025 Keynote",
+                "duration": 2400
+            },
+            {
+                "id": "M-PIOaHxX4c",
+                "title": "BitVM Creator Robin Linus: This Breakthrough Will Revolutionize Bitcoin — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "xCyPbFx0Ktg",
+                "title": "Why Bitcoin Must Change — Or Be Left Behind (Jameson Lopp) — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "rNok4Ht6n1E",
+                "title": "Bitcoin, Not Crypto: Why Bitcoin-Only VC Will Win (Nico Lechuga) — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "bLEv8FcfxfE",
+                "title": "Why Bitcoin-Backed Lending Will Eat the World (Mauricio di Bartolomeo) — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "4S6lzgc7tFc",
+                "title": "Bitcoin Beyond Capital: Freedom Money for the Global South (Femi Longe) — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "-LGpW2PKwHA",
+                "title": "Bitcoin Core Developer Interview: Antoine Poinsot — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "lW8r9hq8-yU",
+                "title": "Bitcoin Core Developer Interview: Gloria Zhao — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "SVJCpnSANG4",
+                "title": "Building Bitcoin Insurance for Financial Institutions (Anchorwatch) — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "gn5sQC19rvM",
+                "title": "MIT Digital Currency Initiative & Future of Bitcoin Research (Neha Nerula) — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "IXKLholMqwE",
+                "title": "Former CFTC Chairman Tim Massad: Bitcoin & Digital Identity — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "LsLKr_dWdpU",
+                "title": "The Eric Semler Interview — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "dMHhuY35NKY",
+                "title": "Tor Project Co-Founder Roger Dingledine: Anonymity in Society — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "eEtxKbERWyA",
+                "title": "Bitcoin Core Dev Jeremy Rubin: Building Char Network — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "ckvTy0Fsc_M",
+                "title": "Bitcoin Privacy on Trial: Samourai Wallet & Tornado Cash — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "TEVJUjOGmOI",
+                "title": "Bitcoin Core Developer Roundtable — MIT Bitcoin Expo 2025",
+                "duration": 3600
+            },
+            {
+                "id": "tO1QTCLrbB8",
+                "title": "Matt Odell: Bitcoin-Native Venture Capital — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "rXsRvBXbZyU",
+                "title": "Lightning Network Co-Inventor Tadge Dryja: Here Comes the Hornet's Nest — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "e_yg6cLsQHE",
+                "title": "Bitcoin Address Poisoning Attacks (Jameson Lopp) — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "sNE-2ffq5MA",
+                "title": "Fighting for Freedom Under Zimbabwe's Hyperinflation (Evan Mawarire) — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "M2zGs2E-pfs",
+                "title": "The Future of Corporate Bitcoin Adoption — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "-NlgxiLgqZo",
+                "title": "Why Nostr Feels Like Bitcoin in 2012 (Vitor Pamplona) — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            },
+            {
+                "id": "4NoJnPmCVdU",
+                "title": "Solving Bitcoin's Quantum Computing Threat: BIP 360 (Hunter Beast) — MIT Bitcoin Expo 2025",
+                "duration": 1800
+            },
+            {
+                "id": "QvtnQfVdLYU",
+                "title": "What People Get Wrong About Bitcoin Core (Sjors Provoost) — MIT Bitcoin Expo 2025",
+                "duration": 1200
+            }
         ]
     },
     {
