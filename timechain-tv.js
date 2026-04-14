@@ -5831,13 +5831,50 @@ window.tctvRestoreCouch = function() {
     if (restoreBtn) restoreBtn.style.display = 'none';
 };
 
-window.tctvDismissAd = function() {
-    var ad = document.getElementById('tctv-ad-sidebar');
-    if (ad) { ad.style.visibility = 'hidden'; ad.style.width = '0'; ad.style.overflow = 'hidden'; }
-    var adM = document.getElementById('tctv-ad-mobile');
-    if (adM) adM.remove();
-    try { localStorage.setItem('tctv_ad_dismissed', '1'); } catch(e) {}
+window.tctvMinimizeAd = function() {
+    var ad = document.getElementById('tctv-ad-sidebar-content');
+    var adM = document.getElementById('tctv-ad-mobile-content');
+    var btnD = document.getElementById('tctv-ad-restore-desktop');
+    var btnM = document.getElementById('tctv-ad-restore-mobile');
+    if (ad) ad.style.display = 'none';
+    if (adM) adM.style.display = 'none';
+    if (btnD) btnD.style.display = 'flex';
+    if (btnM) btnM.style.display = 'flex';
+    try { localStorage.setItem('tctv_ad_minimized', '1'); } catch(e) {}
 };
+
+window.tctvRestoreAd = function() {
+    var ad = document.getElementById('tctv-ad-sidebar-content');
+    var adM = document.getElementById('tctv-ad-mobile-content');
+    var btnD = document.getElementById('tctv-ad-restore-desktop');
+    var btnM = document.getElementById('tctv-ad-restore-mobile');
+    if (ad) ad.style.display = 'block';
+    if (adM) adM.style.display = 'block';
+    if (btnD) btnD.style.display = 'none';
+    if (btnM) btnM.style.display = 'none';
+    try { localStorage.removeItem('tctv_ad_minimized'); } catch(e) {}
+};
+
+window.tctvCopyEmail = function() {
+    var email = 'info.603btc@gmail.com';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(email).then(function() {
+            if (typeof showToast === 'function') showToast('\u2709\ufe0f Email copied!');
+        }).catch(function() {
+            _tctvFallbackCopy(email);
+        });
+    } else {
+        _tctvFallbackCopy(email);
+    }
+};
+function _tctvFallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); if (typeof showToast === 'function') showToast('\u2709\ufe0f Email copied!'); }
+    catch(e) { if (typeof showToast === 'function') showToast('Copy: ' + text); }
+    document.body.removeChild(ta);
+}
 
 // Hide sprite Nacho when entering TCTV, restore on exit
 window._tctvSpriteWasVisible = false;
@@ -6138,16 +6175,19 @@ window.renderTimechainTV = function() {
     // Desktop: side-by-side layout with couch left, video center, remote right
     html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:10px;">';
     // Left side - TCTV Ad (desktop only, dismissible)
-    var _tctvAdDismissed = false;
-    try { _tctvAdDismissed = localStorage.getItem('tctv_ad_dismissed') === '1'; } catch(e) {}
-    html += '<div id="tctv-ad-sidebar" style="flex:0 0 auto;display:none;' + (_tctvAdDismissed ? 'visibility:hidden;width:0;overflow:hidden;' : '') + '" class="desktop-only">' +
-            '<div style="position:relative;width:140px;padding:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;">' +
-            '<button onclick="tctvDismissAd()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Dismiss">✕</button>' +
-            '<div style="font-size:1.5rem;margin-bottom:6px;">📺</div>' +
+    var _tctvAdMinimized = false;
+    try { _tctvAdMinimized = localStorage.getItem('tctv_ad_minimized') === '1'; } catch(e) {}
+    html += '<div id="tctv-ad-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
+            '<div id="tctv-ad-sidebar-content" style="position:relative;width:140px;padding:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
+            '<button onclick="tctvMinimizeAd()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
+            '<div style="font-size:1.5rem;margin-bottom:6px;">\ud83d\udcfa</div>' +
             '<div style="font-size:0.65rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
             '<div style="margin-top:8px;font-size:0.6rem;color:#f7931a;font-weight:700;">Inquire at:</div>' +
             '<a href="mailto:info.603btc@gmail.com" style="font-size:0.55rem;color:#aaa;text-decoration:none;word-break:break-all;" onmouseover="this.style.color=\'#f7931a\'" onmouseout="this.style.color=\'#aaa\'">info.603btc@gmail.com</a>' +
-            '</div></div>';
+            '<button onclick="tctvCopyEmail()" style="display:block;margin:8px auto 0;padding:4px 10px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:6px;color:#f7931a;font-size:0.55rem;font-weight:700;cursor:pointer;">\ud83d\udccb Copy Email</button>' +
+            '</div>' +
+            '<button id="tctv-ad-restore-desktop" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:0 auto;" title="Show ad">\ud83d\udcfa</button>' +
+            '</div>';
     // Center - Video player (narrower on desktop, full width on mobile)
     html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
             '<div style="position:relative;aspect-ratio:16/9;max-height:45vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
@@ -6232,15 +6272,17 @@ window.renderTimechainTV = function() {
     html += '</div>'; // end mobile-ui-stack
 
     html += _renderEPG();
-    // Mobile ad (below channel guide, dismissible)
-    if (!_tctvAdDismissed) {
-        html += '<div id="tctv-ad-mobile" style="margin:16px auto;max-width:340px;padding:14px 18px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;position:relative;">' +
-            '<button onclick="tctvDismissAd()" style="position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Dismiss">\u2715</button>' +
+    // Mobile ad (below channel guide, minimizable)
+    html += '<div id="tctv-ad-mobile" style="margin:16px auto;max-width:340px;text-align:center;">' +
+        '<div id="tctv-ad-mobile-content" style="padding:14px 18px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;position:relative;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
+            '<button onclick="tctvMinimizeAd()" style="position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
             '<div style="font-size:1.3rem;margin-bottom:4px;">\ud83d\udcfa</div>' +
             '<div style="font-size:0.7rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
             '<a href="mailto:info.603btc@gmail.com" style="display:inline-block;margin-top:6px;font-size:0.65rem;color:#f7931a;text-decoration:none;font-weight:700;">info.603btc@gmail.com</a>' +
-            '</div>';
-    }
+            '<button onclick="tctvCopyEmail()" style="display:block;margin:8px auto 0;padding:5px 14px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:6px;color:#f7931a;font-size:0.65rem;font-weight:700;cursor:pointer;">\ud83d\udccb Copy Email</button>' +
+        '</div>' +
+        '<button id="tctv-ad-restore-mobile" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:8px auto;" title="Show ad">\ud83d\udcfa</button>' +
+        '</div>';
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
 
