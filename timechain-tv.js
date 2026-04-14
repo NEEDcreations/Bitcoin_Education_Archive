@@ -12,23 +12,23 @@ var STATIONS = [
         "videos": [
             {
                 "id": "2Jf8sxF8QFQ",
-                "duration": 120,
+                "duration": 162,
                 "title": "Miami debuts Bitcoin Bull Statue"
             },
             {
                 "id": "83mw71TLYjY",
                 "title": "Leveling Up Your Collection: PSA Grading for Bitcoin Trading Cards",
-                "duration": 600
+                "duration": 1890
             },
             {
                 "id": "YZ2B-Qnm0eM",
                 "title": "The Timechain Codex by FractalEncrypt",
-                "duration": 300
+                "duration": 77
             },
             {
                 "id": "nvPJ_F845ms",
                 "title": "Sam Kimbrow & Asanoha on Bitcoin Culture — Movement of Art Ep. 1",
-                "duration": 3600
+                "duration": 4583
             },
             {
                 "id": "7DIp6D-68cQ",
@@ -37,78 +37,78 @@ var STATIONS = [
             },
             {
                 "id": "occ9L0dMMO4",
-                "duration": 600,
+                "duration": 542,
                 "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob"
             },
             {
                 "id": "ic6pDq3OAec",
                 "title": "Philosophy of Bitcoin — First Principles",
-                "duration": 3600
+                "duration": 1948
             },
             {
                 "id": "9-S17oAxIqA",
-                "duration": 600,
+                "duration": 792,
                 "title": "Bitcoin Pencil Art Timelapse - Bitcoin Apex"
             },
             {
                 "id": "Q4owb6f9gbM",
                 "title": "FractalEncrypt & Rebel Money on Bitcoin Art & Time — Movement of Art Ep. 5",
-                "duration": 3600
+                "duration": 4034
             },
             {
                 "id": "SogEkk3-XnA",
                 "title": "I BOUGHT THIS BITCOIN NFT! (BRC-20, NFTs, Ordinals)",
-                "duration": 900
+                "duration": 668
             },
             {
                 "id": "b4Q8Y3Rg7Rc",
                 "title": "Frederic Guimont on Ratel & Bitcoin Comics — Bitcoin Art Podcast",
-                "duration": 3600
+                "duration": 7619
             },
             {
                 "id": "1gnIbVFnuCY",
                 "title": "The Biggest Scam in Human History — Robert Breedlove",
-                "duration": 5400
+                "duration": 5936
             },
             {
                 "id": "vPUpdXZPpbQ",
-                "duration": 180,
+                "duration": 40,
                 "title": "Nashville Bitcoin Mural - Sound Money"
             },
             {
                 "id": "edyO5-L9un8",
-                "duration": 3600,
+                "duration": 3732,
                 "title": "Marcus Connor & The Bitcoin Roller Coaster Guy"
             },
             {
                 "id": "P0WZCTDDGXQ",
                 "title": "Create and List Your Own Bitcoin Ordinals — Ordinals Explained Ep. 5",
-                "duration": 900
+                "duration": 98
             },
             {
                 "id": "JffTkZZC2z8",
                 "title": "What is Money? — Robert Breedlove",
-                "duration": 1800
+                "duration": 4931
             },
             {
                 "id": "cgzH1jScIn0",
                 "title": "Bitcoin NFTs — Ordinals Explained Full Guide (Wallet Setup & Mint)",
-                "duration": 1200
+                "duration": 987
             },
             {
                 "id": "IUpIoZIoO2Q",
                 "title": "Ripping BitBlockBoom Packs (Bitcoin Trading Cards)",
-                "duration": 600
+                "duration": 185
             },
             {
                 "id": "N3J868zhH9g",
                 "title": "Bitcoin Is Encrypted Energy — Breedlove & Saylor",
-                "duration": 2400
+                "duration": 612
             },
             {
                 "id": "Tr7XO-SQw5g",
                 "title": "Marcus Connor, Pepenardo & Rare Scrilla on Memes — Movement of Art Ep. 3",
-                "duration": 3600
+                "duration": 5055
             },
             {
                 "id": "9UxAUryUKXM",
@@ -123,276 +123,276 @@ var STATIONS = [
             {
                 "id": "yMoVGgR6h0Y",
                 "title": "Money: The Language of Power — Robert Breedlove",
-                "duration": 3600
+                "duration": 4307
             },
             {
                 "id": "lRr9ofu0tnk",
-                "duration": 180,
+                "duration": 5762,
                 "title": "Bitcoin Art Magazine Unleashed"
             },
             {
                 "id": "Z0_9Jw56l4k",
                 "title": "Opening 2 Packs Of Bitcoin Trading Cards",
-                "duration": 600
+                "duration": 1086
             },
             {
                 "id": "yvdZsN5s9sc",
-                "duration": 2400,
+                "duration": 5679,
                 "title": "Based Trading Cards Movement"
             },
             {
                 "id": "VLRt0QOZ3TE",
                 "title": "Bitcoin Trading Cards: The Scarcest Collectibles on Earth",
-                "duration": 300
+                "duration": 128
             },
             {
                 "id": "h9jO1cipnc8",
                 "title": "2024 Bitcoin Trading Cards Halving Edition Whale Packs — Launch Announcement",
-                "duration": 300
+                "duration": 60
             },
             {
                 "id": "xwufPksmi9w",
                 "title": "Cracking A Pack Of Based Trading Cards Series 3 — Warriors Vs Villains",
-                "duration": 600
+                "duration": 483
             },
             {
                 "id": "Ifi-Hg3n3bc",
                 "title": "Bitcoin Ordinals Explained: How To Make Your First Bitcoin NFT",
-                "duration": 900
+                "duration": 233
             },
             {
                 "id": "l5a6-9mNqho",
                 "title": "World's Largest Bitcoin Sculpture",
-                "duration": 300
+                "duration": 58
             },
             {
                 "id": "FiFwaHCRz7s",
                 "title": "Bitcoin's BRC-20 Explosion: Everything You Need To Know About Ordinals",
-                "duration": 1200
+                "duration": 286
             },
             {
                 "id": "W03SVhhOaEU",
                 "title": "The Bitcoin Full Node Sculpture 7.0 — A Cypherpunk Chronometer (MirrorNode)",
-                "duration": 600
+                "duration": 53
             },
             {
                 "id": "N3a8IQXKjeY",
                 "title": "What are Ordinals? — Ordinals Explained Ep. 2",
-                "duration": 600
+                "duration": 86
             },
             {
                 "id": "RwO9lB-rloo",
-                "duration": 3600,
+                "duration": 5309,
                 "title": "Bitcoin, Art, and Freedom with Madex"
             },
             {
                 "id": "uIaUj6Nsi70",
                 "title": "2024: A Landmark Year for Bitcoin Trading Cards — Bold New Look",
-                "duration": 300
+                "duration": 16
             },
             {
                 "id": "JPJyDYmovJo",
                 "title": "A FULL BOX of Bitcoin Trading Cards — BTC Viking",
-                "duration": 1200
+                "duration": 755
             },
             {
                 "id": "33emHIL1IoU",
-                "duration": 900,
+                "duration": 292,
                 "title": "The Bitcoin Full Node Sculpture - Eric Weiss"
             },
             {
                 "id": "XHBydlTt2jM",
                 "title": "The Rise of Ordinals and Art on Bitcoin",
-                "duration": 1800
+                "duration": 1499
             },
             {
                 "id": "KxTWC3ShYDE",
-                "duration": 7200,
+                "duration": 7385,
                 "title": "Just-B on Airbrush Mastery - Bitcoin Art Podcast"
             },
             {
                 "id": "XrD617FIfJM",
                 "title": "FractalEncrypt's Bitcoin Full Node — DESIGN Feature for Block04",
-                "duration": 600
+                "duration": 62
             },
             {
                 "id": "gNOnNz4d_mI",
                 "title": "Tone Vays Rips BitBlockBoom 2024 Bitcoin Trading Cards Packs",
-                "duration": 600
+                "duration": 327
             },
             {
                 "id": "sntmLivV56M",
                 "title": "Adam O'Brien & Brandon Gentile Ripping BitBlockBoom 2024 Packs",
-                "duration": 600
+                "duration": 364
             },
             {
                 "id": "indFxEWINDA",
                 "title": "We Gave Bitcoin Trading Cards to No-Coiners — Here's What Happened",
-                "duration": 600
+                "duration": 939
             },
             {
                 "id": "pcVCt2utTW4",
                 "title": "How to Make a Bitcoin Ordinal Inscription in Under Two Minutes",
-                "duration": 120
+                "duration": 369
             },
             {
                 "id": "iFb2MMUZBYs",
                 "title": "Bitcoin Artist Trevor Jones Augments Reality",
-                "duration": 600
+                "duration": 382
             },
             {
                 "id": "bHj-a4_nX78",
                 "title": "FractalEncrypt Bitcoin Full Node Sculpture",
-                "duration": 300
+                "duration": 30
             },
             {
                 "id": "3e36FXH5Hlw",
                 "title": "Amy DiGi on Community, Craft & Handmade Bitcoin Art — Bitcoin Art Podcast Ep. 2",
-                "duration": 3600
+                "duration": 4744
             },
             {
                 "id": "KORJr5ZfzWI",
                 "title": "Bitcoin Full Node Sculpture",
-                "duration": 300
+                "duration": 37
             },
             {
                 "id": "UrCN7oG_4YY",
                 "title": "Bitcoin NFTs: How to Create Ordinal Inscriptions",
-                "duration": 900
+                "duration": 707
             },
             {
                 "id": "tgM5wwpwpzA",
                 "title": "Ariel B., Flo M., Antonio B. & Psyfer on Stories & Myths — Movement of Art Ep. 2",
-                "duration": 3600
+                "duration": 4435
             },
             {
                 "id": "8TN7mq6cK7g",
                 "title": "Bitcoin Art with FractalEncrypt — Freedom Footprint",
-                "duration": 3600
+                "duration": 5006
             },
             {
                 "id": "EPUNITbXwEM",
                 "title": "Bitcoin Trading Cards: Collectible Art To Orange Pill The World",
-                "duration": 600
+                "duration": 1673
             },
             {
                 "id": "GRby6vAPwHI",
                 "title": "Bitcoin, Art, and Our Divine Lost Knowledge — Ariel Birdie",
-                "duration": 3600
+                "duration": 4258
             },
             {
                 "id": "JQg_s0wt96M",
                 "title": "Bitcoin Trading Cards Are Back With Series Two",
-                "duration": 600
+                "duration": 897
             },
             {
                 "id": "e1ojV8YwA2c",
                 "title": "Gus Grillasca on Rare Pepes, BTC Art & Creative Engineering — Bitcoin Art Podcast Ep. 1",
-                "duration": 3600
+                "duration": 5503
             },
             {
                 "id": "I0SecXkqums",
                 "title": "Bitcoin Full Node Sculpture Lightning Auction Launch",
-                "duration": 300
+                "duration": 4829
             },
             {
                 "id": "5gl2xVJ9mTw",
                 "title": "What are Satributes & Recursions? — Ordinals Explained Ep. 3",
-                "duration": 600
+                "duration": 120
             },
             {
                 "id": "PqFz8R1CZYo",
                 "title": "Bitcoin as a Kardashev-Scale Technology — Robert Breedlove",
-                "duration": 2400
+                "duration": 755
             },
             {
                 "id": "0qS_oBk-tbY",
                 "title": "FractalEncrypt: Artistic Bitcoin Education — Bitcoin With Jake #44",
-                "duration": 3600
+                "duration": 3722
             },
             {
                 "id": "wYhpD6Y6E8E",
                 "title": "Meet Based Trading Cards — Bitcoin Culture You Can Hold",
-                "duration": 600
+                "duration": 53
             },
             {
                 "id": "cKkokcMMnpc",
                 "title": "Bitcoin Aligns with the Laws of Nature — Robert Breedlove",
-                "duration": 1800
+                "duration": 5472
             },
             {
                 "id": "wSLejJ88VGQ",
                 "title": "Ripping Spirit of Satoshi Packs (Bitcoin Trading Cards)",
-                "duration": 600
+                "duration": 236
             },
             {
                 "id": "rYiWd-qIRQA",
                 "title": "Kontext on Writing, Music & Stoicism — Bitcoin Art Podcast Ep. 5",
-                "duration": 3600
+                "duration": 5758
             },
             {
                 "id": "j3QJlyRMHpI",
                 "title": "Art on Bitcoin: Shaping the Future of Digital Creativity",
-                "duration": 2700
+                "duration": 469
             },
             {
                 "id": "NALikCvCyes",
                 "title": "The Truth About Money, Inflation and Bitcoin — Robert Breedlove",
-                "duration": 2400
+                "duration": 6119
             },
             {
                 "id": "RnducAborVw",
-                "duration": 180,
+                "duration": 418,
                 "title": "Bitcoin Art Gallery - Miami 2022"
             },
             {
                 "id": "8FxyOC26TYE",
                 "title": "What's In A Based Trading Cards Bitcoin Pack?",
-                "duration": 600
+                "duration": 736
             },
             {
                 "id": "-vKBCrUyCEU",
                 "title": "Bitcoin Ordinals Explained",
-                "duration": 600
+                "duration": 421
             },
             {
                 "id": "omKlwzKmKBE",
                 "title": "Bitcoin Trading Cards: Understanding True Scarcity and Value",
-                "duration": 600
+                "duration": 263
             },
             {
                 "id": "HVKq5qfZSqU",
                 "title": "FractalEncrypt Bitcoin Full Node Book & Canvas — Bitcoin 2022 Conference",
-                "duration": 300
+                "duration": 47
             },
             {
                 "id": "EaU5yFi61hg",
                 "title": "Yonat Vaks on Her Artistic Journey & Bitcoin Art — Bitcoin Art Podcast Ep. 3",
-                "duration": 3600
+                "duration": 6067
             },
             {
                 "id": "ImZDBBjdX6s",
                 "title": "Opening The BOX! 24 Packs of BTC Trading Cards — Crypto Viking",
-                "duration": 1200
+                "duration": 751
             },
             {
                 "id": "3nA4HhsbZMQ",
                 "title": "Anik Malcolm on Finding Purpose in Bitcoin Art — Bitcoin Art Podcast Ep. 4",
-                "duration": 3600
+                "duration": 4016
             },
             {
                 "id": "MRnmP7pbR0s",
-                "duration": 3600,
+                "duration": 3582,
                 "title": "Creating Meaningful Art with FractalEncrypt"
             },
             {
                 "id": "H1oc5HKixBg",
                 "title": "The Bitcoin Full Node Sculpture 4.0 — A Cypherpunk Chronometer",
-                "duration": 600
+                "duration": 59
             },
             {
                 "id": "Mqc6M8rZRi8",
-                "duration": 600,
+                "duration": 1065,
                 "title": "BITCOIN TRADING CARDS?"
             },
             {
@@ -402,38 +402,38 @@ var STATIONS = [
             },
             {
                 "id": "lo7eeL1E_VQ",
-                "duration": 300,
+                "duration": 281,
                 "title": "A Madex Manifesto"
             },
             {
                 "id": "OszL_Q2wvNQ",
                 "title": "Welcome to Ordinals! What is Ordinal Theory? — Ordinals Explained Ep. 1",
-                "duration": 600
+                "duration": 80
             },
             {
                 "id": "EQSyE-EzOqM",
                 "title": "Bitcoin Full Node Sculpture Auction Close",
-                "duration": 180
+                "duration": 3935
             },
             {
                 "id": "BrfJgr19MPY",
                 "title": "Alex Schaefer on Burning Banks & Protest Art — The Whole Entire Universe",
-                "duration": 3600
+                "duration": 6031
             },
             {
                 "id": "bgDwvJOtSSY",
                 "title": "Naomi Olson on Ocean Art & Aloha Energy — The Whole Entire Universe",
-                "duration": 3600
+                "duration": 4967
             },
             {
                 "id": "QVg0ZmxrYLo",
                 "title": "Bitcoin's Most Beautifully Absurd Art Drop",
-                "duration": 1020
+                "duration": 504
             },
             {
                 "id": "Q5Wxg53qu9s",
                 "title": "The Bitcoin Full Node Sculpture #2 of 10",
-                "duration": 300
+                "duration": 16
             }
         ]
     },
@@ -447,7 +447,7 @@ var STATIONS = [
             {
                 "id": "9e5JejAWrwY",
                 "title": "The Bitcoin Conference 2025 — Day 1 Main Stage",
-                "duration": 28800
+                "duration": 42897
             },
             {
                 "id": "9UxAUryUKXM",
@@ -457,11 +457,11 @@ var STATIONS = [
             {
                 "id": "4S6lzgc7tFc",
                 "title": "Bitcoin Beyond Capital: Freedom Money for the Global South (Femi Longe) — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1617
             },
             {
                 "id": "75O56lhJMJI",
-                "duration": 3600,
+                "duration": 807,
                 "title": "Welcome to Bitcoin Country - Adopting BTC 2024"
             },
             {
@@ -472,7 +472,7 @@ var STATIONS = [
             {
                 "id": "TEVJUjOGmOI",
                 "title": "Bitcoin Core Developer Roundtable — MIT Bitcoin Expo 2025",
-                "duration": 3600
+                "duration": 2284
             },
             {
                 "id": "nC37CqWpxfI",
@@ -486,7 +486,7 @@ var STATIONS = [
             },
             {
                 "id": "kE3TpVS27os",
-                "duration": 1200,
+                "duration": 42897,
                 "title": "JD Vance Keynote - Bitcoin 2025 Las Vegas"
             },
             {
@@ -497,7 +497,7 @@ var STATIONS = [
             {
                 "id": "M-PIOaHxX4c",
                 "title": "BitVM Creator Robin Linus: This Breakthrough Will Revolutionize Bitcoin — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1031
             },
             {
                 "id": "RoRZE2DpEzE",
@@ -507,42 +507,42 @@ var STATIONS = [
             {
                 "id": "XdgP25UcHB0",
                 "title": "Bitcoin for Corporations — Saylor & Dorsey",
-                "duration": 12600
+                "duration": 15110
             },
             {
                 "id": "XT-B9k9t5B8",
                 "title": "LIVE: The MIT Bitcoin Expo 2025 — Day 2 Full Stream",
-                "duration": 28800
+                "duration": 30819
             },
             {
                 "id": "R4gyS5mb9dE",
                 "title": "Alex Gladstein: Dictators Should Be Afraid — Policy Summit 2025",
-                "duration": 1800
+                "duration": 1159
             },
             {
                 "id": "TTHU_N_n5Ks",
-                "duration": 2820,
+                "duration": 2854,
                 "title": "PlanB Forum Lugano 2024 - Stephan Livera"
             },
             {
                 "id": "XVGME04z_3k",
                 "title": "Bitcoin Amsterdam 2025 — Day 2 Livestream",
-                "duration": 28800
+                "duration": 28160
             },
             {
                 "id": "Hp-HlJ0PbpI",
                 "title": "Bitcoin Thailand 2024 — Day 1",
-                "duration": 18000
+                "duration": 33617
             },
             {
                 "id": "gu9OulAijy4",
-                "duration": 7200,
+                "duration": 840,
                 "title": "The Pacific Bitcoin Conference"
             },
             {
                 "id": "eEtxKbERWyA",
                 "title": "Bitcoin Core Dev Jeremy Rubin: Building Char Network — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 1466
             },
             {
                 "id": "O9KnBcWMkpw",
@@ -557,7 +557,7 @@ var STATIONS = [
             {
                 "id": "dMHhuY35NKY",
                 "title": "Tor Project Co-Founder Roger Dingledine: Anonymity in Society — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1694
             },
             {
                 "id": "dWaHWT15sOQ",
@@ -567,87 +567,87 @@ var STATIONS = [
             {
                 "id": "LsLKr_dWdpU",
                 "title": "The Eric Semler Interview — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 704
             },
             {
                 "id": "rXsRvBXbZyU",
                 "title": "Lightning Network Co-Inventor Tadge Dryja: Here Comes the Hornet's Nest — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1462
             },
             {
                 "id": "-LGpW2PKwHA",
                 "title": "Bitcoin Core Developer Interview: Antoine Poinsot — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 2141
             },
             {
                 "id": "M2zGs2E-pfs",
                 "title": "The Future of Corporate Bitcoin Adoption — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 2437
             },
             {
                 "id": "sNE-2ffq5MA",
                 "title": "Fighting for Freedom Under Zimbabwe's Hyperinflation (Evan Mawarire) — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1628
             },
             {
                 "id": "pt-Wv-M5uNA",
                 "title": "Bitcoin MENA 2025 — Day 1 Livestream",
-                "duration": 28800
+                "duration": 34980
             },
             {
                 "id": "pDA2r4AblD0",
                 "title": "How To Orange Pill Anyone — BitBlockBoom",
-                "duration": 2400
+                "duration": 2119
             },
             {
                 "id": "Ps3BU0edwqE",
                 "title": "Adopting Bitcoin 2024 — Day 2 Livestream",
-                "duration": 28800
+                "duration": 27456
             },
             {
                 "id": "TUO10-HcdvY",
-                "duration": 2880,
+                "duration": 2923,
                 "title": "DEBATE: Bitcoin Ossification | Lugano 2024"
             },
             {
                 "id": "p6kBKSZqjn4",
-                "duration": 18000,
+                "duration": 3916,
                 "title": "Bitcoin Conference 2025: Opening Day Marathon"
             },
             {
                 "id": "I3Qld_HXQuM",
-                "duration": 600,
+                "duration": 2961,
                 "title": "Nostrability Workshop - BBB 2024"
             },
             {
                 "id": "rNok4Ht6n1E",
                 "title": "Bitcoin, Not Crypto: Why Bitcoin-Only VC Will Win (Nico Lechuga) — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 799
             },
             {
                 "id": "HGyiOlXg-XY",
                 "title": "Top 10 Most Iconic Bitcoin Conference Moments",
-                "duration": 1200
+                "duration": 302
             },
             {
                 "id": "SVJCpnSANG4",
                 "title": "Building Bitcoin Insurance for Financial Institutions (Anchorwatch) — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 1001
             },
             {
                 "id": "-NlgxiLgqZo",
                 "title": "Why Nostr Feels Like Bitcoin in 2012 (Vitor Pamplona) — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 956
             },
             {
                 "id": "YQrfB9327jI",
                 "title": "Bitcoin Amsterdam 2025 — Day 1 Livestream",
-                "duration": 28800
+                "duration": 30966
             },
             {
                 "id": "3e3KE40r_WM",
                 "title": "The Bitcoin Conference 2025 — Day 1 Full Livestream",
-                "duration": 28800
+                "duration": 33011
             },
             {
                 "id": "IjR3Hj0aRW4",
@@ -657,41 +657,41 @@ var STATIONS = [
             {
                 "id": "wAv0T2nX0v0",
                 "title": "Strategy CEO Phong Le: MIT Bitcoin Expo 2025 Keynote",
-                "duration": 2400
+                "duration": 1474
             },
             {
                 "id": "P1n7XipTCck",
-                "duration": 33805,
+                "duration": 35272,
                 "title": "Bitcoin 2024 Nashville: Full GA Day 2 Livestream"
             },
             {
                 "id": "2qiJIFBJPIU",
                 "title": "The Bitcoin Conference 2025 — Day 3 Livestream",
-                "duration": 28800
+                "duration": 36591
             },
             {
                 "id": "IXKLholMqwE",
                 "title": "Former CFTC Chairman Tim Massad: Bitcoin & Digital Identity — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 423
             },
             {
                 "id": "rQMFrpUFcNM",
                 "title": "Michael Saylor Keynote — Bitcoin MENA 2025",
-                "duration": 2400
+                "duration": 2547
             },
             {
                 "id": "hqoagNBtIps",
                 "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
-                "duration": 2400
+                "duration": 2854
             },
             {
                 "id": "gCfA1lkmJo4",
                 "title": "Michael Saylor — The Greatest Bitcoin Explanation",
-                "duration": 1200
+                "duration": 619
             },
             {
                 "id": "0OiZY1MRHXo",
-                "duration": 600,
+                "duration": 2674,
                 "title": "Nostr Wallet Connect Workshop - BBB 2024"
             },
             {
@@ -702,21 +702,21 @@ var STATIONS = [
             {
                 "id": "gn5sQC19rvM",
                 "title": "MIT Digital Currency Initiative & Future of Bitcoin Research (Neha Nerula) — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1327
             },
             {
                 "id": "QvtnQfVdLYU",
                 "title": "What People Get Wrong About Bitcoin Core (Sjors Provoost) — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 1022
             },
             {
                 "id": "eRgHb8BGs18",
                 "title": "Adopting Bitcoin 2024 — Day 1 Livestream",
-                "duration": 28800
+                "duration": 32400
             },
             {
                 "id": "jc4lkDeozCQ",
-                "duration": 3600,
+                "duration": 2447,
                 "title": "Eric Trump speaks at Bitcoin Asia 2024"
             },
             {
@@ -727,17 +727,17 @@ var STATIONS = [
             {
                 "id": "lW8r9hq8-yU",
                 "title": "Bitcoin Core Developer Interview: Gloria Zhao — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1834
             },
             {
                 "id": "ckvTy0Fsc_M",
                 "title": "Bitcoin Privacy on Trial: Samourai Wallet & Tornado Cash — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1526
             },
             {
                 "id": "r8rQUEyAksg",
                 "title": "BITCOIN DAY 2024",
-                "duration": 14400
+                "duration": 30695
             },
             {
                 "id": "reVebuAf_Cs",
@@ -747,32 +747,32 @@ var STATIONS = [
             {
                 "id": "bLEv8FcfxfE",
                 "title": "Why Bitcoin-Backed Lending Will Eat the World (Mauricio di Bartolomeo) — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 874
             },
             {
                 "id": "0XnB_ZqL6fo",
-                "duration": 1200,
+                "duration": 40,
                 "title": "Freedom Festival 2024 - Mass Adoption"
             },
             {
                 "id": "e_yg6cLsQHE",
                 "title": "Bitcoin Address Poisoning Attacks (Jameson Lopp) — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 1547
             },
             {
                 "id": "tO1QTCLrbB8",
                 "title": "Matt Odell: Bitcoin-Native Venture Capital — MIT Bitcoin Expo 2025",
-                "duration": 1200
+                "duration": 1724
             },
             {
                 "id": "xCyPbFx0Ktg",
                 "title": "Why Bitcoin Must Change — Or Be Left Behind (Jameson Lopp) — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1438
             },
             {
                 "id": "4NoJnPmCVdU",
                 "title": "Solving Bitcoin's Quantum Computing Threat: BIP 360 (Hunter Beast) — MIT Bitcoin Expo 2025",
-                "duration": 1800
+                "duration": 1004
             }
         ]
     },
@@ -785,68 +785,68 @@ var STATIONS = [
         "videos": [
             {
                 "id": "twjTUa8njRo",
-                "duration": 456,
+                "duration": 76,
                 "title": "Run with Bitcoin - Paco De La India"
             },
             {
                 "id": "mkDpE6SjjCQ",
                 "title": "Did the IMF Just KILL Bitcoin in El Salvador? (Joe Nakamoto)",
-                "duration": 900
+                "duration": 913
             },
             {
                 "id": "BdaiLtKNFQA",
-                "duration": 1800,
+                "duration": 4320,
                 "title": "The plan 40 Countries in 400 Days - Paco"
             },
             {
                 "id": "7A56oZAs7ZQ",
                 "title": "El Salvador Bitcoin Adoption Documentary",
-                "duration": 1800
+                "duration": 1066
             },
             {
                 "id": "Ve6oLiWO0Mg",
                 "title": "Traveling the World on Bitcoin — Airbtc",
-                "duration": 900
+                "duration": 1131
             },
             {
                 "id": "LRSQSkiil0M",
                 "title": "Inside the Bitcoin Revolution in Africa — Joe Nakamoto",
-                "duration": 1200
+                "duration": 1068
             },
             {
                 "id": "vlf4swtTBSM",
                 "title": "Isla Mujeres is Becoming a Bitcoin Paradise! (Here's How)",
-                "duration": 900
+                "duration": 313
             },
             {
                 "id": "mB0U_22_q4s",
-                "duration": 36000,
+                "duration": 1222,
                 "title": "10 Hours of Bitcoin Travel & Adoption Stories"
             },
             {
                 "id": "7d7yJktKr2U",
                 "title": "Is El Salvador Bending the Knee to the IMF? — John Dennehy (Joe Nakamoto #15)",
-                "duration": 1800
+                "duration": 3453
             },
             {
                 "id": "5hMZkxQtstU",
-                "duration": 3600,
+                "duration": 5477,
                 "title": "167. Run with Bitcoin with Paco de la India"
             },
             {
                 "id": "0Ceey82hFTY",
                 "title": "Booking Travel with Bitcoin — Travala",
-                "duration": 600
+                "duration": 759
             },
             {
                 "id": "sIR0V6VKXLg",
                 "title": "How One Woman is Building a Bitcoin Economy From Scratch in Mexico — Isabella Santos (BTC Isla)",
-                "duration": 1200
+                "duration": 4516
             },
             {
                 "id": "zgk-1pSMsZA",
                 "title": "WTF the IMF, Tether and Bitcoin in El Salvador — Mike Peterson (Joe Nakamoto #13)",
-                "duration": 1800
+                "duration": 6247
             },
             {
                 "id": "ic_4-EFJogY",
@@ -856,77 +856,77 @@ var STATIONS = [
             {
                 "id": "e0EPQg20SaQ",
                 "title": "What 1792 Days in Bitcoin Taught Me — Get Based TV",
-                "duration": 540
+                "duration": 554
             },
             {
                 "id": "LXB0d_3WntM",
                 "title": "Bitcoin is Ready to Replace the Broken USD — Isabella Santos (BTC Isla)",
-                "duration": 900
+                "duration": 3724
             },
             {
                 "id": "TauW_pLnstw",
                 "title": "The Bitcoin Paradise You Have Never Heard Of — Joe Nakamoto",
-                "duration": 900
+                "duration": 1274
             },
             {
                 "id": "rudY3-9X7gU",
                 "title": "I'm Back From El Salvador (Joe Nakamoto)",
-                "duration": 600
+                "duration": 543
             },
             {
                 "id": "emS6_vlQKa4",
                 "title": "Everyday Bitcoin #3 — Isa Santos (BTC Isla, Get Based)",
-                "duration": 1800
+                "duration": 2654
             },
             {
                 "id": "WoN0SVY73zo",
                 "title": "You Can Live on Bitcoin in Lugano — Joe Nakamoto",
-                "duration": 1500
+                "duration": 1018
             },
             {
                 "id": "R8xZd8v7b50",
                 "title": "Bitcoin Beach: El Salvador's Bitcoin Economy",
-                "duration": 1500
+                "duration": 1348
             },
             {
                 "id": "4Bmni2lHYo8",
                 "title": "Isabella Santos on Bitcoin Community Building",
-                "duration": 1800
+                "duration": 3644
             },
             {
                 "id": "DfDWubdqU5I",
                 "title": "I Begged Strangers for Bitcoin in Madeira — Joe Nakamoto",
-                "duration": 900
+                "duration": 833
             },
             {
                 "id": "PHYCAE2n55M",
                 "title": "Isabella Santos on Bitcoin Media, Freedom & Building a Circular Economy",
-                "duration": 3600
+                "duration": 2271
             },
             {
                 "id": "kKSFh5Xxe3w",
                 "title": "48 Hours in El Salvador Paying Only With Bitcoin",
-                "duration": 1200
+                "duration": 1272
             },
             {
                 "id": "FelWKV6wVJU",
                 "title": "Living on Bitcoin in a Small Town — Joe Nakamoto",
-                "duration": 1080
+                "duration": 1275
             },
             {
                 "id": "QV-m5lNLxeM",
                 "title": "Interview with Julian Figueroa From Get Based (Joe Nakamoto)",
-                "duration": 1200
+                "duration": 4741
             },
             {
                 "id": "pxvDunp9820",
                 "title": "Bitcoin in Peru: How a Poisoned Town Survives — Joe Nakamoto",
-                "duration": 1080
+                "duration": 666
             },
             {
                 "id": "mxfD7Pef4iU",
                 "title": "Building a Bitcoin Circular Economy: The BTC Isla Story",
-                "duration": 1200
+                "duration": 4383
             },
             {
                 "id": "cs3nEVX9ZWA",
@@ -936,32 +936,32 @@ var STATIONS = [
             {
                 "id": "UPp0Xbk4bFo",
                 "title": "The Truth Behind Cuba's Bitcoin Revolution (Joe Nakamoto)",
-                "duration": 1200
+                "duration": 1602
             },
             {
                 "id": "BnR_kB44hy0",
                 "title": "Bitcoin Berlín: The Secret Bitcoin City of El Salvador — Joe Nakamoto",
-                "duration": 1200
+                "duration": 691
             },
             {
                 "id": "mmOrwgouveI",
                 "title": "The Secret Bitcoin City of El Salvador — Interview with Founders (Joe Nakamoto)",
-                "duration": 1200
+                "duration": 4516
             },
             {
                 "id": "gCi5jPHWVNE",
-                "duration": 1200,
+                "duration": 1759,
                 "title": "Run with Bitcoin | Paco De la India Mumbai"
             },
             {
                 "id": "78YidaGwELw",
                 "title": "Building Bottom-Up Bitcoin Economies — Isabella Santos (BTC Isla)",
-                "duration": 1800
+                "duration": 2653
             },
             {
                 "id": "waQJEjiPWhg",
                 "title": "Bitcoin Culture Around the World",
-                "duration": 1200
+                "duration": 305
             },
             {
                 "id": "0hwC6BKJMpc",
@@ -1751,7 +1751,7 @@ var STATIONS = [
             },
             {
                 "id": "mB0U_22_q4s",
-                "duration": 1200,
+                "duration": 1222,
                 "title": "Living in El Salvador - First Hand Report"
             },
             {
@@ -3768,7 +3768,7 @@ var STATIONS = [
             {
                 "id": "gCfA1lkmJo4",
                 "title": "The Greatest Bitcoin Explanation — Michael Saylor",
-                "duration": 1200
+                "duration": 619
             },
             {
                 "id": "LKYVbahTjQM",
@@ -4126,7 +4126,7 @@ var STATIONS = [
             },
             {
                 "id": "TUO10-HcdvY",
-                "duration": 36000,
+                "duration": 2923,
                 "title": "The Ultimate Bitcoin vs. Everything Debate Loop"
             },
             {
@@ -4321,7 +4321,7 @@ var STATIONS = [
             {
                 "id": "R4gyS5mb9dE",
                 "title": "Gladstein: Bitcoin Is a Tool Dictators Should Fear — 2025 Summit",
-                "duration": 1800
+                "duration": 1159
             },
             {
                 "id": "DJhgLMMAPHQ",
@@ -4425,7 +4425,7 @@ var STATIONS = [
             {
                 "id": "gCfA1lkmJo4",
                 "title": "Michael Saylor — The Greatest Bitcoin Explanation",
-                "duration": 1200
+                "duration": 619
             },
             {
                 "id": "3-vBBYEXv6M",
@@ -4535,7 +4535,7 @@ var STATIONS = [
             {
                 "id": "hqoagNBtIps",
                 "title": "Michael Saylor: Bitcoin Prophecy — BTC Prague 2025",
-                "duration": 2400
+                "duration": 2854
             },
             {
                 "id": "6P97_koDGtA",
@@ -4635,7 +4635,7 @@ var STATIONS = [
             {
                 "id": "KxTWC3ShYDE",
                 "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
-                "duration": 1800
+                "duration": 7385
             },
             {
                 "id": "MSMJBmo_q4s",
@@ -4785,7 +4785,7 @@ var STATIONS = [
             {
                 "id": "N3J868zhH9g",
                 "title": "Bitcoin Is Encrypted Energy — Saylor & Breedlove",
-                "duration": 2400
+                "duration": 612
             },
             {
                 "id": "DAXC9km8Wlk",
@@ -4950,7 +4950,7 @@ var STATIONS = [
             {
                 "id": "XdgP25UcHB0",
                 "title": "Bitcoin for Corporations — Saylor & Dorsey",
-                "duration": 12600
+                "duration": 15110
             },
             {
                 "id": "ItvfKfYUd0c",
