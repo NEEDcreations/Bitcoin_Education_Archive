@@ -237,6 +237,57 @@ var STATIONS = [
                 "title": "FractalEncrypt: Artistic Bitcoin Education — Bitcoin With Jake #44",
                 "duration": 3600
             }
+        ,
+            {
+                "id": "OszL_Q2wvNQ",
+                "title": "Welcome to Ordinals! What is Ordinal Theory? — Ordinals Explained Ep. 1",
+                "duration": 600
+            },
+            {
+                "id": "N3a8IQXKjeY",
+                "title": "What are Ordinals? — Ordinals Explained Ep. 2",
+                "duration": 600
+            },
+            {
+                "id": "5gl2xVJ9mTw",
+                "title": "What are Satributes & Recursions? — Ordinals Explained Ep. 3",
+                "duration": 600
+            },
+            {
+                "id": "P0WZCTDDGXQ",
+                "title": "Create and List Your Own Bitcoin Ordinals — Ordinals Explained Ep. 5",
+                "duration": 900
+            },
+            {
+                "id": "pcVCt2utTW4",
+                "title": "How to Make a Bitcoin Ordinal Inscription in Under Two Minutes",
+                "duration": 120
+            },
+            {
+                "id": "Ifi-Hg3n3bc",
+                "title": "Bitcoin Ordinals Explained: How To Make Your First Bitcoin NFT",
+                "duration": 900
+            },
+            {
+                "id": "FiFwaHCRz7s",
+                "title": "Bitcoin's BRC-20 Explosion: Everything You Need To Know About Ordinals",
+                "duration": 1200
+            },
+            {
+                "id": "cgzH1jScIn0",
+                "title": "Bitcoin NFTs — Ordinals Explained Full Guide (Wallet Setup & Mint)",
+                "duration": 1200
+            },
+            {
+                "id": "-vKBCrUyCEU",
+                "title": "Bitcoin Ordinals Explained",
+                "duration": 600
+            },
+            {
+                "id": "SogEkk3-XnA",
+                "title": "I BOUGHT THIS BITCOIN NFT! (BRC-20, NFTs, Ordinals)",
+                "duration": 900
+            }
         ]
     },
     {
@@ -886,6 +937,87 @@ var STATIONS = [
                 "id": "BNRvyrmBUhM",
                 "title": "Become a Digital Sovereign with Start9",
                 "duration": 1800
+            }
+        ,
+            {
+                "id": "j7R6CLnWI4M",
+                "title": "Open Source Stage — Bitcoin 2022 Conference Day 1 (Full)",
+                "duration": 28800
+            },
+            {
+                "id": "L0Yh6VP6vxU",
+                "title": "Open Source Stage — Bitcoin 2022 Conference Day 2 (Full)",
+                "duration": 28800
+            },
+            {
+                "id": "OwJL0J_nPDE",
+                "title": "Open Source Stage — Bitcoin 2022 Conference Day 3 (Full)",
+                "duration": 28800
+            },
+            {
+                "id": "veIuDwQTunw",
+                "title": "Olaoluwa Osuntokun Keynote — Open Source Stage (Bitcoin 2022)",
+                "duration": 1800
+            },
+            {
+                "id": "n3Md7m4UQSQ",
+                "title": "Preventing Attacks On Bitcoin — Open Source Stage (Bitcoin 2022)",
+                "duration": 1800
+            },
+            {
+                "id": "NKl-c-TS3yM",
+                "title": "Covenants — Open Source Stage (Bitcoin 2022)",
+                "duration": 1800
+            },
+            {
+                "id": "3FW7jNB9Qp0",
+                "title": "The Future of Lightning Development — Open Source Stage (Bitcoin 2022)",
+                "duration": 1800
+            },
+            {
+                "id": "Cjxc9ERz2mU",
+                "title": "Lightning Privacy: Concerns and Solutions — Open Source Stage (Bitcoin 2022)",
+                "duration": 1800
+            },
+            {
+                "id": "gOo7rnqXeik",
+                "title": "Open Source Software In Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "ng3dRbm2PHs",
+                "title": "Funding Bitcoin Open Source — Bitcoin 2022 Conference",
+                "duration": 1200
+            },
+            {
+                "id": "mdnkZunIphA",
+                "title": "The Role of Bitcoin Core Maintainers & the Path Forward",
+                "duration": 1800
+            },
+            {
+                "id": "BtbUGFHZTW8",
+                "title": "Federated Chaumian Mints Overview — Bitcoin 2022 Conference",
+                "duration": 1800
+            },
+            {
+                "id": "7FWKc8lM4Ek",
+                "title": "Neutrino: The Privacy Preserving Bitcoin Light Client",
+                "duration": 1200
+            },
+            {
+                "id": "tLZc-NLmV20",
+                "title": "Lightning Network Deep Dive with Laolu 'Roasbeef' Osuntokun",
+                "duration": 2400
+            },
+            {
+                "id": "R_KTRRlZ-7c",
+                "title": "Web5 Open to Build — Bitcoin 2023",
+                "duration": 1800
+            },
+            {
+                "id": "JsJSsbp9g3M",
+                "title": "Bitcoin Privacy is a Human Right",
+                "duration": 1200
             }
         ]
     },
