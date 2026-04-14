@@ -1864,31 +1864,8 @@ var STATIONS = [
                 "id": "y1KXs3uE42I",
                 "duration": 4500,
                 "title": "Andreas Antonopoulos: Money as a Content Type"
-            {
-                "id": "uO7U73oX-68",
-                "duration": 180,
-                "title": "Bitcoin in 3 Minutes — Simple Introduction"
             },
             {
-                "id": "vMuw48I7cW0",
-                "duration": 300,
-                "title": "How Bitcoin Works — Under the Hood"
-            },
-            {
-                "id": "98I7cW0vMuw",
-                "duration": 600,
-                "title": "Bitcoin vs Fiat: The War for Your Money"
-            },
-            {
-                "id": "y3yFzYc2yPc",
-                "duration": 900,
-                "title": "Why Bitcoin is the Future — Michael Saylor"
-            },
-            {
-                "id": "uO7U73oX-68",
-                "duration": 180,
-                "title": "Bitcoin in 3 Minutes — Simple Introduction"
-            },
                 "id": "wQ7V3S8vW9X",
                 "duration": 3300,
                 "title": "Andreas Antonopoulos: Understanding the Blockchain"
