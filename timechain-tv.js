@@ -5784,6 +5784,30 @@ window.tctvRestoreCouch = function() {
     if (restoreBtn) restoreBtn.style.display = 'none';
 };
 
+window.tctvDismissAd = function() {
+    var ad = document.getElementById('tctv-ad-sidebar');
+    if (ad) { ad.style.visibility = 'hidden'; ad.style.width = '0'; ad.style.overflow = 'hidden'; }
+    try { localStorage.setItem('tctv_ad_dismissed', '1'); } catch(e) {}
+};
+
+// Hide sprite Nacho when entering TCTV, restore on exit
+window._tctvSpriteWasVisible = false;
+window._tctvHideSpriteNacho = function() {
+    var c = document.getElementById('nacho-container');
+    if (c) {
+        window._tctvSpriteWasVisible = !c.classList.contains('hidden');
+        c.classList.add('hidden');
+        c.style.display = 'none';
+    }
+};
+window._tctvRestoreSpriteNacho = function() {
+    var c = document.getElementById('nacho-container');
+    if (c && window._tctvSpriteWasVisible) {
+        c.style.display = '';
+        c.classList.remove('hidden');
+    }
+};
+
 // Couch Nacho drag (mobile touch)
 (function() {
     var _dragging = false, _startX = 0, _startY = 0, _origLeft = 0, _origBottom = 0;
@@ -5988,6 +6012,7 @@ window.renderTimechainTV = function() {
     if (window._tctvActive && document.getElementById('tctv-player')) return;
     window._tctvActive = true;
     _isPaused = false;
+    if (typeof _tctvHideSpriteNacho === 'function') _tctvHideSpriteNacho();
     
     showWhiteNoise(function() {
         console.log('[TCTV] Initial Tuning Complete');
@@ -6007,11 +6032,11 @@ window.renderTimechainTV = function() {
     style.textContent = `
         /* Desktop: sidebar layout (couch left, video center, remote right) */
         @media (min-width: 901px) {
-            #nacho-couch-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
+            #tctv-ad-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
             #tctv-remote, .tctv-mobile-ui-stack { display: none !important; }
         }
         @media (max-width: 900px) {
-            #nacho-couch-sidebar, #tctv-remote-sidebar { display: none !important; }
+            #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
             #tctv-remote, .tctv-mobile-ui-stack { display: flex !important; flex-direction: column; }
         }
         /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
@@ -6063,14 +6088,16 @@ window.renderTimechainTV = function() {
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
     // Desktop: side-by-side layout with couch left, video center, remote right
     html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:10px;">';
-    // Left side - Couch Nacho (desktop only, inside layout flow)
-    html += '<div id="nacho-couch-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
-            '<div style="position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center;">' +
-            '<span style="font-size:5rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
-            '<div style="position:absolute;bottom:30px;left:40px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
-            '<img src="nacho-deer.svg" style="width:55px;height:55px;">' +
-            '<span style="position:absolute;top:-15px;right:-15px;background:white;color:black;padding:3px 8px;border-radius:10px;font-size:0.5rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
-            '</div>' +
+    // Left side - TCTV Ad (desktop only, dismissible)
+    var _tctvAdDismissed = false;
+    try { _tctvAdDismissed = localStorage.getItem('tctv_ad_dismissed') === '1'; } catch(e) {}
+    html += '<div id="tctv-ad-sidebar" style="flex:0 0 auto;display:none;' + (_tctvAdDismissed ? 'visibility:hidden;width:0;overflow:hidden;' : '') + '" class="desktop-only">' +
+            '<div style="position:relative;width:140px;padding:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;">' +
+            '<button onclick="tctvDismissAd()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Dismiss">✕</button>' +
+            '<div style="font-size:1.5rem;margin-bottom:6px;">📺</div>' +
+            '<div style="font-size:0.65rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
+            '<div style="margin-top:8px;font-size:0.6rem;color:#f7931a;font-weight:700;">Inquire at:</div>' +
+            '<a href="mailto:info.603btc@gmail.com" style="font-size:0.55rem;color:#aaa;text-decoration:none;word-break:break-all;" onmouseover="this.style.color=\'#f7931a\'" onmouseout="this.style.color=\'#aaa\'">info.603btc@gmail.com</a>' +
             '</div></div>';
     // Center - Video player (narrower on desktop, full width on mobile)
     html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
@@ -6359,6 +6386,10 @@ window.cleanupTimechainTV = function() {
     window._tctvActive = false;
     var s = document.getElementById('tctv-remote-styles');
     if (s) s.remove();
+    if (typeof _tctvRestoreSpriteNacho === 'function') _tctvRestoreSpriteNacho();
+    // Remove tooltip if lingering
+    var tip = document.getElementById('tctv-epg-tooltip');
+    if (tip) tip.remove();
 };
 
 })();
