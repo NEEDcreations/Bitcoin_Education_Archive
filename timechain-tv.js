@@ -687,6 +687,77 @@ var STATIONS = [
                 "title": "Biggest Bitcoin Holders 2024",
                 "duration": 900
             }
+        ,
+            {
+                "id": "9cb94OuCR9U",
+                "title": "The Alleged CIA Connection to Bitcoin's Mysterious Origin",
+                "duration": 1800
+            },
+            {
+                "id": "Fx0OcKcLQ0A",
+                "title": "Bitcoin's Creator Unveiled? Theories about Satoshi Nakamoto",
+                "duration": 1200
+            },
+            {
+                "id": "_Kav2K1DVWo",
+                "title": "The Most Elusive Identity On The Internet (ft. Nexpo)",
+                "duration": 2400
+            },
+            {
+                "id": "Bze53qwHS8o",
+                "title": "Mystery Founder of Bitcoin: Uncovering Satoshi Nakamoto — CNBC",
+                "duration": 1800
+            },
+            {
+                "id": "FwWU1W7IGbY",
+                "title": "Seeking Satoshi — The Mystery Bitcoin Creator (Part 1)",
+                "duration": 1800
+            },
+            {
+                "id": "DGNhX8nz7Eg",
+                "title": "Seeking Satoshi — The Mystery Bitcoin Creator (Part 2)",
+                "duration": 1800
+            },
+            {
+                "id": "EcYnz29l8_0",
+                "title": "Who ACTUALLY Created Bitcoin",
+                "duration": 1200
+            },
+            {
+                "id": "IFVrVI4rZHM",
+                "title": "What Happened To Bitcoin's Founder?",
+                "duration": 900
+            },
+            {
+                "id": "XzSFu7aMCu8",
+                "title": "Truth About Satoshi Nakamoto — Complete Documentary",
+                "duration": 2400
+            },
+            {
+                "id": "KjMQvN7Fajs",
+                "title": "Who Created Bitcoin? The Mystery of Satoshi Nakamoto",
+                "duration": 1500
+            },
+            {
+                "id": "o-c_j2tgxDU",
+                "title": "What's REALLY Wrong with HBO's Bitcoin Documentary",
+                "duration": 1200
+            },
+            {
+                "id": "oEgPTIN5hVE",
+                "title": "How Bitcoin Started: The Untold Story of Satoshi (Full Documentary)",
+                "duration": 3600
+            },
+            {
+                "id": "tdxY61IJ24E",
+                "title": "Bitcoin: Who is Satoshi Nakamoto? — An Investigation",
+                "duration": 2400
+            },
+            {
+                "id": "F5AiHEzu-uc",
+                "title": "Who is Satoshi Nakamoto? The True Story of Bitcoin's Creator",
+                "duration": 1200
+            }
         ]
     },
     {
@@ -1108,6 +1179,47 @@ var STATIONS = [
                 "id": "iqVuthH57wY",
                 "duration": 1800,
                 "title": "The Evolution of Bitcoin Mining!"
+            }
+        ,
+            {
+                "id": "BoboO6QPGow",
+                "title": "Satoshi Nakamoto Goes Public and Denies He's Bitcoin Founder",
+                "duration": 300
+            },
+            {
+                "id": "lFw-3wynj-o",
+                "title": "Adam Back is Satoshi Nakamoto — Hoskinson & Lex Fridman",
+                "duration": 600
+            },
+            {
+                "id": "0r6zMdHcpW0",
+                "title": "Was Bitcoin a CIA Project? The Hidden Origins of Satoshi",
+                "duration": 3600
+            },
+            {
+                "id": "b1ruW89S4PM",
+                "title": "Satoshi Nakamoto: The Mysterious Genius Behind Bitcoin",
+                "duration": 1800
+            },
+            {
+                "id": "chcASJW1pMs",
+                "title": "Satoshi Nakamoto — The Beginning of Bitcoin Documentary",
+                "duration": 2400
+            },
+            {
+                "id": "vjGhiac85h4",
+                "title": "The History of Crypto Goes Further Back Than You Think",
+                "duration": 1800
+            },
+            {
+                "id": "phtHSjSrsJ8",
+                "title": "What is Bitcoin's UNTOLD History?",
+                "duration": 1200
+            },
+            {
+                "id": "ao9SdxPtuIE",
+                "title": "Satoshi Nakamoto & The Origins of Bitcoin",
+                "duration": 1500
             }
         ]
     },
