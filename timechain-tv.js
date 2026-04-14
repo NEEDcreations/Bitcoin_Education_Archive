@@ -5926,7 +5926,7 @@ function _renderEPG() {
                     var isLive = (tempMs <= Date.now() && (tempMs + vid.duration * 1000) > Date.now());
                     var bg = isLive ? s.color + '40' : '#1a1a1a';
                     var br = isLive ? s.color : '#2a2a2a';
-                    html += '<div data-vid-id="' + s.id + '-' + tempIdx + '" style="position:absolute;left:' + leftPx + 'px;top:6px;height:42px;width:' + (widthPx - 4) + 'px;background:' + bg + ';border:1px solid ' + br + ';border-radius:4px;display:flex;align-items:center;padding:0 8px;overflow:hidden;">';
+                    html += '<div data-vid-id="' + s.id + '-' + tempIdx + '" title="' + vid.title.replace(/"/g, '&quot;') + '" style="position:absolute;left:' + leftPx + 'px;top:6px;height:42px;width:' + (widthPx - 4) + 'px;background:' + bg + ';border:1px solid ' + br + ';border-radius:4px;display:flex;align-items:center;padding:0 8px;overflow:hidden;cursor:pointer;">';
                     html += '<span style="font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + (isLive ? '#fff' : '#999') + ';">' + vid.title + '</span>';
                     html += '</div>';
                 }
@@ -6108,6 +6108,65 @@ window.renderTimechainTV = function() {
     html += _renderEPG();
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
+
+    // ── EPG Tooltip (mobile tap + desktop hover) ──
+    (function() {
+        var tip = document.createElement('div');
+        tip.id = 'tctv-epg-tooltip';
+        tip.style.cssText = 'position:fixed;z-index:9999;background:#111;color:#fff;font-size:0.75rem;padding:6px 10px;border-radius:6px;border:1px solid #333;pointer-events:none;opacity:0;transition:opacity 0.15s;max-width:280px;word-wrap:break-word;box-shadow:0 4px 12px rgba(0,0,0,0.6);white-space:normal;line-height:1.3;';
+        document.body.appendChild(tip);
+        var epgC = document.getElementById('tctv-epg-container');
+        if (!epgC) return;
+        var hideTimer = null;
+        function showTip(el, e) {
+            var t = el.getAttribute('title');
+            if (!t) return;
+            el.setAttribute('data-title', t);
+            el.removeAttribute('title');
+            tip.textContent = t;
+            tip.style.opacity = '1';
+            positionTip(e || el);
+        }
+        function positionTip(ref) {
+            var r;
+            if (ref.getBoundingClientRect) r = ref.getBoundingClientRect();
+            else r = { left: ref.clientX || ref.touches[0].clientX, top: ref.clientY || ref.touches[0].clientY, width: 0, height: 0 };
+            var x = (r.left || r.x) + (r.width || 0) / 2;
+            var y = (r.top || r.y) - 8;
+            tip.style.left = Math.min(x, window.innerWidth - 290) + 'px';
+            tip.style.top = 'auto';
+            tip.style.bottom = (window.innerHeight - y) + 'px';
+        }
+        function hideTip(el) {
+            tip.style.opacity = '0';
+            if (el && el.getAttribute('data-title')) {
+                el.setAttribute('title', el.getAttribute('data-title'));
+                el.removeAttribute('data-title');
+            }
+        }
+        epgC.addEventListener('mouseover', function(e) {
+            var bl = e.target.closest('[data-vid-id]');
+            if (bl) showTip(bl, e);
+        });
+        epgC.addEventListener('mouseout', function(e) {
+            var bl = e.target.closest('[data-vid-id]');
+            if (bl) hideTip(bl);
+        });
+        var _activeTipEl = null;
+        epgC.addEventListener('touchstart', function(e) {
+            var bl = e.target.closest('[data-vid-id]');
+            if (bl) {
+                if (_activeTipEl === bl) { hideTip(bl); _activeTipEl = null; return; }
+                if (_activeTipEl) hideTip(_activeTipEl);
+                _activeTipEl = bl;
+                showTip(bl, e.touches[0]);
+                if (hideTimer) clearTimeout(hideTimer);
+                hideTimer = setTimeout(function() { hideTip(bl); _activeTipEl = null; }, 3000);
+            } else {
+                if (_activeTipEl) { hideTip(_activeTipEl); _activeTipEl = null; }
+            }
+        }, { passive: true });
+    })();
 
     _currentStation = activeStation;
     saveStation(activeStation);
