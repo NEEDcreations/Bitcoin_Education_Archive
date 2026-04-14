@@ -100,6 +100,32 @@ function timeAgo(ts) {
         }
     });
 })();
+
+// ============================================================
+// 🟠 Premium Tier System
+// ============================================================
+
+/** Check if current user has active premium */
+function isPremium() {
+    return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
+}
+
+/** Get sat redemption cap based on tier */
+function getSatCap() {
+    return isPremium() ? 21000 : 10000;
+}
+
+/** Premium tier constants */
+var PREMIUM_CONFIG = {
+    FREE_SAT_CAP: 10000,
+    PREMIUM_SAT_CAP: 21000,
+    FREE_SPINS: 1,
+    PREMIUM_SPINS: 3,
+    MONTHLY_PRICE_USD: 4.99,
+    YEARLY_PRICE_USD: 42,
+    LIFETIME_SATS: 210000,
+    TIER_NAME: 'Bitcoin Maxi'
+};
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -3732,7 +3758,8 @@ function showSettingsPage(tab) {
         var availablePts = userPts - pointsClaimed;
         var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
         var satsBalance = Math.floor(Math.max(0, availablePts) / 10); // 10 unclaimed points = 1 sat
-        var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
+        var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
+        var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
         var claimable = Math.min(satsBalance, 500, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
@@ -5221,7 +5248,8 @@ window.initSatsClaim = function() {
     var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0);
     var satsBalance = Math.floor(Math.max(0, availPts) / 10);
     var satsWithdrawn = currentUser.satsWithdrawn || 0;
-    var lifetimeLeft = Math.max(0, 10000 - satsWithdrawn);
+    var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
+    var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 500, lifetimeLeft);
     if (maxClaim < 100) {
         showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed points) to withdraw. Keep earning!', 5000);
@@ -5331,7 +5359,8 @@ window.submitSatsClaim = async function() {
             // Fun celebration popup + confetti
             if (typeof launchConfetti === 'function') launchConfetti();
             var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
-            var _remaining = Math.max(0, 10000 - _totalClaimed);
+            var _claimCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
+            var _remaining = Math.max(0, _claimCap - _totalClaimed);
             var _celebOverlay = document.createElement('div');
             _celebOverlay.id = 'satsCelebration';
             _celebOverlay.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeSlideIn 0.3s;';
@@ -5379,7 +5408,7 @@ window.loadSatsHistory = function() {
     db.collection('users').doc(currentUser.uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').get().then(function(snap) {
         if (snap.empty) { el.textContent = 'No withdrawals yet'; return; }
         var totalWithdrawn = 0;
-        var LIFETIME_MAX = 10000;
+        var LIFETIME_MAX = typeof getSatCap === 'function' ? getSatCap() : 10000;
         var rows = '';
         snap.forEach(function(doc) {
             var d = doc.data();

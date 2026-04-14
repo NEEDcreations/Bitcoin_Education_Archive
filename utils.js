@@ -100,3 +100,29 @@ function timeAgo(ts) {
         }
     });
 })();
+
+// ============================================================
+// 🟠 Premium Tier System
+// ============================================================
+
+/** Check if current user has active premium */
+function isPremium() {
+    return typeof currentUser !== 'undefined' && currentUser && currentUser.premium && currentUser.premium.active === true;
+}
+
+/** Get sat redemption cap based on tier */
+function getSatCap() {
+    return isPremium() ? 21000 : 10000;
+}
+
+/** Premium tier constants */
+var PREMIUM_CONFIG = {
+    FREE_SAT_CAP: 10000,
+    PREMIUM_SAT_CAP: 21000,
+    FREE_SPINS: 1,
+    PREMIUM_SPINS: 3,
+    MONTHLY_PRICE_USD: 4.99,
+    YEARLY_PRICE_USD: 42,
+    LIFETIME_SATS: 210000,
+    TIER_NAME: 'Bitcoin Maxi'
+};
