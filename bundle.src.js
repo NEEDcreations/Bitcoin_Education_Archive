@@ -10,18 +10,32 @@ var CHANNELS = {"decentralized":{"cat":"Properties Layer 1","title":"👪decentr
  * @param {string} url - image URL
  * @returns {string} - sanitized or fallback URL
  */
+// Safe SVG placeholder (music note icon)
+var _SAFE_COVER_PLACEHOLDER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUxYTJlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNmNzkzMWEiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wnY61PC90ZXh0Pjwvc3ZnPg==';
+
 function _safeCover(url) {
     if (!url || typeof url !== 'string' || url.trim() === '') {
-        // Safe SVG placeholder (gray with a music note icon style)
-        return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUxYTJlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNmNzkzMWEiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wnY61PC90ZXh0Pjwvc3ZnPg==';
+        return _SAFE_COVER_PLACEHOLDER;
     }
-    // [SECURITY FIX] Block javascript:, data:text/html:, vbscript:, blob: URIs that could execute XSS
-    var lower = url.trim().toLowerCase();
+    var trimmed = url.trim();
+    var lower = trimmed.toLowerCase();
+
+    // [SECURITY FIX] Block javascript:, data:text/html:, vbscript:, blob: URIs
     if (/^(javascript|data:text\/html|vbscript|blob):/i.test(lower)) {
-        console.warn('[XSS BLOCKED] Malicious image URL rejected:', url.substring(0, 50));
-        return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUxYTJlIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZpbGw9IiNmNzkzMWEiIGZvbnQtc2l6ZT0iMjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7wnY61PC90ZXh0Pjwvc3ZnPg==';
+        console.warn('[XSS BLOCKED] Malicious image URL scheme rejected:', trimmed.substring(0, 50));
+        return _SAFE_COVER_PLACEHOLDER;
     }
-    return url;
+
+    // [SECURITY FIX] Only allow https:// or data:image/ URLs
+    if (!/^(https:\/\/|data:image\/)/i.test(trimmed)) {
+        console.warn('[XSS BLOCKED] Invalid URL scheme (must be https:// or data:image/):', trimmed.substring(0, 50));
+        return _SAFE_COVER_PLACEHOLDER;
+    }
+
+    // [SECURITY FIX] Strip characters that could break out of HTML attributes
+    var sanitized = trimmed.replace(/["'<>\\]/g, '');
+
+    return sanitized;
 }
 
 // ---- Safe JSON parse from localStorage ----

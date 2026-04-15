@@ -470,16 +470,25 @@ service cloud.firestore {
                         || request.resource.data.coverUrl.matches('^https://.*')
                         || request.resource.data.coverUrl.matches('^data:image/.*'));
       allow update: if request.auth != null
-                    && (resource.data.authorId == request.auth.uid
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
-                            && request.resource.data.plays <= resource.data.get('plays', 0) + 1
-                            && request.resource.data.likes <= resource.data.get('likes', 0) + 1
-                            && (!request.resource.data.keys().hasAny(['likedBy']) || (
-                                request.resource.data.likedBy is list
-                                && request.resource.data.likedBy.size() <= resource.data.get('likedBy', []).size() + 1
-                                && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
-                                && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
-                            ))));
+                    && (
+                      // Author can update their own track (with coverUrl validation)
+                      (resource.data.authorId == request.auth.uid
+                        && (!('coverUrl' in request.resource.data)
+                            || request.resource.data.coverUrl == ''
+                            || request.resource.data.coverUrl == null
+                            || request.resource.data.coverUrl.matches('^https://.*')
+                            || request.resource.data.coverUrl.matches('^data:image/.*')))
+                      // Social interactions: plays/likes only
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
+                          && request.resource.data.plays <= resource.data.get('plays', 0) + 1
+                          && request.resource.data.likes <= resource.data.get('likes', 0) + 1
+                          && (!request.resource.data.keys().hasAny(['likedBy']) || (
+                              request.resource.data.likedBy is list
+                              && request.resource.data.likedBy.size() <= resource.data.get('likedBy', []).size() + 1
+                              && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
+                              && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
+                          )))
+                    );
       allow delete: if request.auth != null
                     && resource.data.authorId == request.auth.uid;
 
