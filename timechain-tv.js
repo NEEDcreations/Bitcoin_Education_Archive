@@ -5644,24 +5644,19 @@ function loadVideo(videoId, startSeconds) {
 
 function onPlayerStateChange(event) {
     if (_apiFailed || typeof YT === 'undefined') return;
-    var overlay = document.getElementById('tctv-pause-overlay');
-    var p = document.getElementById('tctv-player');
     
-    // User paused video manually (via YT controls or our remote)
+    // User paused (via YT controls, spacebar, tap, or our remote)
     if (event.data === YT.PlayerState.PAUSED) {
         _isPaused = true;
-        if (overlay) overlay.style.display = 'flex';
-        if (p) p.style.opacity = '0.3';
         _updatePauseButtons(true);
         _showSyncButtons(true);
     } 
     
-    // Video playing
+    // Video playing — user is live
     if (event.data === YT.PlayerState.PLAYING) {
         _isPaused = false;
-        if (overlay) overlay.style.display = 'none';
-        if (p) p.style.opacity = '1';
         _updatePauseButtons(false);
+        // Check if they're actually at the live position
         checkDrift();
     }
 
@@ -5685,9 +5680,8 @@ function _updatePauseButtons(paused) {
 }
 
 function _showSyncButtons(show) {
-    document.querySelectorAll('[id="tctv-sync-btn"]').forEach(function(el) {
-        el.style.display = show ? 'inline-block' : 'none';
-    });
+    var btn = document.getElementById('tctv-sync-btn');
+    if (btn) btn.style.display = show ? 'block' : 'none';
 }
 
 // Advance to the next scheduled video on the current station
@@ -5765,16 +5759,12 @@ window.tctvRemotePause = function() {
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
     
     if (!_isPaused) {
-        // Pause
-        _isPaused = true;
+        // Pause the video — onPlayerStateChange will handle UI
         if (_ytPlayer && _ytPlayer.pauseVideo) _ytPlayer.pauseVideo();
-        // UI updates handled by onPlayerStateChange PAUSED event
-        // But also set directly in case YT event doesn't fire (iframe fallback)
+        // Fallback for iframe mode
+        _isPaused = true;
         _updatePauseButtons(true);
-        var overlay = document.getElementById('tctv-pause-overlay');
-        if (overlay) overlay.style.display = 'flex';
-        var p = document.getElementById('tctv-player');
-        if (p) p.style.opacity = '0.3';
+        _showSyncButtons(true);
     } else {
         // Resume — jump to live (sync to global clock)
         syncPlayer();
@@ -5961,21 +5951,19 @@ function syncPlayer() {
     var state = getPlaybackState(station);
     if (!state.video) return;
     
-    // Force unpause state
+    // Clear paused state and hide sync button
     _isPaused = false;
-    var overlay = document.getElementById('tctv-pause-overlay');
-    if (overlay) overlay.style.display = 'none';
-    var p = document.getElementById('tctv-player');
-    if (p) p.style.opacity = '1';
     _updatePauseButtons(false);
+    _showSyncButtons(false);
     
+    // Update NOW PLAYING
     var np = document.getElementById('tctv-now-playing');
     if (np) {
         np.textContent = state.video.title;
         np.setAttribute('data-current-vid', state.video.id);
     }
     
-    // Reuse existing player when possible (better autoplay)
+    // Jump to live: reuse existing player when possible
     if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById) {
         _currentVideoId = state.video.id;
         _ytPlayer.loadVideoById({
@@ -5987,7 +5975,6 @@ function syncPlayer() {
         loadVideo(state.video.id, state.offset);
     }
     _updateChNum();
-    _showSyncButtons(false);
 }
 
 // ── Timeline & Moving EPG ──
@@ -6228,11 +6215,6 @@ window.renderTimechainTV = function() {
     // Center - Video player (narrower on desktop, full width on mobile)
     html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
             '<div style="position:relative;aspect-ratio:16/9;max-height:45vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
-            '<div id="tctv-pause-overlay" style="position:absolute;inset:0;bottom:48px;background:rgba(0,0,0,0.9);z-index:5;display:none;align-items:center;justify-content:center;flex-direction:column;gap:15px;pointer-events:none;">' +
-                '<div style="font-size:3rem;animation:pulse 2s infinite;">🎬</div>' +
-                '<div style="color:#f7931a;font-weight:900;letter-spacing:2px;">STANDBY</div>' +
-                '<button onclick="syncPlayer()" style="background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;pointer-events:auto;">JUMP TO LIVE</button>' +
-            '</div>' +
             '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
                 '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
             '</div>' +
@@ -6263,7 +6245,7 @@ window.renderTimechainTV = function() {
             '</div></div>';
     html += '</div>';
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING <span id="tctv-now-ch" style="color:#aaa;"></span></div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
-            '<div style="display:flex;align-items:center;gap:8px;"><button onclick="syncPlayer()" id="tctv-sync-btn" style="background:#ef4444;border:none;color:#fff;font-size:0.6rem;font-weight:900;padding:4px 8px;border-radius:4px;cursor:pointer;animation:pulse 2s infinite;display:none;">JUMP TO LIVE</button><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
+            '<div style="display:flex;align-items:center;gap:8px;"><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
     html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
 
     // Mobile Lounge & Remote Area (Stays sticky/fixed on desktop, injected here for mobile flow)
