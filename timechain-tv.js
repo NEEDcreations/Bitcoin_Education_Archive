@@ -6757,16 +6757,26 @@ window.renderTimechainTV = function() {
             #guestPointsBanner { z-index: 300000 !important; }
             
             .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
-            #tctv-video-container { max-height: 40vh !important; border-radius: 0 !important; }
-            #tctv-player { max-height: 40vh !important; }
-            /* Tablet EPG optimizations */
-            #tctv-epg-container { min-height: 35vh !important; max-height: 45vh !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; }
+            #tctv-video-container { max-height: 30vh !important; min-height: 25vh !important; border-radius: 0 !important; }
+            #tctv-player { max-height: 30vh !important; }
+            /* Tablet EPG optimizations - maximize EPG space */
+            #tctv-epg-container { 
+                height: calc(70vh - 120px) !important; 
+                max-height: 60vh !important;
+                min-height: 40vh !important;
+                overflow: auto !important; 
+                -webkit-overflow-scrolling: touch !important;
+            }
         }
         /* Smaller tablets and phones */
         @media (max-width: 768px) {
-            #tctv-video-container { max-height: 35vh !important; }
-            #tctv-player { max-height: 35vh !important; }
-            #tctv-epg-container { min-height: 40vh !important; max-height: 50vh !important; }
+            #tctv-video-container { max-height: 25vh !important; min-height: 20vh !important; }
+            #tctv-player { max-height: 25vh !important; }
+            #tctv-epg-container { 
+                height: calc(75vh - 100px) !important;
+                max-height: 65vh !important;
+                min-height: 45vh !important;
+            }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
@@ -6794,7 +6804,7 @@ window.renderTimechainTV = function() {
             '</div>';
     // Center - Video player
     html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
-            '<div style="position:relative;aspect-ratio:16/9;max-height:65vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
+            '<div style="position:relative;aspect-ratio:16/9;max-height:55vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
             '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
                 '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
             '</div>' +
