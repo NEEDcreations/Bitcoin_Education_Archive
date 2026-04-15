@@ -6306,6 +6306,7 @@ window.tctvRestoreCouch = function() {
     var couch = document.getElementById('nacho-couch');
     var restoreBtn = document.getElementById('nacho-couch-restore');
     if (couch) {
+        // Apply saved position when restoring couch too
         _applyCouchPosition(couch);
         couch.style.display = 'block';
     }
@@ -6497,7 +6498,10 @@ window._tctvRestoreSpriteNacho = function() {
         if (!_dragging) return;
         _dragging = false;
         var couch = document.getElementById('nacho-couch');
-        if (couch) couch.style.transition = '0.3s';
+        if (couch) {
+            couch.style.transition = '0.3s';
+            _saveCouchPosition(couch);
+        }
     });
 })();
 
@@ -6938,6 +6942,23 @@ window.renderTimechainTV = function() {
     
     // Start Nacho reactions
     if (typeof startTctvReactions === 'function') startTctvReactions();
+    
+    // Restore couch nacho collapse state (if previously collapsed)
+    (function() {
+        try {
+            var wasCollapsed = localStorage.getItem('tctv_couch_collapsed') === '1';
+            if (wasCollapsed) {
+                var couch = document.getElementById('nacho-couch');
+                if (couch) couch.style.display = 'none';
+                _ensureCouchRestoreBtn();
+                var restoreBtn = document.getElementById('nacho-couch-restore');
+                if (restoreBtn) {
+                    _applyCouchPosition(restoreBtn);
+                    restoreBtn.style.display = 'flex';
+                }
+            }
+        } catch(e) {}
+    })();
     
     // Ensure we are tracked as the current "channel" for the system's scroll/back logic
     window.currentChannelId = 'timechain-tv';
