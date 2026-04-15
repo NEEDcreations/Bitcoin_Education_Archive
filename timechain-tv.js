@@ -1247,7 +1247,32 @@ var STATIONS = [
                 "title": "Switch from Bitcoin Core to Knots (Windows, Mac, Start9, Umbrel)",
                 "duration": 5301
             }
-        ]
+        ,
+            {
+                "id": "T09HtifiP9c",
+                "title": "Lightning Network: The Economics of Bitcoin's Global Payment Rails — The Bitcoin Layer",
+                "duration": 2367
+            },
+            {
+                "id": "h6-WezlpXx0",
+                "title": "Lightning Network Is Layered Bitcoin — The Bitcoin Layer",
+                "duration": 3126
+            },
+            {
+                "id": "3AmzFPMcgEY",
+                "title": "Growth On Bitcoin & Lightning Is EXPLODING | Alyse Killeen — The Bitcoin Layer",
+                "duration": 2440
+            },
+            {
+                "id": "6C4Vsq1LF4o",
+                "title": "Bitcoin's Lightning Network Is EXPLODING — The Bitcoin Layer",
+                "duration": 2493
+            },
+            {
+                "id": "GO3DX2ICitg",
+                "title": "Cypherpunks & Lightning Network | Alex Leishman — The Bitcoin Layer",
+                "duration": 1755
+            }]
     },
     {
         "id": "documentaries",
@@ -1660,7 +1685,132 @@ var STATIONS = [
                 "title": "Where Does Money Come From — Hidden Secrets Of Money Ep 5",
                 "duration": 1799
             }
-        ]
+        ,
+            {
+                "id": "UIhieMtB_A0",
+                "title": "The Everything Bubble Is Over: Michael Howell’s Warning for 2026 — The Bitcoin Layer",
+                "duration": 4085
+            },
+            {
+                "id": "uRDk8BxQP0g",
+                "title": "Will Private Credit Cause a Crisis? — The Bitcoin Layer",
+                "duration": 412
+            },
+            {
+                "id": "FMntwaNOEj4",
+                "title": "Bitcoin Is Stupid Cheap Right Now | James Van Straten, CoinDesk — The Bitcoin Layer",
+                "duration": 1582
+            },
+            {
+                "id": "GA_7P8RdyRU",
+                "title": "Oil Shock, Stablecoin Surge, and Bitcoin Isn't Flinching — The Bitcoin Layer",
+                "duration": 312
+            },
+            {
+                "id": "7fAhxz8GIAg",
+                "title": "The Liquidity Signal That Called Bitcoin's Drop Is Still Red — The Bitcoin Layer",
+                "duration": 1692
+            },
+            {
+                "id": "7Nw64Jfb2Nw",
+                "title": "Global Macro Update: Inflation Cools, Bond Yields Drop, & Bitcoin Reacts — The Bitcoin Layer",
+                "duration": 1955
+            },
+            {
+                "id": "8mpiEplIfU8",
+                "title": "Global Macro Update: Gold, Silver, Bitcoin, and the Breakdown of the WTO Era — The Bitcoin Layer",
+                "duration": 3711
+            },
+            {
+                "id": "i42PYv_ouY8",
+                "title": "JAPAN RATE CHECK Triggers a DOLLAR INDEX COLLAPSE — The Bitcoin Layer",
+                "duration": 1006
+            },
+            {
+                "id": "wW35okWUurM",
+                "title": "Gold at $5,000 Signals MASSIVE Changes to the World Order — The Bitcoin Layer",
+                "duration": 3419
+            },
+            {
+                "id": "GDZqw6QkW-U",
+                "title": "Is China Sitting on the BIGGEST DEBT BOMB in Modern History? — The Bitcoin Layer",
+                "duration": 2617
+            },
+            {
+                "id": "Xm47eTYJm_w",
+                "title": "$95,000 Bitcoin & Fed Independence — The Bitcoin Layer",
+                "duration": 1408
+            },
+            {
+                "id": "crETxyQczyw",
+                "title": "$1 QUADRILLION In Global Wealth: How Does It Impact Bitcoin? — The Bitcoin Layer",
+                "duration": 2327
+            },
+            {
+                "id": "OZVV62lqytw",
+                "title": "US Treasuries MUST STABILIZE for Bitcoin to Move Higher — The Bitcoin Layer",
+                "duration": 2192
+            },
+            {
+                "id": "TwQugFm2qoo",
+                "title": "Why STRATEGY Stands Alone & Why Most Bitcoin Treasury Companies Cannot Last — The Bitcoin Layer",
+                "duration": 2348
+            },
+            {
+                "id": "wzxydNI2-Go",
+                "title": "INTEREST EXPENSE EXPLODES: Why The Fed Must Cut & What It Means For Bitcoin — The Bitcoin Layer",
+                "duration": 1288
+            },
+            {
+                "id": "NqBdAnhWB4U",
+                "title": "Bitcoin Holds $90,000: Volatility, Yields, & The FED’S NEXT PRINT — The Bitcoin Layer",
+                "duration": 1663
+            },
+            {
+                "id": "mKNojhzp_oY",
+                "title": "Can NVIDIA’s EARNINGS JOLT Spark a Bitcoin Reversal? — The Bitcoin Layer",
+                "duration": 1751
+            },
+            {
+                "id": "_UA2lcEKjLs",
+                "title": "Inside McKinsey’s Global Wealth Report: What It Means for Bitcoin — The Bitcoin Layer",
+                "duration": 1993
+            },
+            {
+                "id": "BcS3QzXtfQc",
+                "title": "Bitcoin Holds $100,000 as Stocks Recover: TBL Liquidity Explained — The Bitcoin Layer",
+                "duration": 2291
+            },
+            {
+                "id": "usUfMQcu9YQ",
+                "title": "How the Fed Lost Control of Liquidity (and What It Means for Bitcoin) — The Bitcoin Layer",
+                "duration": 2226
+            },
+            {
+                "id": "EbTpOiO_-xA",
+                "title": "Fed Liquidity Crunch Explained: Repo, QT, & Bitcoin’s Reaction — The Bitcoin Layer",
+                "duration": 1157
+            },
+            {
+                "id": "CEmJQYEdYpk",
+                "title": "Liquidity Tightens AGAIN: What the Repo Market Is Telling Us — The Bitcoin Layer",
+                "duration": 1215
+            },
+            {
+                "id": "wMhZD_7lbkU",
+                "title": "THE FED ENDS QT: Fiscal Dominance, Repo Stress, & Bitcoin’s Signal — The Bitcoin Layer",
+                "duration": 2353
+            },
+            {
+                "id": "jsoMWIx17Jc",
+                "title": "A US and Argentina soybean alliance might be what pushes it over the edge. — The Bitcoin Layer",
+                "duration": 162
+            },
+            {
+                "id": "nvVR_fVU7Bc",
+                "title": "Argentina just told China: no thanks. They want the U.S. as their “partner of choice.” — The Bitcoin Layer",
+                "duration": 125
+            }]
     },
     {
         "id": "freedom-sovereignty",
@@ -1854,7 +2004,37 @@ var STATIONS = [
                 "duration": 821,
                 "title": "Best Countries for Digital Nomads"
             }
-        ]
+        ,
+            {
+                "id": "LNAFBnN4AHg",
+                "title": "How The Bible Helped Me Understand The Capital War — The Bitcoin Layer",
+                "duration": 2664
+            },
+            {
+                "id": "WxggMzuGMsI",
+                "title": "The Philosophy of Bitcoin & Fiat: Credit, Justice, & Sound Money — The Bitcoin Layer",
+                "duration": 2399
+            },
+            {
+                "id": "5l2wpPM-8IY",
+                "title": "The Global Refugee Crisis & The Bitcoin Solution — The Bitcoin Layer",
+                "duration": 2071
+            },
+            {
+                "id": "XVSrPznq8ZU",
+                "title": "Bitcoin Against Autocracy: A Modern Tool for Freedom — The Bitcoin Layer",
+                "duration": 1042
+            },
+            {
+                "id": "isiy70T-rKE",
+                "title": "The Economic Philosophy of Bitcoin, Part II with Marty Bent | The Bitcoin Layer — The Bitcoin Layer",
+                "duration": 3554
+            },
+            {
+                "id": "2xRp4-9pZmM",
+                "title": "The Economic Philosophy of Bitcoin, Part I with Bitstein | The Bitcoin Layer — The Bitcoin Layer",
+                "duration": 3333
+            }]
     },
     {
         "id": "health-fitness",
@@ -3083,7 +3263,32 @@ var STATIONS = [
                 "title": "Bitcoin Mining Explained Simply — Real ASIC Miner Running at Home",
                 "duration": 270
             }
-        ]
+        ,
+            {
+                "id": "i4XV7Yq9GCM",
+                "title": "The Future of Bitcoin Mining: Home Miners, Pools, & Open Source Innovation — The Bitcoin Layer",
+                "duration": 2888
+            },
+            {
+                "id": "a1aKbcSE4-E",
+                "title": "Mainstream Media Has FLIPPED on Bitcoin Mining — The Bitcoin Layer",
+                "duration": 1362
+            },
+            {
+                "id": "824d2vmw2a0",
+                "title": "U.S. Bitcoin Boom: 50M Users, $30B Mining & Bipartisan Momentum — The Bitcoin Layer",
+                "duration": 2035
+            },
+            {
+                "id": "-maK8nO9vqk",
+                "title": "Bitcoin Mining Is Cleaning the Grid — Here’s the Truth — The Bitcoin Layer",
+                "duration": 2202
+            },
+            {
+                "id": "jw6Cm_DpERM",
+                "title": "Bitcoin Mining and Circular Economies Are Changing Africa’s Future — The Bitcoin Layer",
+                "duration": 1626
+            }]
     },
     {
         "id": "music",
@@ -3751,7 +3956,57 @@ var STATIONS = [
                 "title": "Cathie Wood Increased Her Bitcoin Price Prediction for 2025",
                 "duration": 511
             }
-        ]
+        ,
+            {
+                "id": "gij6bJkyH2w",
+                "title": "Individual Ownership Peaked in 2024 and What Comes Next for Bitcoin — The Bitcoin Layer",
+                "duration": 2395
+            },
+            {
+                "id": "InoqMzIarF0",
+                "title": "Inside Bitcoin’s Trend Shift: Bear Zone, Liquidations, & Key Support — The Bitcoin Layer",
+                "duration": 2937
+            },
+            {
+                "id": "Eds4tmPrs9s",
+                "title": "Bitcoin’s Hidden Signals REVEALED in the TBL Chart Pack — The Bitcoin Layer",
+                "duration": 3181
+            },
+            {
+                "id": "yIID9ubQLgk",
+                "title": "Beyond the Headlines: How to Really Understand Financial Markets. — The Bitcoin Layer",
+                "duration": 1774
+            },
+            {
+                "id": "RIPIG7YBh8s",
+                "title": "RECESSION WATCH, Economic Update, & SOFR Trouble — The Bitcoin Layer",
+                "duration": 1940
+            },
+            {
+                "id": "hSlcy29ETjQ",
+                "title": "Bitcoin Update: $500-Million ETF Inflows, Market Absorbs Mt. Gox BTC, $50K Level Defended — The Bitcoin Layer",
+                "duration": 1141
+            },
+            {
+                "id": "8MKP-Su-cvg",
+                "title": "Bitcoin Update: ETF-Buyers, BTC Dominance, Stocks Correlation — The Bitcoin Layer",
+                "duration": 795
+            },
+            {
+                "id": "TfjSdlopmrk",
+                "title": "Commercial Real Estate Update: Property Is DOWN 30%, Equity Is GONE — The Bitcoin Layer",
+                "duration": 1545
+            },
+            {
+                "id": "8hyuhziDWoQ",
+                "title": "Bitcoin Market Insights: Mt. Gox, ETF Flows, and Short-Term Holder Analysis — The Bitcoin Layer",
+                "duration": 1407
+            },
+            {
+                "id": "26amYt4DB-s",
+                "title": "Bitcoin Approaching A KEY Support Level... Will It Bounce Or Break? — The Bitcoin Layer",
+                "duration": 904
+            }]
     },
     {
         "id": "orange-pill",
@@ -4229,7 +4484,82 @@ var STATIONS = [
                 "title": "A Brief History of Bitcoin Maximalism",
                 "duration": 1664
             }
-        ]
+        ,
+            {
+                "id": "227anLxQ0mU",
+                "title": "The Money Printer Is Back On with Lyn Alden — The Bitcoin Layer",
+                "duration": 3688
+            },
+            {
+                "id": "yWTLczpO808",
+                "title": "RISE of the American Empire with Brent Johnson — The Bitcoin Layer",
+                "duration": 3428
+            },
+            {
+                "id": "IYOpQ2RYhpI",
+                "title": "Inside the Global Liquidity Shift Powering Bitcoin with Dr. Jeff Ross — The Bitcoin Layer",
+                "duration": 2765
+            },
+            {
+                "id": "dkph5lF2KmA",
+                "title": "This CEO Just Raised $750 Million to Buy Bitcoin With ZERO Debt — The Bitcoin Layer",
+                "duration": 1922
+            },
+            {
+                "id": "nQ0s2exh9x8",
+                "title": "Corporations Just Surpassed ETFs in Bitcoin Buying—Here’s What It Means with Matthew Sigel — The Bitcoin Layer",
+                "duration": 1629
+            },
+            {
+                "id": "3j8iFIZ4TGM",
+                "title": "I Went Down a Eurodollar Rabbit Hole with AI — The Bitcoin Layer",
+                "duration": 1969
+            },
+            {
+                "id": "sJinwqKz7zQ",
+                "title": "Global Liquidity Update with Michael Howell: The Case for a U.S. Gold Revaluation Is Building — The Bitcoin Layer",
+                "duration": 2857
+            },
+            {
+                "id": "wjMvbpBanog",
+                "title": "America’s Big Reset: Kill the IRS, Split the Dollar, and Fund It All with Sovereign Wealth — The Bitcoin Layer",
+                "duration": 2282
+            },
+            {
+                "id": "TgjFQpFQ-5A",
+                "title": "Your Wealth Is Melting: Freeze It with Bitcoin — The Bitcoin Layer",
+                "duration": 2301
+            },
+            {
+                "id": "HUcjmoi7zm4",
+                "title": "Retire with Bitcoin: Leveraging IRAs, Custody, and Long-Term Wealth Strategies — The Bitcoin Layer",
+                "duration": 1347
+            },
+            {
+                "id": "DZ2c8CWkwxg",
+                "title": "Can We Really Abolish the Federal Reserve? An Interview with Peter St Onge — The Bitcoin Layer",
+                "duration": 3010
+            },
+            {
+                "id": "bCiIcbR8r9w",
+                "title": "Mastering Bitcoin Self-Custody with BTC Sessions — The Bitcoin Layer",
+                "duration": 2268
+            },
+            {
+                "id": "t-7GGhmipt0",
+                "title": "Operation Chokepoint 2.0: The Fed's Secret War on Crypto with Caitlin Long — The Bitcoin Layer",
+                "duration": 3498
+            },
+            {
+                "id": "iYLbtVutcDQ",
+                "title": "HOUSING MARKET CRISIS Is Developing with Melody Wright — The Bitcoin Layer",
+                "duration": 2044
+            },
+            {
+                "id": "iYVMX0zdp64",
+                "title": "The BITCOIN Act of 2024 with Senator Cynthia Lummis — The Bitcoin Layer",
+                "duration": 1976
+            }]
     },
     {
         "id": "politics-regulation",
@@ -4413,7 +4743,57 @@ var STATIONS = [
                 "title": "Gary Gensler GRILLED on Crypto at Congress Committee Hearing",
                 "duration": 6651
             }
-        ]
+        ,
+            {
+                "id": "5VczGHHbDTQ",
+                "title": "The AI-Pentagon War That Every Bitcoiner Needs to Understand — The Bitcoin Layer",
+                "duration": 1733
+            },
+            {
+                "id": "V82emH4q6o0",
+                "title": "Claude Eclipses Trump as the Most Important Force in Global Macro — The Bitcoin Layer",
+                "duration": 2697
+            },
+            {
+                "id": "AXKL48mnU0E",
+                "title": "Japan’s Historic Election, Yen Defense, & Why Bitcoin Is Still a Liquidity Trade — The Bitcoin Layer",
+                "duration": 1938
+            },
+            {
+                "id": "pnG86iyRsbA",
+                "title": "The Trump Doctrine Has ARRIVED, Here’s What It Means for 2026 — The Bitcoin Layer",
+                "duration": 2072
+            },
+            {
+                "id": "Ef5flMEKmic",
+                "title": "What Falling Gas Prices Signal for Bitcoin & The 2026 Midterm Elections — The Bitcoin Layer",
+                "duration": 3370
+            },
+            {
+                "id": "-C13zU-ZsT8",
+                "title": "EUROPEAN BREAKING POINT: Italy Takes Gold Back, Sovereign Bond Crisis, & Bitcoin w/ Matt Dines — The Bitcoin Layer",
+                "duration": 3099
+            },
+            {
+                "id": "yOtZaPuVpTE",
+                "title": "THE MOST IMPORTANT DOCUMENT OF 2025: What the New U.S. National Security Strategy Means for Markets — The Bitcoin Layer",
+                "duration": 3598
+            },
+            {
+                "id": "yuBTr3jLFQQ",
+                "title": "INSIDE THE SELLOFF: Bitcoin, Sanctions, & The Liquidity Drain — The Bitcoin Layer",
+                "duration": 1631
+            },
+            {
+                "id": "pCDyEsZJVLI",
+                "title": "America’s Grand Strategy: Repo, China, Jensen Huang, & Bitcoin’s Next Move — The Bitcoin Layer",
+                "duration": 3239
+            },
+            {
+                "id": "3f170IT1nQU",
+                "title": "Bitcoin Reacts to Tariff Tensions: What’s Next for Price & Liquidity — The Bitcoin Layer",
+                "duration": 1943
+            }]
     },
     {
         "id": "saylor",
@@ -5151,7 +5531,67 @@ var STATIONS = [
                 "title": "Cathie Wood — New 2025 Prediction for Bitcoin & Ethereum",
                 "duration": 1108
             }
-        ]
+        ,
+            {
+                "id": "D8QuMzEnvvM",
+                "title": "Bitcoin Bear Market: SOPR Signals Losses as Liquidity Rolls Over — The Bitcoin Layer",
+                "duration": 439
+            },
+            {
+                "id": "kCi1gYaIbBc",
+                "title": "Only 8 Years Until Bitcoin Hits $1 Million (The Math Proves It) — The Bitcoin Layer",
+                "duration": 3043
+            },
+            {
+                "id": "pkZqnM22l8Y",
+                "title": "Bitcoin May Have Already Bottomed During War Markets — The Bitcoin Layer",
+                "duration": 416
+            },
+            {
+                "id": "AQ3ZnmAD_HQ",
+                "title": "The REAL Reason Bitcoin Is Crashing - And What Comes Next — The Bitcoin Layer",
+                "duration": 3354
+            },
+            {
+                "id": "_FaM-IIt1bg",
+                "title": "Bitcoin Enters Bear Market Behavior, What On-Chain Metrics Are Showing — The Bitcoin Layer",
+                "duration": 2727
+            },
+            {
+                "id": "0zUmhXgotMg",
+                "title": "HERE COMES VANGUARD: Why Bitcoin Hits New All-Time Highs in 2026 — The Bitcoin Layer",
+                "duration": 2998
+            },
+            {
+                "id": "9gyreHKE5XY",
+                "title": "BITCOIN’S 4-YEAR CYCLE NEVER EXISTED | Next Bubble 2027 w/ Stephen Perrenod — The Bitcoin Layer",
+                "duration": 3441
+            },
+            {
+                "id": "ppQfJMY9yYA",
+                "title": "BITCOIN CRASHES THROUGH $100,000 While Macro Volatility Surges & Trend Structure Weakens — The Bitcoin Layer",
+                "duration": 928
+            },
+            {
+                "id": "Q9C4jbZoxIE",
+                "title": "BITCOIN PUMPING: Fed Cuts, Liquidity, & The Next Breakout — The Bitcoin Layer",
+                "duration": 1315
+            },
+            {
+                "id": "44kS3j5L8AA",
+                "title": "Bitcoin Breakout or Fade: $119,000 Test & Market Behavior — The Bitcoin Layer",
+                "duration": 2495
+            },
+            {
+                "id": "hIy9mb0-uSs",
+                "title": "Bitcoin Price Levels to Watch: Short-Term Holders in Control — The Bitcoin Layer",
+                "duration": 2017
+            },
+            {
+                "id": "9c33ShgXBzg",
+                "title": "Big Money Wants $1 Million Bitcoin — The Bitcoin Layer",
+                "duration": 122
+            }]
     },
     {
         "id": "tutorials",
@@ -5340,7 +5780,32 @@ var STATIONS = [
                 "title": "Bitcoin Cold Storage Tutorial",
                 "duration": 2386
             }
-        ]
+        ,
+            {
+                "id": "pcbYq2LCWwk",
+                "title": "LIQUIDITY Explained SIMPLY: How It Really Moves BITCOIN — The Bitcoin Layer",
+                "duration": 1007
+            },
+            {
+                "id": "X0aaySypick",
+                "title": "Bitcoin & Liquidity Academy 3: Primary Dealers, U.S. Treasuries & the Fed — The Bitcoin Layer",
+                "duration": 1318
+            },
+            {
+                "id": "Tr1bntrBOY0",
+                "title": "Bitcoin & Liquidity Academy 2: How $37 Trillion in US Debt Shapes Global Markets — The Bitcoin Layer",
+                "duration": 1549
+            },
+            {
+                "id": "iTno3A4jE0Y",
+                "title": "Bitcoin & Liquidity Academy 1: Understanding Balance Sheets, Capital, and Treasuries — The Bitcoin Layer",
+                "duration": 1548
+            },
+            {
+                "id": "hluk1tQun78",
+                "title": "Understanding The Fed's Balance Sheet with Andy Constan — The Bitcoin Layer",
+                "duration": 3841
+            }]
     }
 ];
 
