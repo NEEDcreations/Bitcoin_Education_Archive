@@ -6757,8 +6757,16 @@ window.renderTimechainTV = function() {
             #guestPointsBanner { z-index: 300000 !important; }
             
             .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
-            #tctv-video-container { max-height: 50vh !important; border-radius: 0 !important; }
-            #tctv-player { max-height: 50vh !important; }
+            #tctv-video-container { max-height: 40vh !important; border-radius: 0 !important; }
+            #tctv-player { max-height: 40vh !important; }
+            /* Tablet EPG optimizations */
+            #tctv-epg-container { min-height: 35vh !important; max-height: 45vh !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; }
+        }
+        /* Smaller tablets and phones */
+        @media (max-width: 768px) {
+            #tctv-video-container { max-height: 35vh !important; }
+            #tctv-player { max-height: 35vh !important; }
+            #tctv-epg-container { min-height: 40vh !important; max-height: 50vh !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
