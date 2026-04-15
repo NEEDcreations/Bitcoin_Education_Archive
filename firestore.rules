@@ -490,7 +490,8 @@ service cloud.firestore {
                           )))
                     );
       allow delete: if request.auth != null
-                    && resource.data.authorId == request.auth.uid;
+                    && (resource.data.authorId == request.auth.uid
+                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
 
       match /comments/{commentId} {
         allow read: if true;
