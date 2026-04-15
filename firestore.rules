@@ -7,14 +7,10 @@ service cloud.firestore {
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
     // =============================================
     match /users/{userId} {
-      // Full read only for own profile
+      // Full read for own profile; allow list queries for leaderboard (authenticated only)
       allow read: if request.auth != null && (
                     request.auth.uid == userId
-                    // Public profile view: allow reading only specific non-sensitive fields
-                    // Note: Firestore rules can't partial-read natively in a 'get' request easily, 
-                    // so we restrict to the owner for now and will move public data to a subcollection 
-                    // or separate 'public_profiles' collection in a future UX update. 
-                    // For now, lock down the entire doc to prevent PII leaks.
+                    || request.query.limit <= 200  // Allow leaderboard queries
                   );
       allow create: if request.auth != null
                     && request.auth.uid == userId;
