@@ -5909,6 +5909,7 @@ window._tctvRestoreSpriteNacho = function() {
         var inner = document.getElementById('nacho-couch-inner');
         if (!inner || !inner.contains(e.target)) return;
         if (e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
         _dragging = true;
         _startX = e.touches[0].clientX;
         _startY = e.touches[0].clientY;
@@ -5916,9 +5917,10 @@ window._tctvRestoreSpriteNacho = function() {
         _origLeft = rect.left;
         _origBottom = window.innerHeight - rect.bottom;
         couch.style.transition = 'none';
-    }, { passive: true });
+    }, { passive: false });
     document.addEventListener('touchmove', function(e) {
         if (!_dragging) return;
+        e.preventDefault();
         var couch = document.getElementById('nacho-couch');
         if (!couch) return;
         var dx = e.touches[0].clientX - _startX;
@@ -5926,7 +5928,7 @@ window._tctvRestoreSpriteNacho = function() {
         couch.style.left = (_origLeft + dx) + 'px';
         couch.style.bottom = (_origBottom - dy) + 'px';
         couch.style.right = 'auto';
-    }, { passive: true });
+    }, { passive: false });
     document.addEventListener('touchend', function() {
         if (!_dragging) return;
         _dragging = false;
@@ -6142,12 +6144,12 @@ window.renderTimechainTV = function() {
     style.textContent = `
         /* Desktop: sidebar layout (couch left, video center, remote right) */
         @media (min-width: 901px) {
-            #tctv-ad-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
-            #tctv-remote, .tctv-mobile-ui-stack { display: none !important; }
+            #tctv-remote-sidebar.desktop-only { display: block !important; }
+            #tctv-remote { display: none !important; }
         }
         @media (max-width: 900px) {
-            #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
-            #tctv-remote, .tctv-mobile-ui-stack { display: flex !important; flex-direction: column; }
+            #tctv-remote-sidebar { display: none !important; }
+            #tctv-remote { display: flex !important; }
         }
         /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
         #tctv-remote { position: fixed; right: 20px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
@@ -6167,23 +6169,22 @@ window.renderTimechainTV = function() {
         @media (min-width: 901px) { 
             #nacho-couch { display: block; } 
         }
-        /* Mobile — maximize video, minimize other UI */
+        /* Mobile — maximize video, remote bar below video */
         @media (max-width: 900px) { 
             #tctv-remote-sidebar { display: none !important; }
-            #tctv-remote { position: fixed !important; top: 160px !important; right: 0px !important; width: 80px !important; height: auto !important; flex-direction: column !important; justify-content: center; padding: 15px 10px !important; border-radius: 20px 0 0 20px !important; border: 3px solid #111 !important; box-shadow: 0 10px 40px rgba(0,0,0,0.8) !important; display: flex !important; z-index: 200000 !important; transition: transform 0.3s ease !important; }
-            #tctv-remote.collapsed { transform: translateX(75px) !important; opacity: 1 !important; }
+            /* Remote: horizontal bar below video, sticky with video */
+            #tctv-remote { position: relative !important; right: auto !important; top: auto !important; width: 100% !important; height: auto !important; flex-direction: row !important; flex-wrap: wrap !important; justify-content: center; padding: 6px 8px !important; border-radius: 0 !important; border: none !important; border-bottom: 1px solid #222 !important; box-shadow: none !important; display: flex !important; z-index: 10 !important; background: #161616 !important; gap: 8px !important; }
+            #tctv-remote.collapsed { transform: none !important; opacity: 1 !important; }
             
-            .remote-btn { width: 44px !important; height: 44px !important; font-size: 1.2rem !important; box-shadow: 0 4px 0 #111 !important; }
-            .remote-label { display: block !important; margin: 0 !important; }
-            .remote-input { width: 44px !important; font-size: 0.9rem !important; }
+            .remote-btn { width: 36px !important; height: 36px !important; font-size: 1rem !important; box-shadow: 0 2px 0 #111 !important; }
+            .remote-label { display: none !important; }
+            .remote-input { width: 36px !important; font-size: 0.8rem !important; padding: 3px !important; }
             
-            #nacho-couch { position: fixed; bottom: 140px; left: 20px; display: block !important; width: auto !important; padding: 0 !important; background: transparent !important; border: none !important; z-index: 200000 !important; height: auto !important; }
-            #nacho-couch > div { height: 160px !important; transform: scale(1) !important; }
+            #nacho-couch { position: fixed; bottom: 100px; left: 10px; display: block !important; width: auto !important; padding: 0 !important; background: transparent !important; border: none !important; z-index: 200000 !important; height: auto !important; }
+            #nacho-couch > div { height: 120px !important; width: 180px !important; transform: scale(0.8) !important; }
             
-            /* Fix guest sign-up banner visibility */
             #guestPointsBanner { z-index: 300000 !important; }
             
-            /* Make video larger on mobile */
             .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
             #tctv-video-container { max-height: 50vh !important; border-radius: 0 !important; }
             #tctv-player { max-height: 50vh !important; }
@@ -6198,22 +6199,10 @@ window.renderTimechainTV = function() {
     html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
     // Desktop: side-by-side layout with couch left, video center, remote right
     html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:10px;">';
-    // Left side - TCTV Ad (desktop only, dismissible)
     var _tctvAdMinimized = false;
     try { _tctvAdMinimized = localStorage.getItem('tctv_ad_minimized') === '1'; } catch(e) {}
-    html += '<div id="tctv-ad-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
-            '<div id="tctv-ad-sidebar-content" style="position:relative;width:140px;padding:12px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;text-align:center;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
-            '<button onclick="tctvMinimizeAd()" style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
-            '<div style="font-size:1.5rem;margin-bottom:6px;">\ud83d\udcfa</div>' +
-            '<div style="font-size:0.65rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
-            '<div style="margin-top:8px;font-size:0.6rem;color:#f7931a;font-weight:700;">Inquire at:</div>' +
-            '<a href="mailto:info.603btc@gmail.com" style="font-size:0.55rem;color:#aaa;text-decoration:none;word-break:break-all;" onmouseover="this.style.color=\'#f7931a\'" onmouseout="this.style.color=\'#aaa\'">info.603btc@gmail.com</a>' +
-            '<button onclick="tctvCopyEmail()" style="display:block;margin:8px auto 0;padding:4px 10px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:6px;color:#f7931a;font-size:0.55rem;font-weight:700;cursor:pointer;">\ud83d\udccb Copy Email</button>' +
-            '</div>' +
-            '<button id="tctv-ad-restore-desktop" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:0 auto;" title="Show ad">\ud83d\udcfa</button>' +
-            '</div>';
-    // Center - Video player (narrower on desktop, full width on mobile)
-    html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
+    // Center - Video player
+    html += '<div style="flex:1 1 auto;min-width:0;" class="tctv-video-wrap">' +
             '<div style="position:relative;aspect-ratio:16/9;max-height:45vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
             '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
                 '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
@@ -6246,49 +6235,33 @@ window.renderTimechainTV = function() {
     html += '</div>';
     html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING <span id="tctv-now-ch" style="color:#aaa;"></span></div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
-    html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div></div>';
+    html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
 
-    // Mobile Lounge & Remote Area (Stays sticky/fixed on desktop, injected here for mobile flow)
-    html += '<div class="tctv-mobile-ui-stack">';
-    
-    // Nacho on Couch (with drag + collapse)
+    // Mobile Remote — horizontal bar below video/progress, inside sticky header
+    html += '<div id="tctv-remote">' +
+            '<button class="remote-btn red" style="border-radius:8px;width:32px;height:32px;font-size:0.9rem;" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">\u23fb</button>' +
+            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(-1)">CH\u25bc</button>' +
+            '<input type="text" id="remote-ch-input" class="remote-input" placeholder="#" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
+            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
+            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(-1)">\ud83d\udd09</button>' +
+            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(1)">\ud83d\udd0a</button>' +
+            '<button class="remote-btn blue" style="border-radius:8px;font-size:0.9rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">\u23f8</button>' +
+            '<button class="remote-btn blue" style="border-radius:8px;font-size:0.6rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '</div>';
+
+    html += '</div>'; // end sticky header
+
+    // Couch Nacho (floating, draggable)
     html += '<div id="nacho-couch">' +
-            '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;">' +
-            '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🛋️</span>' +
+            '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;">' +
+            '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">\ud83d\udecb\ufe0f</span>' +
             '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
             '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
-            '<span style="position:absolute;bottom:0;right:-4px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span>' +
-            '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... 📺🍿</span>' +
+            '<span style="position:absolute;bottom:0;right:-4px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">\ud83c\udf7f</span>' +
+            '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... \ud83d\udcfa\ud83c\udf7f</span>' +
             '</div>' +
-            '<button onclick="tctvToggleCouch()" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#333;border:1px solid #555;color:#aaa;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">✕</button>' +
-            '</div></div>' +
-            '<button id="nacho-couch-restore" onclick="tctvRestoreCouch()" style="display:none;position:fixed;bottom:140px;left:8px;z-index:200000;width:40px;height:40px;border-radius:50%;background:#222;border:2px solid #f7931a;cursor:pointer;font-size:1.3rem;box-shadow:0 4px 15px rgba(0,0,0,0.5);">🦌</button>';
-
-    // Remote (Mobile stacked flow)
-    html += '<div id="tctv-remote" class="collapsed">' +
-            '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#555;border-radius:3px;cursor:pointer;margin-bottom:5px;min-height:5px;"></div>' +
-            // PWR Button (Red)
-            '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">⏻</button>' +
-            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:row;align-items:center;gap:12px;">' +
-                '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
-                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
-                    '<span style="color:#666;font-size:0.7rem;font-weight:900;">#</span>' +
-                    '<input type="text" id="remote-ch-input" class="remote-input" placeholder="--" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
-                '</div>' +
-                '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
-            '</div>' +
-            // Volume controls (mobile horizontal)
-            '<div style="background:#1a1a1a;border-radius:12px;padding:4px 8px;display:flex;flex-direction:row;align-items:center;gap:8px;">' +
-                '<button class="remote-btn" style="width:28px;height:28px;font-size:0.7rem;" onclick="tctvRemoteVolume(-1)">▼</button>' +
-                '<span style="color:#666;font-size:0.6rem;font-weight:900;min-width:24px;text-align:center;" id="tctv-vol-label">VOL</span>' +
-                '<button class="remote-btn" style="width:28px;height:28px;font-size:0.7rem;" onclick="tctvRemoteVolume(1)">▲</button>' +
-            '</div>' +
-            // Added Blue Pause button for mobile flow (horizontal layout)
-            '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">⏸</button>' +
-            '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
-            '</div>';
-            
-    html += '</div>'; // end mobile-ui-stack
+            '<button onclick="tctvToggleCouch()" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#333;border:1px solid #555;color:#aaa;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">\u2715</button>' +
+            '</div></div>';
 
     html += _renderEPG();
     // Mobile ad (below channel guide, minimizable)
@@ -6297,7 +6270,8 @@ window.renderTimechainTV = function() {
             '<button onclick="tctvMinimizeAd()" style="position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
             '<div style="font-size:1.3rem;margin-bottom:4px;">\ud83d\udcfa</div>' +
             '<div style="font-size:0.7rem;color:#ccc;font-weight:600;line-height:1.4;">Get your YouTube channel streaming on Timechain TV 24/7!</div>' +
-            '<a href="mailto:info.603btc@gmail.com" style="display:inline-block;margin-top:6px;font-size:0.65rem;color:#f7931a;text-decoration:none;font-weight:700;">info.603btc@gmail.com</a>' +
+            '<div style="margin-top:8px;font-size:0.6rem;color:#f7931a;font-weight:700;">Inquire at:</div>' +
+            '<a href="mailto:info.603btc@gmail.com" style="display:inline-block;margin-top:4px;font-size:0.65rem;color:#aaa;text-decoration:none;font-weight:700;">info.603btc@gmail.com</a>' +
             '<button onclick="tctvCopyEmail()" style="display:block;margin:8px auto 0;padding:5px 14px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:6px;color:#f7931a;font-size:0.65rem;font-weight:700;cursor:pointer;">\ud83d\udccb Copy Email</button>' +
         '</div>' +
         '<button id="tctv-ad-restore-mobile" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:8px auto;" title="Show ad">\ud83d\udcfa</button>' +
