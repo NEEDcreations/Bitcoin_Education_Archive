@@ -6291,17 +6291,115 @@ window.tctvToggleRemote = function() {
 // Couch Nacho collapse/restore
 window.tctvToggleCouch = function() {
     var couch = document.getElementById('nacho-couch');
-    var restoreBtn = document.getElementById('nacho-couch-restore');
     if (couch) couch.style.display = 'none';
-    if (restoreBtn) restoreBtn.style.display = 'flex';
+    _ensureCouchRestoreBtn();
+    var restoreBtn = document.getElementById('nacho-couch-restore');
+    if (restoreBtn) {
+        _applyCouchPosition(restoreBtn);
+        restoreBtn.style.display = 'flex';
+    }
+    // Save collapsed state
+    try { localStorage.setItem('tctv_couch_collapsed', '1'); } catch(e) {}
 };
 
 window.tctvRestoreCouch = function() {
     var couch = document.getElementById('nacho-couch');
     var restoreBtn = document.getElementById('nacho-couch-restore');
-    if (couch) couch.style.display = 'block';
+    if (couch) {
+        _applyCouchPosition(couch);
+        couch.style.display = 'block';
+    }
     if (restoreBtn) restoreBtn.style.display = 'none';
+    // Save restored state
+    try { localStorage.removeItem('tctv_couch_collapsed'); } catch(e) {}
 };
+
+// Ensure the restore button exists (creates it dynamically)
+function _ensureCouchRestoreBtn() {
+    var existing = document.getElementById('nacho-couch-restore');
+    if (existing) return existing;
+    var btn = document.createElement('div');
+    btn.id = 'nacho-couch-restore';
+    btn.innerHTML = '🛋️';
+    btn.title = 'Restore Couch Nacho';
+    btn.style.cssText = 'position:fixed;left:20px;bottom:140px;z-index:200001;width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#ea580c);border:2px solid rgba(255,255,255,0.3);color:#fff;font-size:1.5rem;display:none;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 15px rgba(247,147,26,0.4);transition:transform 0.2s,box-shadow 0.2s;touch-action:none;';
+    if (window.innerWidth <= 900) {
+        btn.style.left = '10px';
+        btn.style.bottom = '100px';
+        btn.style.width = '44px';
+        btn.style.height = '44px';
+        btn.style.fontSize = '1.3rem';
+    }
+    btn.onclick = function() { tctvRestoreCouch(); };
+    document.body.appendChild(btn);
+    _initCouchRestoreDrag(btn);
+    return btn;
+}
+
+// Apply saved position to an element (couch or restore button)
+function _applyCouchPosition(el) {
+    try {
+        var pos = JSON.parse(localStorage.getItem('tctv_couch_position') || '{}');
+        if (pos.left !== undefined) el.style.left = pos.left + 'px';
+        if (pos.bottom !== undefined) el.style.bottom = pos.bottom + 'px';
+    } catch(e) {}
+}
+
+// Save couch/rest position
+function _saveCouchPosition(el) {
+    try {
+        var left = parseFloat(el.style.left) || 0;
+        var bottom = parseFloat(el.style.bottom) || 0;
+        // Clamp to viewport bounds
+        left = Math.max(0, Math.min(window.innerWidth - 60, left));
+        bottom = Math.max(50, Math.min(window.innerHeight - 150, bottom));
+        localStorage.setItem('tctv_couch_position', JSON.stringify({left: left, bottom: bottom}));
+    } catch(e) {}
+}
+
+// Make restore button draggable (matching sprite nacho behavior)
+function _initCouchRestoreDrag(btn) {
+    var isDragging = false, startX, startY, startLeft, startBottom;
+    var hasMoved = false;
+    btn.addEventListener('pointerdown', function(e) {
+        isDragging = true;
+        hasMoved = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = btn.offsetLeft;
+        startBottom = parseFloat(btn.style.bottom) || (window.innerWidth <= 900 ? 100 : 140);
+        btn.style.transition = 'none';
+        btn.setPointerCapture(e.pointerId);
+    });
+    btn.addEventListener('pointermove', function(e) {
+        if (!isDragging) return;
+        var dx = e.clientX - startX;
+        var dy = e.clientY - startY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+        var newLeft = startLeft + dx;
+        var newBottom = startBottom - dy;
+        // Clamp
+        newLeft = Math.max(0, Math.min(window.innerWidth - 60, newLeft));
+        newBottom = Math.max(50, Math.min(window.innerHeight - 150, newBottom));
+        btn.style.left = newLeft + 'px';
+        btn.style.bottom = newBottom + 'px';
+    });
+    btn.addEventListener('pointerup', function(e) {
+        if (isDragging) {
+            isDragging = false;
+            btn.releasePointerCapture(e.pointerId);
+            btn.style.transition = 'transform 0.2s, box-shadow 0.2s';
+            _saveCouchPosition(btn);
+        }
+    });
+    var clickHandler = function(e) {
+        // Only fire if we didn't drag significantly
+        if (hasMoved) return;
+        tctvRestoreCouch();
+    };
+    // Use click event (separate from pointer events) for restoration
+    btn.addEventListener('click', clickHandler);
+}
 
 window.tctvMinimizeAd = function() {
     var ad = document.getElementById('tctv-ad-sidebar-content');
@@ -6632,6 +6730,9 @@ window.renderTimechainTV = function() {
         .remote-input { width: 44px; padding: 4px; background: #111; border: 1px solid #444; border-radius: 6px; color: var(--accent); font-family: 'Courier New', monospace; font-weight: 800; font-size: 0.9rem; text-align: center; outline: none; }
         .remote-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(247,147,26,0.3); }
         #nacho-couch { position: fixed; left: 20px; bottom: 140px; z-index: 200000; pointer-events: none; transition: 0.5s; display: none; }
+        #nacho-couch-restore { position: fixed; left: 20px; bottom: 140px; z-index: 200001; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #f7931a, #ea580c); border: 2px solid rgba(255,255,255,0.3); color: #fff; font-size: 1.5rem; display: none; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(247,147,26,0.4); transition: transform 0.2s, box-shadow 0.2s; touch-action: none; }
+        #nacho-couch-restore:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(247,147,26,0.6); }
+        @media (max-width: 900px) { #nacho-couch-restore { left: 10px; bottom: 100px; width: 44px; height: 44px; font-size: 1.3rem; } }
         @media (min-width: 901px) { 
             #nacho-couch { display: block; } 
         }
@@ -6864,6 +6965,8 @@ window.switchStation = function(stationId) {
             np2.setAttribute('data-current-vid', state.video.id);
         }
         _updateChNum();
+        // Sync volume after switching channels
+        _syncYTVolume();
     }
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var isActive = el.getAttribute('data-station-id') === stationId;
