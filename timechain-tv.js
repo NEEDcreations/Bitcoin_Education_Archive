@@ -6114,14 +6114,15 @@ function onPlayerStateChange(event) {
     if (event.data === YT.PlayerState.PAUSED) {
         _isPaused = true;
         _updatePauseButtons(true);
+        // Show Jump to Live when user explicitly pauses
         _showSyncButtons(true);
     } 
     
-    // Video playing — user is live
+    // Video playing — check if user is at live position or drifted
     if (event.data === YT.PlayerState.PLAYING) {
         _isPaused = false;
         _updatePauseButtons(false);
-        // Check if they're actually at the live position
+        // Check if they're actually at the live position (hide/show Jump to Live accordingly)
         checkDrift();
     }
 
