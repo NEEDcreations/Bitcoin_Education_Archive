@@ -2992,7 +2992,8 @@ async function toggleLeaderboard() {
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
         _loadPVPLeaderboard();
     } catch(e) {
-        lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard</div>';
+        console.error('[Leaderboard] Error:', e);
+        lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + (e.message || 'Unknown error') + '</div>';
     }
 }
 
