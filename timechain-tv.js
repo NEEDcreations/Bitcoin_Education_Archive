@@ -5944,7 +5944,7 @@ function _updateChNum() {
     chEl.textContent = idx >= 0 ? 'CH. ' + (idx + 1) : '';
 }
 
-function syncPlayer() {
+window.syncPlayer = function() {
     if (!_currentStation) return;
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
