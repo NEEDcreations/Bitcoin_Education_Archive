@@ -1027,6 +1027,7 @@ window.beatsTrackMenu = function(trackId, idx) {
     if (!track) return;
 
     var isOwner = auth && auth.currentUser && track.authorId === auth.currentUser.uid;
+    var isAdmin = auth && auth.currentUser && (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com');
     var overlay = document.createElement('div');
     overlay.id = 'beatsMenuOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;padding:16px;';
@@ -1037,8 +1038,8 @@ window.beatsTrackMenu = function(trackId, idx) {
         '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
         '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:16px;">' + escapeHtml(track.artist || 'Unknown') + '</div>';
 
-    if (isOwner) {
-        html += '<button onclick="beatsDeleteTrack(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">🗑️ Delete My Track</button>';
+    if (isOwner || isAdmin) {
+        html += '<button onclick="beatsDeleteTrack(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">' + (isAdmin ? '🗑️🛡️ Admin Delete Track' : '🗑️ Delete My Track') + '</button>';
     }
     html += '<button onclick="beatsReportTrack(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:12px;color:#eab308;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚩 Report Copyright / Abuse</button>' +
         '<button onclick="document.getElementById(\'beatsMenuOverlay\').remove()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
