@@ -2239,7 +2239,7 @@ function showDJBar(d) {
         '</div>' +
         // Row 2: Cover art + track info
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
-            (d.trackCoverArt ? '<img src="' + esc(d.trackCoverArt) + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:40px;height:40px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
+            (d.trackCoverArt ? '<img src="' + (typeof _safeCover === 'function' ? _safeCover(d.trackCoverArt) : esc(d.trackCoverArt)) + '" style="width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;">' : '<div style="width:40px;height:40px;border-radius:8px;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">' + (isNacho ? '🦌' : '🎧') + '</div>') +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size:0.85rem;color:var(--heading,#fff);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">♫ ' + esc(d.trackTitle) + '</div>' +
                 '<div style="font-size:0.72rem;color:var(--text-muted);">' + artistHtml + '</div>' +
