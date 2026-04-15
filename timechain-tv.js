@@ -5701,15 +5701,16 @@ function _advanceToNextVideo() {
     _updateChNum();
 
     // Reuse existing YT player if possible (avoids autoplay restrictions)
-    if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById) {
+    if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById && _ytPlayer.playVideo) {
         _currentVideoId = state.video.id;
-        _ytPlayer.loadVideoById({
-            videoId: state.video.id,
-            startSeconds: Math.floor(state.offset)
-        });
+        try {
+            _ytPlayer.loadVideoById(state.video.id, Math.floor(state.offset));
+            _ytPlayer.playVideo();
+        } catch(e) {
+            loadVideo(state.video.id, state.offset);
+        }
         _syncYTVolume();
-        var syncBtn = document.getElementById('tctv-sync-btn');
-        if (syncBtn) syncBtn.style.display = 'none';
+        _showSyncButtons(false);
         return;
     }
 
@@ -5772,28 +5773,17 @@ window.tctvRemotePause = function() {
 };
 
 window.tctvRemoteVolume = function(dir) {
-    // Get current volume (0-100 for YT, 0-1 for app)
-    var current = 50;
-    if (_ytPlayer && _ytPlayer.getVolume) {
-        try { current = _ytPlayer.getVolume(); } catch(e) {}
-    } else if (typeof window.audioVolume === 'number') {
-        current = Math.round(window.audioVolume * 100);
-    }
+    // Get current volume from app state (single source of truth)
+    var current = Math.round((typeof window.audioVolume === 'number' ? window.audioVolume : 0.5) * 100);
     var next = Math.max(0, Math.min(100, current + (dir * 10)));
     
-    // Apply to YT player
-    if (_ytPlayer && _ytPlayer.setVolume) {
-        try {
-            _ytPlayer.setVolume(next);
-            if (next === 0) _ytPlayer.mute();
-            else _ytPlayer.unMute();
-        } catch(e) {}
-    }
-    
-    // Sync with app volume system (0-1 scale)
+    // Set app volume (0-1 scale) — this persists to localStorage
     if (typeof window.setVolume === 'function') {
         window.setVolume(next / 100);
     }
+    
+    // Apply to YT player iframe
+    _applyYTVolume(next);
     
     // Show toast
     var icon = next === 0 ? '\ud83d\udd07' : next <= 30 ? '\ud83d\udd08' : next <= 60 ? '\ud83d\udd09' : '\ud83d\udd0a';
@@ -5804,16 +5794,24 @@ window.tctvRemoteVolume = function(dir) {
     if (label) label.textContent = next + '%';
 };
 
+function _applyYTVolume(vol) {
+    try {
+        if (!_ytPlayer) return;
+        // Check player state — getPlayerState returns -1 if unstarted
+        var state = typeof _ytPlayer.getPlayerState === 'function' ? _ytPlayer.getPlayerState() : -1;
+        if (state === -1) return; // Player not ready
+        if (typeof _ytPlayer.setVolume === 'function') _ytPlayer.setVolume(vol);
+        if (vol === 0 && typeof _ytPlayer.mute === 'function') _ytPlayer.mute();
+        else if (vol > 0 && typeof _ytPlayer.unMute === 'function') _ytPlayer.unMute();
+    } catch(e) {}
+}
+
 // Sync YT player volume with app volume on player ready/load
 function _syncYTVolume() {
-    if (_ytPlayer && _ytPlayer.setVolume && typeof window.audioVolume === 'number') {
-        var vol = Math.round(window.audioVolume * 100);
-        try {
-            _ytPlayer.setVolume(vol);
-            if (vol === 0) _ytPlayer.mute();
-            else _ytPlayer.unMute();
-        } catch(e) {}
-    }
+    if (typeof window.audioVolume !== 'number') return;
+    var vol = Math.round(window.audioVolume * 100);
+    // Delay slightly — player needs a moment after loadVideoById
+    setTimeout(function() { _applyYTVolume(vol); }, 500);
 }
 
 window.tctvToggleRemote = function() {
@@ -5964,12 +5962,14 @@ function syncPlayer() {
     }
     
     // Jump to live: reuse existing player when possible
-    if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById) {
+    if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById && _ytPlayer.playVideo) {
         _currentVideoId = state.video.id;
-        _ytPlayer.loadVideoById({
-            videoId: state.video.id,
-            startSeconds: Math.floor(state.offset)
-        });
+        try {
+            _ytPlayer.loadVideoById(state.video.id, Math.floor(state.offset));
+            _ytPlayer.playVideo();
+        } catch(e) {
+            loadVideo(state.video.id, state.offset);
+        }
         _syncYTVolume();
     } else {
         loadVideo(state.video.id, state.offset);
