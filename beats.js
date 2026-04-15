@@ -1027,7 +1027,9 @@ window.beatsTrackMenu = function(trackId, idx) {
     if (!track) return;
 
     var isOwner = auth && auth.currentUser && track.authorId === auth.currentUser.uid;
-    var isAdmin = auth && auth.currentUser && (auth.currentUser.email === 'needcreations@gmail.com' || auth.currentUser.email === 'info.603btc@gmail.com');
+    var userEmail = auth && auth.currentUser ? auth.currentUser.email || auth.currentUser.providerData[0].email : '';
+    var isAdmin = userEmail && (userEmail.toLowerCase() === 'needcreations@gmail.com' || userEmail.toLowerCase() === 'info.603btc@gmail.com');
+    console.log('[Beats Menu] isOwner:', isOwner, 'isAdmin:', isAdmin, 'userEmail:', userEmail);
     var overlay = document.createElement('div');
     overlay.id = 'beatsMenuOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;padding:16px;';
