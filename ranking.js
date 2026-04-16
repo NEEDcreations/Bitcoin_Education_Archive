@@ -2399,99 +2399,6 @@ function updateUserDisplay(lv) {
         wb.style.display = 'block';
     }
 }
-
-    // Suppress during Nacho Mode — track for exit summary instead
-    if (window._nachoBusy || window._nachoMode) {
-        if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
-        return;
-    }
-    // Play triumphant sound
-    if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
-        try {
-            if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
-            const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
-            // Triumphant fanfare: C5, E5, G5, C6, E6, G6
-            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.5, 1568.0];
-            notes.forEach((freq, i) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = freq;
-                osc.type = i < 3 ? 'sine' : 'triangle';
-                gain.gain.setValueAtTime(0.12 * vol, ctx.currentTime + i * 0.1);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.6);
-                osc.start(ctx.currentTime + i * 0.1);
-                osc.stop(ctx.currentTime + i * 0.1 + 0.6);
-            });
-        } catch(e) {}
-    }
-
-    // Confetti
-
-function showLevelUpCelebration(lv) {
-    // Suppress during Nacho Mode — track for exit summary instead
-    if (window._nachoBusy || window._nachoMode) {
-        if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
-        return;
-    }
-    // Play triumphant sound
-    if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
-        try {
-            if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
-            const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
-            // Triumphant fanfare: C5, E5, G5, C6, E6, G6
-            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.5, 1568.0];
-            notes.forEach((freq, i) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = freq;
-                osc.type = i < 3 ? 'sine' : 'triangle';
-                gain.gain.setValueAtTime(0.12 * vol, ctx.currentTime + i * 0.1);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.6);
-                osc.start(ctx.currentTime + i * 0.1);
-                osc.stop(ctx.currentTime + i * 0.1 + 0.6);
-            });
-        } catch(e) {}
-    }
-
-    // Confetti
-    if (typeof launchConfetti === 'function') launchConfetti();
-
-    // Modal
-    const overlay = document.createElement('div');
-    overlay.id = 'levelUpModal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.4s;';
-    
-    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:3px solid var(--accent);border-radius:30px;padding:40px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 50px rgba(247,147,26,0.3);animation:popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">' +
-        '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
-        '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
-        '<div style="color:var(--heading);font-size:1.6rem;font-weight:900;margin-bottom:8px;">' + lv.name + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ points!</div>' +
-        '<div style="color:var(--text-faint);font-size:0.85rem;margin-bottom:24px;">' + getLevelFlavor(lv.name) + '</div>' +
-        '<button onclick="document.getElementById(\'levelUpModal\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep Going! 🚀</button>' +
-        '</div>';
-
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-}
-
-function getLevelFlavor(name) {
-    const flavors = {
-        'Curious': 'You\'re starting to see what all the fuss is about.',
-        'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
-        'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
-        'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
-        'Maxi': 'There is no second best. You know it.',
-        'Cypherpunk': 'Privacy. Sovereignty. Code is law. You get it.',
-        'Whale': 'Moving markets and moving minds. You\'re a force of nature.',
-        'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
-    };
-    return flavors[name] || 'You\'re leveling up!';
-}
-// Leaderboard
 let lbAutoShown = false;
 
 function showLeaderboardAuto() {
@@ -5382,3 +5289,66 @@ window.loadSatsHistory = function() {
         el.innerHTML = summary + rows;
     }).catch(function() { el.textContent = 'Could not load history'; });
 };
+
+function showLevelUpCelebration(lv) {
+    // Suppress during Nacho Mode — track for exit summary instead
+    if (window._nachoBusy || window._nachoMode) {
+        if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
+        return;
+    }
+    // Play triumphant sound
+    if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
+        try {
+            if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
+            const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+            // Triumphant fanfare: C5, E5, G5, C6, E6, G6
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.5, 1568.0];
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = freq;
+                osc.type = i < 3 ? 'sine' : 'triangle';
+                gain.gain.setValueAtTime(0.12 * vol, ctx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.6);
+                osc.start(ctx.currentTime + i * 0.1);
+                osc.stop(ctx.currentTime + i * 0.1 + 0.6);
+            });
+        } catch(e) {}
+    }
+
+    // Confetti
+    if (typeof launchConfetti === 'function') launchConfetti();
+
+    // Modal
+    const overlay = document.createElement('div');
+    overlay.id = 'levelUpModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.4s;';
+    
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:3px solid var(--accent);border-radius:30px;padding:40px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 50px rgba(247,147,26,0.3);animation:popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">' +
+        '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
+        '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
+        '<div style="color:var(--heading);font-size:1.6rem;font-weight:900;margin-bottom:8px;">' + lv.name + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">You\'ve reached ' + lv.min.toLocaleString() + '+ points!</div>' +
+        '<div style="color:var(--text-faint);font-size:0.85rem;margin-bottom:24px;">' + getLevelFlavor(lv.name) + '</div>' +
+        '<button onclick="document.getElementById(\'levelUpModal\').remove()" style="padding:12px 30px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep Going! 🚀</button>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+function getLevelFlavor(name) {
+    const flavors = {
+        'Curious': 'You\'re starting to see what all the fuss is about.',
+        'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
+        'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
+        'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
+        'Maxi': 'There is no second best. You know it.',
+        'Cypherpunk': 'Privacy. Sovereignty. Code is law. You get it.',
+        'Whale': 'Moving markets and moving minds. You\'re a force of nature.',
+        'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
+    };
+    return flavors[name] || 'You\'re leveling up!';
+}
