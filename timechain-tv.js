@@ -6617,7 +6617,7 @@ function _renderEPG() {
     var gridStartMs = nowMs - (60 * 60 * 1000); 
     window._tctvGridStartMs = gridStartMs;
 
-    var html = '<div style="padding:8px 0 0;">';
+    var html = '<div id="tctv-epg-wrapper" style="padding:8px 0 0;">';
     html += '<div style="display:flex;position:relative;background:#0a0a0a;">';
 
     html += '<div style="width:160px;flex-shrink:0;z-index:10;background:#0a0a0a;border-right:1px solid #222;">';
@@ -6757,26 +6757,26 @@ window.renderTimechainTV = function() {
             #guestPointsBanner { z-index: 300000 !important; }
             
             .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
-            #tctv-video-container { max-height: 30vh !important; min-height: 25vh !important; border-radius: 0 !important; }
-            #tctv-player { max-height: 30vh !important; }
-            /* Tablet EPG optimizations - maximize EPG space */
-            #tctv-epg-container { 
-                height: calc(70vh - 120px) !important; 
-                max-height: 60vh !important;
-                min-height: 40vh !important;
-                overflow: auto !important; 
+            /* Video takes top portion (~45vh), plus headers/bars = ~2/3 total */
+            #tctv-video-container { height: 45vh !important; max-height: 45vh !important; min-height: 35vh !important; border-radius: 0 !important; }
+            #tctv-player { height: 100% !important; max-height: 45vh !important; }
+            /* EPG Wrapper takes bottom 1/3 (~33vh) with scrolling */
+            #tctv-epg-wrapper { 
+                height: 33vh !important; 
+                max-height: 33vh !important;
+                min-height: 30vh !important;
+                overflow-y: auto !important; 
+                overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
+                background: #0a0a0a !important;
             }
+            #tctv-epg-container { height: 100% !important; }
         }
         /* Smaller tablets and phones */
         @media (max-width: 768px) {
-            #tctv-video-container { max-height: 25vh !important; min-height: 20vh !important; }
-            #tctv-player { max-height: 25vh !important; }
-            #tctv-epg-container { 
-                height: calc(75vh - 100px) !important;
-                max-height: 65vh !important;
-                min-height: 45vh !important;
-            }
+            #tctv-video-container { height: 35vh !important; min-height: 30vh !important; }
+            #tctv-player { height: 100% !important; max-height: 35vh !important; }
+            #tctv-epg-wrapper { height: 40vh !important; max-height: 40vh !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
