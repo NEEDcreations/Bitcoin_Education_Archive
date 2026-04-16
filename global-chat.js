@@ -661,16 +661,20 @@ window.sendGlobalChat = function() {
     // Check for pending image/GIF — send it (with optional caption text)
     if (window._chatPendingImage) {
         var imgData = window._chatPendingImage;
+        var imgBlob = window._chatPendingImageBlob;
+        var imgType = window._chatPendingImageType;
         var isGif = window._chatPendingIsGif;
         var captionInput = document.getElementById('globalChatInput');
         var caption = captionInput ? captionInput.value.trim() : '';
         window._chatPendingImage = null;
+        window._chatPendingImageBlob = null;
+        window._chatPendingImageType = null;
         window._chatPendingIsGif = false;
         if (captionInput) captionInput.value = '';
         var counter = document.getElementById('globalChatCharCount');
         if (counter) counter.textContent = '0';
         document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
-        if (isGif) { sendGifMessage(imgData, caption); } else { sendImageMessage(imgData, caption); }
+        if (isGif) { sendGifMessage(imgData, caption); } else { sendImageMessage(imgData, caption, imgBlob, imgType); }
         return;
     }
 
@@ -1529,7 +1533,9 @@ window.chatUploadImage = function() {
 };
 
 // Stage image data for preview
-window._chatPendingImage = null;
+window._chatPendingImage = null;      // dataURL (for preview display only)
+window._chatPendingImageBlob = null;  // Blob/File (for Storage upload)
+window._chatPendingImageType = null;  // mime type for upload
 
 function compressAndPreview(file) {
     var reader = new FileReader();
@@ -1547,7 +1553,12 @@ function compressAndPreview(file) {
             canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
             var dataUrl = canvas.toDataURL('image/jpeg', 0.65);
-            showImagePreview(dataUrl);
+            // Also produce a Blob for Storage upload
+            canvas.toBlob(function(blob) {
+                window._chatPendingImageBlob = blob || null;
+                window._chatPendingImageType = 'image/jpeg';
+                showImagePreview(dataUrl);
+            }, 'image/jpeg', 0.65);
         };
         img.src = e.target.result;
     };
@@ -1555,13 +1566,16 @@ function compressAndPreview(file) {
 }
 
 function readAndPreview(file) {
+    // Used for GIFs/PNGs where we don't recompress. Keep the original File for upload.
+    if (file.size > 5 * 1024 * 1024) {
+        if (typeof showToast === 'function') showToast('Image too large. Max 5MB.');
+        return;
+    }
     var reader = new FileReader();
     reader.onload = function(e) {
         var dataUrl = e.target.result;
-        if (dataUrl.length > 900000) {
-            if (typeof showToast === 'function') showToast('Image too large after encoding. Try a smaller image.');
-            return;
-        }
+        window._chatPendingImageBlob = file;
+        window._chatPendingImageType = file.type || 'image/png';
         showImagePreview(dataUrl);
     };
     reader.readAsDataURL(file);
@@ -1595,10 +1609,10 @@ window.cancelImagePreview = function() {
     document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
 };
 
-function sendImageMessage(dataUrl, caption) {
+function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
     if (!auth || !auth.currentUser) return;
-    // C2: Validate data URL is actually an image
-    if (dataUrl.startsWith('data:') && !dataUrl.startsWith('data:image/')) {
+    // C2: Validate data URL is actually an image (kept for safety; we now primarily use the Blob)
+    if (dataUrl && dataUrl.startsWith('data:') && !dataUrl.startsWith('data:image/')) {
         if (typeof showToast === 'function') showToast('Invalid image format');
         return;
     }
@@ -1610,43 +1624,70 @@ function sendImageMessage(dataUrl, caption) {
     }
     _lastSendTime = now;
 
-    var msgData = {
-        uid: auth.currentUser.uid,
-        name: username,
-        text: dataUrl,
-        isGif: true,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (caption) msgData.caption = caption;
+    // We need Firebase Storage to upload the image and get a real https URL.
+    // Firestore rules require text to match ^https://.* for isGif messages.
+    var storage = null;
+    try { storage = firebase.storage(); } catch(e) {}
+    if (!storage || !imgBlob) {
+        if (typeof showToast === 'function') showToast('Image upload unavailable. Try again.');
+        return;
+    }
 
+    var uid = auth.currentUser.uid;
+    var ext = (imgType && imgType.indexOf('png') > -1) ? 'png'
+            : (imgType && imgType.indexOf('gif') > -1) ? 'gif'
+            : (imgType && imgType.indexOf('webp') > -1) ? 'webp'
+            : 'jpg';
+    var fileName = Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+    var ref = storage.ref('chat-images/' + uid + '/' + fileName);
+
+    if (typeof showToast === 'function') showToast('Uploading image…');
+
+    // Capture reply state now so it can't be mutated mid-upload
+    var replyCopy = _replyTo ? {
+        id: _replyTo._id, name: _replyTo.name, text: _replyTo.text
+    } : null;
     if (_replyTo) {
-        msgData.replyTo = _replyTo._id;
-        msgData.replyToName = _replyTo.name;
-        msgData.replyToText = _replyTo.text;
         _replyTo = null;
         var banner = document.getElementById('chatReplyBanner');
         if (banner) banner.style.display = 'none';
     }
 
-    // If there's a caption, also send it as a separate text message so it shows in chat
-    if (caption) {
-        db.collection(CHAT_COLLECTION).add({
-            uid: auth.currentUser.uid, name: username, text: caption,
-            ts: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function() {});
-    }
+    ref.put(imgBlob, { contentType: imgType || 'image/jpeg' })
+       .then(function(snap) { return snap.ref.getDownloadURL(); })
+       .then(function(url) {
+            var msgData = {
+                uid: auth.currentUser.uid,
+                name: username,
+                text: url,
+                isGif: true,
+                ts: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            if (caption) msgData.caption = caption;
+            if (replyCopy) {
+                msgData.replyTo = replyCopy.id;
+                msgData.replyToName = replyCopy.name;
+                msgData.replyToText = replyCopy.text;
+            }
 
-    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
-        if (typeof showToast === 'function') showToast('📷 Image sent!');
-        // Bridge image to Telegram
-        if (dataUrl && dataUrl.startsWith('http')) {
-            bridgeToTelegram({ user: username, text: caption || '', imageUrl: dataUrl });
-        } else if (dataUrl && dataUrl.startsWith('data:') && dataUrl.length < 500000) {
-            bridgeToTelegram({ user: username, text: caption || '', imageBase64: dataUrl });
-        }
-    }).catch(function(e) {
-        if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || ''));
-    });
+            // If there's a caption, also send it as a separate text message so it shows in chat
+            if (caption) {
+                db.collection(CHAT_COLLECTION).add({
+                    uid: auth.currentUser.uid, name: username, text: caption,
+                    ts: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function() {});
+            }
+
+            return db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+                if (typeof showToast === 'function') showToast('📷 Image sent!');
+                // Bridge https URL to Telegram
+                bridgeToTelegram({ user: username, text: caption || '', imageUrl: url });
+            });
+        })
+       .catch(function(e) {
+            console.error('[Chat Image] Upload failed:', e);
+            if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || e.code || 'upload error'));
+        });
 }
 
 // =============================================
