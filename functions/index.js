@@ -1482,8 +1482,19 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
 
             // Check channels read
             // Fix #4: Use visitedChannelsList (arrayUnion-only, tamper-resistant) instead of readChannels
-            const visitedList = user.visitedChannelsList || [];
-            const channelsRead = Array.isArray(visitedList) ? visitedList.length : 0;
+            // Backfill: pre-fix users may have 0 visitedChannelsList but valid readChannels.
+            // On first faucet attempt, migrate readChannels -> visitedChannelsList in this transaction.
+            let visitedList = Array.isArray(user.visitedChannelsList) ? user.visitedChannelsList : [];
+            if (visitedList.length < FAUCET.MIN_CHANNELS_READ) {
+                const legacyRead = Array.isArray(user.readChannels) ? user.readChannels : [];
+                if (legacyRead.length > visitedList.length) {
+                    // Merge legacy client-tracked list into server-tracked list (dedup)
+                    const merged = Array.from(new Set([].concat(visitedList, legacyRead.filter(function(c){ return typeof c === 'string' && c.length > 0 && c.length <= 100; }))));
+                    t.update(userRef, { visitedChannelsList: merged });
+                    visitedList = merged;
+                }
+            }
+            const channelsRead = visitedList.length;
             if (channelsRead < FAUCET.MIN_CHANNELS_READ) {
                 throw new Error('Must read at least ' + FAUCET.MIN_CHANNELS_READ + ' channels. You have read ' + channelsRead + '.');
             }
@@ -1877,40 +1888,69 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 }
             }
 
-            // 3. Daily Cap Logic
+            // 3. Daily Cap Logic (affects points only, NOT channel tracking)
             const dailyDoc = await t.get(dailyPtsRef);
             const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            if (dailyUsed >= DAILY_CAP) {
-                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
+
+            // Compute awarded amount — may be 0 if capped
+            let awarded = 0;
+            if (dailyUsed < DAILY_CAP) {
+                awarded = pts;
+                if (dailyUsed + pts > DAILY_CAP) awarded = DAILY_CAP - dailyUsed;
+                if (awarded < 0) awarded = 0;
             }
 
-            let awarded = pts;
-            if (dailyUsed + pts > DAILY_CAP) {
-                awarded = DAILY_CAP - dailyUsed;
-            }
-            if (awarded <= 0) {
-                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
+            // 4. Build Atomic Update — channel tracking is a visit record (not a reward),
+            // so it happens regardless of whether the daily points cap is hit.
+            const userUpdate = {};
+
+            // Record channel read server-side (tamper-resistant via arrayUnion)
+            // Used by faucet eligibility check (MIN_CHANNELS_READ).
+            // MUST run even when capped, otherwise users who hit the cap before
+            // reading 10 channels can never become faucet-eligible.
+            let channelTracked = false;
+            if (channelId && channelId.length > 0 && channelId.length <= 100) {
+                userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
+                // channelsVisited is a display counter — only bump on first read of this channel
+                const currentList = Array.isArray(userData.visitedChannelsList) ? userData.visitedChannelsList : [];
+                if (currentList.indexOf(channelId) === -1) {
+                    userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
+                }
+                channelTracked = true;
             }
 
-            // 4. Update Atomic State
-            const userUpdate = {
-                points: admin.firestore.FieldValue.increment(awarded)
-            };
-            if (tickets) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
-            if (streakFreezes) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
-            
-            // Marks daily tickets as used
-            if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
-                userUpdate.lastTicketDate = today;
+            // Points/tickets/freezes only when cap allows
+            if (awarded > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(awarded);
+                if (tickets) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
+                if (streakFreezes) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
+                // Marks daily tickets as used (only if actually awarded)
+                if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
+                    userUpdate.lastTicketDate = today;
+                }
             }
 
-            t.update(userRef, userUpdate);
-            t.set(dailyPtsRef, { total: dailyUsed + awarded, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            if (cooldownRef) {
+            // Write user doc if we have anything to write (channel visit and/or points)
+            if (Object.keys(userUpdate).length > 0) {
+                t.update(userRef, userUpdate);
+            }
+
+            // Daily points tracker only bumps when points were actually awarded
+            if (awarded > 0) {
+                t.set(dailyPtsRef, { total: dailyUsed + awarded, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            }
+
+            // Cooldown stamp only when points were awarded (so capped calls don't burn cooldown)
+            if (cooldownRef && awarded > 0) {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
             }
 
-            return { awarded: awarded, capped: (dailyUsed + awarded >= DAILY_CAP), dailyUsed: dailyUsed + awarded };
+            return {
+                awarded: awarded,
+                capped: (dailyUsed + awarded >= DAILY_CAP),
+                dailyUsed: dailyUsed + awarded,
+                channelTracked: channelTracked
+            };
         });
     } catch (e) {
         if (e.message === 'TOO_FAST') {

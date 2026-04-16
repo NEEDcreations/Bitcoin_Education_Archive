@@ -6290,19 +6290,33 @@ window._tctvPreMuteVolume = null;
 window.tctvRemoteMute = function() {
     var current = Math.round((typeof window.audioVolume === 'number' ? window.audioVolume : 0.5) * 100);
     if (!window._tctvMuted && current > 0) {
-        // Going into mute — remember current volume
+        // MUTE — remember current volume, then force volume to 0 everywhere
         window._tctvPreMuteVolume = current;
         window._tctvMuted = true;
-        try { if (_ytPlayer && typeof _ytPlayer.mute === 'function') _ytPlayer.mute(); } catch(e) {}
+        // Set app volume to 0 so it persists across video transitions / _syncYTVolume calls
+        if (typeof window.setVolume === 'function') window.setVolume(0);
+        // Belt + suspenders: force YT player volume to 0 AND call .mute()
+        try {
+            if (_ytPlayer) {
+                if (typeof _ytPlayer.setVolume === 'function') _ytPlayer.setVolume(0);
+                if (typeof _ytPlayer.mute === 'function') _ytPlayer.mute();
+            }
+        } catch(e) {}
         _updateMuteButtons(true);
         if (typeof showToast === 'function') showToast('\ud83d\udd07 Muted');
     } else {
-        // Unmute — restore previous volume (or 50% if we don't have one)
+        // UNMUTE — restore previous volume (or 50% if we don't have one)
         var restore = (typeof window._tctvPreMuteVolume === 'number' && window._tctvPreMuteVolume > 0) ? window._tctvPreMuteVolume : 50;
         window._tctvMuted = false;
+        // Restore app volume (persists across transitions)
         if (typeof window.setVolume === 'function') window.setVolume(restore / 100);
-        try { if (_ytPlayer && typeof _ytPlayer.unMute === 'function') _ytPlayer.unMute(); } catch(e) {}
-        _applyYTVolume(restore);
+        // Force YT player back up
+        try {
+            if (_ytPlayer) {
+                if (typeof _ytPlayer.unMute === 'function') _ytPlayer.unMute();
+                if (typeof _ytPlayer.setVolume === 'function') _ytPlayer.setVolume(restore);
+            }
+        } catch(e) {}
         _updateMuteButtons(false);
         if (typeof showToast === 'function') showToast('\ud83d\udd0a Unmuted: ' + restore + '%');
     }
