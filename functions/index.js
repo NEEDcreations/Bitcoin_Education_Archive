@@ -1923,82 +1923,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         return { success: false, error: e.message || 'Internal error' };
     }
 
-    if (transactionResult && transactionResult.awarded !== undefined) {
-        return { success: true, ...transactionResult };
-    }
-            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-
-            if (dailyUsed >= DAILY_CAP) {
-                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
-            }
-
-            let awarded = pts;
-            if (dailyUsed + pts > DAILY_CAP) {
-                awarded = DAILY_CAP - dailyUsed;
-            }
-
-            if (awarded <= 0) {
-                return { awarded: 0, capped: true, dailyUsed: dailyUsed };
-            }
-
-            // Award points + update daily tracker + optional channel tracking
-            const userUpdate = {
-                points: admin.firestore.FieldValue.increment(awarded)
-            };
-            // If a channelId was provided, track the visit server-side
-            if (channelId && channelId.length > 0) {
-                // Validate channelId against the known channel list (NEW-4 fix)
-                const VALID_CHANNELS = new Set(["decentralized","dominant","money","organic","peaceful","programmable","scarce","secure","supranational","use-cases","whitepaper","bitvm","blockchain-timechain","chaumian-mints","consensus","core-source-code","cryptography","ctv-covenants","developers","difficulty-adjustment","energy","evidence-against-alts","extension-blocks","fedi-ark","investment-strategy","layer-2-lightning","layer-3-sidechains","maximalism","mining","nodes","op-codes","pow-vs-pos","privacy-nonkyc","problems-of-money","regulation","self-custody","smart-contracts","stablecoins","0_mining__hashing","100_sats","1_first_principles","2__solved_technical_problems","analogies","austrian_school_of_economics","bip119","bitcoin_exam","bitcoin_vs_real_estate","block_time-block-size","burn_bitcoin","byzantine_generals__problem","chaumian_e-cash_and_blind_signatures","coin_mixing_coinjoin_coin_control_utxo","cyles","derivation_path","discrete_log_contracts__dlcs","dollar-bitcoin_milkshake_theory","dust","elevator_pitches","environment___energy","faith___religion","fedimints","feedback_loops","free_and_open_source_software__foss","game_theory","geopolitics___macroeconomics","governance","ham_radio","human_rights__social_justice_and_freedo","improved_incentive_structure","laws_of_thermodynamics","lightning_node","lindy_effect","market_cap","math","mathematics","mev","network_effects","open_source","oracle","orange-pilling","ordinals","ordinals__nfts_on_bitcoin__and_block_spa","peace_and_anti-war","philosophy","politics","predictions","public_key_vs_private_key","rbf","referral-links","risks__threats__attack_vectors__weaknes","rollups","sats__or__bits","scalability","sidechains","simplified_payment_verification__spv","soft_vs_hard_forks","softwar","stratum_v2","submarine_swap","swaps","ta_tips","tail_emission","taproot","taro","the_future","time","time_preference","toxicity","transaction_fees","unpopular_opinions","utxos","vbyte","apps-tools","art-inspiration","articles-threads","books","charts","curriculum","faq-glossary","fun-facts","games","giga-chad","graphics","hardware","health","history","informational-sites","international","jobs-earn","memes-funny","misconceptions-fud","movies-tv","music","news-adoption","nostr","one-stop-shop","podcasts","poems-stories","projects-diy","research-theses","satoshi-nakamoto","social-media","swag-merch","videos","web5"]);
-                if (VALID_CHANNELS.has(channelId)) {
-                    userUpdate.visitedChannelsList = admin.firestore.FieldValue.arrayUnion(channelId);
-                    userUpdate.channelsVisited = admin.firestore.FieldValue.increment(1);
-                }
-            }
-            // If tickets were requested, validate action and enforce daily cap
-            if (tickets > 0) {
-                // Only specific actions can award tickets
-                const TICKET_ACTIONS = ['ticket_bonus', 'tickets_only', 'daily_visit', 'daily_visit_streak', 'daily_spin'];
-                const allowedTickets = matchedAction && TICKET_ACTIONS.includes(matchedAction);
-                if (allowedTickets) {
-                    // Cap: max 10 tickets per call, max 50 tickets per day
-                    const cappedTickets = Math.min(tickets, 10);
-                    const dailyTickets = dailyDoc.exists ? (dailyDoc.data().ticketsToday || 0) : 0;
-                    const ticketsToAward = Math.min(cappedTickets, Math.max(0, 50 - dailyTickets));
-                    if (ticketsToAward > 0) {
-                        userUpdate.orangeTickets = admin.firestore.FieldValue.increment(ticketsToAward);
-                    }
-                }
-            }
-            // If streak freezes were awarded, validate action and cap
-            if (streakFreezes > 0) {
-                const FREEZE_ACTIONS = ['streak_freeze', 'daily_spin'];
-                const allowedFreeze = matchedAction && FREEZE_ACTIONS.includes(matchedAction);
-                if (allowedFreeze) {
-                    // Cap: max 1 freeze per call, max 3 per day
-                    const dailyFreezes = dailyDoc.exists ? (dailyDoc.data().freezesToday || 0) : 0;
-                    if (dailyFreezes < 3) {
-                        userUpdate.streakFreezes = admin.firestore.FieldValue.increment(1);
-                    }
-                }
-            }
-            t.update(userRef, userUpdate);
-            const dailyUpdate = {
-                total: admin.firestore.FieldValue.increment(awarded),
-                lastAward: admin.firestore.FieldValue.serverTimestamp(),
-                awards: admin.firestore.FieldValue.increment(1)
-            };
-            if (tickets > 0 && userUpdate.orangeTickets) dailyUpdate.ticketsToday = admin.firestore.FieldValue.increment(tickets);
-            if (streakFreezes > 0 && userUpdate.streakFreezes) dailyUpdate.freezesToday = admin.firestore.FieldValue.increment(1);
-            t.set(dailyPtsRef, dailyUpdate, { merge: true });
-
-            return { awarded: awarded, capped: (dailyUsed + awarded >= DAILY_CAP), dailyUsed: dailyUsed + awarded };
-        });
-
-        return { success: true, ...result };
-    } catch (e) {
-        console.error('[POINTS] Award failed for ' + uid + ':', e.message);
-        return { success: false, error: 'Points award failed' };
-    }
+    // (dead-code block below removed 2026-04-16 — was a leftover from a pre-refactor commit that prevented Cloud Functions deploys)
 });
 
 // ===== FAUCET ADMIN — getFaucetStats =====
@@ -2842,6 +2767,9 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
         return { score, pts };
     });
 
+    return result;
+});
+
 
 // =============================================
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
@@ -2905,4 +2833,92 @@ exports.issueCertificate = functions.https.onCall(async (data, context) => {
     await db.collection('certs').doc(certId).set(certData);
 
     return { success: true, certId: certId, title: title, name: certData.name };
+});
+
+// =============================================
+// COMMUNITY STATS — server-side increments via triggers
+// =============================================
+// Prevents client abuse: stats/global is now admin-only writable.
+// Each counter is bumped by a Firestore trigger on the authoritative event.
+
+// Chat message posted → bump chatMessages
+exports.onChatMessageCreated = functions.firestore
+    .document('global_chat/{msgId}')
+    .onCreate(async (snap, _context) => {
+        const data = snap.data() || {};
+        // Skip bot/nacho/system messages so the counter reflects real users
+        if (data.uid === 'nacho-bot' || data.uid === 'system') return null;
+        if (data.isNachoAuto === true) return null;
+        try {
+            await db.collection('stats').doc('global').set({
+                chatMessages: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+        } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
+        return null;
+    });
+
+// PVP match finished → bump pvpMatches (only once per match)
+exports.onPvpMatchFinished = functions.firestore
+    .document('pvp_matches/{matchId}')
+    .onUpdate(async (change, _context) => {
+        const before = change.before.data() || {};
+        const after = change.after.data() || {};
+        // Count only the transition into finished (not forfeit, not repeated writes)
+        if (before.status === 'finished') return null;
+        if (after.status !== 'finished') return null;
+        try {
+            await db.collection('stats').doc('global').set({
+                pvpMatches: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+        } catch (e) { console.error('[onPvpMatchFinished] failed:', e); }
+        return null;
+    });
+
+// New user doc created → bump userCount
+exports.onUserDocCreated = functions.firestore
+    .document('users/{uid}')
+    .onCreate(async (_snap, _context) => {
+        try {
+            await db.collection('stats').doc('global').set({
+                userCount: admin.firestore.FieldValue.increment(1)
+            }, { merge: true });
+        } catch (e) { console.error('[onUserDocCreated] failed:', e); }
+        return null;
+    });
+
+// ---- One-shot admin reset for community stats (remove after running) ----
+exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    const email = (context.auth.token.email || '').toLowerCase();
+    if (email !== 'needcreations@gmail.com' && email !== 'info.603btc@gmail.com') {
+        throw new functions.https.HttpsError('permission-denied', 'Admin only');
+    }
+
+    // Defaults based on Phil's estimate — callable accepts overrides.
+    const defaults = {
+        channelVisits: 500,
+        questsCompleted: 50,
+        chatMessages: 40,
+        spins: 30,
+        pvpMatches: 5,
+        userCount: 50,
+        watchTimeMinutes: 60,
+        resetAt: Date.now(),
+        resetBy: email
+    };
+    const overrides = (data && typeof data === 'object') ? data : {};
+    const payload = Object.assign({}, defaults, overrides);
+
+    await db.collection('stats').doc('global').set(payload, { merge: false });
+
+    // Predictions: Phil asked for 33% → 3/10
+    const predPayload = {
+        total: (overrides.predTotal != null) ? overrides.predTotal : 10,
+        correct: (overrides.predCorrect != null) ? overrides.predCorrect : 3,
+        resetAt: Date.now(),
+        resetBy: email
+    };
+    await db.collection('stats').doc('predictions').set(predPayload, { merge: false });
+
+    return { success: true, global: payload, predictions: predPayload };
 });

@@ -131,19 +131,15 @@ service cloud.firestore {
                         && request.resource.data.total == resource.data.get('total', 0) + 1
                         && request.resource.data.correct == resource.data.get('correct', 0) + 1)
                     );
-      // Global community stats — increment by 1 only, authenticated, 1 key at a time
-      allow update: if statId == 'global'
-                    && request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys().size() == 1
-                    && (
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatMessages']) && request.resource.data.chatMessages == resource.data.get('chatMessages', 0) + 1) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['channelVisits']) && request.resource.data.channelVisits == resource.data.get('channelVisits', 0) + 1) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['questsCompleted']) && request.resource.data.questsCompleted == resource.data.get('questsCompleted', 0) + 1) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spins']) && request.resource.data.spins == resource.data.get('spins', 0) + 1) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pvpMatches']) && request.resource.data.pvpMatches == resource.data.get('pvpMatches', 0) + 1) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userCount']) && request.resource.data.userCount == resource.data.get('userCount', 0) + 1) ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watchTimeMinutes']) && request.resource.data.watchTimeMinutes == resource.data.get('watchTimeMinutes', 0) + 1)
-                    );
+      // Global community stats — CLIENT WRITES BLOCKED.
+      // Only Cloud Functions (admin SDK) and admin emails may write.
+      // Real counters are incremented via onCreate/onUpdate triggers
+      // (see onChatMessageCreated, onPvpMatchFinished, onUserDocCreated).
+      // This prevents abuse/inflation via direct console writes.
+      allow update, create: if statId == 'global'
+                             && request.auth != null
+                             && (request.auth.token.email == 'needcreations@gmail.com'
+                                 || request.auth.token.email == 'info.603btc@gmail.com');
     }
 
     // Active predictions (for server-side resolution)
