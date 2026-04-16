@@ -105,10 +105,32 @@ service cloud.firestore {
       // [AUDIT FIX] Require auth for analytics writes
       allow create, update: if statId == 'nacho-analytics'
                             && request.auth != null;
-      // Global prediction stats (increment only)
-      allow create, update: if statId == 'predictions'
-                            && request.auth != null
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+      // Global prediction stats — per-key +1 only, auth'd non-anon.
+      // Mirrors stats/global pattern. Accepts either:
+      //   • 1-key write: total += 1 (wrong prediction)
+      //   • 2-key write: total += 1 AND correct += 1 (correct prediction)
+      allow create: if statId == 'predictions'
+                    && request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.total is int
+                    && request.resource.data.correct is int
+                    && request.resource.data.total <= 1
+                    && request.resource.data.correct <= 1
+                    && request.resource.data.total >= 0
+                    && request.resource.data.correct >= 0;
+      allow update: if statId == 'predictions'
+                    && request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && (
+                      // Wrong prediction: only total changes, +1
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total'])
+                        && request.resource.data.total == resource.data.get('total', 0) + 1)
+                      ||
+                      // Correct prediction: total and correct both change, each +1
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'correct'])
+                        && request.resource.data.total == resource.data.get('total', 0) + 1
+                        && request.resource.data.correct == resource.data.get('correct', 0) + 1)
+                    );
       // Global community stats — increment by 1 only, authenticated, 1 key at a time
       allow update: if statId == 'global'
                     && request.auth != null

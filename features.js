@@ -794,28 +794,64 @@ function _fmtNum(n) {
 // Load on init
 setTimeout(function() { if (typeof loadCommunityStats === 'function') loadCommunityStats(); }, 5000);
 
-// Load prediction accuracy labels next to button
-setTimeout(function() {
+// Prediction accuracy label — reusable, re-triggerable, no fragile fixed timeout.
+// Populates 🌍 community accuracy + 👤 user accuracy on the Predict Price home button.
+window.updatePredictionLabel = function() {
     var el = document.getElementById('predAccuracyLabel');
-    if (!el) return;
-    var lines = [];
-
-    // Global stats
-    if (typeof getGlobalPredictionStats === 'function') {
-        getGlobalPredictionStats(function(stats) {
-            if (stats && stats.total) {
-                var pct = Math.round((stats.correct / stats.total) * 100);
-                lines.unshift('🌍 ' + pct + '% community accuracy');
-            }
-            // User stats
-            if (typeof currentUser !== 'undefined' && currentUser && currentUser.predictions && currentUser.predictions.total) {
-                var uPct = Math.round((currentUser.predictions.correct / currentUser.predictions.total) * 100);
-                lines.push('👤 ' + uPct + '% you');
-            }
-            el.innerHTML = lines.join('<br>');
-        });
+    if (!el) return false;
+    // Firestore not ready yet — retry shortly
+    if (typeof db === 'undefined' || typeof firebase === 'undefined' || typeof getGlobalPredictionStats !== 'function') {
+        return false;
     }
-}, 6000);
+    getGlobalPredictionStats(function(stats) {
+        var lines = [];
+        if (stats && stats.total) {
+            var pct = Math.round((stats.correct / stats.total) * 100);
+            lines.push('🌍 ' + pct + '% community accuracy');
+        }
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.predictions && currentUser.predictions.total) {
+            var uPct = Math.round((currentUser.predictions.correct / currentUser.predictions.total) * 100);
+            lines.push('👤 ' + uPct + '% you');
+        }
+        el.innerHTML = lines.join('<br>');
+    });
+    return true;
+};
+
+// Boot: keep retrying until element is in DOM AND Firestore is ready, then stop.
+(function _bootPredictionLabel() {
+    var tries = 0;
+    var interval = setInterval(function() {
+        tries++;
+        if (window.updatePredictionLabel && window.updatePredictionLabel()) {
+            clearInterval(interval);
+        } else if (tries > 60) { // ~60s max
+            clearInterval(interval);
+        }
+    }, 1000);
+})();
+
+// Re-run whenever the user returns home (mobile users hit home repeatedly).
+(function _hookGoHome() {
+    if (typeof window.goHome !== 'function') {
+        // goHome may load later; wait for it
+        var w = setInterval(function() {
+            if (typeof window.goHome === 'function') {
+                clearInterval(w);
+                _hookGoHome();
+            }
+        }, 500);
+        return;
+    }
+    if (window.goHome.__predHooked) return;
+    var _orig = window.goHome;
+    window.goHome = function() {
+        var r = _orig.apply(this, arguments);
+        setTimeout(function() { if (window.updatePredictionLabel) window.updatePredictionLabel(); }, 400);
+        return r;
+    };
+    window.goHome.__predHooked = true;
+})();
 
 // ---- EXPLORATION MAP ----
 function renderExplorationMap() {
