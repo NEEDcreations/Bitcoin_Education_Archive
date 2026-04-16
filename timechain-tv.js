@@ -1808,7 +1808,7 @@ var STATIONS = [
             },
             {
                 "id": "nvVR_fVU7Bc",
-                "title": "Argentina just told China: no thanks. They want the U.S. as their "partner of choice." - The Bitcoin Layer",
+                "title": "Argentina just told China: no thanks. They want the U.S. as their 'partner of choice.' - The Bitcoin Layer",
                 "duration": 125
             }]
     },
