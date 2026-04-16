@@ -2392,36 +2392,70 @@ function updateUserDisplay(lv) {
             el.style.display = 'none';
             return;
         }
-        // Anonymous user — eye-catching banner with points + sign up nudge
+        // Consolidated Metric Dashboard + Guest Sign-in
         var _isMob = window.innerWidth <= 900;
         el.setAttribute('data-anon', '1');
-        el.style.cssText = 'position:fixed;' + (_isMob ? 'bottom:70px;left:12px;right:12px;' : 'top:12px;right:20px;') + 'z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:' + (_isMob ? 'none' : '380px') + ';';
-        el.onclick = function() { showSettingsPage('account'); };
+        
+        // NEW POSITIONING: Under sidebar branding for tablet/laptop
+        if (!_isMob) {
+            var sidebarHeader = document.querySelector('.sidebar-header');
+            if (sidebarHeader && !document.getElementById('userDisplayContainer')) {
+                var container = document.createElement('div');
+                container.id = 'userDisplayContainer';
+                container.style.padding = '0 20px 16px';
+                container.style.borderBottom = '1px solid var(--border)';
+                sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
+                container.appendChild(el);
+            }
+            el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:column;gap:8px;padding:12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:default;transition:0.3s;width:100%;';
+        } else {
+            el.style.cssText = 'position:fixed;bottom:70px;left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
+        }
+
+        el.onclick = function(e) { if(!_isMob && e.target.closest('button')) return; showSettingsPage('account'); };
+        
         el.innerHTML =
-            '<button onclick="event.stopPropagation();minimizeSignUpBanner();" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">▼</button>' +
-            '<div style="display:flex;flex-direction:column;gap:2px;">' +
+            (_isMob ? '<button onclick="event.stopPropagation();minimizeSignUpBanner();" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">▼</button>' : '') +
+            '<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
-                    '<span style="color:var(--text);font-weight:600;">Anonymous</span>' +
-                    '<span style="color:#f7931a;font-weight:800;font-size:0.9rem;">' + pts.toLocaleString() + ' pts</span>' +
+                    '<span style="color:var(--text);font-weight:700;font-size:0.8rem;">GUEST</span>' +
+                    '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' pts</span>' +
                 '</div>' +
-                (function() {
-                    var cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-                    var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
-                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
-                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
-                    var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;opacity:0.8;">';
-                    if (cp) s += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cp).toLocaleString() + '</span>';
-                    if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:#aaa;text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + ch.toLocaleString() + '</a>';
-                    return s + '</div>';
-                })() +
-                '<div style="color:#aaa;font-size:0.7rem;">Sign in to keep your points & enter the leaderboard!</div>' +
+                (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:4px 10px;border-radius:6px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
             '</div>' +
-            '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
+            (function() {
+                var cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+                var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
+                if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
+                if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
+                
+                var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;padding-top:4px;' + (_isMob ? 'font-size:0.7rem;' : 'font-size:0.75rem;') + '">';
+                if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="color:var(--heading);font-weight:800;font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
+                if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
+                return s + '</div>';
+            })() +
+            (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep points & enter giveaway!</div>' : '') +
+            (_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="margin-left:auto;background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;">Sign Up →</div>' : '');
     } else {
-        // Signed in user (with username or real account) — clean display
+        // Signed in user — Consistently display under sidebar for desktop/tablet
         el.removeAttribute('data-anon');
-        el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);transition:0.2s;max-width:320px;';
+        var _isMob = window.innerWidth <= 900;
+        
+        if (!_isMob) {
+            var sidebarHeader = document.querySelector('.sidebar-header');
+            if (sidebarHeader && !document.getElementById('userDisplayContainer')) {
+                var container = document.createElement('div');
+                container.id = 'userDisplayContainer';
+                container.style.padding = '0 20px 16px';
+                container.style.borderBottom = '1px solid var(--border)';
+                sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
+                container.appendChild(el);
+            }
+            el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:column;gap:6px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;cursor:pointer;width:100%;';
+        } else {
+            el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
+        }
         el.onclick = function() { showSettingsPage('account'); };
         var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
         
