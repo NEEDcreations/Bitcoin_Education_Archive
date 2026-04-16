@@ -6243,6 +6243,9 @@ window.tctvRemoteVolume = function(dir) {
     var current = Math.round((typeof window.audioVolume === 'number' ? window.audioVolume : 0.5) * 100);
     var next = Math.max(0, Math.min(100, current + (dir * 10)));
 
+    // Any manual volume change exits mute
+    window._tctvMuted = false;
+
     // Set app volume (0-1 scale) - this persists to localStorage
     if (typeof window.setVolume === 'function') {
         window.setVolume(next / 100);
@@ -6250,6 +6253,7 @@ window.tctvRemoteVolume = function(dir) {
 
     // Apply to YT player iframe
     _applyYTVolume(next);
+    _updateMuteButtons(false);
 
     // Show toast
     var icon = next === 0 ? '\ud83d\udd07' : next <= 30 ? '\ud83d\udd08' : next <= 60 ? '\ud83d\udd09' : '\ud83d\udd0a';
@@ -6278,6 +6282,42 @@ function _syncYTVolume() {
     var vol = Math.round(window.audioVolume * 100);
     // Delay slightly - player needs a moment after loadVideoById
     setTimeout(function() { _applyYTVolume(vol); }, 500);
+}
+
+// Mute toggle — preserves last unmuted volume so unmute restores to it.
+window._tctvMuted = false;
+window._tctvPreMuteVolume = null;
+window.tctvRemoteMute = function() {
+    var current = Math.round((typeof window.audioVolume === 'number' ? window.audioVolume : 0.5) * 100);
+    if (!window._tctvMuted && current > 0) {
+        // Going into mute — remember current volume
+        window._tctvPreMuteVolume = current;
+        window._tctvMuted = true;
+        try { if (_ytPlayer && typeof _ytPlayer.mute === 'function') _ytPlayer.mute(); } catch(e) {}
+        _updateMuteButtons(true);
+        if (typeof showToast === 'function') showToast('\ud83d\udd07 Muted');
+    } else {
+        // Unmute — restore previous volume (or 50% if we don't have one)
+        var restore = (typeof window._tctvPreMuteVolume === 'number' && window._tctvPreMuteVolume > 0) ? window._tctvPreMuteVolume : 50;
+        window._tctvMuted = false;
+        if (typeof window.setVolume === 'function') window.setVolume(restore / 100);
+        try { if (_ytPlayer && typeof _ytPlayer.unMute === 'function') _ytPlayer.unMute(); } catch(e) {}
+        _applyYTVolume(restore);
+        _updateMuteButtons(false);
+        if (typeof showToast === 'function') showToast('\ud83d\udd0a Unmuted: ' + restore + '%');
+    }
+};
+
+function _updateMuteButtons(muted) {
+    var ids = ['remote-mute-btn', 'remote-mute-btn-inline'];
+    for (var i = 0; i < ids.length; i++) {
+        var b = document.getElementById(ids[i]);
+        if (!b) continue;
+        b.textContent = muted ? '\ud83d\udd07' : '\ud83d\udd08';
+        b.setAttribute('title', muted ? 'Unmute' : 'Mute');
+        b.style.background = muted ? '#991b1b' : '';
+        b.style.borderColor = muted ? '#dc2626' : '';
+    }
 }
 
 window.tctvToggleRemote = function() {
@@ -6769,6 +6809,28 @@ window.renderTimechainTV = function() {
             }
             #tctv-epg-container { height: auto !important; min-height: 100% !important; }
         }
+        /* Mobile/Tablet — horizontal in-flow remote bar below video (overrides the legacy fixed vertical style) */
+        @media (max-width: 900px) {
+            #tctv-remote {
+                position: static !important;
+                top: auto !important; right: auto !important;
+                width: auto !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding: 8px 10px !important;
+                gap: 6px !important;
+                border-radius: 0 !important;
+                border-width: 0 0 1px 0 !important;
+                border-color: #222 !important;
+                justify-content: center !important;
+                align-items: center !important;
+                box-shadow: none !important;
+                transform: none !important;
+            }
+            #tctv-remote.collapsed { transform: none !important; opacity: 1 !important; }
+        }
         /* Mobile — aggressive resizing for small screens */
         @media (max-width: 768px) {
             #tctv-remote { padding: 4px 6px !important; gap: 4px !important; }
@@ -6826,6 +6888,8 @@ window.renderTimechainTV = function() {
                 '<button class="remote-btn" onclick="tctvRemoteVolume(1)">▲</button>' +
                 '<span class="remote-label" style="margin:0">VOL</span>' +
                 '<button class="remote-btn" onclick="tctvRemoteVolume(-1)">▼</button>' +
+                '<button class="remote-btn" id="remote-mute-btn-inline" onclick="tctvRemoteMute()" title="Mute" style="font-size:1rem;">\ud83d\udd08</button>' +
+                '<span class="remote-label" style="margin:0">MUTE</span>' +
             '</div>' +
             // Bottom Controls (Pause and Back)
             '<div style="display:flex;flex-direction:column;gap:8px;align-items:center;">' +
@@ -6846,6 +6910,7 @@ window.renderTimechainTV = function() {
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(-1)">\ud83d\udd09</button>' +
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(1)">\ud83d\udd0a</button>' +
+            '<button class="remote-btn" id="remote-mute-btn" style="border-radius:8px;" onclick="tctvRemoteMute()" title="Mute">\ud83d\udd08</button>' +
             '<button class="remote-btn blue" style="border-radius:8px;font-size:0.9rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">\u23f8</button>' +
             '<button class="remote-btn blue" style="border-radius:8px;font-size:0.6rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
             '</div>';
