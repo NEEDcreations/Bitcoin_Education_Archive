@@ -492,17 +492,44 @@ async function finishEmailSignIn(email, _signInUrl) {
         let anonData = null;
         if (anonUser && anonUser.isAnonymous) {
             anonUid = anonUser.uid;
-            const anonDoc = await db.collection('users').doc(anonUid).get();
-            if (anonDoc.exists) anonData = anonDoc.data();
+            console.log('[Email Sign-In] Anon user found:', anonUid);
+            try {
+                const anonDoc = await db.collection('users').doc(anonUid).get();
+                if (anonDoc.exists) anonData = anonDoc.data();
+                console.log('[Email Sign-In] Anon data loaded:', !!anonData);
+            } catch(e) {
+                console.log('[Email Sign-In] Anon data load failed (non-fatal):', e.code);
+            }
         }
 
         // Sign in with email link (use saved URL that still has Firebase params)
+        console.log('[Email Sign-In] Starting signInWithEmailLink for:', email);
         const result = await auth.signInWithEmailLink(email, _signInUrl);
+        console.log('[Email Sign-In] Sign-in result:', result.user ? result.user.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
 
         // Check if this email user already has data
         const emailUid = result.user.uid;
+
+        // Wait for auth state to fully stabilize and db to get fresh token
+        console.log('[Email Sign-In] Waiting for auth token propagation...');
+        for (var _retry = 0; _retry < 5; _retry++) {
+            await new Promise(r => setTimeout(r, 200));
+            try {
+                var _testDoc = await db.collection('users').doc(emailUid).get();
+                console.log('[Email Sign-In] Firestore auth ready after', (_retry + 1) * 200, 'ms');
+                break;
+            } catch(_testErr) {
+                if (_testErr.code === 'permission-denied') {
+                    console.log('[Email Sign-In] Permission denied on retry ' + (_retry + 1) + ', waiting for token propagation...');
+                    continue;
+                }
+                throw _testErr;
+            }
+        }
+        console.log('[Email Sign-In] Fetching existing user doc:', emailUid);
         const existingDoc = await db.collection('users').doc(emailUid).get();
+        console.log('[Email Sign-In] Existing doc exists:', existingDoc.exists);
 
         if (!existingDoc.exists && anonData) {
             // Migrate anonymous data to email account
@@ -585,8 +612,12 @@ async function finishEmailSignIn(email, _signInUrl) {
             setTimeout(function() { showToast('🎉 You\'re entered for the 25,000 sats giveaway! Good luck!'); }, 2000);
         }
     } catch(e) {
-        console.error('Email sign-in error:', e.code, e.message);
-        if (e.code === 'auth/invalid-action-code' || e.code === 'auth/expired-action-code') {
+        console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
+        // Check if this is a Firestore permission error
+        if (e.code === 'permission-denied') {
+            showToast('⚠️ Permission denied. Try refreshing the page or clearing cache.');
+            console.error('[Email Sign-In] Firestore permission denied - auth state may not be ready');
+        } else if (e.code === 'auth/invalid-action-code' || e.code === 'auth/expired-action-code') {
             showToast('⚠️ This sign-in link has expired. Please request a new one.');
         } else if (e.code === 'auth/invalid-email') {
             showToast('⚠️ Email mismatch. Make sure you enter the same email you signed up with.');
