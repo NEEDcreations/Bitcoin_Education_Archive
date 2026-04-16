@@ -243,18 +243,36 @@ function createNotifOverlay() {
     style.textContent = '@media(min-width:901px){#notifPanel{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}@media(max-width:900px){#notifOverlayBtn{display:none!important;}}';
     document.head.appendChild(style);
 
-    // Position notif bell to left of userDisplay on desktop
+    // Position notif bell to left of userDisplay on desktop, or inside branding dashboard
+// Position notif bell to left of userDisplay on desktop, or inside branding dashboard
     function positionNotifBell() {
         if (window.innerWidth <= 900) return;
-        var ud = document.getElementById('userDisplay');
+        var placeholder = document.getElementById('notifBellPlaceholder');
         var nb = document.getElementById('notifOverlayBtn');
         if (!nb) return;
-        if (ud && ud.style.display !== 'none' && ud.offsetWidth > 0) {
-            nb.style.top = ud.style.top || '12px';
-            nb.style.right = (parseInt(ud.style.right || '20') + ud.offsetWidth + 12) + 'px';
+
+        if (placeholder) {
+            // Tablet/Laptop: Move bell next to dashboard info
+            var rect = placeholder.getBoundingClientRect();
+            nb.style.position = 'fixed';
+            nb.style.top = (rect.top - 2) + 'px';
+            nb.style.left = (rect.left - 2) + 'px';
+            nb.style.right = 'auto';
+            nb.style.margin = '0';
+            nb.style.boxShadow = 'none';
+            nb.style.background = 'rgba(255,255,255,0.05)';
         } else {
-            nb.style.top = '12px';
-            nb.style.right = '20px';
+            // Traditional position fallback
+            var ud = document.getElementById('userDisplay');
+            if (ud && ud.style.display !== 'none' && ud.offsetWidth > 0) {
+                nb.style.top = ud.style.top || '12px';
+                nb.style.right = (parseInt(ud.style.right || '20') + ud.offsetWidth + 12) + 'px';
+                nb.style.left = 'auto';
+            } else {
+                nb.style.top = '12px';
+                nb.style.right = '20px';
+                nb.style.left = 'auto';
+            }
         }
     }
     // Re-position periodically (userDisplay loads async)

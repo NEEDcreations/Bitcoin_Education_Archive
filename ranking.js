@@ -2259,7 +2259,8 @@ function updateUserDisplay(lv) {
                 sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
                 container.appendChild(el);
             }
-            el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:column;gap:8px;padding:12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:default;transition:0.3s;width:100%;';
+            // Add horizontal row for Dashboard + Notifications
+            el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:row;align-items:center;gap:10px;padding:12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:default;transition:0.3s;width:100%;';
         } else {
             el.style.cssText = 'position:fixed;bottom:70px;left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
         }
@@ -2268,26 +2269,29 @@ function updateUserDisplay(lv) {
         
         el.innerHTML =
             (_isMob ? '<button onclick="event.stopPropagation();minimizeSignUpBanner();" style="position:absolute;top:-8px;right:-8px;background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);color:var(--text-muted,#888);width:24px;height:24px;border-radius:50%;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;padding:0;line-height:1;">▼</button>' : '') +
-            '<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">' +
-                '<div style="display:flex;align-items:center;gap:6px;">' +
-                    '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
-                    '<span style="color:var(--text);font-weight:700;font-size:0.8rem;">GUEST</span>' +
-                    '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' pts</span>' +
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;width:100%;">' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                        '<span style="font-size:1.1rem;">' + lv.emoji + '</span>' +
+                        '<span style="color:var(--text);font-weight:700;font-size:0.8rem;">GUEST</span>' +
+                        '<span style="color:#f7931a;font-weight:800;font-size:0.8rem;">' + pts.toLocaleString() + ' pts</span>' +
+                    '</div>' +
                 '</div>' +
-                (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:4px 10px;border-radius:6px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
+                (function() {
+                    var cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+                    var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
+                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
+                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
+                    
+                    var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;padding-top:4px;' + (_isMob ? 'font-size:0.7rem;' : 'font-size:0.75rem;') + '">';
+                    if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="color:var(--heading);font-weight:800;font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
+                    if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
+                    return s + '</div>';
+                })() +
+                (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep points & enter giveaway!</div>' : '') +
             '</div>' +
-            (function() {
-                var cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-                var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
-                if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
-                if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
-                
-                var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;padding-top:4px;' + (_isMob ? 'font-size:0.7rem;' : 'font-size:0.75rem;') + '">';
-                if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="color:var(--heading);font-weight:800;font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
-                if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:var(--text-muted);text-decoration:none;font-weight:700;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
-                return s + '</div>';
-            })() +
-            (_isMob ? '<div style="color:#aaa;font-size:0.7rem;margin-top:2px;">Sign in to keep points & enter giveaway!</div>' : '') +
+            (!_isMob ? '<div id="notifBellPlaceholder" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"></div>' : '') +
+            (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 12px;border-radius:8px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
             (_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="margin-left:auto;background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;">Sign Up →</div>' : '');
     } else {
         // Signed in user — Consistently display under sidebar for desktop/tablet
@@ -2304,66 +2308,43 @@ function updateUserDisplay(lv) {
                 sidebarHeader.parentNode.insertBefore(container, sidebarHeader.nextSibling);
                 container.appendChild(el);
             }
-            el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:column;gap:6px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;cursor:pointer;width:100%;';
+            el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;cursor:pointer;width:100%;';
         } else {
             el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
         }
-        el.onclick = function() { showSettingsPage('account'); };
+        
         var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
         
         // Show BOTH display badge and rank emoji if a badge is selected
         var chosenBadge = currentUser.displayBadge;
         var iconsHtml = '';
         if (chosenBadge) {
-            iconsHtml = '<span style="font-size:1.1rem;margin-right:2px;">' + displayEmoji + '</span> ';
-            iconsHtml += '<span style="font-size:0.9rem;opacity:0.7;">' + lv.emoji + '</span>';
+            iconsHtml = '<span style="font-size:1.1rem;margin-right:2px;">' + displayEmoji + '</span> ' +
+                         '<span style="font-size:0.9rem;opacity:0.7;">' + lv.emoji + '</span>';
         } else {
             iconsHtml = '<span style="font-size:1.1rem;">' + lv.emoji + '</span>';
         }
 
-        var livePriceStr = '';
-        try {
-            var cachedP = parseFloat(localStorage.getItem('btc_last_price')) || 0;
-            var cachedH = parseInt(localStorage.getItem('btc_last_height')) || 0;
-            if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cachedP = nachoLiveData.price;
-            if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) cachedH = nachoLiveData.blockHeight;
-            // Fetch price if not cached
-            if (!cachedP) {
-                fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd').then(function(r) { return r.json(); }).then(function(d) {
-                    if (d && d.bitcoin && d.bitcoin.usd) {
-                        var price = d.bitcoin.usd;
-                        localStorage.setItem('btc_last_price', price.toString());
-                        var el = document.getElementById('userDisplayLive');
-                        if (el && !el.querySelector('[style*="color:#f7931a"]')) {
-                            el.insertAdjacentHTML('afterbegin', '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(price).toLocaleString() + '</span>');
-                        }
-                    }
-                }).catch(function() {});
-            }
-            // Fetch block height if not cached
-            if (!cachedH) {
-                fetch('https://mempool.space/api/blocks/tip/height').then(function(r) { return r.text(); }).then(function(h) {
-                    var height = parseInt(h);
-                    if (height) {
-                        localStorage.setItem('btc_last_height', height.toString());
-                        var el = document.getElementById('userDisplayLive');
-                        if (el && !el.querySelector('[href*="mempool"]')) {
-                            el.insertAdjacentHTML('beforeend', '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + height.toLocaleString() + '</a>');
-                        }
-                    }
-                }).catch(function() {});
-            }
-            livePriceStr = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:8px;font-size:0.7rem;margin-top:3px;opacity:0.8;">';
-            if (cachedP) livePriceStr += '<span style="color:#f7931a;font-weight:800;">₿ $' + Math.round(cachedP).toLocaleString() + '</span>';
-            if (cachedH) livePriceStr += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="color:var(--text-muted);text-decoration:none;font-weight:600;" title="View on mempool.space">⛓️ ' + cachedH.toLocaleString() + '</a>';
-            livePriceStr += '</div>';
-        } catch(e) {}
-
-        el.innerHTML = '<div style="display:flex;flex-direction:column;">' +
-            '<div style="display:flex;align-items:center;gap:8px;">' + iconsHtml +
-            '<span style="color:var(--text);font-weight:600;">' + escapeHtml(displayName) + '</span>' +
-            '<span style="color:var(--accent);font-weight:700;font-size:0.75rem;">' + pts.toLocaleString() + ' pts</span>' + streakBit +
-            '</div>' + livePriceStr + '</div>';
+        el.innerHTML =
+            '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">' +
+               '<div style="display:flex;align-items:center;gap:6px;">' +
+                   iconsHtml +
+                   '<span style="color:var(--heading);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(displayName) + '</span>' +
+                   (streakBit ? '<span style="margin-left:4px;">' + streakBit + '</span>' : '') +
+               '</div>' +
+               (function() {
+                    var cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+                    var ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
+                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) cp = nachoLiveData.price;
+                    if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
+                    var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;font-size:0.7rem;opacity:0.8;">';
+                    if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
+                    if (ch) s += '<div style="display:flex;align-items:center;gap:4px;color:#aaa;"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></div>';
+                    s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
+                    return s + '</div>';
+                })() +
+            '</div>' +
+            (!_isMob ? '<div id="notifBellPlaceholder" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;"></div>' : '');
     }
     el.style.display = 'flex';
 
@@ -2419,6 +2400,35 @@ function updateUserDisplay(lv) {
     }
 }
 
+    // Suppress during Nacho Mode — track for exit summary instead
+    if (window._nachoBusy || window._nachoMode) {
+        if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
+        return;
+    }
+    // Play triumphant sound
+    if (typeof canPlaySound === 'function' && !canPlaySound()) {} else if (typeof audioEnabled !== 'undefined' && !audioEnabled) {} else {
+        try {
+            if (!window._sharedAudioCtx) window._sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); var ctx = window._sharedAudioCtx; if (ctx.state === "suspended") ctx.resume();
+            const vol = typeof audioVolume !== 'undefined' ? audioVolume : 0.5;
+            // Triumphant fanfare: C5, E5, G5, C6, E6, G6
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.5, 1568.0];
+            notes.forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = freq;
+                osc.type = i < 3 ? 'sine' : 'triangle';
+                gain.gain.setValueAtTime(0.12 * vol, ctx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 0.6);
+                osc.start(ctx.currentTime + i * 0.1);
+                osc.stop(ctx.currentTime + i * 0.1 + 0.6);
+            });
+        } catch(e) {}
+    }
+
+    // Confetti
+
 function showLevelUpCelebration(lv) {
     // Suppress during Nacho Mode — track for exit summary instead
     if (window._nachoBusy || window._nachoMode) {
@@ -2449,14 +2459,13 @@ function showLevelUpCelebration(lv) {
 
     // Confetti
     if (typeof launchConfetti === 'function') launchConfetti();
-    if (typeof nachoFly === 'function') nachoFly();
 
-    // Level-up modal
+    // Modal
     const overlay = document.createElement('div');
     overlay.id = 'levelUpModal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400;display:flex;justify-content:center;align-items:center;animation:fadeIn 0.3s ease-out;';
-
-    overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:360px;width:90%;text-align:center;animation:fadeSlideIn 0.4s ease-out;">' +
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.4s;';
+    
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:3px solid var(--accent);border-radius:30px;padding:40px 30px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 50px rgba(247,147,26,0.3);animation:popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">' +
         '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + lv.emoji + '</div>' +
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">⬆️ LEVEL UP!</div>' +
         '<div style="color:var(--heading);font-size:1.6rem;font-weight:900;margin-bottom:8px;">' + lv.name + '</div>' +
@@ -2482,7 +2491,6 @@ function getLevelFlavor(name) {
     };
     return flavors[name] || 'You\'re leveling up!';
 }
-
 // Leaderboard
 let lbAutoShown = false;
 
