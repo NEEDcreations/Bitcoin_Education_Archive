@@ -55,10 +55,7 @@ const BADGE_DEFS = [
     { id: 'chat_100', name: 'Town Crier', emoji: '📢', desc: 'Sent 100 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 100, pts: 50 },
     { id: 'chat_500', name: 'Chat Legend', emoji: '👑', desc: 'Sent 500 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_msgs') || '0') >= 500, pts: 100 },
 
-    // ---- Timechain TV Badges ----
-    { id: 'tctv_viewer', name: 'Tune In', emoji: '👁️', desc: 'Watch Timechain TV for 10 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 10, pts: 10 },
-    { id: 'tctv_binge', name: 'TV Binge', emoji: '🍿', desc: 'Watch Timechain TV for 60 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 60, pts: 25 },
-    { id: 'tctv_marathon', name: 'Digital Marathon', emoji: '📺', desc: 'Watch Timechain TV for 300 minutes', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 300, pts: 100 },
+    // ---- Removed duplicate TCTV badges (see lines 42-46 for canonical set) ----
     { id: 'chat_streak_3', name: 'Regular', emoji: '📅', desc: 'Chatted 3 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 3, pts: 20 },
     { id: 'chat_streak_7', name: 'Devoted Chatter', emoji: '🔥', desc: 'Chatted 7 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 7, pts: 50 },
     { id: 'chat_streak_30', name: 'Chat Addict', emoji: '💎', desc: 'Chatted 30 days in a row', check: () => parseInt(localStorage.getItem('btc_chat_streak') || '0') >= 30, pts: 150 },
@@ -390,9 +387,11 @@ function getBadgeHTML() {
     var _used = {};
     function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
     const categories = {
-        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel'),
+        '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
+        '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_')),
+        '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
         '🎧 DJ Mode': _cat(BADGE_DEFS, b => b.id.startsWith('dj_')),
         '🎵 Music': _cat(BADGE_DEFS, b => b.id.startsWith('producer')),
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
@@ -401,6 +400,7 @@ function getBadgeHTML() {
         '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_')),
         '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup'),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
+        '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
 
@@ -434,7 +434,7 @@ function getBadgeHTML() {
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
             const tip = earned ? '✅ ' + badge.desc + ' (+' + pts + ' pts)' : '🔒 Locked — ' + badge.desc;
             
-            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
+            html += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" title="' + escapeHtml(badge.desc) + '" onclick="this.classList.toggle(\'tapped\')" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
                 '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
                 '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +
