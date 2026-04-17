@@ -486,6 +486,12 @@ service cloud.firestore {
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.copyrightConfirmed == true
+                    // Minimum 15-second duration — server-side enforcement so client
+                    // duration check can't be bypassed. duration is written in seconds
+                    // by the client after reading HTMLAudioElement metadata.
+                    && 'duration' in request.resource.data
+                    && request.resource.data.duration is int
+                    && request.resource.data.duration >= 15
                     && (!('coverUrl' in request.resource.data)
                         || request.resource.data.coverUrl == ''
                         || request.resource.data.coverUrl == null

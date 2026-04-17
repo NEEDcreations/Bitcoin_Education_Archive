@@ -669,9 +669,73 @@ window.beatsDoUpload = function() {
     // Generate album ID for grouped uploads
     var albumId = (bulkType === 'ep' || bulkType === 'album') ? 'album_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8) : '';
 
-    // Upload cover art first (shared across all tracks), then upload tracks sequentially
-    _uploadCoverThenTracks(storage, files, titles, artist, genre, coverFile, bulkType, albumTitle, albumYear, albumId, btn);
+    // DURATION CHECK — reject any clip shorter than 15 seconds BEFORE touching Storage/Firestore.
+    // Runs client-side via HTMLAudioElement metadata; Firestore rules enforce the same
+    // threshold server-side so this can't be bypassed.
+    document.getElementById('beatsUpStatus').textContent = 'Checking audio duration(s)...';
+    _checkAllDurations(files, function(err, tooShortNames) {
+        if (err) {
+            // If we couldn't decode metadata for one or more files, reject —
+            // we don't want to let an un-decodable file past the duration gate.
+            showToast('⚠️ Could not read audio duration for: ' + err.join(', ') + '. Is it a valid audio file?', 6000);
+            btn.disabled = false;
+            btn.textContent = 'Upload Track' + (files.length > 1 ? 's' : '');
+            document.getElementById('beatsUpProgress').style.display = 'none';
+            return;
+        }
+        if (tooShortNames.length > 0) {
+            var msg = tooShortNames.length === 1
+                ? '⏱️ "' + tooShortNames[0] + '" is under 15 seconds. Songs must be at least 15 seconds long.'
+                : '⏱️ ' + tooShortNames.length + ' tracks are under 15 seconds. Songs must be at least 15 seconds long.';
+            showToast(msg, 7000);
+            btn.disabled = false;
+            btn.textContent = 'Upload Track' + (files.length > 1 ? 's' : '');
+            document.getElementById('beatsUpProgress').style.display = 'none';
+            return;
+        }
+        // All files pass duration check — proceed with upload
+        _uploadCoverThenTracks(storage, files, titles, artist, genre, coverFile, bulkType, albumTitle, albumYear, albumId, btn);
+    });
 };
+
+// Check that every file in the list is at least 15 seconds long.
+// Callback(errFileNames, tooShortNames) — errFileNames=null when all decoded fine.
+function _checkAllDurations(files, callback) {
+    var MIN_SECONDS = 15;
+    var results = new Array(files.length);
+    var errored = [];
+    var tooShort = [];
+    var done = 0;
+    function oneDone() {
+        done++;
+        if (done === files.length) {
+            if (errored.length > 0) { callback(errored, tooShort); return; }
+            callback(null, tooShort);
+        }
+    }
+    files.forEach(function(file, i) {
+        var url = URL.createObjectURL(file);
+        var audio = new Audio();
+        var settled = false;
+        audio.preload = 'metadata';
+        function settle(duration) {
+            if (settled) return;
+            settled = true;
+            try { URL.revokeObjectURL(url); } catch(e) {}
+            if (duration === null || !isFinite(duration) || isNaN(duration) || duration <= 0) {
+                errored.push(file.name);
+            } else if (duration < MIN_SECONDS) {
+                tooShort.push(file.name);
+            }
+            oneDone();
+        }
+        audio.onloadedmetadata = function() { settle(audio.duration); };
+        audio.onerror = function() { settle(null); };
+        // Safety timeout — some browsers are slow to emit loadedmetadata for certain formats
+        setTimeout(function() { settle(audio.duration || null); }, 8000);
+        audio.src = url;
+    });
+}
 
 function _uploadCoverThenTracks(storage, files, titles, artist, genre, coverFile, bulkType, albumTitle, albumYear, albumId, btn) {
     var coverUrl = '';
@@ -786,12 +850,14 @@ function _saveBulkTrackDoc(title, artist, genre, audioUrl, coverUrl, bulkType, a
     var tempAudio = new Audio(audioUrl);
     var gotMeta = false;
     function save(duration) {
+        // Upfront check already verified >=15s. If re-read failed (0), clamp.
+        var safeDuration = (duration && duration >= 15) ? Math.round(duration) : 15;
         var trackData = {
             title: title.substring(0, 100),
             artist: artist.substring(0, 60) || (typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous'),
             genre: genre,
             audioUrl: audioUrl,
-            duration: duration,
+            duration: safeDuration,
             authorId: auth.currentUser.uid,
             authorName: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous',
             plays: 0, likes: 0,
@@ -905,12 +971,16 @@ function _saveTrackDoc(title, artist, genre, audioData, coverData, duration, btn
     document.getElementById('beatsUpBar').style.width = '80%';
     document.getElementById('beatsUpStatus').textContent = 'Saving to archive...';
 
+    // Upfront check already verified >=15s. If re-read here failed (returned 0),
+    // clamp to 15 so Firestore rules don't reject. int + >= 15 required.
+    var safeDuration = (duration && duration >= 15) ? Math.round(duration) : 15;
+
     var trackData = {
         title: title.substring(0, 100),
         artist: artist.substring(0, 60) || (typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous'),
         genre: genre,
         audioData: audioData,
-        duration: duration,
+        duration: safeDuration,
         authorId: auth.currentUser.uid,
         authorName: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : 'Anonymous',
         plays: 0,

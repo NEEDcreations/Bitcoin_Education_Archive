@@ -1894,17 +1894,15 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'beats_comment': 10000,
         'article_comment': 10000,
         'tctv_watch_10m': 600000, // 10 minutes (Fix: server-side verification)
-        'beats_upload': 300000,   // 5 minutes between uploads (anti-spam)
     };
     const cooldownRef = (matchedAction && ACTION_COOLDOWNS[matchedAction]) 
         ? db.collection('action_cooldowns').doc(uid + '_' + matchedAction)
         : null;
 
     // DAILY ACTION COUNT LIMIT: Cap certain actions per UTC day independent of point cap.
-    // Prevents low-quality content farming (e.g. spamming 50 silent audio uploads).
-    const ACTION_DAILY_LIMITS = {
-        'beats_upload': 5,   // Max 5 track uploads per day per user
-    };
+    // (Empty by default — beats_upload abuse is addressed by the 15s minimum duration
+    // gate in Firestore rules + client, not here, so albums of many short tracks work.)
+    const ACTION_DAILY_LIMITS = {};
     const dailyActionRef = (matchedAction && ACTION_DAILY_LIMITS[matchedAction])
         ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction)
         : null;
