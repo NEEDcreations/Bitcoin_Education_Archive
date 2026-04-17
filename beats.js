@@ -298,6 +298,7 @@ window.beatsLoadTracks = function(tab) {
                 '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-left:38px;">' +
                     '<button onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                     '<button onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+                    '<button onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
                     '<button onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="More">⋮</button>' +
                 '</div>' +
             '</div>';
@@ -457,6 +458,12 @@ window.beatsSetVolume = function(val) {
 
 // ---- Like ----
 window.beatsToggleLike = function(trackId, btn) {
+    // Require sign-in so the like actually syncs cross-device
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (typeof showToast === 'function') showToast('🔒 Sign in to save your liked tracks across devices');
+        if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 300);
+        return;
+    }
     var liked = safeJSON('btc_beats_liked', []);
     var idx = liked.indexOf(trackId);
     if (idx === -1) {
@@ -1040,6 +1047,10 @@ window.beatsTrackMenu = function(trackId, idx) {
         '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">' + escapeHtml(track.title || 'Untitled') + '</div>' +
         '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:16px;">' + escapeHtml(track.artist || 'Unknown') + '</div>';
 
+    // Add to playlist (for signed-in users)
+    if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        html += '<button onclick="document.getElementById(\'beatsMenuOverlay\').remove();beatsAddToPlaylistPicker(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">➕ Add to Playlist</button>';
+    }
     if (isOwner || isAdmin) {
         html += '<button onclick="beatsDeleteTrack(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">' + (isAdmin ? '🗑️🛡️ Admin Delete Track' : '🗑️ Delete My Track') + '</button>';
     }
@@ -1979,6 +1990,7 @@ window.beatsSetGenre = function(genre) {
                     '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-left:38px;">' +
                         '<button onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
                         '<button onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+                        '<button onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
                         (t.authorId ? '<button onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + escapeHtml(t.artist || t.authorName || 'Artist').replace(/[\\'"]/g, "") + '\',\'' + escapeHtml(t.title || '').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
                         '<button onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\',\'' + escapeHtml(t.title || 'Track').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
                         '<button onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
@@ -2244,23 +2256,87 @@ window.beatsRenderLibrary = function() {
 };
 
 // --- Liked Songs ---
+// Reads from BOTH Firestore (likedBy array on each track doc) and localStorage,
+// merging so likes follow the user across devices even if localStorage was cleared.
 window.beatsLoadLikedTracks = function() {
     var el = document.getElementById('beatsLibContent');
     if (!el) return;
-    var liked = safeJSON('btc_beats_liked', []);
-    if (liked.length === 0) {
+    var localLiked = safeJSON('btc_beats_liked', []);
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading liked tracks...</div>';
+
+    var uid = (auth && auth.currentUser) ? auth.currentUser.uid : null;
+    var serverPromise = uid
+        ? db.collection('beats_tracks').where('likedBy', 'array-contains', uid).limit(100).get()
+        : Promise.resolve({ forEach: function() {}, empty: true });
+
+    serverPromise.then(function(serverSnap) {
+        var trackMap = {};
+        var serverIds = [];
+        serverSnap.forEach(function(doc) {
+            trackMap[doc.id] = Object.assign({ id: doc.id }, doc.data());
+            serverIds.push(doc.id);
+        });
+
+        // Sync server → local so the heart icon matches across the UI
+        if (serverIds.length > 0) {
+            try {
+                var merged = localLiked.slice();
+                serverIds.forEach(function(id) { if (merged.indexOf(id) === -1) merged.push(id); });
+                if (merged.length !== localLiked.length) {
+                    localStorage.setItem('btc_beats_liked', JSON.stringify(merged));
+                    localLiked = merged;
+                }
+            } catch(e) {}
+        }
+
+        // Any localStorage-only likes (legacy / different-device) need to be fetched too
+        var missing = localLiked.filter(function(id) { return !trackMap[id]; }).slice(0, 30 - serverIds.length);
+        if (missing.length === 0) {
+            _renderLikedTracks(el, trackMap, serverIds, localLiked);
+            return;
+        }
+        db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', missing).get().then(function(snap) {
+            snap.forEach(function(doc) {
+                if (!trackMap[doc.id]) trackMap[doc.id] = Object.assign({ id: doc.id }, doc.data());
+            });
+            _renderLikedTracks(el, trackMap, serverIds, localLiked);
+        }).catch(function() {
+            _renderLikedTracks(el, trackMap, serverIds, localLiked);
+        });
+    }).catch(function(err) {
+        console.warn('[beats] liked-tracks server query failed:', err && err.message);
+        // Fall back to localStorage-only path
+        if (localLiked.length === 0) {
+            el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">❤️</div><div style="color:var(--text-muted);font-weight:600;">No liked tracks yet</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Hit the ❤️ on tracks you love!</div></div>';
+            return;
+        }
+        db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', localLiked.slice(0, 30)).get().then(function(snap) {
+            var tracks = [];
+            snap.forEach(function(doc) { tracks.push(Object.assign({ id: doc.id }, doc.data())); });
+            window._beatsQueue = tracks;
+            if (tracks.length === 0) {
+                el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">❤️</div><div style="color:var(--text-muted);font-weight:600;">No liked tracks yet</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Hit the ❤️ on tracks you love!</div></div>';
+            } else {
+                beatsRenderTrackList(el, tracks, true);
+            }
+        }).catch(function() { el.innerHTML = '<div style="padding:20px;color:var(--text-faint);">Error loading liked tracks</div>'; });
+    });
+};
+
+function _renderLikedTracks(el, trackMap, serverIds, localLiked) {
+    // Build ordered list: server-liked first (most authoritative), then local-only
+    var ordered = [];
+    var seen = {};
+    serverIds.forEach(function(id) { if (trackMap[id] && !seen[id]) { ordered.push(trackMap[id]); seen[id] = true; } });
+    localLiked.forEach(function(id) { if (trackMap[id] && !seen[id]) { ordered.push(trackMap[id]); seen[id] = true; } });
+
+    if (ordered.length === 0) {
         el.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:2rem;margin-bottom:8px;">❤️</div><div style="color:var(--text-muted);font-weight:600;">No liked tracks yet</div><div style="color:var(--text-faint);font-size:0.8rem;margin-top:4px;">Hit the ❤️ on tracks you love!</div></div>';
         return;
     }
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Loading ' + liked.length + ' liked tracks...</div>';
-    var batch = liked.slice(0, 30);
-    db.collection('beats_tracks').where(firebase.firestore.FieldPath.documentId(), 'in', batch).get().then(function(snap) {
-        var tracks = [];
-        snap.forEach(function(doc) { tracks.push({ id: doc.id, ...doc.data() }); });
-        window._beatsQueue = tracks;
-        beatsRenderTrackList(el, tracks, true);
-    }).catch(function() { el.innerHTML = '<div style="padding:20px;color:var(--text-faint);">Error loading liked tracks</div>'; });
-};
+    window._beatsQueue = ordered;
+    beatsRenderTrackList(el, ordered, true);
+}
 
 // --- My Uploads ---
 window.beatsLoadMyUploads = function() {
