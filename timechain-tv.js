@@ -6563,7 +6563,9 @@ function _updateChNum() {
     var chEl = document.getElementById('tctv-now-ch');
     if (!chEl || !_currentStation) return;
     var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
-    chEl.textContent = idx >= 0 ? 'CH. ' + (idx + 1) : '';
+    if (idx < 0) { chEl.textContent = ''; return; }
+    var station = STATIONS[idx];
+    chEl.textContent = 'CH. ' + (idx + 1) + ' · ' + (station.emoji ? station.emoji + ' ' : '') + station.name;
 }
 
 window.syncPlayer = function() {
