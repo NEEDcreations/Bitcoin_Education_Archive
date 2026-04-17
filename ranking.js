@@ -2245,11 +2245,16 @@ function updateUserDisplay(lv) {
     }
 
     if (isAnon || (auth.currentUser && auth.currentUser.isAnonymous && !hasUsername)) {
-        // If user dismissed the banner this session, keep it hidden
+        // If user dismissed the banner this session, keep it hidden.
+        // Use a CSS class (which also has !important) so the "display:flex !important"
+        // mobile rule can't resurrect it.
         if (sessionStorage.getItem('btc_signin_banner_dismissed') === '1') {
+            el.classList.add('user-hidden');
             el.style.display = 'none';
             return;
         }
+        // Otherwise ensure the hide class is removed (re-expanded state)
+        el.classList.remove('user-hidden');
         // Consolidated Metric Dashboard + Guest Sign-in
         var _isMob = window.innerWidth <= 900;
         el.setAttribute('data-anon', '1');
@@ -4790,27 +4795,45 @@ window.loadSignalContent = function() {
     }).catch(function() {});
 };
 
+// Expand the Sign Up banner back out (re-runs updateUserDisplay to re-render)
+window.expandSignUpBanner = function() {
+    sessionStorage.removeItem('btc_signin_banner_dismissed');
+    var pill = document.getElementById('mobileSignUpPill');
+    if (pill) pill.remove();
+    var ud = document.getElementById('userDisplay');
+    if (ud) ud.classList.remove('user-hidden');
+    if (typeof updateUserDisplay === 'function') updateUserDisplay();
+};
+
 window.minimizeSignUpBanner = function() {
     sessionStorage.setItem('btc_signin_banner_dismissed', '1');
     var ud = document.getElementById('userDisplay');
     var isMob = window.innerWidth <= 900;
     if (isMob) {
-        // On mobile, #userDisplay is hidden by CSS !important, so create a separate pill
-        if (ud) ud.style.display = 'none';
+        // Add a class so CSS-with-!important can't override our hide.
+        if (ud) {
+            ud.classList.add('user-hidden');
+            ud.style.display = 'none';
+        }
+        // Create the minimized pill. Tap the pill → expand the banner back.
+        // Long-press (or tap the ✕) opens sign-in directly.
         var pill = document.getElementById('mobileSignUpPill');
         if (!pill) {
             pill = document.createElement('div');
             pill.id = 'mobileSignUpPill';
             document.body.appendChild(pill);
         }
-        pill.style.cssText = 'position:fixed;bottom:70px;left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
-        pill.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
-        pill.onclick = function() { pill.remove(); showUsernamePrompt(); };
+        pill.style.cssText = 'position:fixed;bottom:70px;left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 12px 8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+        pill.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>' +
+            '<span style="color:var(--text-faint,#888);font-size:0.7rem;margin-left:4px;" title="Expand banner">▲</span>';
+        pill.onclick = function() { window.expandSignUpBanner(); };
     } else {
         if (!ud) return;
+        // Desktop: shrink the display in-place to a compact pill that can be re-expanded.
         ud.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
-        ud.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>';
-        ud.onclick = function() { showUsernamePrompt(); };
+        ud.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>' +
+            '<span style="color:var(--text-faint,#888);font-size:0.7rem;margin-left:4px;" title="Expand banner">▲</span>';
+        ud.onclick = function() { window.expandSignUpBanner(); };
     }
 };
 
