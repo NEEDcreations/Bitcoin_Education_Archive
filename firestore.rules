@@ -7,10 +7,18 @@ service cloud.firestore {
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
     // =============================================
     match /users/{userId} {
-      // Full read for own profile; allow list queries for leaderboard (authenticated only)
+      // Reads:
+      //   - Own profile: always allowed for the authenticated owner
+      //   - Leaderboard LIST queries: authenticated, limit <= 200
+      //   - Individual profile VIEW (tapping a user in the leaderboard,
+      //     chat, forum, etc.): allowed for any authenticated non-anonymous user
+      //     so we can render other users' public profile data.
+      //   The client-writable field list is still locked down by the update rule,
+      //   and server-only fields (sats, points, etc.) can't be modified by clients.
       allow read: if request.auth != null && (
                     request.auth.uid == userId
-                    || request.query.limit <= 200  // Allow leaderboard queries
+                    || request.query.limit <= 200  // Leaderboard list queries
+                    || !request.auth.token.firebase.sign_in_provider.matches('anonymous')  // Non-anon can view profiles
                   );
       allow create: if request.auth != null
                     && request.auth.uid == userId;

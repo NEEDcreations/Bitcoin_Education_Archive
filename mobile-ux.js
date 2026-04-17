@@ -327,6 +327,9 @@ var DAILY_CHALLENGES = [
     { id: 'forum', text: '🗣️ Visit the PlebTalk', check: function() { return sessionStorage.getItem('btc_forum_visited') === 'true'; } },
     { id: 'streak', text: '🔥 Log in to keep your streak', check: function() { return true; } }, // Always completable
     { id: 'favorite', text: '⭐ Save a channel to favorites', check: function() { return sessionStorage.getItem('btc_fav_added') === 'true'; } },
+    // New: Timechain TV — watch 10 minutes (counted per-session so it's daily-fresh)
+    { id: 'tctv_10m', text: '📺 Watch 10 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 10; } },
+    { id: 'tctv_visit', text: '📺 Tune in to Timechain TV', check: function() { return sessionStorage.getItem('btc_tctv_visited') === 'true'; } },
 ];
 
 function getDailyChallenge() {

@@ -4597,6 +4597,8 @@ window._tctvMinutesSession = 0;
 window._tctvStartTracker = function() {
     if (window._tctvTimer) return; // Already running
     window._tctvMinutesSession = 0; // Reset session count on re-entry
+    // Mark for daily-challenge system (btc_tctv_visited)
+    try { sessionStorage.setItem('btc_tctv_visited', 'true'); } catch(e) {}
     console.log('[TCTV] Watch tracker started.');
 
     window._tctvTimer = setInterval(function() {

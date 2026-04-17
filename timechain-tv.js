@@ -6937,14 +6937,15 @@ window.renderTimechainTV = function() {
 
     html += '</div>'; // end sticky header
 
-    // Couch Nacho (floating, draggable)
+    // Couch Nacho (floating, draggable) — dynamic bubble updates every 3-5 min with
+    // station-aware commentary driven by _tctvCouchTick (below).
     html += '<div id="nacho-couch">' +
             '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;">' +
             '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">\ud83d\udecb\ufe0f</span>' +
             '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
             '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
             '<span style="position:absolute;bottom:0;right:-4px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">\ud83c\udf7f</span>' +
-            '<span style="position:absolute;top:-25px;right:-30px;background:white;color:black;padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.2);white-space:nowrap;animation:pulse 3s infinite;">Chill vibes... \ud83d\udcfa\ud83c\udf7f</span>' +
+            '<div id="couch-nacho-bubble" style="position:absolute;top:-32px;right:-40px;min-width:90px;max-width:200px;background:white;color:#111;padding:6px 11px;border-radius:14px;font-size:0.7rem;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,0.35);white-space:normal;line-height:1.35;text-align:center;transition:opacity 0.3s ease, transform 0.3s ease;opacity:1;transform:translateY(0);">Chill vibes... \ud83d\udcfa\ud83c\udf7f</div>' +
             '</div>' +
             '<button onclick="tctvToggleCouch()" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#333;border:1px solid #555;color:#aaa;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">\u2715</button>' +
             '</div></div>';
@@ -7118,6 +7119,9 @@ window.switchStation = function(stationId) {
     // #3 Sound effect
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
 
+    // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
+    setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
+
     // #4 Pre-fetch next/prev
     try {
         var idx = STATIONS.findIndex(s => s.id === stationId);
@@ -7131,25 +7135,188 @@ window.switchStation = function(stationId) {
 
 // #5 Nacho Reactions
 var _tctvReactionInterval = null;
-function startTctvReactions() {
-    if (_tctvReactionInterval) clearInterval(_tctvReactionInterval);
-    _tctvReactionInterval = setInterval(function() {
+// ---- Couch-Nacho station commentary ----
+// Per-station lines (picked randomly, padded with generic lines).
+var _TCTV_STATION_LINES = {
+    'art-philosophy': [
+        "Orange pixels make the best portraits. 🎨",
+        "Philosophy + Bitcoin = time well spent. 🤔",
+        "Art on a timechain? Lindy already. 🧊"
+    ],
+    'conferences-events': [
+        "Imagine being in that crowd. 👋",
+        "Conference season is like Bitcoin summer. ☀️",
+        "Hands up if you've hugged a stranger over orange coin. 🤗"
+    ],
+    'culture-travel': [
+        "Everywhere I go, sats follow. 🌍⚡",
+        "El Salvador was just the beginning. 🍊",
+        "Nomad-core but with a cold card. 🌊"
+    ],
+    'dev-privacy-nodes': [
+        "Run your node. Don't trust, verify. 🔒",
+        "Devs shipping while fiat crumbles. 🛠️",
+        "Coinjoin, tor, your own relay — chef's kiss. 👩‍🍳"
+    ],
+    'documentaries': [
+        "Popcorn duty is ON. 🍿",
+        "This one hits different after a few cycles in. 🎀",
+        "Someday they'll make one about YOU stacking. 🎬"
+    ],
+    'economics-money': [
+        "Printer goes brrrr, Bitcoin stays fixed. 💵→💰",
+        "Sound money hits different. 🔔",
+        "Austrian Twitter is eating good tonight. 🤨"
+    ],
+    'freedom-sovereignty': [
+        "12 words. 12 superpowers. 🗝",
+        "Your keys. Your future. 👑",
+        "Permissionless = priceless. 🔓"
+    ],
+    'health-fitness': [
+        "Low time preference = long time horizon. 🏃",
+        "Gym today. Sats tomorrow. 💪",
+        "Steak, sunshine, stacking. 🥩☀️₿"
+    ],
+    'history': [
+        "Every cycle teaches the same lesson. 📚",
+        "We're early. Still. 🕰️",
+        "Satoshi dropped this on us and dipped. 👻"
+    ],
+    'kids-family': [
+        "Future gen stacking from day one. ❤️₿",
+        "Kids get Bitcoin faster than adults. 🚀",
+        "Orange pill for the whole family. 👨‍👩‍👧‍👦"
+    ],
+    'lightning': [
+        "Zap zap zap ⚡⚡⚡",
+        "Instant, nearly-free, global. 🌐",
+        "Once you Lightning, you can't go back. 🚨"
+    ],
+    'memes-comedy': [
+        "Have fun staying poor. 😂",
+        "Memes are a load-bearing asset class. 💀",
+        "Bitcoin humor >>> shitcoin copium. 😄"
+    ],
+    'mining': [
+        "Hashrate looks beefy today. 🌋",
+        "ASICs go brrrr — SHA-256 for days. 🔥",
+        "Proof-of-Work = proof this matters. ⛏️"
+    ],
+    'music': [
+        "This beat has hyperbitcoinized my ears. 🎵",
+        "Play it again. 🎶",
+        "Bitcoin has the best soundtrack in finance. 🎧"
+    ],
+    'news': [
+        "Another day, another adoption milestone. 📰",
+        "Boomers are starting to get it. 😅",
+        "Bullish as hell. 📈"
+    ],
+    'orange-pill': [
+        "Orange pilled = forever changed. 🍊💊",
+        "Someone is getting this today. 🙌",
+        "The pill has no expiration date. ⏳"
+    ],
+    'podcasts-debates': [
+        "Bring the headphones next time. 🎧",
+        "Great debate energy tonight. 👀",
+        "Ideas sharpen on other ideas. ⚔️"
+    ],
+    'politics-regulation': [
+        "Nobody can ban math. ✋",
+        "Bitcoin is apolitical but deeply political. 🏛️",
+        "Fix the money, fix the world. 🔧"
+    ],
+    'saylor': [
+        "Saylor really knows how to channel that energy! ⚡",
+        "Laser eyes activated. 👁️⚡",
+        "Hope is not a strategy — but Bitcoin is. 🙏"
+    ],
+    'future-predictions': [
+        "Number go up is a feature, not a bug. 📈",
+        "Trading is hard. Stacking is easy. 🍹",
+        "Bitcoin→∞, fiat→0. ✨"
+    ],
+    'tutorials': [
+        "Self-custody is a skill. Learn it. 🔑",
+        "Take notes. Screenshot. Practice. 📝",
+        "One step. One sat. One at a time. 👣"
+    ]
+};
+var _TCTV_GENERIC_LINES = [
+    "Mmm... freshly popped corn and Bitcoin knowledge! ⚡",
+    "Proof of Steak? I prefer Proof of Popcorn! 🥩🍿",
+    "Timechain TV is my love language. 📺💕",
+    "Couldn't look away if I tried. 👀",
+    "Bitcoin never sleeps — and apparently neither do I. 😴",
+    "10 minutes in, another 10 pts in the bag. 💰",
+    "Orange-pilled and cozied up. 🧡🛋️",
+    "Every block a gift. 📦",
+    "This show. These stats. Perfect combo. 🧑‍🍳",
+    "Pleb life is the good life. 🦌"
+];
+
+function _showCouchBubble(text) {
+    var b = document.getElementById('couch-nacho-bubble');
+    if (!b) return;
+    // Fade out, swap text, fade in
+    b.style.opacity = '0';
+    b.style.transform = 'translateY(-6px)';
+    setTimeout(function() {
+        b.textContent = text;
+        b.style.opacity = '1';
+        b.style.transform = 'translateY(0)';
+    }, 280);
+}
+
+function _pickCouchLine() {
+    var s = STATIONS.find(function(st) { return st.id === _currentStation; });
+    if (!s) return _TCTV_GENERIC_LINES[Math.floor(Math.random() * _TCTV_GENERIC_LINES.length)];
+    var stationLines = _TCTV_STATION_LINES[s.id] || [];
+    // 65% chance station-specific, 35% generic, so it stays fresh
+    var pool = (stationLines.length && Math.random() < 0.65) ? stationLines : _TCTV_GENERIC_LINES;
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function _scheduleNextCouchTick() {
+    // Random 3-5 minutes
+    var delay = 180000 + Math.floor(Math.random() * 120000);
+    _tctvReactionInterval = setTimeout(function() {
         if (window.currentPage !== 'timechain-tv') return;
-        var s = STATIONS.find(st => st.id === _currentStation);
-        if (!s) return;
-        var q = [
-            "This " + s.name + " channel is legit! 🍿",
-            "Mmm... freshly popped corn and Bitcoin knowledge! ⚡",
-            "Proof of Steak? No, I prefer Proof of Popcorn! 🥩🍿",
-            "The blockchain is looking extra HARD today! 🛡️"
-        ];
-        if (s.id === 'saylor') q.push("Saylor really knows how to channel that energy! ⚡");
-        var msg = q[Math.floor(Math.random()*q.length)];
-        if (typeof forceShowBubble === 'function') {
-            forceShowBubble(msg, 'cheese');
-            setTimeout(() => { if (typeof hideBubble === 'function') hideBubble(true); }, 7000);
+        // Don't talk over the user if the couch itself is hidden
+        var couch = document.getElementById('nacho-couch');
+        if (!couch || couch.style.display === 'none') {
+            _scheduleNextCouchTick();
+            return;
         }
-    }, 600000); // 10 mins
+        _showCouchBubble(_pickCouchLine());
+        _scheduleNextCouchTick();
+    }, delay);
+}
+
+function startTctvReactions() {
+    if (_tctvReactionInterval) {
+        try { clearTimeout(_tctvReactionInterval); } catch(e) {}
+        try { clearInterval(_tctvReactionInterval); } catch(e) {}
+    }
+    // Greet on entry (10-30s after enter), then every 3-5 min
+    setTimeout(function() {
+        if (window.currentPage !== 'timechain-tv') return;
+        var couch = document.getElementById('nacho-couch');
+        if (couch && couch.style.display !== 'none') {
+            _showCouchBubble(_pickCouchLine());
+        }
+    }, 12000 + Math.floor(Math.random() * 18000));
+    _scheduleNextCouchTick();
+}
+
+// Refresh the couch bubble when the user switches channels (immediate feedback)
+function _couchReactToStationChange() {
+    if (window.currentPage !== 'timechain-tv') return;
+    var couch = document.getElementById('nacho-couch');
+    if (!couch || couch.style.display === 'none') return;
+    _showCouchBubble(_pickCouchLine());
 }
 
 function showChannelNoise(stationName) {
@@ -7204,7 +7371,11 @@ function showChannelNoise(stationName) {
 
 window.cleanupTimechainTV = function() {
     if (_syncInterval) { clearInterval(_syncInterval); _syncInterval = null; }
-    if (_tctvReactionInterval) { clearInterval(_tctvReactionInterval); _tctvReactionInterval = null; }
+    if (_tctvReactionInterval) {
+        try { clearInterval(_tctvReactionInterval); } catch(e) {}
+        try { clearTimeout(_tctvReactionInterval); } catch(e) {}
+        _tctvReactionInterval = null;
+    }
     if (_viewerUnsub) { _viewerUnsub(); _viewerUnsub = null; }
     var iframe = document.getElementById('tctv-player');
     if (iframe) iframe.src = '';

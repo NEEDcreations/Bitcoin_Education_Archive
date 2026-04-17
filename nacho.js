@@ -130,6 +130,11 @@ const TIPS = [
     // Content
     { pose: 'brain', text: "💡 Tip: YouTube videos are embedded right in the channels — click to play without leaving the site! 🎬" },
     { pose: 'point', text: "💡 Tip: Tweets are embedded too! Click '▶ Click to display tweet' to expand them. 🐦" },
+    // Timechain TV
+    { pose: 'fire', text: "📺 Tip: Timechain TV streams 21 curated channels 24/7 — earn <strong>10 pts per 10 min</strong> watched! <span onclick=\"go('timechain-tv')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Tune in →</span>" },
+    { pose: 'cheese', text: "🛋️ Tip: Couch with me on Timechain TV — I react to every channel you tune into! 🍿 <span onclick=\"go('timechain-tv')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Let's chill →</span>" },
+    { pose: 'point', text: "💡 Tip: Timechain TV has a global clock — every viewer on the same channel sees the same moment. True synchronized TV! ⏰" },
+    { pose: 'celebrate', text: "👑 Tip: Watch 24 hours on Timechain TV to unlock the 👑 Couch King badge + 100 points!" },
     { pose: 'point', text: "💡 Tip: The Quote of the Day on the homepage changes daily — click it to jump to the related channel! 💬" },
     { pose: 'point', text: "💡 Tip: New to Bitcoin? Start with the 'one-stop-shop' channel — it has everything to get you started! 🎯" },
     { pose: 'brain', text: "💡 Tip: Channels are organized into Properties, Experienced Topics, Resources, and Additional Info. Start with Properties!" },

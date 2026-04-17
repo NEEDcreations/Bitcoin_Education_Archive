@@ -5541,6 +5541,12 @@ const BADGE_DEFS = [
         return h >= 5 && h < 7;
     }},
     { id: 'cert_scholar', name: 'Bitcoin Scholar', emoji: '🎓', desc: 'Passed the Bitcoin Scholar Certification', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true', pts: 50 },
+    // --- Timechain TV watch-time badges ---
+    { id: 'tctv_tuned_in', name: 'Tuned In', emoji: '📺', desc: 'Watched 10 min of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 10, pts: 10 },
+    { id: 'tctv_couch_potato', name: 'Couch Potato', emoji: '🛋️', desc: 'Watched 60 min of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 60, pts: 25 },
+    { id: 'tctv_binge_watcher', name: 'Binge Watcher', emoji: '🍿', desc: 'Watched 5 hours of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 300, pts: 50 },
+    { id: 'tctv_couch_king', name: 'Couch King', emoji: '👑', desc: 'Watched 24 hours of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 1440, pts: 100 },
+    { id: 'tctv_satellite', name: 'Satellite', emoji: '🛰️', desc: 'Watched 100 hours of Timechain TV', check: () => parseInt(localStorage.getItem('btc_tctv_watch_time') || '0') >= 6000, pts: 250 },
     { id: 'cert_tech', name: 'Protocol Expert', emoji: '🛠️', desc: 'Passed the Technical Protocol Expert Certification', check: () => localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 100 },
     { id: 'nacho_chatterbox', name: 'Nacho Chatterbox', emoji: '🦌', desc: 'Interacted with Nacho 50+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 50, pts: 30 },
     { id: 'nacho_bestie', name: 'Nacho\'s Bestie', emoji: '🧡', desc: 'Interacted with Nacho 250+ times', check: () => parseInt(localStorage.getItem('btc_nacho_interactions') || '0') >= 250, pts: 100 },
@@ -6823,6 +6829,11 @@ const TIPS = [
     // Content
     { pose: 'brain', text: "💡 Tip: YouTube videos are embedded right in the channels — click to play without leaving the site! 🎬" },
     { pose: 'point', text: "💡 Tip: Tweets are embedded too! Click '▶ Click to display tweet' to expand them. 🐦" },
+    // Timechain TV
+    { pose: 'fire', text: "📺 Tip: Timechain TV streams 21 curated channels 24/7 — earn <strong>10 pts per 10 min</strong> watched! <span onclick=\"go('timechain-tv')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Tune in →</span>" },
+    { pose: 'cheese', text: "🛋️ Tip: Couch with me on Timechain TV — I react to every channel you tune into! 🍿 <span onclick=\"go('timechain-tv')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Let's chill →</span>" },
+    { pose: 'point', text: "💡 Tip: Timechain TV has a global clock — every viewer on the same channel sees the same moment. True synchronized TV! ⏰" },
+    { pose: 'celebrate', text: "👑 Tip: Watch 24 hours on Timechain TV to unlock the 👑 Couch King badge + 100 points!" },
     { pose: 'point', text: "💡 Tip: The Quote of the Day on the homepage changes daily — click it to jump to the related channel! 💬" },
     { pose: 'point', text: "💡 Tip: New to Bitcoin? Start with the 'one-stop-shop' channel — it has everything to get you started! 🎯" },
     { pose: 'brain', text: "💡 Tip: Channels are organized into Properties, Experienced Topics, Resources, and Additional Info. Start with Properties!" },
@@ -16391,6 +16402,9 @@ var DAILY_CHALLENGES = [
     { id: 'forum', text: '🗣️ Visit the PlebTalk', check: function() { return sessionStorage.getItem('btc_forum_visited') === 'true'; } },
     { id: 'streak', text: '🔥 Log in to keep your streak', check: function() { return true; } }, // Always completable
     { id: 'favorite', text: '⭐ Save a channel to favorites', check: function() { return sessionStorage.getItem('btc_fav_added') === 'true'; } },
+    // New: Timechain TV — watch 10 minutes (counted per-session so it's daily-fresh)
+    { id: 'tctv_10m', text: '📺 Watch 10 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 10; } },
+    { id: 'tctv_visit', text: '📺 Tune in to Timechain TV', check: function() { return sessionStorage.getItem('btc_tctv_visited') === 'true'; } },
 ];
 
 function getDailyChallenge() {
@@ -23305,6 +23319,8 @@ window._tctvMinutesSession = 0;
 window._tctvStartTracker = function() {
     if (window._tctvTimer) return; // Already running
     window._tctvMinutesSession = 0; // Reset session count on re-entry
+    // Mark for daily-challenge system (btc_tctv_visited)
+    try { sessionStorage.setItem('btc_tctv_visited', 'true'); } catch(e) {}
     console.log('[TCTV] Watch tracker started.');
 
     window._tctvTimer = setInterval(function() {

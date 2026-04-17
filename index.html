@@ -39,7 +39,7 @@
     <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
     <link rel="dns-prefetch" href="https://mempool.space">
-    <link rel="preload" href="bundle.js?v=20260417tctv" as="script">
+    <link rel="preload" href="bundle.js?v=20260417features" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -908,7 +908,7 @@
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
                 <h1 class="home-title">Bitcoin Education Archive</h1>
-                <p class="home-subtitle">A curated library of Bitcoin education — complete with Quests to test your knowledge. Start your Quest today!</p>
+                <p class="home-subtitle">A curated library of Bitcoin education — 146 channels, 📺 Timechain TV (24/7 streaming), 7 mini-apps, and Quests to test your knowledge. Start your Quest today!</p>
                 <!-- App Stats moved to bottom -->
                 
                 <div id="giveawayBanner" style="margin-bottom:16px;padding:20px;background:linear-gradient(135deg,#f7931a 0%,#ea580c 100%);border-radius:16px;text-align:center;cursor:pointer;box-shadow:0 4px 20px rgba(247,147,26,0.3);position:relative;overflow:hidden;" onclick="showUsernamePrompt()">
@@ -1179,10 +1179,10 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260417tctv" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260417features" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260417tctv" defer></script>
-    <script src="timechain-tv.js?v=20260417title" defer></script>
+    <script src="timechain-tv.js?v=20260417couch" defer></script>
     <script src="mobile-optimize.js?v=20260411" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>
     <script src="ux-improvements.js?v=20260307" defer></script>
@@ -1199,7 +1199,7 @@
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260411','tips-integrations.js?v=20260307','wallet-router.js?v=20260307a',
             'lightning-prompt.js?v=20260307','pvp.js?v=20260405','pvp-enhance.js?v=20260405','irl-sync.js?v=20260411',
-            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260411','timechain-tv.js?v=20260417title'
+            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260411','timechain-tv.js?v=20260417couch'
         ];
         var _loaded = false;
         function _loadDeferred() {
