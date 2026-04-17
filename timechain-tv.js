@@ -7288,11 +7288,18 @@ function _pickCouchLine() {
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function _tctvIsActive() {
+    // TCTV is active if we're on the TCTV route OR the player element exists in DOM
+    return (window.currentChannelId === 'timechain-tv')
+        || !!document.getElementById('tctv-player')
+        || !!window._tctvActive;
+}
+
 function _scheduleNextCouchTick() {
     // Random 3-5 minutes
     var delay = 180000 + Math.floor(Math.random() * 120000);
     _tctvReactionInterval = setTimeout(function() {
-        if (window.currentPage !== 'timechain-tv') return;
+        if (!_tctvIsActive()) return;
         // Don't talk over the user if the couch itself is hidden
         var couch = document.getElementById('nacho-couch');
         if (!couch || couch.style.display === 'none') {
@@ -7311,7 +7318,7 @@ function startTctvReactions() {
     }
     // Greet on entry (10-30s after enter), then every 3-5 min
     setTimeout(function() {
-        if (window.currentPage !== 'timechain-tv') return;
+        if (!_tctvIsActive()) return;
         var couch = document.getElementById('nacho-couch');
         if (couch && couch.style.display !== 'none') {
             _showCouchBubble(_pickCouchLine());
@@ -7322,7 +7329,7 @@ function startTctvReactions() {
 
 // Refresh the couch bubble when the user switches channels (immediate feedback)
 function _couchReactToStationChange() {
-    if (window.currentPage !== 'timechain-tv') return;
+    if (!_tctvIsActive()) return;
     var couch = document.getElementById('nacho-couch');
     if (!couch || couch.style.display === 'none') return;
     _showCouchBubble(_pickCouchLine());
