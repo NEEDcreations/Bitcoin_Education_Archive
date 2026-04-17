@@ -23173,7 +23173,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         else if (h === 'chat') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('global'); }, 500); }
         else if (h === 'dms') { setTimeout(function() { if (typeof renderChatHub === 'function') renderChatHub('dms'); else if (typeof openDMInbox === 'function') openDMInbox(); }, 500); }
         else if (h === 'lightning') { setTimeout(function() { go('lightning'); }, 500); }
-        else if (h === 'dashboard' || h === 'metrics' || h === 'network') { setTimeout(function() { history.replaceState({ home: true }, '', window.location.pathname); if (typeof toggleDashboard === 'function') toggleDashboard(); }, 1500); }
+        // NOTE: #dashboard / #metrics / #network are handled by tryRoute() below — don't duplicate here or the overlay toggles twice (opens then closes = 'crash')
+        else if (h === 'dashboard' || h === 'metrics' || h === 'network') { /* handled by tryRoute */ }
         else if (h) go(h);
     };
 // =============================================
