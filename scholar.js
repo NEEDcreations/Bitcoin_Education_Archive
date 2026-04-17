@@ -3864,34 +3864,59 @@ function startScholarQuest(type) {
     if (!modal || !inner) return;
 
     const pool = scholarType === 'technical' ? SCHOLAR_TECHNICAL_POOL : SCHOLAR_PROPERTIES_POOL;
-    scholarQuestions = fisherYates([...pool]).slice(0, 25);
     scholarAnswers = new Array(25).fill(null);
     scholarTimeLeft = 600;
-
-    // Register exam server-side for secure grading
     window._scholarExamId = null;
-    if (typeof firebase !== 'undefined' && firebase.functions) {
-        firebase.functions().httpsCallable('startScholarExam')({
-            type: scholarType,
-            questions: scholarQuestions.map(function(q) { return { a: q.a }; })
-        }).then(function(res) {
-            window._scholarExamId = res.data.examId;
-        }).catch(function(e) { console.warn('Scholar exam registration failed:', e); });
+
+    // Server picks the 25 questions (by index into its own bank) to prevent
+    // clients from supplying their own answer keys (Fix C-NEW-7).
+    // We show a loading state while the CF responds.
+    inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-muted);font-size:0.95rem;">⌛ Preparing your exam…</div>';
+    modal.classList.add('open');
+
+    if (typeof firebase === 'undefined' || !firebase.functions) {
+        inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">Exam system unavailable. Please refresh and try again.</div>';
+        return;
     }
 
-    // Save session start info
-    const sessionData = {
-        questions: scholarQuestions,
-        answers: scholarAnswers,
-        startTime: Date.now(),
-        currentIndex: 0
-    };
-    sessionStorage.setItem('btc_scholar_session_' + keyPrefix, JSON.stringify(sessionData));
+    firebase.functions().httpsCallable('startScholarExam')({
+        type: scholarType
+    }).then(function(res) {
+        var indices = (res && res.data && Array.isArray(res.data.indices)) ? res.data.indices : null;
+        var examId = res && res.data && res.data.examId;
+        if (!indices || indices.length !== 25 || !examId) {
+            inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">Failed to start exam. Please refresh and try again.</div>';
+            return;
+        }
+        window._scholarExamId = examId;
+        // Use the server-provided indices to pick the questions from the local pool.
+        // The client still has {q, a, w} locally for rendering — the server only cares
+        // about the `a` it stored for grading.
+        scholarQuestions = indices.map(function(i) { return pool[i]; }).filter(Boolean);
+        if (scholarQuestions.length !== 25) {
+            inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">Exam bank mismatch. Please hard-refresh (Cmd+Shift+R) and try again.</div>';
+            return;
+        }
 
-    window._scholarExamActive = true;
-    renderScholarQuestion(0);
-    modal.classList.add('open');
-    startScholarTimer();
+        // Save session
+        const sessionData = {
+            questions: scholarQuestions,
+            answers: scholarAnswers,
+            startTime: Date.now(),
+            currentIndex: 0,
+            examId: examId,
+            indices: indices
+        };
+        sessionStorage.setItem('btc_scholar_session_' + keyPrefix, JSON.stringify(sessionData));
+
+        window._scholarExamActive = true;
+        renderScholarQuestion(0);
+        startScholarTimer();
+    }).catch(function(e) {
+        console.warn('Scholar exam start failed:', e);
+        var msg = (e && e.message) ? e.message : 'Please try again.';
+        inner.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#ef4444;">⚠️ ' + msg + '</div>';
+    });
 }
 
 function fisherYates(arr) {

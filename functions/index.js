@@ -1467,6 +1467,9 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
     const userRef = db.collection('users').doc(uid);
     const dailyRef = userRef.collection('sats_daily').doc(today);
     const globalRef = db.collection('faucet_stats').doc(today);
+    // Server-only ledger — immune to client account-deletion (C-NEW-6 fix)
+    // Firestore rules DENY all client reads/writes to this collection.
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
 
     let transactionPassed = false;
     try {
@@ -1520,15 +1523,35 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 }
             }
 
-            // Check lifetime cap
-            const satsWithdrawn = user.satsWithdrawn || 0;
+            // Read server-only ledger (survives account deletion) — C-NEW-6 fix
+            const ledgerDoc = await t.get(ledgerRef);
+            const ledger = ledgerDoc.exists ? ledgerDoc.data() : {};
+
+            // Check lifetime cap — use MAX of user doc and ledger to handle both
+            // pre-existing users (only have user.satsWithdrawn) and post-deletion
+            // attackers (user doc reset, ledger intact).
+            const userSatsWithdrawn = user.satsWithdrawn || 0;
+            const ledgerSatsWithdrawn = ledger.satsWithdrawn || 0;
+            const satsWithdrawn = Math.max(userSatsWithdrawn, ledgerSatsWithdrawn);
             if (satsWithdrawn + amount > FAUCET.MAX_LIFETIME_PER_USER_SATS) {
                 const remaining = FAUCET.MAX_LIFETIME_PER_USER_SATS - satsWithdrawn;
                 throw new Error('Lifetime cap reached. You can withdraw ' + remaining + ' more sats.');
             }
 
-            // Check 24h cooldown
-            const lastClaim = user.lastSatsClaim ? (user.lastSatsClaim.toDate ? user.lastSatsClaim.toDate() : new Date(user.lastSatsClaim)) : null;
+            // Check 24h cooldown — again use max(user, ledger)
+            function _toDate(v) {
+                if (!v) return null;
+                if (v.toDate) return v.toDate();
+                return new Date(v);
+            }
+            const userLastClaim = _toDate(user.lastSatsClaim);
+            const ledgerLastClaim = _toDate(ledger.lastSatsClaim);
+            let lastClaim = null;
+            if (userLastClaim && ledgerLastClaim) {
+                lastClaim = userLastClaim.getTime() > ledgerLastClaim.getTime() ? userLastClaim : ledgerLastClaim;
+            } else {
+                lastClaim = userLastClaim || ledgerLastClaim;
+            }
             if (lastClaim) {
                 const cooldownEnd = lastClaim.getTime() + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
                 if (Date.now() < cooldownEnd) {
@@ -1561,6 +1584,16 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
                 lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
                 _pendingClaim: true // flag: payment in progress
             });
+
+            // ALSO write to server-only ledger (C-NEW-6 fix). Using set+merge so
+            // first-time users get a fresh doc, and increment so multi-claim adds up.
+            t.set(ledgerRef, {
+                satsWithdrawn: admin.firestore.FieldValue.increment(amount),
+                lastSatsClaim: admin.firestore.FieldValue.serverTimestamp(),
+                lastUid: uid,
+                claimCount: admin.firestore.FieldValue.increment(1),
+                firstClaim: ledgerDoc.exists ? (ledger.firstClaim || admin.firestore.FieldValue.serverTimestamp()) : admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
 
             t.set(dailyRef, { amount: admin.firestore.FieldValue.increment(amount) }, { merge: true });
             t.set(globalRef, { totalPaid: admin.firestore.FieldValue.increment(amount), claimCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
@@ -1672,6 +1705,11 @@ async function _rollbackClaim(uid, amount, today) {
             satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
             _pendingClaim: admin.firestore.FieldValue.delete()
         });
+        // Also roll back the server-only ledger (C-NEW-6 fix)
+        batch.set(db.collection('faucet_ledger').doc(uid), {
+            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
+            claimCount: admin.firestore.FieldValue.increment(-1)
+        }, { merge: true });
         batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
             amount: admin.firestore.FieldValue.increment(-amount)
         }, { merge: true });
@@ -2645,35 +2683,61 @@ exports.pvpCreateMatch = functions.https.onCall(async (data, context) => {
 });
 
 // ── Scholar Exam: Server-Side Grading ──
+// SCHOLAR_BANK is loaded once per cold start. Contains authoritative correct answers.
+// Format: { properties: [{a: "..."}, ...], technical: [{a: "..."}, ...] }
+const SCHOLAR_BANK = require('./scholar-bank.json');
+
+function _pickScholarQuestions(type) {
+    const pool = type === 'technical' ? SCHOLAR_BANK.technical : SCHOLAR_BANK.properties;
+    if (!Array.isArray(pool) || pool.length < 25) {
+        throw new functions.https.HttpsError('internal', 'Exam bank misconfigured');
+    }
+    // Pick 25 unique indices
+    const indices = [];
+    const used = new Set();
+    while (indices.length < 25) {
+        const i = Math.floor(Math.random() * pool.length);
+        if (!used.has(i)) { used.add(i); indices.push(i); }
+    }
+    return indices; // array of 25 ints into SCHOLAR_BANK[type]
+}
+
 exports.startScholarExam = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
     if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functions.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
     }
 
-    const { type, questions } = data || {};
-    if (!type || !questions || !Array.isArray(questions)) {
-        throw new functions.https.HttpsError('invalid-argument', 'Missing type or questions');
-    }
-    if (questions.length !== 25) {
-        throw new functions.https.HttpsError('invalid-argument', 'Must have exactly 25 questions');
+    const { type } = data || {};
+    if (type !== 'properties' && type !== 'technical') {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid exam type');
     }
 
     const uid = context.auth.uid;
     const examId = uid + '_' + type + '_' + Date.now();
 
-    // Store answer keys server-side
-    const answerKeys = questions.map((q, i) => ({ index: i, correct: q.a }));
+    // SERVER picks the questions (by index into its own bank). The client
+    // never gets to supply answer keys — this closes C-NEW-7.
+    const indices = _pickScholarQuestions(type);
+    // Build the authoritative key array: the correct answer for each picked question
+    const keys = indices.map((idx, i) => ({
+        index: i,
+        poolIdx: idx,
+        correct: SCHOLAR_BANK[type][idx].a
+    }));
 
     await db.collection('scholar_exam_keys').doc(examId).set({
         uid,
         type,
-        keys: answerKeys,
+        indices, // indices into the pool — client fetches these
+        keys,    // correct answers — never sent to client
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         graded: false,
     });
 
-    return { examId };
+    // Return ONLY the indices to the client. The client already has the
+    // client-side pool and can render questions by index.
+    return { examId, indices };
 });
 
 exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
@@ -2698,7 +2762,29 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
         if (exam.uid !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your exam');
         if (exam.graded) throw new functions.https.HttpsError('already-exists', 'Exam already graded');
 
-        // Grade server-side
+        const type = exam.type;
+        const keyPrefix = type === 'technical' ? 'tech' : 'prop';
+        const today = new Date().toISOString().split('T')[0];
+
+        // Read user doc to enforce once-per-day + once-per-cert rules
+        const userRef = db.collection('users').doc(uid);
+        const userDoc = await tx.get(userRef);
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const alreadyPassed = userData['certPassed_' + keyPrefix] === true;
+        const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
+
+        // Block double-dipping: once passed, no more points for this cert type
+        if (alreadyPassed) {
+            tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'already_certified', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
+            throw new functions.https.HttpsError('failed-precondition', 'You already hold this certification.');
+        }
+        // Block rapid retakes same day (daily cooldown)
+        if (lastAttempt === today) {
+            tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'daily_limit', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
+            throw new functions.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
+        }
+
+        // Grade server-side using server-held keys
         let score = 0;
         const keys = exam.keys;
         for (let i = 0; i < 25; i++) {
@@ -2706,23 +2792,21 @@ exports.gradeScholarExam = functions.https.onCall(async (data, context) => {
         }
 
         const passed = score >= 20;
-        const type = exam.type;
-        const keyPrefix = type === 'technical' ? 'tech' : 'prop';
-        const today = new Date().toISOString().split('T')[0];
 
         // Mark exam as graded
         tx.update(examRef, { graded: true, score, passed, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
 
-        // Save attempt date
-        const userRef = db.collection('users').doc(uid);
+        // Save attempt date (rate-limits to one attempt per UTC day)
         const attemptField = 'lastExamAttempt_' + keyPrefix;
         const update = {};
         update[attemptField] = today;
 
         if (passed) {
-            // Award points server-side
+            // Award points server-side. Still increments directly (outside daily cap by design),
+            // but now limited to ONCE per cert type thanks to the alreadyPassed gate above.
             update.points = admin.firestore.FieldValue.increment(2100);
             update['certPassed_' + keyPrefix] = true;
+            update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
 
         tx.update(userRef, update);

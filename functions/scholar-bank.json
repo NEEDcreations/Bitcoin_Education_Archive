@@ -1,0 +1,1143 @@
+{
+  "properties": [
+    {
+      "a": "Its supply schedule is fixed in code and cannot be changed by any authority"
+    },
+    {
+      "a": "The double-spending problem completely without needing any trusted intermediary"
+    },
+    {
+      "a": "It possesses superior monetary properties: scarcity, durability, portability, divisibility, and fungibility"
+    },
+    {
+      "a": "It halves approximately every 4 years until all 21 million Bitcoin are mined"
+    },
+    {
+      "a": "Changing it would require near-universal consensus, and no rational participant would devalue their own holdings"
+    },
+    {
+      "a": "Its decentralized network of nodes that no single entity can control or shut down"
+    },
+    {
+      "a": "It cannot be debased, inflated, or manipulated by any central authority"
+    },
+    {
+      "a": "Bitcoin removes the ability of institutions to inflate away purchasing power through money printing"
+    },
+    {
+      "a": "It provides real-world thermodynamic security that makes the network extremely costly to attack"
+    },
+    {
+      "a": "It fundamentally ensures no single point of failure and prevents any entity from controlling or censoring transactions"
+    },
+    {
+      "a": "They independently verify every transaction and block against consensus rules"
+    },
+    {
+      "a": "Full nodes would reject their invalid blocks, and miners would waste their energy"
+    },
+    {
+      "a": "Changes require rough consensus among users, developers, miners, and node operators — no one group has unilateral control"
+    },
+    {
+      "a": "Bitcoin's supply is mathematically fixed and verifiable, while gold's total supply is unknown and new deposits can be discovered"
+    },
+    {
+      "a": "It surpasses gold's stock-to-flow ratio, making Bitcoin the hardest money ever created"
+    },
+    {
+      "a": "The proof-of-work system ensures that creating valid Bitcoin requires real energy expenditure that cannot be faked"
+    },
+    {
+      "a": "Purchasing power increases over time, rewarding those who produce more than they consume"
+    },
+    {
+      "a": "Reverse their own recent transactions (double-spend), but NOT steal others' coins or create fake Bitcoin"
+    },
+    {
+      "a": "Higher prices incentivize more mining, increasing the hash rate and making attacks more expensive"
+    },
+    {
+      "a": "It converts real-world energy into digital security, making attacks require equivalent real-world resources"
+    },
+    {
+      "a": "Despite being a multi-trillion dollar bounty, the protocol has never been successfully hacked since its inception"
+    },
+    {
+      "a": "PoS cannot achieve trustless consensus without an external anchor to the physical world"
+    },
+    {
+      "a": "Those with the most capital gain the most power and rewards, similar to how traditional finance concentrates wealth"
+    },
+    {
+      "a": "Governments continuously increase the money supply, diluting the purchasing power of existing currency"
+    },
+    {
+      "a": "Valuing future rewards more highly and making long-term decisions rather than seeking instant gratification"
+    },
+    {
+      "a": "Its fixed supply and decentralized nature make it immune to the inflationary policies of any government"
+    },
+    {
+      "a": "Whoever holds the private keys has direct ownership without relying on any institution"
+    },
+    {
+      "a": "There is a fixed amount of 'space' on the blockchain, and no more can ever be created"
+    },
+    {
+      "a": "The base layer prioritizes security and decentralization, so additional layers handle speed and scalability"
+    },
+    {
+      "a": "By creating payment channels where transactions settle between parties without broadcasting to the main chain"
+    },
+    {
+      "a": "If you don't control your private keys, a third party controls your Bitcoin and could lose, freeze, or steal them"
+    },
+    {
+      "a": "Digital storage is vulnerable to hacking, malware, and data breaches that could expose your keys"
+    },
+    {
+      "a": "To secure the network by making it computationally expensive to attack or rewrite transaction history"
+    },
+    {
+      "a": "It ensures blocks are found approximately every 10 minutes regardless of how much mining power joins or leaves"
+    },
+    {
+      "a": "Miners can monetize stranded or excess energy that would otherwise be wasted, subsidizing renewable projects"
+    },
+    {
+      "a": "Miners will be incentivized solely by transaction fees to continue securing the network"
+    },
+    {
+      "a": "The ability to store, send, and receive value without permission from or control by any third party"
+    },
+    {
+      "a": "Countries that adopt Bitcoin first gain an advantage, so rational actors are incentivized to adopt before competitors do"
+    },
+    {
+      "a": "The cost of attacking the network far exceeds any potential profit from cheating"
+    },
+    {
+      "a": "The systemic risk of trusting centralized institutions with the global financial system"
+    },
+    {
+      "a": "It references a bank bailout headline, highlighting the broken financial system Bitcoin was created to address"
+    },
+    {
+      "a": "The most secure, liquid, and widely accepted monetary network attracts users exponentially, reinforcing its dominance"
+    },
+    {
+      "a": "The longer Bitcoin survives and thrives, the longer its expected remaining lifespan becomes"
+    },
+    {
+      "a": "No money has intrinsic value — value is subjective, and Bitcoin's monetary properties make it superior to alternatives"
+    },
+    {
+      "a": "The comparison ignores that Bitcoin secures a global financial network and monetizes otherwise stranded energy"
+    },
+    {
+      "a": "Bitcoin's base layer is a settlement network optimized for security, while payment layers like Lightning handle daily transactions"
+    },
+    {
+      "a": "Creating another cryptocurrency doesn't affect Bitcoin's supply, just as starting a new company doesn't dilute Apple's shares"
+    },
+    {
+      "a": "Cash is used far more for illicit activity, and Bitcoin's transparent blockchain actually makes it poor for crime"
+    },
+    {
+      "a": "An Unspent Transaction Output — the fundamental unit of Bitcoin ownership that tracks which coins can be spent"
+    },
+    {
+      "a": "A fork copies Bitcoin's code but cannot replicate its network effect, security, and decentralization"
+    },
+    {
+      "a": "It provides sufficient time for blocks to propagate globally, maintaining decentralization and reducing orphaned blocks"
+    },
+    {
+      "a": "It provides an uncensorable financial tool that cannot be seized or frozen by oppressive governments"
+    },
+    {
+      "a": "Governments can no longer print money to fund wars — they must tax citizens directly, increasing political accountability"
+    },
+    {
+      "a": "Anyone with internet access can participate in the financial system without needing bank accounts, credit checks, or identification"
+    },
+    {
+      "a": "Bitcoin's base layer plus additional protocol layers can serve all monetary and smart contract use cases without the trade-offs altcoins make"
+    },
+    {
+      "a": "Its monetary policy has been changed multiple times, demonstrating it has no credible commitment to a fixed supply"
+    },
+    {
+      "a": "Bitcoin's value comes from its unique properties — decentralization, security, immutability — which no altcoin has replicated"
+    },
+    {
+      "a": "It incentivizes long-term thinking, capital accumulation, investment in the future, and intergenerational wealth building"
+    },
+    {
+      "a": "Sound money incentivizes long-term creation and patronage, as the value of savings is preserved over time"
+    },
+    {
+      "a": "Just as physical value requires energy to create, Bitcoin requires energy expenditure to produce, anchoring digital value to real-world cost"
+    },
+    {
+      "a": "It reduces new supply entering the market while demand typically grows, creating supply shock pressure"
+    },
+    {
+      "a": "Run your own node and verify that your Bitcoin actually exists and follows the rules, rather than trusting a third party"
+    },
+    {
+      "a": "It would compromise decentralization by making it expensive for ordinary users to run full nodes"
+    },
+    {
+      "a": "Like TCP/IP provides a secure base layer with HTTP/HTTPS on top, Bitcoin's base layer settles value while upper layers handle speed and functionality"
+    },
+    {
+      "a": "No single entity can prevent a valid transaction from being included in a block — miners compete to include any fee-paying transaction"
+    },
+    {
+      "a": "Self-custodied Bitcoin cannot be frozen, seized, or restricted by any institution regardless of political pressure"
+    },
+    {
+      "a": "It's an invisible tax on the entire economy that disproportionately impacts small businesses and gets passed to consumers through higher prices"
+    },
+    {
+      "a": "Bitcoin transactions are truly final and irreversible after sufficient confirmations, unlike bank transfers which can be reversed for months"
+    },
+    {
+      "a": "Fiat requires perpetual growth and new debt to service existing debt, while early holders' purchasing power is continuously diluted"
+    },
+    {
+      "a": "Block times would temporarily slow, then the difficulty adjustment would reduce difficulty to restore the target 10-minute block time"
+    },
+    {
+      "a": "Upgrades require broad consensus from the decentralized community and cannot be forced by any individual or group"
+    },
+    {
+      "a": "It ensures that non-upgraded nodes can still function and validate transactions, preventing network splits"
+    },
+    {
+      "a": "As adoption grows and market capitalization increases, Bitcoin will absorb price shocks more easily, similar to how gold's volatility decreased over centuries"
+    },
+    {
+      "a": "Short-term volatility is the price of long-term appreciation — Bitcoin has outperformed every other asset class over any 4+ year period"
+    },
+    {
+      "a": "They mix multiple users' transactions together, making it difficult to trace the origin and destination of specific coins"
+    },
+    {
+      "a": "Voting can be gamed by wealthy entities, while rough consensus requires such overwhelming agreement that controversial changes are nearly impossible"
+    },
+    {
+      "a": "A decentralized, permissionless, censorship-resistant monetary network secured by proof-of-work"
+    },
+    {
+      "a": "To emphasize that Bitcoin's value should be measured by its properties and utility, not its fiat exchange rate"
+    },
+    {
+      "a": "The practice of consistent, disciplined accumulation of the hardest money ever created, regardless of price"
+    },
+    {
+      "a": "It provides an opt-out from a financial system that devalues savings and labor, offering a path to financial sovereignty for everyone"
+    },
+    {
+      "a": "When money is printed, earlier receivers benefit while later receivers get diluted purchasing power — someone is always left holding devalued currency"
+    },
+    {
+      "a": "Rather than fighting the existing financial system, Bitcoin allows people to opt out and build a parallel, superior alternative"
+    },
+    {
+      "a": "Anyone can independently verify Bitcoin's supply using a node, while other 'scarce' assets require trusting third-party claims"
+    },
+    {
+      "a": "Bitcoin rewards savers with increasing purchasing power instead of punishing them with inflation as fiat systems do"
+    },
+    {
+      "a": "Bitcoin's fundamental properties — fixed supply, growing demand, halvings — create a structural trend toward value appreciation"
+    },
+    {
+      "a": "Each attack, ban, or crisis it survives makes the network stronger and more resilient"
+    },
+    {
+      "a": "Just as religious freedom was advanced by removing state control of religion, economic freedom is advanced by removing state control of money"
+    },
+    {
+      "a": "A factor of 4 (either 4x increase or 1/4 reduction)"
+    },
+    {
+      "a": "Bad money drives out good money; people spend inflationary fiat and hoard scarce Bitcoin"
+    },
+    {
+      "a": "It allows a user to replace an unconfirmed transaction with a new one that pays a higher fee"
+    },
+    {
+      "a": "Sending tiny amounts of BTC to many addresses to deanonymize users through output linking"
+    },
+    {
+      "a": "The Times; 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks'"
+    },
+    {
+      "a": "The very first transaction in every block, used by the miner to claim the block reward and fees"
+    },
+    {
+      "a": "Difficulty is a relative measure of how hard it is to find a hash below a certain Target number"
+    },
+    {
+      "a": "A technique where multiple users combine their transactions into one, breaking the link between inputs and outputs"
+    },
+    {
+      "a": "Bad money (fiat) is spent, good money (Bitcoin) is hoarded; people prefer holding the scarcer asset"
+    },
+    {
+      "a": "An event every 210,000 blocks (~4 years) where the block reward for miners is cut in half"
+    },
+    {
+      "a": "A Bitcoin wallet that is never connected to the internet, providing maximum security against hacks"
+    },
+    {
+      "a": "The Private Key is used to sign transactions; the Public Key (and address) is used to receive them"
+    },
+    {
+      "a": "Money that has value only because a government declares it is legal tender (e.g., USD, Euro)"
+    },
+    {
+      "a": "The fixed issuance schedule (block reward) and the periodic halving events every 4 years"
+    },
+    {
+      "a": "The 9-page document by Satoshi Nakamoto that first described how Bitcoin would work"
+    },
+    {
+      "a": "A 'waiting room' for unconfirmed transactions where they sit before being included in a block"
+    },
+    {
+      "a": "A process every 2,016 blocks (~2 weeks) that ensures blocks are found on average every 10 minutes"
+    },
+    {
+      "a": "Instantly and cheaply sending small amounts of Bitcoin (sats) anywhere in the world"
+    },
+    {
+      "a": "Holding your own private keys so that no bank or company can control or freeze your money"
+    },
+    {
+      "a": "A misspelling of 'HOLD' in a 2013 forum post that became a mantra for long-term saving"
+    },
+    {
+      "a": "Unspent Transaction Output; a chunk of Bitcoin that exists on the blockchain and can be spent"
+    },
+    {
+      "a": "The absolute maximum number of Bitcoin that will ever exist, making it a scarce asset"
+    },
+    {
+      "a": "A consensus mechanism where miners spend energy to secure the network and confirm blocks"
+    },
+    {
+      "a": "The very first block of the Bitcoin blockchain, mined on January 3, 2009"
+    },
+    {
+      "a": "The pseudonymous creator of Bitcoin who disappeared from the internet in 2011"
+    },
+    {
+      "a": "The main software implementation of Bitcoin that most nodes on the network run"
+    },
+    {
+      "a": "A book by Saifedean Ammous arguing that Bitcoin is the best form of money ever created"
+    },
+    {
+      "a": "Fear, Uncertainty, and Doubt; common claims like 'Bitcoin is for criminals' or 'it's a bubble'"
+    },
+    {
+      "a": "A model that values Bitcoin based on its scarcity compared to its annual production rate"
+    },
+    {
+      "a": "The opposite of Gresham's Law; people will eventually only accept 'good' money as payment"
+    },
+    {
+      "a": "People spend fiat and keep Bitcoin; scarce assets are hoarded while inferior ones are spent"
+    },
+    {
+      "a": "The limit on how much data can be in a block, affecting speed and decentralization"
+    },
+    {
+      "a": "The correct answer"
+    },
+    {
+      "a": "The code checked the sum of outputs using a signed 64-bit integer, which overflowed to a negative value when the sum became too large"
+    },
+    {
+      "a": "It ensures that the cost of rewriting history scales with global energy availability, preventing the system from being overwhelmed by computational advances"
+    },
+    {
+      "a": "Good money (Bitcoin) eventually stops being hoarded and becomes the only money accepted as people refuse 'bad' money (fiat) entirely"
+    },
+    {
+      "a": "Consolidating small UTXOs during low-fee periods to prevent high future costs and potential 'unspendable' dust"
+    },
+    {
+      "a": "The risk of spending the same digital token twice; solved by requiring a cumulative hash rate to re-write chronological history"
+    },
+    {
+      "a": "The risk that a single government or entity could seize control of a majority of hash rate in their region to censor transactions"
+    },
+    {
+      "a": "Adding a high-fee transaction that spends a UTXO from an unconfirmed parent transaction to motivate miners to confirm both"
+    },
+    {
+      "a": "It emphasizes the protocol's primary innovation: establishing a shared, chronological arrow of time in a decentralized environment"
+    },
+    {
+      "a": "A marketing term used by those who wanted a hard fork to increase block size, claimed to align with the creator's original intent"
+    },
+    {
+      "a": "Sphinx; it allows intermediate nodes to only see their immediate predecessor and successor in a payment path"
+    },
+    {
+      "a": "Outputs whose value is less than the cost to spend them; spending them results in a net loss of Bitcoin"
+    },
+    {
+      "a": "The trade-off between Security, Scalability, and Decentralization; Bitcoin prioritizes Security and Decentralization"
+    },
+    {
+      "a": "A transaction that allows a victim to claim all funds in a channel if their partner broadcasts an old state"
+    },
+    {
+      "a": "Choosing which specific coins to spend to minimize fees (fewer inputs) and avoid linking sensitive addresses (privacy)"
+    },
+    {
+      "a": "Disseminating information about channel openings, node capabilities, and routing fees across the network"
+    },
+    {
+      "a": "The point at which mining efficiency meets electricity costs; the DAA ensures mining remains possible even if price drops"
+    },
+    {
+      "a": "The new BTC issued plus fees; fees currently make up a small but growing percentage (typically 1-10%)"
+    },
+    {
+      "a": "A software developer who was chosen by Satoshi Nakamoto to be the project's lead maintainer in 2010"
+    },
+    {
+      "a": "It includes a payment hash for a specific secret; reusing it can lead to funds being stolen via state replication"
+    },
+    {
+      "a": "2083236893; it is purely a data value found during mining to produce the specific genesis hash"
+    },
+    {
+      "a": "A cryptographer who proposed Bit Gold in 1998, which featured PoW and difficulty targets similar to Bitcoin"
+    },
+    {
+      "a": "An open-source block explorer and visualizer for the mempool; used to estimate current transaction fees"
+    },
+    {
+      "a": "The time since a UTXO was last moved; HODL Waves visualize the changing distribution of these ages over time"
+    },
+    {
+      "a": "1300 bytes; it includes HMACs, ephemeral keys, and hop-specific payloads for up to 20 nodes"
+    },
+    {
+      "a": "The collection of all unspent outputs; it must be quickly accessible to verify that a new transaction is valid"
+    },
+    {
+      "a": "No; staking is a Proof-of-Stake feature, while Bitcoin uses Proof-of-Work to verify transactions with energy"
+    },
+    {
+      "a": "A third-party service that monitors the blockchain for channel breaches and broadcasts justice transactions for you"
+    },
+    {
+      "a": "A Bitcoin developer who advocated for keeping the block size small (300KB proposal) to maintain decentralization"
+    },
+    {
+      "a": "It contains all unspent outputs; the larger it grows, the more RAM the node needs to maintain fast validation"
+    },
+    {
+      "a": "Linking multiple transactions to a single owner; reuse makes it trivial for chain analysis to Deanonymize a user"
+    },
+    {
+      "a": "The uncertainty of channel liquidity; nodes must guess which routes currently have enough capacity to move funds"
+    },
+    {
+      "a": "Nick Szabo; he proposed protocols that automatically execute terms of a contract using cryptographic code"
+    },
+    {
+      "a": "Breaking a large UTXO into smaller ones to ensure it has enough 'change' for multiple channel openings"
+    },
+    {
+      "a": "Base fee (fixed sats) + proportional fee (part-per-million of the amount routed)"
+    },
+    {
+      "a": "Varies depending on implementation, but typically supports up to 20 hops (nodes) in a single path"
+    },
+    {
+      "a": "The smallest unit of Bitcoin; 8 significant figures (decimal places) are used in its calculation"
+    },
+    {
+      "a": "2,016 blocks; typically takes exactly 2 weeks if blocks are found every 10 minutes"
+    },
+    {
+      "a": "It prevents the artificial lowering of interest rates through credit expansion, which causes malinvestment."
+    },
+    {
+      "a": "The ability of the money to resist physical decay or degradation over significant periods of time."
+    },
+    {
+      "a": "The observation that good money eventually stops being hoarded and becomes the preferred medium of exchange as bad money fails."
+    },
+    {
+      "a": "It ensures that the creation of new units requires a verifiable and significant real-world sacrifice (energy)."
+    },
+    {
+      "a": "The uneven distribution of inflation, where those closest to the source of new money benefit at the expense of others."
+    },
+    {
+      "a": "Valuing long-term stability and future purchasing power over immediate, impulsive consumption."
+    },
+    {
+      "a": "By using a proof-of-work timechain where the majority of hash power determines the canonical history."
+    },
+    {
+      "a": "A truly finite supply of digital units that cannot be copied; achieved through decentralized consensus and PoW."
+    },
+    {
+      "a": "How easily an asset can be transported or sent over long distances without losing significant value."
+    },
+    {
+      "a": "It must be able to preserve purchasing power into the future without degrading or being easily inflated."
+    },
+    {
+      "a": "The profit made by issuing money; in Bitcoin, this is the block reward which is distributed to miners for securing the network."
+    },
+    {
+      "a": "The difficulty of trustlessly bringing real-world data into an on-chain environment."
+    },
+    {
+      "a": "Miners can monetization stranded or wasted energy sources that are otherwise unprofitable to capture."
+    },
+    {
+      "a": "The theoretical process where Bitcoin becomes the world's dominant form of money and unit of account."
+    },
+    {
+      "a": "It allows for transactions of all sizes, from very small to very large, without losing value."
+    },
+    {
+      "a": "Each unit of the money is interchangeable and equivalent to any other unit."
+    },
+    {
+      "a": "An asset where ownership is determined solely by physical or cryptographic possession, with no registry."
+    },
+    {
+      "a": "Trust in third parties creates systemic risk and middlemen; verification allows for true individual sovereignty."
+    },
+    {
+      "a": "The problem in a barter economy where each party must want exactly what the other has; money acts as an intermediary."
+    },
+    {
+      "a": "The ratio of the existing supply (stock) to the annual production rate (flow)."
+    },
+    {
+      "a": "A theory that Bitcoin provides a non-lethal way for nations to compete for power via computational work."
+    },
+    {
+      "a": "It removes the ability of governments and banks to use your wealth to fund activities you may disagree with."
+    },
+    {
+      "a": "The pseudonymous creator; disappearance ensured Bitcoin had no single point of failure or leader to co-opt."
+    },
+    {
+      "a": "Laszlo Hanyecz bought two pizzas for 10,000 BTC, marking the first real-world Bitcoin purchase."
+    },
+    {
+      "a": "A monetary principle stating that 'bad money drives out good' via spending habits."
+    },
+    {
+      "a": "It shares gold's properties of scarcity and durability, but added superior portability and divisibility."
+    },
+    {
+      "a": "Money with a purchasing power that is determined by markets and hidden from government manipulation."
+    },
+    {
+      "a": "An increase in money supply that devalues currency; Bitcoin has a strictly fixed supply cap."
+    },
+    {
+      "a": "The fact that no single entity control's the network; it is run by thousands of independent nodes."
+    },
+    {
+      "a": "A way to protect their labor and savings from high local inflation and government seizure."
+    },
+    {
+      "a": "The blockchain provides an objective, immutable, and verifiable record of history that anyone can audit."
+    },
+    {
+      "a": "Validate the rules and your coins using your own node instead of relying on a third party."
+    },
+    {
+      "a": "It ensures that no authority can stop you from transacting with whoever you choose."
+    },
+    {
+      "a": "The idea that the longer Bitcoin survives, the higher its probability of lasting far into the future."
+    },
+    {
+      "a": "Money that is difficult for any authority to produce or inflate away."
+    },
+    {
+      "a": "A decrease in the supply of money or prices; it rewards saving and increases purchasing power over time."
+    },
+    {
+      "a": "It highlighted the fragility and systemic risk of centralized banking, leading Satoshi to create an alternative."
+    },
+    {
+      "a": "It allows anyone to audit the code, ensuring there are no backdoors or hidden vulnerabilities."
+    },
+    {
+      "a": "Currency that has value only because a government decree says so, with no physical backing."
+    },
+    {
+      "a": "The ability of an individual or nation to control their own money without outside interference."
+    },
+    {
+      "a": "Without privacy, coins can be'tainted' by their history, making them worth less than'clean' coins."
+    },
+    {
+      "a": "Bitcoin's design which incentivizes adoption through scarcity and programmatic issuance."
+    },
+    {
+      "a": "The property of the network getting stronger and more resilient as it is attacked or pressured."
+    },
+    {
+      "a": "A community battle over network scaling; users won by prioritizing decentralization over high throughput."
+    },
+    {
+      "a": "By providing an opt-out from central planning and allowing for unconfiscatable personal wealth."
+    },
+    {
+      "a": "The'anchor' that connects the digital network to physical reality, making history costly to rewrite."
+    },
+    {
+      "a": "A world where Bitcoin is the primary form of money, encouraging low time preference and savings."
+    },
+    {
+      "a": "The chronological order of transactions established by cumulative computational work."
+    },
+    {
+      "a": "It does not care who uses it, for what purpose, or what their political views are."
+    },
+    {
+      "a": "The process of learning about Bitcoin and realizing its deep implications for history and society."
+    },
+    {
+      "a": "Stable money that cannot be manipulated, allowing for accurate economic coordination and planning."
+    },
+    {
+      "a": "A requirement for miners to expend resources to win block rewards, ensuring no one gets coins for free."
+    },
+    {
+      "a": "Individual control over one's digital presence, data, and wealth using cryptography and tools."
+    },
+    {
+      "a": "It can function even if a major government or banking system collapses, providing financial survival."
+    },
+    {
+      "a": "A programmatic reduction in supply issuance that creates recurring'supply shocks'."
+    },
+    {
+      "a": "The absolute limit on the number of Bitcoins that will ever exist, ensuring permanent scarcity."
+    },
+    {
+      "a": "Predictable scarcity ensures that value is not diluted over time, motivating people to hold for the future."
+    }
+  ],
+  "technical": [
+    {
+      "a": "Users can always independently verify every transaction and rule without trusting third parties"
+    },
+    {
+      "a": "Its decentralized peer-to-peer network can operate across borders with no central point to shut down"
+    },
+    {
+      "a": "For the first time in history, humans created an asset with a supply that is provably finite and immutable"
+    },
+    {
+      "a": "Bitcoin can be upgraded with quantum-resistant cryptography, and quantum computers would need to break SHA-256 and ECDSA simultaneously"
+    },
+    {
+      "a": "PoW requires ongoing real-world energy expenditure, preventing the accumulation of permanent control through wealth alone"
+    },
+    {
+      "a": "Rules-based monetary policy removes human error, corruption, and political manipulation from money creation"
+    },
+    {
+      "a": "It shows how those closest to new money creation benefit at the expense of everyone else, a problem Bitcoin eliminates"
+    },
+    {
+      "a": "Larger blocks increase throughput but reduce decentralization by making it harder to run full nodes"
+    },
+    {
+      "a": "It is the master backup that can regenerate all private keys and recover funds from any compatible wallet"
+    },
+    {
+      "a": "Privacy protects individuals from persecution, theft, and economic manipulation by powerful entities"
+    },
+    {
+      "a": "It creates surveillance databases, connects identities to Bitcoin holdings, and undermines the censorship-resistant properties"
+    },
+    {
+      "a": "Understanding Bitcoin's principles naturally shifts your perspective on money, time, and value"
+    },
+    {
+      "a": "Adoption grows slowly through education and understanding, then accelerates rapidly through network effects"
+    },
+    {
+      "a": "It ensured no single leader could be pressured, corrupted, or become a central point of failure"
+    },
+    {
+      "a": "Each new user increases liquidity, security, development, and adoption, creating a self-reinforcing cycle that competitors cannot easily replicate"
+    },
+    {
+      "a": "Each block creates an immutable timestamp, establishing chronological ordering of all transactions"
+    },
+    {
+      "a": "The cumulative proof-of-work built on top of a transaction makes it exponentially harder to reverse"
+    },
+    {
+      "a": "It provides permissionless access to savings, payments, and financial services for anyone worldwide"
+    },
+    {
+      "a": "The blockchain is only valuable because of Bitcoin's decentralized consensus — without it, a blockchain is just an inefficient database"
+    },
+    {
+      "a": "Rome debased its currency to fund military expansion, leading to economic collapse — a pattern repeated by modern governments"
+    },
+    {
+      "a": "Easy coins are mined first, then it becomes progressively harder and more expensive, similar to mining gold or oil"
+    },
+    {
+      "a": "It allows you to independently verify all transactions and consensus rules without trusting anyone"
+    },
+    {
+      "a": "Bitcoin's underlying technology, philosophy, and monetary properties are transformative regardless of short-term price movements"
+    },
+    {
+      "a": "People adopt Bitcoin when they've done enough research to understand it — delaying study delays adoption at lower prices"
+    },
+    {
+      "a": "It automatically balances mining profitability and block production speed regardless of computing power changes, ensuring network stability"
+    },
+    {
+      "a": "Every unit must be interchangeable with any other unit — if some coins are 'tainted', it undermines the currency's usability as money"
+    },
+    {
+      "a": "Users and node operators — not miners — ultimately control Bitcoin's rules, as demonstrated during the Segwit activation"
+    },
+    {
+      "a": "Bitcoin's superior monetary properties, network effects, and game theory incentivize rational adoption by all economic actors over time"
+    },
+    {
+      "a": "There was no premine, ICO, or insider allocation — anyone could mine from the first block under the same rules"
+    },
+    {
+      "a": "Once you truly understand Bitcoin's properties and the problems it solves, you cannot unsee the flaws in the existing monetary system"
+    },
+    {
+      "a": "To separate transaction signatures and scripts from the transaction ID (TXID) generation"
+    },
+    {
+      "a": "BIP 32"
+    },
+    {
+      "a": "Efficient batch signature verification for multisig scripts on the stack"
+    },
+    {
+      "a": "To reduce the bandwidth used to propagate new blocks by sending only short transaction IDs"
+    },
+    {
+      "a": "It allows multiple parties to create a single aggregated Schnorr signature for a shared public key"
+    },
+    {
+      "a": "The payment path remains locked until the HTLC timeout (CLTV) is reached, then it fails back"
+    },
+    {
+      "a": "It allows only the executed branch of a complex script to be revealed on the blockchain"
+    },
+    {
+      "a": "secp256k1"
+    },
+    {
+      "a": "An optimization that reduces the amount of work needed to find a valid hash by reusing work"
+    },
+    {
+      "a": "Using PBKDF2 with HMAC-SHA512 applied 2,048 times to the mnemonic and an optional passphrase"
+    },
+    {
+      "a": "A backward-compatible upgrade where old nodes still consider new blocks valid"
+    },
+    {
+      "a": "A protocol upgrade that separated signatures from transaction data, enabling Layer 2 scaling"
+    },
+    {
+      "a": "A single hash representing all the transactions in that block, ensuring they haven't been altered"
+    },
+    {
+      "a": "It ensures a payment can only be claimed if a secret is provided, preventing theft during routing"
+    },
+    {
+      "a": "The standard for using a mnemonic sentence (seed phrase) to represent a wallet's recovery key"
+    },
+    {
+      "a": "A more efficient and private way to sign Bitcoin transactions introduced with Taproot"
+    },
+    {
+      "a": "It enforced strict DER encoding to prevent transaction malleability arising from non-canonical signature formats"
+    },
+    {
+      "a": "getdata (with inventory type MSG_BLOCK)"
+    },
+    {
+      "a": "It serves as a bitmask where individual bits act as signal indicators for proposed soft fork features"
+    },
+    {
+      "a": "It is used to derive the public key for the revocation secret, allowing a peer to claim funds if an old state is broadcast"
+    },
+    {
+      "a": "Block propagation latency by assuming nodes already have most of the transactions in their mempool"
+    },
+    {
+      "a": "An optional, forward-compatible field for future protocol extensions included in the witness data"
+    },
+    {
+      "a": "Eltoo (BIP 118), which simplifies channel state management by allowing any later state to override any earlier one"
+    },
+    {
+      "a": "Hardened derivation prevents an attacker from using a parent public key and child private key to discover other parent private keys"
+    },
+    {
+      "a": "It allows a script to be split into distinct segments for signature verification, and was modified to provide better efficiency and security in Taproot"
+    },
+    {
+      "a": "It tells peers not to send invitations ('inv') for transactions with a fee rate below a specified threshold"
+    },
+    {
+      "a": "Version 0.7 used Berkeley DB with a hardcoded lock limit that was exceeded by a large block, while 0.8 used LevelDB which had no such limit"
+    },
+    {
+      "a": "MuSig2 requires only two rounds of communication, making it more efficient for signers with limited connectivity"
+    },
+    {
+      "a": "The ability to change a transaction's ID ('txid') without invalidating the signature; solved by moving the signature out of the data hashed for the txid"
+    },
+    {
+      "a": "It skips script verification for blocks before a hardcoded checkpoint while still verifying the full chain of headers and proof-of-work"
+    },
+    {
+      "a": "Witness data is weighted at 1 WU per byte, while base data is 4 WU, effectively making witness data 4x cheaper in terms of fee units"
+    },
+    {
+      "a": "SIGHASH_ANYONECANPAY"
+    },
+    {
+      "a": "Storing arbitrary data (up to 80 bytes) in a provably unspendable script output"
+    },
+    {
+      "a": "Privacy, by allowing light clients to download and check filters locally instead of telling servers which addresses they own"
+    },
+    {
+      "a": "It specifies the earliest time or block height at which the transaction can be included in a block"
+    },
+    {
+      "a": "Taproot; it uses Schnorr signatures and Merkelized Abstract Syntax Trees (MAST) to improve privacy and smart contract efficiency"
+    },
+    {
+      "a": "It allows the derivation of all child public keys; the primary risk is that if a child private key is leaked, the parent private key can be derived"
+    },
+    {
+      "a": "It allows a sender to replace a transaction with one that has a higher fee; it makes double-spending unconfirmed transactions easier"
+    },
+    {
+      "a": "80 bytes; no single field dominates (Version 4, Prev Block 32, Merkle Root 32, Time 4, Bits 4, Nonce 4)"
+    },
+    {
+      "a": "Deterministic Entropy From Mnemonic; it allows deriving multiple mnemonics from a single master seed"
+    },
+    {
+      "a": "It was a corporate-led agreement that ignored user consensus and sought to increase the block size via a hard fork"
+    },
+    {
+      "a": "Hardware designed solely for mining; it significantly increased hash rate but made home mining with CPUs/GPUs unprofitable"
+    },
+    {
+      "a": "It allows a transaction to bind to any previous output that matches a script, enabling the 'Eltoo' layer 2 protocol"
+    },
+    {
+      "a": "m / purpose' / coin_type' / account' / change / address_index (e.g., m/44'/0'/0'/0/0)"
+    },
+    {
+      "a": "Miners re-mining a high-fee block to take the rewards; nodes discourage this by setting a transaction's nLockTime to the current block height"
+    },
+    {
+      "a": "It allows a transaction to be passed between different devices (e.g., wallet to hardware signer) for signatures without exposing private keys"
+    },
+    {
+      "a": "No; they are a cryptographic compression technique used by some altcoins, but not Bitcoin, which prioritizes simple, auditable scripts"
+    },
+    {
+      "a": "A standard way to represent Bitcoin payment requests in a single link or QR code containing address, amount, and label"
+    },
+    {
+      "a": "It signs only the corresponding input and output index; it can lead to funds being burned if the output is not provided properly during transaction construction"
+    },
+    {
+      "a": "It introduced a new signature hashing algorithm to prevent the quadratic hashing problem in large transactions"
+    },
+    {
+      "a": "A way to execute smart contracts off-chain using adaptor signatures, made possible by Schnorr signatures in Taproot"
+    },
+    {
+      "a": "Creating outputs that cannot be spent until a relative amount of time or blocks have passed since the output was confirmed"
+    },
+    {
+      "a": "CLTV uses absolute time or block height; CSV uses relative time or block counts relative to confirmation"
+    },
+    {
+      "a": "Version -> Verack; nodes exchange capabilities and confirm they understand each other's protocol version"
+    },
+    {
+      "a": "Allowing light clients to verify that a UTXO is truly unspent without downloading the entire blockchain"
+    },
+    {
+      "a": "The intermediate state of the SHA-256 compression function; reusing it reduces the total work needed by 13-15%"
+    },
+    {
+      "a": "By setting at least one input's nSequence number to a value below 0xffffffff-1"
+    },
+    {
+      "a": "It allows multiple signatures in a multisig transaction to be combined into one, reducing transaction size and fees"
+    },
+    {
+      "a": "It provides a standard way to sign messages using any Bitcoin script, replacing the legacy 'signmessage' format"
+    },
+    {
+      "a": "It is the SegWit version of P2SH, where the script itself is moved to the witness data area"
+    },
+    {
+      "a": "It allows for absolute timelocks, enabling escrow services and complex payment channel structures"
+    },
+    {
+      "a": "A malleability fix for the legacy OP_CHECKMULTISIG bug that required an extra 'dummy' element on the stack"
+    },
+    {
+      "a": "It enables relative timelocks, which are essential for creating the breach remedy transactions in LN channels"
+    },
+    {
+      "a": "A measure of transaction size where witness data is counted as 1/4 the weight of other data; vByte = Total Weight / 4"
+    },
+    {
+      "a": "Traffic analysis and man-in-the-middle attacks by encrypting the communication between peer nodes"
+    },
+    {
+      "a": "Bech32; a native SegWit address format (starting with bc1) that is more efficient and provides better error detection"
+    },
+    {
+      "a": "Combining many small inputs into one output to reduce the fee-sensitive weight of future transactions"
+    },
+    {
+      "a": "Support for Tor v3 addresses and other long-lived peer identifiers, improving P2P privacy"
+    },
+    {
+      "a": "It includes an 8-bit or 4-bit checksum of the previous entropy bits to detect accidental word errors"
+    },
+    {
+      "a": "It relative timelocks the 'justice' transaction, ensuring a cheater cannot claim funds immediately after a breach"
+    },
+    {
+      "a": "Linearity; it allows for simple multi-party signature aggregation and more efficient verification"
+    },
+    {
+      "a": "Defined -> Started -> LockedIn -> Active; a structured process for miners to signal readiness for upgrades"
+    },
+    {
+      "a": "It introduced the block height as the first element in the coinbase script to prevent duplicated hashes"
+    },
+    {
+      "a": "4,000,000 weight units (equating to a theoretical maximum individual block size of ~4 MB)"
+    },
+    {
+      "a": "No-Operation; it does nothing on the stack and was intended as a placeholder for future soft-fork upgrades"
+    },
+    {
+      "a": "A candidate block containing transactions; miners typically use RPC calls like getblocktemplate"
+    },
+    {
+      "a": "High-bandwidth and Low-bandwidth; they optimize block relay based on node resources and local mempool state"
+    },
+    {
+      "a": "The inventor of Hashcash (1997), which featured the proof-of-work system used in Bitcoin mining"
+    },
+    {
+      "a": "A standardized format for passing unsigned transactions between DIFFERENT software and hardware signers"
+    },
+    {
+      "a": "They were privacy-leaking because they told the server which addresses users own; compact filters move checking to the client"
+    },
+    {
+      "a": "Consensus failure risk; non-strict encoding could lead to some nodes accepting a block while others rejected it"
+    },
+    {
+      "a": "Dijkstra's Algorithm; nodes weight channel edges by fee and liquidity to find the lowest-cost successful path"
+    },
+    {
+      "a": "Total weight divided by 4; it normalizes the fee contribution of witness and non-witness data for the 1MB limit"
+    },
+    {
+      "a": "They are 6-byte truncated SipHash-2-4 hashes derived from transaction IDs and a block-specific shared salt"
+    },
+    {
+      "a": "A Bitcoin Core developer; he co-authored Segregated Witness (BIP 141) and Taproot (BIP 341)"
+    },
+    {
+      "a": "A format for storing only unspent outputs in an ordered, compact way for faster loading of the node database"
+    },
+    {
+      "a": "A standard for passphrase-protected private keys, allowing them to be safely shared or printed (e.g. on paper wallets)"
+    },
+    {
+      "a": "Eltoo; it simplifies channel state by allowing later transactions to spend from any earlier state's output"
+    },
+    {
+      "a": "A new limit (4 million weight units) that replaces the 1MB limit, allowing blocks to be effectively larger (~2 MB)"
+    },
+    {
+      "a": "It relative timelocks an output, ensuring it can only be spent after a specific number of confirmational blocks"
+    },
+    {
+      "a": "Downloading and verifying every block from the genesis block to the current tip to build the full chain index"
+    },
+    {
+      "a": "Nodes send new blocks to peers immediately without waiting for a request, minimizing propagation time for miners"
+    },
+    {
+      "a": "Nodes provide a filter for each block that light clients check locally, significantly improving user privacy"
+    },
+    {
+      "a": "BIP 8 introduces 'LOT=true' (Lockin On Timeout), allowing an upgrade to be activated even without miner signaling"
+    },
+    {
+      "a": "0.25 (or 4x); witness data is 'cheaper,' allowing for more fee density in transactions containing witness data"
+    },
+    {
+      "a": "CSV is for relative timelocks (X blocks after confirmation); CLTV is for absolute timelocks (Block height X)"
+    },
+    {
+      "a": "Nodes download and verify headers (80 bytes) first to build a skeleton of the chain, then fetch transaction data"
+    },
+    {
+      "a": "Nodes request block transactions only after being notified by a peer; used to save bandwidth on slower links"
+    },
+    {
+      "a": "It describes the BIP process itself, defining different BIP types (Standard, Informational, Process)"
+    },
+    {
+      "a": "An individual leaf node in the Merkle Tree containing a specific script for spending an output"
+    },
+    {
+      "a": "No; it is not a standard opcode. Bitcoin prioritizes simple, auditable opcodes for consensus safety"
+    },
+    {
+      "a": "blkXXXXX.dat; where XXXXX is a sequential number (e.g., blk00000.dat, blk00001.dat)"
+    },
+    {
+      "a": "Nodes use peer-provided short IDs to build blocks; missing ones are requested with a 'getblocktxn' message"
+    },
+    {
+      "a": "Navigating a dynamic, decentralized graph with rapidly changing liquidity levels and channel states"
+    },
+    {
+      "a": "Combining a public key with a script Merkle Root into a single output key, enabling script-path spending"
+    },
+    {
+      "a": "A testing network for developers; Testnet 1, 2, 3, and 4 (the current primary version is 3 or 4)"
+    },
+    {
+      "a": "Support for Tor v3 addresses and gossip for peer identifiers, facilitating deeper privacy during discovery"
+    },
+    {
+      "a": "A single 32-byte hash representing all transactions; it allows nodes to verify inclusion without the full block"
+    },
+    {
+      "a": "Andreas M. Antonopoulos; Orange (matching the Bitcoin brand identity)"
+    },
+    {
+      "a": "It provides a common binary format for passing around unsigned transactions among various signing devices"
+    },
+    {
+      "a": "It commits to a Merkle root of scripts, allowing for both efficient key-path and script-path spending."
+    },
+    {
+      "a": "Linearity; signatures and public keys can be mathematically summed to create a single valid aggregate."
+    },
+    {
+      "a": "It provides source-routed, end-to-end encrypted instructions that hide intermediate hops in a path."
+    },
+    {
+      "a": "It would enable the Eltoo protocol by allowing any later state to bind to any earlier state's output."
+    },
+    {
+      "a": "It is a Last-In, First-Out (LIFO) stack where opcodes operate on the top-most elements available."
+    },
+    {
+      "a": "A covenant proposal allowing an output to restrict where its funds can be spent (e.g. for Vaults)."
+    },
+    {
+      "a": "A signature that requires a secret to be revealed to become valid; enabled by the linearity of Taproot."
+    },
+    {
+      "a": "The presence of a timelock that prevents funds from being moved before a certain block or time."
+    },
+    {
+      "a": "By encrypting the P2P traffic, it prevents ISPs from doing deep packet inspection to identify nodes."
+    },
+    {
+      "a": "Total Weight divided by 4 equals vSize (vBytes); vBytes is the normalized measure for fee rates."
+    },
+    {
+      "a": "A unique identifier for a specific output consisting of a Transaction ID and an output index."
+    },
+    {
+      "a": "An extensible field for future features; it is ignored now to ensure forward compatibility of rules."
+    },
+    {
+      "a": "Two rounds of communication including exchanging nonces before generating the final signature."
+    },
+    {
+      "a": "Height 3 (excluding the root); it follows log2 of the number of leaf nodes available top-down."
+    },
+    {
+      "a": "A protocol where nodes provide block filters that light clients use to privately scan for coins."
+    },
+    {
+      "a": "Using a master mnemonic to deterministically derive child mnemonics for various other wallets."
+    },
+    {
+      "a": "A structured way to write and analyze Bitcoin Script, making it easier to build secure spending rules."
+    },
+    {
+      "a": "A way to restrict how future outputs can be spent; limited to prevent complex, recursive attacks."
+    },
+    {
+      "a": "A way to perform elliptic curve public key exchange that is indistinguishable from random data."
+    },
+    {
+      "a": "Resizing a Lightning channel by adding or removing funds on-chain while keeping the channel open."
+    },
+    {
+      "a": "A federated sidechain used for faster, confidential transactions between exchanges and power-users."
+    },
+    {
+      "a": "Issuing assets (tokens) on the Bitcoin blockchain using Taproot features for maximum efficiency."
+    },
+    {
+      "a": "A field in the block header; BIP 9 uses bits within it as signals for soft fork activation status."
+    },
+    {
+      "a": "A fast, secure keyed hash function used for internal maps and hash tables to prevent DoS attacks."
+    },
+    {
+      "a": "A relative timelock opcode used to prevent a peer from stealing funds after closing a channel."
+    }
+  ]
+}

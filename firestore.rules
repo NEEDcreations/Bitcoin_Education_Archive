@@ -767,6 +767,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Faucet lifetime ledger — server-only, immune to client account deletion.
+    // Tracks satsWithdrawn + lastSatsClaim keyed by UID. Even if the user deletes
+    // their /users/{uid} doc, this ledger persists (Fix C-NEW-6).
+    match /faucet_ledger/{docId} {
+      allow read, write: if false; // Cloud Function admin SDK only
+    }
+
     // Server-side daily points tracking (Cloud Function only)
     match /users/{userId}/daily_points/{docId} {
       allow read, write: if false;
