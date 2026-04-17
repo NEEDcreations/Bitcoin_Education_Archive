@@ -627,24 +627,65 @@ service cloud.firestore {
 
     // =============================================
     // GLOBAL CHAT META (DJ state, etc.)
+    // DJ doc structure: { active, djUid, djName, trackTitle, trackArtist, trackCoverArt,
+    //   trackId, artistUid, songCount, startedAt, lastHeartbeat, lastTrackChange, trackUrl }
     // =============================================
     match /global_chat_meta/{docId} {
       allow read: if true;
-      // DJ state: only writable by the current DJ (must match djUid) or admin
+
+      // Strict: creating the DJ doc requires you to be claiming it for yourself.
+      // djUid and djName MUST match the authenticated user.
       allow create: if request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && request.resource.data.djUid == request.auth.uid
+                    && request.resource.data.djName is string
+                    && request.resource.data.djName.size() >= 2
+                    && request.resource.data.djName.size() <= 40;
+
+      // Strict: updates fall into 3 allowed paths:
+      //   1) CURRENT DJ updates their own booth (heartbeat, track change, stop).
+      //      Must preserve djUid = their own uid.
+      //   2) NEW DJ claims an empty/inactive booth. Must set djUid to their own uid
+      //      AND djName to a non-empty string.
+      //   3) ADMIN override.
+      // This closes the hijack vector where anyone could overwrite djName while active=false.
       allow update: if request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && (resource.data.get('djUid', '') == request.auth.uid
-                        || resource.data.get('djUid', '') == ''
-                        || resource.data.get('active', false) == false
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                    && (
+                      // Path 1: current DJ updating their own booth
+                      (resource.data.get('djUid', '') == request.auth.uid
+                       && request.resource.data.get('djUid', '') == request.auth.uid)
+                      ||
+                      // Path 2: claiming an empty/inactive booth OR taking over from Nacho auto-DJ.
+                      // Must set djUid to self and provide a valid djName.
+                      ((resource.data.get('djUid', '') == ''
+                        || resource.data.get('djUid', '') == 'nacho-dj'
+                        || resource.data.get('active', false) == false)
+                       && request.resource.data.djUid == request.auth.uid
+                       && request.resource.data.djName is string
+                       && request.resource.data.djName.size() >= 2
+                       && request.resource.data.djName.size() <= 40)
+                      ||
+                      // Path 3: admin
+                      (request.auth.token.email == 'needcreations@gmail.com'
+                       || request.auth.token.email == 'info.603btc@gmail.com')
+                    );
 
       // DJ Queue subcollection
       match /dj_queue/{queueId} {
         allow read: if true;
-        allow create, update: if request.auth != null
-                              && request.auth.uid == queueId;
+        // Can only add/update YOUR OWN queue entry, and it must carry your uid.
+        allow create: if request.auth != null
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.auth.uid == queueId
+                      && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.name is string
+                      && request.resource.data.name.size() >= 1
+                      && request.resource.data.name.size() <= 40;
+        allow update: if request.auth != null
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.auth.uid == queueId
+                      && request.resource.data.uid == request.auth.uid;
         allow delete: if request.auth != null
                       && (request.auth.uid == queueId
                           || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));

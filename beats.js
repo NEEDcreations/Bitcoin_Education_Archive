@@ -1010,7 +1010,14 @@ window.beatsShowTrackDetail = function(idx) {
             (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + escapeHtml(track.artist || track.authorName || 'Unknown') + '</span>') +
             (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof showTipOverlay===\'function\')showTipOverlay({recipientName:\'' + escapeHtml(track.artist || track.authorName || 'Artist').replace(/[\\'"]/g,"") + '\',recipientUid:\'' + track.authorId + '\',context:\'Bitcoin Beats tip\',label:\'Tip Artist\'})" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
         '</div>' +
-        (track.genre ? '<div style="text-align:center;margin-bottom:16px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:16px;"></div>') +
+        (track.genre ? '<div style="text-align:center;margin-bottom:10px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:10px;"></div>') +
+        // Upload date — small, subtle, tooltip shows full timestamp
+        (track.createdAt ? (function() {
+            var _d = track.createdAt.toDate ? track.createdAt.toDate() : new Date(track.createdAt);
+            var _full = _d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            var _ago = (typeof timeAgo === 'function') ? timeAgo(track.createdAt) : '';
+            return '<div style="text-align:center;margin-bottom:14px;color:var(--text-faint);font-size:0.7rem;" title="' + escapeHtml(_full) + '">📅 Uploaded ' + escapeHtml(_ago) + ' · <span style="opacity:0.8;">' + escapeHtml(_d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })) + '</span></div>';
+        })() : '') +
         '<div style="display:flex;justify-content:center;gap:24px;margin-bottom:20px;color:var(--text-faint);font-size:0.75rem;">' +
             '<div style="text-align:center;"><div style="font-weight:700;font-size:0.9rem;color:var(--heading);">' + duration + '</div>Duration</div>' +
             '<div style="text-align:center;"><div style="font-weight:700;font-size:0.9rem;color:var(--heading);">' + _formatPlays(track.plays || 0) + '</div>Plays</div>' +
