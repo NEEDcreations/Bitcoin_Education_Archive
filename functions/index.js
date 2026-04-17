@@ -1894,9 +1894,19 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'beats_comment': 10000,
         'article_comment': 10000,
         'tctv_watch_10m': 600000, // 10 minutes (Fix: server-side verification)
+        'beats_upload': 300000,   // 5 minutes between uploads (anti-spam)
     };
     const cooldownRef = (matchedAction && ACTION_COOLDOWNS[matchedAction]) 
         ? db.collection('action_cooldowns').doc(uid + '_' + matchedAction)
+        : null;
+
+    // DAILY ACTION COUNT LIMIT: Cap certain actions per UTC day independent of point cap.
+    // Prevents low-quality content farming (e.g. spamming 50 silent audio uploads).
+    const ACTION_DAILY_LIMITS = {
+        'beats_upload': 5,   // Max 5 track uploads per day per user
+    };
+    const dailyActionRef = (matchedAction && ACTION_DAILY_LIMITS[matchedAction])
+        ? userRef.collection('daily_action_counts').doc(today + '_' + matchedAction)
         : null;
 
     let transactionResult = null;
@@ -1912,6 +1922,17 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                     if (lastTime && (Date.now() - lastTime.getTime()) < cooldownMs) {
                         throw new Error('TOO_FAST');
                     }
+                }
+            }
+
+            // 1b. Check per-day action count (anti-spam)
+            let dailyActionUsed = 0;
+            if (dailyActionRef) {
+                const dailyActionDoc = await t.get(dailyActionRef);
+                dailyActionUsed = dailyActionDoc.exists ? (dailyActionDoc.data().count || 0) : 0;
+                const limit = ACTION_DAILY_LIMITS[matchedAction];
+                if (dailyActionUsed >= limit) {
+                    throw new Error('DAILY_ACTION_LIMIT:' + matchedAction + ':' + limit);
                 }
             }
 
@@ -1983,6 +2004,15 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
             }
 
+            // Per-day action count — increment even when points hit daily cap
+            // (so 5-upload hard limit applies regardless of point balance)
+            if (dailyActionRef) {
+                t.set(dailyActionRef, {
+                    count: admin.firestore.FieldValue.increment(1),
+                    lastAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+
             return {
                 awarded: awarded,
                 capped: (dailyUsed + awarded >= DAILY_CAP),
@@ -1993,6 +2023,11 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
     } catch (e) {
         if (e.message === 'TOO_FAST') {
             return { success: false, error: 'Too fast — wait a moment', cooldown: true };
+        }
+        if (e.message && e.message.startsWith('DAILY_ACTION_LIMIT:')) {
+            const parts = e.message.split(':');
+            const limit = parts[2];
+            return { success: false, error: 'Daily limit reached for this action (max ' + limit + '/day). Try again tomorrow.', dailyActionCapped: true };
         }
         if (e.message === 'ALREADY_CLAIMED_TODAY') {
             return { success: false, error: 'Daily tickets already claimed today.' };

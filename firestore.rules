@@ -828,6 +828,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Server-side per-day action count tracking (Cloud Function only)
+    // Used to enforce hard daily limits on spam-prone actions (e.g. beats_upload=5/day)
+    match /users/{userId}/daily_action_counts/{docId} {
+      allow read, write: if false;
+    }
+
     // Server-side badge award deduplication (Cloud Function only)
     match /users/{userId}/badge_awards/{docId} {
       allow read, write: if false;

@@ -1982,6 +1982,12 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         var result = await awardPointsFn(payload);
+        if (result.data && result.data.dailyActionCapped) {
+            if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
+        }
+        if (result.data && result.data.cooldown) {
+            if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Slow down a bit.'), 4000);
+        }
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
             if (awarded > 0) {
