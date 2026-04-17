@@ -4795,107 +4795,18 @@ var STATIONS = [
                 "duration": 1943
             }]
     },
+
     {
         "id": "saylor",
-        "name": "Saylor Series",
+        "name": "Saylor Series & Corporations",
         "emoji": "👑",
         "desc": "Michael Saylor's complete Bitcoin masterclass - strategy, philosophy & the future of money",
         "color": "#f7931a",
         "videos": [
             {
-                "id": "gCfA1lkmJo4",
-                "title": "Michael Saylor - The Greatest Bitcoin Explanation",
-                "duration": 619
-            },
-            {
-                "id": "3-vBBYEXv6M",
-                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
-                "duration": 3909
-            },
-            {
-                "id": "ssEMtaRwra0",
-                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
-                "duration": 13151
-            },
-            {
-                "id": "B4nK8mP2qS6",
-                "title": "Michael Saylor on Bitcoin and the Future of Finance",
-                "duration": 4800
-            },
-            {
-                "id": "reVebuAf_Cs",
-                "title": "Michael Saylor: 21 Ways To Wealth - Bitcoin 2025 Keynote",
-                "duration": 2211
-            },
-            {
-                "id": "sjYANTSww34",
-                "title": "Michael Saylor Briefly Explains Why Bitcoin Is The Best Store of Value",
-                "duration": 223
-            },
-            {
-                "id": "bjvMt0xaSUQ",
-                "title": "The Saylor Series | Part 4: The Future of Bitcoin & Civilization",
-                "duration": 831
-            },
-            {
-                "id": "XU5u5gl6EIs",
-                "title": "Why Bitcoin is the Perfect Monetary System - Saylor Explains in Plain English",
-                "duration": 712
-            },
-            {
-                "id": "VTCzVWgJJWs",
-                "title": "Bitcoin As The Apex Predator - Robert Breedlove (Pomp Podcast)",
-                "duration": 4176
-            },
-            {
-                "id": "3GkA2grVaNw",
-                "title": "Michael Saylor Explains Why Bitcoin is Superior to Gold",
-                "duration": 607
-            },
-            {
-                "id": "_Nvh_xScNPY",
-                "title": "SaylorJungle - 1 Hour Relaxing Saylor with Forest Rain Sounds",
-                "duration": 3581
-            },
-            {
-                "id": "QBLGZqYTmn8",
-                "title": "MicroStrategy's Bitcoin Strategy Is INSANE - Pomp Podcast",
-                "duration": 2499
-            },
-            {
-                "id": "7aJTOCN501g",
-                "title": "Saylor Reveals the TOP Bitcoin Secrets - Digital Asset Summit 2025",
-                "duration": 2050
-            },
-            {
-                "id": "9jgoAqTErfs",
-                "title": "Michael Saylor Brilliantly Explains Bitcoin's Superiority",
-                "duration": 1253
-            },
-            {
-                "id": "CYT0AxQxa7o",
-                "title": "Why Bitcoin Succeeds - The Saylor Series Episode 12",
-                "duration": 6045
-            },
-            {
-                "id": "D_yIKnHOuWg",
-                "title": "Michael Saylor Answers the Question of Our Time",
-                "duration": 327
-            },
-            {
-                "id": "PXC0spZ2M4U",
-                "title": "Is Bitcoin Digital Gold? - Michael Saylor",
-                "duration": 402
-            },
-            {
-                "id": "9jsmGd9puYU",
-                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
-                "duration": 646
-            },
-            {
-                "id": "coHC_9ApBdg",
-                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
-                "duration": 7002
+                "id": "1c7weMce8_A",
+                "title": "Give Me a Lever Long Enough | True North Podcast | Ep. 17",
+                "duration": 5856
             },
             {
                 "id": "fzg9I7hHdzs",
@@ -4903,369 +4814,9 @@ var STATIONS = [
                 "duration": 6153
             },
             {
-                "id": "blkHhCz5_nY",
-                "title": "Tucker Carlson Interview with Michael Saylor about Bitcoin",
-                "duration": 449
-            },
-            {
-                "id": "IdPKzulKdFI",
-                "title": "Is Michael Saylor a Threat For Owning So Much Bitcoin?",
-                "duration": 257
-            },
-            {
-                "id": "hqoagNBtIps",
-                "title": "Michael Saylor: Bitcoin Prophecy - BTC Prague 2025",
-                "duration": 2854
-            },
-            {
-                "id": "6P97_koDGtA",
-                "title": "Bitcoin vs Manhattan Real Estate in 1776 - Michael Saylor",
-                "duration": 872
-            },
-            {
-                "id": "kFP_1ulQ4uI",
-                "title": "SaylorRain - Relaxing Saylor Speaks on Bitcoin with Rain Sounds (1H)",
-                "duration": 3600
-            },
-            {
-                "id": "tNJp3qBH1sw",
-                "title": "Bitcoin is Cybernetic Life - The Saylor Series Episode 13",
-                "duration": 5548
-            },
-            {
-                "id": "qBPtUf50XVg",
-                "title": "Saylor BEST Bitcoin Podcast: Why You NEED 0.1 Bitcoin in 2025",
-                "duration": 5333
-            },
-            {
-                "id": "7gvogsnkjdc",
-                "title": "SaylorWaves - 1 Hour of Relaxing Saylor Speaking about Bitcoin",
-                "duration": 3634
-            },
-            {
-                "id": "1Ms7ql_S63A",
-                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
-                "duration": 6446
-            },
-            {
-                "id": "OA3DGM0vgtM",
-                "title": "Michael Saylor Keynote - 2024 Cantor Fitzgerald Conference",
-                "duration": 3539
-            },
-            {
-                "id": "LBKld0QdXnk",
-                "title": "Bitcoin Is Being Adopted By A Country As Sovereign Money - Pomp Podcast #585",
-                "duration": 3647
-            },
-            {
-                "id": "wba5XJHKPqg",
-                "title": "Saylor: Bitcoin Halving Will Drive Demand Through the Roof",
-                "duration": 236
-            },
-            {
-                "id": "dogJz_CfQW8",
-                "title": "Inspiring and Relaxing Michael Saylor Speaks about Bitcoin for 1H",
-                "duration": 3600
-            },
-            {
-                "id": "GUrt5xVBWMk",
-                "title": "Michael Saylor Is A Bitcoin Genius - Pomp Podcast",
-                "duration": 446
-            },
-            {
-                "id": "gSc6BC1Kh2g",
-                "title": "Digital Gold: Harder, Smarter, Stronger, Faster - The Saylor Series Episode 6",
-                "duration": 5028
-            },
-            {
-                "id": "7hyoONj4nEY",
-                "title": "What One Billionaire Knows About Outlasting a Dollar Collapse - Jordan Peterson EP 554",
-                "duration": 5245
-            },
-            {
-                "id": "Hfdq-Wl1fRQ",
-                "title": "Michael Saylor Explains Why Going All In on Bitcoin Could Be Genius",
-                "duration": 820
-            },
-            {
-                "id": "Y7FsiPuF3z4",
-                "title": "SaylorSpace - Travel Through Cosmos with Michael Saylor on Bitcoin",
-                "duration": 3628
-            },
-            {
-                "id": "w2e3nL7xMz0",
-                "title": "Why Corporations Are Putting Bitcoin on Their Balance Sheet - Pomp Podcast #595",
-                "duration": 3184
-            },
-            {
-                "id": "RbkLz9C39y0",
-                "title": "Bitcoin's Seven Layers of Security - The Saylor Series Episode 14",
-                "duration": 4721
-            },
-            {
-                "id": "dVfmTMo_mO0",
-                "title": "Celebrating Bitcoin Price with Relaxing Michael Saylor Speaking (10H)",
-                "duration": 36762
-            },
-            {
-                "id": "hV_sgkHhApo",
-                "title": "SaylorNight - Relaxing Saylor Speaks on Bitcoin in the Night (1H)",
-                "duration": 3684
-            },
-            {
-                "id": "KxTWC3ShYDE",
-                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
-                "duration": 7385
-            },
-            {
-                "id": "MSMJBmo_q4s",
-                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
-                "duration": 240
-            },
-            {
-                "id": "PyYogQEnPNE",
-                "title": "Should You Buy Bitcoin? - Michael Saylor",
-                "duration": 219
-            },
-            {
-                "id": "S2ziezeoK4E",
-                "title": "What's Actually Happening To Bitcoin & The Economy Right Now - Saylor",
-                "duration": 2708
-            },
-            {
-                "id": "s_0ggp41rT4",
-                "title": "Bitcoin Common Misconceptions - Saylor & Robert Breedlove",
-                "duration": 8152
-            },
-            {
-                "id": "TWSl9mdoYds",
-                "title": "Expert Analyzes the Impact of a Bitcoin ETF - Michael Saylor",
-                "duration": 402
-            },
-            {
-                "id": "O9KnBcWMkpw",
-                "duration": 2243,
-                "title": "Michael Saylor 2024 Keynote - Nashville"
-            },
-            {
-                "id": "ytmhmixeCRo",
-                "title": "The Bitcoin Interview That YouTube Tried To Delete",
-                "duration": 3012
-            },
-            {
-                "id": "swoZxZyqpT8",
-                "title": "Michael Saylor On How Bitcoin Can Change Everything",
-                "duration": 544
-            },
-            {
-                "id": "4Buu1h_89hY",
-                "title": "Michael Saylor: Bitcoin Is As Risky As Crossing a Street",
-                "duration": 667
-            },
-            {
-                "id": "wSwQxTq147Q",
-                "title": "Chill SaylorVibes - The Margin Call (Bitcoin Lo-fi)",
-                "duration": 2966
-            },
-            {
-                "id": "WOpTi_qJUiw",
-                "title": "Bitcoin's Transaction Volume Exceeded American Express - Saylor",
-                "duration": 371
-            },
-            {
-                "id": "rcGeY0OzWdQ",
-                "title": "Michael Saylor: Money is Energy - Breedlove & Lex Fridman",
-                "duration": 457
-            },
-            {
-                "id": "1Mr9PknsM_Y",
-                "title": "Michael Saylor's Best Explanation of Bitcoin",
-                "duration": 349
-            },
-            {
-                "id": "ig9pu0XRtNM",
-                "title": "Bitcoin as Power to the People - Saylor & Robert Breedlove",
-                "duration": 4664
-            },
-            {
-                "id": "aFGCKwPNH4I",
-                "title": "The Defining Question of Our Time in History - Michael Saylor",
-                "duration": 194
-            },
-            {
-                "id": "Rty7BQyUkHM",
-                "title": "NEW Michael Saylor Interview on Bitcoin (12-Minute Summary)",
-                "duration": 751
-            },
-            {
-                "id": "aUEhwe2GvtY",
-                "title": "Bitcoin Economics and Evolution - The Saylor Series Episode 16",
-                "duration": 5371
-            },
-            {
-                "id": "MhNrsdAwaUM",
-                "title": "The Death of Gold - The Saylor Series Episode 10",
-                "duration": 4817
-            },
-            {
-                "id": "VGkyVoNw9v8",
-                "title": "Tech Themes thru History - The Saylor Series Episode 3",
-                "duration": 4592
-            },
-            {
-                "id": "1PkMFIa7rmQ",
-                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
-                "duration": 2415
-            },
-            {
-                "id": "ykvjtK30HiA",
-                "title": "Michael Saylor & The Ultimate Bitcoin Strategy",
-                "duration": 5766
-            },
-            {
-                "id": "UADTd7gCuXo",
-                "title": "THERE IS NO SECOND BEST - Saylor at BTCPrague 2023",
-                "duration": 2442
-            },
-            {
-                "id": "d4XxuxnreBs",
-                "title": "True Cost of Inflation - Michael Saylor & Lex Fridman",
-                "duration": 885
-            },
-            {
-                "id": "RI4xEHI7tGg",
-                "title": "Michael Saylor - PBD Podcast Ep. 212",
-                "duration": 7187
-            },
-            {
-                "id": "aWtzOQTv8Dc",
-                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
-                "duration": 917
-            },
-            {
-                "id": "LtcbR98uTJQ",
-                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
-                "duration": 3646
-            },
-            {
-                "id": "UQjmBvmyfqA",
-                "title": "Listening to Michael Saylor ALL Day - Transcendental Bitcoin Meditation",
-                "duration": 43
-            },
-            {
-                "id": "XbEOeRylUCw",
-                "title": "Michael Saylor: Bitcoin, FTX, Bear Market",
-                "duration": 7364
-            },
-            {
-                "id": "H99AdvqhUE0",
-                "title": "Michael Saylor: Why 21 Million Changes Everything",
-                "duration": 764
-            },
-            {
-                "id": "N3J868zhH9g",
-                "title": "Bitcoin Is Encrypted Energy - Saylor & Breedlove",
-                "duration": 612
-            },
-            {
-                "id": "DAXC9km8Wlk",
-                "title": "Bitcoin: Zero Percent Inflation - Saylor & Robert Breedlove",
-                "duration": 8063
-            },
-            {
-                "id": "dAFJzsJdfJI",
-                "title": "Why Michael Saylor Went ALL IN On Bitcoin",
-                "duration": 636
-            },
-            {
-                "id": "gRnspOucXNg",
-                "title": "Michael Saylor - Bitcoin Zen",
-                "duration": 57
-            },
-            {
-                "id": "59vC4JxWIQU",
-                "title": "Michael Saylor Keynote Address - BTC in DC 2025",
-                "duration": 2364
-            },
-            {
-                "id": "_27ZZJXv4gw",
-                "title": "Michael Saylor & Bill Miller - Bitcoin 2023 Conference Miami",
-                "duration": 1732
-            },
-            {
-                "id": "Uc26OItd0JU",
-                "title": "Joe Rogan and Michael Saylor on Bitcoin",
-                "duration": 126
-            },
-            {
-                "id": "WvUE_Yvktwk",
-                "title": "Bitcoin's Seven Layers of Security #2 - The Saylor Series Episode 15",
-                "duration": 4498
-            },
-            {
-                "id": "uUUwuxTquws",
-                "title": "Michael Saylor Bought $7 Billion In Bitcoin - Pomp Podcast",
-                "duration": 447
-            },
-            {
-                "id": "J38-PQ6X8HI",
-                "title": "Michael Saylor: Satoshi Opened A Portal Into Cyberspace",
-                "duration": 8203
-            },
-            {
-                "id": "fZfg1Gtcg08",
-                "title": "100% Saylor - Michael Saylor Best Moments",
-                "duration": 210
-            },
-            {
-                "id": "tSAvXsMQjYg",
-                "title": "What is Bitcoin? - Michael Saylor & Tucker Carlson (Nov 2021)",
-                "duration": 396
-            },
-            {
-                "id": "8h8Pyy4s12w",
-                "title": "Michael Saylor on Fox News: Why El Salvador Adopted Bitcoin",
-                "duration": 342
-            },
-            {
-                "id": "6osK1CXno80",
-                "title": "Michael Saylor GETS ANGRY Talking About Bitcoin",
-                "duration": 2177
-            },
-            {
-                "id": "8Mhu6dxj7qk",
-                "title": "WE HAVE LASER EYES - Michael Saylor at BTCPrague 2023",
-                "duration": 1990
-            },
-            {
-                "id": "c3E91-RGjQE",
-                "title": "EXCLUSIVE: Michael Saylor Masterclass On Bitcoin",
-                "duration": 8740
-            },
-            {
-                "id": "fCkABdwjxtE",
-                "title": "Michael Saylor at Bitcoin Atlantis 2024",
-                "duration": 3069
-            },
-            {
-                "id": "SojzZxhMf00",
-                "title": "The Virtues of Strong Money - The Saylor Series Episode 7",
-                "duration": 5493
-            },
-            {
-                "id": "Yd1UFNvqwWQ",
-                "title": "How Bitcoin Changes Everything - The Saylor Series Episode 17",
-                "duration": 5378
-            },
-            {
-                "id": "hzcmndorLwQ",
-                "title": "Saylor: Bitcoin + Digital Credit = The Future of Money (Full Keynote)",
-                "duration": 2225
-            },
-            {
-                "id": "1R0J-myYPM0",
-                "title": "Michael Saylor: Bitcoin is Hope",
-                "duration": 387
+                "id": "cyL2t75YLQM",
+                "title": "Building Japan's Bitcoin Standard w/ Simon Gerovich | Strategy World 2026",
+                "duration": 892
             },
             {
                 "id": "LP5W_BUXnEw",
@@ -5273,44 +4824,194 @@ var STATIONS = [
                 "duration": 4891
             },
             {
-                "id": "HrehEWYj16s",
-                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman",
-                "duration": 14629
+                "id": "z3saVEaGiFI",
+                "title": "The Bitcoin Index Inclusion Question w/Dylan LeClair, Tyler Evans, Alexandre Laizet & George Mekhail",
+                "duration": 1376
             },
             {
-                "id": "CA_XnoCk4sY",
-                "title": "Michael Saylor Has DOUBLED His Bitcoin Investment!",
-                "duration": 305
+                "id": "Z6QPPhdQCEM",
+                "title": "Why Strategy ($MSTR) stock did not fall back down to $20 #bitcoin #mstr #trading",
+                "duration": 63
             },
             {
-                "id": "nC37CqWpxfI",
-                "title": "Saylor & Dorsey Interview",
-                "duration": 3400
+                "id": "TjgrV6M2VyU",
+                "title": "What does it take for $MSTR to meet their dividend obligations? #mstr #bitcoin",
+                "duration": 111
             },
             {
-                "id": "TXvvMGrZDAw",
-                "title": "Billionaire Destroys Peter Schiff's Gold Argument - Michael Saylor",
-                "duration": 450
+                "id": "TPCHXc7qf2U",
+                "title": "The Reality of AI in 2026 #trading #mstr #bitcoin #ai",
+                "duration": 105
             },
             {
-                "id": "WrR95PFYDFQ",
-                "title": "Michael Saylor On Buying Bitcoin With His Balance Sheet - Pomp Podcast #385",
-                "duration": 5085
+                "id": "nuKqepvkOqI",
+                "title": "All In On Bitcoin | The Jeff Walton Story",
+                "duration": 3452
             },
             {
-                "id": "gHpnTOoGv7Q",
-                "title": "Saylor: Why Bitcoin Will Birth a New Generation of Trillion-Dollar Companies",
-                "duration": 900
+                "id": "b-_UvOwM3LE",
+                "title": "Bitcoin Supercycle | The Hurdle Rate Ep. 29",
+                "duration": 3174
             },
             {
-                "id": "y8IH0OwFyW4",
-                "title": "Michael Saylor: Why Bitcoin is a Truth Machine",
-                "duration": 601
+                "id": "wcJtAcOjlTM",
+                "title": "Bitcoin-Linked Convertibles | Strategy World 2026",
+                "duration": 975
             },
             {
-                "id": "wdJFeSY8UVk",
-                "title": "Michael Saylor on Tucker Carlson Today - Full Interview",
-                "duration": 4836
+                "id": "DrxZJY9EhWM",
+                "title": "MSTR Q4 2025 Earnings Call Analysis: The Digital Credit Stress Test | BFC Show Ep. 25",
+                "duration": 4536
+            },
+            {
+                "id": "6fBhCOV1LH0",
+                "title": "Why Bitcoin Is Emerging as Prime Collateral w/ Hunter Albright of SALT Lending | BFC Show Ep. 29",
+                "duration": 2677
+            },
+            {
+                "id": "VWHBbtUWBEE",
+                "title": "Financial Leverage & Bear Sightings | True North Podcast | Ep. 9",
+                "duration": 8860
+            },
+            {
+                "id": "B4nK8mP2qS6",
+                "title": "Michael Saylor on Bitcoin and the Future of Finance",
+                "duration": 4800
+            },
+            {
+                "id": "CcztyNj5gps",
+                "title": "The Great Unraveling: Why Bonds Are Dead & Bitcoin Is Rising w/ Mark Moss",
+                "duration": 916
+            },
+            {
+                "id": "D8KVtBKQBtE",
+                "title": "Navigating MSTR and BTC | True North Podcast | Ep. 1",
+                "duration": 7618
+            },
+            {
+                "id": "dPvVqTlPRPY",
+                "title": "Credit Ratings for Digital Capital | The Hurdle Rate Ep. 33",
+                "duration": 3261
+            },
+            {
+                "id": "iBgYVIyiYzI",
+                "title": "Up To Par | True North Podcast | Ep. 52",
+                "duration": 4087
+            },
+            {
+                "id": "kCHcX7Xw104",
+                "title": "Unlocking Value in Bitcoin Treasury Companies w/ Tyler Evans, Loren Asmus, John Riggins, Mason Foard",
+                "duration": 1828
+            },
+            {
+                "id": "FDr6VQq7FjQ",
+                "title": "Commercial Banks Are Moving Into Bitcoin Credit",
+                "duration": 95
+            },
+            {
+                "id": "QdKlVpR5jpU",
+                "title": "Morgan Stanley Announces New Bitcoin ETF",
+                "duration": 506
+            },
+            {
+                "id": "eS5VL35RNvE",
+                "title": "True North Orlando 2025 - Conviction as a service | Ben Werkman",
+                "duration": 950
+            },
+            {
+                "id": "zeKFDibW0nQ",
+                "title": "Every Company Will Be a Bitcoin Treasury Company w/ Adam Back and Tyler Evans",
+                "duration": 1450
+            },
+            {
+                "id": "dogJz_CfQW8",
+                "title": "Inspiring and Relaxing Michael Saylor Speaks about Bitcoin for 1H",
+                "duration": 3600
+            },
+            {
+                "id": "003pvQdffr4",
+                "title": "Strategic Risk Taking | The Hurlde Rate Ep. 23",
+                "duration": 3175
+            },
+            {
+                "id": "rv8HD3l0VEE",
+                "title": "Building a Digital Empire | True North Podcast | Ep. 36",
+                "duration": 7343
+            },
+            {
+                "id": "sjYANTSww34",
+                "title": "Michael Saylor Briefly Explains Why Bitcoin Is The Best Store of Value",
+                "duration": 223
+            },
+            {
+                "id": "lr4EjqoV0IE",
+                "title": "📺 Bitcoin Breaks $77k + Why #Bitcoin is Better | BFC Show @ Strategy World 2026",
+                "duration": 26536
+            },
+            {
+                "id": "rHJskIc92H4",
+                "title": "The Federal Reserve Is Broken | Bitcoiners Explain Why",
+                "duration": 702
+            },
+            {
+                "id": "KWBPeSQmn_I",
+                "title": "Michael Saylor: We Built an Investment That Solves Every Investor's Biggest Dilemma",
+                "duration": 88
+            },
+            {
+                "id": "qOM3oKj5FmY",
+                "title": "The Rise Of Bitcoin Treasuries w/ Tim Kotzman, Konrad Leasser, Wyatt O'Rourke & VIjay Selvam",
+                "duration": 1276
+            },
+            {
+                "id": "O9KnBcWMkpw",
+                "title": "Michael Saylor 2024 Keynote - Nashville",
+                "duration": 2243
+            },
+            {
+                "id": "soNo3KkYGiU",
+                "title": "Michael Saylor On Why Microsoft Needs A Bitcoin Strategy | Bitcoin for Corporations 2025",
+                "duration": 1148
+            },
+            {
+                "id": "1LLtefID_VE",
+                "title": "The Hurdle Rate Is High | The Hurdle Rate Ep. 39",
+                "duration": 2488
+            },
+            {
+                "id": "6P97_koDGtA",
+                "title": "Bitcoin vs Manhattan Real Estate in 1776 - Michael Saylor",
+                "duration": 872
+            },
+            {
+                "id": "WQGt4Lqx4dY",
+                "title": "The Preferred Strategy is Digital Credit | The Hurdle Rate Ep. 34",
+                "duration": 3108
+            },
+            {
+                "id": "BWB6-2Agaqc",
+                "title": "Wall Street Digital Gold Rush | True North Podcast | Ep. 31",
+                "duration": 7295
+            },
+            {
+                "id": "JS7lOkTgER4",
+                "title": "Post $MSTR Q1 2025 Earnings call - reflections & breakdown",
+                "duration": 2837
+            },
+            {
+                "id": "CG68sLoBaGE",
+                "title": "$MSTR True North - Episode 14 - Have Space Suit, Will Travel (1/22/25)",
+                "duration": 7389
+            },
+            {
+                "id": "raJ6uR_wTPQ",
+                "title": "True North Now - Inside look at Semler Scientific | Featuring Eric Semler & Joe Burnett",
+                "duration": 2620
+            },
+            {
+                "id": "O3Nn0iPbN6s",
+                "title": "True North Orlando 2025 - From Basements to Stages | Jeff and Crew",
+                "duration": 3219
             },
             {
                 "id": "mC43pZkpTec",
@@ -5318,14 +5019,1024 @@ var STATIONS = [
                 "duration": 14215
             },
             {
-                "id": "ZcjFrIMw2sI",
-                "title": "Michael Saylor Keynote - The 2022 Atlas Society Gala",
+                "id": "Ib33Jy5cOP4",
+                "title": "Why Digital Credit is the Future of Global Finance #mstr #bitcoin #finance",
+                "duration": 60
+            },
+            {
+                "id": "HSqlTJjs36g",
+                "title": "Michael Saylor's Strategy World 2026 Keynote: Digital Credit",
+                "duration": 3032
+            },
+            {
+                "id": "IdPKzulKdFI",
+                "title": "Is Michael Saylor a Threat For Owning So Much Bitcoin?",
+                "duration": 257
+            },
+            {
+                "id": "DiU3od1PvS0",
+                "title": "📺 LIVE: Over 12,000 BTC in ONE DAY from Strategy's STRC ATM - What will it hit today?",
+                "duration": 30066
+            },
+            {
+                "id": "5jLPnGVm0k4",
+                "title": "T'was The Night Before Earnings | True North Podcast | Ep. 25",
+                "duration": 5500
+            },
+            {
+                "id": "sVNbuZx7VqQ",
+                "title": "What Strategy ($MSTR) Could Be Worth In 5 Years",
+                "duration": 802
+            },
+            {
+                "id": "DuGoa1BmEu4",
+                "title": "Bitcoin as a Generational Investment Opportunity w/ Katie Stockton, Hong Kim & Duke Waldrop",
+                "duration": 1424
+            },
+            {
+                "id": "xn607rFc1U8",
+                "title": "True North Pulse - MSTR has a 91% chance of qualifying for the S&P 500 | Jeff Walton",
+                "duration": 387
+            },
+            {
+                "id": "PPdRbAmYK6c",
+                "title": "Fireside Q&A: David Bailey & George Mekhail | Bitcoin for Corporations Symposium @ Bitcoin Asia 2025",
+                "duration": 1449
+            },
+            {
+                "id": "reVebuAf_Cs",
+                "title": "Michael Saylor: 21 Ways To Wealth - Bitcoin 2025 Keynote",
+                "duration": 2211
+            },
+            {
+                "id": "IzMSMzt6TDA",
+                "title": "How Bitcoin Makes FIRE a Reality w/ Trey Sellers of Unchained",
+                "duration": 375
+            },
+            {
+                "id": "QypTOT49SnI",
+                "title": "Why Bitcoin Treasury Companies Are Embracing Volatility w/ Metaplanet, Semler Scientific & Fold",
+                "duration": 1611
+            },
+            {
+                "id": "4A4goufTTI8",
+                "title": "\"Rate My Stock / Risk of Credit\" | True North Podcast | Ep. 43",
+                "duration": 7126
+            },
+            {
+                "id": "0Hc1wsSSyvM",
+                "title": "Translating Bitcoin for Legacy Corporates w/ Sam Callahan, Khing Oei, Lennart Lopin & Sean Bill",
+                "duration": 1404
+            },
+            {
+                "id": "lCKY-vfV4Ck",
+                "title": "Week of Jan 17 Expiration | True North Podcast | Ep. 13",
+                "duration": 5739
+            },
+            {
+                "id": "nNt3WQnb00g",
+                "title": "True North Now - Inside look at H100 | Featuring CEO Sander Andersen",
+                "duration": 2028
+            },
+            {
+                "id": "53s-U4SEI9s",
+                "title": "Proof of Performance: The KPIs That Matter",
+                "duration": 1423
+            },
+            {
+                "id": "aZr_jfK9R10",
+                "title": "Why Short Term Losses Lead to Long Term Wins for Strategy. #mstr #digitalcredit #bitcoin",
+                "duration": 93
+            },
+            {
+                "id": "yQL9yua9Yq0",
+                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
+                "duration": 3032
+            },
+            {
+                "id": "Ux44HPsGcjY",
+                "title": "An Increasingly Digital World | The Hurdle Rate Podcast Ep.52",
+                "duration": 3236
+            },
+            {
+                "id": "KjFCRhhTO18",
+                "title": "A Digital Credit Treasury | The Hurdle Rate Podcast Ep.51",
+                "duration": 3634
+            },
+            {
+                "id": "TXvvMGrZDAw",
+                "title": "Billionaire Destroys Peter Schiff's Gold Argument - Michael Saylor",
+                "duration": 450
+            },
+            {
+                "id": "MOZejVJrhXU",
+                "title": "Jeff Walton pitching Michael Saylor on a business idea",
+                "duration": 128
+            },
+            {
+                "id": "UC1R-lChYr4",
+                "title": "What is Credit Risk? | True North Podcast | Ep.53",
+                "duration": 7586
+            },
+            {
+                "id": "ytmhmixeCRo",
+                "title": "The Bitcoin Interview That YouTube Tried To Delete",
+                "duration": 3012
+            },
+            {
+                "id": "RK6t570jdgs",
+                "title": "Strategy ($MSTR) Balance sheet vs Coinbase ($COIN)",
+                "duration": 327
+            },
+            {
+                "id": "aWtzOQTv8Dc",
+                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
+                "duration": 917
+            },
+            {
+                "id": "gCfA1lkmJo4",
+                "title": "Michael Saylor - The Greatest Bitcoin Explanation",
+                "duration": 619
+            },
+            {
+                "id": "UtY3kTlf0cI",
+                "title": "True North Now - Inside look at The Blockchain Group | Featuring Alexandre Laizet",
+                "duration": 3740
+            },
+            {
+                "id": "6cfdK5PWsxI",
+                "title": "The M&A Era has Begun | The Hurdle Rate Ep. 28",
+                "duration": 3033
+            },
+            {
+                "id": "2RSKfdPcQ0g",
+                "title": "The Credit Industry Is Changing",
+                "duration": 473
+            },
+            {
+                "id": "aUEhwe2GvtY",
+                "title": "Bitcoin Economics and Evolution - The Saylor Series Episode 16",
+                "duration": 5371
+            },
+            {
+                "id": "UA29De0t3i0",
+                "title": "True North Now - Bitcoin Core, OP_RETURN & Knots Explained | Featuring Rob Hamilton (Anchorwatch)",
+                "duration": 3682
+            },
+            {
+                "id": "tSAvXsMQjYg",
+                "title": "What is Bitcoin? - Michael Saylor & Tucker Carlson (Nov 2021)",
+                "duration": 396
+            },
+            {
+                "id": "7gvogsnkjdc",
+                "title": "SaylorWaves - 1 Hour of Relaxing Saylor Speaking about Bitcoin",
+                "duration": 3634
+            },
+            {
+                "id": "4Buu1h_89hY",
+                "title": "Michael Saylor: Bitcoin Is As Risky As Crossing a Street",
+                "duration": 667
+            },
+            {
+                "id": "4QM0PwPOg90",
+                "title": "Strategy's ($MSTR) Bitcoin Backed Credit Products",
+                "duration": 2692
+            },
+            {
+                "id": "VkHQHu5vYHs",
+                "title": "Bitcoin, AI and The New QE | The Hurdle Rate Podcast Ep.53",
+                "duration": 3615
+            },
+            {
+                "id": "BjpzoplkqdI",
+                "title": "📺 LIVE: Paris Blockchain Week 2026 | Day 1",
+                "duration": 34051
+            },
+            {
+                "id": "rP2YjjuQn5A",
+                "title": "Liberation Day Chess | True North Podcast | Ep. 22",
+                "duration": 7266
+            },
+            {
+                "id": "FWXivDbeyWw",
+                "title": "Strategy ($MSTR) Balance Sheet UPDATE",
+                "duration": 499
+            },
+            {
+                "id": "3MwB99iAYfY",
+                "title": "Bitcoin Education Institute | Strategy World 2026",
+                "duration": 697
+            },
+            {
+                "id": "x1S9bQoSDUg",
+                "title": "MSTR Can Buy More BTC Than Sellers Can Sell | True North Podcast | Ep. 62",
+                "duration": 5825
+            },
+            {
+                "id": "g2aE7hVKH1o",
+                "title": "Structurally Bullish | The Hurdle Rate Ep. 41",
+                "duration": 3580
+            },
+            {
+                "id": "IEugtyLaaAQ",
+                "title": "This Could Drive Bitcoin to $1,000,000",
+                "duration": 342
+            },
+            {
+                "id": "GUrt5xVBWMk",
+                "title": "Michael Saylor Is A Bitcoin Genius - Pomp Podcast",
+                "duration": 446
+            },
+            {
+                "id": "qPtBbjFR5ak",
+                "title": "The Next Trillion Dollar Company | Phong Le Interview",
+                "duration": 3264
+            },
+            {
+                "id": "YXi8DybUxqM",
+                "title": "Michael Saylor & Phong Le: The Transformative Power of AI + BTC | Strategy World 2025 Keynote",
+                "duration": 4719
+            },
+            {
+                "id": "k7LEBbzVdHg",
+                "title": "Beyond HODLing: Bitcoin Yield Strategies | Bitcoin MENA 2025",
+                "duration": 1383
+            },
+            {
+                "id": "MhNrsdAwaUM",
+                "title": "The Death of Gold - The Saylor Series Episode 10",
+                "duration": 4817
+            },
+            {
+                "id": "S2ziezeoK4E",
+                "title": "What's Actually Happening To Bitcoin & The Economy Right Now - Saylor",
+                "duration": 2708
+            },
+            {
+                "id": "IU1gzKQOYkA",
+                "title": "Mitigating Volatility: Risk-Adjusted Bitcoin Treasury Strategies with BitMEX CEO Stefan Lutz",
+                "duration": 1452
+            },
+            {
+                "id": "p8G0JLe47Ws",
+                "title": "Bitcoin vs. Gold (Who wins?) #gold #bitcoin #money",
+                "duration": 89
+            },
+            {
+                "id": "YFgJVIhc79E",
+                "title": "Waiting For The World To Catch Up | True North Podcast | Ep. 59",
+                "duration": 6387
+            },
+            {
+                "id": "9jgoAqTErfs",
+                "title": "Michael Saylor Brilliantly Explains Bitcoin's Superiority",
                 "duration": 1253
             },
             {
-                "id": "v4na2pycrcc",
-                "title": "The Future is Bitcoin with Michael Saylor - Moonshots & Mindsets",
-                "duration": 5392
+                "id": "Tr2DBZIzrwQ",
+                "title": "Zoom Out - We're Early | The Hurdle Rate Ep. 26",
+                "duration": 2582
+            },
+            {
+                "id": "uiFn8X96Zi4",
+                "title": "Redefining Corporate Treasury: Prevalon Energy’s STRC Adoption | Strategy World 2026",
+                "duration": 760
+            },
+            {
+                "id": "FM638pY34uo",
+                "title": "The Digital Credit Landscape | The Hurdle Rate Ep. 31",
+                "duration": 3678
+            },
+            {
+                "id": "LtcbR98uTJQ",
+                "title": "The Saylor Series | Part 1: The History of Money, Bitcoin & the Machine Economy",
+                "duration": 3646
+            },
+            {
+                "id": "oPbHTD3vCEU",
+                "title": "Strategy Launches STRE (“Stream”) Euro-Denominated Perpetual Preferred Stock Offering with 10% Yield",
+                "duration": 1709
+            },
+            {
+                "id": "GUUUF9ApuXw",
+                "title": "How Metaplanet Turns Bitcoin Treasury Strategy Into Revenue",
+                "duration": 81
+            },
+            {
+                "id": "OA3DGM0vgtM",
+                "title": "Michael Saylor Keynote - 2024 Cantor Fitzgerald Conference",
+                "duration": 3539
+            },
+            {
+                "id": "TfizaD0EF4I",
+                "title": "Digital Assets at Morgan Stanley | Strategy World 2026",
+                "duration": 1561
+            },
+            {
+                "id": "CodcEnDtXtI",
+                "title": "The Private Credit Bitcoin Cycle w/ Matt Dines | Bitcoin for Corporations Ep. 13",
+                "duration": 3926
+            },
+            {
+                "id": "9jsmGd9puYU",
+                "title": "Saylor: Bitcoin vs Real Estate - Why BTC Wins",
+                "duration": 646
+            },
+            {
+                "id": "8XbR73Et0E4",
+                "title": "Metaplanet and the BOJ's Debt Trap: The BTC Treasury Perfect Storm? w/ Dylan LeClair & Phil Geiger",
+                "duration": 3845
+            },
+            {
+                "id": "tvUQLJmQxuY",
+                "title": "What's The End Game of a Bitcoin Treasury Company? - Austin Alexander, Alexandre Laizet, Jesse Myers",
+                "duration": 1807
+            },
+            {
+                "id": "YxlfOsFYAt4",
+                "title": "Bitcoin Treasury Companies Are the Bridge to $20 Trillion",
+                "duration": 111
+            },
+            {
+                "id": "BcLBApRGdTo",
+                "title": "Some Pretty Good Money Printing | The Hurdle Rate Ep.50",
+                "duration": 3635
+            },
+            {
+                "id": "X785ZNCW87g",
+                "title": "How Real Is Strategy’s Bankruptcy Risk? ($MSTR)",
+                "duration": 449
+            },
+            {
+                "id": "5PkWE5sPqE4",
+                "title": "Strategy ($MSTR) Digital Credit vs The World",
+                "duration": 594
+            },
+            {
+                "id": "3twzBeUU_HU",
+                "title": "Wall Street Could Kick These Bitcoin Companies Out",
+                "duration": 133
+            },
+            {
+                "id": "AOGcC7Zyjy0",
+                "title": "$MSTR & $STRK Preferred Stock thoughts 3/13/25",
+                "duration": 2151
+            },
+            {
+                "id": "EeeZSiZQ5q4",
+                "title": "New Market Structures Using STRC & Bitcoin-Linked Products | Strategy World 2026",
+                "duration": 603
+            },
+            {
+                "id": "cVFfZ6XA6vA",
+                "title": "What if Berkshire Hathaway dumped $373B into $STRC #bitcoin #digitalcredit #mstr",
+                "duration": 68
+            },
+            {
+                "id": "EoFVjY7AswM",
+                "title": "Focus on the Future | The Hurdle Rate Ep. 30",
+                "duration": 2876
+            },
+            {
+                "id": "59vC4JxWIQU",
+                "title": "Michael Saylor Keynote Address - BTC in DC 2025",
+                "duration": 2364
+            },
+            {
+                "id": "RI4xEHI7tGg",
+                "title": "Michael Saylor - PBD Podcast Ep. 212",
+                "duration": 7187
+            },
+            {
+                "id": "-gqZiDZ_eNg",
+                "title": "True North Orlando 2025 - Opening remarks from CEO of Strategy | Phong Le",
+                "duration": 229
+            },
+            {
+                "id": "g9hUmh6NnAg",
+                "title": "Metaplanet: From COVID Collapse to Bitcoin Treasury Strategy",
+                "duration": 120
+            },
+            {
+                "id": "VTCzVWgJJWs",
+                "title": "Bitcoin As The Apex Predator - Robert Breedlove (Pomp Podcast)",
+                "duration": 4176
+            },
+            {
+                "id": "mJj6AJZnnBo",
+                "title": "📺 LIVE: Paris Blockchain Week 2026 | Day 2",
+                "duration": 32607
+            },
+            {
+                "id": "Sc9_2I3-LdE",
+                "title": "The Revolution of Digital Credit | True North Podcast | Ep. 45",
+                "duration": 6982
+            },
+            {
+                "id": "Yd1UFNvqwWQ",
+                "title": "How Bitcoin Changes Everything - The Saylor Series Episode 17",
+                "duration": 5378
+            },
+            {
+                "id": "dAFJzsJdfJI",
+                "title": "Why Michael Saylor Went ALL IN On Bitcoin",
+                "duration": 636
+            },
+            {
+                "id": "3oo_slJedus",
+                "title": "New Year, The Bottom's In | True North Podcast | Ep. 50",
+                "duration": 7723
+            },
+            {
+                "id": "Uc26OItd0JU",
+                "title": "Joe Rogan and Michael Saylor on Bitcoin",
+                "duration": 126
+            },
+            {
+                "id": "0JNkMSvVpQk",
+                "title": "MSTR stock could move up QUICKLY #trading #bitcoin #mstr",
+                "duration": 117
+            },
+            {
+                "id": "Aa-4HW_1RGY",
+                "title": "If You Build It, They Will Come | True North Podcast | Ep. 21",
+                "duration": 8521
+            },
+            {
+                "id": "8h8Pyy4s12w",
+                "title": "Michael Saylor on Fox News: Why El Salvador Adopted Bitcoin",
+                "duration": 342
+            },
+            {
+                "id": "7KYylYAdBm8",
+                "title": "Software is going to zero #ai #mstr #bitcoin",
+                "duration": 77
+            },
+            {
+                "id": "PyYogQEnPNE",
+                "title": "Should You Buy Bitcoin? - Michael Saylor",
+                "duration": 219
+            },
+            {
+                "id": "7KniD4pcsJ8",
+                "title": "Securing the Institutional Frontier w/ Mike Belshe of BitGo",
+                "duration": 498
+            },
+            {
+                "id": "1R0J-myYPM0",
+                "title": "Michael Saylor: Bitcoin is Hope",
+                "duration": 387
+            },
+            {
+                "id": "_wNqRmv81qY",
+                "title": "Why Strategy Buys Bitcoin Even in a Bear Market! #mstr #investing #bitcoin",
+                "duration": 85
+            },
+            {
+                "id": "LbddD5vmFCY",
+                "title": "True North Now - Inside look at The SmarterWeb Company | Featuring CEO Andrew Webley",
+                "duration": 2912
+            },
+            {
+                "id": "ACmMK_ruxn4",
+                "title": "Have Space Suit, Will Travel | True North Podcast | Ep. 14",
+                "duration": 7389
+            },
+            {
+                "id": "d4XxuxnreBs",
+                "title": "True Cost of Inflation - Michael Saylor & Lex Fridman",
+                "duration": 885
+            },
+            {
+                "id": "Wz2LE_21q5c",
+                "title": "\"Pref Analysis / Deep Dive\" | True North Podcast | Ep. 42",
+                "duration": 6050
+            },
+            {
+                "id": "HtGSq8QphY4",
+                "title": "Treasury Execution  Exchanges, OTC Desks and Custodians w/ Nick Coombs, Jonathan Ovadia & Allen Helm",
+                "duration": 1299
+            },
+            {
+                "id": "ctZz5Dl5OEE",
+                "title": "New way of building wealth in your 20's  #bitcoin #mstr #investing",
+                "duration": 74
+            },
+            {
+                "id": "WrR95PFYDFQ",
+                "title": "Michael Saylor On Buying Bitcoin With His Balance Sheet - Pomp Podcast #385",
+                "duration": 5085
+            },
+            {
+                "id": "VSB_lXxJbDA",
+                "title": "Rewiring The Credit Curve | True North Podcast | Ep. 32",
+                "duration": 6868
+            },
+            {
+                "id": "fAldRInw4EA",
+                "title": "The Mechanics of Capital and Digital Credit | True North Podcast | Ep. 61",
+                "duration": 6879
+            },
+            {
+                "id": "V-SQTNYZinw",
+                "title": "Bitcoin Treasury Pitfalls: Is It Always The Right Move? | Bitcoin MENA 2025",
+                "duration": 1250
+            },
+            {
+                "id": "iojnUC6SXoQ",
+                "title": "True North Orlando 2025 - Setting Sail with Satoshi & Saylor | Tim Kotzman",
+                "duration": 320
+            },
+            {
+                "id": "Umo16GF91HU",
+                "title": "The Quiet Accumulation | True North Podcast | Ep. 56",
+                "duration": 6518
+            },
+            {
+                "id": "aFGCKwPNH4I",
+                "title": "The Defining Question of Our Time in History - Michael Saylor",
+                "duration": 194
+            },
+            {
+                "id": "PXC0spZ2M4U",
+                "title": "Is Bitcoin Digital Gold? - Michael Saylor",
+                "duration": 402
+            },
+            {
+                "id": "sLDz5_Xalak",
+                "title": "Strategy ($MSTR) 2022 vs 2026: What Changed",
+                "duration": 676
+            },
+            {
+                "id": "-SrOHgdyuBQ",
+                "title": "First 10 Years of Your Career are Important! #mstr #trading #retirement #financialplanning #bitcoin",
+                "duration": 70
+            },
+            {
+                "id": "bCj06VkJPMg",
+                "title": "Why STRC Is the Most Important Security in All of Bitcoin | Strategy World 2026",
+                "duration": 504
+            },
+            {
+                "id": "l1YeMuTUjuY",
+                "title": "The Equitization of Bitcoin: Treasury CEO Khing Oei | BFC Symposium, Amsterdam 2025",
+                "duration": 936
+            },
+            {
+                "id": "mBAJ-kZ1F2o",
+                "title": "The Fiat Deflation Paradox: Bitcoin & AI as the Ideal Combination for Investors  | BFC Show Ep 24",
+                "duration": 2353
+            },
+            {
+                "id": "y8IH0OwFyW4",
+                "title": "Michael Saylor: Why Bitcoin is a Truth Machine",
+                "duration": 601
+            },
+            {
+                "id": "tNJp3qBH1sw",
+                "title": "Bitcoin is Cybernetic Life - The Saylor Series Episode 13",
+                "duration": 5548
+            },
+            {
+                "id": "qoDg83TKFYs",
+                "title": "Steven Lubka: Let the Super Cycle Begin | Bitcoin for Corporations Ep. 15",
+                "duration": 4252
+            },
+            {
+                "id": "68gbrVgwxDQ",
+                "title": "How capital will move between Bitcoin and Preferred Equities  #trading #bitcoin",
+                "duration": 123
+            },
+            {
+                "id": "NiBPWzNm1Jo",
+                "title": "Inside Brazil's Corporate Bitcoin Boom w/ Israel Salmen & Mason Foard | BFC Ep. 18",
+                "duration": 2706
+            },
+            {
+                "id": "LnLSVgOgngc",
+                "title": "Engineering the Institutional Bitcoin Economy | Bitcoin MENA 2025",
+                "duration": 1293
+            },
+            {
+                "id": "Y7FsiPuF3z4",
+                "title": "SaylorSpace - Travel Through Cosmos with Michael Saylor on Bitcoin",
+                "duration": 3628
+            },
+            {
+                "id": "VGkyVoNw9v8",
+                "title": "Tech Themes thru History - The Saylor Series Episode 3",
+                "duration": 4592
+            },
+            {
+                "id": "mjWzlAl5ss8",
+                "title": "MSTR's Bold BTC Bet | True North Podcast | Ep. 6",
+                "duration": 5756
+            },
+            {
+                "id": "WoS5GSjOP0Y",
+                "title": "True North Pulse - MSTR Q2 Earnings Explained: $11B net income & S&P 500 Hype | Jeff Walton",
+                "duration": 819
+            },
+            {
+                "id": "FTGSQdoS5Sc",
+                "title": "Michael Saylor: Bitcoin Quantum Resistance & Strategy's Bitcoin Cybersecurity Program",
+                "duration": 108
+            },
+            {
+                "id": "tebx6tULPnM",
+                "title": "Digital Credit Boom Is Coming",
+                "duration": 456
+            },
+            {
+                "id": "vkIq85Ha1fc",
+                "title": "The First Regulated STRC ETF Is Here | Strategy World 2026",
+                "duration": 487
+            },
+            {
+                "id": "w2e3nL7xMz0",
+                "title": "Why Corporations Are Putting Bitcoin on Their Balance Sheet - Pomp Podcast #595",
+                "duration": 3184
+            },
+            {
+                "id": "mpyijmce67E",
+                "title": "A Time To Build | The Hurdle Rate Ep.47",
+                "duration": 2954
+            },
+            {
+                "id": "GYKslGw0P5I",
+                "title": "Pensions, Private Equity & Digital Credit | The Hurdle Rate Ep. 42",
+                "duration": 3744
+            },
+            {
+                "id": "l3KxDiSgjpk",
+                "title": "True North Orlando 2025 - The DNA of a Bitcoin portfolio  | Dan Hillary",
+                "duration": 571
+            },
+            {
+                "id": "ssEMtaRwra0",
+                "title": "The Saylor Series | Part 3: Bitcoin as the Ultimate Asset",
+                "duration": 13151
+            },
+            {
+                "id": "y4Wtwbmszow",
+                "title": "True North Now - Knots & Bitcoin: Spam, Filters, and the Fight for the Network | Featuring Mechanic",
+                "duration": 3677
+            },
+            {
+                "id": "wba5XJHKPqg",
+                "title": "Saylor: Bitcoin Halving Will Drive Demand Through the Roof",
+                "duration": 236
+            },
+            {
+                "id": "cPcS7mViJGE",
+                "title": "Bitwise CIO Explains Why Bitcoin Can Reach $1.3M Conservatively",
+                "duration": 129
+            },
+            {
+                "id": "ErhdjIY5ogs",
+                "title": "A Structural Shift | The Hurdle Rate Podcast | Ep. 55",
+                "duration": 3061
+            },
+            {
+                "id": "b4Y88YFlGpk",
+                "title": "Amplified Bitcoin and Digital Credit | The Hurdle Rate Ep. 35",
+                "duration": 4808
+            },
+            {
+                "id": "oKhVBv_A9pI",
+                "title": "MSTR Q4 2025 Earnings Call: Bitcoin Is Now Backed by Politicians, Institutions & Banks",
+                "duration": 391
+            },
+            {
+                "id": "EP0XfP2HCCM",
+                "title": "Regulatory Panel | Strategy World 2026",
+                "duration": 1802
+            },
+            {
+                "id": "ggd-qnM9iwI",
+                "title": "Jeff challenges you to look at the bond market.",
+                "duration": 69
+            },
+            {
+                "id": "DHtXzMSBlHQ",
+                "title": "Power Of Collateral | True North Podcast | Ep. 30",
+                "duration": 6866
+            },
+            {
+                "id": "_Nvh_xScNPY",
+                "title": "SaylorJungle - 1 Hour Relaxing Saylor with Forest Rain Sounds",
+                "duration": 3581
+            },
+            {
+                "id": "3r_Z3U0jIA4",
+                "title": "The Best Message Is Digital Credit | The Hurlde Rate Ep. 43",
+                "duration": 3768
+            },
+            {
+                "id": "aixlSH2jo_4",
+                "title": "Calling The Shot | True North Podcast | Ep. 63",
+                "duration": 6082
+            },
+            {
+                "id": "3GkA2grVaNw",
+                "title": "Michael Saylor Explains Why Bitcoin is Superior to Gold",
+                "duration": 607
+            },
+            {
+                "id": "tkqlubjSC9I",
+                "title": "Bitcoin, AI and The New QE | The Hurdle Rate Podcast | Ep. 53",
+                "duration": 3615
+            },
+            {
+                "id": "qBPtUf50XVg",
+                "title": "Saylor BEST Bitcoin Podcast: Why You NEED 0.1 Bitcoin in 2025",
+                "duration": 5333
+            },
+            {
+                "id": "XU5u5gl6EIs",
+                "title": "Why Bitcoin is the Perfect Monetary System - Saylor Explains in Plain English",
+                "duration": 712
+            },
+            {
+                "id": "7wHQGnfnWAs",
+                "title": "Weeks When Decades Happen | True North Podcast | Ep. 20",
+                "duration": 6313
+            },
+            {
+                "id": "C13Dicxc1wc",
+                "title": "Bitcoin for Corporations Symposium | Bitcoin MENA 2025",
+                "duration": 25802
+            },
+            {
+                "id": "yz9R_EfIesM",
+                "title": "BTC credit markets will be bigger than bitcoin itself #bitcoinforcorporations #bitcointreasury",
+                "duration": 80
+            },
+            {
+                "id": "VKC0__vEbc8",
+                "title": "The Future of Corporate Bitcoin Adoption | MIT Bitcoin Expo 2025",
+                "duration": 2437
+            },
+            {
+                "id": "c3E91-RGjQE",
+                "title": "EXCLUSIVE: Michael Saylor Masterclass On Bitcoin",
+                "duration": 8740
+            },
+            {
+                "id": "8XwV0KHo92Q",
+                "title": "How much more leverage can $MSTR take on?",
+                "duration": 78
+            },
+            {
+                "id": "-7Sw3rbIxvI",
+                "title": "Pure Play vs Operating Cash Flows: What's the Optimal Bitcoin Treasury Strategy? #BTC #Markets",
+                "duration": 92
+            },
+            {
+                "id": "DqHEgdThGuU",
+                "title": "Issuer Perspective of Investing in Digital Credit | Strategy World 2026",
+                "duration": 1871
+            },
+            {
+                "id": "NT8KDT0Bjkk",
+                "title": "How ETFs Lead to More #Bitcoin w/ Matt Hougan of Bitwise",
+                "duration": 412
+            },
+            {
+                "id": "Rty7BQyUkHM",
+                "title": "NEW Michael Saylor Interview on Bitcoin (12-Minute Summary)",
+                "duration": 751
+            },
+            {
+                "id": "RMp-c6ADsVE",
+                "title": "Let's Talk About Leverage | True North Podcast | Ep. 11",
+                "duration": 8094
+            },
+            {
+                "id": "_GHU3v3mqwE",
+                "title": "Digital Risk w/ Jeff Walton | Strategy World 2026",
+                "duration": 932
+            },
+            {
+                "id": "iAltqb7iLf8",
+                "title": "The Future Runs on Digital Credit | Strategy World 2026",
+                "duration": 607
+            },
+            {
+                "id": "CHwCZIp5Xnc",
+                "title": "\"And Then They Fight You\" | True North Podcast | Ep. 46",
+                "duration": 6663
+            },
+            {
+                "id": "07MA4bVy_tM",
+                "title": "Strategy ($MSTR) Balance Sheet & Digital Credit",
+                "duration": 642
+            },
+            {
+                "id": "H99AdvqhUE0",
+                "title": "Michael Saylor: Why 21 Million Changes Everything",
+                "duration": 764
+            },
+            {
+                "id": "d3Ryy9CWfLc",
+                "title": "Bitcoin Treasury Strategy: Does Cash Flow Still Matter?",
+                "duration": 1318
+            },
+            {
+                "id": "nXAfbiZFvjM",
+                "title": "$MSTR True North - $STRF ATM - Investment Grade Analysis & Market Comp Simulation",
+                "duration": 4321
+            },
+            {
+                "id": "wWejtrifr4w",
+                "title": "MSTR Built a 46 Year Bitcoin Safety Net. #mstr #bitcoin #digitalcredit",
+                "duration": 61
+            },
+            {
+                "id": "mJ4rDOQ39JQ",
+                "title": "The Semler Acquisition: Strive's Bitcoin Credit POWERHOUSE w/ Matt Cole & Jeff Walton | BFC Ep. 14",
+                "duration": 4026
+            },
+            {
+                "id": "MlIyPhpRFow",
+                "title": "Strategy₿ Q4 '24 Earnings Call | True North Podcast | Ep. 16",
+                "duration": 7076
+            },
+            {
+                "id": "OtOaE24IGlA",
+                "title": "Tokenization: The Next Era of Corporate Finance | Strategy World 2026",
+                "duration": 1782
+            },
+            {
+                "id": "_BUT5f9tRNM",
+                "title": "Is The Tide Turning? | True North Podcast | Ep. 58",
+                "duration": 6265
+            },
+            {
+                "id": "blkHhCz5_nY",
+                "title": "Tucker Carlson Interview with Michael Saylor about Bitcoin",
+                "duration": 449
+            },
+            {
+                "id": "hzcmndorLwQ",
+                "title": "Saylor: Bitcoin + Digital Credit = The Future of Money (Full Keynote)",
+                "duration": 2225
+            },
+            {
+                "id": "X7847QWh8nw",
+                "title": "Volatility is Vitality | True North Podcast | Ep. 5",
+                "duration": 7119
+            },
+            {
+                "id": "wdJFeSY8UVk",
+                "title": "Michael Saylor on Tucker Carlson Today - Full Interview",
+                "duration": 4836
+            },
+            {
+                "id": "j088KB4wDh8",
+                "title": "Bitcoin Adoption Trends w/ Alex Leishman | Strategy World 2026",
+                "duration": 455
+            },
+            {
+                "id": "ZTO9GrKVNPw",
+                "title": "Navigating The Storm | True North Podcast | Ep. 37",
+                "duration": 7686
+            },
+            {
+                "id": "c8trwUs7oRQ",
+                "title": "\"Zero is the Wrong Number\" — Why You Can't Ignore Bitcoin Anymore w/ Hunter Albright of SALT Lending",
+                "duration": 207
+            },
+            {
+                "id": "QBLGZqYTmn8",
+                "title": "MicroStrategy's Bitcoin Strategy Is INSANE - Pomp Podcast",
+                "duration": 2499
+            },
+            {
+                "id": "rcGeY0OzWdQ",
+                "title": "Michael Saylor: Money is Energy - Breedlove & Lex Fridman",
+                "duration": 457
+            },
+            {
+                "id": "sp90Dh2Igr0",
+                "title": "Europe's First Bitcoin Treasury Company | Strategy World 2026",
+                "duration": 573
+            },
+            {
+                "id": "BO4LnHoOcM4",
+                "title": "Investment Banker Christian Lopez: Why EVERY Balance Sheet Will Hold BTC | BFC Ep. 13",
+                "duration": 3674
+            },
+            {
+                "id": "WvUE_Yvktwk",
+                "title": "Bitcoin's Seven Layers of Security #2 - The Saylor Series Episode 15",
+                "duration": 4498
+            },
+            {
+                "id": "zQwaUUOzNSs",
+                "title": "The Asymmetry of Bitcoin-Backed Credit | MSTR Q4 2025 Earnings Call",
+                "duration": 102
+            },
+            {
+                "id": "N3J868zhH9g",
+                "title": "Bitcoin Is Encrypted Energy - Saylor & Breedlove",
+                "duration": 612
+            },
+            {
+                "id": "uUUwuxTquws",
+                "title": "Michael Saylor Bought $7 Billion In Bitcoin - Pomp Podcast",
+                "duration": 447
+            },
+            {
+                "id": "uILb-qRPLGo",
+                "title": "True North Exchange - Recapitalizing the world on Bitcoin | with @amitisinvesting",
+                "duration": 5172
+            },
+            {
+                "id": "o3WT9wz0oOk",
+                "title": "What's Actually Happening with Strategy ($MSTR) Stock Price w/ Adam Livingston",
+                "duration": 8022
+            },
+            {
+                "id": "ffjHKvulDns",
+                "title": "Michael Saylor Addresses Bitcoin Treasury Skeptics",
+                "duration": 929
+            },
+            {
+                "id": "zBTJkiHE4vs",
+                "title": "The Great Equalizer: Why AI is the Ultimate Tool for Global Empowerment w/ Mason Foard of Meliuz",
+                "duration": 491
+            },
+            {
+                "id": "S_-1q3zdUYo",
+                "title": "An Increasingly Digital World | The Hurdle Rate Podcast Ep.52",
+                "duration": 3236
+            },
+            {
+                "id": "YMxuzzYqPi8",
+                "title": "Volatility's Return & Bitcoin Treasuries | True North Podcast | Ep. 19",
+                "duration": 6229
+            },
+            {
+                "id": "HrehEWYj16s",
+                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman",
+                "duration": 14629
+            },
+            {
+                "id": "3AzYUGjSf-w",
+                "title": "Bitcoin is disrupting the $300+ Trillion Credit Market.  #mstr #bitcoin #investing #investing",
+                "duration": 61
+            },
+            {
+                "id": "y2mugodJ6gc",
+                "title": "What is Credit w/ special guest Adam Livingston | True North Podcast | Ep. 41",
+                "duration": 8129
+            },
+            {
+                "id": "awA2vnfEB2Y",
+                "title": "Michael Saylor Explains High Powered Digital Money",
+                "duration": 136
+            },
+            {
+                "id": "ckj0w5p1bLA",
+                "title": "Bitcoin in Wealth Management Portfolios | Strategy World 2026",
+                "duration": 1106
+            },
+            {
+                "id": "IdFlPrpi5cc",
+                "title": "Build The Structure | The Hurdle Rate Ep.46",
+                "duration": 2971
+            },
+            {
+                "id": "coHC_9ApBdg",
+                "title": "Michael Saylor: The Bitcoin Standard for Corporations",
+                "duration": 7002
+            },
+            {
+                "id": "sS7hLOJlyRQ",
+                "title": "The Incentives Are Aligned | The Hurdle Rate Ep. 38",
+                "duration": 3500
+            },
+            {
+                "id": "4ClRqE1Dbqs",
+                "title": "Bullish Digital Credit | The Hurdle Rate Ep.48",
+                "duration": 3251
+            },
+            {
+                "id": "RGI4N223lSU",
+                "title": "Why Bitcoin Sovereignty Beats ETF Convenience w/ Trey Sellers of Unchained | BFC Show Ep 31",
+                "duration": 3813
+            },
+            {
+                "id": "WOpTi_qJUiw",
+                "title": "Bitcoin's Transaction Volume Exceeded American Express - Saylor",
+                "duration": 371
+            },
+            {
+                "id": "_WZ_I_xWTXk",
+                "title": "Noise in the Market | The Hurdle Rate Ep. 23",
+                "duration": 3416
             },
             {
                 "id": "XdgP25UcHB0",
@@ -5333,158 +6044,254 @@ var STATIONS = [
                 "duration": 15110
             },
             {
-                "id": "ItvfKfYUd0c",
-                "title": "BTC Prague 2025 - Michael Saylor FULL KEYNOTE",
-                "duration": 2855
+                "id": "_27ZZJXv4gw",
+                "title": "Michael Saylor & Bill Miller - Bitcoin 2023 Conference Miami",
+                "duration": 1732
             },
             {
-                "id": "yQL9yua9Yq0",
-                "title": "Michael Saylor on Bitcoin: The Digital Transformation",
-                "duration": 3032
-            }
-        ]
-    },
-    {
-        "id": "future-predictions",
-        "name": "Trading & Predictions",
-        "emoji": "🔮",
-        "desc": "Analysis, price models & market theories",
-        "color": "#8b5cf6",
-        "videos": [
-            {
-                "id": "hrjBK6AXAMk",
-                "title": "Take The Bitcoin Orange Pill - How To Guide",
-                "duration": 597
+                "id": "oHnoxfjAPqo",
+                "title": "Michael Saylor Bitcoin for Corporations 2025 Keynote Speech",
+                "duration": 3909
             },
             {
-                "id": "Sxv6wpU1380",
-                "title": "Is This Bitcoin Final Cycle? - Luke Mikic",
-                "duration": 385
+                "id": "2NwaMg0VyC8",
+                "title": "Bitcoin, Bonds and Breakthroughs | True North Podcast | Ep. 7",
+                "duration": 8257
             },
             {
-                "id": "bw5Gepxo2Ps",
-                "title": "Bitcoin Network Effects Model - 10x Users = 100x Price",
-                "duration": 1108
+                "id": "r1_8RumNLLI",
+                "title": "Protect Index Integrity: A Response to MSCI's Digital Asset Proposal",
+                "duration": 323
             },
             {
-                "id": "nlvx2-3LUhM",
-                "duration": 6396,
-                "title": "Bitcoin Power Law Explained | SLP624"
+                "id": "JAgkx45l9no",
+                "title": "Digital Assets at TD Bank | Strategy World 2026",
+                "duration": 1765
             },
             {
-                "id": "yhcbMUh3YTo",
-                "title": "The Generational Bitcoin Price Run Begins",
-                "duration": 749
+                "id": "mEHJYJg5mew",
+                "title": "Bitcoin’s 13% Yield: The Digital Credit Revolution w/ Strive's Matt Cole, Ben Werkman, & Jeff Walton",
+                "duration": 518
             },
             {
-                "id": "_rMwlS1aHFs",
-                "duration": 4295,
-                "title": "The Physics of Bitcoins 10M Future"
+                "id": "C4i3OjkrBTc",
+                "title": "The Starting Line | The Hurdle Rate Ep. 27",
+                "duration": 3183
             },
             {
-                "id": "KR8EZo5IesE",
-                "duration": 495,
-                "title": "Tom Lee: Bitcoin to  Million Path"
+                "id": "24c_s3QQsWc",
+                "title": "Bitcoin for Corporations Adoption Update w/ George Mekhail | Strategy World 2026",
+                "duration": 782
             },
             {
-                "id": "vjwFusEnfiE",
-                "duration": 864,
-                "title": "The Power Law Lens on Bitcoin - Santostasi"
+                "id": "JjAtLGXKUrs",
+                "title": "Inside the Digital Credit Revolution | The Hurdle Rate Ep. 36",
+                "duration": 3280
             },
             {
-                "id": "iww09Eeql_o",
-                "title": "PlanB: Stock-to-Flow Model & Future Price Predictions",
-                "duration": 602
+                "id": "Q9zn96gOy0U",
+                "title": "Jeff asks a trick question. #mstr #bitcoin #realestate #strc",
+                "duration": 61
             },
             {
-                "id": "lyTHPcHDOk8",
-                "title": "Rational Root: Bitcoin Will Hit $600k then $6 Million",
-                "duration": 1268
+                "id": "FsGONQow-nE",
+                "title": "The Strategic Case for Bitcoin Treasuries in Europe w/ Alexandre Laizet, Jesse Myers, Tyler Evans",
+                "duration": 1350
             },
             {
-                "id": "6WdwTR_S2Ig",
-                "duration": 763,
-                "title": "Bitcoin Stock-To-Flow Model"
+                "id": "v4jHjIfMT8k",
+                "title": "Defeating the Single Point of Failure w/ Mike Belshe of BitGo | BFC Show Ep. 33",
+                "duration": 3079
             },
             {
-                "id": "BpKfLfGbf0Q",
-                "title": "Bitcoin Hyperbitcoinization: $1.5M by 2028?",
-                "duration": 1562
+                "id": "t8QSR0y9rls",
+                "title": "Strategy ($MSTR) vs. Bitcoin Supply: The Convergence",
+                "duration": 197
             },
             {
-                "id": "wjObfPHlPOk",
-                "duration": 305,
-                "title": "Understanding S2F Live Charts"
+                "id": "YtQhBfLNeGY",
+                "title": "Inject The Bitcoin Volatility Virus | True North Podcast | Ep. 33",
+                "duration": 7818
             },
             {
-                "id": "C9KPRcmFJWI",
-                "title": "Bitcoin to $180K - Pomp Investments Prediction",
-                "duration": 2361
+                "id": "rhT9B1ZUkUY",
+                "title": "Strategy ($MSTR) Will Get To 1,000,000 BTC",
+                "duration": 324
             },
             {
-                "id": "GzZecXEUJTI",
-                "duration": 840,
-                "title": "Realistically Reaching  Million"
+                "id": "BYCfwMrS-VM",
+                "title": "Strategy (MSTR) Q4 2025 Earnings Call w/ Analyst Q&A",
+                "duration": 7307
             },
             {
-                "id": "W3SKpO0q9QI",
-                "title": "Roadmap To Crypto's $10 Trillion Market Cap - Ben Cowen",
-                "duration": 4421
+                "id": "xzHc5x9muT0",
+                "title": "Post Election Discussion | True North Podcast | Ep. 3",
+                "duration": 5578
             },
             {
-                "id": "hzeAkfnuBKo",
-                "title": "PlanB: Bitcoin Will Hit $135k by Christmas! Stock-to-Flow Proof",
-                "duration": 664
+                "id": "2u9jJPzd5Wo",
+                "title": "$MSTR’s $1.44B USD Reserve Just Proved The Business Model",
+                "duration": 456
             },
             {
-                "id": "LU5RqsGwvBg",
-                "duration": 401,
-                "title": "Bitcoins Path to M: Schwab"
+                "id": "tqL6RdHaH_Q",
+                "title": "LIVE: Bitcoin for Corporations - Day 2 | Strategy World 2026",
+                "duration": 31411
             },
             {
-                "id": "jzY_SxnTLNA",
-                "title": "Bitcoin Is the Economic Singularity - Luke Mikic",
-                "duration": 1168
+                "id": "slOVowPqhAc",
+                "title": "New Market Structures using STRC & Bitcoin-Linked Products | Strategy World 2026",
+                "duration": 1842
             },
             {
-                "id": "IWUEPFAHksc",
-                "title": "Bitcoin Bull Market Support Band - Benjamin Cowen",
-                "duration": 466
+                "id": "dGm8YA96oOs",
+                "title": "Mathematically Comparing Hypothetical Risk Profiles |$STRC vs $SATA",
+                "duration": 355
             },
             {
-                "id": "qX2fbQgxJig",
-                "title": "Why Bitcoin Could Reach $64M - Luke Mikic",
-                "duration": 2893
+                "id": "4az78ODE3Zc",
+                "title": "Digital Credit Clarity | The Hurdle Rate Ep. 44",
+                "duration": 3443
             },
             {
-                "id": "LkmVUMRh9vo",
-                "title": "Bitcoin: Where In The Cycle Are We? - Benjamin Cowen",
-                "duration": 547
+                "id": "J1STZqH_FRY",
+                "title": "Weathering The Storm | True North Podcast | Ep. 55",
+                "duration": 4804
             },
             {
-                "id": "3DijExIkark",
-                "title": "Bitcoin On-Chain Analysis: MVRV Z-Score Explained",
-                "duration": 452
+                "id": "CAkVu_Dou4E",
+                "title": "BTC-Backed Financing For Corporations w/Jeff Walton, Hunter Albright, Wyatt O'Rourke & Russ Jacobsen",
+                "duration": 1462
             },
             {
-                "id": "tPQs6eQ4zIU",
-                "duration": 578,
-                "title": "Stock to Flow - Prediciting Price?"
+                "id": "FVuKRYuhv8w",
+                "title": "Michael Saylor: The Bitcoin Treasury Endgame - An Exclusive At-Home Interview",
+                "duration": 5381
             },
             {
-                "id": "bPYl1-KBE50",
-                "title": "The Ultimate Orange Pill - Bitcoin & Risk",
-                "duration": 1784
+                "id": "fNizwumVk4I",
+                "title": "Banks Perspective of Investing in Digital Credit | Strategy World 2026",
+                "duration": 809
             },
             {
-                "id": "Bh7LBF9cU6w",
-                "duration": 736,
-                "title": "Plan B Model Will Break in 2026"
+                "id": "Da6T6Jati18",
+                "title": "Strategy ($MSTR) Explained In 12 Minutes",
+                "duration": 712
             },
             {
-                "id": "uF6Wx4Hr6iU",
-                "title": "Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries - Coin Stories",
-                "duration": 1907
+                "id": "vMw0KuAIGTM",
+                "title": "Chapter 2 \"Full Sail Ahead\" | True North Podcast | Ep. 39",
+                "duration": 7814
+            },
+            {
+                "id": "c2USwEB-D48",
+                "title": "This German Company is Future Proofing Its Balance Sheet With Bitcoin",
+                "duration": 265
+            },
+            {
+                "id": "YsrHaQ_DOcY",
+                "title": "Rate Cuts, AI Bubbles, and Why Bitcoin Wins Either Way",
+                "duration": 371
+            },
+            {
+                "id": "D6lqLqPYgTI",
+                "title": "True North Now - Another inside look at The SmarterWeb Company | Featuring CEO Andrew Webley",
+                "duration": 2159
+            },
+            {
+                "id": "gcV_7uil_0A",
+                "title": "Analyst Q&A: MSTR Q4 2025 Earnings Call",
+                "duration": 2802
+            },
+            {
+                "id": "peiCCZdOXuI",
+                "title": "The Reflexive Demand Shock Is Not Priced In w/ Alexandre Laizet | Bitcoin for Corporations Ep. 16",
+                "duration": 4069
+            },
+            {
+                "id": "9gWXcmkUaD4",
+                "title": "Did Bitcoin Just Gain A Powerful Ally?💥 #MSCI",
+                "duration": 69
+            },
+            {
+                "id": "zoZiw1cSOBY",
+                "title": "The Trade Idea Nobody Is Talking About ($STRC)",
+                "duration": 521
+            },
+            {
+                "id": "TYZyaebvheQ",
+                "title": "The Roadmap for BTC Treasury Adoption in Untapped Markets | Bitcoin MENA 2025",
+                "duration": 1302
+            },
+            {
+                "id": "D1jpLbw3qQ8",
+                "title": "The Management of The Treasury | The Hurdle Rate Podcast | Ep. 54",
+                "duration": 3132
+            },
+            {
+                "id": "hqoagNBtIps",
+                "title": "Michael Saylor: Bitcoin Prophecy - BTC Prague 2025",
+                "duration": 2854
+            },
+            {
+                "id": "Is99RsbExvE",
+                "title": "Margin Isn't Calling! | True North Podcast | Ep. 54",
+                "duration": 6782
+            },
+            {
+                "id": "GSko_cbikfk",
+                "title": "$MSTR True North - $STRK and $STRF 101 - Jeff Walton & Dan Hillery analysis",
+                "duration": 2978
+            },
+            {
+                "id": "BJgIbOkyBn8",
+                "title": "Fed Signals and Equity Stakes | The Hurdle Rate Ep. 24",
+                "duration": 3569
+            },
+            {
+                "id": "IZhS7z91xXc",
+                "title": "Bitcoin Treasury Fundraising in Bear VS Bull Markets w/ Brandon Green & Robert Harrison",
+                "duration": 966
+            },
+            {
+                "id": "6vvp_3uftyE",
+                "title": "Methods for Generating Bitcoin Income | Strategy World 2026",
+                "duration": 1131
+            },
+            {
+                "id": "d9OQ0UYSwLI",
+                "title": "Are Bitcoin Treasury Companies the Buyers of Last Resort? #bitcoinforcorporations #bitcoinstrategy",
+                "duration": 115
+            },
+            {
+                "id": "bjvMt0xaSUQ",
+                "title": "The Saylor Series | Part 4: The Future of Bitcoin & Civilization",
+                "duration": 831
+            },
+            {
+                "id": "Um_qzLz_YIw",
+                "title": "Michael Saylor: Bitcoin Is Digital Capital—Here’s Why It Matters",
+                "duration": 174
+            },
+            {
+                "id": "5UssVPlRllQ",
+                "title": "Bitcoin Treasury Operations Roadmap | Strategy World 2026",
+                "duration": 1212
+            },
+            {
+                "id": "RsoUxYJBKbU",
+                "title": "True North Orlando 2025 - Where are we going? | Jeff Walton",
+                "duration": 908
+            },
+            {
+                "id": "8Mhu6dxj7qk",
+                "title": "WE HAVE LASER EYES - Michael Saylor at BTCPrague 2023",
+                "duration": 1990
+            },
+            {
+                "id": "s_0ggp41rT4",
+                "title": "Bitcoin Common Misconceptions - Saylor & Robert Breedlove",
+                "duration": 8152
             },
             {
                 "id": "3-vBBYEXv6M",
@@ -5492,9 +6299,549 @@ var STATIONS = [
                 "duration": 3909
             },
             {
-                "id": "iDgDl9jzEmk",
-                "title": "Bitcoin Price Prediction Models Explained",
-                "duration": 1227
+                "id": "A7X5NXHVx1I",
+                "title": "How Family Offices & Institutions Are Positioning for Bitcoin | Bitcoin MENA 2025",
+                "duration": 1623
+            },
+            {
+                "id": "ChWZHwMkuwk",
+                "title": "Why AI Deflation Will Push Capital Into Bitcoin w/ Mason Foard of Méliuz | BFC Show Ep. 30",
+                "duration": 1525
+            },
+            {
+                "id": "kFP_1ulQ4uI",
+                "title": "SaylorRain - Relaxing Saylor Speaks on Bitcoin with Rain Sounds (1H)",
+                "duration": 3600
+            },
+            {
+                "id": "JzsrwmPzttw",
+                "title": "Fishing For The Fixed Income | True North Podcast | Ep. 29",
+                "duration": 7440
+            },
+            {
+                "id": "cd67ujAiuHA",
+                "title": "Banking Bitcoin: Integrating BTC into Traditional Finance | Strategy World 2026",
+                "duration": 635
+            },
+            {
+                "id": "_N7fZFcPjcc",
+                "title": "\"2026 the year of digital credit\" | True North Podcast | Ep. 44",
+                "duration": 4614
+            },
+            {
+                "id": "T9sRVEIOQL8",
+                "title": "Putting Your Assets to Work | BFC Symposium, Amsterdam 2025",
+                "duration": 1297
+            },
+            {
+                "id": "NWgDhtCXNWA",
+                "title": "Analyst Q&A: MSTR Q3 2025 Earnings Call",
+                "duration": 2179
+            },
+            {
+                "id": "D_yIKnHOuWg",
+                "title": "Michael Saylor Answers the Question of Our Time",
+                "duration": 327
+            },
+            {
+                "id": "XbEOeRylUCw",
+                "title": "Michael Saylor: Bitcoin, FTX, Bear Market",
+                "duration": 7364
+            },
+            {
+                "id": "0majxELKVEo",
+                "title": "Thanksgiving Week | True North Podcast | Ep. 8",
+                "duration": 4231
+            },
+            {
+                "id": "v4na2pycrcc",
+                "title": "The Future is Bitcoin with Michael Saylor - Moonshots & Mindsets",
+                "duration": 5392
+            },
+            {
+                "id": "99liY3HDiG0",
+                "title": "On/Off/On/Off/On/Off | True North Podcast | Ep. 23",
+                "duration": 7024
+            },
+            {
+                "id": "9xhks3PPI3w",
+                "title": "Beneath The Surface, A System In Motion | True North Podcast | Ep. 60",
+                "duration": 6879
+            },
+            {
+                "id": "YnlFl8weBE0",
+                "title": "Bitcoin Is Entering the Capital Markets Era | Strategy World 2026",
+                "duration": 704
+            },
+            {
+                "id": "CdBOuVaqYvY",
+                "title": "Digital Capital Theory & Analysis w/ Allard Peng | BFC Show Ep. #22",
+                "duration": 3959
+            },
+            {
+                "id": "VwTzTuc4qDk",
+                "title": "LIVE: Bitcoin for Corporations - Day 1 | Strategy World 2026",
+                "duration": 18242
+            },
+            {
+                "id": "G9SRFBXIOeE",
+                "title": "Strive Chiefs play Bitcoin Trivia! #bitcoin #bitcointreasury #bitcoinconference",
+                "duration": 79
+            },
+            {
+                "id": "MSMJBmo_q4s",
+                "title": "Saylor: Bitcoin as Treasury Reserve Asset",
+                "duration": 240
+            },
+            {
+                "id": "SojzZxhMf00",
+                "title": "The Virtues of Strong Money - The Saylor Series Episode 7",
+                "duration": 5493
+            },
+            {
+                "id": "4kWvkws8qD4",
+                "title": "$MSTR will be the biggest company in the world. #trading #investing #bitcoin",
+                "duration": 78
+            },
+            {
+                "id": "LgLUHYESVsI",
+                "title": "The Trillion Dollar Idea ($STRC)",
+                "duration": 456
+            },
+            {
+                "id": "VeFTC_DzqS8",
+                "title": "Michael Saylor & Simon Gerovich Fireside Chat | Bitcoin MENA 2025",
+                "duration": 1754
+            },
+            {
+                "id": "CUilC81qgQ8",
+                "title": "Preferred Equity Demand | The Hurdle Rate Ep.45",
+                "duration": 3910
+            },
+            {
+                "id": "hzyJ0tK9f2k",
+                "title": "MicroStrategy is Getting Stronger... Here's How We Know",
+                "duration": 380
+            },
+            {
+                "id": "8xVmeckJeXo",
+                "title": "Michael Saylor: Why Corporate Bitcoin Treasuries Empower Individual Holders",
+                "duration": 100
+            },
+            {
+                "id": "6d9bPPI77zg",
+                "title": "\"MSTR Uptober\" | True North Podcast | Ep. 40",
+                "duration": 7821
+            },
+            {
+                "id": "fCkABdwjxtE",
+                "title": "Michael Saylor at Bitcoin Atlantis 2024",
+                "duration": 3069
+            },
+            {
+                "id": "EIH2k857E1Y",
+                "title": "STRC'ing The Limits | True North Podcast | Ep. 34",
+                "duration": 7665
+            },
+            {
+                "id": "Hfdq-Wl1fRQ",
+                "title": "Michael Saylor Explains Why Going All In on Bitcoin Could Be Genius",
+                "duration": 820
+            },
+            {
+                "id": "Mz1LhRXwY1Q",
+                "title": "\"Wall Street Has Woken Up” w/ Matt Hougan of Bitwise | BFC Show Ep. 34",
+                "duration": 2968
+            },
+            {
+                "id": "_T6Wu5d3IY0",
+                "title": "$MSTR True North - In the Mind of Richard Byworth with Jeff Walton",
+                "duration": 4164
+            },
+            {
+                "id": "ODPZpZfSUEM",
+                "title": "Derivatives Strategies | Strategy World 2026",
+                "duration": 755
+            },
+            {
+                "id": "Qv9meQd7S_M",
+                "title": "The Importance of Index Inclusion for Digital Asset Treasury Companies | Strategy World 2026",
+                "duration": 1003
+            },
+            {
+                "id": "6WVXmSz2RWw",
+                "title": "How Bitcoin Will Succeed.",
+                "duration": 62
+            },
+            {
+                "id": "gRnspOucXNg",
+                "title": "Michael Saylor - Bitcoin Zen",
+                "duration": 57
+            },
+            {
+                "id": "rkaXG5abVYY",
+                "title": "Commodity, Security, Token | The Hurdle Rate Ep. 22",
+                "duration": 3124
+            },
+            {
+                "id": "Z-38QA3hqRs",
+                "title": "BTC v MSCI: The Fight to Keep Bitcoin Companies in Global Indexes w/ George Mekhail | BFC Show Ep 21",
+                "duration": 3830
+            },
+            {
+                "id": "E2fZBPb0Q9A",
+                "title": "\"I want MSTR to stand for MONSTER\"",
+                "duration": 85
+            },
+            {
+                "id": "eDZu7ay1etQ",
+                "title": "Bitcoin is Powered by Chaos #mstr #trading #bitcoin",
+                "duration": 80
+            },
+            {
+                "id": "iue1CHo_F-o",
+                "title": "Will Travel For Bitcoin | The Hurdle Rate Ep. 25",
+                "duration": 2647
+            },
+            {
+                "id": "aIiZGnvyMQY",
+                "title": "The Bitcoin Orchestra | True North Podcast | Ep. 24",
+                "duration": 7209
+            },
+            {
+                "id": "U2Q1A75EAk8",
+                "title": "The Brutal Truth About Bitcoin #trading #mstr #strc #bitcoin",
+                "duration": 65
+            },
+            {
+                "id": "OmrKYS2qcXw",
+                "title": "The Capital Fortress | True North Podcast | Ep. 47",
+                "duration": 5291
+            },
+            {
+                "id": "Nqt3BClxlpk",
+                "title": "Strategy CEO Phong Le: MIT Bitcoin Expo 2025 Keynote Speech",
+                "duration": 1474
+            },
+            {
+                "id": "_iQni1dCqDY",
+                "title": "Bitcoin Trading Like a Currency — And Institutions Know It",
+                "duration": 88
+            },
+            {
+                "id": "p3vNo6JcC7s",
+                "title": "Bear is for Building | True North Podcast | Ep. 49",
+                "duration": 7003
+            },
+            {
+                "id": "zCvYKTLGGRc",
+                "title": "Bitcoin Treasuries & The New Credit Paradigm w/ Jeff Walton of Strive",
+                "duration": 1134
+            },
+            {
+                "id": "UQjmBvmyfqA",
+                "title": "Listening to Michael Saylor ALL Day - Transcendental Bitcoin Meditation",
+                "duration": 43
+            },
+            {
+                "id": "fZfg1Gtcg08",
+                "title": "100% Saylor - Michael Saylor Best Moments",
+                "duration": 210
+            },
+            {
+                "id": "JoTOaJWnZGQ",
+                "title": "MSTR & BTC Highs | True North Podcast | Ep. 4",
+                "duration": 6526
+            },
+            {
+                "id": "9v3h7fPefHE",
+                "title": "Land will be very valuable in the future #realestate #bitcoin #mstr #ai",
+                "duration": 65
+            },
+            {
+                "id": "6osK1CXno80",
+                "title": "Michael Saylor GETS ANGRY Talking About Bitcoin",
+                "duration": 2177
+            },
+            {
+                "id": "L1odkMa4PCE",
+                "title": "Signals From True North Live | True North Podcast | Ep. 57",
+                "duration": 7029
+            },
+            {
+                "id": "LL2040c-DKU",
+                "title": "Equity Analysts Roundtable | Strategy World 2026",
+                "duration": 1913
+            },
+            {
+                "id": "NTaBNGpfWaE",
+                "title": "Digital Credit is for Corporations | The Hurdle Rate Ep.49",
+                "duration": 4190
+            },
+            {
+                "id": "takcCQySsPw",
+                "title": "Bitcoin is Global | Strategy World 2026",
+                "duration": 811
+            },
+            {
+                "id": "aJPByFnBcNg",
+                "title": "BTC Opportunity Cost EVERYWHERE | True North Podcast | Ep. 27",
+                "duration": 7598
+            },
+            {
+                "id": "ykvjtK30HiA",
+                "title": "Michael Saylor & The Ultimate Bitcoin Strategy",
+                "duration": 5766
+            },
+            {
+                "id": "1PkMFIa7rmQ",
+                "title": "21 Rules of Bitcoin - Saylor Prague 2024",
+                "duration": 2415
+            },
+            {
+                "id": "UADTd7gCuXo",
+                "title": "THERE IS NO SECOND BEST - Saylor at BTCPrague 2023",
+                "duration": 2442
+            },
+            {
+                "id": "CfgEBrerp2o",
+                "title": "Digital. Capital. Designed. | Strategy World 2026",
+                "duration": 796
+            },
+            {
+                "id": "50VwsS0401Q",
+                "title": "True North Orlando 2025 - MSTR True North Live | Panel",
+                "duration": 2813
+            },
+            {
+                "id": "CYT0AxQxa7o",
+                "title": "Why Bitcoin Succeeds - The Saylor Series Episode 12",
+                "duration": 6045
+            },
+            {
+                "id": "DpxMhcxi4wI",
+                "title": "The Nakamoto Flywheel Strategy for Scaling a Bitcoin Treasury with BTC Inc | BFC Show Ep. 28",
+                "duration": 3157
+            },
+            {
+                "id": "SyANPFkOpME",
+                "title": "Did we reach ATH during a bear market? #bitcoin",
+                "duration": 72
+            },
+            {
+                "id": "dVfmTMo_mO0",
+                "title": "Celebrating Bitcoin Price with Relaxing Michael Saylor Speaking (10H)",
+                "duration": 36762
+            },
+            {
+                "id": "ZcjFrIMw2sI",
+                "title": "Michael Saylor Keynote - The 2022 Atlas Society Gala",
+                "duration": 1253
+            },
+            {
+                "id": "n7YE7wskfyw",
+                "title": "The Most Hated Rally in Finance | True North Podcast | Ep. 10",
+                "duration": 8074
+            },
+            {
+                "id": "J38-PQ6X8HI",
+                "title": "Michael Saylor: Satoshi Opened A Portal Into Cyberspace",
+                "duration": 8203
+            },
+            {
+                "id": "uODBZGzKdzE",
+                "title": "Why Metaplanet’s Bitcoin Strategy Has Dylan LeClair Bullish",
+                "duration": 62
+            },
+            {
+                "id": "ig9pu0XRtNM",
+                "title": "Bitcoin as Power to the People - Saylor & Robert Breedlove",
+                "duration": 4664
+            },
+            {
+                "id": "PxnlhBP-wRs",
+                "title": "Jeff Walton Explains Digital Risk | Strategy World 2026",
+                "duration": 940
+            },
+            {
+                "id": "GocJIgAY-WI",
+                "title": "Interactive Q&A with Michael Saylor & Phong Le | Strategy World 2026",
+                "duration": 3267
+            },
+            {
+                "id": "uEPERVZWNoQ",
+                "title": "Set Up For A Supercycle | The Hurdle Rate Ep. 40",
+                "duration": 2790
+            },
+            {
+                "id": "UkFp45QBL2Y",
+                "title": "Bitcoin as a Technological Invention, Not Just an Asset",
+                "duration": 69
+            },
+            {
+                "id": "kxBdefymFiw",
+                "title": "Bitcoin Treasuries: The Next Corporate Playbook w/ Adam Back, Siddarth Bharwani & Gurpreet Oberoi",
+                "duration": 1318
+            },
+            {
+                "id": "lIODLyOWqpE",
+                "title": "Bitcoin: There Is No Second Best | Michael Saylor at Bitcoin for Corporations",
+                "duration": 3807
+            },
+            {
+                "id": "Y5_AtkCpfhI",
+                "title": "\"Bitcoin  Did This\" | True North Podcast | Ep. 51",
+                "duration": 7264
+            },
+            {
+                "id": "HHyCHEH1FGw",
+                "title": "BTC vs Gold: The Capital Base Layer Bull Thesis, Disrupting Credit Markets w/ Khing Oei | BFC Ep. 17",
+                "duration": 4114
+            },
+            {
+                "id": "k0adfjcSDHs",
+                "title": "MicroStrategy: The Case for Bitcoin on Corporate Balance Sheets | Bitcoin for Corporations",
+                "duration": 3052
+            },
+            {
+                "id": "Gy0ySjTc8p4",
+                "title": "LIVE: Strategy (MSTR) Q3 2025 Earnings Call",
+                "duration": 6755
+            },
+            {
+                "id": "_ZRc6plqG0s",
+                "title": "A Digital Dollar Backed by Bitcoin With 30% Yield | Strategy World 2026",
+                "duration": 751
+            },
+            {
+                "id": "xXI2OFzQinI",
+                "title": "True North Orlando 2025 - Volatility, Options and Full Gamma | Grain of Salt",
+                "duration": 2211
+            },
+            {
+                "id": "KxTWC3ShYDE",
+                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
+                "duration": 7385
+            },
+            {
+                "id": "hV_sgkHhApo",
+                "title": "SaylorNight - Relaxing Saylor Speaks on Bitcoin in the Night (1H)",
+                "duration": 3684
+            },
+            {
+                "id": "7aJTOCN501g",
+                "title": "Saylor Reveals the TOP Bitcoin Secrets - Digital Asset Summit 2025",
+                "duration": 2050
+            },
+            {
+                "id": "9qfWBr9Ggzg",
+                "title": "Why Digital Credit?",
+                "duration": 269
+            },
+            {
+                "id": "G0l1X9XvDe4",
+                "title": "\"The iPhone Moment\" | True North Podcast | Ep. 35",
+                "duration": 7051
+            },
+            {
+                "id": "RbkLz9C39y0",
+                "title": "Bitcoin's Seven Layers of Security - The Saylor Series Episode 14",
+                "duration": 4721
+            },
+            {
+                "id": "ItvfKfYUd0c",
+                "title": "BTC Prague 2025 - Michael Saylor FULL KEYNOTE",
+                "duration": 2855
+            },
+            {
+                "id": "yxEq_g5BIjg",
+                "title": "\"High Powered Digital Money\" | True North Podcast | Ep. 48",
+                "duration": 3932
+            },
+            {
+                "id": "49ADpogjahE",
+                "title": "STRC x SATA - BTC Risk & BTC Credit",
+                "duration": 1390
+            },
+            {
+                "id": "G_VIAI9uXQk",
+                "title": "True North Orlando - The people behinds the scenes | TheBitcoinGal, Trollstein and J64",
+                "duration": 638
+            },
+            {
+                "id": "f5mfgko8ELc",
+                "title": "The German Bitcoin Advantage: aifinyo CEO Garry Krugljakow | BFC Ep. 20",
+                "duration": 3129
+            },
+            {
+                "id": "7hyoONj4nEY",
+                "title": "What One Billionaire Knows About Outlasting a Dollar Collapse - Jordan Peterson EP 554",
+                "duration": 5245
+            },
+            {
+                "id": "8893dpSiNiE",
+                "title": "How to Value Bitcoin Treasury Companies w/ Andrew Webley, Matt Cole & Gurpreet Oberoi",
+                "duration": 1280
+            },
+            {
+                "id": "gbr95uDuF94",
+                "title": "Bitcoin’s \"iPhone Moment\" is Here w/ Strive Chief Officers | BFC Show Ep. 32",
+                "duration": 2686
+            },
+            {
+                "id": "9OHeub2XLwU",
+                "title": "Strategy ($MSTR) Balance Sheet UPDATE",
+                "duration": 339
+            },
+            {
+                "id": "VVk1LohR-KE",
+                "title": "$MSTR True North - Strategy World 2025 - Digital Transformation of Investor Relations",
+                "duration": 4675
+            },
+            {
+                "id": "uFTqXnEym04",
+                "title": "How MicroStrategy is Changing Credit Markets Forever",
+                "duration": 522
+            },
+            {
+                "id": "3FrBqdCxZb4",
+                "title": "Media Roundtable | BFC Symposium, Amsterdam 2025",
+                "duration": 2878
+            },
+            {
+                "id": "1Ms7ql_S63A",
+                "title": "The Saylor Series | Part 2: Bitcoin as Digital Gold & Property Rights",
+                "duration": 6446
+            },
+            {
+                "id": "fTMZxghP45c",
+                "title": "True North Orlando 2025 - Make Bitcoin Work for You | Solei",
+                "duration": 358
+            },
+            {
+                "id": "CA_XnoCk4sY",
+                "title": "Michael Saylor Has DOUBLED His Bitcoin Investment!",
+                "duration": 305
+            },
+            {
+                "id": "m4vV3XtWYMw",
+                "title": "Convertibles on Deck | True North Podcast | Ep. 18",
+                "duration": 6370
+            },
+            {
+                "id": "B4P_0LN60Rs",
+                "title": "Is This the New Bitcoin Meta? Inside the Nakamoto Vision w/ Tyler Evans of Nakamoto",
+                "duration": 240
+            },
+            {
+                "id": "gSc6BC1Kh2g",
+                "title": "Digital Gold: Harder, Smarter, Stronger, Faster - The Saylor Series Episode 6",
+                "duration": 5028
+            },
+            {
+                "id": "ao2RJhVpIW4",
+                "title": "Meet Them Where They're At | The Hurdle Rate Ep. 37",
+                "duration": 3200
             },
             {
                 "id": "1Mr9PknsM_Y",
@@ -5502,310 +6849,141 @@ var STATIONS = [
                 "duration": 349
             },
             {
-                "id": "JLuTDwclOP0",
-                "title": "The Resilience of Stock-to-Flow with PlanB - Bitcoin Standard Podcast",
-                "duration": 6906
+                "id": "_pVKQYdnsMc",
+                "title": "Michael Saylor Explains the Digital Credit Revolution",
+                "duration": 811
             },
             {
-                "id": "93dyVDxP7K0",
-                "title": "Bitcoin Logarithmic Regression",
+                "id": "TWSl9mdoYds",
+                "title": "Expert Analyzes the Impact of a Bitcoin ETF - Michael Saylor",
                 "duration": 402
             },
             {
-                "id": "Z51vRLKvco4",
-                "title": "Retiring on 0.1 Bitcoin - Luke Mikic",
-                "duration": 3350
+                "id": "BHBfDF9Of1Y",
+                "title": "Financial Engineering 101 | True North Podcast | Ep. 15",
+                "duration": 7620
             },
             {
-                "id": "XW1GUeBe0Rs",
-                "duration": 8577,
-                "title": "The Bitcoin Power Law WiM509"
+                "id": "5oI5hDDYYgk",
+                "title": "New Year, Same Business | True North Podcast | Ep. 12",
+                "duration": 8762
             },
             {
-                "id": "yM06uqse6Ks",
-                "duration": 5433,
-                "title": "The Science Behind M Bitcoin"
+                "id": "tkFnDInGouA",
+                "title": "Wealth and Treasury Management in the Bitcoin and AI Era | Strategy World 2026",
+                "duration": 726
             },
             {
-                "id": "wOi9XqeJy2E",
-                "title": "Cathie Wood - New 2025 Prediction for Bitcoin & Ethereum",
-                "duration": 1108
+                "id": "J2GAFWLNOhQ",
+                "title": "Strategy's Preferred Stock $STRC | Why Is It Valuable?",
+                "duration": 375
+            },
+            {
+                "id": "JeIHtWg7YJQ",
+                "title": "$STRDing Toward BTC Fixed Income | True North Podcast | Ep. 28",
+                "duration": 7643
+            },
+            {
+                "id": "LBKld0QdXnk",
+                "title": "Bitcoin Is Being Adopted By A Country As Sovereign Money - Pomp Podcast #585",
+                "duration": 3647
+            },
+            {
+                "id": "5GTVLqVi_Qw",
+                "title": "Capital Gravity Converging & Teeth Scarcity | True North Podcast | Ep. 26",
+                "duration": 8386
+            },
+            {
+                "id": "W9NlSAmpDFI",
+                "title": "The Dynamics of Scarcity & the Digital Gold Rush w/Dylan LeClair, Tracy Hoyos-Lopez & George Mekhail",
+                "duration": 1263
+            },
+            {
+                "id": "nC37CqWpxfI",
+                "title": "Saylor & Dorsey Interview",
+                "duration": 3400
+            },
+            {
+                "id": "547yEgp4-TM",
+                "title": "Q3 Earnings in Review | True North Podcast | Ep. 2",
+                "duration": 9420
+            },
+            {
+                "id": "LFlA0YKXbrc",
+                "title": "Africans Get Bitcoin Faster Than Fortune 500 CEOs",
+                "duration": 118
+            },
+            {
+                "id": "tBnsQeTbMU8",
+                "title": "How High Can Gold & Silver Go?",
+                "duration": 797
+            },
+            {
+                "id": "D446irWy6kA",
+                "title": "How Bitcoin changed his life. #mstr #bitcoin #trading",
+                "duration": 83
+            },
+            {
+                "id": "DAXC9km8Wlk",
+                "title": "Bitcoin: Zero Percent Inflation - Saylor & Robert Breedlove",
+                "duration": 8063
+            },
+            {
+                "id": "sVUzpZkz6t0",
+                "title": "The Societal Ripple Effects Of Corporate Bitcoin Adoption w/ Stafford Masie and Tracy Hoyos-Lopez",
+                "duration": 1584
+            },
+            {
+                "id": "XJjH_fJ7kEI",
+                "title": "Treasury CEO: will the 4 year bitcoin cycle continue?  #bitcoinforcorporations #bitcointreasury",
+                "duration": 72
+            },
+            {
+                "id": "gHpnTOoGv7Q",
+                "title": "Saylor: Why Bitcoin Will Birth a New Generation of Trillion-Dollar Companies",
+                "duration": 900
+            },
+            {
+                "id": "0LPXxbg5r38",
+                "title": "No Days Off | True North Podcast | Ep. 38",
+                "duration": 3029
+            },
+            {
+                "id": "0yFvw8XMQuM",
+                "title": "ANALYSIS: MSTR Q3 Earnings Call | The \"BTC Refinery\" Model",
+                "duration": 3456
+            },
+            {
+                "id": "wSwQxTq147Q",
+                "title": "Chill SaylorVibes - The Margin Call (Bitcoin Lo-fi)",
+                "duration": 2966
+            },
+            {
+                "id": "swoZxZyqpT8",
+                "title": "Michael Saylor On How Bitcoin Can Change Everything",
+                "duration": 544
+            },
+            {
+                "id": "xr52rDogbAQ",
+                "title": "\"Satoshi is the poet, Jeff Booth is the prophet, and Saylor is the prince.\"",
+                "duration": 142
+            },
+            {
+                "id": "GrYXPqnyHdc",
+                "title": "“This Is the Product.” — Why Bitcoin Treasury Companies Actually Work",
+                "duration": 220
+            },
+            {
+                "id": "DLgUQ1HGUXE",
+                "title": "Bitcoin Capital Markets: Evolving Instruments for Institutions",
+                "duration": 1577
+            },
+            {
+                "id": "q9Yo9woraoE",
+                "title": "Bitcoin Long Term Capital Market Assumptions w/Matt Hougan (Bitwise CIO)",
+                "duration": 1461
             }
-        ,
-            {
-                "id": "D8QuMzEnvvM",
-                "title": "Bitcoin Bear Market: SOPR Signals Losses as Liquidity Rolls Over - The Bitcoin Layer",
-                "duration": 439
-            },
-            {
-                "id": "kCi1gYaIbBc",
-                "title": "Only 8 Years Until Bitcoin Hits $1 Million (The Math Proves It) - The Bitcoin Layer",
-                "duration": 3043
-            },
-            {
-                "id": "pkZqnM22l8Y",
-                "title": "Bitcoin May Have Already Bottomed During War Markets - The Bitcoin Layer",
-                "duration": 416
-            },
-            {
-                "id": "AQ3ZnmAD_HQ",
-                "title": "The REAL Reason Bitcoin Is Crashing - And What Comes Next - The Bitcoin Layer",
-                "duration": 3354
-            },
-            {
-                "id": "_FaM-IIt1bg",
-                "title": "Bitcoin Enters Bear Market Behavior, What On-Chain Metrics Are Showing - The Bitcoin Layer",
-                "duration": 2727
-            },
-            {
-                "id": "0zUmhXgotMg",
-                "title": "HERE COMES VANGUARD: Why Bitcoin Hits New All-Time Highs in 2026 - The Bitcoin Layer",
-                "duration": 2998
-            },
-            {
-                "id": "9gyreHKE5XY",
-                "title": "BITCOIN'S 4-YEAR CYCLE NEVER EXISTED | Next Bubble 2027 w/ Stephen Perrenod - The Bitcoin Layer",
-                "duration": 3441
-            },
-            {
-                "id": "ppQfJMY9yYA",
-                "title": "BITCOIN CRASHES THROUGH $100,000 While Macro Volatility Surges & Trend Structure Weakens - The Bitcoin Layer",
-                "duration": 928
-            },
-            {
-                "id": "Q9C4jbZoxIE",
-                "title": "BITCOIN PUMPING: Fed Cuts, Liquidity, & The Next Breakout - The Bitcoin Layer",
-                "duration": 1315
-            },
-            {
-                "id": "44kS3j5L8AA",
-                "title": "Bitcoin Breakout or Fade: $119,000 Test & Market Behavior - The Bitcoin Layer",
-                "duration": 2495
-            },
-            {
-                "id": "hIy9mb0-uSs",
-                "title": "Bitcoin Price Levels to Watch: Short-Term Holders in Control - The Bitcoin Layer",
-                "duration": 2017
-            },
-            {
-                "id": "9c33ShgXBzg",
-                "title": "Big Money Wants $1 Million Bitcoin - The Bitcoin Layer",
-                "duration": 122
-            }]
-    },
-    {
-        "id": "tutorials",
-        "name": "Tutorials",
-        "emoji": "📚",
-        "desc": "Learn Bitcoin step by step",
-        "color": "#f7931a",
-        "videos": [
-            {
-                "id": "f-4Rs3Sqlhc",
-                "title": "Complete History of Bitcoin in 12 Minutes",
-                "duration": 602
-            },
-            {
-                "id": "FAYmE5-40PQ",
-                "title": "Coldcard Bitcoin Hardware Wallet - FULL TUTORIAL (BTC Sessions)",
-                "duration": 6890
-            },
-            {
-                "id": "TpwnoPUyumA",
-                "title": "Phoenix Wallet Setup - Self-Custody Lightning Made Easy",
-                "duration": 4158
-            },
-            {
-                "id": "Y3iAwLG6NlA",
-                "title": "Bitcoin Wallets That Change Everything in 2026 - BTC Sessions",
-                "duration": 1907
-            },
-            {
-                "id": "rKjce1jCxSM",
-                "title": "Bitcoin Beginner Mistakes to Avoid",
-                "duration": 1812
-            },
-            {
-                "id": "dCAr2urEe1o",
-                "title": "ENTROPIA - Generate Permissionless Bitcoin Wallets",
-                "duration": 2461
-            },
-            {
-                "id": "oj_W3xOlt6U",
-                "title": "Cracking Unsafe Bitcoin Wallets + Coldcard Mk4 Warning",
-                "duration": 598
-            },
-            {
-                "id": "bBC-nXj3Ng4",
-                "title": "How Bitcoin Works Under the Hood",
-                "duration": 1516
-            },
-            {
-                "id": "4Lsr7lsy6Tk",
-                "title": "How to Set Up a Bitcoin Node at Home",
-                "duration": 79
-            },
-            {
-                "id": "Sxo169CCfIc",
-                "title": "How To Use Multisig Bitcoin Wallets With Electrum",
-                "duration": 1471
-            },
-            {
-                "id": "xhDQT4TeNIU",
-                "title": "Perfect Privacy with eNuts: Instant Free Bitcoin Transactions",
-                "duration": 3070
-            },
-            {
-                "id": "tuUO-Q4_b5c",
-                "title": "How to Buy Bitcoins in 2024 (4 Methods Reviewed)",
-                "duration": 590
-            },
-            {
-                "id": "O1KaAboPX44",
-                "title": "How To Buy Bitcoin For Beginners - Step by Step",
-                "duration": 586
-            },
-            {
-                "id": "3Grj3Datdfw",
-                "title": "Game-Changing Bitcoin Wallet (Cove) - BTC Sessions",
-                "duration": 1893
-            },
-            {
-                "id": "vPMUGP3Opy8",
-                "title": "The PERFECT Bitcoin Security and Privacy Setup!",
-                "duration": 2324
-            },
-            {
-                "id": "Gc2en3nHxA4",
-                "title": "What is Bitcoin - Simply Explained",
-                "duration": 97
-            },
-            {
-                "id": "El3y8AME8oA",
-                "title": "Bitcoin Explained - Breaking It Down Simply",
-                "duration": 599
-            },
-            {
-                "id": "bsAznpEupIg",
-                "title": "Easiest Bitcoin Wallet Setup (Aqua) - BTC Sessions",
-                "duration": 2132
-            },
-            {
-                "id": "IxgNp2h5j8w",
-                "title": "How To Buy, Use and Secure Bitcoin - BTC Sessions",
-                "duration": 1632
-            },
-            {
-                "id": "lHipE05v4jg",
-                "title": "How Bitcoin Works - Complete Beginner Guide",
-                "duration": 1156
-            },
-            {
-                "id": "ZZKoSmQu30Q",
-                "title": "Best Hardware Wallet Comparison 2025 - BTC Sessions",
-                "duration": 3621
-            },
-            {
-                "id": "Ner16UBWdEg",
-                "title": "Bitcoin in 2025 - What You Need to Know",
-                "duration": 600
-            },
-            {
-                "id": "OZK5hdKfb18",
-                "title": "Bitcoin Security Best Practices",
-                "duration": 2955
-            },
-            {
-                "id": "GR-E0aaFf0c",
-                "title": "Bitcoin Explained for Complete Beginners",
-                "duration": 2759
-            },
-            {
-                "id": "mibKrTvtlyQ",
-                "title": "Misty Breez Bitcoin Wallet Setup - BTC Sessions",
-                "duration": 1822
-            },
-            {
-                "id": "lhzooru_B-o",
-                "duration": 2148,
-                "title": "10 Hours of Bitcoin Tutorials: Node & Wallet Setup"
-            },
-            {
-                "id": "KNaOeLlD6NA",
-                "title": "Build Your Own Bitcoin Node with Umbrel - Raspberry Pi",
-                "duration": 1675
-            },
-            {
-                "id": "6b0xTB2sE8E",
-                "title": "Bull Bitcoin Wallet Full Tutorial - BTC Sessions",
-                "duration": 5663
-            },
-            {
-                "id": "c8ytiynbnpk",
-                "title": "Your First Bitcoin Wallet - BTC Sessions",
-                "duration": 2555
-            },
-            {
-                "id": "LxTkLwpV1Po",
-                "title": "Permissionless Bitcoin Wallets - They Cannot Be Stopped!",
-                "duration": 3492
-            },
-            {
-                "id": "41JCpzvnn_0",
-                "title": "Bitcoin for Beginners - 99Bitcoins",
-                "duration": 769
-            },
-            {
-                "id": "yJpvfRl03Tw",
-                "title": "How To Use Sparrow Bitcoin Wallet - In Depth Tutorial (BTC Sessions)",
-                "duration": 6803
-            },
-            {
-                "id": "8zM_1lOXtBU",
-                "title": "Bitcoin 2-of-4 Multisig Wallet Tutorial Using Sparrow Wallet",
-                "duration": 3725
-            },
-            {
-                "id": "cRRB_WzZpTM",
-                "title": "BIP85: Segregated Bitcoin Accounts From One Seed (Uncle Jim Mode)",
-                "duration": 3915
-            },
-            {
-                "id": "3QH7ZTibV-Q",
-                "title": "How to Buy Bitcoin (in 2 minutes) - 2024 Updated",
-                "duration": 161
-            },
-            {
-                "id": "vmf_LtnagTs",
-                "title": "Bitcoin Cold Storage Tutorial",
-                "duration": 2386
-            }
-        ,
-            {
-                "id": "pcbYq2LCWwk",
-                "title": "LIQUIDITY Explained SIMPLY: How It Really Moves BITCOIN - The Bitcoin Layer",
-                "duration": 1007
-            },
-            {
-                "id": "X0aaySypick",
-                "title": "Bitcoin & Liquidity Academy 3: Primary Dealers, U.S. Treasuries & the Fed - The Bitcoin Layer",
-                "duration": 1318
-            },
-            {
-                "id": "Tr1bntrBOY0",
-                "title": "Bitcoin & Liquidity Academy 2: How $37 Trillion in US Debt Shapes Global Markets - The Bitcoin Layer",
-                "duration": 1549
-            },
-            {
-                "id": "iTno3A4jE0Y",
-                "title": "Bitcoin & Liquidity Academy 1: Understanding Balance Sheets, Capital, and Treasuries - The Bitcoin Layer",
-                "duration": 1548
-            },
-            {
-                "id": "hluk1tQun78",
-                "title": "Understanding The Fed's Balance Sheet with Andy Constan - The Bitcoin Layer",
-                "duration": 3841
-            }]
+]
     }
 ];
 
