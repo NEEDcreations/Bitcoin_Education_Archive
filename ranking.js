@@ -3719,7 +3719,8 @@ function showSettingsPage(tab) {
             '✅ Daily visit: <strong>5 pts</strong>',
             '🔥 Streak bonus: <strong>100 pts/day</strong>',
             '🎰 Daily spin: <strong>10-50 pts</strong>',
-            '📈 Price prediction: <strong>5 pts</strong> (25 if correct!)'
+            '📈 Price prediction: <strong>5 pts</strong> (25 if correct!)',
+            '📺 Watch Timechain TV: <strong>10 pts</strong> per 10 min watched'
         ]);
         html += _es('ep_quiz', '🧠 Quizzes & Learning', [
             '🎯 Daily quests (perfect): <strong>100 pts</strong> (50 for 3+, 25 retry)',

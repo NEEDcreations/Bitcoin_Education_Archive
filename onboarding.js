@@ -274,7 +274,7 @@ window.showOnboardingWizard = function() {
             // ---- STEP 1: Welcome + Level Pick ----
             html += '<div style="font-size:4rem;margin-bottom:8px;">🦌</div>' +
                 '<h1 style="color:#fff;font-size:1.5rem;font-weight:900;margin:0 0 6px;">Welcome to Bitcoin Education</h1>' +
-                '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of organized Bitcoin knowledge. Read channels, earn points, stack bitcoin, &amp; level up. 6 embedded mini-apps make learning about Bitcoin fun and interactive.</p>' +
+                '<p style="color:#94a3b8;font-size:0.92rem;line-height:1.5;margin:0 0 6px;">146 channels of organized Bitcoin knowledge. Read channels, earn points, stack bitcoin, &amp; level up. 7 embedded mini-apps make learning about Bitcoin fun and interactive.</p>' +
                 '<p style="color:#475569;font-size:0.8rem;margin:0 0 20px;">Free forever. No account needed. No ads.</p>' +
 
                 // How it works
