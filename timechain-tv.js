@@ -6609,9 +6609,15 @@ function updateTimeline() {
     var state = getPlaybackState(station);
 
     var np = document.getElementById('tctv-now-playing');
-    if (np && state.video && np.getAttribute('data-current-vid') !== state.video.id) {
-        np.textContent = state.video.title;
-        np.setAttribute('data-current-vid', state.video.id);
+    if (np && state.video) {
+        // Update if the vid id OR the title doesn't match the current station's video.
+        // Safety net: if some code path left np holding a title from a different
+        // station (stale), this corrects it within 1s.
+        if (np.getAttribute('data-current-vid') !== state.video.id ||
+            np.textContent !== state.video.title) {
+            np.textContent = state.video.title;
+            np.setAttribute('data-current-vid', state.video.id);
+        }
     }
 
     var bar = document.getElementById('tctv-progress');
@@ -7065,24 +7071,40 @@ window.switchStation = function(stationId) {
     if (stationId === _currentStation) return;
     _lastStation = _currentStation;
     var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
+    if (!stationObj) return;
 
+    // Compute new state UP FRONT so we have the new title ready to display
+    // regardless of what happens next. getPlaybackState is synchronous/pure.
+    var state = null;
+    try { state = getPlaybackState(stationObj); } catch(e) { console.warn('[TCTV] getPlaybackState threw', e); }
+    var newTitle = (state && state.video && state.video.title) || (stationObj.emoji + ' ' + stationObj.name);
+    var newVidId = (state && state.video && state.video.id) || '';
+
+    // Update NOW PLAYING text + vid-id marker IMMEDIATELY.
+    // Also clear and re-set data-current-vid so updateTimeline's 1s poll
+    // won't get confused about whether the title needs refreshing.
     var np = document.getElementById('tctv-now-playing');
-    if (np) np.textContent = 'Tuning...';
+    if (np) {
+        np.textContent = newTitle;
+        np.setAttribute('data-current-vid', newVidId);
+    }
 
-    showChannelNoise(stationObj ? stationObj.emoji + ' ' + stationObj.name : '');
+    // Commit the new station FIRST so _updateChNum + updateTimeline see it
     _currentStation = stationId;
+    _updateChNum();
+
+    showChannelNoise(stationObj.emoji + ' ' + stationObj.name);
     saveStation(stationId);
     joinStation(stationId);
-    var state = getPlaybackState(stationObj);
-    if (state.video) {
+
+    if (state && state.video) {
         loadVideo(state.video.id, state.offset);
-        // Update NOW PLAYING immediately with the new video title
+        // Re-assert title AFTER loadVideo in case any DOM churn happened
         var np2 = document.getElementById('tctv-now-playing');
         if (np2) {
             np2.textContent = state.video.title;
             np2.setAttribute('data-current-vid', state.video.id);
         }
-        _updateChNum();
         // Sync volume after switching channels
         _syncYTVolume();
     }
