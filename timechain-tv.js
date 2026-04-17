@@ -6694,7 +6694,7 @@ function _renderEPG() {
     });
     html += '</div>';
 
-    html += '<div id="tctv-epg-container" style="flex:1;overflow:hidden;position:relative;background:#0a0a0a;cursor:grab;">';
+    html += '<div id="tctv-epg-container" style="flex:1;overflow-x:auto;overflow-y:hidden;position:relative;background:#0a0a0a;cursor:grab;-webkit-overflow-scrolling: touch;">';
     html += '<div id="tctv-epg-slider" style="position:absolute;top:0;left:0;height:100%;transition:transform 1s linear;">';
     html += '<div style="height:24px;position:relative;border-bottom:1px solid #333;display:flex;">';
     for (var i = 0; i < 13; i++) {
@@ -6780,9 +6780,9 @@ window.renderTimechainTV = function() {
             #tctv-remote { display: flex !important; }
         }
         /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
-        #tctv-remote { position: fixed; right: 20px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
-        #tctv-remote.collapsed { transform: translateX(65px); opacity: 0.8; }
-        #tctv-remote:hover { opacity: 1; transform: translateX(0); }
+        #tctv-remote { position: fixed; right: 0px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px 0 0 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
+        #tctv-remote.collapsed { transform: translateX(70px); opacity: 0.6; }
+        #tctv-remote:hover, #tctv-remote:active, #tctv-remote:focus-within { opacity: 1; transform: translateX(0); }
         #tctv-remote-inline { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         #tctv-remote-inline.collapsed { transform: translateX(45px); opacity: 0.5; }
         #tctv-remote-inline:hover { opacity: 1; transform: translateX(0); }
@@ -6858,7 +6858,14 @@ window.renderTimechainTV = function() {
             
             #tctv-video-container { height: 55vh !important; max-height: 55vh !important; min-height: 40vh !important; }
             #tctv-player { max-height: 55vh !important; }
-            #tctv-epg-wrapper { height: 40vh !important; max-height: 40vh !important; }
+            #tctv-epg-wrapper { 
+                height: 40vh !important; 
+                max-height: 40vh !important; 
+                overflow-y: auto !important; 
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            #tctv-epg-container { height: auto !important; min-height: 100% !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
     `;
@@ -6925,11 +6932,11 @@ window.renderTimechainTV = function() {
     // Mobile Remote - horizontal bar below video/progress, inside sticky header
     html += '<div id="tctv-remote">' +
             '<button class="remote-btn red" style="border-radius:8px;width:32px;height:32px;font-size:0.9rem;" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">\u23fb</button>' +
+            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(-1)">CH\u25bc</button>' +
             '<input type="text" id="remote-ch-input" class="remote-input" placeholder="#" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
-            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
-            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(-1)">\ud83d\udd09</button>' +
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(1)">\ud83d\udd0a</button>' +
+            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(-1)">\ud83d\udd09</button>' +
             '<button class="remote-btn" id="remote-mute-btn" style="border-radius:8px;" onclick="tctvRemoteMute()" title="Mute">\ud83d\udd08</button>' +
             '<button class="remote-btn blue" style="border-radius:8px;font-size:0.9rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">\u23f8</button>' +
             '<button class="remote-btn blue" style="border-radius:8px;font-size:0.6rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
