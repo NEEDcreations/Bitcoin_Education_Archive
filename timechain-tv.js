@@ -424,6 +424,11 @@ var STATIONS = [
                 "id": "Q5Wxg53qu9s",
                 "title": "The Bitcoin Full Node Sculpture #2 of 10",
                 "duration": 16
+            },
+            {
+                "id": "AKri5ZKYPAk",
+                "title": "LSD, Shrooms, DMT, Mescaline... and Bitcoin",
+                "duration": 1140
             }]
     },
     {
@@ -965,6 +970,11 @@ var STATIONS = [
                 "id": "UoVsYht7cIo",
                 "title": "Isabella Santos - The Unique Voice of Education, Entertainment & Empowerment",
                 "duration": 4227
+            },
+            {
+                "id": "Y7kwFxDNcek",
+                "title": "Living on bitcoin in El Salvador",
+                "duration": 912
             }]
     },
     {
@@ -1739,6 +1749,86 @@ var STATIONS = [
                 "id": "tBnsQeTbMU8",
                 "title": "How High Can Gold & Silver Go?",
                 "duration": 797
+            },
+            {
+                "id": "2xW6Mg9k9l8",
+                "title": "11 - The Coming Dollar Collapse",
+                "duration": 1158
+            },
+            {
+                "id": "tctq51pjbSY",
+                "title": "8. Is Inflation Actually Necessary?",
+                "duration": 319
+            },
+            {
+                "id": "VgqH9lPiAbY",
+                "title": "10 - What Comes After The Dollar?",
+                "duration": 242
+            },
+            {
+                "id": "1sAK4pORJkY",
+                "title": "9 - Hyperinflation & Collapse (Extreme Case)",
+                "duration": 153
+            },
+            {
+                "id": "-SQbX9W0TBM",
+                "title": "8 - Central Banking - Too Much Power?",
+                "duration": 150
+            },
+            {
+                "id": "Fn2_d5p8EcI",
+                "title": "7 - Boom & Bust Cycles: A Feature of Fiat Money",
+                "duration": 177
+            },
+            {
+                "id": "0v4z6r6_6QI",
+                "title": "6 - How New Money Benefits The Rich (Cantillon Effect)",
+                "duration": 120
+            },
+            {
+                "id": "QrUfS6SBBbM",
+                "title": "5 - Why Government Debt Means Inflation is Necessary",
+                "duration": 205
+            },
+            {
+                "id": "aKuKbNpGvys",
+                "title": "3 - The Ultimate Scam! How Banks Steal from YOU!",
+                "duration": 201
+            },
+            {
+                "id": "lxgDRK5cRhA",
+                "title": "Episode 2: Bitcoin vs Gold: Why Digital Gold is Better",
+                "duration": 481
+            },
+            {
+                "id": "Zxr7W7Mg9pY",
+                "title": "2: Inflation is STEALING from you! And How you can stop it!",
+                "duration": 264
+            },
+            {
+                "id": "vkV8r5udf18",
+                "title": "1: Why Fiat Currencies are Ruining Your Life!",
+                "duration": 336
+            },
+            {
+                "id": "Vw5wKr_TJm0",
+                "title": "HYPERBITCOINIZATION",
+                "duration": 694
+            },
+            {
+                "id": "DKDGXT3SENI",
+                "title": "How will Bitcoin fare in the coming economic collapse?",
+                "duration": 317
+            },
+            {
+                "id": "csGEhR7JNVU",
+                "title": "Bitcoin to 100,000,000 dollars?",
+                "duration": 435
+            },
+            {
+                "id": "_9JPeiTvREA",
+                "title": "How Societies Collapse",
+                "duration": 670
             }]
     },
     {
@@ -1952,6 +2042,11 @@ var STATIONS = [
                 "id": "2xRp4-9pZmM",
                 "title": "The Economic Philosophy of Bitcoin, Part I with Bitstein | The Bitcoin Layer - The Bitcoin Layer",
                 "duration": 3333
+            },
+            {
+                "id": "8xurGFoKfjo",
+                "title": "Episode 6: Bitcoin Self Custody: Financial Freedom",
+                "duration": 250
             }]
     },
     {
@@ -2288,6 +2383,11 @@ var STATIONS = [
                 "id": "9npQ5f74Nr4",
                 "title": "The Cypherpunks: Freedom, Privacy, and the Genesis of Bitcoin",
                 "duration": 3078
+            },
+            {
+                "id": "f39jflibxH4",
+                "title": "Oppenheimer vs Nakamoto",
+                "duration": 590
             }]
     },
     {
@@ -2799,6 +2899,11 @@ var STATIONS = [
                 "id": "LuZ0XN3eH5I",
                 "title": "The Fatal Flaw in Bitcoin's Lightning Network? - Get Based TV",
                 "duration": 805
+            },
+            {
+                "id": "mKNpvPuoSzw",
+                "title": "Episode 7: Lightning Network: How Bitcoin Beats the Banks",
+                "duration": 287
             }]
     },
     {
@@ -2967,6 +3072,11 @@ var STATIONS = [
                 "id": "aJIt3dUWEAs",
                 "title": "Unleashing the Cyber Hornets: Michael Saylor on the Power of Bitcoin",
                 "duration": 3600
+            },
+            {
+                "id": "jQfowtEfbFY",
+                "title": "The greatest meme of all time",
+                "duration": 1022
             }]
     },
     {
@@ -3195,6 +3305,16 @@ var STATIONS = [
                 "id": "jw6Cm_DpERM",
                 "title": "Bitcoin Mining and Circular Economies Are Changing Africa's Future - The Bitcoin Layer",
                 "duration": 1626
+            },
+            {
+                "id": "X0YBOyI8ptE",
+                "title": "BITCOIN BOILS THE OCEAN",
+                "duration": 639
+            },
+            {
+                "id": "2hFvQhMRnc4",
+                "title": "Bitcoin Proof of Work",
+                "duration": 1280
             }]
     },
     {
@@ -4154,6 +4274,376 @@ var STATIONS = [
                 "id": "vclZlAFXpEI",
                 "title": "Give Me 9 Minutes and You Will Understand Bitcoin - Exit Manual",
                 "duration": 600
+            },
+            {
+                "id": "jdZXDSfRXFw",
+                "title": "Why Make Bitcoin Videos?",
+                "duration": 417
+            },
+            {
+                "id": "Y1FGz6rJR6A",
+                "title": "Is this one of the most IMPORTANT moments in Bitcoin History???",
+                "duration": 847
+            },
+            {
+                "id": "6tEruQ1sl_c",
+                "title": "Why Can't we Just Save Money? Why Are We Forced to Invest?",
+                "duration": 334
+            },
+            {
+                "id": "boWa573lchk",
+                "title": "What the h@!& is the Agentic Bitcoin Internet???",
+                "duration": 434
+            },
+            {
+                "id": "mdOyyipbUIg",
+                "title": "Bitcoin vs Real Estate | The Ultimate Wealth Test",
+                "duration": 511
+            },
+            {
+                "id": "Ym5kXxZ0eKg",
+                "title": "New ALL TIME HIGHS in 2026?",
+                "duration": 492
+            },
+            {
+                "id": "QmfTqIbEBmk",
+                "title": "Global Debt is COLLIDING with AI deflation, and it's going to get UGLY",
+                "duration": 537
+            },
+            {
+                "id": "CkfjTUzopho",
+                "title": "Bitcoin THRIVES in CHAOS!",
+                "duration": 507
+            },
+            {
+                "id": "uOnlGmN89ws",
+                "title": "The Perfect Environment for Bitcoin is Coming!",
+                "duration": 244
+            },
+            {
+                "id": "L-jWILQF5l0",
+                "title": "Is Bitcoin Inevitable? The Answer Might surprise you!",
+                "duration": 414
+            },
+            {
+                "id": "fetDXOjZ5Q4",
+                "title": "The Global Order Is Collapsing. What does this mean for Bitcoin?",
+                "duration": 430
+            },
+            {
+                "id": "bsOUzoC0jdg",
+                "title": "AI Will Copy Everything Digital - EXCEPT BITCOIN.",
+                "duration": 377
+            },
+            {
+                "id": "Jab0pJklPwk",
+                "title": "The Ultimate Math of A Bitcoin Denominated World",
+                "duration": 340
+            },
+            {
+                "id": "6Ojh969zABM",
+                "title": "The Multipolar World - And What it Means for BITCOIN",
+                "duration": 458
+            },
+            {
+                "id": "wClCVfnfCpo",
+                "title": "Bitcoin Price Manipulation CONFIRMED! Jane St, ETF's and what happens next",
+                "duration": 433
+            },
+            {
+                "id": "mhn9HgAhrss",
+                "title": "The MOST Important Thing to Understand about Money!",
+                "duration": 281
+            },
+            {
+                "id": "a7fmTcHIyQQ",
+                "title": "Is Bitcoin entering a SUPERCYCLE? What does this mean for the price?",
+                "duration": 446
+            },
+            {
+                "id": "vTwkW2KHgB0",
+                "title": "Why Bitcoin is an Issue of National Security",
+                "duration": 442
+            },
+            {
+                "id": "SGb7QMZwJd8",
+                "title": "11. Bitcoin Fundamentals Explained Simply!",
+                "duration": 603
+            },
+            {
+                "id": "Anu0kDFTQvc",
+                "title": "Why Bitcoin Will Become the Next Global Reserve Asset",
+                "duration": 360
+            },
+            {
+                "id": "rCfAjgBhp5k",
+                "title": "Why Game Theory means Bitcoin wins!",
+                "duration": 340
+            },
+            {
+                "id": "ES7f2gBNMe0",
+                "title": "When Is the Best Time To Buy Bitcoin?",
+                "duration": 328
+            },
+            {
+                "id": "azw7KpdQD0w",
+                "title": "Is Bitcoin is the ONLY asset worth buying?",
+                "duration": 410
+            },
+            {
+                "id": "JjnaYQIUZLw",
+                "title": "Why Stablecoins Supercharge Bitcoin Adoption",
+                "duration": 470
+            },
+            {
+                "id": "e7CIeZmaNEs",
+                "title": "Bitcoin Adoption Is Going Mainstream!",
+                "duration": 71
+            },
+            {
+                "id": "8HaVTfzFFG0",
+                "title": "Bitcoin is Going Up Forever  #bitcoin101",
+                "duration": 74
+            },
+            {
+                "id": "3B6asZvHoSA",
+                "title": "7. Is Bitcoin Too Expensive?",
+                "duration": 367
+            },
+            {
+                "id": "BzLFQqpzI04",
+                "title": "6. Does Bitcoin Have No Intrinsic Value?",
+                "duration": 266
+            },
+            {
+                "id": "djw0zYXyAlo",
+                "title": "Percent of the Network  #bitcoin",
+                "duration": 89
+            },
+            {
+                "id": "4UDkbGMvGIY",
+                "title": "5. The Biggest Risks to Bitcoin",
+                "duration": 610
+            },
+            {
+                "id": "IOzCrgCDSy8",
+                "title": "4. Is Bitcoin Just for Criminals?",
+                "duration": 182
+            },
+            {
+                "id": "9y6glDnsH04",
+                "title": "3. Bitcoin's Environmental Impact",
+                "duration": 319
+            },
+            {
+                "id": "H_kQb8xG5Bo",
+                "title": "2. Is Bitcoin A Ponzi Scheme?",
+                "duration": 299
+            },
+            {
+                "id": "dDa4UrYZCPA",
+                "title": "1.  Is Bitcoin's Volatility a Bad thing? Or an Advantage?",
+                "duration": 438
+            },
+            {
+                "id": "o5LZML8VaE4",
+                "title": "Episode 10 - What happens when Bitcoin wins?",
+                "duration": 274
+            },
+            {
+                "id": "bF5SMoqJEJQ",
+                "title": "Tariffs Explained In 60 Seconds",
+                "duration": 73
+            },
+            {
+                "id": "aNEaBzrcs1o",
+                "title": "Episode 9 -  How Bitcoin Empowers You",
+                "duration": 257
+            },
+            {
+                "id": "lrSWrVSkT1U",
+                "title": "Bitcoin In 60 Seconds",
+                "duration": 75
+            },
+            {
+                "id": "ltxmMo7I9Fw",
+                "title": "Episode 8: Bitcoin Is Energy Backed Money",
+                "duration": 338
+            },
+            {
+                "id": "SZ4W07fv-0A",
+                "title": "Episode 5 - Why Is Bitcoin Different From Crypto?",
+                "duration": 381
+            },
+            {
+                "id": "ZwFEKGa64KM",
+                "title": "Episode 4 - Can Governments Ban Bitcoin",
+                "duration": 412
+            },
+            {
+                "id": "_m7KggCKicU",
+                "title": "4 - Bitcoin Is Actually LIFE ENERGY!",
+                "duration": 155
+            },
+            {
+                "id": "IAfpjwzvUks",
+                "title": "Episode 3. Can you increase Bitcoin's Supply?",
+                "duration": 333
+            },
+            {
+                "id": "kjsUN_9siKw",
+                "title": "Episode 1: Grow Your Wealth, AND Fix the World: Bitcoin!",
+                "duration": 499
+            },
+            {
+                "id": "WkkBma768h8",
+                "title": "Why Psychedelics Unlock Hidden Dimensions of the Mind",
+                "duration": 900
+            },
+            {
+                "id": "dcyCOre17Bc",
+                "title": "BITCOIN BULL RUN 2025. WATCH THIS.",
+                "duration": 485
+            },
+            {
+                "id": "Vp_-3Z8luTQ",
+                "title": "Bitcoin breaks ONE MILLION Swedish kronor",
+                "duration": 369
+            },
+            {
+                "id": "ru8UaqxXwiY",
+                "title": "Why Bitcoin is the Future of Money",
+                "duration": 765
+            },
+            {
+                "id": "poa6kNXEJxw",
+                "title": "Watch this before the bitcoin revolution",
+                "duration": 486
+            },
+            {
+                "id": "w9YktzBIazM",
+                "title": "Your money is spying on you",
+                "duration": 649
+            },
+            {
+                "id": "n9QlPzzahXg",
+                "title": "DEAD AND ALIVE",
+                "duration": 564
+            },
+            {
+                "id": "oVKMN7oYSs8",
+                "title": "The Next 50 Generations: Bitcoin, Psychedelics, and Human Evolution",
+                "duration": 697
+            },
+            {
+                "id": "ONfuVlCGQNA",
+                "title": "The world's most expensive clock",
+                "duration": 429
+            },
+            {
+                "id": "mUY_5ysXYOs",
+                "title": "The Genie, Bitcoin, and the Financial Dark Ages",
+                "duration": 484
+            },
+            {
+                "id": "L5Lb1prBbHI",
+                "title": "Bitcoin will outlive the Pyramids",
+                "duration": 445
+            },
+            {
+                "id": "Qr4DyTFMxkI",
+                "title": "Bitcoin and DNA",
+                "duration": 366
+            },
+            {
+                "id": "qU9oMiq77xw",
+                "title": "What's the scarcest thing in the world?",
+                "duration": 381
+            },
+            {
+                "id": "_oHkdEQ9AaI",
+                "title": "Is discipline really important?",
+                "duration": 195
+            },
+            {
+                "id": "cbnL1yOv1VU",
+                "title": "Bitcoin: The Inverse of Clown World",
+                "duration": 404
+            },
+            {
+                "id": "X7adN61eEjg",
+                "title": "Bitcoin and the Kardashev Scale",
+                "duration": 723
+            },
+            {
+                "id": "BagsxlVsog0",
+                "title": "WHY ARE WE BULLISH? Giacomo Zucco, Roman Reher, Ioni Appelberg",
+                "duration": 7230
+            },
+            {
+                "id": "x78Y7TE9eyo",
+                "title": "BITCOIN'S NEXT BULL RUN",
+                "duration": 414
+            },
+            {
+                "id": "TIkqBZnrKJM",
+                "title": "EVERYTHING will fail. Except...",
+                "duration": 465
+            },
+            {
+                "id": "Mvchzpbv2hE",
+                "title": "Bitcoin's REAL effect on the environment",
+                "duration": 421
+            },
+            {
+                "id": "6fu-w7gvPpk",
+                "title": "YOU ARE NOT PREPARED!!",
+                "duration": 498
+            },
+            {
+                "id": "5VAX3JL_l90",
+                "title": "Bitcoin: Why collectivists win",
+                "duration": 683
+            },
+            {
+                "id": "_9TI4Pzl-RQ",
+                "title": "SEPARATION OF MONEY AND STATE",
+                "duration": 451
+            },
+            {
+                "id": "7vl_ziH6OJo",
+                "title": "Bitcoin's price curve will not be S-shaped",
+                "duration": 242
+            },
+            {
+                "id": "4bHAQOevZrI",
+                "title": "Bitcoin: Everything a trade",
+                "duration": 413
+            },
+            {
+                "id": "-PsbNprqTgI",
+                "title": "Bitcoin is not going to go away",
+                "duration": 255
+            },
+            {
+                "id": "s-kKDR30Fb8",
+                "title": "Bitcoin is like real estate in Manhattan",
+                "duration": 241
+            },
+            {
+                "id": "Cj9sWNgx9KU",
+                "title": "One bitcoin is all you need",
+                "duration": 97
+            },
+            {
+                "id": "mZ3nXx9V55M",
+                "title": "The Next Paradigm in Medicine",
+                "duration": 501
+            },
+            {
+                "id": "GZokpamL-84",
+                "title": "AI, Energy, Bitcoin: The Foundation of the Future",
+                "duration": 365
             }]
     },
     {
@@ -4412,6 +4902,11 @@ var STATIONS = [
                 "id": "HrehEWYj16s",
                 "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman",
                 "duration": 14629
+            },
+            {
+                "id": "OfWJSEmDiKI",
+                "title": "Will Bitcoin Survive the Spam Wars?",
+                "duration": 496
             }]
     },
     {
@@ -4630,6 +5125,11 @@ var STATIONS = [
                 "id": "3f170IT1nQU",
                 "title": "Bitcoin Reacts to Tariff Tensions: What's Next for Price & Liquidity - The Bitcoin Layer",
                 "duration": 1943
+            },
+            {
+                "id": "12zBLvoVRFQ",
+                "title": "Element Zero",
+                "duration": 1401
             }]
     },
     {
@@ -6773,6 +7273,21 @@ var STATIONS = [
                 "id": "q9Yo9woraoE",
                 "title": "Bitcoin Long Term Capital Market Assumptions w/Matt Hougan (Bitwise CIO)",
                 "duration": 1461
+            },
+            {
+                "id": "tO2bjYx_LBg",
+                "title": "The BIGGEST Story in Finance - Why STRC will change the world!",
+                "duration": 509
+            },
+            {
+                "id": "hVFmgzUuioQ",
+                "title": "Will Michael Saylor's Strategy Become the Worlds MOST VALUABLE COMPANY?",
+                "duration": 891
+            },
+            {
+                "id": "nr9tQmTeA20",
+                "title": "Bitcoin Treasury Companies Eating the Bond Market",
+                "duration": 329
             }]
     },
     {
@@ -7006,6 +7521,11 @@ var STATIONS = [
                 "id": "9c33ShgXBzg",
                 "title": "Big Money Wants $1 Million Bitcoin - The Bitcoin Layer",
                 "duration": 122
+            },
+            {
+                "id": "2pDlaOGA2ac",
+                "title": "Bitcoin: Everything there is, divided by 21 million",
+                "duration": 547
             }]
     },
     {
@@ -7179,6 +7699,16 @@ var STATIONS = [
                 "id": "hluk1tQun78",
                 "title": "Understanding The Fed's Balance Sheet with Andy Constan - The Bitcoin Layer",
                 "duration": 3841
+            },
+            {
+                "id": "nZOlb69FF6k",
+                "title": "AI Will COLLAPSE the Financial System - Here's How to Survive (and Thrive)",
+                "duration": 581
+            },
+            {
+                "id": "9ExAt9EUCNc",
+                "title": "How to be remembered forever",
+                "duration": 463
             }]
     }
 ];
