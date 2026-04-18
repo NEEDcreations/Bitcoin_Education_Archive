@@ -10306,14 +10306,31 @@ window._tctvRestoreSpriteNacho = function() {
     document.addEventListener('mouseup', handleUp);
 })();
 
-function _updateChNum() {
+// ── Master UI Update Functions ──
+function _updateHeader(stationObj, videoObj) {
+    if (!stationObj) return;
+    
+    // Update Channel Number Element
     var chEl = document.getElementById('tctv-now-ch');
-    if (!chEl || !_currentStation) return;
-    var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
-    if (idx < 0) { chEl.textContent = ''; return; }
-    var station = STATIONS[idx];
-    var expected = 'CH. ' + (idx + 1) + ' · ' + (station.emoji ? station.emoji + ' ' : '') + station.name;
-    if (chEl.textContent !== expected) chEl.textContent = expected;
+    if (chEl) {
+        var idx = STATIONS.findIndex(function(s) { return s.id === stationObj.id; });
+        var expected = idx >= 0 ? ('CH. ' + (idx + 1) + ' · ' + (stationObj.emoji ? stationObj.emoji + ' ' : '') + stationObj.name) : '';
+        if (chEl.textContent !== expected) chEl.textContent = expected;
+    }
+
+    // Update Video Title Element
+    var np = document.getElementById('tctv-now-playing');
+    if (np) {
+        var newTitle = videoObj ? videoObj.title : (stationObj.emoji + ' ' + stationObj.name);
+        var newVidId = videoObj ? videoObj.id : '';
+        var expectedSig = stationObj.id + '|' + newVidId;
+        
+        if (np.getAttribute('data-current-sig') !== expectedSig || np.textContent !== newTitle) {
+            np.textContent = newTitle;
+            np.setAttribute('data-current-vid', newVidId);
+            np.setAttribute('data-current-sig', expectedSig);
+        }
+    }
 }
 
 window.syncPlayer = function() {
@@ -10328,12 +10345,8 @@ window.syncPlayer = function() {
     _updatePauseButtons(false);
     _showSyncButtons(false);
 
-    // Update NOW PLAYING
-    var np = document.getElementById('tctv-now-playing');
-    if (np) {
-        np.textContent = state.video.title;
-        np.setAttribute('data-current-vid', state.video.id);
-    }
+    // Update Header
+    _updateHeader(station, state.video);
 
     // Jump to live: reuse existing player when possible
     if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById && _ytPlayer.playVideo) {
@@ -10348,34 +10361,19 @@ window.syncPlayer = function() {
     } else {
         loadVideo(state.video.id, state.offset);
     }
-    _updateChNum();
 }
 
 // ── Timeline & Moving EPG ──
+var _tctvSwitching = false;
 function updateTimeline() {
-    if (!_currentStation) return;
+    if (!_currentStation || _tctvSwitching) return;
     var nowMs = Date.now();
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
     var state = getPlaybackState(station);
 
-    var np = document.getElementById('tctv-now-playing');
-    if (np && state.video) {
-        // Update if the vid id OR the title doesn't match the current station's video.
-        // Safety net: if some code path left np holding a title from a different
-        // station (stale), this corrects it within 1s. Also store station id so
-        // we can detect stale-station mismatches across renders.
-        var expectedSig = _currentStation + '|' + state.video.id;
-        if (np.getAttribute('data-current-sig') !== expectedSig ||
-            np.getAttribute('data-current-vid') !== state.video.id ||
-            np.textContent !== state.video.title) {
-            np.textContent = state.video.title;
-            np.setAttribute('data-current-vid', state.video.id);
-            np.setAttribute('data-current-sig', expectedSig);
-        }
-    }
-    // Sync CH indicator
-    _updateChNum();
+    // Sync Header
+    _updateHeader(station, state.video);
 
     var bar = document.getElementById('tctv-progress');
     if (bar && state.video) {
@@ -10886,27 +10884,20 @@ window.renderTimechainTV = function() {
 
 window.switchStation = function(stationId, forceUpdate) {
     if (stationId === _currentStation && !forceUpdate) return;
+    
+    _tctvSwitching = true;
     _lastStation = _currentStation;
     var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
-    if (!stationObj) return;
+    if (!stationObj) { _tctvSwitching = false; return; }
 
-    // Compute new state UP FRONT
     var state = null;
     try { state = getPlaybackState(stationObj); } catch(e) {}
-    var newTitle = (state && state.video && state.video.title) || (stationObj.emoji + ' ' + stationObj.name);
-    var newVidId = (state && state.video && state.video.id) || '';
-
-    // Commit
+    
+    // Commit new station
     _currentStation = stationId;
 
-    // Update NOW PLAYING header IMMEDIATELY
-    var np = document.getElementById('tctv-now-playing');
-    if (np) {
-        np.textContent = newTitle;
-        np.setAttribute('data-current-vid', newVidId);
-        np.setAttribute('data-current-sig', stationId + '|' + newVidId);
-    }
-    _updateChNum();
+    // Update Header IMMEDIATELY (Unified)
+    _updateHeader(stationObj, state ? state.video : null);
 
     showChannelNoise(stationObj.emoji + ' ' + stationObj.name);
     saveStation(stationId);
@@ -10914,7 +10905,6 @@ window.switchStation = function(stationId, forceUpdate) {
 
     if (state && state.video) {
         loadVideo(state.video.id, state.offset);
-        // Sync volume after switching
         setTimeout(function() { _syncYTVolume(); }, 200);
     }
 
@@ -10926,11 +10916,13 @@ window.switchStation = function(stationId, forceUpdate) {
         if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
     });
 
-    // #3 Sound effect
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
-
-    // Run a timeline update IMMEDIATELY to snap the header accurately
+    
+    // Run authoritative header snap
     updateTimeline();
+
+    // Release lock after 350ms (lets YT events and UI settle)
+    setTimeout(function() { _tctvSwitching = false; }, 350);
 
     // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
