@@ -9779,6 +9779,99 @@ window.tctvDirectChannel = function(val) {
     });
 };
 
+// ────────────────────────────────────────────────────────
+// Channel Guide Modal
+// ────────────────────────────────────────────────────────
+// Curated featured bitcoiners per channel (visible in the Guide modal).
+var _CHANNEL_FEATURED = {
+    'art-philosophy': ['Robert Breedlove', 'Knut Svanholm', 'Allen Farrington', 'Gigi'],
+    'conferences-events': ['Bitcoin 2024 Nashville', 'BTC Prague', 'MIT Bitcoin Expo', 'Bitcoin Atlantis', 'Adopting Bitcoin'],
+    'culture-travel': ['Max Keiser', 'Stacy Herbert', 'Paco de la India', 'Aleksandar Svetski', 'Bitcoin Beach'],
+    'dev-privacy-nodes': ['Adam Back', 'Jameson Lopp', 'Matt Corallo', 'Peter Todd', 'Andreas Antonopoulos'],
+    'documentaries': ['Bitcoin: The End of Money As We Know It', 'Hard Money', 'God Bless Bitcoin', 'This Machine Greens'],
+    'economics-money': ['Lyn Alden', 'Saifedean Ammous', 'Jeff Booth', 'Greg Foss', 'Luke Gromen', 'Preston Pysh'],
+    'freedom-sovereignty': ['Edward Snowden', 'Alex Gladstein', 'Jameson Lopp', 'Erik Cason', 'Andreas Antonopoulos'],
+    'health-fitness': ['Saifedean Ammous', 'Aleks Svetski', 'Anders Larsson', 'Bitcoin Mindset'],
+    'history': ['Andreas Antonopoulos', 'Adam Back', 'Hal Finney tributes', 'Wei Dai', 'Cypherpunks'],
+    'kids-family': ['Tuttle Twins', 'Bitcoin for Kids', 'Scott Beebe', 'Family Bitcoin'],
+    'lightning': ['Elizabeth Stark', 'Roy Sheinfeld', 'Lyn Alden (Lightning piece)', 'Olaoluwa Osuntokun (Roasbeef)', 'Strike / Jack Mallers'],
+    'memes-comedy': ['Lil Bubble', 'Hitler Reacts to Bitcoin Cash', 'Crypto Comedy', 'BTC Memes'],
+    'mining': ['The Hobbyist Miner', 'Marathon Digital', 'Riot Platforms', 'Compass Mining', 'CleanSpark'],
+    'music': ['Lil Bubble', 'Captain Youth', 'The Higher Low', 'Bitcoin House', 'Saylor Bitcoin Remixes'],
+    'news': ['Whale Wire', 'Bitcoin Magazine', 'Daily Bitcoin Updates', 'Market Briefings'],
+    'orange-pill': ['Andreas Antonopoulos', 'The Bitcoin Fix', 'Ioni Appelberg', 'Robert Breedlove', 'Saifedean Ammous'],
+    'podcasts-debates': ['Joe Rogan', 'Lex Fridman', 'Peter McCormack (WBD)', 'What Bitcoin Did', 'Pomp Podcast', 'Tom Bilyeu'],
+    'politics-regulation': ['Senator Cynthia Lummis', 'Brian Armstrong', 'Caitlin Long', 'Donald Trump (BTC 2024)', 'Bitcoin Policy Institute'],
+    'saylor': ['Michael Saylor', 'Phong Le', 'Jeff Walton', 'Simon Gerovich (Metaplanet)', 'Strive Asset Management', 'Strategy ($MSTR)'],
+    'future-predictions': ['Plan B (S2F)', 'Willy Woo', 'PlanB', 'Lyn Alden', 'Wicked Smart Bitcoin'],
+    'tutorials': ['Builders In Bitcoin podcast', 'Wicked Smart Bitcoin', 'NVK (Coinkite)', 'SeedSigner team', 'The Hobbyist Miner', 'BTCSessions']
+};
+
+window.tctvOpenGuide = function() {
+    if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
+    // Don't double-open
+    if (document.getElementById('tctv-guide-overlay')) return;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'tctv-guide-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:300000;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:tctvGuideFade 0.2s ease-out;';
+    overlay.onclick = function(e) { if (e.target === overlay) tctvCloseGuide(); };
+
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:#0a0a0a;border:2px solid #f7931a;border-radius:16px;width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(247,147,26,0.25);overflow:hidden;';
+
+    // Header
+    var hdr = '<div style="padding:16px 20px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;">' +
+        '<div>' +
+            '<div style="font-size:1.1rem;font-weight:900;color:#f7931a;letter-spacing:1px;">📺 CHANNEL GUIDE</div>' +
+            '<div style="font-size:0.7rem;color:#888;margin-top:2px;">21 channels · click any channel to tune in</div>' +
+        '</div>' +
+        '<button onclick="tctvCloseGuide()" style="width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid #333;color:#aaa;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Close">✕</button>' +
+    '</div>';
+
+    // Body
+    var body = '<div style="flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;">';
+    for (var i = 0; i < STATIONS.length; i++) {
+        var s = STATIONS[i];
+        var featured = _CHANNEL_FEATURED[s.id] || [];
+        var featuredHtml = featured.length
+            ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">' +
+              featured.map(function(n) { return '<span style="font-size:0.65rem;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.25);border-radius:10px;color:#f7c878;">' + n + '</span>'; }).join('') +
+              '</div>'
+            : '';
+        var isActive = s.id === _currentStation;
+        body += '<div onclick="tctvCloseGuide();window.switchStation(\'' + s.id + '\')" style="padding:12px 14px;margin:4px;border-radius:10px;background:' + (isActive ? 'rgba(247,147,26,0.18)' : '#161616') + ';border:1px solid ' + (isActive ? '#f7931a' : '#222') + ';cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.10)\';this.style.borderColor=\'#f7931a\';" onmouseout="this.style.background=\'' + (isActive ? 'rgba(247,147,26,0.18)' : '#161616') + '\';this.style.borderColor=\'' + (isActive ? '#f7931a' : '#222') + '\';">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
+                '<div style="flex:0 0 44px;height:44px;border-radius:8px;background:' + (s.color || '#f7931a') + ';display:flex;align-items:center;justify-content:center;font-size:1.4rem;">' + (s.emoji || '📺') + '</div>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:0.95rem;font-weight:800;color:#fff;"><span style="color:#f7931a;font-family:Courier New,monospace;font-weight:700;">CH ' + (i + 1) + '</span> · ' + s.name + (isActive ? ' <span style="font-size:0.6rem;color:#22c55e;font-weight:700;margin-left:4px;">● NOW</span>' : '') + '</div>' +
+                    '<div style="font-size:0.75rem;color:#aaa;margin-top:3px;line-height:1.4;">' + (s.desc || '') + '</div>' +
+                    featuredHtml +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+    body += '</div>';
+
+    modal.innerHTML = hdr + body;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Esc to close
+    var escHandler = function(e) { if (e.key === 'Escape') tctvCloseGuide(); };
+    document.addEventListener('keydown', escHandler);
+    overlay._escHandler = escHandler;
+};
+
+window.tctvCloseGuide = function() {
+    var ov = document.getElementById('tctv-guide-overlay');
+    if (!ov) return;
+    if (ov._escHandler) document.removeEventListener('keydown', ov._escHandler);
+    ov.style.opacity = '0';
+    ov.style.transition = 'opacity 0.15s ease-out';
+    setTimeout(function() { ov.remove(); }, 150);
+};
+
 window.tctvRemotePause = function() {
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
 
@@ -10397,7 +10490,7 @@ window.renderTimechainTV = function() {
         #tctv-remote.collapsed { transform: translateX(70px); opacity: 0.6; }
         #tctv-remote:hover, #tctv-remote:active, #tctv-remote:focus-within { opacity: 1; transform: translateX(0); }
         #tctv-remote-inline { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        #tctv-remote-inline.collapsed { transform: translateX(45px); opacity: 0.5; }
+        #tctv-remote-inline.collapsed { transform: translateX(120px); opacity: 0.5; }
         #tctv-remote-inline:hover { opacity: 1; transform: translateX(0); }
         .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
         .remote-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #111; }
@@ -10481,6 +10574,7 @@ window.renderTimechainTV = function() {
             #tctv-epg-container { height: auto !important; min-height: 100% !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
+        @keyframes tctvGuideFade { from { opacity: 0; } to { opacity: 1; } }
     `;
     document.head.appendChild(style);
 
@@ -10513,27 +10607,38 @@ window.renderTimechainTV = function() {
             '<div id="tctv-player"></div>' +
             '</div></div>';
     // Right side - Remote (desktop only, inside layout flow)
+    // Wider 2-column layout: PWR/GUIDE on top, then CH+VOL columns side-by-side, then PLAY/BACK
     html += '<div id="tctv-remote-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
-            '<div id="tctv-remote-inline" class="collapsed" style="width:80px;background:#222;border:3px solid #111;border-radius:20px;padding:15px 10px;box-shadow:0 10px 40px rgba(0,0,0,0.8),inset 0 2px 5px rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:12px;align-items:center;">' +
-            '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
-            // PWR Button (Red, returns to Home)
-            '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn-inline" title="Power OFF">⏻</button><span class="remote-label">PWR</span>' +
-            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;align-items:center;">' +
-                '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
-                '<input type="text" id="remote-ch-input-inline" class="remote-input" style="width:48px;padding:4px;font-size:0.8rem;" placeholder="#" maxlength="2" inputmode="numeric" title="Type a channel number 1-21 and hit Enter" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)">' +
-                '<span class="remote-label" style="margin:0">CH</span>' +
-                '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
+            '<div id="tctv-remote-inline" class="collapsed" style="width:160px;background:#222;border:3px solid #111;border-radius:20px;padding:14px 12px;box-shadow:0 10px 40px rgba(0,0,0,0.8),inset 0 2px 5px rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:10px;align-items:center;">' +
+            '<div onclick="tctvToggleRemote()" style="width:40px;height:5px;background:#444;border-radius:3px;cursor:pointer;"></div>' +
+            // Top row: PWR + GUIDE
+            '<div style="display:flex;gap:12px;align-items:flex-start;justify-content:center;width:100%;">' +
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                    '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn-inline" title="Power OFF">⏻</button>' +
+                    '<span class="remote-label">PWR</span>' +
+                '</div>' +
+                '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
+                    '<button class="remote-btn" style="background:#f7931a;border-color:#fbbf24;font-size:0.95rem;font-weight:900;color:#111;" onclick="tctvOpenGuide()" title="Channel Guide">☰</button>' +
+                    '<span class="remote-label">GUIDE</span>' +
+                '</div>' +
             '</div>' +
-            // Volume controls
-            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
-                '<button class="remote-btn" onclick="tctvRemoteVolume(1)">▲</button>' +
-                '<span class="remote-label" style="margin:0">VOL</span>' +
-                '<button class="remote-btn" onclick="tctvRemoteVolume(-1)">▼</button>' +
-                '<button class="remote-btn" id="remote-mute-btn-inline" onclick="tctvRemoteMute()" title="Mute" style="font-size:1rem;">\ud83d\udd08</button>' +
-                '<span class="remote-label" style="margin:0">MUTE</span>' +
+            // CH and VOL side-by-side
+            '<div style="display:flex;gap:8px;align-items:flex-start;justify-content:center;width:100%;">' +
+                '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:8px;align-items:center;">' +
+                    '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
+                    '<input type="text" id="remote-ch-input-inline" class="remote-input" style="width:44px;padding:3px;font-size:0.75rem;" placeholder="#" maxlength="2" inputmode="numeric" title="Type 1-21 and hit Enter" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)">' +
+                    '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
+                    '<span class="remote-label" style="margin:0">CH</span>' +
+                '</div>' +
+                '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:8px;align-items:center;">' +
+                    '<button class="remote-btn" onclick="tctvRemoteVolume(1)">▲</button>' +
+                    '<button class="remote-btn" id="remote-mute-btn-inline" onclick="tctvRemoteMute()" title="Mute" style="font-size:1rem;">\ud83d\udd08</button>' +
+                    '<button class="remote-btn" onclick="tctvRemoteVolume(-1)">▼</button>' +
+                    '<span class="remote-label" style="margin:0">VOL</span>' +
+                '</div>' +
             '</div>' +
-            // Bottom Controls (Pause and Back)
-            '<div style="display:flex;flex-direction:column;gap:8px;align-items:center;">' +
+            // Bottom row: PLAY + BACK side-by-side
+            '<div style="display:flex;gap:10px;align-items:center;justify-content:center;width:100%;margin-top:2px;">' +
                 '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn-inline" title="Pause/Play">⏸</button>' +
                 '<button class="remote-btn blue" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
             '</div>' +
@@ -10546,6 +10651,7 @@ window.renderTimechainTV = function() {
     // Mobile Remote - horizontal bar below video/progress, inside sticky header
     html += '<div id="tctv-remote">' +
             '<button class="remote-btn red" style="border-radius:8px;width:32px;height:32px;font-size:0.9rem;" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">\u23fb</button>' +
+            '<button class="remote-btn" style="border-radius:8px;background:#f7931a;border-color:#fbbf24;color:#111;font-weight:900;font-size:0.9rem;" onclick="tctvOpenGuide()" title="Channel Guide">\u2630</button>' +
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
             '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(-1)">CH\u25bc</button>' +
             '<input type="text" id="remote-ch-input" class="remote-input" placeholder="#" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
