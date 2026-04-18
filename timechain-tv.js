@@ -6985,6 +6985,470 @@ var STATIONS = [
             }
 ]
     }
+    ,
+    {
+        "id": "future-predictions",
+        "name": "Trading & Predictions",
+        "emoji": "🔮",
+        "desc": "Analysis, price models & market theories",
+        "color": "#8b5cf6",
+        "videos": [
+            {
+                "id": "hrjBK6AXAMk",
+                "title": "Take The Bitcoin Orange Pill - How To Guide",
+                "duration": 597
+            },
+            {
+                "id": "Sxv6wpU1380",
+                "title": "Is This Bitcoin Final Cycle? - Luke Mikic",
+                "duration": 385
+            },
+            {
+                "id": "bw5Gepxo2Ps",
+                "title": "Bitcoin Network Effects Model - 10x Users = 100x Price",
+                "duration": 1108
+            },
+            {
+                "id": "nlvx2-3LUhM",
+                "duration": 6396,
+                "title": "Bitcoin Power Law Explained | SLP624"
+            },
+            {
+                "id": "yhcbMUh3YTo",
+                "title": "The Generational Bitcoin Price Run Begins",
+                "duration": 749
+            },
+            {
+                "id": "_rMwlS1aHFs",
+                "duration": 4295,
+                "title": "The Physics of Bitcoins 10M Future"
+            },
+            {
+                "id": "KR8EZo5IesE",
+                "duration": 495,
+                "title": "Tom Lee: Bitcoin to  Million Path"
+            },
+            {
+                "id": "vjwFusEnfiE",
+                "duration": 864,
+                "title": "The Power Law Lens on Bitcoin - Santostasi"
+            },
+            {
+                "id": "iww09Eeql_o",
+                "title": "PlanB: Stock-to-Flow Model & Future Price Predictions",
+                "duration": 602
+            },
+            {
+                "id": "lyTHPcHDOk8",
+                "title": "Rational Root: Bitcoin Will Hit $600k then $6 Million",
+                "duration": 1268
+            },
+            {
+                "id": "6WdwTR_S2Ig",
+                "duration": 763,
+                "title": "Bitcoin Stock-To-Flow Model"
+            },
+            {
+                "id": "BpKfLfGbf0Q",
+                "title": "Bitcoin Hyperbitcoinization: $1.5M by 2028?",
+                "duration": 1562
+            },
+            {
+                "id": "wjObfPHlPOk",
+                "duration": 305,
+                "title": "Understanding S2F Live Charts"
+            },
+            {
+                "id": "C9KPRcmFJWI",
+                "title": "Bitcoin to $180K - Pomp Investments Prediction",
+                "duration": 2361
+            },
+            {
+                "id": "GzZecXEUJTI",
+                "duration": 840,
+                "title": "Realistically Reaching  Million"
+            },
+            {
+                "id": "W3SKpO0q9QI",
+                "title": "Roadmap To Crypto's $10 Trillion Market Cap - Ben Cowen",
+                "duration": 4421
+            },
+            {
+                "id": "hzeAkfnuBKo",
+                "title": "PlanB: Bitcoin Will Hit $135k by Christmas! Stock-to-Flow Proof",
+                "duration": 664
+            },
+            {
+                "id": "LU5RqsGwvBg",
+                "duration": 401,
+                "title": "Bitcoins Path to M: Schwab"
+            },
+            {
+                "id": "jzY_SxnTLNA",
+                "title": "Bitcoin Is the Economic Singularity - Luke Mikic",
+                "duration": 1168
+            },
+            {
+                "id": "IWUEPFAHksc",
+                "title": "Bitcoin Bull Market Support Band - Benjamin Cowen",
+                "duration": 466
+            },
+            {
+                "id": "qX2fbQgxJig",
+                "title": "Why Bitcoin Could Reach $64M - Luke Mikic",
+                "duration": 2893
+            },
+            {
+                "id": "LkmVUMRh9vo",
+                "title": "Bitcoin: Where In The Cycle Are We? - Benjamin Cowen",
+                "duration": 547
+            },
+            {
+                "id": "3DijExIkark",
+                "title": "Bitcoin On-Chain Analysis: MVRV Z-Score Explained",
+                "duration": 452
+            },
+            {
+                "id": "tPQs6eQ4zIU",
+                "duration": 578,
+                "title": "Stock to Flow - Prediciting Price?"
+            },
+            {
+                "id": "bPYl1-KBE50",
+                "title": "The Ultimate Orange Pill - Bitcoin & Risk",
+                "duration": 1784
+            },
+            {
+                "id": "Bh7LBF9cU6w",
+                "duration": 736,
+                "title": "Plan B Model Will Break in 2026"
+            },
+            {
+                "id": "uF6Wx4Hr6iU",
+                "title": "Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries - Coin Stories",
+                "duration": 1907
+            },
+            {
+                "id": "3-vBBYEXv6M",
+                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
+                "duration": 3909
+            },
+            {
+                "id": "iDgDl9jzEmk",
+                "title": "Bitcoin Price Prediction Models Explained",
+                "duration": 1227
+            },
+            {
+                "id": "1Mr9PknsM_Y",
+                "title": "Michael Saylor's Best Explanation of Bitcoin",
+                "duration": 349
+            },
+            {
+                "id": "JLuTDwclOP0",
+                "title": "The Resilience of Stock-to-Flow with PlanB - Bitcoin Standard Podcast",
+                "duration": 6906
+            },
+            {
+                "id": "93dyVDxP7K0",
+                "title": "Bitcoin Logarithmic Regression",
+                "duration": 402
+            },
+            {
+                "id": "Z51vRLKvco4",
+                "title": "Retiring on 0.1 Bitcoin - Luke Mikic",
+                "duration": 3350
+            },
+            {
+                "id": "XW1GUeBe0Rs",
+                "duration": 8577,
+                "title": "The Bitcoin Power Law WiM509"
+            },
+            {
+                "id": "yM06uqse6Ks",
+                "duration": 5433,
+                "title": "The Science Behind M Bitcoin"
+            },
+            {
+                "id": "wOi9XqeJy2E",
+                "title": "Cathie Wood - New 2025 Prediction for Bitcoin & Ethereum",
+                "duration": 1108
+            }
+        ,
+            {
+                "id": "D8QuMzEnvvM",
+                "title": "Bitcoin Bear Market: SOPR Signals Losses as Liquidity Rolls Over - The Bitcoin Layer",
+                "duration": 439
+            },
+            {
+                "id": "kCi1gYaIbBc",
+                "title": "Only 8 Years Until Bitcoin Hits $1 Million (The Math Proves It) - The Bitcoin Layer",
+                "duration": 3043
+            },
+            {
+                "id": "pkZqnM22l8Y",
+                "title": "Bitcoin May Have Already Bottomed During War Markets - The Bitcoin Layer",
+                "duration": 416
+            },
+            {
+                "id": "AQ3ZnmAD_HQ",
+                "title": "The REAL Reason Bitcoin Is Crashing - And What Comes Next - The Bitcoin Layer",
+                "duration": 3354
+            },
+            {
+                "id": "_FaM-IIt1bg",
+                "title": "Bitcoin Enters Bear Market Behavior, What On-Chain Metrics Are Showing - The Bitcoin Layer",
+                "duration": 2727
+            },
+            {
+                "id": "0zUmhXgotMg",
+                "title": "HERE COMES VANGUARD: Why Bitcoin Hits New All-Time Highs in 2026 - The Bitcoin Layer",
+                "duration": 2998
+            },
+            {
+                "id": "9gyreHKE5XY",
+                "title": "BITCOIN'S 4-YEAR CYCLE NEVER EXISTED | Next Bubble 2027 w/ Stephen Perrenod - The Bitcoin Layer",
+                "duration": 3441
+            },
+            {
+                "id": "ppQfJMY9yYA",
+                "title": "BITCOIN CRASHES THROUGH $100,000 While Macro Volatility Surges & Trend Structure Weakens - The Bitcoin Layer",
+                "duration": 928
+            },
+            {
+                "id": "Q9C4jbZoxIE",
+                "title": "BITCOIN PUMPING: Fed Cuts, Liquidity, & The Next Breakout - The Bitcoin Layer",
+                "duration": 1315
+            },
+            {
+                "id": "44kS3j5L8AA",
+                "title": "Bitcoin Breakout or Fade: $119,000 Test & Market Behavior - The Bitcoin Layer",
+                "duration": 2495
+            },
+            {
+                "id": "hIy9mb0-uSs",
+                "title": "Bitcoin Price Levels to Watch: Short-Term Holders in Control - The Bitcoin Layer",
+                "duration": 2017
+            },
+            {
+                "id": "9c33ShgXBzg",
+                "title": "Big Money Wants $1 Million Bitcoin - The Bitcoin Layer",
+                "duration": 122
+            }]
+    },
+    {
+        "id": "tutorials",
+        "name": "Tutorials",
+        "emoji": "📚",
+        "desc": "Learn Bitcoin step by step",
+        "color": "#f7931a",
+        "videos": [
+            {
+                "id": "f-4Rs3Sqlhc",
+                "title": "Complete History of Bitcoin in 12 Minutes",
+                "duration": 602
+            },
+            {
+                "id": "FAYmE5-40PQ",
+                "title": "Coldcard Bitcoin Hardware Wallet - FULL TUTORIAL (BTC Sessions)",
+                "duration": 6890
+            },
+            {
+                "id": "TpwnoPUyumA",
+                "title": "Phoenix Wallet Setup - Self-Custody Lightning Made Easy",
+                "duration": 4158
+            },
+            {
+                "id": "Y3iAwLG6NlA",
+                "title": "Bitcoin Wallets That Change Everything in 2026 - BTC Sessions",
+                "duration": 1907
+            },
+            {
+                "id": "rKjce1jCxSM",
+                "title": "Bitcoin Beginner Mistakes to Avoid",
+                "duration": 1812
+            },
+            {
+                "id": "dCAr2urEe1o",
+                "title": "ENTROPIA - Generate Permissionless Bitcoin Wallets",
+                "duration": 2461
+            },
+            {
+                "id": "oj_W3xOlt6U",
+                "title": "Cracking Unsafe Bitcoin Wallets + Coldcard Mk4 Warning",
+                "duration": 598
+            },
+            {
+                "id": "bBC-nXj3Ng4",
+                "title": "How Bitcoin Works Under the Hood",
+                "duration": 1516
+            },
+            {
+                "id": "4Lsr7lsy6Tk",
+                "title": "How to Set Up a Bitcoin Node at Home",
+                "duration": 79
+            },
+            {
+                "id": "Sxo169CCfIc",
+                "title": "How To Use Multisig Bitcoin Wallets With Electrum",
+                "duration": 1471
+            },
+            {
+                "id": "xhDQT4TeNIU",
+                "title": "Perfect Privacy with eNuts: Instant Free Bitcoin Transactions",
+                "duration": 3070
+            },
+            {
+                "id": "tuUO-Q4_b5c",
+                "title": "How to Buy Bitcoins in 2024 (4 Methods Reviewed)",
+                "duration": 590
+            },
+            {
+                "id": "O1KaAboPX44",
+                "title": "How To Buy Bitcoin For Beginners - Step by Step",
+                "duration": 586
+            },
+            {
+                "id": "3Grj3Datdfw",
+                "title": "Game-Changing Bitcoin Wallet (Cove) - BTC Sessions",
+                "duration": 1893
+            },
+            {
+                "id": "vPMUGP3Opy8",
+                "title": "The PERFECT Bitcoin Security and Privacy Setup!",
+                "duration": 2324
+            },
+            {
+                "id": "Gc2en3nHxA4",
+                "title": "What is Bitcoin - Simply Explained",
+                "duration": 97
+            },
+            {
+                "id": "El3y8AME8oA",
+                "title": "Bitcoin Explained - Breaking It Down Simply",
+                "duration": 599
+            },
+            {
+                "id": "bsAznpEupIg",
+                "title": "Easiest Bitcoin Wallet Setup (Aqua) - BTC Sessions",
+                "duration": 2132
+            },
+            {
+                "id": "IxgNp2h5j8w",
+                "title": "How To Buy, Use and Secure Bitcoin - BTC Sessions",
+                "duration": 1632
+            },
+            {
+                "id": "lHipE05v4jg",
+                "title": "How Bitcoin Works - Complete Beginner Guide",
+                "duration": 1156
+            },
+            {
+                "id": "ZZKoSmQu30Q",
+                "title": "Best Hardware Wallet Comparison 2025 - BTC Sessions",
+                "duration": 3621
+            },
+            {
+                "id": "Ner16UBWdEg",
+                "title": "Bitcoin in 2025 - What You Need to Know",
+                "duration": 600
+            },
+            {
+                "id": "OZK5hdKfb18",
+                "title": "Bitcoin Security Best Practices",
+                "duration": 2955
+            },
+            {
+                "id": "GR-E0aaFf0c",
+                "title": "Bitcoin Explained for Complete Beginners",
+                "duration": 2759
+            },
+            {
+                "id": "mibKrTvtlyQ",
+                "title": "Misty Breez Bitcoin Wallet Setup - BTC Sessions",
+                "duration": 1822
+            },
+            {
+                "id": "lhzooru_B-o",
+                "duration": 2148,
+                "title": "10 Hours of Bitcoin Tutorials: Node & Wallet Setup"
+            },
+            {
+                "id": "KNaOeLlD6NA",
+                "title": "Build Your Own Bitcoin Node with Umbrel - Raspberry Pi",
+                "duration": 1675
+            },
+            {
+                "id": "6b0xTB2sE8E",
+                "title": "Bull Bitcoin Wallet Full Tutorial - BTC Sessions",
+                "duration": 5663
+            },
+            {
+                "id": "c8ytiynbnpk",
+                "title": "Your First Bitcoin Wallet - BTC Sessions",
+                "duration": 2555
+            },
+            {
+                "id": "LxTkLwpV1Po",
+                "title": "Permissionless Bitcoin Wallets - They Cannot Be Stopped!",
+                "duration": 3492
+            },
+            {
+                "id": "41JCpzvnn_0",
+                "title": "Bitcoin for Beginners - 99Bitcoins",
+                "duration": 769
+            },
+            {
+                "id": "yJpvfRl03Tw",
+                "title": "How To Use Sparrow Bitcoin Wallet - In Depth Tutorial (BTC Sessions)",
+                "duration": 6803
+            },
+            {
+                "id": "8zM_1lOXtBU",
+                "title": "Bitcoin 2-of-4 Multisig Wallet Tutorial Using Sparrow Wallet",
+                "duration": 3725
+            },
+            {
+                "id": "cRRB_WzZpTM",
+                "title": "BIP85: Segregated Bitcoin Accounts From One Seed (Uncle Jim Mode)",
+                "duration": 3915
+            },
+            {
+                "id": "3QH7ZTibV-Q",
+                "title": "How to Buy Bitcoin (in 2 minutes) - 2024 Updated",
+                "duration": 161
+            },
+            {
+                "id": "vmf_LtnagTs",
+                "title": "Bitcoin Cold Storage Tutorial",
+                "duration": 2386
+            }
+        ,
+            {
+                "id": "pcbYq2LCWwk",
+                "title": "LIQUIDITY Explained SIMPLY: How It Really Moves BITCOIN - The Bitcoin Layer",
+                "duration": 1007
+            },
+            {
+                "id": "X0aaySypick",
+                "title": "Bitcoin & Liquidity Academy 3: Primary Dealers, U.S. Treasuries & the Fed - The Bitcoin Layer",
+                "duration": 1318
+            },
+            {
+                "id": "Tr1bntrBOY0",
+                "title": "Bitcoin & Liquidity Academy 2: How $37 Trillion in US Debt Shapes Global Markets - The Bitcoin Layer",
+                "duration": 1549
+            },
+            {
+                "id": "iTno3A4jE0Y",
+                "title": "Bitcoin & Liquidity Academy 1: Understanding Balance Sheets, Capital, and Treasuries - The Bitcoin Layer",
+                "duration": 1548
+            },
+            {
+                "id": "hluk1tQun78",
+                "title": "Understanding The Fed's Balance Sheet with Andy Constan - The Bitcoin Layer",
+                "duration": 3841
+            }]
+    }
 ];
 
 // ── Station Persistence ──

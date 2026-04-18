@@ -2,3 +2,5 @@
 functions/.env
 test.sh
 scripts/
+.keys/
+firebase-debug.log
