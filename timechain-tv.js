@@ -12,8 +12,8 @@ var STATIONS = [
         "videos": [
             {
                 "id": "2Jf8sxF8QFQ",
-                "duration": 162,
-                "title": "Miami debuts Bitcoin Bull Statue"
+                "title": "Miami debuts Bitcoin Bull Statue",
+                "duration": 162
             },
             {
                 "id": "83mw71TLYjY",
@@ -37,8 +37,8 @@ var STATIONS = [
             },
             {
                 "id": "occ9L0dMMO4",
-                "duration": 542,
-                "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob"
+                "title": "Bitcoin 2024 Art Exhibit - Bitcoin Bob",
+                "duration": 542
             },
             {
                 "id": "ic6pDq3OAec",
@@ -47,8 +47,8 @@ var STATIONS = [
             },
             {
                 "id": "9-S17oAxIqA",
-                "duration": 792,
-                "title": "Bitcoin Pencil Art Timelapse - Bitcoin Apex"
+                "title": "Bitcoin Pencil Art Timelapse - Bitcoin Apex",
+                "duration": 792
             },
             {
                 "id": "Q4owb6f9gbM",
@@ -72,13 +72,13 @@ var STATIONS = [
             },
             {
                 "id": "vPUpdXZPpbQ",
-                "duration": 40,
-                "title": "Nashville Bitcoin Mural - Sound Money"
+                "title": "Nashville Bitcoin Mural - Sound Money",
+                "duration": 40
             },
             {
                 "id": "edyO5-L9un8",
-                "duration": 3732,
-                "title": "Marcus Connor & The Bitcoin Roller Coaster Guy"
+                "title": "Marcus Connor & The Bitcoin Roller Coaster Guy",
+                "duration": 3732
             },
             {
                 "id": "P0WZCTDDGXQ",
@@ -101,19 +101,9 @@ var STATIONS = [
                 "duration": 185
             },
             {
-                "id": "N3J868zhH9g",
-                "title": "Bitcoin Is Encrypted Energy - Breedlove & Saylor",
-                "duration": 612
-            },
-            {
                 "id": "Tr7XO-SQw5g",
                 "title": "Marcus Connor, Pepenardo & Rare Scrilla on Memes - Movement of Art Ep. 3",
                 "duration": 5055
-            },
-            {
-                "id": "9UxAUryUKXM",
-                "duration": 36000,
-                "title": "10 Hours of Bitcoin Lofi & Philosophy"
             },
             {
                 "id": "gb2S1Filtic",
@@ -127,8 +117,8 @@ var STATIONS = [
             },
             {
                 "id": "lRr9ofu0tnk",
-                "duration": 5762,
-                "title": "Bitcoin Art Magazine Unleashed"
+                "title": "Bitcoin Art Magazine Unleashed",
+                "duration": 5762
             },
             {
                 "id": "Z0_9Jw56l4k",
@@ -137,8 +127,8 @@ var STATIONS = [
             },
             {
                 "id": "yvdZsN5s9sc",
-                "duration": 5679,
-                "title": "Based Trading Cards Movement"
+                "title": "Based Trading Cards Movement",
+                "duration": 5679
             },
             {
                 "id": "VLRt0QOZ3TE",
@@ -182,8 +172,8 @@ var STATIONS = [
             },
             {
                 "id": "RwO9lB-rloo",
-                "duration": 5309,
-                "title": "Bitcoin, Art, and Freedom with Madex"
+                "title": "Bitcoin, Art, and Freedom with Madex",
+                "duration": 5309
             },
             {
                 "id": "uIaUj6Nsi70",
@@ -197,8 +187,8 @@ var STATIONS = [
             },
             {
                 "id": "33emHIL1IoU",
-                "duration": 292,
-                "title": "The Bitcoin Full Node Sculpture - Eric Weiss"
+                "title": "The Bitcoin Full Node Sculpture - Eric Weiss",
+                "duration": 292
             },
             {
                 "id": "XHBydlTt2jM",
@@ -207,8 +197,8 @@ var STATIONS = [
             },
             {
                 "id": "KxTWC3ShYDE",
-                "duration": 7385,
-                "title": "Just-B on Airbrush Mastery - Bitcoin Art Podcast"
+                "title": "Just-B on Airbrush Mastery - Bitcoin Art Podcast",
+                "duration": 7385
             },
             {
                 "id": "XrD617FIfJM",
@@ -342,8 +332,8 @@ var STATIONS = [
             },
             {
                 "id": "RnducAborVw",
-                "duration": 418,
-                "title": "Bitcoin Art Gallery - Miami 2022"
+                "title": "Bitcoin Art Gallery - Miami 2022",
+                "duration": 418
             },
             {
                 "id": "8FxyOC26TYE",
@@ -382,8 +372,8 @@ var STATIONS = [
             },
             {
                 "id": "MRnmP7pbR0s",
-                "duration": 3582,
-                "title": "Creating Meaningful Art with FractalEncrypt"
+                "title": "Creating Meaningful Art with FractalEncrypt",
+                "duration": 3582
             },
             {
                 "id": "H1oc5HKixBg",
@@ -392,8 +382,8 @@ var STATIONS = [
             },
             {
                 "id": "Mqc6M8rZRi8",
-                "duration": 1065,
-                "title": "BITCOIN TRADING CARDS?"
+                "title": "BITCOIN TRADING CARDS?",
+                "duration": 1065
             },
             {
                 "id": "SKIIif9WQok",
@@ -402,8 +392,8 @@ var STATIONS = [
             },
             {
                 "id": "lo7eeL1E_VQ",
-                "duration": 281,
-                "title": "A Madex Manifesto"
+                "title": "A Madex Manifesto",
+                "duration": 281
             },
             {
                 "id": "OszL_Q2wvNQ",
@@ -434,8 +424,7 @@ var STATIONS = [
                 "id": "Q5Wxg53qu9s",
                 "title": "The Bitcoin Full Node Sculpture #2 of 10",
                 "duration": 16
-            }
-        ]
+            }]
     },
     {
         "id": "conferences-events",
@@ -451,8 +440,8 @@ var STATIONS = [
             },
             {
                 "id": "9UxAUryUKXM",
-                "duration": 2979,
-                "title": "Donald Trump 2024 Keynote - Nashville"
+                "title": "Donald Trump 2024 Keynote - Nashville",
+                "duration": 2979
             },
             {
                 "id": "4S6lzgc7tFc",
@@ -461,8 +450,8 @@ var STATIONS = [
             },
             {
                 "id": "75O56lhJMJI",
-                "duration": 807,
-                "title": "Welcome to Bitcoin Country - Adopting BTC 2024"
+                "title": "Welcome to Bitcoin Country - Adopting BTC 2024",
+                "duration": 807
             },
             {
                 "id": "SFUiGTayVL8",
@@ -475,24 +464,19 @@ var STATIONS = [
                 "duration": 2284
             },
             {
-                "id": "nC37CqWpxfI",
-                "title": "Saylor & Dorsey Interview",
-                "duration": 3400
-            },
-            {
                 "id": "f3NBhSXtE5g",
-                "duration": 1840,
-                "title": "Edward Snowden 2024 Keynote - Privacy"
+                "title": "Edward Snowden 2024 Keynote - Privacy",
+                "duration": 1840
             },
             {
                 "id": "kE3TpVS27os",
-                "duration": 42897,
-                "title": "JD Vance Keynote - Bitcoin 2025 Las Vegas"
+                "title": "JD Vance Keynote - Bitcoin 2025 Las Vegas",
+                "duration": 42897
             },
             {
                 "id": "vRuPeBAjLTI",
-                "duration": 1948,
-                "title": "JIMMY SONG | DESTROYING RENT SEEKING"
+                "title": "JIMMY SONG | DESTROYING RENT SEEKING",
+                "duration": 1948
             },
             {
                 "id": "M-PIOaHxX4c",
@@ -503,11 +487,6 @@ var STATIONS = [
                 "id": "RoRZE2DpEzE",
                 "title": "Jack Mallers: The HODLers Dilemma - Bitcoin 2025 Keynote",
                 "duration": 2098
-            },
-            {
-                "id": "XdgP25UcHB0",
-                "title": "Bitcoin for Corporations - Saylor & Dorsey",
-                "duration": 15110
             },
             {
                 "id": "XT-B9k9t5B8",
@@ -521,8 +500,8 @@ var STATIONS = [
             },
             {
                 "id": "TTHU_N_n5Ks",
-                "duration": 2854,
-                "title": "PlanB Forum Lugano 2024 - Stephan Livera"
+                "title": "PlanB Forum Lugano 2024 - Stephan Livera",
+                "duration": 2854
             },
             {
                 "id": "XVGME04z_3k",
@@ -536,8 +515,8 @@ var STATIONS = [
             },
             {
                 "id": "gu9OulAijy4",
-                "duration": 840,
-                "title": "The Pacific Bitcoin Conference"
+                "title": "The Pacific Bitcoin Conference",
+                "duration": 840
             },
             {
                 "id": "eEtxKbERWyA",
@@ -546,13 +525,8 @@ var STATIONS = [
             },
             {
                 "id": "O9KnBcWMkpw",
-                "duration": 2243,
-                "title": "Michael Saylor 2024 Keynote - Nashville"
-            },
-            {
-                "id": "1PkMFIa7rmQ",
-                "duration": 2415,
-                "title": "21 Rules of Bitcoin - Saylor Prague 2024"
+                "title": "Michael Saylor 2024 Keynote - Nashville",
+                "duration": 2243
             },
             {
                 "id": "dMHhuY35NKY",
@@ -605,19 +579,14 @@ var STATIONS = [
                 "duration": 27456
             },
             {
-                "id": "TUO10-HcdvY",
-                "duration": 2923,
-                "title": "DEBATE: Bitcoin Ossification | Lugano 2024"
-            },
-            {
                 "id": "p6kBKSZqjn4",
-                "duration": 3916,
-                "title": "Bitcoin Conference 2025: Opening Day Marathon"
+                "title": "Bitcoin Conference 2025: Opening Day Marathon",
+                "duration": 3916
             },
             {
                 "id": "I3Qld_HXQuM",
-                "duration": 2961,
-                "title": "Nostrability Workshop - BBB 2024"
+                "title": "Nostrability Workshop - BBB 2024",
+                "duration": 2961
             },
             {
                 "id": "rNok4Ht6n1E",
@@ -651,8 +620,8 @@ var STATIONS = [
             },
             {
                 "id": "IjR3Hj0aRW4",
-                "duration": 1250,
-                "title": "Howard Lutnick 2024 Keynote - Nashville"
+                "title": "Howard Lutnick 2024 Keynote - Nashville",
+                "duration": 1250
             },
             {
                 "id": "wAv0T2nX0v0",
@@ -661,8 +630,8 @@ var STATIONS = [
             },
             {
                 "id": "P1n7XipTCck",
-                "duration": 35272,
-                "title": "Bitcoin 2024 Nashville: Full GA Day 2 Livestream"
+                "title": "Bitcoin 2024 Nashville: Full GA Day 2 Livestream",
+                "duration": 35272
             },
             {
                 "id": "2qiJIFBJPIU",
@@ -680,19 +649,9 @@ var STATIONS = [
                 "duration": 2547
             },
             {
-                "id": "hqoagNBtIps",
-                "title": "Michael Saylor: Bitcoin Prophecy - BTC Prague 2025",
-                "duration": 2854
-            },
-            {
-                "id": "gCfA1lkmJo4",
-                "title": "Michael Saylor - The Greatest Bitcoin Explanation",
-                "duration": 619
-            },
-            {
                 "id": "0OiZY1MRHXo",
-                "duration": 2674,
-                "title": "Nostr Wallet Connect Workshop - BBB 2024"
+                "title": "Nostr Wallet Connect Workshop - BBB 2024",
+                "duration": 2674
             },
             {
                 "id": "6fgFyQEWiK4",
@@ -716,13 +675,13 @@ var STATIONS = [
             },
             {
                 "id": "jc4lkDeozCQ",
-                "duration": 2447,
-                "title": "Eric Trump speaks at Bitcoin Asia 2024"
+                "title": "Eric Trump speaks at Bitcoin Asia 2024",
+                "duration": 2447
             },
             {
                 "id": "--IFcOIEfl4",
-                "duration": 2632,
-                "title": "No Second Best - Jack Mallers Prague 2024"
+                "title": "No Second Best - Jack Mallers Prague 2024",
+                "duration": 2632
             },
             {
                 "id": "lW8r9hq8-yU",
@@ -751,8 +710,8 @@ var STATIONS = [
             },
             {
                 "id": "0XnB_ZqL6fo",
-                "duration": 40,
-                "title": "Freedom Festival 2024 - Mass Adoption"
+                "title": "Freedom Festival 2024 - Mass Adoption",
+                "duration": 40
             },
             {
                 "id": "e_yg6cLsQHE",
@@ -773,8 +732,42 @@ var STATIONS = [
                 "id": "4NoJnPmCVdU",
                 "title": "Solving Bitcoin's Quantum Computing Threat: BIP 360 (Hunter Beast) - MIT Bitcoin Expo 2025",
                 "duration": 1004
-            }
-        ]
+            },
+            {
+                "id": "veIuDwQTunw",
+                "title": "Olaoluwa Osuntokun Keynote - Open Source Stage (Bitcoin 2022)",
+                "duration": 1064
+            },
+            {
+                "id": "OwJL0J_nPDE",
+                "title": "Open Source Stage - Bitcoin 2022 Conference Day 3 (Full)",
+                "duration": 16733
+            },
+            {
+                "id": "j7R6CLnWI4M",
+                "title": "Open Source Stage - Bitcoin 2022 Conference Day 1 (Full)",
+                "duration": 18352
+            },
+            {
+                "id": "L0Yh6VP6vxU",
+                "title": "Open Source Stage - Bitcoin 2022 Conference Day 2 (Full)",
+                "duration": 16817
+            },
+            {
+                "id": "BjpzoplkqdI",
+                "title": "📺 LIVE: Paris Blockchain Week 2026 | Day 1",
+                "duration": 34051
+            },
+            {
+                "id": "mJj6AJZnnBo",
+                "title": "📺 LIVE: Paris Blockchain Week 2026 | Day 2",
+                "duration": 32607
+            },
+            {
+                "id": "Nqt3BClxlpk",
+                "title": "Strategy CEO Phong Le: MIT Bitcoin Expo 2025 Keynote Speech",
+                "duration": 1474
+            }]
     },
     {
         "id": "culture-travel",
@@ -785,8 +778,8 @@ var STATIONS = [
         "videos": [
             {
                 "id": "twjTUa8njRo",
-                "duration": 76,
-                "title": "Run with Bitcoin - Paco De La India"
+                "title": "Run with Bitcoin - Paco De La India",
+                "duration": 76
             },
             {
                 "id": "mkDpE6SjjCQ",
@@ -795,8 +788,8 @@ var STATIONS = [
             },
             {
                 "id": "BdaiLtKNFQA",
-                "duration": 4320,
-                "title": "The plan 40 Countries in 400 Days - Paco"
+                "title": "The plan 40 Countries in 400 Days - Paco",
+                "duration": 4320
             },
             {
                 "id": "7A56oZAs7ZQ",
@@ -819,19 +812,14 @@ var STATIONS = [
                 "duration": 313
             },
             {
-                "id": "mB0U_22_q4s",
-                "duration": 1222,
-                "title": "10 Hours of Bitcoin Travel & Adoption Stories"
-            },
-            {
                 "id": "7d7yJktKr2U",
                 "title": "Is El Salvador Bending the Knee to the IMF? - John Dennehy (Joe Nakamoto #15)",
                 "duration": 3453
             },
             {
                 "id": "5hMZkxQtstU",
-                "duration": 5477,
-                "title": "167. Run with Bitcoin with Paco de la India"
+                "title": "167. Run with Bitcoin with Paco de la India",
+                "duration": 5477
             },
             {
                 "id": "0Ceey82hFTY",
@@ -950,8 +938,8 @@ var STATIONS = [
             },
             {
                 "id": "gCi5jPHWVNE",
-                "duration": 1759,
-                "title": "Run with Bitcoin | Paco De la India Mumbai"
+                "title": "Run with Bitcoin | Paco De la India Mumbai",
+                "duration": 1759
             },
             {
                 "id": "78YidaGwELw",
@@ -970,15 +958,14 @@ var STATIONS = [
             },
             {
                 "id": "eNOYnGtIm9E",
-                "duration": 3489,
-                "title": "Paco de la India | My Latin Life Podcast 210"
+                "title": "Paco de la India | My Latin Life Podcast 210",
+                "duration": 3489
             },
             {
                 "id": "UoVsYht7cIo",
                 "title": "Isabella Santos - The Unique Voice of Education, Entertainment & Empowerment",
                 "duration": 4227
-            }
-        ]
+            }]
     },
     {
         "id": "dev-privacy-nodes",
@@ -994,13 +981,8 @@ var STATIONS = [
             },
             {
                 "id": "JtzwTd9Ur5c",
-                "duration": 1192,
-                "title": "Competing with Free | DerGigi"
-            },
-            {
-                "id": "veIuDwQTunw",
-                "title": "Olaoluwa Osuntokun Keynote - Open Source Stage (Bitcoin 2022)",
-                "duration": 1064
+                "title": "Competing with Free | DerGigi",
+                "duration": 1192
             },
             {
                 "id": "cmTrCoJKoig",
@@ -1014,8 +996,8 @@ var STATIONS = [
             },
             {
                 "id": "9FE4mTr_6EI",
-                "duration": 1062,
-                "title": "How to Set Up a Bitcoin Node (MyNode)"
+                "title": "How to Set Up a Bitcoin Node (MyNode)",
+                "duration": 1062
             },
             {
                 "id": "R_KTRRlZ-7c",
@@ -1038,11 +1020,6 @@ var STATIONS = [
                 "duration": 2692
             },
             {
-                "id": "CG69c71aSLQ",
-                "title": "Lightning Network Explained - Easy Guide",
-                "duration": 346
-            },
-            {
                 "id": "fsAUhFr1VXU",
                 "title": "Bitcoin Privacy Made Simple: Wasabi Wallet Tutorial",
                 "duration": 1922
@@ -1053,19 +1030,9 @@ var STATIONS = [
                 "duration": 7176
             },
             {
-                "id": "OwJL0J_nPDE",
-                "title": "Open Source Stage - Bitcoin 2022 Conference Day 3 (Full)",
-                "duration": 16733
-            },
-            {
                 "id": "6Tr4-DL1c1s",
-                "duration": 3092,
-                "title": "Freedom Money: Der Gigi l Episode 1"
-            },
-            {
-                "id": "tLZc-NLmV20",
-                "title": "Lightning Network Deep Dive with Laolu 'Roasbeef' Osuntokun",
-                "duration": 2891
+                "title": "Freedom Money: Der Gigi l Episode 1",
+                "duration": 3092
             },
             {
                 "id": "Cjxc9ERz2mU",
@@ -1076,11 +1043,6 @@ var STATIONS = [
                 "id": "TpwnoPUyumA",
                 "title": "Phoenix Wallet Tutorial - Self-Custody Lightning",
                 "duration": 4158
-            },
-            {
-                "id": "j7R6CLnWI4M",
-                "title": "Open Source Stage - Bitcoin 2022 Conference Day 1 (Full)",
-                "duration": 18352
             },
             {
                 "id": "52pSd3I1nac",
@@ -1113,19 +1075,9 @@ var STATIONS = [
                 "duration": 754
             },
             {
-                "id": "L0Yh6VP6vxU",
-                "title": "Open Source Stage - Bitcoin 2022 Conference Day 2 (Full)",
-                "duration": 16817
-            },
-            {
                 "id": "_bQCkoe4fXU",
                 "title": "Web5: The Future of the Bitcoin-Based Internet - Polycarp Nakamoto",
                 "duration": 5842
-            },
-            {
-                "id": "yKdK-7AtAMQ",
-                "title": "Bitcoin Lightning Network - How It Actually Works",
-                "duration": 1276
             },
             {
                 "id": "QeCIVUH89KY",
@@ -1144,8 +1096,8 @@ var STATIONS = [
             },
             {
                 "id": "kL0Yc8ngzS0",
-                "duration": 4386,
-                "title": "Bitcoin Fixes Double Standards - Guest Gigi"
+                "title": "Bitcoin Fixes Double Standards - Guest Gigi",
+                "duration": 4386
             },
             {
                 "id": "U9hdav36WAo",
@@ -1156,11 +1108,6 @@ var STATIONS = [
                 "id": "3FW7jNB9Qp0",
                 "title": "The Future of Lightning Development - Open Source Stage (Bitcoin 2022)",
                 "duration": 1790
-            },
-            {
-                "id": "MGNvaJyZ25A",
-                "title": "Lightning Network: Everything You Need To Know",
-                "duration": 592
             },
             {
                 "id": "n3Md7m4UQSQ",
@@ -1199,8 +1146,8 @@ var STATIONS = [
             },
             {
                 "id": "lhzooru_B-o",
-                "duration": 2148,
-                "title": "Set Up a Bitcoin Node for just 00"
+                "title": "How to Set Up a Bitcoin Node for just $300 | Step-by-Step Guide",
+                "duration": 2148
             },
             {
                 "id": "TASQj1hacuI",
@@ -1209,18 +1156,18 @@ var STATIONS = [
             },
             {
                 "id": "XRxbrfbeThg",
-                "duration": 5910,
-                "title": "Gigi on Internet Business Models & Freedom"
+                "title": "Gigi on Internet Business Models & Freedom",
+                "duration": 5910
             },
             {
                 "id": "ekRzqy7D1wk",
-                "duration": 5437,
-                "title": "Cybersecurity Secrets for Protecting Bitcoin"
+                "title": "Cybersecurity Secrets for Protecting Bitcoin",
+                "duration": 5437
             },
             {
                 "id": "Ld2s9MyMKMU",
-                "duration": 532,
-                "title": "Fastest way to build a Bitcoin Node in 2024"
+                "title": "Fastest way to build a Bitcoin Node in 2024",
+                "duration": 532
             },
             {
                 "id": "ubj5wpsmqN8",
@@ -1246,32 +1193,11 @@ var STATIONS = [
                 "id": "nRoAyZG2taE",
                 "title": "Switch from Bitcoin Core to Knots (Windows, Mac, Start9, Umbrel)",
                 "duration": 5301
-            }
-        ,
-            {
-                "id": "T09HtifiP9c",
-                "title": "Lightning Network: The Economics of Bitcoin's Global Payment Rails - The Bitcoin Layer",
-                "duration": 2367
-            },
-            {
-                "id": "h6-WezlpXx0",
-                "title": "Lightning Network Is Layered Bitcoin - The Bitcoin Layer",
-                "duration": 3126
             },
             {
                 "id": "3AmzFPMcgEY",
                 "title": "Growth On Bitcoin & Lightning Is EXPLODING | Alyse Killeen - The Bitcoin Layer",
                 "duration": 2440
-            },
-            {
-                "id": "6C4Vsq1LF4o",
-                "title": "Bitcoin's Lightning Network Is EXPLODING - The Bitcoin Layer",
-                "duration": 2493
-            },
-            {
-                "id": "GO3DX2ICitg",
-                "title": "Cypherpunks & Lightning Network | Alex Leishman - The Bitcoin Layer",
-                "duration": 1755
             }]
     },
     {
@@ -1288,8 +1214,8 @@ var STATIONS = [
             },
             {
                 "id": "QpbTljF0vY8",
-                "duration": 148,
-                "title": "The History of Bitcoin Mining - Doc"
+                "title": "The History of Bitcoin Mining - Doc",
+                "duration": 148
             },
             {
                 "id": "OH-xRaHdqy4",
@@ -1308,8 +1234,8 @@ var STATIONS = [
             },
             {
                 "id": "gQ8XKns2ipc",
-                "duration": 3191,
-                "title": "The Satoshi Mystery: Origins of Bitcoin"
+                "title": "The Satoshi Mystery: Origins of Bitcoin",
+                "duration": 3191
             },
             {
                 "id": "oEgPTIN5hVE",
@@ -1408,8 +1334,8 @@ var STATIONS = [
             },
             {
                 "id": "Yh1dOmQJoWQ",
-                "duration": 5796,
-                "title": "The Rise and Rise of Bitcoin (FULL)"
+                "title": "The Rise and Rise of Bitcoin (FULL)",
+                "duration": 5796
             },
             {
                 "id": "mgmVEtSgu3o",
@@ -1423,8 +1349,8 @@ var STATIONS = [
             },
             {
                 "id": "iqVuthH57wY",
-                "duration": 3973,
-                "title": "The Evolution of Bitcoin Mining!"
+                "title": "The Evolution of Bitcoin Mining!",
+                "duration": 3973
             },
             {
                 "id": "KjMQvN7Fajs",
@@ -1438,8 +1364,8 @@ var STATIONS = [
             },
             {
                 "id": "4_4lFX8t3I8",
-                "duration": 488,
-                "title": "Evolution of Cryptocurrency: 1983-2100"
+                "title": "Evolution of Cryptocurrency: 1983-2100",
+                "duration": 488
             },
             {
                 "id": "IFVrVI4rZHM",
@@ -1453,8 +1379,8 @@ var STATIONS = [
             },
             {
                 "id": "gcwnpvODd-8",
-                "duration": 143,
-                "title": "The Rise and Rise of Bitcoin | Official Trailer"
+                "title": "The Rise and Rise of Bitcoin | Official Trailer",
+                "duration": 143
             },
             {
                 "id": "tdxY61IJ24E",
@@ -1463,10 +1389,9 @@ var STATIONS = [
             },
             {
                 "id": "iSF0KGsFuI8",
-                "duration": 160,
-                "title": "Money Electric: The Bitcoin Mystery | HBO Trailer"
-            }
-        ]
+                "title": "Money Electric: The Bitcoin Mystery | HBO Trailer",
+                "duration": 160
+            }]
     },
     {
         "id": "economics-money",
@@ -1482,8 +1407,8 @@ var STATIONS = [
             },
             {
                 "id": "soGXgiGoMRU",
-                "duration": 3968,
-                "title": "Broken Money Thesis Presentation - Lyn Alden"
+                "title": "Broken Money Thesis Presentation - Lyn Alden",
+                "duration": 3968
             },
             {
                 "id": "Ai5z2T4WhWg",
@@ -1512,13 +1437,13 @@ var STATIONS = [
             },
             {
                 "id": "bs_pYdK8CU8",
-                "duration": 5223,
-                "title": "Lyn Alden: Why Our Financial System Fails"
+                "title": "Lyn Alden: Why Our Financial System Fails",
+                "duration": 5223
             },
             {
                 "id": "jk_HWmmwiAs",
-                "duration": 1950,
-                "title": "How Money & Banking Work - Lyn Alden"
+                "title": "How Money & Banking Work - Lyn Alden",
+                "duration": 1950
             },
             {
                 "id": "VssN8B0NWqY",
@@ -1532,8 +1457,8 @@ var STATIONS = [
             },
             {
                 "id": "dIqs9hGNU9A",
-                "duration": 4021,
-                "title": "Inflation & the Collapse of Civilization"
+                "title": "Inflation & the Collapse of Civilization",
+                "duration": 4021
             },
             {
                 "id": "lmfx960EQkY",
@@ -1542,8 +1467,8 @@ var STATIONS = [
             },
             {
                 "id": "_nSF9yZWalA",
-                "duration": 5647,
-                "title": "Principles of Economics Lecture 10: Money"
+                "title": "Principles of Economics Lecture 10: Money",
+                "duration": 5647
             },
             {
                 "id": "HZx7t15d96M",
@@ -1552,8 +1477,8 @@ var STATIONS = [
             },
             {
                 "id": "k3NN_NZOdhY",
-                "duration": 3087,
-                "title": "Lyn Alden Content: Broken Money Thesis"
+                "title": "Lyn Alden Content: Broken Money Thesis",
+                "duration": 3087
             },
             {
                 "id": "pZvy0JRz9GE",
@@ -1587,8 +1512,8 @@ var STATIONS = [
             },
             {
                 "id": "TLhbc3moELQ",
-                "duration": 5575,
-                "title": "The Gold Standard: Chapters 1-4"
+                "title": "The Gold Standard: Chapters 1-4",
+                "duration": 5575
             },
             {
                 "id": "qawzs0QSzbI",
@@ -1597,8 +1522,8 @@ var STATIONS = [
             },
             {
                 "id": "Ih0e8AXT_-s",
-                "duration": 1200,
-                "title": "Broken Money | Oslo Freedom Forum"
+                "title": "Broken Money | Oslo Freedom Forum",
+                "duration": 1200
             },
             {
                 "id": "lB3mQImM-5Y",
@@ -1637,8 +1562,8 @@ var STATIONS = [
             },
             {
                 "id": "TmV4Ns_ngSM",
-                "duration": 2399,
-                "title": "The Economics of Bitcoin - Saifedean"
+                "title": "The Economics of Bitcoin - Saifedean",
+                "duration": 2399
             },
             {
                 "id": "DKaZ-h-Wwhg",
@@ -1647,8 +1572,8 @@ var STATIONS = [
             },
             {
                 "id": "PQ2wj8dnpqo",
-                "duration": 624,
-                "title": "What is money? | Ammous & Fridman"
+                "title": "What is money? | Ammous & Fridman",
+                "duration": 624
             },
             {
                 "id": "6RsPt2bhi1o",
@@ -1684,8 +1609,7 @@ var STATIONS = [
                 "id": "GbLndO2XfuI",
                 "title": "Where Does Money Come From - Hidden Secrets Of Money Ep 5",
                 "duration": 1799
-            }
-        ,
+            },
             {
                 "id": "UIhieMtB_A0",
                 "title": "The Everything Bubble Is Over: Michael Howell's Warning for 2026 - The Bitcoin Layer",
@@ -1810,6 +1734,11 @@ var STATIONS = [
                 "id": "nvVR_fVU7Bc",
                 "title": "Argentina just told China: no thanks. They want the U.S. as their 'partner of choice.' - The Bitcoin Layer",
                 "duration": 125
+            },
+            {
+                "id": "tBnsQeTbMU8",
+                "title": "How High Can Gold & Silver Go?",
+                "duration": 797
             }]
     },
     {
@@ -1881,8 +1810,8 @@ var STATIONS = [
             },
             {
                 "id": "PesTO9MRqJo",
-                "duration": 6150,
-                "title": "Bitcoin and Time with Gigi"
+                "title": "Bitcoin and Time with Gigi",
+                "duration": 6150
             },
             {
                 "id": "ZYN4X_l1ZXg",
@@ -1900,19 +1829,14 @@ var STATIONS = [
                 "duration": 943
             },
             {
-                "id": "mB0U_22_q4s",
-                "duration": 1222,
-                "title": "Living in El Salvador - First Hand Report"
-            },
-            {
                 "id": "BoHNkX4OWQA",
                 "title": "Jack Mallers on Bitcoin for El Salvador",
                 "duration": 244
             },
             {
                 "id": "lfPZteWuH3k",
-                "duration": 2008,
-                "title": "Crypto-Friendly Countries Interview"
+                "title": "Crypto-Friendly Countries Interview",
+                "duration": 2008
             },
             {
                 "id": "zV_A2yMZl0w",
@@ -1921,8 +1845,8 @@ var STATIONS = [
             },
             {
                 "id": "oDaTIFKe3k4",
-                "duration": 459,
-                "title": "4 Best Countries for Crypto Millionaires"
+                "title": "4 Best Countries for Crypto Millionaires",
+                "duration": 459
             },
             {
                 "id": "Z_p70BzkMAs",
@@ -1936,8 +1860,8 @@ var STATIONS = [
             },
             {
                 "id": "KY72n6UFg1s",
-                "duration": 486,
-                "title": "Tax-Friendly Countries for Investors"
+                "title": "Tax-Friendly Countries for Investors",
+                "duration": 486
             },
             {
                 "id": "kUiokNq5N1g",
@@ -1975,11 +1899,6 @@ var STATIONS = [
                 "duration": 1602
             },
             {
-                "id": "TASQj1hacuI",
-                "title": "Bitcoin as Freedom Money - Wyoming Symposium",
-                "duration": 664
-            },
-            {
                 "id": "LMeNe1tBsr4",
                 "title": "Oslo Freedom Forum 2024 - Financial Freedom Track Full Livestream",
                 "duration": 23584
@@ -1996,15 +1915,14 @@ var STATIONS = [
             },
             {
                 "id": "p8vLlp67UnA",
-                "duration": 533,
-                "title": "Why I Moved to Dubai - Nomad Capitalist"
+                "title": "Why I Moved to Dubai - Nomad Capitalist",
+                "duration": 533
             },
             {
                 "id": "6QiDB-RwGGw",
-                "duration": 821,
-                "title": "Best Countries for Digital Nomads"
-            }
-        ,
+                "title": "Best Countries for Digital Nomads",
+                "duration": 821
+            },
             {
                 "id": "LNAFBnN4AHg",
                 "title": "How The Bible Helped Me Understand The Capital War - The Bitcoin Layer",
@@ -2075,13 +1993,13 @@ var STATIONS = [
             },
             {
                 "id": "urKG9oi0krc",
-                "duration": 7180,
-                "title": "Exit The Matrix - Buy BTC Eat Meat"
+                "title": "Exit The Matrix - Buy BTC Eat Meat",
+                "duration": 7180
             },
             {
                 "id": "TWkKPijaDyQ",
-                "duration": 4184,
-                "title": "Proof of Work Ep2: Fitness and Bitcoin"
+                "title": "Proof of Work Ep2: Fitness and Bitcoin",
+                "duration": 4184
             },
             {
                 "id": "JTDVwPdvu3E",
@@ -2100,8 +2018,8 @@ var STATIONS = [
             },
             {
                 "id": "O3jeBF7S9ss",
-                "duration": 2444,
-                "title": "Treadmill, Chat, and Bitcoin"
+                "title": "Treadmill, Chat, and Bitcoin",
+                "duration": 2444
             },
             {
                 "id": "xn9WtVYy1gU",
@@ -2110,13 +2028,13 @@ var STATIONS = [
             },
             {
                 "id": "W4OQaqqFKj0",
-                "duration": 2872,
-                "title": "Proof of Work Ep1: Fitness and Bitcoin"
+                "title": "Proof of Work Ep1: Fitness and Bitcoin",
+                "duration": 2872
             },
             {
                 "id": "Pvmp0L5cbl8",
-                "duration": 90,
-                "title": "Iron Sharpens Iron - Proof of Work Fitness"
+                "title": "Iron Sharpens Iron - Proof of Work Fitness",
+                "duration": 90
             },
             {
                 "id": "ohR7EIby7yY",
@@ -2130,8 +2048,8 @@ var STATIONS = [
             },
             {
                 "id": "FJB7e8PP0wU",
-                "duration": 148,
-                "title": "Proof Of Work(out) - July 2022"
+                "title": "Proof Of Work(out) - July 2022",
+                "duration": 148
             },
             {
                 "id": "hL54mn7vW8w",
@@ -2180,8 +2098,8 @@ var STATIONS = [
             },
             {
                 "id": "KfNkDQ-NI9U",
-                "duration": 6617,
-                "title": "Shawn Baker, the Carnivore MD"
+                "title": "Shawn Baker, the Carnivore MD",
+                "duration": 6617
             },
             {
                 "id": "BQCOJlFXvpU",
@@ -2197,8 +2115,7 @@ var STATIONS = [
                 "id": "pm7Ff5viURM",
                 "title": "Jeff Booth Reveals How Much Bitcoin You Need!",
                 "duration": 615
-            }
-        ]
+            }]
     },
     {
         "id": "history",
@@ -2209,8 +2126,8 @@ var STATIONS = [
         "videos": [
             {
                 "id": "3n_WnVPhRTo",
-                "duration": 384,
-                "title": "The Satoshi Nakamoto Enigma"
+                "title": "The Satoshi Nakamoto Enigma",
+                "duration": 384
             },
             {
                 "id": "0r6zMdHcpW0",
@@ -2224,8 +2141,8 @@ var STATIONS = [
             },
             {
                 "id": "tWU3O3X5kKE",
-                "duration": 119,
-                "title": "The Story behind Bitcoin Pizza Day"
+                "title": "The Story behind Bitcoin Pizza Day",
+                "duration": 119
             },
             {
                 "id": "b1ruW89S4PM",
@@ -2243,24 +2160,14 @@ var STATIONS = [
                 "duration": 603
             },
             {
-                "id": "iVym9wtopqs",
-                "title": "The History of Bitcoin - Full Timeline",
-                "duration": 5367
-            },
-            {
-                "id": "ZKwqNgG-Sv4",
-                "title": "Bitcoin: The End of Money As We Know It",
-                "duration": 1471
-            },
-            {
                 "id": "DyV0OfU3-FU",
                 "title": "Satoshi Nakamoto - The Hidden History",
                 "duration": 1556
             },
             {
                 "id": "h3nlVsy81wI",
-                "duration": 584,
-                "title": "The Bitcoin Mystery Revealed! - Swan"
+                "title": "The Bitcoin Mystery Revealed! - Swan",
+                "duration": 584
             },
             {
                 "id": "NAg_rJ8mfVs",
@@ -2289,8 +2196,8 @@ var STATIONS = [
             },
             {
                 "id": "Mcz_4MvPlOE",
-                "duration": 956,
-                "title": "Cypherpunks & Bitcoin: End of History"
+                "title": "Cypherpunks & Bitcoin: End of History",
+                "duration": 956
             },
             {
                 "id": "LjNMgeqUgks",
@@ -2309,13 +2216,13 @@ var STATIONS = [
             },
             {
                 "id": "9vM0oIEhMag",
-                "duration": 2635,
-                "title": "Cypherpunks Write Code - ReasonTV"
+                "title": "Cypherpunks Write Code - ReasonTV",
+                "duration": 2635
             },
             {
                 "id": "HDKQulqVCQg",
-                "duration": 956,
-                "title": "Bitcoin and the End of History"
+                "title": "Bitcoin and the End of History",
+                "duration": 956
             },
             {
                 "id": "dMSv4mgiy1o",
@@ -2328,24 +2235,14 @@ var STATIONS = [
                 "duration": 421
             },
             {
-                "id": "8Z4hGvUET8I",
-                "title": "Bitcoin: Beyond The Bubble - Origins",
-                "duration": 2086
-            },
-            {
-                "id": "iqVuthH57wY",
-                "duration": 3973,
-                "title": "The Evolution of Bitcoin Mining!"
-            },
-            {
                 "id": "lFw-3wynj-o",
                 "title": "Adam Back is Satoshi Nakamoto - Hoskinson & Lex Fridman",
                 "duration": 228
             },
             {
                 "id": "eoBmOf4GDyo",
-                "duration": 1000,
-                "title": "Arrivano i Cypherpunk - History"
+                "title": "Arrivano i Cypherpunk - History",
+                "duration": 1000
             },
             {
                 "id": "GpMP6Nh3FvU",
@@ -2356,11 +2253,6 @@ var STATIONS = [
                 "id": "Peih23WVK54",
                 "title": "Dark Web King: From Student to Billionaire Drug Lord - Ross Ulbricht",
                 "duration": 1511
-            },
-            {
-                "id": "gQ8XKns2ipc",
-                "duration": 3191,
-                "title": "The Satoshi Mystery: Origins of Bitcoin"
             },
             {
                 "id": "f-4Rs3Sqlhc",
@@ -2384,8 +2276,8 @@ var STATIONS = [
             },
             {
                 "id": "7RlaC9ZJNtA",
-                "duration": 3198,
-                "title": "Unmasking the Creator of Bitcoin"
+                "title": "Unmasking the Creator of Bitcoin",
+                "duration": 3198
             },
             {
                 "id": "chcASJW1pMs",
@@ -2396,8 +2288,7 @@ var STATIONS = [
                 "id": "9npQ5f74Nr4",
                 "title": "The Cypherpunks: Freedom, Privacy, and the Genesis of Bitcoin",
                 "duration": 3078
-            }
-        ]
+            }]
     },
     {
         "id": "kids-family",
@@ -2548,8 +2439,8 @@ var STATIONS = [
             },
             {
                 "id": "B-IpiKURs3I",
-                "duration": 3969,
-                "title": "1 Hour Tuttle Twins Compilation"
+                "title": "1 Hour Tuttle Twins Compilation",
+                "duration": 3969
             },
             {
                 "id": "t0ZAXwV1CI8",
@@ -2658,8 +2549,8 @@ var STATIONS = [
             },
             {
                 "id": "_ekzsZZGfsk",
-                "duration": 3501,
-                "title": "First Kids Cartoon about Bitcoin!"
+                "title": "First Kids Cartoon about Bitcoin!",
+                "duration": 3501
             },
             {
                 "id": "3nwprNzztQE",
@@ -2685,8 +2576,7 @@ var STATIONS = [
                 "id": "auIOUn0ubDk",
                 "title": "What is Inflation? Explained for Kids (The Invisible Money Nibbler!)",
                 "duration": 287
-            }
-        ]
+            }]
     },
     {
         "id": "lightning",
@@ -2712,8 +2602,8 @@ var STATIONS = [
             },
             {
                 "id": "rrr_zPmEiME",
-                "duration": 334,
-                "title": "Bitcoins Lightning Network Explained"
+                "title": "Bitcoins Lightning Network Explained",
+                "duration": 334
             },
             {
                 "id": "zEeMco4KqGs",
@@ -2786,19 +2676,14 @@ var STATIONS = [
                 "duration": 2678
             },
             {
-                "id": "TpwnoPUyumA",
-                "duration": 4158,
-                "title": "Phoenix Wallet Setup & Tutorial"
-            },
-            {
                 "id": "qug6tCHPXtw",
-                "duration": 87,
-                "title": "Bitfury Lightning Coffee Machine"
+                "title": "Bitfury Lightning Coffee Machine",
+                "duration": 87
             },
             {
                 "id": "to8XItlplac",
-                "duration": 4636,
-                "title": "Lightning Transactions & Protocol Deep Dive"
+                "title": "Lightning Transactions & Protocol Deep Dive",
+                "duration": 4636
             },
             {
                 "id": "JGOzIUG2Rwk",
@@ -2807,8 +2692,8 @@ var STATIONS = [
             },
             {
                 "id": "sQPKdozYhQ8",
-                "duration": 130,
-                "title": "Beginners Guide to Coffee LN Payments"
+                "title": "Beginners Guide to Coffee LN Payments",
+                "duration": 130
             },
             {
                 "id": "fympoUHx2b8",
@@ -2837,8 +2722,8 @@ var STATIONS = [
             },
             {
                 "id": "bVC4795helY",
-                "duration": 43,
-                "title": "Lightning payment in Malaysia Cafe"
+                "title": "Lightning payment in Malaysia Cafe",
+                "duration": 43
             },
             {
                 "id": "JpmkIvB7rDE",
@@ -2852,8 +2737,8 @@ var STATIONS = [
             },
             {
                 "id": "39KpscRXyXY",
-                "duration": 34,
-                "title": "Buying Coffee Using Bitcoin - LN"
+                "title": "Buying Coffee Using Bitcoin - LN",
+                "duration": 34
             },
             {
                 "id": "69QUHgHErx0",
@@ -2879,8 +2764,42 @@ var STATIONS = [
                 "id": "iVPNk2ZZ63w",
                 "title": "Lightning Accounts With Blue Wallet and Umbrel",
                 "duration": 1249
-            }
-        ]
+            },
+            {
+                "id": "tLZc-NLmV20",
+                "title": "Lightning Network Deep Dive with Laolu 'Roasbeef' Osuntokun",
+                "duration": 2891
+            },
+            {
+                "id": "MGNvaJyZ25A",
+                "title": "Lightning Network: Everything You Need To Know",
+                "duration": 592
+            },
+            {
+                "id": "T09HtifiP9c",
+                "title": "Lightning Network: The Economics of Bitcoin's Global Payment Rails - The Bitcoin Layer",
+                "duration": 2367
+            },
+            {
+                "id": "h6-WezlpXx0",
+                "title": "Lightning Network Is Layered Bitcoin - The Bitcoin Layer",
+                "duration": 3126
+            },
+            {
+                "id": "6C4Vsq1LF4o",
+                "title": "Bitcoin's Lightning Network Is EXPLODING - The Bitcoin Layer",
+                "duration": 2493
+            },
+            {
+                "id": "GO3DX2ICitg",
+                "title": "Cypherpunks & Lightning Network | Alex Leishman - The Bitcoin Layer",
+                "duration": 1755
+            },
+            {
+                "id": "LuZ0XN3eH5I",
+                "title": "The Fatal Flaw in Bitcoin's Lightning Network? - Get Based TV",
+                "duration": 805
+            }]
     },
     {
         "id": "memes-comedy",
@@ -2940,19 +2859,14 @@ var STATIONS = [
                 "duration": 340
             },
             {
-                "id": "heA1fZzRAFs",
-                "title": "Funniest Bitcoin Moments Compilation",
-                "duration": 2625
-            },
-            {
                 "id": "0Y7qcaIkgMY",
                 "title": "Appeasing Michael Saylor - Bitcoin Singularity",
                 "duration": 3601
             },
             {
                 "id": "uql_VKemddY",
-                "duration": 36000,
-                "title": "Vibing with the Fed and Bitcoin 10 Hour Loop"
+                "title": "Vibing with the Fed and Bitcoin 10 Hour Loop",
+                "duration": 36000
             },
             {
                 "id": "UX1GIhOhkAE",
@@ -2991,18 +2905,13 @@ var STATIONS = [
             },
             {
                 "id": "EFDMum1vs7Q",
-                "duration": 36057,
-                "title": "Pump It Up (Bitcoin Maximalist) 10 Hour Loop"
+                "title": "Pump It Up (Bitcoin Maximalist) 10 Hour Loop",
+                "duration": 36057
             },
             {
                 "id": "fUFnLPblsBg",
                 "title": "100% Saylor - Michael Saylor Best Moments",
                 "duration": 102
-            },
-            {
-                "id": "tWU3O3X5kKE",
-                "duration": 119,
-                "title": "The Story of Bitcoin Pizza Day"
             },
             {
                 "id": "NMDABNK8j_Q",
@@ -3058,8 +2967,7 @@ var STATIONS = [
                 "id": "aJIt3dUWEAs",
                 "title": "Unleashing the Cyber Hornets: Michael Saylor on the Power of Bitcoin",
                 "duration": 3600
-            }
-        ]
+            }]
     },
     {
         "id": "mining",
@@ -3085,8 +2993,8 @@ var STATIONS = [
             },
             {
                 "id": "iQiWQAtThns",
-                "duration": 208,
-                "title": "Marathon Digital Portfolio Overview"
+                "title": "Marathon Digital Portfolio Overview",
+                "duration": 208
             },
             {
                 "id": "e4BtAMXuRKI",
@@ -3100,8 +3008,8 @@ var STATIONS = [
             },
             {
                 "id": "lDafxxAgmUI",
-                "duration": 1254,
-                "title": "MARA Granbury Facility Tour"
+                "title": "MARA Granbury Facility Tour",
+                "duration": 1254
             },
             {
                 "id": "33i1PdSJgwA",
@@ -3110,8 +3018,8 @@ var STATIONS = [
             },
             {
                 "id": "UAhQoKhzzbA",
-                "duration": 72,
-                "title": "Marathon 200MW Mining Site Acquisition"
+                "title": "Marathon 200MW Mining Site Acquisition",
+                "duration": 72
             },
             {
                 "id": "DMfv8S8ffKA",
@@ -3125,8 +3033,8 @@ var STATIONS = [
             },
             {
                 "id": "JPanr1nsPA4",
-                "duration": 85,
-                "title": "Mining BTC in Paraguay via Hydro - MARA"
+                "title": "Mining BTC in Paraguay via Hydro - MARA",
+                "duration": 85
             },
             {
                 "id": "C4Z5yoWfnAU",
@@ -3165,13 +3073,13 @@ var STATIONS = [
             },
             {
                 "id": "5Y2fkldA-lQ",
-                "duration": 472,
-                "title": "The Early Days of Bitcoin Mining"
+                "title": "The Early Days of Bitcoin Mining",
+                "duration": 472
             },
             {
                 "id": "YsYk8vyv32w",
-                "duration": 300,
-                "title": "The History of Bitcoin Mining"
+                "title": "The History of Bitcoin Mining",
+                "duration": 300
             },
             {
                 "id": "F1ot1qS-VtQ",
@@ -3235,8 +3143,8 @@ var STATIONS = [
             },
             {
                 "id": "YGkLWGM8os4",
-                "duration": 61,
-                "title": "UAE Immersion Facility Ribbon Cutting"
+                "title": "UAE Immersion Facility Ribbon Cutting",
+                "duration": 61
             },
             {
                 "id": "lHipE05v4jg",
@@ -3250,8 +3158,8 @@ var STATIONS = [
             },
             {
                 "id": "t5S1Y6OopHo",
-                "duration": 900,
-                "title": "BEST Home Miners 2024 Guide"
+                "title": "BEST Home Miners 2024 Guide",
+                "duration": 900
             },
             {
                 "id": "5Wp6lInPQv0",
@@ -3262,8 +3170,7 @@ var STATIONS = [
                 "id": "Py3voZGT1To",
                 "title": "Bitcoin Mining Explained Simply - Real ASIC Miner Running at Home",
                 "duration": 270
-            }
-        ,
+            },
             {
                 "id": "i4XV7Yq9GCM",
                 "title": "The Future of Bitcoin Mining: Home Miners, Pools, & Open Source Innovation - The Bitcoin Layer",
@@ -3301,11 +3208,6 @@ var STATIONS = [
                 "id": "BRbVhsoPzmI",
                 "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 4",
                 "duration": 160
-            },
-            {
-                "id": "f-4Rs3Sqlhc",
-                "title": "Bitcoin Anthem - Crypto Music",
-                "duration": 602
             },
             {
                 "id": "6ZKzapbQPZA",
@@ -3583,11 +3485,6 @@ var STATIONS = [
                 "duration": 210
             },
             {
-                "id": "fZfg1Gtcg08",
-                "title": "Bitcoin Baron - ytcracker",
-                "duration": 210
-            },
-            {
                 "id": "emcT185BXMQ",
                 "title": "Carlos Matos - Take On Me (autotuned)",
                 "duration": 112
@@ -3746,8 +3643,7 @@ var STATIONS = [
                 "id": "DNYzHGM50Ys",
                 "title": "Too Bit To Fail - Proof of Word EP",
                 "duration": 1560
-            }
-        ]
+            }]
     },
     {
         "id": "news",
@@ -3792,11 +3688,6 @@ var STATIONS = [
                 "duration": 2644
             },
             {
-                "id": "wSh_KzcY_dA",
-                "title": "60 Minutes: Stories About Cryptocurrency - CBS",
-                "duration": 4000
-            },
-            {
                 "id": "1nsIy7PWXyY",
                 "title": "Bitcoin Price Analysis - Key Levels",
                 "duration": 782
@@ -3827,11 +3718,6 @@ var STATIONS = [
                 "duration": 701
             },
             {
-                "id": "kN5codbLCCY",
-                "title": "Bitcoin Regulation Becoming National Security",
-                "duration": 740
-            },
-            {
                 "id": "iQOiQZ_g97I",
                 "title": "Wall Street Week - The Crypto Craze",
                 "duration": 122
@@ -3850,11 +3736,6 @@ var STATIONS = [
                 "id": "kh-YqlKC23k",
                 "title": "Why Bitcoin Is Still King in 2025 - USA & UK Adoption",
                 "duration": 170
-            },
-            {
-                "id": "dYFMoK1nDmc",
-                "title": "60 Minutes: Bitcoin Beach El Salvador - CBS",
-                "duration": 65
             },
             {
                 "id": "omyLCxja20g",
@@ -3955,8 +3836,7 @@ var STATIONS = [
                 "id": "dy2ZTOq22bQ",
                 "title": "Cathie Wood Increased Her Bitcoin Price Prediction for 2025",
                 "duration": 511
-            }
-        ,
+            },
             {
                 "id": "gij6bJkyH2w",
                 "title": "Individual Ownership Peaked in 2024 and What Comes Next for Bitcoin - The Bitcoin Layer",
@@ -4021,11 +3901,6 @@ var STATIONS = [
                 "duration": 3600
             },
             {
-                "id": "gCfA1lkmJo4",
-                "title": "The Greatest Bitcoin Explanation - Michael Saylor",
-                "duration": 619
-            },
-            {
                 "id": "LKYVbahTjQM",
                 "title": "Giving Strangers $50 Bitcoin or $5 Cash (Social Experiment)",
                 "duration": 440
@@ -4037,8 +3912,8 @@ var STATIONS = [
             },
             {
                 "id": "wQ7V3S8vW9X",
-                "duration": 3300,
-                "title": "Andreas Antonopoulos: Understanding the Blockchain"
+                "title": "Andreas Antonopoulos: Understanding the Blockchain",
+                "duration": 3300
             },
             {
                 "id": "SS8-qjP-yAo",
@@ -4067,18 +3942,13 @@ var STATIONS = [
             },
             {
                 "id": "rc744Z9IjhY",
-                "duration": 1099,
-                "title": "Andreas Antonopoulos: The Internet of Money - What is Bitcoin?"
+                "title": "Andreas Antonopoulos: The Internet of Money - What is Bitcoin?",
+                "duration": 1099
             },
             {
                 "id": "H85UfhYV_pA",
                 "title": "Smart Money is Selling Real Estate for Bitcoin - Terence Michael",
                 "duration": 6670
-            },
-            {
-                "id": "LuZ0XN3eH5I",
-                "title": "The Fatal Flaw in Bitcoin's Lightning Network? - Get Based TV",
-                "duration": 805
             },
             {
                 "id": "D22zHDCE6-0",
@@ -4087,8 +3957,8 @@ var STATIONS = [
             },
             {
                 "id": "6xIq0FdmsIA",
-                "duration": 2359,
-                "title": "Andreas Antonopoulos: Internet of Money - Keynote"
+                "title": "Andreas Antonopoulos: Internet of Money - Keynote",
+                "duration": 2359
             },
             {
                 "id": "IuVkUqdqkcc",
@@ -4097,8 +3967,8 @@ var STATIONS = [
             },
             {
                 "id": "vQ8MvR1sW2X",
-                "duration": 3900,
-                "title": "Andreas Antonopoulos: The Architecture of Trust"
+                "title": "Andreas Antonopoulos: The Architecture of Trust",
+                "duration": 3900
             },
             {
                 "id": "7O10xS_sQoE",
@@ -4122,8 +3992,8 @@ var STATIONS = [
             },
             {
                 "id": "y1KXs3uE42I",
-                "duration": 1641,
-                "title": "Andreas Antonopoulos: Why Bitcoin Matters - Internet of Money"
+                "title": "Andreas Antonopoulos: Why Bitcoin Matters - Internet of Money",
+                "duration": 1641
             },
             {
                 "id": "XG7v4XFL7mc",
@@ -4137,8 +4007,8 @@ var STATIONS = [
             },
             {
                 "id": "KW_wYvZ1eZg",
-                "duration": 5024,
-                "title": "Andreas Antonopoulos: Decentralization & The Future of Money"
+                "title": "Andreas Antonopoulos: Decentralization & The Future of Money",
+                "duration": 5024
             },
             {
                 "id": "Fp9xhVeWUMs",
@@ -4189,11 +4059,6 @@ var STATIONS = [
                 "id": "xegEpCLT0CQ",
                 "title": "A Practical Approach to Orange Pilling",
                 "duration": 1060
-            },
-            {
-                "id": "1Mr9PknsM_Y",
-                "title": "Saylor's Best Explanation Under 20 Minutes",
-                "duration": 349
             },
             {
                 "id": "ExUeCIscbNU",
@@ -4257,8 +4122,8 @@ var STATIONS = [
             },
             {
                 "id": "jNQpZ2T-WcQ",
-                "duration": 4200,
-                "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking"
+                "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking",
+                "duration": 4200
             },
             {
                 "id": "sLcNmZwMOz0",
@@ -4289,8 +4154,7 @@ var STATIONS = [
                 "id": "vclZlAFXpEI",
                 "title": "Give Me 9 Minutes and You Will Understand Bitcoin - Exit Manual",
                 "duration": 600
-            }
-        ]
+            }]
     },
     {
         "id": "podcasts-debates",
@@ -4323,11 +4187,6 @@ var STATIONS = [
                 "id": "2ZaMzWZyXe8",
                 "title": "Wall Street Meets Bitcoin: Orange-Pilling Finance - Strive CEO",
                 "duration": 1348
-            },
-            {
-                "id": "D_yIKnHOuWg",
-                "title": "Michael Saylor Answers the Question of Our Time",
-                "duration": 327
             },
             {
                 "id": "l1Rgq8UY3zo",
@@ -4365,11 +4224,6 @@ var STATIONS = [
                 "duration": 3155
             },
             {
-                "id": "gp4U5aH_T6A",
-                "duration": 15281,
-                "title": "Economics & Bitcoin Debate - Lex Fridman & Saifedean"
-            },
-            {
                 "id": "nMicPEQM4HY",
                 "title": "Maximalism is Dead? | Peter McCormack",
                 "duration": 1541
@@ -4381,8 +4235,8 @@ var STATIONS = [
             },
             {
                 "id": "TUO10-HcdvY",
-                "duration": 2923,
-                "title": "The Ultimate Bitcoin vs. Everything Debate Loop"
+                "title": "The Ultimate Bitcoin vs. Everything Debate Loop",
+                "duration": 2923
             },
             {
                 "id": "yCtVkIEIhCg",
@@ -4403,11 +4257,6 @@ var STATIONS = [
                 "id": "x0kNGaxLg18",
                 "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed - Coin Stories",
                 "duration": 3320
-            },
-            {
-                "id": "aWtzOQTv8Dc",
-                "title": "Saylor vs Dorsey: Battle for Bitcoin's Future",
-                "duration": 917
             },
             {
                 "id": "0rlnVQoiVyc",
@@ -4461,8 +4310,8 @@ var STATIONS = [
             },
             {
                 "id": "Bh7LBF9cU6w",
-                "duration": 736,
-                "title": "Stock-to-Flow & Power Law Debate Marathon"
+                "title": "Stock-to-Flow & Power Law Debate Marathon",
+                "duration": 736
             },
             {
                 "id": "HwNSykjO-gI",
@@ -4479,12 +4328,6 @@ var STATIONS = [
                 "title": "Bitcoin Rap Battle: Hamilton vs. Satoshi - ft. EpicLloyd",
                 "duration": 362
             },
-            {
-                "id": "d5_cYWLpDs8",
-                "title": "A Brief History of Bitcoin Maximalism",
-                "duration": 1664
-            }
-        ,
             {
                 "id": "227anLxQ0mU",
                 "title": "The Money Printer Is Back On with Lyn Alden - The Bitcoin Layer",
@@ -4559,6 +4402,16 @@ var STATIONS = [
                 "id": "iYVMX0zdp64",
                 "title": "The BITCOIN Act of 2024 with Senator Cynthia Lummis - The Bitcoin Layer",
                 "duration": 1976
+            },
+            {
+                "id": "VTCzVWgJJWs",
+                "title": "Bitcoin As The Apex Predator - Robert Breedlove (Pomp Podcast)",
+                "duration": 4176
+            },
+            {
+                "id": "HrehEWYj16s",
+                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman",
+                "duration": 14629
             }]
     },
     {
@@ -4580,13 +4433,13 @@ var STATIONS = [
             },
             {
                 "id": "tWWb0-A0Rdk",
-                "duration": 4003,
-                "title": "Bitcoin Laws Are Changing | SAF"
+                "title": "Bitcoin Laws Are Changing | SAF",
+                "duration": 4003
             },
             {
                 "id": "jfUX8d80ifw",
-                "duration": 2432,
-                "title": "Mined In America Act FT. Dennis Porter"
+                "title": "Mined In America Act FT. Dennis Porter",
+                "duration": 2432
             },
             {
                 "id": "pBMnPec4AC4",
@@ -4615,8 +4468,8 @@ var STATIONS = [
             },
             {
                 "id": "YqWoj2eFDp4",
-                "duration": 1720,
-                "title": "Right To Mine Policy - Dennis Porter"
+                "title": "Right To Mine Policy - Dennis Porter",
+                "duration": 1720
             },
             {
                 "id": "7ZSpFWEd-x0",
@@ -4625,8 +4478,8 @@ var STATIONS = [
             },
             {
                 "id": "boZ7yJOFBk0",
-                "duration": 2932,
-                "title": "Crushing Anti-BTC Legislation - Porter"
+                "title": "Crushing Anti-BTC Legislation - Porter",
+                "duration": 2932
             },
             {
                 "id": "kqOx7PjbNOw",
@@ -4649,19 +4502,9 @@ var STATIONS = [
                 "duration": 376
             },
             {
-                "id": "R4gyS5mb9dE",
-                "title": "Gladstein: Bitcoin Is a Tool Dictators Should Fear - 2025 Summit",
-                "duration": 1159
-            },
-            {
                 "id": "DJhgLMMAPHQ",
                 "title": "Trump Nominates Crypto Advocate Paul Atkins as SEC Chair",
                 "duration": 41
-            },
-            {
-                "id": "zV_A2yMZl0w",
-                "title": "Gladstein: Bitcoin Privacy Technologies Redefining Money",
-                "duration": 793
             },
             {
                 "id": "tja-5y_FvgY",
@@ -4670,8 +4513,8 @@ var STATIONS = [
             },
             {
                 "id": "MuobSz7534s",
-                "duration": 3119,
-                "title": "Paving the Frontier - Dennis Porter"
+                "title": "Paving the Frontier - Dennis Porter",
+                "duration": 3119
             },
             {
                 "id": "YwZseBZOc6U",
@@ -4710,18 +4553,13 @@ var STATIONS = [
             },
             {
                 "id": "_E_5Hk-vRj8",
-                "duration": 1410,
-                "title": "Bitcoin U.S. Reserve in 30 Days?"
+                "title": "Bitcoin U.S. Reserve in 30 Days?",
+                "duration": 1410
             },
             {
                 "id": "jjl_kp9v-Eg",
                 "title": "Washington's Crypto Awakening: The Lawmaker Town Hall",
                 "duration": 3188
-            },
-            {
-                "id": "Y5wgZ3rFayQ",
-                "title": "Financial Sovereignty & Bitcoin Policy",
-                "duration": 521
             },
             {
                 "id": "78xSNqLfJDA",
@@ -4730,20 +4568,19 @@ var STATIONS = [
             },
             {
                 "id": "R-Rd12saPh8",
-                "duration": 0,
-                "title": "The Fight for Bitcoin in America"
+                "title": "The Fight for Bitcoin in America",
+                "duration": 0
             },
             {
                 "id": "lwJpvqMeLJg",
-                "duration": 340,
-                "title": "Bitcoin Breaking Records - SuperTalk"
+                "title": "Bitcoin Breaking Records - SuperTalk",
+                "duration": 340
             },
             {
                 "id": "c1l7EFvyTyM",
                 "title": "Gary Gensler GRILLED on Crypto at Congress Committee Hearing",
                 "duration": 6651
-            }
-        ,
+            },
             {
                 "id": "5VczGHHbDTQ",
                 "title": "The AI-Pentagon War That Every Bitcoiner Needs to Understand - The Bitcoin Layer",
@@ -4795,7 +4632,6 @@ var STATIONS = [
                 "duration": 1943
             }]
     },
-
     {
         "id": "saylor",
         "name": "Saylor Series & Corporations",
@@ -4964,11 +4800,6 @@ var STATIONS = [
                 "duration": 1276
             },
             {
-                "id": "O9KnBcWMkpw",
-                "title": "Michael Saylor 2024 Keynote - Nashville",
-                "duration": 2243
-            },
-            {
                 "id": "soNo3KkYGiU",
                 "title": "Michael Saylor On Why Microsoft Needs A Bitcoin Strategy | Bitcoin for Corporations 2025",
                 "duration": 1148
@@ -5062,11 +4893,6 @@ var STATIONS = [
                 "id": "PPdRbAmYK6c",
                 "title": "Fireside Q&A: David Bailey & George Mekhail | Bitcoin for Corporations Symposium @ Bitcoin Asia 2025",
                 "duration": 1449
-            },
-            {
-                "id": "reVebuAf_Cs",
-                "title": "Michael Saylor: 21 Ways To Wealth - Bitcoin 2025 Keynote",
-                "duration": 2211
             },
             {
                 "id": "IzMSMzt6TDA",
@@ -5207,11 +5033,6 @@ var STATIONS = [
                 "id": "VkHQHu5vYHs",
                 "title": "Bitcoin, AI and The New QE | The Hurdle Rate Podcast Ep.53",
                 "duration": 3615
-            },
-            {
-                "id": "BjpzoplkqdI",
-                "title": "📺 LIVE: Paris Blockchain Week 2026 | Day 1",
-                "duration": 34051
             },
             {
                 "id": "rP2YjjuQn5A",
@@ -5417,16 +5238,6 @@ var STATIONS = [
                 "id": "g9hUmh6NnAg",
                 "title": "Metaplanet: From COVID Collapse to Bitcoin Treasury Strategy",
                 "duration": 120
-            },
-            {
-                "id": "VTCzVWgJJWs",
-                "title": "Bitcoin As The Apex Predator - Robert Breedlove (Pomp Podcast)",
-                "duration": 4176
-            },
-            {
-                "id": "mJj6AJZnnBo",
-                "title": "📺 LIVE: Paris Blockchain Week 2026 | Day 2",
-                "duration": 32607
             },
             {
                 "id": "Sc9_2I3-LdE",
@@ -5979,11 +5790,6 @@ var STATIONS = [
                 "duration": 6229
             },
             {
-                "id": "HrehEWYj16s",
-                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman",
-                "duration": 14629
-            },
-            {
                 "id": "3AzYUGjSf-w",
                 "title": "Bitcoin is disrupting the $300+ Trillion Credit Market.  #mstr #bitcoin #investing #investing",
                 "duration": 61
@@ -6519,11 +6325,6 @@ var STATIONS = [
                 "duration": 5291
             },
             {
-                "id": "Nqt3BClxlpk",
-                "title": "Strategy CEO Phong Le: MIT Bitcoin Expo 2025 Keynote Speech",
-                "duration": 1474
-            },
-            {
                 "id": "_iQni1dCqDY",
                 "title": "Bitcoin Trading Like a Currency — And Institutions Know It",
                 "duration": 88
@@ -6719,11 +6520,6 @@ var STATIONS = [
                 "duration": 2211
             },
             {
-                "id": "KxTWC3ShYDE",
-                "title": "Saylor: Why Bitcoin is the Only Scarce Asset",
-                "duration": 7385
-            },
-            {
                 "id": "hV_sgkHhApo",
                 "title": "SaylorNight - Relaxing Saylor Speaks on Bitcoin in the Night (1H)",
                 "duration": 3684
@@ -6914,11 +6710,6 @@ var STATIONS = [
                 "duration": 118
             },
             {
-                "id": "tBnsQeTbMU8",
-                "title": "How High Can Gold & Silver Go?",
-                "duration": 797
-            },
-            {
                 "id": "D446irWy6kA",
                 "title": "How Bitcoin changed his life. #mstr #bitcoin #trading",
                 "duration": 83
@@ -6982,10 +6773,8 @@ var STATIONS = [
                 "id": "q9Yo9woraoE",
                 "title": "Bitcoin Long Term Capital Market Assumptions w/Matt Hougan (Bitwise CIO)",
                 "duration": 1461
-            }
-]
-    }
-    ,
+            }]
+    },
     {
         "id": "future-predictions",
         "name": "Trading & Predictions",
@@ -7010,8 +6799,8 @@ var STATIONS = [
             },
             {
                 "id": "nlvx2-3LUhM",
-                "duration": 6396,
-                "title": "Bitcoin Power Law Explained | SLP624"
+                "title": "Bitcoin Power Law Explained | SLP624",
+                "duration": 6396
             },
             {
                 "id": "yhcbMUh3YTo",
@@ -7020,18 +6809,18 @@ var STATIONS = [
             },
             {
                 "id": "_rMwlS1aHFs",
-                "duration": 4295,
-                "title": "The Physics of Bitcoins 10M Future"
+                "title": "The Physics of Bitcoins 10M Future",
+                "duration": 4295
             },
             {
                 "id": "KR8EZo5IesE",
-                "duration": 495,
-                "title": "Tom Lee: Bitcoin to  Million Path"
+                "title": "Tom Lee: Bitcoin to  Million Path",
+                "duration": 495
             },
             {
                 "id": "vjwFusEnfiE",
-                "duration": 864,
-                "title": "The Power Law Lens on Bitcoin - Santostasi"
+                "title": "The Power Law Lens on Bitcoin - Santostasi",
+                "duration": 864
             },
             {
                 "id": "iww09Eeql_o",
@@ -7045,8 +6834,8 @@ var STATIONS = [
             },
             {
                 "id": "6WdwTR_S2Ig",
-                "duration": 763,
-                "title": "Bitcoin Stock-To-Flow Model"
+                "title": "Bitcoin Stock-To-Flow Model",
+                "duration": 763
             },
             {
                 "id": "BpKfLfGbf0Q",
@@ -7055,8 +6844,8 @@ var STATIONS = [
             },
             {
                 "id": "wjObfPHlPOk",
-                "duration": 305,
-                "title": "Understanding S2F Live Charts"
+                "title": "Understanding S2F Live Charts",
+                "duration": 305
             },
             {
                 "id": "C9KPRcmFJWI",
@@ -7065,8 +6854,8 @@ var STATIONS = [
             },
             {
                 "id": "GzZecXEUJTI",
-                "duration": 840,
-                "title": "Realistically Reaching  Million"
+                "title": "Realistically Reaching  Million",
+                "duration": 840
             },
             {
                 "id": "W3SKpO0q9QI",
@@ -7080,8 +6869,8 @@ var STATIONS = [
             },
             {
                 "id": "LU5RqsGwvBg",
-                "duration": 401,
-                "title": "Bitcoins Path to M: Schwab"
+                "title": "Bitcoins Path to M: Schwab",
+                "duration": 401
             },
             {
                 "id": "jzY_SxnTLNA",
@@ -7110,8 +6899,8 @@ var STATIONS = [
             },
             {
                 "id": "tPQs6eQ4zIU",
-                "duration": 578,
-                "title": "Stock to Flow - Prediciting Price?"
+                "title": "Stock to Flow - Prediciting Price?",
+                "duration": 578
             },
             {
                 "id": "bPYl1-KBE50",
@@ -7119,29 +6908,14 @@ var STATIONS = [
                 "duration": 1784
             },
             {
-                "id": "Bh7LBF9cU6w",
-                "duration": 736,
-                "title": "Plan B Model Will Break in 2026"
-            },
-            {
                 "id": "uF6Wx4Hr6iU",
                 "title": "Tom Lee: Bullish Bitcoin Outlook & Corporate Treasuries - Coin Stories",
                 "duration": 1907
             },
             {
-                "id": "3-vBBYEXv6M",
-                "title": "Saylor: Bitcoin as Apex Capital Strategy in the AI Age",
-                "duration": 3909
-            },
-            {
                 "id": "iDgDl9jzEmk",
                 "title": "Bitcoin Price Prediction Models Explained",
                 "duration": 1227
-            },
-            {
-                "id": "1Mr9PknsM_Y",
-                "title": "Michael Saylor's Best Explanation of Bitcoin",
-                "duration": 349
             },
             {
                 "id": "JLuTDwclOP0",
@@ -7160,20 +6934,19 @@ var STATIONS = [
             },
             {
                 "id": "XW1GUeBe0Rs",
-                "duration": 8577,
-                "title": "The Bitcoin Power Law WiM509"
+                "title": "The Bitcoin Power Law WiM509",
+                "duration": 8577
             },
             {
                 "id": "yM06uqse6Ks",
-                "duration": 5433,
-                "title": "The Science Behind M Bitcoin"
+                "title": "The Science Behind M Bitcoin",
+                "duration": 5433
             },
             {
                 "id": "wOi9XqeJy2E",
                 "title": "Cathie Wood - New 2025 Prediction for Bitcoin & Ethereum",
                 "duration": 1108
-            }
-        ,
+            },
             {
                 "id": "D8QuMzEnvvM",
                 "title": "Bitcoin Bear Market: SOPR Signals Losses as Liquidity Rolls Over - The Bitcoin Layer",
@@ -7243,19 +7016,9 @@ var STATIONS = [
         "color": "#f7931a",
         "videos": [
             {
-                "id": "f-4Rs3Sqlhc",
-                "title": "Complete History of Bitcoin in 12 Minutes",
-                "duration": 602
-            },
-            {
                 "id": "FAYmE5-40PQ",
                 "title": "Coldcard Bitcoin Hardware Wallet - FULL TUTORIAL (BTC Sessions)",
                 "duration": 6890
-            },
-            {
-                "id": "TpwnoPUyumA",
-                "title": "Phoenix Wallet Setup - Self-Custody Lightning Made Easy",
-                "duration": 4158
             },
             {
                 "id": "Y3iAwLG6NlA",
@@ -7323,11 +7086,6 @@ var STATIONS = [
                 "duration": 97
             },
             {
-                "id": "El3y8AME8oA",
-                "title": "Bitcoin Explained - Breaking It Down Simply",
-                "duration": 599
-            },
-            {
                 "id": "bsAznpEupIg",
                 "title": "Easiest Bitcoin Wallet Setup (Aqua) - BTC Sessions",
                 "duration": 2132
@@ -7336,21 +7094,6 @@ var STATIONS = [
                 "id": "IxgNp2h5j8w",
                 "title": "How To Buy, Use and Secure Bitcoin - BTC Sessions",
                 "duration": 1632
-            },
-            {
-                "id": "lHipE05v4jg",
-                "title": "How Bitcoin Works - Complete Beginner Guide",
-                "duration": 1156
-            },
-            {
-                "id": "ZZKoSmQu30Q",
-                "title": "Best Hardware Wallet Comparison 2025 - BTC Sessions",
-                "duration": 3621
-            },
-            {
-                "id": "Ner16UBWdEg",
-                "title": "Bitcoin in 2025 - What You Need to Know",
-                "duration": 600
             },
             {
                 "id": "OZK5hdKfb18",
@@ -7366,16 +7109,6 @@ var STATIONS = [
                 "id": "mibKrTvtlyQ",
                 "title": "Misty Breez Bitcoin Wallet Setup - BTC Sessions",
                 "duration": 1822
-            },
-            {
-                "id": "lhzooru_B-o",
-                "duration": 2148,
-                "title": "10 Hours of Bitcoin Tutorials: Node & Wallet Setup"
-            },
-            {
-                "id": "KNaOeLlD6NA",
-                "title": "Build Your Own Bitcoin Node with Umbrel - Raspberry Pi",
-                "duration": 1675
             },
             {
                 "id": "6b0xTB2sE8E",
@@ -7421,8 +7154,7 @@ var STATIONS = [
                 "id": "vmf_LtnagTs",
                 "title": "Bitcoin Cold Storage Tutorial",
                 "duration": 2386
-            }
-        ,
+            },
             {
                 "id": "pcbYq2LCWwk",
                 "title": "LIQUIDITY Explained SIMPLY: How It Really Moves BITCOIN - The Bitcoin Layer",
