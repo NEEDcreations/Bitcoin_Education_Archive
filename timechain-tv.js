@@ -8787,8 +8787,11 @@ window.tctvDirectChannel = function(val) {
     var num = parseInt(val);
     if (isNaN(num) || num < 1 || num > STATIONS.length) return;
     window.switchStation(STATIONS[num - 1].id);
-    var input = document.getElementById('remote-ch-input');
-    if (input) { input.value = ''; input.blur(); }
+    // Clear both desktop-inline and mobile inputs
+    ['remote-ch-input', 'remote-ch-input-inline'].forEach(function(id) {
+        var input = document.getElementById(id);
+        if (input) { input.value = ''; input.blur(); }
+    });
 };
 
 window.tctvRemotePause = function() {
@@ -9218,18 +9221,31 @@ function updateTimeline() {
     if (!_currentStation) return;
     var nowMs = Date.now();
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
+    if (!station) return;
     var state = getPlaybackState(station);
 
     var np = document.getElementById('tctv-now-playing');
     if (np && state.video) {
         // Update if the vid id OR the title doesn't match the current station's video.
         // Safety net: if some code path left np holding a title from a different
-        // station (stale), this corrects it within 1s.
-        if (np.getAttribute('data-current-vid') !== state.video.id ||
+        // station (stale), this corrects it within 1s. Also store station id so
+        // we can detect stale-station mismatches across renders.
+        var expectedSig = _currentStation + '|' + state.video.id;
+        if (np.getAttribute('data-current-sig') !== expectedSig ||
+            np.getAttribute('data-current-vid') !== state.video.id ||
             np.textContent !== state.video.title) {
             np.textContent = state.video.title;
             np.setAttribute('data-current-vid', state.video.id);
+            np.setAttribute('data-current-sig', expectedSig);
         }
+    }
+    // Also keep CH number / channel name in NOW PLAYING header in sync
+    // (defensive: in case _updateChNum was missed during a switch)
+    var chEl = document.getElementById('tctv-now-ch');
+    if (chEl && station) {
+        var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
+        var expected = idx >= 0 ? ('CH. ' + (idx + 1) + ' · ' + station.emoji + ' ' + station.name) : '';
+        if (chEl.textContent !== expected) chEl.textContent = expected;
     }
 
     var bar = document.getElementById('tctv-progress');
@@ -9517,8 +9533,9 @@ window.renderTimechainTV = function() {
             '<div onclick="tctvToggleRemote()" style="width:30px;height:5px;background:#444;border-radius:3px;cursor:pointer;margin-bottom:5px;"></div>' +
             // PWR Button (Red, returns to Home)
             '<button class="remote-btn red" onclick="goHome()" id="remote-pwr-btn-inline" title="Power OFF">⏻</button><span class="remote-label">PWR</span>' +
-            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;">' +
+            '<div style="background:#1a1a1a;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;align-items:center;">' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(1)">▲</button>' +
+                '<input type="text" id="remote-ch-input-inline" class="remote-input" style="width:48px;padding:4px;font-size:0.8rem;" placeholder="#" maxlength="2" inputmode="numeric" title="Type a channel number 1-21 and hit Enter" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)">' +
                 '<span class="remote-label" style="margin:0">CH</span>' +
                 '<button class="remote-btn" onclick="tctvRemoteChannel(-1)">▼</button>' +
             '</div>' +
@@ -9701,17 +9718,17 @@ window.switchStation = function(stationId) {
     var newTitle = (state && state.video && state.video.title) || (stationObj.emoji + ' ' + stationObj.name);
     var newVidId = (state && state.video && state.video.id) || '';
 
+    // Commit the new station FIRST so all reads see the new station id
+    _currentStation = stationId;
+
     // Update NOW PLAYING text + vid-id marker IMMEDIATELY.
-    // Also clear and re-set data-current-vid so updateTimeline's 1s poll
-    // won't get confused about whether the title needs refreshing.
+    // Sig combines stationId + videoId so the safety net can detect either drift.
     var np = document.getElementById('tctv-now-playing');
     if (np) {
         np.textContent = newTitle;
         np.setAttribute('data-current-vid', newVidId);
+        np.setAttribute('data-current-sig', stationId + '|' + newVidId);
     }
-
-    // Commit the new station FIRST so _updateChNum + updateTimeline see it
-    _currentStation = stationId;
     _updateChNum();
 
     showChannelNoise(stationObj.emoji + ' ' + stationObj.name);
@@ -9725,10 +9742,37 @@ window.switchStation = function(stationId) {
         if (np2) {
             np2.textContent = state.video.title;
             np2.setAttribute('data-current-vid', state.video.id);
+            np2.setAttribute('data-current-sig', stationId + '|' + state.video.id);
         }
         // Sync volume after switching channels
         _syncYTVolume();
     }
+
+    // Belt-and-suspenders: poll the title at 100ms intervals for the next 2s.
+    // If something asynchronous (YT iframe load, EPG re-render, etc.) wipes
+    // or replaces the title, this snaps it back to the correct value.
+    // Recomputes per tick in case the video rolls over during the window.
+    (function reassertTitle() {
+        var deadline = Date.now() + 2000;
+        var iv = setInterval(function() {
+            if (Date.now() > deadline || _currentStation !== stationId) {
+                clearInterval(iv); return;
+            }
+            var np3 = document.getElementById('tctv-now-playing');
+            var st = STATIONS.find(function(s) { return s.id === stationId; });
+            if (!np3 || !st) return;
+            var liveState = getPlaybackState(st);
+            if (liveState && liveState.video) {
+                var sig = stationId + '|' + liveState.video.id;
+                if (np3.getAttribute('data-current-sig') !== sig ||
+                    np3.textContent !== liveState.video.title) {
+                    np3.textContent = liveState.video.title;
+                    np3.setAttribute('data-current-vid', liveState.video.id);
+                    np3.setAttribute('data-current-sig', sig);
+                }
+            }
+        }, 100);
+    })();
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var isActive = el.getAttribute('data-station-id') === stationId;
         el.style.background = isActive ? 'rgba(247,147,26,0.12)' : 'transparent';
