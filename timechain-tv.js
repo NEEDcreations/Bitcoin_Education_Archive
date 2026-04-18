@@ -9088,44 +9088,85 @@ window._tctvRestoreSpriteNacho = function() {
     }
 };
 
-// Couch Nacho drag (mobile touch)
+// Couch Nacho drag — only via the #couchNachoDragHandle button.
+// Supports both touch (mobile) and mouse (desktop), with visual feedback
+// while dragging. Matches sprite Nacho's drag-handle pattern.
 (function() {
     var _dragging = false, _startX = 0, _startY = 0, _origLeft = 0, _origBottom = 0;
-    document.addEventListener('touchstart', function(e) {
+
+    function handleDown(clientX, clientY, e) {
         var couch = document.getElementById('nacho-couch');
-        if (!couch || 'none' === couch.style.display) return;
-        var inner = document.getElementById('nacho-couch-inner');
-        if (!inner || !inner.contains(e.target)) return;
-        if (e.target.tagName === 'BUTTON') return;
-        e.preventDefault();
+        if (!couch || couch.style.display === 'none') return false;
+        var handle = document.getElementById('couchNachoDragHandle');
+        if (!handle || !handle.contains(e.target)) return false;
         _dragging = true;
-        _startX = e.touches[0].clientX;
-        _startY = e.touches[0].clientY;
+        _startX = clientX;
+        _startY = clientY;
         var rect = couch.getBoundingClientRect();
         _origLeft = rect.left;
         _origBottom = window.innerHeight - rect.bottom;
         couch.style.transition = 'none';
-    }, { passive: false });
-    document.addEventListener('touchmove', function(e) {
+        couch.style.opacity = '0.85';
+        handle.style.background = 'rgba(247,147,26,0.9)';
+        handle.style.cursor = 'grabbing';
+        var hs = handle.querySelector('span');
+        if (hs) hs.style.color = '#fff';
+        return true;
+    }
+
+    function handleMove(clientX, clientY) {
         if (!_dragging) return;
-        e.preventDefault();
         var couch = document.getElementById('nacho-couch');
         if (!couch) return;
-        var dx = e.touches[0].clientX - _startX;
-        var dy = e.touches[0].clientY - _startY;
+        var dx = clientX - _startX;
+        var dy = clientY - _startY;
         couch.style.left = (_origLeft + dx) + 'px';
         couch.style.bottom = (_origBottom - dy) + 'px';
         couch.style.right = 'auto';
-    }, { passive: false });
-    document.addEventListener('touchend', function() {
+    }
+
+    function handleUp() {
         if (!_dragging) return;
         _dragging = false;
         var couch = document.getElementById('nacho-couch');
         if (couch) {
             couch.style.transition = '0.3s';
+            couch.style.opacity = '';
             _saveCouchPosition(couch);
         }
+        var handle = document.getElementById('couchNachoDragHandle');
+        if (handle) {
+            handle.style.background = 'rgba(255,255,255,0.9)';
+            handle.style.cursor = 'grab';
+            var hs = handle.querySelector('span');
+            if (hs) hs.style.color = '#888';
+        }
+    }
+
+    // Touch
+    document.addEventListener('touchstart', function(e) {
+        if (handleDown(e.touches[0].clientX, e.touches[0].clientY, e)) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    document.addEventListener('touchmove', function(e) {
+        if (!_dragging) return;
+        e.preventDefault();
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    document.addEventListener('touchend', handleUp);
+    document.addEventListener('touchcancel', handleUp);
+
+    // Mouse
+    document.addEventListener('mousedown', function(e) {
+        if (handleDown(e.clientX, e.clientY, e)) {
+            e.preventDefault();
+        }
     });
+    document.addEventListener('mousemove', function(e) {
+        handleMove(e.clientX, e.clientY);
+    });
+    document.addEventListener('mouseup', handleUp);
 })();
 
 function _updateChNum() {
@@ -9518,7 +9559,7 @@ window.renderTimechainTV = function() {
     // Couch Nacho (floating, draggable) — dynamic bubble updates every 3-5 min with
     // station-aware commentary driven by _tctvCouchTick (below).
     html += '<div id="nacho-couch">' +
-            '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;">' +
+            '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;">' +
             '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">\ud83d\udecb\ufe0f</span>' +
             '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
             '<img src="nacho-deer.svg" style="width:75px;height:75px;">' +
@@ -9526,6 +9567,7 @@ window.renderTimechainTV = function() {
             '<div id="couch-nacho-bubble" style="position:absolute;top:-32px;right:-40px;min-width:90px;max-width:200px;background:white;color:#111;padding:6px 11px;border-radius:14px;font-size:0.7rem;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,0.35);white-space:normal;line-height:1.35;text-align:center;transition:opacity 0.3s ease, transform 0.3s ease;opacity:1;transform:translateY(0);">Chill vibes... \ud83d\udcfa\ud83c\udf7f</div>' +
             '</div>' +
             '<button onclick="tctvToggleCouch()" style="position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#333;border:1px solid #555;color:#aaa;font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:5;">\u2715</button>' +
+            '<div id="couchNachoDragHandle" style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:40px;height:16px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:6;touch-action:none;-webkit-touch-callout:none;box-shadow:0 2px 6px rgba(0,0,0,0.4);" title="Drag to move Nacho"><span style="font-size:0.6rem;color:#888;pointer-events:none;letter-spacing:1px;">\u283f</span></div>' +
             '</div></div>';
 
     html += _renderEPG();
