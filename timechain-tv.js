@@ -281,11 +281,6 @@ var STATIONS = [
                 "duration": 5503
             },
             {
-                "id": "I0SecXkqums",
-                "title": "Bitcoin Full Node Sculpture Lightning Auction Launch",
-                "duration": 4829
-            },
-            {
                 "id": "5gl2xVJ9mTw",
                 "title": "What are Satributes & Recursions? - Ordinals Explained Ep. 3",
                 "duration": 120
@@ -399,11 +394,6 @@ var STATIONS = [
                 "id": "OszL_Q2wvNQ",
                 "title": "Welcome to Ordinals! What is Ordinal Theory? - Ordinals Explained Ep. 1",
                 "duration": 80
-            },
-            {
-                "id": "EQSyE-EzOqM",
-                "title": "Bitcoin Full Node Sculpture Auction Close",
-                "duration": 3935
             },
             {
                 "id": "BrfJgr19MPY",
@@ -2688,11 +2678,6 @@ var STATIONS = [
                 "duration": 159
             },
             {
-                "id": "Kt-QIFlZTik",
-                "title": "Tuttle Twins S1E1 Full Episode",
-                "duration": 1320
-            },
-            {
                 "id": "rT4ThQ55SD8",
                 "title": "Who Invented Bitcoin? (for kids)",
                 "duration": 229
@@ -4155,9 +4140,9 @@ var STATIONS = [
                 "duration": 203
             },
             {
-                "id": "2991v7Mt1_g",
-                "title": "MusicSnake - Cold Storage (Tiny Desk edition)",
-                "duration": 324
+                "id": "28PadE9ARDg",
+                "title": "MusicSnake - Cold Storage (Hardware Wallet Song)",
+                "duration": 206
             },
             {
                 "id": "pADgAmNzxek",
@@ -4190,9 +4175,9 @@ var STATIONS = [
                 "duration": 126
             },
             {
-                "id": "VpvwgDjQLGA",
-                "title": "Bitcoin All The Way Up - Dollar Vigilante",
-                "duration": 2650
+                "id": "U5JnpsDzw2k",
+                "title": "Bitcoin All The Way Up - Dollar Vigilante feat. Freenauts",
+                "duration": 169
             },
             {
                 "id": "27BwXfrJxcs",
@@ -4245,7 +4230,7 @@ var STATIONS = [
                 "duration": 248
             },
             {
-                "id": "9johJ8eyucQ",
+                "id": "1VEMq8kDG68",
                 "title": "It's Math - Greg Foss & Pleb Music",
                 "duration": 78
             },
@@ -4395,9 +4380,9 @@ var STATIONS = [
                 "duration": 1560
             },
             {
-                "id": "CnTxBAeGfaQ",
-                "title": "Diamond Hands & Laser Eyes - Robbie P",
-                "duration": 240
+                "id": "SIFN4u13FEU",
+                "title": "Diamond Hands & Laser Eyes - Robbie P (Official Music Video)",
+                "duration": 184
             },
             {
                 "id": "Bv9Ug00PZZU",
@@ -4436,7 +4421,7 @@ var STATIONS = [
             },
             {
                 "id": "vyKA1pW0CBA",
-                "title": "BITCOIN - Music Video",
+                "title": "Bitcoin All The Way Up (Remix) - Dollar Vigilante feat. Freenauts",
                 "duration": 173
             },
             {
@@ -4465,9 +4450,9 @@ var STATIONS = [
                 "duration": 210
             },
             {
-                "id": "AQwyOhLBsI4",
-                "title": "Stacking Sats - Jack Mallers",
-                "duration": 240
+                "id": "YyCoM4WTU74",
+                "title": "Stack Sats - Jack Mallers x Pleb Music",
+                "duration": 97
             },
             {
                 "id": "6KNOqrjkNaE",
@@ -4497,7 +4482,7 @@ var STATIONS = [
             {
                 "id": "_c9WOks2mvg",
                 "title": "Pump It Higher",
-                "duration": 210
+                "duration": 156
             },
             {
                 "id": "J4pLMsk-nVA",
@@ -4796,11 +4781,6 @@ var STATIONS = [
                 "duration": 1139
             },
             {
-                "id": "wQ7V3S8vW9X",
-                "title": "Andreas Antonopoulos: Understanding the Blockchain",
-                "duration": 3300
-            },
-            {
                 "id": "SS8-qjP-yAo",
                 "title": "We Investigated Canada's Secret Bitcoin City - Get Based TV",
                 "duration": 851
@@ -4849,11 +4829,6 @@ var STATIONS = [
                 "id": "IuVkUqdqkcc",
                 "title": "Buy Bitcoin When It Looks Like This - Exit Manual",
                 "duration": 653
-            },
-            {
-                "id": "vQ8MvR1sW2X",
-                "title": "Andreas Antonopoulos: The Architecture of Trust",
-                "duration": 3900
             },
             {
                 "id": "7O10xS_sQoE",
@@ -5004,11 +4979,6 @@ var STATIONS = [
                 "id": "4hWMHLF-OEg",
                 "title": "Inside Peru's Hidden Bitcoin Revolution - Get Based TV (Full Movie)",
                 "duration": 2379
-            },
-            {
-                "id": "jNQpZ2T-WcQ",
-                "title": "Andreas Antonopoulos: Bitcoin vs Traditional Banking",
-                "duration": 4200
             },
             {
                 "id": "sLcNmZwMOz0",
@@ -6363,11 +6333,6 @@ var STATIONS = [
                 "id": "VWHBbtUWBEE",
                 "title": "Financial Leverage & Bear Sightings | True North Podcast | Ep. 9",
                 "duration": 8860
-            },
-            {
-                "id": "B4nK8mP2qS6",
-                "title": "Michael Saylor on Bitcoin and the Future of Finance",
-                "duration": 4800
             },
             {
                 "id": "CcztyNj5gps",
