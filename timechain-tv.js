@@ -3805,44 +3805,19 @@ var STATIONS = [
         "color": "#ec4899",
         "videos": [
             {
-                "id": "3fxzaTg0vMQ",
-                "title": "Lil Bubble - All The Bears Are Dead (Bitcoin 50k Edition - Lil Uzi Vert)",
-                "duration": 120
+                "id": "IrcN-zmCZMI",
+                "title": "If It Was Not For Satoshi - Robbie P",
+                "duration": 162
             },
             {
-                "id": "Y5r6e1VcIBE",
-                "title": "BITCOIN SONG - Pat Ryan",
-                "duration": 280
+                "id": "YbzNJr26H-4",
+                "title": "Welcome To The Blockchain - Toby Ganger + Decap",
+                "duration": 240
             },
             {
-                "id": "R5AoOA5j85A",
-                "title": "Lil Bubble - All I Want For Christmas Is Mass Adoption (Crypto Christmas EP)",
-                "duration": 140
-            },
-            {
-                "id": "kdvTkddp1F0",
-                "title": "Don't Get Zhou Tonged!!! - Zhou Tonged",
-                "duration": 157
-            },
-            {
-                "id": "eqxNbGvNamY",
-                "title": "Lovesong for Satoshi Nakamoto (Bitcoin Whitepaper)",
-                "duration": 257
-            },
-            {
-                "id": "lG08pD-8upE",
-                "title": "Bitcoin Slang Remix - Robbie P",
-                "duration": 197
-            },
-            {
-                "id": "6mJF3c90xe0",
-                "title": "Shitcoin Casinos - Annonymal (Bitcoin Heavy Metal)",
-                "duration": 230
-            },
-            {
-                "id": "_fymw1iOfiM",
-                "title": "Lil Bubble - ALL TIME HIGH (Bitcoin Anthem - Official Music Video)",
-                "duration": 118
+                "id": "9EuH_ZGOlIs",
+                "title": "Proof of Work: A Bitcoin Experience",
+                "duration": 183
             },
             {
                 "id": "8n5k714GOlA",
@@ -3850,254 +3825,9 @@ var STATIONS = [
                 "duration": 179
             },
             {
-                "id": "1BwJh2HmX74",
-                "title": "All of us were ready to ride it to zero -  Saylor on Bitcoin at $16,000 🤝 #bitcoin #michaelsaylor",
-                "duration": 33
-            },
-            {
-                "id": "yp0diaVLPrQ",
-                "title": "Mark Zuckerberg's Sister Sings to Crypto",
-                "duration": 141
-            },
-            {
-                "id": "2991v7Mt1_g",
-                "title": "MusicSnake - Cold Storage (Tiny Desk edition)",
-                "duration": 324
-            },
-            {
-                "id": "7wBg1lBKtyg",
-                "title": "Lil Bubble - When Moon? (Mad World - Bitcoin Parody)",
-                "duration": 79
-            },
-            {
-                "id": "ipDpjANJ7fU",
-                "title": "Save The Young",
-                "duration": 174
-            },
-            {
-                "id": "Hgqdss3DY5M",
-                "title": "Lil Bubble - Man With Bitcoin (Official Visualizer)",
-                "duration": 142
-            },
-            {
-                "id": "109WLnpYkqE",
-                "title": "Vibing with the FED and Bitcoin",
-                "duration": 210
-            },
-            {
-                "id": "9I9l8vlTvJE",
-                "title": "Toxic Maximalist - The Orange Pill Jam Project",
-                "duration": 218
-            },
-            {
-                "id": "s3UtbslfqS8",
-                "title": "Gary Gensler, Isn't That True? - Bitcoin Heavy Metal",
-                "duration": 315
-            },
-            {
-                "id": "VMLakjlz6us",
-                "title": "Ode to Satoshi - Roger 9000",
-                "duration": 490
-            },
-            {
-                "id": "M3TzVgGyBFs",
-                "title": "Lil Nas X - Old Town Road (Bitcoin Version) Lil Bubble",
-                "duration": 165
-            },
-            {
-                "id": "zBGofxUj9dc",
-                "title": "Michael Saylor - Forever, Laura (Lil Bubble Bitcoin House Remix)",
-                "duration": 192
-            },
-            {
-                "id": "27BwXfrJxcs",
-                "title": "Death to Fiat - The Skull of Satoshi (Bitcoin Heavy Metal)",
-                "duration": 209
-            },
-            {
-                "id": "J4pLMsk-nVA",
-                "title": "SATS OVER EVERYTHING - Manlikekweks x Encorebeats",
-                "duration": 218
-            },
-            {
-                "id": "RglKdIovlX0",
-                "title": "BANK - Bitcoin Music Video",
-                "duration": 141
-            },
-            {
-                "id": "_pv-uKXaBFc",
-                "title": "Bitcoin's Better Than Gold",
-                "duration": 213
-            },
-            {
-                "id": "c5wbgDLr-u0",
-                "title": "Bitcoin Lofi Beats - Study & HODL",
-                "duration": 1610
-            },
-            {
-                "id": "eSB4VJliyww",
-                "title": "Lil Bubble - F*cking Zero (Official Visualizer) ft. Michael Saylor",
-                "duration": 155
-            },
-            {
-                "id": "lvw5XX6IQkc",
-                "title": "Sell in May (Thunderstruck Crypto Parody)",
-                "duration": 296
-            },
-            {
-                "id": "nO6A4N9zjgE",
-                "title": "Rich Men North of Richmond - Full Band Cover",
-                "duration": 176
-            },
-            {
-                "id": "dgKlBQmGQ98",
-                "title": "Most Toxic Bitcoin Maxi - Robbie P",
-                "duration": 208
-            },
-            {
-                "id": "B5if2hthPCs",
-                "title": "Michael Saylor - We Call Them Poor (Bitcoin House Remix) by Lil Bubble",
-                "duration": 143
-            },
-            {
-                "id": "KQ7rn3oi-Pc",
-                "title": "Blockchain - Money Man",
-                "duration": 139
-            },
-            {
-                "id": "-Y13lkBvsQw",
-                "title": "Ghost Town Remix (Orange Pill Edition)",
-                "duration": 173
-            },
-            {
-                "id": "KRopo3nofl4",
-                "title": "10,000 Bitcoin Remix - Laura Saggers",
-                "duration": 86
-            },
-            {
-                "id": "QvZ7K_0_SiY",
-                "title": "Lil Bubble - Liquidated (Avril Lavigne - Complicated | Bitcoin Parody Version)",
-                "duration": 149
-            },
-            {
-                "id": "Wtj1x9aT9Zk",
-                "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 1",
-                "duration": 126
-            },
-            {
-                "id": "ZAmIm2TkrUM",
-                "title": "Bitcoin's Going To The Moon (Jpop)",
-                "duration": 220
-            },
-            {
-                "id": "JACD8a2LZ_8",
-                "title": "Lil Bubble - Green Christmas (Crypto Christmas EP - BONUS SONG)",
-                "duration": 139
-            },
-            {
-                "id": "h9vxIh1ELAo",
-                "title": "Oompa Loompa (Bitcoin Halving Remix) Lil Bubble",
-                "duration": 85
-            },
-            {
-                "id": "IIqqMTT-ne0",
-                "title": "Lil Bubble - 0-100 Freestyle (Bitcoin Bars)",
-                "duration": 140
-            },
-            {
-                "id": "-ZqQNaNcDz4",
-                "title": "Congratulations (Post Malone Bitcoin Parody) BTC All Time High 🚀",
-                "duration": 146
-            },
-            {
-                "id": "9sY2ALb4UWE",
-                "title": "Lil Bubble - Buying At The Top Forever (Official Visualizer) ft. Michael Saylor",
-                "duration": 151
-            },
-            {
-                "id": "ZLYx-SXUjUk",
-                "title": "Richard - The Flood ft Tomer Strolight",
-                "duration": 166
-            },
-            {
-                "id": "9odyosmjIr0",
-                "title": "Lil Bubble - Bitcoin Song (Lyric Video)",
-                "duration": 119
-            },
-            {
-                "id": "_c9WOks2mvg",
-                "title": "Pump It Higher",
-                "duration": 210
-            },
-            {
-                "id": "VpvwgDjQLGA",
-                "title": "Bitcoin All The Way Up - Dollar Vigilante",
-                "duration": 2650
-            },
-            {
-                "id": "mkKFR5sB44s",
-                "title": "Pizza Day",
-                "duration": 210
-            },
-            {
-                "id": "bJKGdKqd3sc",
-                "title": "The Hodler",
-                "duration": 234
-            },
-            {
-                "id": "CnTxBAeGfaQ",
-                "title": "Diamond Hands & Laser Eyes - Robbie P",
-                "duration": 240
-            },
-            {
-                "id": "BRbVhsoPzmI",
-                "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 4",
-                "duration": 160
-            },
-            {
-                "id": "FCA9i6MUCK0",
-                "title": "Bitcoin Beats Mix - Volume 1",
-                "duration": 1800
-            },
-            {
-                "id": "o5XBSF6w7I4",
-                "title": "MusicSnake - Stack Sats (feat. Michael Saylor)",
-                "duration": 176
-            },
-            {
-                "id": "0RZ1geieiao",
-                "title": "Michael Saylor on the second best crypto currency 🤭 (Lil Bubble House Remix) #bitcoin",
-                "duration": 52
-            },
-            {
-                "id": "e2cl0_jqu4I",
-                "title": "Halvingbird (a Bitcoin Halving song)",
-                "duration": 172
-            },
-            {
-                "id": "emcT185BXMQ",
-                "title": "Carlos Matos - Take On Me (autotuned)",
-                "duration": 112
-            },
-            {
-                "id": "ZUsOvjH-lRU",
-                "title": "Lil Bubble - Satoshi As My Witness (Official Music Video)",
-                "duration": 151
-            },
-            {
-                "id": "eH9b_qNbjEU",
-                "title": "Bitcoin - Official Music Video (Teejay)",
-                "duration": 227
-            },
-            {
-                "id": "szXTJN1gmxY",
-                "title": "Lil Bubble - Bybit Games (BTC Brawl Theme Song)",
-                "duration": 92
-            },
-            {
-                "id": "v0JS5jGg_vQ",
-                "title": "Lil Bubble - Bitcoin House DJ Set (Vol. 1) - Bitcoin House Mix",
-                "duration": 2387
+                "id": "fEXw-LU18Ww",
+                "title": "Michael Saylor - There Is No Second Best (Lil Bubble Bitcoin House Remix)",
+                "duration": 157
             },
             {
                 "id": "nUUXOZAPWFQ",
@@ -4105,9 +3835,79 @@ var STATIONS = [
                 "duration": 481
             },
             {
-                "id": "4kmWR5bWHAc",
-                "title": "Andrew Tate - Buy More Bitcoin (Lil Bubble House Remix)",
-                "duration": 216
+                "id": "KglDZXcdQhk",
+                "title": "Lil Bubble - Bitcoin Song (Official Music Video)",
+                "duration": 117
+            },
+            {
+                "id": "g_4JdozI-nc",
+                "title": "Lil Bubble - The Orange Pill (Official Visualizer) ft. Michael Saylor",
+                "duration": 145
+            },
+            {
+                "id": "ioM33qIAfdY",
+                "title": "Michael Saylor calls them poor!? (Lil Bubble House Remix) #bitcoin",
+                "duration": 56
+            },
+            {
+                "id": "BifVGcvJpxc",
+                "title": "WAGMI",
+                "duration": 115
+            },
+            {
+                "id": "zBGofxUj9dc",
+                "title": "Michael Saylor - Forever, Laura (Lil Bubble Bitcoin House Remix)",
+                "duration": 192
+            },
+            {
+                "id": "eH9b_qNbjEU",
+                "title": "Bitcoin - Official Music Video (Teejay)",
+                "duration": 227
+            },
+            {
+                "id": "B5if2hthPCs",
+                "title": "Michael Saylor - We Call Them Poor (Bitcoin House Remix) by Lil Bubble",
+                "duration": 143
+            },
+            {
+                "id": "FCA9i6MUCK0",
+                "title": "Bitcoin Beats Mix - Volume 1",
+                "duration": 1800
+            },
+            {
+                "id": "0RZ1geieiao",
+                "title": "Michael Saylor on the second best crypto currency 🤭 (Lil Bubble House Remix) #bitcoin",
+                "duration": 52
+            },
+            {
+                "id": "OQPq_5PTj9M",
+                "title": "HAPPY BITCOIN HALVING! 🚀 Willy Wonka style? #Bitcoin #bitcoinhalving2024",
+                "duration": 51
+            },
+            {
+                "id": "9sY2ALb4UWE",
+                "title": "Lil Bubble - Buying At The Top Forever (Official Visualizer) ft. Michael Saylor",
+                "duration": 151
+            },
+            {
+                "id": "IIqqMTT-ne0",
+                "title": "Lil Bubble - 0-100 Freestyle (Bitcoin Bars)",
+                "duration": 140
+            },
+            {
+                "id": "VdAcvUVy7FE",
+                "title": "We Will Bitcoin",
+                "duration": 126
+            },
+            {
+                "id": "rDCrlgKGACo",
+                "title": "Anik The First - Be The Change (B.T.C.)",
+                "duration": 209
+            },
+            {
+                "id": "KQ7rn3oi-Pc",
+                "title": "Blockchain - Money Man",
+                "duration": 139
             },
             {
                 "id": "A7TuFy0fcuw",
@@ -4115,14 +3915,494 @@ var STATIONS = [
                 "duration": 232
             },
             {
+                "id": "s3UtbslfqS8",
+                "title": "Gary Gensler, Isn't That True? - Bitcoin Heavy Metal",
+                "duration": 315
+            },
+            {
+                "id": "iqbScnkmf0s",
+                "title": "Elaine Diane Taylor - Bitcoin Barbarians",
+                "duration": 186
+            },
+            {
+                "id": "1BwJh2HmX74",
+                "title": "All of us were ready to ride it to zero -  Saylor on Bitcoin at $16,000 🤝 #bitcoin #michaelsaylor",
+                "duration": 33
+            },
+            {
+                "id": "szXTJN1gmxY",
+                "title": "Lil Bubble - Bybit Games (BTC Brawl Theme Song)",
+                "duration": 92
+            },
+            {
+                "id": "109WLnpYkqE",
+                "title": "Vibing with the FED and Bitcoin",
+                "duration": 210
+            },
+            {
+                "id": "FzUWMPfYV98",
+                "title": "Freedom Engine",
+                "duration": 223
+            },
+            {
+                "id": "JACD8a2LZ_8",
+                "title": "Lil Bubble - Green Christmas (Crypto Christmas EP - BONUS SONG)",
+                "duration": 139
+            },
+            {
+                "id": "6mJF3c90xe0",
+                "title": "Shitcoin Casinos - Annonymal (Bitcoin Heavy Metal)",
+                "duration": 230
+            },
+            {
+                "id": "QL6_YmVoRlg",
+                "title": "Truthseekers",
+                "duration": 191
+            },
+            {
+                "id": "htTL7C23684",
+                "title": "Build The Chain",
+                "duration": 145
+            },
+            {
+                "id": "CmGGt4KL9kQ",
+                "title": "Lil Bubble - 100 RACKS (Bitcoin $100k Anthem) Official Music Video",
+                "duration": 149
+            },
+            {
+                "id": "GZ0YMSLZjfQ",
+                "title": "Welcome To The Blockchain - Music Video",
+                "duration": 240
+            },
+            {
+                "id": "SfwGpvrzIjs",
+                "title": "Captain Youth – Bitcoin 🤑",
+                "duration": 224
+            },
+            {
+                "id": "UG7zLhEWanc",
+                "title": "Remy: Bitcoin Billionaire",
+                "duration": 175
+            },
+            {
+                "id": "emcT185BXMQ",
+                "title": "Carlos Matos - Take On Me (autotuned)",
+                "duration": 112
+            },
+            {
+                "id": "nO6A4N9zjgE",
+                "title": "Rich Men North of Richmond - Full Band Cover",
+                "duration": 176
+            },
+            {
+                "id": "h9vxIh1ELAo",
+                "title": "Oompa Loompa (Bitcoin Halving Remix) Lil Bubble",
+                "duration": 85
+            },
+            {
+                "id": "gSxKJJ9k3lA",
+                "title": "The Ultimate Crypto Anthem - Betawi CryptoCoin",
+                "duration": 394
+            },
+            {
+                "id": "6AfHKbpgsi4",
+                "title": "Too Bit To Fail & Hanspanzer - FOMO",
+                "duration": 190
+            },
+            {
+                "id": "3fxzaTg0vMQ",
+                "title": "Lil Bubble - All The Bears Are Dead (Bitcoin 50k Edition - Lil Uzi Vert)",
+                "duration": 120
+            },
+            {
+                "id": "4J2UC3N_A_c",
+                "title": "Time To Ride Or Die",
+                "duration": 134
+            },
+            {
+                "id": "M3TzVgGyBFs",
+                "title": "Lil Nas X - Old Town Road (Bitcoin Version) Lil Bubble",
+                "duration": 165
+            },
+            {
+                "id": "e2cl0_jqu4I",
+                "title": "Halvingbird (a Bitcoin Halving song)",
+                "duration": 172
+            },
+            {
+                "id": "KfTazf9z40w",
+                "title": "Lil Bubble - Escape The Matrix (Official Visualizer) ft. Michael Saylor",
+                "duration": 153
+            },
+            {
+                "id": "Y5r6e1VcIBE",
+                "title": "BITCOIN SONG - Pat Ryan",
+                "duration": 280
+            },
+            {
+                "id": "EPQJHNXdJfM",
+                "title": "Crypto - Takeoff feat. Rich The Kid",
+                "duration": 161
+            },
+            {
+                "id": "c5wbgDLr-u0",
+                "title": "Bitcoin Lofi Beats - Study & HODL",
+                "duration": 1610
+            },
+            {
+                "id": "vQkXrct78A4",
+                "title": "Tileks - BITCOIN",
+                "duration": 119
+            },
+            {
+                "id": "9odyosmjIr0",
+                "title": "Lil Bubble - Bitcoin Song (Lyric Video)",
+                "duration": 119
+            },
+            {
+                "id": "U252iiG8YP0",
+                "title": "Jingle Bells, Bank Cartels! A Bitcoin Christmas Song",
+                "duration": 121
+            },
+            {
+                "id": "XcerPhwbIFs",
+                "title": "Orange Pill rApp - Wallet Stay Stackin'!",
+                "duration": 189
+            },
+            {
+                "id": "Vz9iCgiSZrM",
+                "title": "Bitcoin's Back - Lil Bubble (Backstreet Boys Parody)",
+                "duration": 141
+            },
+            {
+                "id": "b8uRhNfxe60",
+                "title": "New #Bitcoin all time high!? 🚀",
+                "duration": 41
+            },
+            {
+                "id": "oJO5WbsbMAU",
+                "title": "Ones Who Came Before",
+                "duration": 124
+            },
+            {
+                "id": "KRopo3nofl4",
+                "title": "10,000 Bitcoin Remix - Laura Saggers",
+                "duration": 86
+            },
+            {
+                "id": "bZb2qBrVHVY",
+                "title": "Bitcoins from Heaven",
+                "duration": 50
+            },
+            {
+                "id": "XEBWtbhq0Ts",
+                "title": "All About That Bitcoin - Naomi van der Velde",
+                "duration": 157
+            },
+            {
+                "id": "fG5PKg81mEQ",
+                "title": "Fliponomics - Robbie P",
+                "duration": 196
+            },
+            {
+                "id": "WrEVpNdYkrs",
+                "title": "B.R.E.A.M. - Zhou Tonged (Wu-Tang C.R.E.A.M. Parody)",
+                "duration": 154
+            },
+            {
+                "id": "-ZqQNaNcDz4",
+                "title": "Congratulations (Post Malone Bitcoin Parody) BTC All Time High 🚀",
+                "duration": 146
+            },
+            {
+                "id": "VT_aEKr0BVY",
+                "title": "Bitcoin Song - 13inlet",
+                "duration": 198
+            },
+            {
+                "id": "o5XBSF6w7I4",
+                "title": "MusicSnake - Stack Sats (feat. Michael Saylor)",
+                "duration": 176
+            },
+            {
+                "id": "gVrWLhcau94",
+                "title": "The Call",
+                "duration": 140
+            },
+            {
+                "id": "c21GLKrC2Gg",
+                "title": "Bitcoin Only (feat. C. Scott Muzic) - Wonx316",
+                "duration": 217
+            },
+            {
+                "id": "1pqIFDI18ZY",
+                "title": "Lil Bubble - Jingle Bells (Please Don't Sell) - Crypto Christmas EP",
+                "duration": 105
+            },
+            {
+                "id": "-Y13lkBvsQw",
+                "title": "Ghost Town Remix (Orange Pill Edition)",
+                "duration": 173
+            },
+            {
+                "id": "Otkg4Ftx6GI",
+                "title": "The Bitcoin Song",
+                "duration": 225
+            },
+            {
+                "id": "248Zbw1oPnw",
+                "title": "Enhancer",
+                "duration": 203
+            },
+            {
+                "id": "2991v7Mt1_g",
+                "title": "MusicSnake - Cold Storage (Tiny Desk edition)",
+                "duration": 324
+            },
+            {
+                "id": "pADgAmNzxek",
+                "title": "We Are All Bitcoins",
+                "duration": 227
+            },
+            {
+                "id": "RglKdIovlX0",
+                "title": "BANK - Bitcoin Music Video",
+                "duration": 141
+            },
+            {
+                "id": "AzpRvdaMGfY",
+                "title": "Bitcoin House vinyls are here & you can watch me unbox in my slippers 🙏 #bitcoin #michaelsaylor",
+                "duration": 32
+            },
+            {
+                "id": "RIsZyg8OXlI",
+                "title": "10,000 Bitcoins - Laura Saggers",
+                "duration": 231
+            },
+            {
+                "id": "ZUsOvjH-lRU",
+                "title": "Lil Bubble - Satoshi As My Witness (Official Music Video)",
+                "duration": 151
+            },
+            {
+                "id": "Wtj1x9aT9Zk",
+                "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 1",
+                "duration": 126
+            },
+            {
+                "id": "VpvwgDjQLGA",
+                "title": "Bitcoin All The Way Up - Dollar Vigilante",
+                "duration": 2650
+            },
+            {
+                "id": "27BwXfrJxcs",
+                "title": "Death to Fiat - The Skull of Satoshi (Bitcoin Heavy Metal)",
+                "duration": 209
+            },
+            {
+                "id": "cWgGOFlb15U",
+                "title": "In Our Minds",
+                "duration": 150
+            },
+            {
+                "id": "ohtsx2hGGzI",
+                "title": "Lil Bubble - Bitcoin Baby (Official Visualizer) ft. Michael Saylor",
+                "duration": 234
+            },
+            {
+                "id": "S99tOmXywZU",
+                "title": "Let Me Escape",
+                "duration": 107
+            },
+            {
+                "id": "AJUAHhKYOIU",
+                "title": "Greatest Teacher",
+                "duration": 144
+            },
+            {
+                "id": "bJKGdKqd3sc",
+                "title": "The Hodler",
+                "duration": 234
+            },
+            {
+                "id": "VMLakjlz6us",
+                "title": "Ode to Satoshi - Roger 9000",
+                "duration": 490
+            },
+            {
+                "id": "eqxNbGvNamY",
+                "title": "Lovesong for Satoshi Nakamoto (Bitcoin Whitepaper)",
+                "duration": 257
+            },
+            {
+                "id": "6ZKzapbQPZA",
+                "title": "Banksters Paradise - A Bitcoin Song",
+                "duration": 270
+            },
+            {
                 "id": "AJzCQaIXelE",
                 "title": "Bitcoin Girl - Original Music Video",
                 "duration": 248
             },
             {
+                "id": "9johJ8eyucQ",
+                "title": "It's Math - Greg Foss & Pleb Music",
+                "duration": 78
+            },
+            {
+                "id": "lG08pD-8upE",
+                "title": "Bitcoin Slang Remix - Robbie P",
+                "duration": 197
+            },
+            {
+                "id": "ipDpjANJ7fU",
+                "title": "Save The Young",
+                "duration": 174
+            },
+            {
+                "id": "BRbVhsoPzmI",
+                "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 4",
+                "duration": 160
+            },
+            {
+                "id": "QvZ7K_0_SiY",
+                "title": "Lil Bubble - Liquidated (Avril Lavigne - Complicated | Bitcoin Parody Version)",
+                "duration": 149
+            },
+            {
+                "id": "W-Z_hlzZYBw",
+                "title": "Jason Saulnier - Bitcoin We're in Love",
+                "duration": 240
+            },
+            {
+                "id": "R5AoOA5j85A",
+                "title": "Lil Bubble - All I Want For Christmas Is Mass Adoption (Crypto Christmas EP)",
+                "duration": 140
+            },
+            {
                 "id": "VtLAl3eFYhQ",
                 "title": "Lil Bubble - Moon Boy (Official Visualizer)",
                 "duration": 112
+            },
+            {
+                "id": "AKqdUAhX3nA",
+                "title": "Bitcoin Is Hope ft. Michael Saylor",
+                "duration": 175
+            },
+            {
+                "id": "K2ku1A5Ox8U",
+                "title": "Blame it on MT.GOX",
+                "duration": 234
+            },
+            {
+                "id": "_YvLh4pUB4Y",
+                "title": "The Times They Are A-Changin' (Bitcoin version)",
+                "duration": 119
+            },
+            {
+                "id": "yp0diaVLPrQ",
+                "title": "Mark Zuckerberg's Sister Sings to Crypto",
+                "duration": 141
+            },
+            {
+                "id": "7wBg1lBKtyg",
+                "title": "Lil Bubble - When Moon? (Mad World - Bitcoin Parody)",
+                "duration": 79
+            },
+            {
+                "id": "U4W05HzAWuM",
+                "title": "The Plan",
+                "duration": 140
+            },
+            {
+                "id": "r-vbEOo2x4Y",
+                "title": "LFG",
+                "duration": 114
+            },
+            {
+                "id": "PYeUQpbMy1o",
+                "title": "Love You Like A Bitcoin",
+                "duration": 240
+            },
+            {
+                "id": "qDUjrUot2C0",
+                "title": "Lil Bubble - Buy More Bitcoin (Official Visualizer) ft. Andrew Tate",
+                "duration": 204
+            },
+            {
+                "id": "PL0yOu0dNwo",
+                "title": "Mainframe - Proof of Freedom",
+                "duration": 133
+            },
+            {
+                "id": "_hQRxuYBx0w",
+                "title": "Chuty - Bitcoin (Videoclip Oficial)",
+                "duration": 210
+            },
+            {
+                "id": "qki2ZIhnA6M",
+                "title": "Captain Youth – Bitcoin Money (Official Lyric Video)",
+                "duration": 212
+            },
+            {
+                "id": "_pv-uKXaBFc",
+                "title": "Bitcoin's Better Than Gold",
+                "duration": 213
+            },
+            {
+                "id": "IGeM1XWuLS4",
+                "title": "Rules That Will Survive",
+                "duration": 125
+            },
+            {
+                "id": "9I9l8vlTvJE",
+                "title": "Toxic Maximalist - The Orange Pill Jam Project",
+                "duration": 218
+            },
+            {
+                "id": "nvlvG18AcCo",
+                "title": "Bitcoin Bob: Money Monopoly",
+                "duration": 140
+            },
+            {
+                "id": "lvw5XX6IQkc",
+                "title": "Sell in May (Thunderstruck Crypto Parody)",
+                "duration": 296
+            },
+            {
+                "id": "kdvTkddp1F0",
+                "title": "Don't Get Zhou Tonged!!! - Zhou Tonged",
+                "duration": 157
+            },
+            {
+                "id": "ZAmIm2TkrUM",
+                "title": "Bitcoin's Going To The Moon (Jpop)",
+                "duration": 220
+            },
+            {
+                "id": "Hgqdss3DY5M",
+                "title": "Lil Bubble - Man With Bitcoin (Official Visualizer)",
+                "duration": 142
+            },
+            {
+                "id": "dgKlBQmGQ98",
+                "title": "Most Toxic Bitcoin Maxi - Robbie P",
+                "duration": 208
+            },
+            {
+                "id": "DNYzHGM50Ys",
+                "title": "Too Bit To Fail - Proof of Word EP",
+                "duration": 1560
+            },
+            {
+                "id": "CnTxBAeGfaQ",
+                "title": "Diamond Hands & Laser Eyes - Robbie P",
+                "duration": 240
+            },
+            {
+                "id": "Bv9Ug00PZZU",
+                "title": "Avoided Wars",
+                "duration": 154
             },
             {
                 "id": "-UyRTltUv7w",
@@ -4135,204 +4415,14 @@ var STATIONS = [
                 "duration": 85
             },
             {
-                "id": "6ZKzapbQPZA",
-                "title": "Banksters Paradise - A Bitcoin Song",
-                "duration": 270
+                "id": "ZLYx-SXUjUk",
+                "title": "Richard - The Flood ft Tomer Strolight",
+                "duration": 166
             },
             {
-                "id": "U252iiG8YP0",
-                "title": "Jingle Bells, Bank Cartels! A Bitcoin Christmas Song",
-                "duration": 121
-            },
-            {
-                "id": "GZ0YMSLZjfQ",
-                "title": "Welcome To The Blockchain - Music Video",
-                "duration": 240
-            },
-            {
-                "id": "KfTazf9z40w",
-                "title": "Lil Bubble - Escape The Matrix (Official Visualizer) ft. Michael Saylor",
-                "duration": 153
-            },
-            {
-                "id": "37Bc5ZmvX8Y",
-                "title": "Lil Bubble - Old Saint Nicholas (Crypto Christmas)",
-                "duration": 130
-            },
-            {
-                "id": "XEBWtbhq0Ts",
-                "title": "All About That Bitcoin - Naomi van der Velde",
-                "duration": 157
-            },
-            {
-                "id": "VdAcvUVy7FE",
-                "title": "We Will Bitcoin",
-                "duration": 126
-            },
-            {
-                "id": "ohtsx2hGGzI",
-                "title": "Lil Bubble - Bitcoin Baby (Official Visualizer) ft. Michael Saylor",
-                "duration": 234
-            },
-            {
-                "id": "UjkYo7t15yk",
-                "title": "Bitcoin (Official Video) - Shehbaaz",
-                "duration": 228
-            },
-            {
-                "id": "iqbScnkmf0s",
-                "title": "Elaine Diane Taylor - Bitcoin Barbarians",
-                "duration": 186
-            },
-            {
-                "id": "6KNOqrjkNaE",
-                "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 2",
-                "duration": 205
-            },
-            {
-                "id": "fG5PKg81mEQ",
-                "title": "Fliponomics - Robbie P",
-                "duration": 196
-            },
-            {
-                "id": "BifVGcvJpxc",
-                "title": "WAGMI",
-                "duration": 115
-            },
-            {
-                "id": "3lUUDwSSkWo",
-                "title": "Bitcoin Miner's Daughter",
-                "duration": 212
-            },
-            {
-                "id": "vQkXrct78A4",
-                "title": "Tileks - BITCOIN",
-                "duration": 119
-            },
-            {
-                "id": "U5NGVH8HDaw",
-                "title": "Bitcoin Boomdeyada!",
-                "duration": 66
-            },
-            {
-                "id": "1pqIFDI18ZY",
-                "title": "Lil Bubble - Jingle Bells (Please Don't Sell) - Crypto Christmas EP",
-                "duration": 105
-            },
-            {
-                "id": "RIsZyg8OXlI",
-                "title": "10,000 Bitcoins - Laura Saggers",
-                "duration": 231
-            },
-            {
-                "id": "9johJ8eyucQ",
-                "title": "It's Math - Greg Foss & Pleb Music",
-                "duration": 78
-            },
-            {
-                "id": "CmGGt4KL9kQ",
-                "title": "Lil Bubble - 100 RACKS (Bitcoin $100k Anthem) Official Music Video",
-                "duration": 149
-            },
-            {
-                "id": "KglDZXcdQhk",
-                "title": "Lil Bubble - Bitcoin Song (Official Music Video)",
-                "duration": 117
-            },
-            {
-                "id": "vyKA1pW0CBA",
-                "title": "BITCOIN - Music Video",
-                "duration": 173
-            },
-            {
-                "id": "W-Z_hlzZYBw",
-                "title": "Jason Saulnier - Bitcoin We're in Love",
-                "duration": 240
-            },
-            {
-                "id": "c21GLKrC2Gg",
-                "title": "Bitcoin Only (feat. C. Scott Muzic) - Wonx316",
-                "duration": 217
-            },
-            {
-                "id": "rDCrlgKGACo",
-                "title": "Anik The First - Be The Change (B.T.C.)",
-                "duration": 209
-            },
-            {
-                "id": "skhA8n8iRCc",
-                "title": "It's Too Late To Sell The Highs (Timbaland - Apologize - Crypto Crash Parody Version)",
-                "duration": 140
-            },
-            {
-                "id": "qDUjrUot2C0",
-                "title": "Lil Bubble - Buy More Bitcoin (Official Visualizer) ft. Andrew Tate",
-                "duration": 204
-            },
-            {
-                "id": "EPQJHNXdJfM",
-                "title": "Crypto - Takeoff feat. Rich The Kid",
-                "duration": 161
-            },
-            {
-                "id": "OQPq_5PTj9M",
-                "title": "HAPPY BITCOIN HALVING! 🚀 Willy Wonka style? #Bitcoin #bitcoinhalving2024",
-                "duration": 51
-            },
-            {
-                "id": "ioM33qIAfdY",
-                "title": "Michael Saylor calls them poor!? (Lil Bubble House Remix) #bitcoin",
-                "duration": 56
-            },
-            {
-                "id": "htTL7C23684",
-                "title": "Build The Chain",
-                "duration": 145
-            },
-            {
-                "id": "gu122fUBlxA",
-                "title": "Captain Youth – Maul Me (Lyric Video)",
-                "duration": 175
-            },
-            {
-                "id": "YbzNJr26H-4",
-                "title": "Welcome To The Blockchain - Toby Ganger + Decap",
-                "duration": 240
-            },
-            {
-                "id": "b8uRhNfxe60",
-                "title": "New #Bitcoin all time high!? 🚀",
-                "duration": 41
-            },
-            {
-                "id": "K2ku1A5Ox8U",
-                "title": "Blame it on MT.GOX",
-                "duration": 234
-            },
-            {
-                "id": "UG7zLhEWanc",
-                "title": "Remy: Bitcoin Billionaire",
-                "duration": 175
-            },
-            {
-                "id": "6AfHKbpgsi4",
-                "title": "Too Bit To Fail & Hanspanzer - FOMO",
-                "duration": 190
-            },
-            {
-                "id": "WrEVpNdYkrs",
-                "title": "B.R.E.A.M. - Zhou Tonged (Wu-Tang C.R.E.A.M. Parody)",
-                "duration": 154
-            },
-            {
-                "id": "IrcN-zmCZMI",
-                "title": "If It Was Not For Satoshi - Robbie P",
-                "duration": 162
-            },
-            {
-                "id": "_hQRxuYBx0w",
-                "title": "Chuty - Bitcoin (Videoclip Oficial)",
-                "duration": 210
+                "id": "_fymw1iOfiM",
+                "title": "Lil Bubble - ALL TIME HIGH (Bitcoin Anthem - Official Music Video)",
+                "duration": 118
             },
             {
                 "id": "UdbOaVdIUTM",
@@ -4340,104 +4430,14 @@ var STATIONS = [
                 "duration": 139
             },
             {
-                "id": "Vz9iCgiSZrM",
-                "title": "Bitcoin's Back - Lil Bubble (Backstreet Boys Parody)",
-                "duration": 141
-            },
-            {
-                "id": "VT_aEKr0BVY",
-                "title": "Bitcoin Song - 13inlet",
-                "duration": 198
-            },
-            {
-                "id": "nvlvG18AcCo",
-                "title": "Bitcoin Bob: Money Monopoly",
-                "duration": 140
-            },
-            {
-                "id": "gSxKJJ9k3lA",
-                "title": "The Ultimate Crypto Anthem - Betawi CryptoCoin",
-                "duration": 394
-            },
-            {
-                "id": "pADgAmNzxek",
-                "title": "We Are All Bitcoins",
-                "duration": 227
-            },
-            {
-                "id": "DZNUMcOGbq4",
-                "title": "All The Way Up (Bitcoin Rap Parody)",
-                "duration": 149
-            },
-            {
-                "id": "VQ8H3qGkrFM",
-                "title": "When Moon Remix (Lil Bubble in Paris) @ Binance Blockchain Week 2022",
-                "duration": 111
-            },
-            {
-                "id": "AKqdUAhX3nA",
-                "title": "Bitcoin Is Hope ft. Michael Saylor",
+                "id": "gu122fUBlxA",
+                "title": "Captain Youth – Maul Me (Lyric Video)",
                 "duration": 175
             },
             {
-                "id": "PL0yOu0dNwo",
-                "title": "Mainframe - Proof of Freedom",
-                "duration": 133
-            },
-            {
-                "id": "qki2ZIhnA6M",
-                "title": "Captain Youth – Bitcoin Money (Official Lyric Video)",
-                "duration": 212
-            },
-            {
-                "id": "7gfBP8kPzRA",
-                "title": "The Bitcoin Song - Jay-Z Empire State of Mind Parody",
-                "duration": 99
-            },
-            {
-                "id": "fEXw-LU18Ww",
-                "title": "Michael Saylor - There Is No Second Best (Lil Bubble Bitcoin House Remix)",
-                "duration": 157
-            },
-            {
-                "id": "AzpRvdaMGfY",
-                "title": "Bitcoin House vinyls are here & you can watch me unbox in my slippers 🙏 #bitcoin #michaelsaylor",
-                "duration": 32
-            },
-            {
-                "id": "AQwyOhLBsI4",
-                "title": "Stacking Sats - Jack Mallers",
-                "duration": 240
-            },
-            {
-                "id": "9EuH_ZGOlIs",
-                "title": "Proof of Work: A Bitcoin Experience",
-                "duration": 183
-            },
-            {
-                "id": "_YvLh4pUB4Y",
-                "title": "The Times They Are A-Changin' (Bitcoin version)",
-                "duration": 119
-            },
-            {
-                "id": "XcerPhwbIFs",
-                "title": "Orange Pill rApp - Wallet Stay Stackin'!",
-                "duration": 189
-            },
-            {
-                "id": "SfwGpvrzIjs",
-                "title": "Captain Youth – Bitcoin 🤑",
-                "duration": 224
-            },
-            {
-                "id": "g_4JdozI-nc",
-                "title": "Lil Bubble - The Orange Pill (Official Visualizer) ft. Michael Saylor",
-                "duration": 145
-            },
-            {
-                "id": "Otkg4Ftx6GI",
-                "title": "The Bitcoin Song",
-                "duration": 225
+                "id": "vyKA1pW0CBA",
+                "title": "BITCOIN - Music Video",
+                "duration": 173
             },
             {
                 "id": "vnMBfreYTA4",
@@ -4445,19 +4445,89 @@ var STATIONS = [
                 "duration": 157
             },
             {
-                "id": "PYeUQpbMy1o",
-                "title": "Love You Like A Bitcoin",
+                "id": "3lUUDwSSkWo",
+                "title": "Bitcoin Miner's Daughter",
+                "duration": 212
+            },
+            {
+                "id": "U5NGVH8HDaw",
+                "title": "Bitcoin Boomdeyada!",
+                "duration": 66
+            },
+            {
+                "id": "skhA8n8iRCc",
+                "title": "It's Too Late To Sell The Highs (Timbaland - Apologize - Crypto Crash Parody Version)",
+                "duration": 140
+            },
+            {
+                "id": "mkKFR5sB44s",
+                "title": "Pizza Day",
+                "duration": 210
+            },
+            {
+                "id": "AQwyOhLBsI4",
+                "title": "Stacking Sats - Jack Mallers",
                 "duration": 240
             },
             {
-                "id": "bZb2qBrVHVY",
-                "title": "Bitcoins from Heaven",
-                "duration": 50
+                "id": "6KNOqrjkNaE",
+                "title": "Crypto Weekly Rap Up (Bitcoin Rap) - Week 2",
+                "duration": 205
             },
             {
-                "id": "DNYzHGM50Ys",
-                "title": "Too Bit To Fail - Proof of Word EP",
-                "duration": 1560
+                "id": "37Bc5ZmvX8Y",
+                "title": "Lil Bubble - Old Saint Nicholas (Crypto Christmas)",
+                "duration": 130
+            },
+            {
+                "id": "gIbyaej97mI",
+                "title": "Hope In Numbers",
+                "duration": 131
+            },
+            {
+                "id": "VQ8H3qGkrFM",
+                "title": "When Moon Remix (Lil Bubble in Paris) @ Binance Blockchain Week 2022",
+                "duration": 111
+            },
+            {
+                "id": "eSB4VJliyww",
+                "title": "Lil Bubble - F*cking Zero (Official Visualizer) ft. Michael Saylor",
+                "duration": 155
+            },
+            {
+                "id": "_c9WOks2mvg",
+                "title": "Pump It Higher",
+                "duration": 210
+            },
+            {
+                "id": "J4pLMsk-nVA",
+                "title": "SATS OVER EVERYTHING - Manlikekweks x Encorebeats",
+                "duration": 218
+            },
+            {
+                "id": "DZNUMcOGbq4",
+                "title": "All The Way Up (Bitcoin Rap Parody)",
+                "duration": 149
+            },
+            {
+                "id": "4kmWR5bWHAc",
+                "title": "Andrew Tate - Buy More Bitcoin (Lil Bubble House Remix)",
+                "duration": 216
+            },
+            {
+                "id": "v0JS5jGg_vQ",
+                "title": "Lil Bubble - Bitcoin House DJ Set (Vol. 1) - Bitcoin House Mix",
+                "duration": 2387
+            },
+            {
+                "id": "7gfBP8kPzRA",
+                "title": "The Bitcoin Song - Jay-Z Empire State of Mind Parody",
+                "duration": 99
+            },
+            {
+                "id": "UjkYo7t15yk",
+                "title": "Bitcoin (Official Video) - Shehbaaz",
+                "duration": 228
             }]
     },
     {
