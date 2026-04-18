@@ -8645,70 +8645,15 @@ var STATIONS = [
     },
     {
         "id": "tutorials",
-        "name": "Tutorials",
+        "name": "Tutorials, Builders & DIY",
         "emoji": "📚",
-        "desc": "Learn Bitcoin step by step",
+        "desc": "Learn Bitcoin step by step — tutorials, builder stories & DIY hardware projects",
         "color": "#f7931a",
         "videos": [
             {
-                "id": "FAYmE5-40PQ",
-                "title": "Coldcard Bitcoin Hardware Wallet - FULL TUTORIAL (BTC Sessions)",
-                "duration": 6890
-            },
-            {
-                "id": "Y3iAwLG6NlA",
-                "title": "Bitcoin Wallets That Change Everything in 2026 - BTC Sessions",
-                "duration": 1907
-            },
-            {
-                "id": "rKjce1jCxSM",
-                "title": "Bitcoin Beginner Mistakes to Avoid",
-                "duration": 1812
-            },
-            {
-                "id": "dCAr2urEe1o",
-                "title": "ENTROPIA - Generate Permissionless Bitcoin Wallets",
-                "duration": 2461
-            },
-            {
-                "id": "oj_W3xOlt6U",
-                "title": "Cracking Unsafe Bitcoin Wallets + Coldcard Mk4 Warning",
-                "duration": 598
-            },
-            {
-                "id": "bBC-nXj3Ng4",
-                "title": "How Bitcoin Works Under the Hood",
-                "duration": 1516
-            },
-            {
-                "id": "4Lsr7lsy6Tk",
-                "title": "How to Set Up a Bitcoin Node at Home",
-                "duration": 79
-            },
-            {
-                "id": "Sxo169CCfIc",
-                "title": "How To Use Multisig Bitcoin Wallets With Electrum",
-                "duration": 1471
-            },
-            {
-                "id": "xhDQT4TeNIU",
-                "title": "Perfect Privacy with eNuts: Instant Free Bitcoin Transactions",
-                "duration": 3070
-            },
-            {
-                "id": "tuUO-Q4_b5c",
-                "title": "How to Buy Bitcoins in 2024 (4 Methods Reviewed)",
-                "duration": 590
-            },
-            {
-                "id": "O1KaAboPX44",
-                "title": "How To Buy Bitcoin For Beginners - Step by Step",
-                "duration": 586
-            },
-            {
-                "id": "3Grj3Datdfw",
-                "title": "Game-Changing Bitcoin Wallet (Cove) - BTC Sessions",
-                "duration": 1893
+                "id": "hluk1tQun78",
+                "title": "Understanding The Fed's Balance Sheet with Andy Constan - The Bitcoin Layer",
+                "duration": 3841
             },
             {
                 "id": "vPMUGP3Opy8",
@@ -8716,9 +8661,19 @@ var STATIONS = [
                 "duration": 2324
             },
             {
-                "id": "Gc2en3nHxA4",
-                "title": "What is Bitcoin - Simply Explained",
-                "duration": 97
+                "id": "_j4aSynAiX0",
+                "title": "How Multi-Sig Makes All Bitcoiners Safer",
+                "duration": 702
+            },
+            {
+                "id": "iAdmvl3Z_cM",
+                "title": "Clone Hardware Wallets. Same Seed on Multiple Devices (Trezor, Ledger, Keepkey, Coldcard, SafePal)",
+                "duration": 357
+            },
+            {
+                "id": "jkSeosiLmh4",
+                "title": "How to mine BITCOIN with your Home PC or Laptop!",
+                "duration": 784
             },
             {
                 "id": "bsAznpEupIg",
@@ -8726,24 +8681,54 @@ var STATIONS = [
                 "duration": 2132
             },
             {
-                "id": "IxgNp2h5j8w",
-                "title": "How To Buy, Use and Secure Bitcoin - BTC Sessions",
-                "duration": 1632
+                "id": "4cXIUrCQExg",
+                "title": "How to mine BITCOIN with your PC or Laptop!",
+                "duration": 667
             },
             {
-                "id": "OZK5hdKfb18",
-                "title": "Bitcoin Security Best Practices",
-                "duration": 2955
+                "id": "P0yBusy5_Zc",
+                "title": "HOW TO BUILD A BITCOIN NODE",
+                "duration": 287
             },
             {
-                "id": "GR-E0aaFf0c",
-                "title": "Bitcoin Explained for Complete Beginners",
-                "duration": 2759
+                "id": "cRRB_WzZpTM",
+                "title": "BIP85: Segregated Bitcoin Accounts From One Seed (Uncle Jim Mode)",
+                "duration": 3915
             },
             {
-                "id": "mibKrTvtlyQ",
-                "title": "Misty Breez Bitcoin Wallet Setup - BTC Sessions",
-                "duration": 1822
+                "id": "tuUO-Q4_b5c",
+                "title": "How to Buy Bitcoins in 2024 (4 Methods Reviewed)",
+                "duration": 590
+            },
+            {
+                "id": "XFoJUhxBAPQ",
+                "title": "EP1: Meet Me in the Mempool w/ @wiz, Co-Founder & CEO Mempool.space",
+                "duration": 2941
+            },
+            {
+                "id": "_ZnTkrCjavs",
+                "title": "How To Play the Bitcoin Lottery (It’s Easier Than You Think)",
+                "duration": 597
+            },
+            {
+                "id": "peCazF38jBQ",
+                "title": "I Mined Bitcoin for 24 Hours on a Raspberry Pi",
+                "duration": 673
+            },
+            {
+                "id": "MlHa66QdLH4",
+                "title": "Bitcoin Difficulty Epoch 416 Walkthrough",
+                "duration": 147
+            },
+            {
+                "id": "ck6vBhC35jY",
+                "title": "Das kleinste Crypto Mining Rig für zuhause | DIY",
+                "duration": 473
+            },
+            {
+                "id": "T2KgXsmD10Y",
+                "title": "EP19: The State of Mining and Media w/ Colin Harper, Writer and Researcher - Luxor Technologies",
+                "duration": 3132
             },
             {
                 "id": "6b0xTB2sE8E",
@@ -8751,14 +8736,14 @@ var STATIONS = [
                 "duration": 5663
             },
             {
-                "id": "c8ytiynbnpk",
-                "title": "Your First Bitcoin Wallet - BTC Sessions",
-                "duration": 2555
+                "id": "-oujfwYj-zc",
+                "title": "Bitcoin Node Count Dashboard — Walkthrough",
+                "duration": 352
             },
             {
-                "id": "LxTkLwpV1Po",
-                "title": "Permissionless Bitcoin Wallets - They Cannot Be Stopped!",
-                "duration": 3492
+                "id": "HjnOMkbLOf8",
+                "title": "EP15: Bitcoin is Good, pt. 2 w/ Grant McCarty, Co-Executive Director - Bitcoin Policy Institute",
+                "duration": 3004
             },
             {
                 "id": "41JCpzvnn_0",
@@ -8771,84 +8756,19 @@ var STATIONS = [
                 "duration": 6803
             },
             {
-                "id": "8zM_1lOXtBU",
-                "title": "Bitcoin 2-of-4 Multisig Wallet Tutorial Using Sparrow Wallet",
-                "duration": 3725
+                "id": "9SUdFCRf-dc",
+                "title": "EP12: Building Community with Bitcoin w/ Yusuf Nessary - Built With Bitcoin Foundation",
+                "duration": 2856
             },
             {
-                "id": "cRRB_WzZpTM",
-                "title": "BIP85: Segregated Bitcoin Accounts From One Seed (Uncle Jim Mode)",
-                "duration": 3915
+                "id": "nCaGVYx3rgo",
+                "title": "How to get your Amazon ESP32 2432S028 to work as a NerdMiner",
+                "duration": 1144
             },
             {
-                "id": "3QH7ZTibV-Q",
-                "title": "How to Buy Bitcoin (in 2 minutes) - 2024 Updated",
-                "duration": 161
-            },
-            {
-                "id": "vmf_LtnagTs",
-                "title": "Bitcoin Cold Storage Tutorial",
-                "duration": 2386
-            },
-            {
-                "id": "pcbYq2LCWwk",
-                "title": "LIQUIDITY Explained SIMPLY: How It Really Moves BITCOIN - The Bitcoin Layer",
-                "duration": 1007
-            },
-            {
-                "id": "X0aaySypick",
-                "title": "Bitcoin & Liquidity Academy 3: Primary Dealers, U.S. Treasuries & the Fed - The Bitcoin Layer",
-                "duration": 1318
-            },
-            {
-                "id": "Tr1bntrBOY0",
-                "title": "Bitcoin & Liquidity Academy 2: How $37 Trillion in US Debt Shapes Global Markets - The Bitcoin Layer",
-                "duration": 1549
-            },
-            {
-                "id": "iTno3A4jE0Y",
-                "title": "Bitcoin & Liquidity Academy 1: Understanding Balance Sheets, Capital, and Treasuries - The Bitcoin Layer",
-                "duration": 1548
-            },
-            {
-                "id": "hluk1tQun78",
-                "title": "Understanding The Fed's Balance Sheet with Andy Constan - The Bitcoin Layer",
-                "duration": 3841
-            },
-            {
-                "id": "nZOlb69FF6k",
-                "title": "AI Will COLLAPSE the Financial System - Here's How to Survive (and Thrive)",
-                "duration": 581
-            },
-            {
-                "id": "9ExAt9EUCNc",
-                "title": "How to be remembered forever",
-                "duration": 463
-            },
-            {
-                "id": "281Gal2xztI",
-                "title": "Bitcoin Quantum Exposure Dashboard (FULL) — Download & Walkthrough",
-                "duration": 1419
-            },
-            {
-                "id": "_Qxm70pFM4E",
-                "title": "Bitcoin Quantum Exposure Dashboard — Walkthrough",
-                "duration": 992
-            },
-            {
-                "id": "GbEJ0neZkxQ",
-                "title": "WSB Update & Bitcoin Dominance Dashboard — Walkthrough",
-                "duration": 469
-            },
-            {
-                "id": "-oujfwYj-zc",
-                "title": "Bitcoin Node Count Dashboard — Walkthrough",
-                "duration": 352
-            },
-            {
-                "id": "pWmgu5eA4y4",
-                "title": "Evil RBFer Scenario Walkthrough using Sparrow Wallet",
-                "duration": 783
+                "id": "ltZEZM7OEu0",
+                "title": "EP11: Bringing Bitcoin to Local Business w/ Michael Atwood, Founder - Oshi",
+                "duration": 3270
             },
             {
                 "id": "7EmshGDXi04",
@@ -8856,9 +8776,49 @@ var STATIONS = [
                 "duration": 911
             },
             {
-                "id": "MlHa66QdLH4",
-                "title": "Bitcoin Difficulty Epoch 416 Walkthrough",
-                "duration": 147
+                "id": "5_p9tGq43Xw",
+                "title": "Making $40 A DAY With A Cellphone Crypto Home Miner",
+                "duration": 851
+            },
+            {
+                "id": "6rpTjEpvUtc",
+                "title": "i automated my home lab (and CLOUD) with Ansible",
+                "duration": 764
+            },
+            {
+                "id": "xAwbhE8EXAw",
+                "title": "EP7: What to Expect at TABConf w/ Co-Organizer Michael Tidwell",
+                "duration": 3616
+            },
+            {
+                "id": "BXhJ18kcZEo",
+                "title": "The COOLEST Home BITCOIN Miner Right Now!",
+                "duration": 928
+            },
+            {
+                "id": "18QvarVLofU",
+                "title": "This Home Bitcoin Miner could Earn you 3.125 BTC! Bitaxe Gamma",
+                "duration": 899
+            },
+            {
+                "id": "JbxmMy0AprA",
+                "title": "EP14: Bitcoin and the (R)Evolution of Media w/ Nico, Host - SimplyBitcoin",
+                "duration": 3185
+            },
+            {
+                "id": "QTmI7PXNZhI",
+                "title": "CH1: Post-Show Recap w/ Justine Harper, VP, BD - Unchained Capital",
+                "duration": 2561
+            },
+            {
+                "id": "3Grj3Datdfw",
+                "title": "Game-Changing Bitcoin Wallet (Cove) - BTC Sessions",
+                "duration": 1893
+            },
+            {
+                "id": "Sxo169CCfIc",
+                "title": "How To Use Multisig Bitcoin Wallets With Electrum",
+                "duration": 1471
             },
             {
                 "id": "z3sldY-4ZKM",
@@ -8866,14 +8826,134 @@ var STATIONS = [
                 "duration": 1746
             },
             {
+                "id": "IyW9Dn_--ME",
+                "title": "The BEST Home Bitcoin Miner in 2025",
+                "duration": 697
+            },
+            {
+                "id": "S098zQKg2D4",
+                "title": "The PERFECT Cold Hardware Wallet - Explained",
+                "duration": 763
+            },
+            {
+                "id": "qeBpYPcx1wg",
+                "title": "Build & Run Your Own Bitcoin Node On A Raspberry Pi",
+                "duration": 516
+            },
+            {
+                "id": "Tr1bntrBOY0",
+                "title": "Bitcoin & Liquidity Academy 2: How $37 Trillion in US Debt Shapes Global Markets - The Bitcoin Layer",
+                "duration": 1549
+            },
+            {
+                "id": "ydtPKYE-0eQ",
+                "title": "$48 a day WITHOUT a Mining Rig! Crypto Passive Income",
+                "duration": 482
+            },
+            {
+                "id": "c8ytiynbnpk",
+                "title": "Your First Bitcoin Wallet - BTC Sessions",
+                "duration": 2555
+            },
+            {
+                "id": "KbuOyBoTZmc",
+                "title": "How to Set Up Your New Bitaxe, Part 1/4",
+                "duration": 262
+            },
+            {
+                "id": "DzikmY4S42Y",
+                "title": "Start9 Tutorial: Set up your Bitcoin Node and Personal Server.",
+                "duration": 1148
+            },
+            {
                 "id": "tlQGO-Na7Io",
                 "title": "How to Transfer Your Bitcoin from Ledger to Coldcard",
                 "duration": 1523
             },
             {
-                "id": "1LhcDJ8bgQU",
-                "title": "Bitcoin RBF (Replace By Fee) Tutorial",
-                "duration": 1077
+                "id": "3xw-lMBbMds",
+                "title": "Why & How to Run a Bitcoin/Lightning Node w/ MyNode",
+                "duration": 1198
+            },
+            {
+                "id": "IxgNp2h5j8w",
+                "title": "How To Buy, Use and Secure Bitcoin - BTC Sessions",
+                "duration": 1632
+            },
+            {
+                "id": "P-5aFxDNqFs",
+                "title": "EP26: Accounting For Bitcoin w/ Joe Wood, Founder - Satoshi Pacioli Accounting Services",
+                "duration": 3247
+            },
+            {
+                "id": "TeZiAhwkvKU",
+                "title": "EP8: Good for Bitcoiners, Good for Bitcoin w/ SeedSigner",
+                "duration": 3782
+            },
+            {
+                "id": "4Lsr7lsy6Tk",
+                "title": "How to Set Up a Bitcoin Node at Home",
+                "duration": 79
+            },
+            {
+                "id": "ri38Nc-Rrzg",
+                "title": "How To Set Up Your OWN Bitcoin Node FOR FREE!!! + SOLO Mine To It",
+                "duration": 892
+            },
+            {
+                "id": "nZOlb69FF6k",
+                "title": "AI Will COLLAPSE the Financial System - Here's How to Survive (and Thrive)",
+                "duration": 581
+            },
+            {
+                "id": "krrUQGMKhPo",
+                "title": "Bitcoin UTXO Consolidation Tutorial",
+                "duration": 879
+            },
+            {
+                "id": "8zM_1lOXtBU",
+                "title": "Bitcoin 2-of-4 Multisig Wallet Tutorial Using Sparrow Wallet",
+                "duration": 3725
+            },
+            {
+                "id": "k6QuA2KWQvY",
+                "title": "HOW TO MAKE YOUR OWN NERD MINER V2 #BITCOIN #crypto #btc #cryptocurrencymining #crypto",
+                "duration": 479
+            },
+            {
+                "id": "bBC-nXj3Ng4",
+                "title": "How Bitcoin Works Under the Hood",
+                "duration": 1516
+            },
+            {
+                "id": "O1KaAboPX44",
+                "title": "How To Buy Bitcoin For Beginners - Step by Step",
+                "duration": 586
+            },
+            {
+                "id": "B4-fIKroG_M",
+                "title": "How to make a 3$ usb drive into a secure crypto wallet",
+                "duration": 593
+            },
+            {
+                "id": "PeBE4VV6fWk",
+                "title": "Bitcoin Self-Custody Made Easy (Bitkey)",
+                "duration": 944
+            },
+            {
+                "id": "9uodS6FBsdw",
+                "title": "How to Choose the BEST Cold Wallet for 2026",
+                "duration": 653
+            },
+            {
+                "id": "niXxUrpkoRA",
+                "title": "How To Create Infinite Bitcoin Wallets (Passphrase)",
+                "duration": 714
+            },
+            {
+                "id": "rYAFyFsN5UE",
+                "title": "My mini Bitcoin USB miner setup explained for solo mining Bitcoin",
+                "duration": 659
             },
             {
                 "id": "mOCUqbFQ57o",
@@ -8881,14 +8961,334 @@ var STATIONS = [
                 "duration": 695
             },
             {
+                "id": "FEBRIQeiqfg",
+                "title": "How To Make A USB #Crypto Wallet | OFFLINE STORAGE | DIY/Tutorial | 2022",
+                "duration": 678
+            },
+            {
+                "id": "4PvA7oYDXu8",
+                "title": "Crypto Wallets Explained (Beginners Guide 2025)",
+                "duration": 1090
+            },
+            {
+                "id": "mibKrTvtlyQ",
+                "title": "Misty Breez Bitcoin Wallet Setup - BTC Sessions",
+                "duration": 1822
+            },
+            {
+                "id": "iTno3A4jE0Y",
+                "title": "Bitcoin & Liquidity Academy 1: Understanding Balance Sheets, Capital, and Treasuries - The Bitcoin Layer",
+                "duration": 1548
+            },
+            {
+                "id": "1LhcDJ8bgQU",
+                "title": "Bitcoin RBF (Replace By Fee) Tutorial",
+                "duration": 1077
+            },
+            {
+                "id": "_WS4TiOvLFM",
+                "title": "Gold Nugget NerdMiner 2 Lottery Miner (Bitcoin Merch) - Setup and Reset Guide",
+                "duration": 336
+            },
+            {
+                "id": "GbEJ0neZkxQ",
+                "title": "WSB Update & Bitcoin Dominance Dashboard — Walkthrough",
+                "duration": 469
+            },
+            {
+                "id": "JdatHrGUHO0",
+                "title": "EP27: Devs Who Can Hack It w/ Alekos Filini & Daniela Brozzoni, Developers - BDK, Founders - hack.bs",
+                "duration": 3125
+            },
+            {
+                "id": "vmf_LtnagTs",
+                "title": "Bitcoin Cold Storage Tutorial",
+                "duration": 2386
+            },
+            {
+                "id": "CwX35qCL1f4",
+                "title": "How to Get Started with Bitcoin Mining (Full Beginner Guide)",
+                "duration": 1006
+            },
+            {
+                "id": "EARJ_b1C1HU",
+                "title": "$25 USB Nerd Miner Setup | Bitcoin Merch Guide",
+                "duration": 269
+            },
+            {
+                "id": "ZcsLaDoVPNU",
+                "title": "CH2: Post-Show Recap w/ Sidd, Writer and Rider - Bitcoin Tour of America",
+                "duration": 3260
+            },
+            {
+                "id": "X0aaySypick",
+                "title": "Bitcoin & Liquidity Academy 3: Primary Dealers, U.S. Treasuries & the Fed - The Bitcoin Layer",
+                "duration": 1318
+            },
+            {
+                "id": "1gH33qosYXU",
+                "title": "EP16: Category Creation: Proof-of-Funds w/ Sam Abbassi, CEO - Hoseki",
+                "duration": 2918
+            },
+            {
+                "id": "01VQpFPCMek",
+                "title": "Nerd Miner 2 How to set up on your home or office Wi-Fi from start to hashing coins",
+                "duration": 1175
+            },
+            {
+                "id": "pcbYq2LCWwk",
+                "title": "LIQUIDITY Explained SIMPLY: How It Really Moves BITCOIN - The Bitcoin Layer",
+                "duration": 1007
+            },
+            {
+                "id": "YrKo0QGWIuY",
+                "title": "Raspberry Pi Zero Project | Cryptocurrency Hardware Wallet",
+                "duration": 441
+            },
+            {
+                "id": "bvUxEFGfVi8",
+                "title": "EP20: Bitcoin Changes Everything w/ P, Programming Director - Swan Bitcoin",
+                "duration": 3258
+            },
+            {
+                "id": "Gc2en3nHxA4",
+                "title": "What is Bitcoin - Simply Explained",
+                "duration": 97
+            },
+            {
+                "id": "RhPf4toA79A",
+                "title": "HARDWARE-WALLET ERKLÄRT! 🔐 SO verwahrst DU BITCOIN SICHER!",
+                "duration": 773
+            },
+            {
+                "id": "ZpX1wNchiD4",
+                "title": "EP17: Bitcoin Just Works w/ Harry Sudock, VP, Strategy - Griid",
+                "duration": 3087
+            },
+            {
+                "id": "LxTkLwpV1Po",
+                "title": "Permissionless Bitcoin Wallets - They Cannot Be Stopped!",
+                "duration": 3492
+            },
+            {
+                "id": "AFoQ6Ymj8-w",
+                "title": "EP22: Risk Management through Miniscript w/ Rob Hamilton, Co-Founder & CEO - AnchorWatch",
+                "duration": 2451
+            },
+            {
+                "id": "jMf6Gqo3J4I",
+                "title": "WHAT IS A BITCOIN NODE? & 5 Reasons To Run A Bitcoin Full Node!",
+                "duration": 338
+            },
+            {
+                "id": "dCAr2urEe1o",
+                "title": "ENTROPIA - Generate Permissionless Bitcoin Wallets",
+                "duration": 2461
+            },
+            {
+                "id": "GR-E0aaFf0c",
+                "title": "Bitcoin Explained for Complete Beginners",
+                "duration": 2759
+            },
+            {
+                "id": "qyVYPHVaeO4",
+                "title": "I Turned an OLD PC into a Bitcoin Mining Rig",
+                "duration": 791
+            },
+            {
+                "id": "UYUfXWlAleA",
+                "title": "01 - myNode series - Why run a Bitcoin node",
+                "duration": 594
+            },
+            {
+                "id": "cBKrrKzZSd4",
+                "title": "EP18: Stay Humble, Stack Stats w/ Matt Odell, Bitcoiner",
+                "duration": 3521
+            },
+            {
+                "id": "lh7tYnOk3AU",
+                "title": "EP3: Bitcoin Is Good w/ David Zell, Founder & Co-Executive Director of the Bitcoin Policy Institute",
+                "duration": 3125
+            },
+            {
+                "id": "KT8zri-XN58",
+                "title": "EP24: Mastering Miner Management w/ Dan Lawrence, Co-Founder & CEO - OBM, Inc./Foreman",
+                "duration": 3213
+            },
+            {
+                "id": "N6ax-ZmTsDc",
+                "title": "EP23: Tangible Tools for Digital Money w/ NVK, Co-Founder & CEO - Coinkite",
+                "duration": 2882
+            },
+            {
+                "id": "pWmgu5eA4y4",
+                "title": "Evil RBFer Scenario Walkthrough using Sparrow Wallet",
+                "duration": 783
+            },
+            {
+                "id": "gH0DkA_VGQg",
+                "title": "EP10: Learning (and Earning) with Lightning w/ Nate, Education and Support - Voltage",
+                "duration": 2875
+            },
+            {
+                "id": "281Gal2xztI",
+                "title": "Bitcoin Quantum Exposure Dashboard (FULL) — Download & Walkthrough",
+                "duration": 1419
+            },
+            {
+                "id": "5GCBWyHkklc",
+                "title": "EP2: Bringing Bitcoin to the World w/ Ben Price, Co-Founder & CEO The Bitcoin Company",
+                "duration": 3272
+            },
+            {
+                "id": "QabBSVF08KE",
+                "title": "Easiest way to Run a Bitcoin Node! | How to connect hardware wallet to your own Node with Sparrow.",
+                "duration": 278
+            },
+            {
+                "id": "wWnUvCNeYEo",
+                "title": "Crypto Wallets Explained! (Beginners' Guide!) 📲 🔑 (2025 Edition!) ⭐⭐⭐⭐⭐ Ultimate Step-by-Step! 😎",
+                "duration": 1199
+            },
+            {
+                "id": "TTS0Ufkv4xc",
+                "title": "EP9: Designing for Bitcoin w/ Stephen DeLorme, Designer - Bitcoin Design Community",
+                "duration": 3158
+            },
+            {
+                "id": "9ExAt9EUCNc",
+                "title": "How to be remembered forever",
+                "duration": 463
+            },
+            {
+                "id": "xhDQT4TeNIU",
+                "title": "Perfect Privacy with eNuts: Instant Free Bitcoin Transactions",
+                "duration": 3070
+            },
+            {
+                "id": "SPP81mGYeZw",
+                "title": "If I Wanted to Secure My Crypto in 2026, I’d Do THIS",
+                "duration": 923
+            },
+            {
+                "id": "Cyf7JjpygB4",
+                "title": "How To Build a GPU Mining Rig in 2026 - PROFITABLE!!",
+                "duration": 1107
+            },
+            {
+                "id": "FAYmE5-40PQ",
+                "title": "Coldcard Bitcoin Hardware Wallet - FULL TUTORIAL (BTC Sessions)",
+                "duration": 6890
+            },
+            {
+                "id": "l0dzOwyPqFI",
+                "title": "How to make passive income running blockchain nodes",
+                "duration": 576
+            },
+            {
+                "id": "_Qxm70pFM4E",
+                "title": "Bitcoin Quantum Exposure Dashboard — Walkthrough",
+                "duration": 992
+            },
+            {
+                "id": "H47wmnfASds",
+                "title": "EP4: Bitcoin is Hard. Bitcoin is Easy. w/ Justine Harper, VP, BD - Unchained Capital",
+                "duration": 2762
+            },
+            {
+                "id": "MTrKwsCg9d8",
+                "title": "🔌 Gold Nugget Nerd Miner Unboxing & Setup | Start Solo Mining Bitcoin Today! 💡",
+                "duration": 288
+            },
+            {
+                "id": "YeEy7pOre04",
+                "title": "The Best Bitcoin Hardware Wallet | ColdCard MK4 Setup Tutorial",
+                "duration": 1084
+            },
+            {
+                "id": "kgaUK47CEPY",
+                "title": "EP25: Making Bitcoin Accessible w/ Conor Okus, Product Manager - Spiral",
+                "duration": 3270
+            },
+            {
+                "id": "vyJ4EvjXDcg",
+                "title": "EP21: Building (Multiple) Bitcoin Businesses w/ Marty Bent, Founder - TFTC",
+                "duration": 2891
+            },
+            {
+                "id": "cx0E2ICJXLY",
+                "title": "Is Bitcoin Mining Worth It In 2025??",
+                "duration": 891
+            },
+            {
+                "id": "3QH7ZTibV-Q",
+                "title": "How to Buy Bitcoin (in 2 minutes) - 2024 Updated",
+                "duration": 161
+            },
+            {
+                "id": "OZK5hdKfb18",
+                "title": "Bitcoin Security Best Practices",
+                "duration": 2955
+            },
+            {
+                "id": "fgAKXfVzc7c",
+                "title": "Start9 OS Bitcoin Node Tutorial - DIY Hardware, How To Set Up, Download & Why I Moved from Umbrel.",
+                "duration": 827
+            },
+            {
+                "id": "Xjrq1f3pNMY",
+                "title": "EP5: Bitcoin Across America w/ Sidd, Writer and Rider - Bitcoin Tour of America",
+                "duration": 3693
+            },
+            {
+                "id": "pDSQVX8oQSA",
+                "title": "How to Send Crypto TO Cold Wallets (BEGINNER'S GUIDE)",
+                "duration": 575
+            },
+            {
+                "id": "pgYBgXFqIjw",
+                "title": "EP13: The Beefsteak w/ awayslice, the Beefsteak Guy",
+                "duration": 2860
+            },
+            {
                 "id": "k5h7A7kRM8Y",
                 "title": "How to make a 24 word Bitcoin seed phrase with 256 coins",
                 "duration": 236
             },
             {
-                "id": "krrUQGMKhPo",
-                "title": "Bitcoin UTXO Consolidation Tutorial",
-                "duration": 879
+                "id": "zEFEoBZfpb4",
+                "title": "How to Set Up Your Nerdminer v2 / NMminer | Full Configuration Guide",
+                "duration": 253
+            },
+            {
+                "id": "oj_W3xOlt6U",
+                "title": "Cracking Unsafe Bitcoin Wallets + Coldcard Mk4 Warning",
+                "duration": 598
+            },
+            {
+                "id": "95FonGULBtc",
+                "title": "EP6: Bitcoin, Beef, and Building Locally w/ Texas Slim, Founder - The Beef Initiative",
+                "duration": 3002
+            },
+            {
+                "id": "Y3iAwLG6NlA",
+                "title": "Bitcoin Wallets That Change Everything in 2026 - BTC Sessions",
+                "duration": 1907
+            },
+            {
+                "id": "rKjce1jCxSM",
+                "title": "Bitcoin Beginner Mistakes to Avoid",
+                "duration": 1812
+            },
+            {
+                "id": "7iplbbcLfJU",
+                "title": "How Does a Crypto Hardware Wallet Work?",
+                "duration": 519
+            },
+            {
+                "id": "lVhdpmhYxbI",
+                "title": "EP28: Facilitating FOSS Development w/ Haley Berkoe, Program Manager - Spiral",
+                "duration": 3108
             }]
     }
 ];
