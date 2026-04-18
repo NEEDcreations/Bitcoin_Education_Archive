@@ -9724,16 +9724,8 @@ function checkDrift() {
 
 // ── Remote Functions ──
 window.tctvRemoteChannel = function(dir) {
-    // Defensive: if _currentStation is somehow unset, bail to CH 1 instead of wrapping weirdly
-    if (!_currentStation) { window.switchStation(STATIONS[0].id); return; }
     var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
-    if (idx < 0) {
-        console.warn('[TCTV] Remote: current station not in STATIONS array:', _currentStation);
-        window.switchStation(STATIONS[0].id);
-        return;
-    }
     var nextIdx = (idx + dir + STATIONS.length) % STATIONS.length;
-    console.log('[TCTV] Remote CH', (dir > 0 ? '▲' : '▼'), '| from CH', idx+1, '(' + _currentStation + ') → CH', nextIdx+1, '(' + STATIONS[nextIdx].id + ')');
     window.switchStation(STATIONS[nextIdx].id);
 };
 
@@ -10320,7 +10312,8 @@ function _updateChNum() {
     var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
     if (idx < 0) { chEl.textContent = ''; return; }
     var station = STATIONS[idx];
-    chEl.textContent = 'CH. ' + (idx + 1) + ' · ' + (station.emoji ? station.emoji + ' ' : '') + station.name;
+    var expected = 'CH. ' + (idx + 1) + ' · ' + (station.emoji ? station.emoji + ' ' : '') + station.name;
+    if (chEl.textContent !== expected) chEl.textContent = expected;
 }
 
 window.syncPlayer = function() {
@@ -10381,14 +10374,8 @@ function updateTimeline() {
             np.setAttribute('data-current-sig', expectedSig);
         }
     }
-    // Also keep CH number / channel name in NOW PLAYING header in sync
-    // (defensive: in case _updateChNum was missed during a switch)
-    var chEl = document.getElementById('tctv-now-ch');
-    if (chEl && station) {
-        var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
-        var expected = idx >= 0 ? ('CH. ' + (idx + 1) + ' · ' + station.emoji + ' ' + station.name) : '';
-        if (chEl.textContent !== expected) chEl.textContent = expected;
-    }
+    // Sync CH indicator
+    _updateChNum();
 
     var bar = document.getElementById('tctv-progress');
     if (bar && state.video) {
@@ -10854,18 +10841,9 @@ window.renderTimechainTV = function() {
     saveStation(activeStation);
     joinStation(activeStation);
 
-    // Highlight initial station in EPG UI
-    setTimeout(function() {
-        var stationId = activeStation;
-        document.querySelectorAll('[data-station-id]').forEach(function(el) {
-            var isActive = el.getAttribute('data-station-id') === stationId;
-            el.style.background = isActive ? 'rgba(247,147,26,0.12)' : 'transparent';
-            var nameEl = el.querySelector('[data-ch-name]');
-            if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
-        });
-    }, 100);
+    // Initial station switch (population of DOM)
+    switchStation(activeStation, true);
 
-    syncPlayer();
     if (_syncInterval) clearInterval(_syncInterval);
     _syncInterval = setInterval(updateTimeline, 1000);
 
@@ -10893,24 +10871,22 @@ window.renderTimechainTV = function() {
     window.currentChannelId = 'timechain-tv';
 };
 
-window.switchStation = function(stationId) {
-    if (stationId === _currentStation) return;
+window.switchStation = function(stationId, forceUpdate) {
+    if (stationId === _currentStation && !forceUpdate) return;
     _lastStation = _currentStation;
     var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
     if (!stationObj) return;
 
-    // Compute new state UP FRONT so we have the new title ready to display
-    // regardless of what happens next. getPlaybackState is synchronous/pure.
+    // Compute new state UP FRONT
     var state = null;
-    try { state = getPlaybackState(stationObj); } catch(e) { console.warn('[TCTV] getPlaybackState threw', e); }
+    try { state = getPlaybackState(stationObj); } catch(e) {}
     var newTitle = (state && state.video && state.video.title) || (stationObj.emoji + ' ' + stationObj.name);
     var newVidId = (state && state.video && state.video.id) || '';
 
-    // Commit the new station FIRST so all reads see the new station id
+    // Commit
     _currentStation = stationId;
 
-    // Update NOW PLAYING text + vid-id marker IMMEDIATELY.
-    // Sig combines stationId + videoId so the safety net can detect either drift.
+    // Update NOW PLAYING header IMMEDIATELY
     var np = document.getElementById('tctv-now-playing');
     if (np) {
         np.textContent = newTitle;
@@ -10925,42 +10901,33 @@ window.switchStation = function(stationId) {
 
     if (state && state.video) {
         loadVideo(state.video.id, state.offset);
-        // Re-assert title AFTER loadVideo in case any DOM churn happened
-        var np2 = document.getElementById('tctv-now-playing');
-        if (np2) {
-            np2.textContent = state.video.title;
-            np2.setAttribute('data-current-vid', state.video.id);
-            np2.setAttribute('data-current-sig', stationId + '|' + state.video.id);
-        }
-        // Sync volume after switching channels
-        _syncYTVolume();
+        // Sync volume after switching
+        setTimeout(function() { _syncYTVolume(); }, 200);
     }
 
-    // Belt-and-suspenders: poll the title at 100ms intervals for the next 2s.
-    // If something asynchronous (YT iframe load, EPG re-render, etc.) wipes
-    // or replaces the title, this snaps it back to the correct value.
-    // Recomputes per tick in case the video rolls over during the window.
+    // Re-assert loop (belt-and-suspenders)
     (function reassertTitle() {
         var deadline = Date.now() + 2000;
         var iv = setInterval(function() {
             if (Date.now() > deadline || _currentStation !== stationId) {
                 clearInterval(iv); return;
             }
-            var np3 = document.getElementById('tctv-now-playing');
-            var st = STATIONS.find(function(s) { return s.id === stationId; });
-            if (!np3 || !st) return;
-            var liveState = getPlaybackState(st);
+            var el = document.getElementById('tctv-now-playing');
+            if (!el) return;
+            var liveState = getPlaybackState(stationObj);
             if (liveState && liveState.video) {
                 var sig = stationId + '|' + liveState.video.id;
-                if (np3.getAttribute('data-current-sig') !== sig ||
-                    np3.textContent !== liveState.video.title) {
-                    np3.textContent = liveState.video.title;
-                    np3.setAttribute('data-current-vid', liveState.video.id);
-                    np3.setAttribute('data-current-sig', sig);
+                if (el.getAttribute('data-current-sig') !== sig) {
+                    el.textContent = liveState.video.title;
+                    el.setAttribute('data-current-vid', liveState.video.id);
+                    el.setAttribute('data-current-sig', sig);
+                    _updateChNum();
                 }
             }
-        }, 100);
+        }, 200);
     })();
+
+    // Sidebar highlight
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var isActive = el.getAttribute('data-station-id') === stationId;
         el.style.background = isActive ? 'rgba(247,147,26,0.12)' : 'transparent';
@@ -10968,11 +10935,9 @@ window.switchStation = function(stationId) {
         if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
     });
 
-    // #3 Sound effect
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
-
-    // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
+};
 
     // #4 Pre-fetch next/prev
     try {
