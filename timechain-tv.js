@@ -1208,6 +1208,21 @@ var STATIONS = [
                 "id": "3AmzFPMcgEY",
                 "title": "Growth On Bitcoin & Lightning Is EXPLODING | Alyse Killeen - The Bitcoin Layer",
                 "duration": 2440
+            },
+            {
+                "id": "dy3vzz9pa3g",
+                "title": "SegWit and BIP-110 Signaling Dashboard — Walkthrough",
+                "duration": 469
+            },
+            {
+                "id": "r4VBmza3TNw",
+                "title": "Bitcoin: Soft Fork vs Hard Fork & BIP-110 Updates",
+                "duration": 1400
+            },
+            {
+                "id": "i0-2UhU-o2s",
+                "title": "How Bitcoin Incentives and URSFs Kill Minority Soft Forks",
+                "duration": 1720
             }]
     },
     {
@@ -1829,6 +1844,56 @@ var STATIONS = [
                 "id": "_9JPeiTvREA",
                 "title": "How Societies Collapse",
                 "duration": 670
+            },
+            {
+                "id": "DgaAU2eZLCI",
+                "title": "Average Sales Price for New Houses, Bitcoin vs Dollar (11/6/25 Update)",
+                "duration": 94
+            },
+            {
+                "id": "VN3h0gmsuL4",
+                "title": "Bitcoin Annualized Issuance Rate (Monetary Inflation) (9/21/25 Update)",
+                "duration": 106
+            },
+            {
+                "id": "77GH63y-UnY",
+                "title": "Average Price: Electricity per Kilowatt-Hour in Average U.S. City, Bitcoin vs Dollar (9/9/25 Update)",
+                "duration": 93
+            },
+            {
+                "id": "LpccPgtC56g",
+                "title": "Average Price: Ground Beef in Average U.S. City, Bitcoin vs Dollar (8/2/25 Update)",
+                "duration": 93
+            },
+            {
+                "id": "CZKA01K3vig",
+                "title": "The Dollar is Crashing in Bitcoin Terms (7/17/25 Update)",
+                "duration": 93
+            },
+            {
+                "id": "y307cs3EV44",
+                "title": "Economics of Dust: Post-Ordinals Bitcoin Output Analysis w/ Commentary",
+                "duration": 614
+            },
+            {
+                "id": "qZSjJk70FTA",
+                "title": "Economics of Dust: Post-Ordinals Bitcoin Output Analysis",
+                "duration": 70
+            },
+            {
+                "id": "c8Utm_op9Ts",
+                "title": "Bitcoin Annualized Issuance Rate (Monetary Inflation) (2/27/25 Update)",
+                "duration": 103
+            },
+            {
+                "id": "D2DLuDfYbRU",
+                "title": "Bitcoin Annualized Issuance Rate (Monetary Inflation) (9/17/24 Update)",
+                "duration": 99
+            },
+            {
+                "id": "8PWRE5Ygam0",
+                "title": "Bitcoin's Emergence As Sound Money",
+                "duration": 1641
             }]
     },
     {
@@ -2047,6 +2112,21 @@ var STATIONS = [
                 "id": "8xurGFoKfjo",
                 "title": "Episode 6: Bitcoin Self Custody: Financial Freedom",
                 "duration": 250
+            },
+            {
+                "id": "RLxi0jU-AXE",
+                "title": "Bitcoin Self Custody: Passphrases",
+                "duration": 1937
+            },
+            {
+                "id": "Hee0elVtA9k",
+                "title": "Bitcoin Self Custody: Signing Devices & Software Wallets",
+                "duration": 790
+            },
+            {
+                "id": "_MBEzS9GAME",
+                "title": "Bitcoin Self Custody Q&A (12/19/23)",
+                "duration": 3101
             }]
     },
     {
@@ -2388,6 +2468,61 @@ var STATIONS = [
                 "id": "f39jflibxH4",
                 "title": "Oppenheimer vs Nakamoto",
                 "duration": 590
+            },
+            {
+                "id": "N4m86PL4qs8",
+                "title": "Bitcoin: History of \"X-coins\" (Outputs Worth Exactly 10 BTC)",
+                "duration": 109
+            },
+            {
+                "id": "4d4OE7D2hqA",
+                "title": "Bitcoin: History of \"D-coins\" (Outputs Worth Exactly 500 BTC)",
+                "duration": 107
+            },
+            {
+                "id": "hzPSxy55MPE",
+                "title": "Bitcoin: History of \"M-coins\" (Outputs Worth Exactly 1,000 BTC)",
+                "duration": 106
+            },
+            {
+                "id": "ecy7lLjDK6s",
+                "title": "Bitcoin: History of \"L-coins\" (Outputs Worth Exactly 50 BTC)",
+                "duration": 109
+            },
+            {
+                "id": "4yFjOoDp6zY",
+                "title": "Bitcoin: History of \"Pi-coins\" (Outputs Worth Exactly 3.14 BTC or 3.14159265 BTC)",
+                "duration": 104
+            },
+            {
+                "id": "tPYYbIH372Y",
+                "title": "Bitcoin: History of \"Wholecoins\" (Outputs Worth Exactly 1 BTC)",
+                "duration": 102
+            },
+            {
+                "id": "eRzb4vEneHA",
+                "title": "Historical Bitcoin UTXO Set Animation (4 Hour Version)",
+                "duration": 14711
+            },
+            {
+                "id": "GTdCeFyBVyk",
+                "title": "Historical Bitcoin UTXO Set Animation (2 Minute Version)",
+                "duration": 106
+            },
+            {
+                "id": "hk3OLML16xY",
+                "title": "History of Bitcoin: 16 Year Anniversary",
+                "duration": 611
+            },
+            {
+                "id": "yt4L67C5_q8",
+                "title": "Historical Price of 1 USD in Terms of Bitcoin (11/12/24 Update)",
+                "duration": 87
+            },
+            {
+                "id": "DomSK_oUGr4",
+                "title": "History of Bitcoin: 15 Year Anniversary",
+                "duration": 579
             }]
     },
     {
@@ -3315,6 +3450,51 @@ var STATIONS = [
                 "id": "2hFvQhMRnc4",
                 "title": "Bitcoin Proof of Work",
                 "duration": 1280
+            },
+            {
+                "id": "XTb2jYYYg8Y",
+                "title": "Bitcoin Mining Difficulty & Target Hash (11/22/25 Update)",
+                "duration": 113
+            },
+            {
+                "id": "S3gamO8-ZDg",
+                "title": "Bitcoin: Historical Mining Difficulty & Target Hash (1/30/25 Update)",
+                "duration": 106
+            },
+            {
+                "id": "wQI3jZFdh2s",
+                "title": "Bitcoin: Historical Mining Difficulty & Target Hash (11/21/24 Update)",
+                "duration": 106
+            },
+            {
+                "id": "ZeVxHolNxsg",
+                "title": "Satoshi's Genius: POW + The Difficulty Adjustment",
+                "duration": 578
+            },
+            {
+                "id": "gDhoS-cZfU4",
+                "title": "Bitcoin Difficulty Adjustment Animation (Difficulty Epoch 415)",
+                "duration": 104
+            },
+            {
+                "id": "JpDxQ90jwSA",
+                "title": "Bitcoin Difficulty Adjustment (4hr Animation) [DE1 - DE414]",
+                "duration": 13317
+            },
+            {
+                "id": "8pOy8TOdyS4",
+                "title": "Bitcoin Difficulty Adjustment (2/7/24 Update)",
+                "duration": 533
+            },
+            {
+                "id": "HbS80lfbBl4",
+                "title": "Bitcoin Miner Transaction Fees: % of Block Reward (12/22/23 Update)",
+                "duration": 81
+            },
+            {
+                "id": "A5ssDib4-jk",
+                "title": "Bitcoin: Historical Mining Difficulty & Target Hash (10/3/23 Update)",
+                "duration": 97
             }]
     },
     {
@@ -4644,6 +4824,396 @@ var STATIONS = [
                 "id": "GZokpamL-84",
                 "title": "AI, Energy, Bitcoin: The Foundation of the Future",
                 "duration": 365
+            },
+            {
+                "id": "TmOlADL_llQ",
+                "title": "Bitcoin Quantum Exposure Weekly Report (4/7/26 - 4/14/26)",
+                "duration": 302
+            },
+            {
+                "id": "hL-pFg3vZds",
+                "title": "Bitcoin Target & Block Hashes Animation (3/4/26 Update)",
+                "duration": 116
+            },
+            {
+                "id": "8aOJxfJ-SNE",
+                "title": "Bitcoin Price Distribution Animation (1/8/26 Update)",
+                "duration": 109
+            },
+            {
+                "id": "W3xniwhdpTk",
+                "title": "BTC Map: Latin America Bitcoin Merchant Adoption Per 100k Population (12/27/25 Update)",
+                "duration": 85
+            },
+            {
+                "id": "QipRYAxErJ0",
+                "title": "BTC Map: Global Bitcoin Merchant Adoption Per 100k Population (12/21/25 Update)",
+                "duration": 94
+            },
+            {
+                "id": "83-Q19F_uw0",
+                "title": "BTC Map: U.S. Bitcoin Merchant Adoption Per 100k Population (12/19/25 Update)",
+                "duration": 84
+            },
+            {
+                "id": "Rnw6aJM1ni8",
+                "title": "BTC Map: U.S. Bitcoin Merchant Adoption (12/16/25 Update)",
+                "duration": 84
+            },
+            {
+                "id": "2-fEEC9_YT8",
+                "title": "BTC Map: Global Bitcoin Merchant Adoption (12/14/25 Update)",
+                "duration": 194
+            },
+            {
+                "id": "R87W6PFl868",
+                "title": "Top 10 Cryptocurrencies By Market Cap & Bitcoin Dominance (12/7/25 Update)",
+                "duration": 83
+            },
+            {
+                "id": "TFu9_nT_SAI",
+                "title": "Bitcoin Never Look Back Price (12/2/25 Update)",
+                "duration": 109
+            },
+            {
+                "id": "SV-HZftkKXM",
+                "title": "Bitcoin’s Blockchain History (Genesis - 923,040)",
+                "duration": 112
+            },
+            {
+                "id": "zKAjd4IGbPQ",
+                "title": "Bitcoin HODL Waves Animation (11/9/25 Update)",
+                "duration": 112
+            },
+            {
+                "id": "K33t8HmWipQ",
+                "title": "Bitcoin Just Hit Its 200th Daily Close Above $100k",
+                "duration": 107
+            },
+            {
+                "id": "kBoSO7612v0",
+                "title": "Top 10 Cryptocurrencies By Market Cap & Bitcoin Dominance (9/18/25 Update)",
+                "duration": 80
+            },
+            {
+                "id": "INLz3aHUKiM",
+                "title": "Bitcoin Days Since All Time High Animation (8/24/25 Update)",
+                "duration": 107
+            },
+            {
+                "id": "D7uSIlNXYag",
+                "title": "Total global wealth in terms of bitcoin (7/18/25 update)",
+                "duration": 107
+            },
+            {
+                "id": "HD6vcASMA8o",
+                "title": "Bitcoin Target & Block Hashes Animation (5/23/25 Update)",
+                "duration": 108
+            },
+            {
+                "id": "5KTiwi59CUk",
+                "title": "Bitcoin Days Since All Time High Animation (5/21/25 Update)",
+                "duration": 104
+            },
+            {
+                "id": "zob5dUOAcv0",
+                "title": "Bitcoin 1Y, 2Y, 3Y, 4Y Candles Animation (5/18/25 Update)",
+                "duration": 109
+            },
+            {
+                "id": "ieiwq2m9aWg",
+                "title": "Bitcoin: Epoch-Over-Epoch Growth Animation (5/14/25 Update)",
+                "duration": 85
+            },
+            {
+                "id": "EqXouxS5co4",
+                "title": "Bitcoin HODL Waves & Price Animation (5/12/25 Update)",
+                "duration": 108
+            },
+            {
+                "id": "ZMmq4zYUviY",
+                "title": "Bitcoin HODL Waves Animation (5/9/25 Update)",
+                "duration": 108
+            },
+            {
+                "id": "ywthH7eyXOI",
+                "title": "Bitcoin Days Since All Time High (4/30/25 Update)",
+                "duration": 104
+            },
+            {
+                "id": "k_F-Qs57B2U",
+                "title": "Bitcoin: Daily DCA Cost Basis (4/28/25 Update)",
+                "duration": 89
+            },
+            {
+                "id": "iEzOIb8oCPc",
+                "title": "Bitcoin Supply Distribution & Age by Realized Price (4/18/25 Update)",
+                "duration": 203
+            },
+            {
+                "id": "nsAGFlrRDV8",
+                "title": "Bitcoin: Epoch-Over-Epoch Growth Animation (3/23/25 Update)",
+                "duration": 83
+            },
+            {
+                "id": "7uWMertPuGQ",
+                "title": "Top 10 Cryptocurrencies By Market Cap & Bitcoin Dominance (3/8/25 Update)",
+                "duration": 149
+            },
+            {
+                "id": "tLHn38mDXW8",
+                "title": "Bitcoin Target Hash Animation (3/7/25 Update)",
+                "duration": 107
+            },
+            {
+                "id": "yb2p0WnP53M",
+                "title": "Bitcoin: Days Spent at a Loss Animation (3/3/25 Update)",
+                "duration": 99
+            },
+            {
+                "id": "E4HV-xGAXug",
+                "title": "Bitcoin: Supply, Difficulty, & Price Animation (2/18/25 Update)",
+                "duration": 103
+            },
+            {
+                "id": "caPiK1H7xDM",
+                "title": "Bitcoin: Epoch-Over-Epoch Growth Animation (1/28/25 Update)",
+                "duration": 82
+            },
+            {
+                "id": "4WXXZLYgdgA",
+                "title": "Bitcoin Price Distribution Animation (1/13/25 Update)",
+                "duration": 101
+            },
+            {
+                "id": "CmogAUugkDo",
+                "title": "Bitcoin: Compound Annual Growth Rate (CAGR) Animation (12/31/24 Update)",
+                "duration": 76
+            },
+            {
+                "id": "mYK4rZSrBL8",
+                "title": "Bitcoin: Daily DCA Cost Basis (12/16/24 Update)",
+                "duration": 86
+            },
+            {
+                "id": "8e6hTYr9Gv0",
+                "title": "Bitcoin Days Since All Time High (12/3/24 Update)",
+                "duration": 101
+            },
+            {
+                "id": "rFPp6vV80B4",
+                "title": "Bitcoin: Epoch-Over-Epoch Growth Animation (11/25/24 Update)",
+                "duration": 81
+            },
+            {
+                "id": "0izbzc44Qcs",
+                "title": "Bitcoin Stock2FOMO Model (11/13/24 Update)",
+                "duration": 79
+            },
+            {
+                "id": "vMuuL97uqnc",
+                "title": "Bitcoin Price Distribution Animation (11/11/24 Update)",
+                "duration": 100
+            },
+            {
+                "id": "_KfdgZAFMf0",
+                "title": "Bitcoin HODL Waves Animation (11/7/24 Update)",
+                "duration": 100
+            },
+            {
+                "id": "3w4AbAmedVs",
+                "title": "Bitcoin: Compound Annual Growth Rate (CAGR) Animation (10/16/24 Update)",
+                "duration": 74
+            },
+            {
+                "id": "55oRomg3D1Y",
+                "title": "Revisiting The Patoshi Pattern: The Double Helix",
+                "duration": 68
+            },
+            {
+                "id": "sZ7TUop46zU",
+                "title": "Bitcoin HODL Waves Animation (10/1/24 Update)",
+                "duration": 99
+            },
+            {
+                "id": "v-fPWB9r9gk",
+                "title": "Revisiting The Patoshi Pattern",
+                "duration": 1217
+            },
+            {
+                "id": "MPyFfLboOFs",
+                "title": "Bitcoin: Daily DCA Cost Basis (9/24/24 Update)",
+                "duration": 85
+            },
+            {
+                "id": "Xu4R3Ae0yrQ",
+                "title": "Bitcoin Target Hash Animation (9/11/24 Update)",
+                "duration": 103
+            },
+            {
+                "id": "rjLhuqDaTu4",
+                "title": "Average Price: Ground Beef in Average U.S. City, BTC vs USD (9/7/24 Update)",
+                "duration": 95
+            },
+            {
+                "id": "LmUA_rWN4JQ",
+                "title": "Bitcoin Days Since All Time High (9/5/24 Update)",
+                "duration": 99
+            },
+            {
+                "id": "8J2xIqLhcB4",
+                "title": "Bitcoin Supply Distribution Animation (8/31/24 Update)",
+                "duration": 99
+            },
+            {
+                "id": "mnlskhJlWIU",
+                "title": "Bitcoin Market Cap Distribution Animation (8/28/24 Update)",
+                "duration": 99
+            },
+            {
+                "id": "5YDJfqxFaCI",
+                "title": "Bitcoin 200 Day Moving Average & 200 Week Moving Average (8/25/24 Update)",
+                "duration": 94
+            },
+            {
+                "id": "o6TH_eZhYuY",
+                "title": "Bitcoin: Profit vs Loss Animation (8/20/24 Update)",
+                "duration": 94
+            },
+            {
+                "id": "rOyCFVmAEQQ",
+                "title": "Bitcoin: Epoch-Over-Epoch Growth Animation (6/23/24 Update)",
+                "duration": 81
+            },
+            {
+                "id": "xQgY49OSpLE",
+                "title": "Bitcoin Price on This Day Animation (6/12/24 Update)",
+                "duration": 91
+            },
+            {
+                "id": "AcLjBo6c3j8",
+                "title": "Bitcoin Target Hash Animation w/ Tomer Strolight (5/29/24 Update)",
+                "duration": 205
+            },
+            {
+                "id": "y48uAeHwZGg",
+                "title": "Bitcoin Has Officially Processed Over 1 Billion Transactions!",
+                "duration": 97
+            },
+            {
+                "id": "CNkgi1DU7xc",
+                "title": "Bitcoin 10-of-10 Multisig Testing with Sparrow and Nunchuk Wallet",
+                "duration": 830
+            },
+            {
+                "id": "_91klH3VsfE",
+                "title": "Bitcoin: Compound Annual Growth Rate (CAGR) Animation (4/26/24 Update)",
+                "duration": 71
+            },
+            {
+                "id": "HYjOrFqu3Ps",
+                "title": "Bitcoin 1/2/3/4 Year Window Animation (4/17/24 Update)",
+                "duration": 283
+            },
+            {
+                "id": "mVgPoQrbi7A",
+                "title": "Verifying Dice Roll Seed Generation with the SeedSigner, Coldcard, & Keystone",
+                "duration": 840
+            },
+            {
+                "id": "iWh0lfbvdLQ",
+                "title": "Coinkite Tapsigner Recovery using a Coldcard with Sparrow Wallet",
+                "duration": 943
+            },
+            {
+                "id": "6ojBttz49cA",
+                "title": "Importing a Coldcard Bitcoin Wallet (& Labels from Sparrow) into Nunchuk",
+                "duration": 1087
+            },
+            {
+                "id": "xDKxX42hHzM",
+                "title": "Bitcoin Price Distribution Animation (3/22/24 Update)",
+                "duration": 96
+            },
+            {
+                "id": "Xd2T6I_fuRU",
+                "title": "Bitcoin: Epoch-Over-Epoch Growth Animation (3/7/24 Update)",
+                "duration": 76
+            },
+            {
+                "id": "qkBrK1Oaqkw",
+                "title": "Total global wealth in terms of bitcoin (3/4/24 update)",
+                "duration": 97
+            },
+            {
+                "id": "BnHLSB08W2M",
+                "title": "Bitcoin UTXO Management with Nunchuk Wallet",
+                "duration": 1630
+            },
+            {
+                "id": "P88istScPxM",
+                "title": "Bitcoin Daily DCA & HODL Animation (2/13/24 Update)",
+                "duration": 81
+            },
+            {
+                "id": "lBnOgWbo-0A",
+                "title": "Bitcoin: Profit vs Loss Animation (1/9/24 Update)",
+                "duration": 90
+            },
+            {
+                "id": "qxOhCvot77I",
+                "title": "Create & Verify Your Bitcoin Seed Phrase Using Dice + Coldcard + SeedSigner",
+                "duration": 443
+            },
+            {
+                "id": "M5-yY2XWdKM",
+                "title": "Download, Verify, & Flash SeedSigner v0.7.0 Software",
+                "duration": 724
+            },
+            {
+                "id": "k-58GrK6A8k",
+                "title": "Bitcoin Complete Price History (7/17/2010 - 11/12/2023)",
+                "duration": 11679
+            },
+            {
+                "id": "PBsmDwZFR6c",
+                "title": "We've officially mined 93% of all the bitcoin",
+                "duration": 94
+            },
+            {
+                "id": "4YC4vhCHNyE",
+                "title": "Bitcoin 1-Month Candles Animation (10/21/23 Update)",
+                "duration": 165
+            },
+            {
+                "id": "PPNOJLn3hQs",
+                "title": "Bitcoin-Only BitBox02 Setup & Import Into Sparrow Wallet",
+                "duration": 1310
+            },
+            {
+                "id": "b3nk4bj4vEA",
+                "title": "Bitcoin Seed Phrase Metal Backup Comparison & Demonstration",
+                "duration": 1567
+            },
+            {
+                "id": "32SZtxE0sWQ",
+                "title": "Coinkite BLOCKCLOCK Comparison - mini vs. micro",
+                "duration": 422
+            },
+            {
+                "id": "NvE5uUm6Jzc",
+                "title": "Bitcoin Issuance",
+                "duration": 143
+            },
+            {
+                "id": "l3VjHwheLX8",
+                "title": "Assembling Coldcard Mk4 3D printed battery case from BeansBulletsBTC",
+                "duration": 126
+            },
+            {
+                "id": "PnWZPgo5jbc",
+                "title": "Importing an Airgapped Coldcard Bitcoin Wallet into Sparrow Wallet",
+                "duration": 541
             }]
     },
     {
@@ -7526,6 +8096,36 @@ var STATIONS = [
                 "id": "2pDlaOGA2ac",
                 "title": "Bitcoin: Everything there is, divided by 21 million",
                 "duration": 547
+            },
+            {
+                "id": "8jUsgjRhxlI",
+                "title": "JUST IN - 95% of the 21 million bitcoin has now been mined!",
+                "duration": 108
+            },
+            {
+                "id": "MzxIZ4_f3e0",
+                "title": "JUST IN - 94.5% of the 21 million bitcoin has now been mined!",
+                "duration": 105
+            },
+            {
+                "id": "yG3QiyCLoDA",
+                "title": "Bitcoin Halving Progress Animation (9/12/24 Update)",
+                "duration": 99
+            },
+            {
+                "id": "_dKDHAsNAV4",
+                "title": "JUST IN - 94% of the 21 million bitcoin has now been mined!",
+                "duration": 99
+            },
+            {
+                "id": "ym28FC_tbNM",
+                "title": "The Bitcoin Halving: Why use the bitwise shift operation?",
+                "duration": 553
+            },
+            {
+                "id": "-wB6Si4jZYc",
+                "title": "How the Bitcoin Halving Works (Code Walkthrough)",
+                "duration": 737
             }]
     },
     {
@@ -7709,6 +8309,71 @@ var STATIONS = [
                 "id": "9ExAt9EUCNc",
                 "title": "How to be remembered forever",
                 "duration": 463
+            },
+            {
+                "id": "281Gal2xztI",
+                "title": "Bitcoin Quantum Exposure Dashboard (FULL) — Download & Walkthrough",
+                "duration": 1419
+            },
+            {
+                "id": "_Qxm70pFM4E",
+                "title": "Bitcoin Quantum Exposure Dashboard — Walkthrough",
+                "duration": 992
+            },
+            {
+                "id": "GbEJ0neZkxQ",
+                "title": "WSB Update & Bitcoin Dominance Dashboard — Walkthrough",
+                "duration": 469
+            },
+            {
+                "id": "-oujfwYj-zc",
+                "title": "Bitcoin Node Count Dashboard — Walkthrough",
+                "duration": 352
+            },
+            {
+                "id": "pWmgu5eA4y4",
+                "title": "Evil RBFer Scenario Walkthrough using Sparrow Wallet",
+                "duration": 783
+            },
+            {
+                "id": "7EmshGDXi04",
+                "title": "Bitcoin Replace By Fee & Child Pays For Parent Tutorial using Sparrow Wallet",
+                "duration": 911
+            },
+            {
+                "id": "MlHa66QdLH4",
+                "title": "Bitcoin Difficulty Epoch 416 Walkthrough",
+                "duration": 147
+            },
+            {
+                "id": "z3sldY-4ZKM",
+                "title": "How to Check, Delete, & Recover a Bitcoin Seed Phrase",
+                "duration": 1746
+            },
+            {
+                "id": "tlQGO-Na7Io",
+                "title": "How to Transfer Your Bitcoin from Ledger to Coldcard",
+                "duration": 1523
+            },
+            {
+                "id": "1LhcDJ8bgQU",
+                "title": "Bitcoin RBF (Replace By Fee) Tutorial",
+                "duration": 1077
+            },
+            {
+                "id": "mOCUqbFQ57o",
+                "title": "Bitcoin Daily DCA & HODL Animation Walkthrough",
+                "duration": 695
+            },
+            {
+                "id": "k5h7A7kRM8Y",
+                "title": "How to make a 24 word Bitcoin seed phrase with 256 coins",
+                "duration": 236
+            },
+            {
+                "id": "krrUQGMKhPo",
+                "title": "Bitcoin UTXO Consolidation Tutorial",
+                "duration": 879
             }]
     }
 ];
