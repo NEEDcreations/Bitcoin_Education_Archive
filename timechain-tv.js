@@ -10937,7 +10937,6 @@ window.switchStation = function(stationId, forceUpdate) {
 
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
-};
 
     // #4 Pre-fetch next/prev
     try {
