@@ -9784,27 +9784,118 @@ window.tctvDirectChannel = function(val) {
 // ────────────────────────────────────────────────────────
 // Curated featured bitcoiners per channel (visible in the Guide modal).
 var _CHANNEL_FEATURED = {
-    'art-philosophy': ['Robert Breedlove', 'Knut Svanholm', 'Allen Farrington', 'Gigi'],
-    'conferences-events': ['Bitcoin 2024 Nashville', 'BTC Prague', 'MIT Bitcoin Expo', 'Bitcoin Atlantis', 'Adopting Bitcoin'],
-    'culture-travel': ['Max Keiser', 'Stacy Herbert', 'Paco de la India', 'Aleksandar Svetski', 'Bitcoin Beach'],
-    'dev-privacy-nodes': ['Adam Back', 'Jameson Lopp', 'Matt Corallo', 'Peter Todd', 'Andreas Antonopoulos'],
-    'documentaries': ['Bitcoin: The End of Money As We Know It', 'Hard Money', 'God Bless Bitcoin', 'This Machine Greens'],
-    'economics-money': ['Lyn Alden', 'Saifedean Ammous', 'Jeff Booth', 'Greg Foss', 'Luke Gromen', 'Preston Pysh'],
-    'freedom-sovereignty': ['Edward Snowden', 'Alex Gladstein', 'Jameson Lopp', 'Erik Cason', 'Andreas Antonopoulos'],
-    'health-fitness': ['Saifedean Ammous', 'Aleks Svetski', 'Anders Larsson', 'Bitcoin Mindset'],
-    'history': ['Andreas Antonopoulos', 'Adam Back', 'Hal Finney tributes', 'Wei Dai', 'Cypherpunks'],
-    'kids-family': ['Tuttle Twins', 'Bitcoin for Kids', 'Scott Beebe', 'Family Bitcoin'],
-    'lightning': ['Elizabeth Stark', 'Roy Sheinfeld', 'Lyn Alden (Lightning piece)', 'Olaoluwa Osuntokun (Roasbeef)', 'Strike / Jack Mallers'],
-    'memes-comedy': ['Lil Bubble', 'Hitler Reacts to Bitcoin Cash', 'Crypto Comedy', 'BTC Memes'],
-    'mining': ['The Hobbyist Miner', 'Marathon Digital', 'Riot Platforms', 'Compass Mining', 'CleanSpark'],
-    'music': ['Lil Bubble', 'Captain Youth', 'The Higher Low', 'Bitcoin House', 'Saylor Bitcoin Remixes'],
-    'news': ['Whale Wire', 'Bitcoin Magazine', 'Daily Bitcoin Updates', 'Market Briefings'],
-    'orange-pill': ['Andreas Antonopoulos', 'The Bitcoin Fix', 'Ioni Appelberg', 'Robert Breedlove', 'Saifedean Ammous'],
-    'podcasts-debates': ['Joe Rogan', 'Lex Fridman', 'Peter McCormack (WBD)', 'What Bitcoin Did', 'Pomp Podcast', 'Tom Bilyeu'],
-    'politics-regulation': ['Senator Cynthia Lummis', 'Brian Armstrong', 'Caitlin Long', 'Donald Trump (BTC 2024)', 'Bitcoin Policy Institute'],
-    'saylor': ['Michael Saylor', 'Phong Le', 'Jeff Walton', 'Simon Gerovich (Metaplanet)', 'Strive Asset Management', 'Strategy ($MSTR)'],
-    'future-predictions': ['Plan B (S2F)', 'Willy Woo', 'PlanB', 'Lyn Alden', 'Wicked Smart Bitcoin'],
-    'tutorials': ['Builders In Bitcoin podcast', 'Wicked Smart Bitcoin', 'NVK (Coinkite)', 'SeedSigner team', 'The Hobbyist Miner', 'BTCSessions']
+    'art-philosophy': [
+        'FractalEncrypt', 'Based Trading Cards', 'Bitcoin Art Podcast', 'Amy DiGi',
+        'Yonat Vaks', 'Anik Malcolm', 'Robert Breedlove', 'Knut Svanholm',
+        'Allen Farrington', 'Gigi', 'Ordinals', 'Bitcoin Bull Statue'
+    ],
+    'conferences-events': [
+        'Bitcoin 2024 Nashville', 'BTC Prague', 'MIT Bitcoin Expo', 'Bitcoin Atlantis',
+        'Adopting Bitcoin', 'Strategy World', 'Bitcoin MENA', 'Bitcoin Asia',
+        'TABConf', 'Bitcoin Amsterdam', 'Open Source Stage', 'Paris Blockchain Week'
+    ],
+    'culture-travel': [
+        'Max Keiser', 'Stacy Herbert', 'Paco de la India', 'Aleksandar Svetski',
+        'Bitcoin Beach (El Salvador)', 'Bukele\'s El Salvador', 'BTC Map', 'Africa Bitcoin',
+        'Lugano Plan B', 'Madeira', 'Citadel21', 'Built With Bitcoin Foundation'
+    ],
+    'dev-privacy-nodes': [
+        'Adam Back', 'Jameson Lopp', 'Matt Corallo', 'Peter Todd', 'Andreas Antonopoulos',
+        'Roasbeef (Olaoluwa Osuntokun)', 'Pieter Wuille', 'Greg Maxwell', 'Wasabi Wallet',
+        'Samourai Wallet', 'Bitcoin Magazine', 'Open Source Stage', 'Sparrow Wallet'
+    ],
+    'documentaries': [
+        'Bitcoin: The End of Money As We Know It', 'Hard Money', 'God Bless Bitcoin',
+        'This Machine Greens', 'Banking on Bitcoin', 'The Rise & Rise of Bitcoin',
+        'Stacked Studios', 'Swan Bitcoin', 'BTC: Bitcoin', 'Magic Internet Money'
+    ],
+    'economics-money': [
+        'Lyn Alden', 'Saifedean Ammous', 'Jeff Booth', 'Greg Foss', 'Luke Gromen',
+        'Preston Pysh', 'Andy Edstrom', 'James Lavish', 'Lawrence Lepard',
+        'Mike Maloney', 'Rafael Yakobi', 'The Bitcoin Standard', 'Hidden Forces'
+    ],
+    'freedom-sovereignty': [
+        'Edward Snowden', 'Alex Gladstein', 'Jameson Lopp', 'Erik Cason',
+        'Andreas Antonopoulos', 'Human Rights Foundation', 'Roya Mahboob', 'Farida Nabourema',
+        'Anita Posch', 'Ross Ulbricht', 'Erik Voorhees', 'Caitlin Long'
+    ],
+    'health-fitness': [
+        'Saifedean Ammous', 'Aleks Svetski', 'Anders Larsson', 'Bitcoin Mindset',
+        'Tom Bilyeu', 'Carnivore MD (Paul Saladino)', 'Jordan Peterson on time preference',
+        'Bitcoin & Beef', 'Texas Slim', 'The Beef Initiative', 'Low Time Preference'
+    ],
+    'history': [
+        'Andreas Antonopoulos', 'Adam Back', 'Hal Finney', 'Wei Dai', 'Nick Szabo',
+        'Cypherpunks', 'Satoshi Nakamoto', 'Mt. Gox', 'Pizza Day', 'Patoshi Pattern',
+        'X/D/M/L-coins', 'Genesis Block', 'Bitcoin Magazine archives'
+    ],
+    'kids-family': [
+        'Tuttle Twins', 'Bitcoin for Kids', 'Scott Beebe', 'Family Bitcoin',
+        'Stacy Herbert', 'Bitcoin Buddies', 'Heart Bitcoin', 'Q the Lightning',
+        'Bitcoin Books for Children', 'Hodl Camp'
+    ],
+    'lightning': [
+        'Elizabeth Stark (Lightning Labs)', 'Roy Sheinfeld (Breez)', 'Roasbeef',
+        'Strike / Jack Mallers', 'Wallet of Satoshi', 'Phoenix Wallet', 'Alby',
+        'Mutiny Wallet', 'Voltage', 'NWC (Nostr Wallet Connect)', 'LNbits',
+        'Zaprite', 'The Bitcoin Layer'
+    ],
+    'memes-comedy': [
+        'Lil Bubble', 'Crypto Casey skits', 'Hitler Reacts to Bitcoin Cash',
+        'Bitcoin Memes Compilation', 'Sigma Saylor', 'Crypto Boy parody',
+        'Rug Star (Smash Mouth parody)', 'WHATS DROPPIN parody', 'The Crypto Verse',
+        'Bitcoin Boomer reacts', 'Drake "Started From the Bottom" parody'
+    ],
+    'mining': [
+        'The Hobbyist Miner', 'Marathon Digital', 'Riot Platforms', 'Compass Mining',
+        'CleanSpark', 'Hut 8', 'Bitaxe', 'NerdMiner', 'Modern Mining', 'Your Friend Andy',
+        'Sebs FinTech Channel', 'Antminer', 'Whatsminer', 'Off-Grid Mining', 'Solo Miner'
+    ],
+    'music': [
+        'Lil Bubble', 'Captain Youth', 'The Higher Low', 'Bitcoin House Vol. 1 & 2',
+        'Saylor Bitcoin House Remixes', 'WAGMI anthem', 'Satoshi As My Witness',
+        '100 RACKS Bitcoin Anthem', 'Gary Gensler - Smells Like Securities',
+        'Crypto Christmas EP', 'There Is No Second Best (remix)', 'LFG'
+    ],
+    'news': [
+        'Whale Wire', 'Bitcoin Magazine', 'Daily Bitcoin Updates', 'Market Briefings',
+        '60 Minutes Bitcoin Beach', 'Bloomberg Crypto', 'CNBC Squawk Box',
+        'BlockTV', 'Coindesk TV', 'Real Vision', 'Wicked Smart Bitcoin updates'
+    ],
+    'orange-pill': [
+        'Andreas Antonopoulos', 'The Bitcoin Fix', 'Ioni Appelberg', 'Robert Breedlove',
+        'Saifedean Ammous', 'Knut Svanholm', 'Lyn Alden', 'BTCSessions',
+        'Get Based TV', 'Simply Bitcoin', 'Swan Bitcoin', 'Bitcoin University'
+    ],
+    'podcasts-debates': [
+        'Joe Rogan', 'Lex Fridman', 'Peter McCormack (WBD)', 'What Bitcoin Did',
+        'Pomp Podcast', 'Tom Bilyeu (Impact Theory)', 'Stephan Livera Podcast',
+        'Bitcoin Audible', 'TFTC (Marty Bent)', 'Once Bitten', 'Bitcoin Layer Podcast',
+        'Bitcoin Magazine Podcast', 'Saifedean Podcast', 'Coin Stories (Natalie Brunell)'
+    ],
+    'politics-regulation': [
+        'Sen. Cynthia Lummis', 'Brian Armstrong (Coinbase)', 'Caitlin Long',
+        'Donald Trump (BTC 2024)', 'Bitcoin Policy Institute', 'David Zell',
+        'Grant McCarty', 'Vivek Ramaswamy', 'RFK Jr.', 'Sen. Tim Scott',
+        'Gary Gensler (the SEC saga)', 'Custodia Bank', 'Strategic Bitcoin Reserve'
+    ],
+    'saylor': [
+        'Michael Saylor', 'Phong Le', 'Jeff Walton', 'Simon Gerovich (Metaplanet)',
+        'Strive Asset Management', 'Strategy ($MSTR)', 'True North Podcast',
+        'Hurdle Rate Podcast', 'Bitcoin for Corporations (BFC)', 'STRC / STRF / STRK / STRD',
+        'Adam Livingston', 'Dylan LeClair', 'George Mekhail', 'Tim Kotzman'
+    ],
+    'future-predictions': [
+        'PlanB (Stock-to-Flow)', 'Willy Woo', 'Lyn Alden', 'Wicked Smart Bitcoin',
+        'Bitcoin Power Law', 'Pi Cycle Top', 'NUPL', 'MVRV', 'Puell Multiple',
+        'Rainbow Chart', 'Bitcoin Halving Models', 'Saylor $13M target', '$1M Bitcoin'
+    ],
+    'tutorials': [
+        'Builders In Bitcoin podcast', 'Wicked Smart Bitcoin', 'NVK (Coinkite)',
+        'SeedSigner team', 'The Hobbyist Miner', 'BTCSessions', 'Sparrow Wallet tutorials',
+        'Coldcard guides', 'Nunchuk', 'Umbrel', 'Start9', 'RaspiBlitz', 'MyNode',
+        'Bitaxe builds', 'NerdMiner builds', 'Voltage Lightning', 'CuriousInventor'
+    ]
 };
 
 window.tctvOpenGuide = function() {
