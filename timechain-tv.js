@@ -9724,8 +9724,16 @@ function checkDrift() {
 
 // ── Remote Functions ──
 window.tctvRemoteChannel = function(dir) {
+    // Defensive: if _currentStation is somehow unset, bail to CH 1 instead of wrapping weirdly
+    if (!_currentStation) { window.switchStation(STATIONS[0].id); return; }
     var idx = STATIONS.findIndex(function(s) { return s.id === _currentStation; });
+    if (idx < 0) {
+        console.warn('[TCTV] Remote: current station not in STATIONS array:', _currentStation);
+        window.switchStation(STATIONS[0].id);
+        return;
+    }
     var nextIdx = (idx + dir + STATIONS.length) % STATIONS.length;
+    console.log('[TCTV] Remote CH', (dir > 0 ? '▲' : '▼'), '| from CH', idx+1, '(' + _currentStation + ') → CH', nextIdx+1, '(' + STATIONS[nextIdx].id + ')');
     window.switchStation(STATIONS[nextIdx].id);
 };
 
