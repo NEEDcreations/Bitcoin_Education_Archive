@@ -10458,6 +10458,8 @@ window.renderTimechainTV = function() {
     if (window._tctvActive && document.getElementById('tctv-player')) return;
     window._tctvActive = true;
     _isPaused = false;
+    // Add body class so CSS can hide non-TCTV chrome on mobile (sign-up banner etc.)
+    document.body.classList.add('tctv-active');
     if (typeof _tctvHideSpriteNacho === 'function') _tctvHideSpriteNacho();
 
     showWhiteNoise(function() {
@@ -10535,6 +10537,12 @@ window.renderTimechainTV = function() {
             }
             #tctv-epg-container { height: auto !important; min-height: 100% !important; }
         }
+        /* Hide chrome that competes with TCTV on mobile (sign-up banner, user-display) */
+        @media (max-width: 900px) {
+            body.tctv-active #userDisplay,
+            body.tctv-active #signinBanner,
+            body.tctv-active .signin-banner { display: none !important; }
+        }
         /* Mobile/Tablet — horizontal in-flow remote bar below video (overrides the legacy fixed vertical style) */
         @media (max-width: 900px) {
             #tctv-remote {
@@ -10557,21 +10565,46 @@ window.renderTimechainTV = function() {
             }
             #tctv-remote.collapsed { transform: none !important; opacity: 1 !important; }
         }
-        /* Mobile — aggressive resizing for small screens */
+        /* Mobile — aggressive resizing for small screens.
+           Phil's request: 2/3 video, 1/3 channel guide — BOTH visible without
+           scrolling. Account for sticky header (~140px: site nav + TCTV nav +
+           remote bar + NOW PLAYING strip) and bottom mobile nav (~70px).
+           Available for video+EPG = ~calc(100vh - 210px). Split 2:1. */
         @media (max-width: 768px) {
             #tctv-remote { padding: 4px 6px !important; gap: 4px !important; }
             .remote-btn { width: 32px !important; height: 32px !important; font-size: 0.8rem !important; }
-            
-            #tctv-video-container { height: 55vh !important; max-height: 55vh !important; min-height: 40vh !important; }
-            #tctv-player { max-height: 55vh !important; }
-            #tctv-epg-wrapper { 
-                height: 40vh !important; 
-                max-height: 40vh !important; 
-                overflow-y: auto !important; 
+
+            /* Video: ~2/3 of remaining space, but capped so it doesn't squash EPG to nothing */
+            #tctv-video-container {
+                height: calc((100vh - 210px) * 0.62) !important;
+                max-height: calc((100vh - 210px) * 0.62) !important;
+                min-height: 200px !important;
+            }
+            #tctv-player { max-height: calc((100vh - 210px) * 0.62) !important; height: 100% !important; }
+
+            /* EPG (channel guide): ~1/3 of remaining space, scrollable */
+            #tctv-epg-wrapper {
+                height: calc((100vh - 210px) * 0.36) !important;
+                max-height: calc((100vh - 210px) * 0.36) !important;
+                min-height: 140px !important;
+                overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
+                background: #0a0a0a !important;
+                position: relative !important;
+                z-index: 5 !important;
+                margin-top: 4px !important;
             }
             #tctv-epg-container { height: auto !important; min-height: 100% !important; }
+
+            /* Hide the in-line ad block that pushes EPG further down on mobile */
+            #tctv-ad-mobile { display: none !important; }
+        }
+        /* Very short screens (landscape phones) — pull video down to keep EPG visible */
+        @media (max-width: 768px) and (max-height: 600px) {
+            #tctv-video-container { height: calc((100vh - 180px) * 0.6) !important; max-height: calc((100vh - 180px) * 0.6) !important; }
+            #tctv-player { max-height: calc((100vh - 180px) * 0.6) !important; }
+            #tctv-epg-wrapper { height: calc((100vh - 180px) * 0.38) !important; max-height: calc((100vh - 180px) * 0.38) !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
         @keyframes tctvGuideFade { from { opacity: 0; } to { opacity: 1; } }
@@ -11143,6 +11176,7 @@ window.cleanupTimechainTV = function() {
     if (iframe) iframe.src = '';
     _currentVideoId = null;
     window._tctvActive = false;
+    document.body.classList.remove('tctv-active');
     var s = document.getElementById('tctv-remote-styles');
     if (s) s.remove();
     if (typeof _tctvRestoreSpriteNacho === 'function') _tctvRestoreSpriteNacho();
