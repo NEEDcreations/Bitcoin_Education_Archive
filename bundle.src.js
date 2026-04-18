@@ -23371,6 +23371,16 @@ window._tctvStartTracker = function() {
         window._tctvMinutesSession++;
         console.log('[TCTV] Watch time:', total, 'min (Session:', window._tctvMinutesSession, 'min)');
 
+        // Bump global community stats counter (one +1 per minute, non-anonymous only)
+        try {
+            if (typeof db !== 'undefined' && typeof firebase !== 'undefined'
+                && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+                db.collection('stats').doc('global').set({
+                    watchTimeMinutes: firebase.firestore.FieldValue.increment(1)
+                }, { merge: true }).catch(function(){});
+            }
+        } catch(e) {}
+
         // Every 10 minutes (cumulative) award 10 points
         if (total % 10 === 0) {
             if (typeof awardPoints === 'function') {
