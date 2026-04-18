@@ -10699,7 +10699,7 @@ window.renderTimechainTV = function() {
     // Center - Video player (takes full center/right area, fixed remote floats on top)
     html += '<div style="flex:1 1 auto;min-width:0;width:100%;" class="tctv-video-wrap">' +
             '<div style="position:relative;aspect-ratio:16/9;max-height:55vh;width:100%;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
-            '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
+            '<div id="tctv-sync-btn" style="position:absolute;bottom:20px;left:20px;display:none;z-index:6;">' +
                 '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
             '</div>' +
             '<div id="tctv-player"></div>' +
