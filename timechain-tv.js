@@ -10529,22 +10529,23 @@ window.renderTimechainTV = function() {
     var style = document.createElement('style');
     style.id = 'tctv-remote-styles';
     style.textContent = `
-        /* Desktop: sidebar layout (couch left, video center, remote right) */
-        @media (min-width: 901px) {
-            #tctv-ad-sidebar.desktop-only, #tctv-remote-sidebar.desktop-only { display: block !important; }
+        /* Desktop & Tablet: sidebar layout (couch left, video center, wide remote right) */
+        @media (min-width: 768px) {
+            #tctv-ad-sidebar, #tctv-remote-sidebar { display: block !important; }
             #tctv-remote { display: none !important; }
         }
-        @media (max-width: 900px) {
+        @media (max-width: 767px) {
             #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
             #tctv-remote { display: flex !important; }
         }
-        /* Legacy fixed-position elements (hidden on desktop with sidebar layout) */
-        #tctv-remote { position: fixed; right: 0px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px 0 0 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; align-items: center; }
-        #tctv-remote.collapsed { transform: translateX(70px); opacity: 0.6; }
-        #tctv-remote:hover, #tctv-remote:active, #tctv-remote:focus-within { opacity: 1; transform: translateX(0); }
+        /* Style for the wide 160px sidebar remote (Desktop/Tablet) */
         #tctv-remote-inline { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         #tctv-remote-inline.collapsed { transform: translateX(120px); opacity: 0.5; }
         #tctv-remote-inline:hover { opacity: 1; transform: translateX(0); }
+
+        /* Legacy fixed-position elements - HIDDEN by default, only shown via specific logic if needed */
+        #tctv-remote-fixed-legacy { position: fixed; right: 0px; top: 160px; width: 80px; background: #222; border: 3px solid #111; border-radius: 20px 0 0 20px; padding: 15px 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1); z-index: 200000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: none; flex-direction: column; gap: 12px; align-items: center; }
+
         .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
         .remote-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #111; }
         .remote-btn.red { background: #dc2626; border-color: #ef4444; }
@@ -10555,15 +10556,12 @@ window.renderTimechainTV = function() {
         #nacho-couch { position: fixed; left: 20px; bottom: 140px; z-index: 200000; pointer-events: none; transition: 0.5s; display: none; }
         #nacho-couch-restore { position: fixed; left: 20px; bottom: 140px; z-index: 200001; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #f7931a, #ea580c); border: 2px solid rgba(255,255,255,0.3); color: #fff; font-size: 1.5rem; display: none; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(247,147,26,0.4); transition: transform 0.2s, box-shadow 0.2s; touch-action: none; }
         #nacho-couch-restore:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(247,147,26,0.6); }
-        @media (max-width: 900px) { #nacho-couch-restore { left: 10px; bottom: 100px; width: 44px; height: 44px; font-size: 1.3rem; } }
-        @media (min-width: 901px) {
+        @media (max-width: 767px) { #nacho-couch-restore { left: 10px; bottom: 100px; width: 44px; height: 44px; font-size: 1.3rem; } }
+        @media (min-width: 768px) {
             #nacho-couch { display: block; }
         }
-        /* Tablets and Laptops — Sidebar layout but vertical split logic */
-        @media (max-width: 1280px) { 
-            #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
-            #tctv-remote { display: flex !important; }
-            
+        /* Tablets and Laptops — Full horizontal width for video */
+        @media (min-width: 768px) and (max-width: 1280px) { 
             .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
             /* Video takes top 2/3 (~66vh) */
             #tctv-video-container { 
@@ -10589,13 +10587,13 @@ window.renderTimechainTV = function() {
             #tctv-epg-container { height: auto !important; min-height: 100% !important; }
         }
         /* Hide chrome that competes with TCTV on mobile (sign-up banner, user-display) */
-        @media (max-width: 900px) {
+        @media (max-width: 767px) {
             body.tctv-active #userDisplay,
             body.tctv-active #signinBanner,
             body.tctv-active .signin-banner { display: none !important; }
         }
-        /* Mobile/Tablet — horizontal in-flow remote bar below video (overrides the legacy fixed vertical style) */
-        @media (max-width: 900px) {
+        /* Mobile — horizontal in-flow remote bar below video (overrides the legacy fixed vertical style) */
+        @media (max-width: 767px) {
             #tctv-remote {
                 position: static !important;
                 top: auto !important; right: auto !important;
@@ -10616,12 +10614,8 @@ window.renderTimechainTV = function() {
             }
             #tctv-remote.collapsed { transform: none !important; opacity: 1 !important; }
         }
-        /* Mobile — aggressive resizing for small screens.
-           Phil's request: 2/3 video, 1/3 channel guide — BOTH visible without
-           scrolling. Account for sticky header (~140px: site nav + TCTV nav +
-           remote bar + NOW PLAYING strip) and bottom mobile nav (~70px).
-           Available for video+EPG = ~calc(100vh - 210px). Split 2:1. */
-        @media (max-width: 768px) {
+        /* Mobile — aggressive resizing for small screens. */
+        @media (max-width: 767px) {
             #tctv-remote { padding: 4px 6px !important; gap: 4px !important; }
             .remote-btn { width: 32px !important; height: 32px !important; font-size: 0.8rem !important; }
 
@@ -10685,16 +10679,15 @@ window.renderTimechainTV = function() {
             '<button id="tctv-ad-restore-desktop" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:0 auto;" title="Show ad">\ud83d\udcfa</button>' +
             '</div>';
     // Center - Video player
-    html += '<div style="flex:1 1 auto;max-width:calc(100% - 150px);min-width:0;" class="tctv-video-wrap">' +
-            '<div style="position:relative;aspect-ratio:16/9;max-height:55vh;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
+    html += '<div style="flex:1 1 auto;max-width:calc(100% - 170px);min-width:0;width:100%;" class="tctv-video-wrap">' +
+            '<div style="position:relative;aspect-ratio:16/9;max-height:55vh;width:100%;max-width:1100px;margin:0 auto;background:#000;overflow:hidden;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.5);" id="tctv-video-container">' +
             '<div id="tctv-sync-btn" style="position:absolute;bottom:60px;right:20px;display:none;z-index:6;">' +
                 '<button onclick="syncPlayer()" style="background:#f7931a;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:900;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.5);">⚡ JUMP TO LIVE</button>' +
             '</div>' +
             '<div id="tctv-player"></div>' +
             '</div></div>';
-    // Right side - Remote (desktop only, inside layout flow)
-    // Wider 2-column layout: PWR/GUIDE on top, then CH+VOL columns side-by-side, then PLAY/BACK
-    html += '<div id="tctv-remote-sidebar" style="flex:0 0 auto;display:none;" class="desktop-only">' +
+    // Right side - Remote (desktop/tablet only, inside layout flow)
+    html += '<div id="tctv-remote-sidebar" style="flex:0 0 auto;">' +
             '<div id="tctv-remote-inline" class="collapsed" style="width:160px;background:#222;border:3px solid #111;border-radius:20px;padding:14px 12px;box-shadow:0 10px 40px rgba(0,0,0,0.8),inset 0 2px 5px rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:10px;align-items:center;">' +
             '<div onclick="tctvToggleRemote()" style="width:40px;height:5px;background:#444;border-radius:3px;cursor:pointer;"></div>' +
             // Top row: PWR + GUIDE
