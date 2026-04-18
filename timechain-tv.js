@@ -10625,13 +10625,15 @@ window.renderTimechainTV = function() {
             #tctv-remote { padding: 4px 6px !important; gap: 4px !important; }
             .remote-btn { width: 32px !important; height: 32px !important; font-size: 0.8rem !important; }
 
-            /* Video: ~2/3 of remaining space, but capped so it doesn't squash EPG to nothing */
+            /* Video: Capped at 100% width to prevent horizontal scroll */
             #tctv-video-container {
+                width: 100% !important;
+                max-width: 100% !important;
                 height: calc((100vh - 210px) * 0.62) !important;
                 max-height: calc((100vh - 210px) * 0.62) !important;
                 min-height: 200px !important;
             }
-            #tctv-player { max-height: calc((100vh - 210px) * 0.62) !important; height: 100% !important; }
+            #tctv-player { width: 100% !important; max-height: calc((100vh - 210px) * 0.62) !important; height: 100% !important; }
 
             /* EPG (channel guide): ~1/3 of remaining space, scrollable */
             #tctv-epg-wrapper {
@@ -10662,12 +10664,12 @@ window.renderTimechainTV = function() {
     `;
     document.head.appendChild(style);
 
-    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;">';
+    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;overflow-x:hidden;">';
 
-    html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
+    html += '<div style="position:sticky;top:0;z-index:100;background:#0a0a0a;width:100%;overflow-x:hidden;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
     // Desktop: side-by-side layout with couch left, video center, remote right
-    html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
     var _tctvAdMinimized = false;
     try { _tctvAdMinimized = localStorage.getItem('tctv_ad_minimized') === '1'; } catch(e) {}
     // Left side - TCTV Ad (desktop only)
@@ -10905,28 +10907,6 @@ window.switchStation = function(stationId, forceUpdate) {
         setTimeout(function() { _syncYTVolume(); }, 200);
     }
 
-    // Re-assert loop (belt-and-suspenders)
-    (function reassertTitle() {
-        var deadline = Date.now() + 2000;
-        var iv = setInterval(function() {
-            if (Date.now() > deadline || _currentStation !== stationId) {
-                clearInterval(iv); return;
-            }
-            var el = document.getElementById('tctv-now-playing');
-            if (!el) return;
-            var liveState = getPlaybackState(stationObj);
-            if (liveState && liveState.video) {
-                var sig = stationId + '|' + liveState.video.id;
-                if (el.getAttribute('data-current-sig') !== sig) {
-                    el.textContent = liveState.video.title;
-                    el.setAttribute('data-current-vid', liveState.video.id);
-                    el.setAttribute('data-current-sig', sig);
-                    _updateChNum();
-                }
-            }
-        }, 200);
-    })();
-
     // Sidebar highlight
     document.querySelectorAll('[data-station-id]').forEach(function(el) {
         var isActive = el.getAttribute('data-station-id') === stationId;
@@ -10935,7 +10915,13 @@ window.switchStation = function(stationId, forceUpdate) {
         if (nameEl) nameEl.style.color = isActive ? '#f7931a' : '#ccc';
     });
 
+    // #3 Sound effect
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
+
+    // Run a timeline update IMMEDIATELY to snap the header accurately
+    updateTimeline();
+
+    // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
 
     // #4 Pre-fetch next/prev
