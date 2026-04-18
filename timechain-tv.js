@@ -3789,6 +3789,7 @@ var STATIONS = [
         "desc": "Bitcoin songs, rap & music videos",
         "color": "#ec4899",
         "videos": [
+            {"id": "28PadE9ARDg", "title": "MusicSnake - Cold Storage [Hardware Wallet Crypto Song]", "duration": 206},
             {
                 "id": "IrcN-zmCZMI",
                 "title": "If It Was Not For Satoshi - Robbie P",
@@ -4138,11 +4139,6 @@ var STATIONS = [
                 "id": "248Zbw1oPnw",
                 "title": "Enhancer",
                 "duration": 203
-            },
-            {
-                "id": "28PadE9ARDg",
-                "title": "MusicSnake - Cold Storage (Hardware Wallet Song)",
-                "duration": 206
             },
             {
                 "id": "pADgAmNzxek",
