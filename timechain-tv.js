@@ -8422,21 +8422,10 @@ window.tctvAdminSeedStats = function(totalViews, peakViewers) {
 };
 
 function _maybeAutoSeedStats() {
-    // One-shot admin reset to 0/0 via Cloud Function (bypasses rules).
-    // Gated by localStorage so it runs exactly once per admin browser.
-    try {
-        if (localStorage.getItem('tctv_reset_zero_v1') === '1') return;
-    } catch (e) {}
-    if (typeof firebase === 'undefined' || !firebase.functions || !firebase.auth) return;
-    var user = firebase.auth().currentUser;
-    if (!user || (user.email !== 'needcreations@gmail.com' && user.email !== 'info.603btc@gmail.com')) return;
-    firebase.functions().httpsCallable('seedTctvStats')({ views: 0, peak: 0 })
-        .then(function(res) {
-            console.log('✅ TCTV stats reset to 0/0:', res && res.data);
-            try { localStorage.setItem('tctv_reset_zero_v1', '1'); } catch (e) {}
-        }).catch(function(e) {
-            console.error('❌ TCTV reset failed:', e && (e.message || e));
-        });
+    // Disabled — stats were reset to 0/0 server-side on 2026-04-19.
+    // Real counts accumulate organically from here. Admin can still manually call
+    // window.tctvAdminSeedStats(views, peak) from the console if needed.
+    return;
 }
 
 function _bumpTctvViews() {
