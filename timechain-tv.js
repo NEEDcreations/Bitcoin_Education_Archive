@@ -10526,7 +10526,10 @@ window.renderTimechainTV = function() {
     style.textContent = `
         /* Desktop & Tablet: Floating wide remote on the right edge */
         @media (min-width: 768px) {
-            #tctv-ad-sidebar { display: block !important; }
+            /* Hide sidebar ad (moved below channel list per user request) */
+            #tctv-ad-sidebar { display: none !important; }
+            /* Show the below-EPG ad on all screen sizes */
+            #tctv-ad-mobile { display: block !important; }
             #tctv-remote-sidebar {
                 position: fixed;
                 right: 0;
@@ -10573,31 +10576,31 @@ window.renderTimechainTV = function() {
         @media (min-width: 768px) {
             #nacho-couch { display: block; }
         }
-        /* Tablets and Laptops — Full horizontal width for video */
+        /* Tablets and Laptops — Shrink video to leave vertical room for channel scrolling.
+           Previously 66vh video + 33vh EPG = all 21 channels crammed into 33vh. Now the
+           video is smaller and the page below scrolls naturally through the EPG. */
         @media (min-width: 768px) and (max-width: 1280px) { 
-            .tctv-video-wrap { max-width: 100% !important; width: 100% !important; flex: none !important; }
-            /* Video takes top 2/3 (~66vh) */
+            .tctv-video-wrap { max-width: 900px !important; width: 100% !important; flex: 1 1 auto !important; margin: 0 auto !important; }
+            /* Video: comfortable 45vh (was 66vh) — leaves room below for native page scroll */
             #tctv-video-container { 
-                height: 66vh !important; 
-                max-height: 66vh !important; 
-                min-height: 50vh !important; 
-                border-radius: 0 !important; 
+                height: 45vh !important; 
+                max-height: 45vh !important; 
+                min-height: 320px !important; 
+                border-radius: 12px !important; 
             }
-            #tctv-player { height: 100% !important; max-height: 66vh !important; }
-            /* Guide (EPG) fits in the other 1/3 and is scrollable */
+            #tctv-player { height: 100% !important; max-height: 45vh !important; }
+            /* Let the EPG flow naturally (native page scroll takes it from here) */
             #tctv-epg-wrapper { 
-                height: 33vh !important; 
-                max-height: 33vh !important;
-                min-height: 25vh !important;
-                overflow-y: auto !important; 
-                overflow-x: hidden !important;
-                -webkit-overflow-scrolling: touch !important;
+                height: auto !important; 
+                max-height: none !important;
+                min-height: auto !important;
+                overflow: visible !important; 
                 background: #0a0a0a !important;
                 position: relative !important;
                 z-index: 5 !important;
-                margin-top: 5px !important;
+                margin-top: 10px !important;
             }
-            #tctv-epg-container { height: auto !important; min-height: 100% !important; }
+            #tctv-epg-container { height: auto !important; min-height: auto !important; }
         }
         /* Hide chrome that competes with TCTV on mobile (sign-up banner, user-display) */
         @media (max-width: 767px) {
@@ -10656,9 +10659,6 @@ window.renderTimechainTV = function() {
                 margin-top: 4px !important;
             }
             #tctv-epg-container { height: auto !important; min-height: 100% !important; }
-
-            /* Hide the in-line ad block that pushes EPG further down on mobile */
-            #tctv-ad-mobile { display: none !important; }
         }
         /* Very short screens (landscape phones) — pull video down to keep EPG visible */
         @media (max-width: 768px) and (max-height: 600px) {
@@ -10772,8 +10772,8 @@ window.renderTimechainTV = function() {
             '</div></div>';
 
     html += _renderEPG();
-    // Mobile ad (below channel guide, minimizable)
-    html += '<div id="tctv-ad-mobile" style="margin:16px auto;max-width:340px;text-align:center;">' +
+    // Ad below channel guide (all devices, minimizable)
+    html += '<div id="tctv-ad-mobile" style="margin:24px auto 16px;max-width:380px;text-align:center;">' +
         '<div id="tctv-ad-mobile-content" style="padding:14px 18px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;position:relative;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
             '<button onclick="tctvMinimizeAd()" style="position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
             '<div style="font-size:1.3rem;margin-bottom:4px;">\ud83d\udcfa</div>' +
