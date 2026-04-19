@@ -9514,30 +9514,39 @@ window.renderTimechainTV = function() {
             align-items: center;
             transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        /* Collapsed: slide most of the remote off-screen. Leave a narrow 18px
-           strip visible so the user can grab it via the drag handle. All other
-           parts of the remote have pointer-events:none so they can't steal
-           taps meant for the video (e.g. the YouTube fullscreen button). */
+        /* Collapsed: slide most of the remote off-screen. Parts have pointer-events:none
+           so they don't steal taps from the video (YouTube fullscreen button etc).
+           The dedicated .tctv-remote-tap-zone child IS tappable and spans the full
+           visible edge for reliable touch targeting. */
         #tctv-remote-inline.collapsed {
             transform: translateX(142px);
             opacity: 0.5;
             pointer-events: none;
+            position: relative;
         }
-        /* Keep the drag handle tappable even when collapsed so the user can open the remote.
-           Use ::before to extend the hit area without changing the visual size. */
+        /* Full-height, 50px-wide invisible tap zone on the visible edge when collapsed.
+           This is FAR larger than the 40x5px drag handle — easy to tap on tablet. */
+        .tctv-remote-tap-zone {
+            display: none;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            z-index: 5;
+            cursor: pointer;
+            pointer-events: auto;
+            background: linear-gradient(90deg, rgba(247,147,26,0.10) 0%, transparent 100%);
+        }
+        #tctv-remote-inline.collapsed .tctv-remote-tap-zone {
+            display: block;
+        }
+        /* Keep the drag handle tappable too — redundant safety net */
         #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"] {
             pointer-events: auto;
             cursor: pointer;
             position: relative;
-        }
-        #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"]::before {
-            content: '';
-            position: absolute;
-            top: -10px;
-            bottom: -10px;
-            left: -8px;
-            right: -8px;
-            /* invisible enlarged hit target around the small drag handle */
+            z-index: 6;
         }
         #tctv-remote-inline:not(.collapsed) { pointer-events: auto; }
         #tctv-remote-sidebar:hover #tctv-remote-inline,
@@ -9688,6 +9697,8 @@ window.renderTimechainTV = function() {
     // Sidebar Remote (Fixed to edge via CSS above)
     html += '<div id="tctv-remote-sidebar">' +
             '<div id="tctv-remote-inline" class="collapsed">' +
+            // Full-height invisible tap zone on the left edge — easy to tap on tablet/touch
+            '<div class="tctv-remote-tap-zone" onclick="tctvToggleRemote()" title="Open remote"></div>' +
             '<div onclick="tctvToggleRemote()" style="width:40px;height:5px;background:#444;border-radius:3px;cursor:pointer;"></div>' +
             // Top row: PWR + GUIDE
             '<div style="display:flex;gap:12px;align-items:flex-start;justify-content:center;width:100%;">' +
