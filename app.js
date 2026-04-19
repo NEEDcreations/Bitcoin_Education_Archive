@@ -337,6 +337,13 @@
         if (typeof renderReadNext === 'function') {
             navHtml += renderReadNext(id);
         }
+        // Educational content disclaimer (dim, bottom of every topic)
+        navHtml += '<div style="max-width:720px;margin:24px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:var(--text-faint);text-align:center;letter-spacing:0.2px;opacity:0.7;">' +
+            '<div style="font-weight:700;font-size:0.58rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">Disclaimer</div>' +
+            'This Bitcoin education is presented authentically and from a first-principles standpoint that maximizes truth. However, this is <strong>not financial, investment, legal, or tax advice</strong> and anyone reading this material should still verify its validity by doing their own research. ' +
+            'Bitcoin is volatile and you can lose money. Bitcoin Education Archive, its operators, and contributors make no warranty regarding the accuracy, completeness, or timeliness of any educational content and accept no liability for decisions made based on it. Always consult a licensed professional before making financial decisions. ' +
+            '<a href="/terms.html" style="color:var(--text-muted);text-decoration:underline;">Terms</a> · <a href="/privacy.html" style="color:var(--text-muted);text-decoration:underline;">Privacy</a>' +
+        '</div>';
         msgsEl.innerHTML += navHtml;
 
         msgsEl.classList.add('fade-in');
