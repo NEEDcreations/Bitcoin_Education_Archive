@@ -8289,13 +8289,16 @@ function _writePresence(stationId) {
 }
 
 function joinStation(stationId) {
-    if (_currentStation) _deletePresence();
+    if (_currentStation && _currentStation !== stationId) _deletePresence();
     _currentStation = stationId;
     _writePresence(stationId);
     if (_viewerHeartbeat) clearInterval(_viewerHeartbeat);
     _viewerHeartbeat = setInterval(function() {
         if (_currentStation) _writePresence(_currentStation);
     }, 30000);
+    // Render the viewer badges immediately so the user sees themselves as a viewer
+    // without waiting for the Firestore snapshot round-trip.
+    try { updateViewerBadges(); } catch(e) {}
     if (!_viewerUnsub && typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
         _viewerUnsub = db.collection('tctv_presence').onSnapshot(function(snap) {
@@ -8320,18 +8323,63 @@ function _deletePresence() {
     firebase.firestore().collection('tctv_presence').doc(_getViewerId()).delete().catch(function() {});
 }
 
+function _leavePresence() {
+    // Full teardown: stop heartbeat, delete presence doc, unsubscribe from snapshot
+    if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
+    if (_currentStation) { _deletePresence(); _currentStation = null; }
+    if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
+    _viewerCounts = {};
+}
+
+// Clean up presence when user closes tab / navigates away
+(function installPresenceUnload() {
+    if (typeof window === 'undefined') return;
+    if (window._tctvPresenceUnloadInstalled) return;
+    window._tctvPresenceUnloadInstalled = true;
+    var bye = function() {
+        if (_currentStation) {
+            try { _deletePresence(); } catch(e) {}
+        }
+    };
+    // pagehide is the most reliable cross-browser (also fires on iOS Safari BFCache)
+    window.addEventListener('pagehide', bye);
+    window.addEventListener('beforeunload', bye);
+    // visibilitychange: when tab is hidden for a while, stop heartbeat to avoid ghost presence
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            // Pause heartbeat but keep current station — if they come back in <65s we still count
+            if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
+        } else if (document.visibilityState === 'visible' && _currentStation && !_viewerHeartbeat) {
+            // Resume heartbeat + immediate write
+            _writePresence(_currentStation);
+            _viewerHeartbeat = setInterval(function() {
+                if (_currentStation) _writePresence(_currentStation);
+            }, 30000);
+        }
+    });
+})();
+
 function updateViewerBadges() {
+    // Ensure the current viewer is always counted on THEIR current station,
+    // even before the Firestore snapshot comes back with their own write.
+    var effectiveCounts = {};
+    for (var k in _viewerCounts) if (_viewerCounts.hasOwnProperty(k)) effectiveCounts[k] = _viewerCounts[k];
+    if (_currentStation && !effectiveCounts[_currentStation]) {
+        effectiveCounts[_currentStation] = 1;
+    }
     STATIONS.forEach(function(s) {
         var el = document.getElementById('tctv-viewers-' + s.id);
         if (el) {
-            var count = _viewerCounts[s.id] || 0;
+            var count = effectiveCounts[s.id] || 0;
             el.textContent = count > 0 ? count + ' watching' : '';
         }
     });
     var mainCount = document.getElementById('tctv-main-viewers');
     if (mainCount && _currentStation) {
-        var c = _viewerCounts[_currentStation] || 0;
-        mainCount.textContent = c > 0 ? '👁 ' + c + ' live' : '';
+        var c = effectiveCounts[_currentStation] || 1;
+        mainCount.textContent = '👁 ' + c + ' live';
+    } else if (mainCount) {
+        mainCount.textContent = '';
     }
 }
 
@@ -10122,6 +10170,8 @@ window.cleanupTimechainTV = function() {
         _tctvReactionInterval = null;
     }
     if (_viewerUnsub) { _viewerUnsub(); _viewerUnsub = null; }
+    // Clean up presence tracking — stops heartbeat and deletes the presence doc
+    try { _leavePresence(); } catch(e) {}
     var iframe = document.getElementById('tctv-player');
     if (iframe) iframe.src = '';
     _currentVideoId = null;

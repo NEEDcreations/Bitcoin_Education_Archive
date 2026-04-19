@@ -923,14 +923,27 @@ service cloud.firestore {
     }
 
     match /tctv_presence/{viewerId} {
+      // Publicly readable so every client can render the live counter.
       allow read: if true;
-      allow create, update: if request.auth != null
-                            && (viewerId == request.auth.uid || viewerId.startsWith('v_'))
-                            && request.resource.data.keys().hasOnly(['station', 'ts'])
-                            && request.resource.data.station is string
-                            && request.resource.data.station.size() < 50;
-      allow delete: if request.auth != null
-                    && (viewerId == request.auth.uid || resource.data.uid == request.auth.uid);
+      // Allow both signed-in and anonymous viewers to register presence.
+      // Signed-in users use their auth.uid as the viewerId.
+      // Anonymous users use a 'v_' + random id from localStorage.
+      // Payload is tightly validated to prevent abuse.
+      allow create, update: if
+        (
+          (request.auth != null && viewerId == request.auth.uid)
+          || (viewerId.matches('^v_[a-z0-9]{5,40}$'))
+        )
+        && request.resource.data.keys().hasOnly(['station', 'ts'])
+        && request.resource.data.station is string
+        && request.resource.data.station.size() > 0
+        && request.resource.data.station.size() < 50;
+      // Anyone can delete their own presence doc on exit/unload.
+      // Auth-uid docs: only the owning user can delete.
+      // v_ anon docs: open delete (worst case: griefer evicts strangers; they'll auto-re-register in <30s).
+      allow delete: if
+        (request.auth != null && viewerId == request.auth.uid)
+        || viewerId.matches('^v_[a-z0-9]{5,40}$');
     }
 
     match /{document=**} {
