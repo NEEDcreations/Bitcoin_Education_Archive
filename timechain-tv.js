@@ -8289,9 +8289,12 @@ function _writePresence(stationId) {
 }
 
 function joinStation(stationId) {
-    if (_currentStation && _currentStation !== stationId) _deletePresence();
+    var prevStation = _currentStation;
+    if (prevStation && prevStation !== stationId) _deletePresence();
     _currentStation = stationId;
     _writePresence(stationId);
+    // Count a view each time we tune in to a NEW station (not re-heartbeats).
+    if (prevStation !== stationId) _bumpTctvViews();
     if (_viewerHeartbeat) clearInterval(_viewerHeartbeat);
     _viewerHeartbeat = setInterval(function() {
         if (_currentStation) _writePresence(_currentStation);
@@ -8329,6 +8332,7 @@ function _leavePresence() {
     if (_currentStation) { _deletePresence(); _currentStation = null; }
     if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
     if (_tctvPeakUnsub) { try { _tctvPeakUnsub(); } catch(e) {} _tctvPeakUnsub = null; }
+    if (_tctvViewsUnsub) { try { _tctvViewsUnsub(); } catch(e) {} _tctvViewsUnsub = null; }
     _viewerCounts = {};
     // Hide peak tooltip if visible
     try { if (typeof window.tctvHidePeakTip === 'function') window.tctvHidePeakTip(); } catch(e) {}
@@ -8366,6 +8370,9 @@ function _leavePresence() {
 var _tctvPeak = 0;
 var _tctvPeakUnsub = null;
 var _tctvPeakLastWriteAt = 0;
+// All-time cumulative session views — subscribed live from tctv_stats/views
+var _tctvTotalViews = 0;
+var _tctvViewsUnsub = null;
 
 function _subscribeTctvPeak() {
     if (_tctvPeakUnsub) return;
@@ -8377,6 +8384,41 @@ function _subscribeTctvPeak() {
                     _tctvPeak = (doc.data() && doc.data().peak) || 0;
                 }
             }, function() { /* swallow errors */ });
+    } catch (e) {}
+}
+
+function _subscribeTctvViews() {
+    if (_tctvViewsUnsub) return;
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    try {
+        _tctvViewsUnsub = firebase.firestore().collection('tctv_stats').doc('views')
+            .onSnapshot(function(doc) {
+                if (doc.exists) {
+                    _tctvTotalViews = (doc.data() && doc.data().count) || 0;
+                }
+            }, function() { /* swallow errors */ });
+    } catch (e) {}
+}
+
+function _bumpTctvViews() {
+    // +1 the global view counter. Rules enforce exactly +1 per write, so no batching.
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    try {
+        var ref = firebase.firestore().collection('tctv_stats').doc('views');
+        ref.get().then(function(doc) {
+            if (doc.exists) {
+                var cur = (doc.data() && doc.data().count) || 0;
+                ref.set({
+                    count: cur + 1,
+                    ts: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function() { /* race lost — next client wins */ });
+            } else {
+                ref.set({
+                    count: 1,
+                    ts: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function() { /* exists now — ignore */ });
+            }
+        }).catch(function() {});
     } catch (e) {}
 }
 
@@ -8405,11 +8447,11 @@ window.tctvShowPeakTip = function(ev) {
     if (existing) existing.remove();
     var tip = document.createElement('div');
     tip.id = 'tctv-peak-tip';
-    var peakText = _tctvPeak > 0
-        ? '🏆 All-time peak: <strong>' + _tctvPeak + '</strong> concurrent viewer' + (_tctvPeak === 1 ? '' : 's')
-        : '🏆 All-time peak: tracking…';
-    tip.innerHTML = peakText;
-    tip.style.cssText = 'position:fixed;z-index:300001;background:#111;color:#fff;font-size:0.75rem;padding:8px 12px;border-radius:8px;border:1px solid rgba(247,147,26,0.4);box-shadow:0 4px 14px rgba(0,0,0,0.6);pointer-events:none;max-width:240px;line-height:1.4;white-space:nowrap;';
+    function fmt(n) { return (n || 0).toLocaleString('en-US'); }
+    tip.innerHTML =
+        '<div style="display:flex;justify-content:space-between;gap:18px;"><span style="color:#aaa;">Total:</span><strong style="color:#fff;">' + fmt(_tctvTotalViews) + '</strong></div>' +
+        '<div style="display:flex;justify-content:space-between;gap:18px;margin-top:4px;"><span style="color:#aaa;">Peak:</span><strong style="color:#f7931a;">' + fmt(_tctvPeak) + '</strong></div>';
+    tip.style.cssText = 'position:fixed;z-index:300001;background:#111;color:#fff;font-size:0.8rem;padding:10px 14px;border-radius:8px;border:1px solid rgba(247,147,26,0.4);box-shadow:0 4px 14px rgba(0,0,0,0.6);pointer-events:none;min-width:150px;line-height:1.4;white-space:nowrap;';
     document.body.appendChild(tip);
     // Position below the counter
     var rect = el.getBoundingClientRect();
@@ -8433,8 +8475,9 @@ window.tctvHidePeakTip = function() {
 };
 
 function updateViewerBadges() {
-    // Lazy-subscribe to peak doc once
+    // Lazy-subscribe to stats docs once
     if (!_tctvPeakUnsub) _subscribeTctvPeak();
+    if (!_tctvViewsUnsub) _subscribeTctvViews();
 
     // Ensure the current viewer is always counted on THEIR current station,
     // even before the Firestore snapshot comes back with their own write.

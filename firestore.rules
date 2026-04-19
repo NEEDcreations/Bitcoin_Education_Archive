@@ -922,12 +922,16 @@ service cloud.firestore {
       allow write: if false; // deprecated — use tctv_presence
     }
 
-    // TCTV all-time peak concurrent viewers — stored as a single doc.
-    // Anyone can read (public stat). Write allowed (auth'd OR anon v_ prefix)
-    // only when the new value is GREATER than the existing peak — monotonically increasing.
-    // Capped at 100000 to prevent absurd inflation.
+    // TCTV stats docs — public counters for Timechain TV.
+    //   • 'peak' — all-time high concurrent viewers (monotonically increasing).
+    //   • 'views' — all-time cumulative session views (incremented per station tune-in,
+    //              client-side rate-limited; max +1 per write to prevent spikes).
+    // Anyone can read. Writes are constrained so anon/auth clients can only nudge counters
+    // in the correct direction. Not protection against a determined attacker with a console,
+    // but prevents casual abuse. Admin can reset via console if needed.
     match /tctv_stats/{docId} {
       allow read: if true;
+      // peak: monotonically increasing, capped.
       allow create: if docId == 'peak'
                     && request.resource.data.keys().hasOnly(['peak', 'ts'])
                     && request.resource.data.peak is int
@@ -938,6 +942,15 @@ service cloud.firestore {
                     && request.resource.data.peak is int
                     && request.resource.data.peak > resource.data.get('peak', 0)
                     && request.resource.data.peak <= 100000;
+      // views: +1 per write (or seed at 1 on create).
+      allow create: if docId == 'views'
+                    && request.resource.data.keys().hasOnly(['count', 'ts'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count == 1;
+      allow update: if docId == 'views'
+                    && request.resource.data.keys().hasOnly(['count', 'ts'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count == resource.data.get('count', 0) + 1;
     }
 
     match /tctv_presence/{viewerId} {
