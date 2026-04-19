@@ -8328,7 +8328,10 @@ function _leavePresence() {
     if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
     if (_currentStation) { _deletePresence(); _currentStation = null; }
     if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
+    if (_tctvPeakUnsub) { try { _tctvPeakUnsub(); } catch(e) {} _tctvPeakUnsub = null; }
     _viewerCounts = {};
+    // Hide peak tooltip if visible
+    try { if (typeof window.tctvHidePeakTip === 'function') window.tctvHidePeakTip(); } catch(e) {}
 }
 
 // Clean up presence when user closes tab / navigates away
@@ -8359,7 +8362,80 @@ function _leavePresence() {
     });
 })();
 
+// All-time peak concurrent viewers — subscribed live from tctv_stats/peak
+var _tctvPeak = 0;
+var _tctvPeakUnsub = null;
+var _tctvPeakLastWriteAt = 0;
+
+function _subscribeTctvPeak() {
+    if (_tctvPeakUnsub) return;
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    try {
+        _tctvPeakUnsub = firebase.firestore().collection('tctv_stats').doc('peak')
+            .onSnapshot(function(doc) {
+                if (doc.exists) {
+                    _tctvPeak = (doc.data() && doc.data().peak) || 0;
+                }
+            }, function() { /* swallow errors */ });
+    } catch (e) {}
+}
+
+function _maybeBumpTctvPeak(currentTotal) {
+    // Only bump if we beat the current peak. Rate-limit writes so many clients
+    // don't thrash this doc. Each client at most once every 30s.
+    if (!currentTotal || currentTotal <= _tctvPeak) return;
+    var now = Date.now();
+    if (now - _tctvPeakLastWriteAt < 30000) return;
+    _tctvPeakLastWriteAt = now;
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    try {
+        firebase.firestore().collection('tctv_stats').doc('peak').set({
+            peak: currentTotal,
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() { /* rules reject if not greater — that's expected */ });
+        // Optimistically update local copy so we don't re-write immediately on next tick
+        _tctvPeak = currentTotal;
+    } catch (e) {}
+}
+
+window.tctvShowPeakTip = function(ev) {
+    var el = document.getElementById('tctv-main-viewers');
+    if (!el) return;
+    var existing = document.getElementById('tctv-peak-tip');
+    if (existing) existing.remove();
+    var tip = document.createElement('div');
+    tip.id = 'tctv-peak-tip';
+    var peakText = _tctvPeak > 0
+        ? '🏆 All-time peak: <strong>' + _tctvPeak + '</strong> concurrent viewer' + (_tctvPeak === 1 ? '' : 's')
+        : '🏆 All-time peak: tracking…';
+    tip.innerHTML = peakText;
+    tip.style.cssText = 'position:fixed;z-index:300001;background:#111;color:#fff;font-size:0.75rem;padding:8px 12px;border-radius:8px;border:1px solid rgba(247,147,26,0.4);box-shadow:0 4px 14px rgba(0,0,0,0.6);pointer-events:none;max-width:240px;line-height:1.4;white-space:nowrap;';
+    document.body.appendChild(tip);
+    // Position below the counter
+    var rect = el.getBoundingClientRect();
+    var tipW = tip.offsetWidth || 200;
+    var x = Math.max(8, Math.min(window.innerWidth - tipW - 8, rect.right - tipW));
+    var y = rect.bottom + 8;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+    // Auto-hide after 3s (handles tap-and-release on touch)
+    if (window._tctvPeakTipTimer) clearTimeout(window._tctvPeakTipTimer);
+    window._tctvPeakTipTimer = setTimeout(function() {
+        var t = document.getElementById('tctv-peak-tip');
+        if (t) t.remove();
+    }, 3000);
+};
+
+window.tctvHidePeakTip = function() {
+    var existing = document.getElementById('tctv-peak-tip');
+    if (existing) existing.remove();
+    if (window._tctvPeakTipTimer) { clearTimeout(window._tctvPeakTipTimer); window._tctvPeakTipTimer = null; }
+};
+
 function updateViewerBadges() {
+    // Lazy-subscribe to peak doc once
+    if (!_tctvPeakUnsub) _subscribeTctvPeak();
+
     // Ensure the current viewer is always counted on THEIR current station,
     // even before the Firestore snapshot comes back with their own write.
     var effectiveCounts = {};
@@ -8377,6 +8453,9 @@ function updateViewerBadges() {
             el.textContent = count > 0 ? count + ' watching' : '';
         }
     });
+
+    // If this total beats the known peak, try to bump it (rate-limited)
+    _maybeBumpTctvPeak(totalLive);
     // Header counter = total live viewers across ALL channels (not just current)
     var mainCount = document.getElementById('tctv-main-viewers');
     if (mainCount) {
@@ -9703,7 +9782,7 @@ window.renderTimechainTV = function() {
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;">';
 
     html += '<div style="position:sticky;top:0;z-index:200000;background:#0a0a0a;width:100%;"> ' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
 
     // Desktop: side-by-side layout with couch left, video center, wide remote right
     html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
