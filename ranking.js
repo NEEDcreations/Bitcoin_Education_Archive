@@ -2447,24 +2447,28 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
-// Close leaderboard when clicking outside
-document.addEventListener('click', function(e) {
+// Close leaderboard when clicking/tapping outside.
+// Uses capture phase + both mousedown and touchstart so it fires BEFORE
+// any inner handler can call stopPropagation() and swallow the event.
+function _lbOutsideClose(e) {
     var lb = document.getElementById('leaderboard');
     if (!lb || !lb.classList.contains('open') || lb.classList.contains('minimized')) return;
     if (lb.contains(e.target)) return;
-    // Don't close if clicking the rank bar or leaderboard button
+    // Don't close if clicking the rank bar or leaderboard button (those toggle the LB themselves)
     var rankBar = document.getElementById('rankBar');
     if (rankBar && rankBar.contains(e.target)) return;
     var fab = document.getElementById('lbFloatBtn');
     if (fab && fab.contains(e.target)) return;
-    // Don't close if a profile modal is open or was just closed
+    // Don't close if a profile modal is open (clicking in the modal shouldn't close the LB behind it)
     var profileModal = document.getElementById('userProfileModal');
     if (profileModal) return;
     // Close it
     lb.classList.remove('open');
     lb.classList.remove('minimized');
     if (fab) fab.style.display = 'flex';
-});
+}
+document.addEventListener('mousedown', _lbOutsideClose, true);
+document.addEventListener('touchstart', _lbOutsideClose, true);
 
 window.toggleOLEDTheme = function() {
     const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
