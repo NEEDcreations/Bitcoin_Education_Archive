@@ -10540,7 +10540,9 @@ window.renderTimechainTV = function() {
                 z-index: 200000;
                 display: block !important;
                 flex: none !important;
+                pointer-events: none;
             }
+            #tctv-remote-sidebar > * { pointer-events: auto; }
             #tctv-remote { display: none !important; }
         }
         @media (max-width: 767px) {
@@ -10561,9 +10563,38 @@ window.renderTimechainTV = function() {
             align-items: center;
             transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        #tctv-remote-inline.collapsed { transform: translateX(120px); opacity: 0.5; }
+        /* Collapsed: slide most of the remote off-screen. Leave a narrow 18px
+           strip visible so the user can grab it via the drag handle. All other
+           parts of the remote have pointer-events:none so they can't steal
+           taps meant for the video (e.g. the YouTube fullscreen button). */
+        #tctv-remote-inline.collapsed {
+            transform: translateX(142px);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        /* Keep the drag handle tappable even when collapsed so the user can open the remote.
+           Use ::before to extend the hit area without changing the visual size. */
+        #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"] {
+            pointer-events: auto;
+            cursor: pointer;
+            position: relative;
+        }
+        #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"]::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            bottom: -10px;
+            left: -8px;
+            right: -8px;
+            /* invisible enlarged hit target around the small drag handle */
+        }
+        #tctv-remote-inline:not(.collapsed) { pointer-events: auto; }
         #tctv-remote-sidebar:hover #tctv-remote-inline,
-        #tctv-remote-sidebar:active #tctv-remote-inline { opacity: 1; transform: translateX(0); }
+        #tctv-remote-sidebar:focus-within #tctv-remote-inline {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
 
         .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
         .remote-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #111; }
