@@ -9664,6 +9664,12 @@ window.renderTimechainTV = function() {
         #tctv-remote-inline.collapsed *:not(.tctv-remote-tap-zone):not(.tctv-remote-tap-zone *) {
             pointer-events: none !important;
         }
+        /* When EXPANDED, ALL descendants must receive clicks. This overrides any
+           stale pointer-events:none from animation transitions or other cascades. */
+        #tctv-remote-inline:not(.collapsed),
+        #tctv-remote-inline:not(.collapsed) * {
+            pointer-events: auto !important;
+        }
         /* Full-height tap zone on the VISIBLE edge of the remote.
            The collapsed remote is translated 142px to the right (so only 18px pokes
            into the viewport from the right edge). We anchor the tap zone to the
