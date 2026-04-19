@@ -8398,6 +8398,52 @@ function _subscribeTctvViews() {
                 }
             }, function() { /* swallow errors */ });
     } catch (e) {}
+    // Attempt auto-seed if admin
+    setTimeout(_maybeAutoSeedStats, 1500);
+}
+
+// Admin-only one-shot seeder (exposed on window so Phil can run it from the console).
+// Also auto-triggers once when admin loads TCTV if the doc is missing/zero.
+window.tctvAdminSeedStats = function(totalViews, peakViewers) {
+    totalViews = typeof totalViews === 'number' ? totalViews : 50;
+    peakViewers = typeof peakViewers === 'number' ? peakViewers : 7;
+    if (typeof firebase === 'undefined' || !firebase.firestore) { console.warn('firebase not ready'); return; }
+    var user = firebase.auth().currentUser;
+    if (!user || (user.email !== 'needcreations@gmail.com' && user.email !== 'info.603btc@gmail.com')) {
+        console.warn('Admin-only.'); return;
+    }
+    var fs = firebase.firestore();
+    var sts = firebase.firestore.FieldValue.serverTimestamp();
+    Promise.all([
+        fs.collection('tctv_stats').doc('views').set({ count: totalViews, ts: sts }),
+        fs.collection('tctv_stats').doc('peak').set({ peak: peakViewers, ts: sts })
+    ]).then(function() {
+        console.log('✅ Seeded tctv_stats: views=' + totalViews + ', peak=' + peakViewers);
+    }).catch(function(e) {
+        console.error('❌ Seed failed:', e);
+    });
+};
+
+function _maybeAutoSeedStats() {
+    // Auto-seed once on admin load if totals appear unseeded (0)
+    if (window._tctvSeedChecked) return;
+    if (typeof firebase === 'undefined' || !firebase.firestore || !firebase.auth) return;
+    var user = firebase.auth().currentUser;
+    if (!user || (user.email !== 'needcreations@gmail.com' && user.email !== 'info.603btc@gmail.com')) return;
+    window._tctvSeedChecked = true;
+    var fs = firebase.firestore();
+    Promise.all([
+        fs.collection('tctv_stats').doc('views').get(),
+        fs.collection('tctv_stats').doc('peak').get()
+    ]).then(function(docs) {
+        var viewsDoc = docs[0], peakDoc = docs[1];
+        var needsSeed = !viewsDoc.exists || !peakDoc.exists
+            || (viewsDoc.exists && (viewsDoc.data().count || 0) === 0)
+            || (peakDoc.exists && (peakDoc.data().peak || 0) === 0);
+        if (needsSeed) {
+            window.tctvAdminSeedStats(50, 7);
+        }
+    }).catch(function() {});
 }
 
 function _bumpTctvViews() {
