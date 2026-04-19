@@ -1965,10 +1965,65 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     window._pointAwardTimes.push(_now);
 
     if (currentUser._isLocal) {
-        // ... (existing local/anonymous logic) ...
+        // ── Anonymous / local-only user ──
+        // Track points in localStorage. Daily cap 500. Server-side validation happens
+        // later if they ever sign in (via anon_merge), so this is purely UX reward.
         var DAILY_CAP = 500;
         var _today = new Date().toISOString().split('T')[0];
-        // ...
+        var _capKey = 'btc_daily_pts_' + _today;
+        var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
+        if (isNaN(_dailyUsed)) _dailyUsed = 0;
+
+        // ── Action cooldown (anon-local mirror of server cooldowns) ──
+        // Prevents spam e.g. tctv_watch_10m firing faster than every 10 min.
+        var LOCAL_COOLDOWNS = {
+            'tctv_watch_10m': 10 * 60 * 1000,
+            'daily_spin': 24 * 60 * 60 * 1000,
+            'daily_visit': 20 * 60 * 60 * 1000
+        };
+        var cdMs = LOCAL_COOLDOWNS[reason];
+        if (cdMs) {
+            var cdKey = 'btc_cd_' + reason;
+            var last = parseInt(localStorage.getItem(cdKey) || '0', 10);
+            if (last && (Date.now() - last) < cdMs) {
+                if (typeof showToast === 'function') showToast('⏳ Slow down — cooldown still active');
+                return;
+            }
+            try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
+        }
+
+        var awarded = pts;
+        if (_dailyUsed >= DAILY_CAP) {
+            awarded = 0;
+        } else if (_dailyUsed + pts > DAILY_CAP) {
+            awarded = DAILY_CAP - _dailyUsed;
+        }
+
+        if (awarded > 0) {
+            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + awarded;
+            try {
+                localStorage.setItem('btc_points', String(newPoints));
+                localStorage.setItem(_capKey, String(_dailyUsed + awarded));
+            } catch(e) {}
+            currentUser.points = newPoints;
+            _showPointsToast(awarded, reason);
+        }
+
+        // Daily cap notification (once per day)
+        if (_dailyUsed + awarded >= DAILY_CAP) {
+            var _capNotifKey = 'btc_daily_cap_notified_' + _today;
+            if (!localStorage.getItem(_capNotifKey)) {
+                try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
+                if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (500)! Sign in to keep earning and convert to sats.', 8000);
+                if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
+            }
+        }
+
+        updateRankUI();
+        if (typeof renderProgressRings === 'function') renderProgressRings();
+        refreshLeaderboardIfOpen();
+        if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
+        return;
     }
 
     // Update lastActive timestamp on heartbeat

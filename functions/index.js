@@ -1786,6 +1786,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'streak_freeze': 0,           // Streak freeze only (no points)
         'tickets_only': 0,            // Tickets only (no points)
         'feedback': 5,                // Feedback bonus
+        'tctv_watch_10m': 10,          // Timechain TV: 10 points per 10 minutes watched (cooldown enforced)
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -1832,6 +1833,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'streak_freeze': ['streak freeze', 'streak_freeze', '🧊'],
         'tickets_only': ['tickets_only'],
         'feedback': ['feedback'],
+        'tctv_watch_10m': ['tctv_watch', 'timechain tv', 'watching timechain'],
     };
 
     let pts = 0;
