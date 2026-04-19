@@ -10361,8 +10361,9 @@ window.syncPlayer = function() {
 
 // ── Timeline & Moving EPG ──
 var _tctvSwitching = false;
-function updateTimeline() {
-    if (!_currentStation || _tctvSwitching) return;
+function updateTimeline(force) {
+    if (!_currentStation) return;
+    if (_tctvSwitching && !force) return;
     var nowMs = Date.now();
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
@@ -10670,7 +10671,7 @@ window.renderTimechainTV = function() {
     `;
     document.head.appendChild(style);
 
-    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;overflow-x:hidden;">';
+    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;">';
 
     html += '<div style="position:sticky;top:0;z-index:200000;background:#0a0a0a;width:100%;"> ' +
             '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
@@ -10915,11 +10916,15 @@ window.switchStation = function(stationId, forceUpdate) {
 
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
     
-    // Run authoritative header snap
-    updateTimeline();
+    // Run authoritative header snap (bypassing lock)
+    updateTimeline(true);
 
-    // Release lock after 350ms (lets YT events and UI settle)
-    setTimeout(function() { _tctvSwitching = false; }, 350);
+    // Release lock after 500ms (lets YT events and UI settle)
+    setTimeout(function() {
+        _tctvSwitching = false;
+        // Final re-snap after unlock to correct any drift during the lock window
+        updateTimeline();
+    }, 500);
 
     // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
