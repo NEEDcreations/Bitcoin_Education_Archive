@@ -8407,30 +8407,30 @@ function _subscribeTctvViews() {
 window.tctvAdminSeedStats = function(totalViews, peakViewers) {
     totalViews = typeof totalViews === 'number' ? totalViews : 50;
     peakViewers = typeof peakViewers === 'number' ? peakViewers : 7;
-    if (typeof firebase === 'undefined' || !firebase.firestore) { console.warn('firebase not ready'); return; }
+    if (typeof firebase === 'undefined' || !firebase.functions) { console.warn('firebase not ready'); return; }
     var user = firebase.auth().currentUser;
     if (!user || (user.email !== 'needcreations@gmail.com' && user.email !== 'info.603btc@gmail.com')) {
         console.warn('Admin-only.'); return;
     }
-    var fs = firebase.firestore();
-    var sts = firebase.firestore.FieldValue.serverTimestamp();
-    Promise.all([
-        fs.collection('tctv_stats').doc('views').set({ count: totalViews, ts: sts }),
-        fs.collection('tctv_stats').doc('peak').set({ peak: peakViewers, ts: sts })
-    ]).then(function() {
-        console.log('✅ Seeded tctv_stats: views=' + totalViews + ', peak=' + peakViewers);
-    }).catch(function(e) {
-        console.error('❌ Seed failed:', e);
-    });
+    // Use a Cloud Function (admin SDK bypasses rules) to guarantee persistence.
+    firebase.functions().httpsCallable('seedTctvStats')({ views: totalViews, peak: peakViewers })
+        .then(function(res) {
+            console.log('✅ Seeded tctv_stats via Cloud Function:', res && res.data);
+        }).catch(function(e) {
+            console.error('❌ Seed failed:', e && (e.message || e));
+        });
 };
 
 function _maybeAutoSeedStats() {
-    // Auto-seed once on admin load if totals appear unseeded (0)
-    if (window._tctvSeedChecked) return;
+    // Auto-seed on admin load if totals appear unseeded (0).
+    // Bust the check flag after 10s so we'll retry on subsequent calls if the
+    // previous seed silently failed.
+    if (window._tctvSeedChecked && (Date.now() - (window._tctvSeedCheckedAt || 0)) < 10000) return;
     if (typeof firebase === 'undefined' || !firebase.firestore || !firebase.auth) return;
     var user = firebase.auth().currentUser;
     if (!user || (user.email !== 'needcreations@gmail.com' && user.email !== 'info.603btc@gmail.com')) return;
     window._tctvSeedChecked = true;
+    window._tctvSeedCheckedAt = Date.now();
     var fs = firebase.firestore();
     Promise.all([
         fs.collection('tctv_stats').doc('views').get(),
