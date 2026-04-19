@@ -4721,266 +4721,81 @@ var STATIONS = [
     },
     {
         "id": "podcasts-debates",
-        "name": "Podcasts & Debates",
+        "name": "Podcasts, Debates & Spaces",
         "emoji": "🎙️",
-        "desc": "Bitcoin podcasts, debates & discussions",
+        "desc": "Long-form Bitcoin conversations, debates & recorded X Spaces",
         "color": "#ef4444",
         "videos": [
-            {
-                "id": "XJU8r6WiipM",
-                "title": "Bitcoin vs Gold - Response to Peter Schiff",
-                "duration": 1690
-            },
-            {
-                "id": "MmdQKU0YNX4",
-                "title": "Bitcoin Will Hit $850K - Max Keiser Prediction",
-                "duration": 977
-            },
-            {
-                "id": "K5bZ4HPpwxw",
-                "title": "Fixing Government Corruption - WBD",
-                "duration": 6182
-            },
-            {
-                "id": "xa5iT1nklyU",
-                "title": "Brian Kelly vs Peter Schiff - Bitcoin Bull vs Bear",
-                "duration": 672
-            },
-            {
-                "id": "2ZaMzWZyXe8",
-                "title": "Wall Street Meets Bitcoin: Orange-Pilling Finance - Strive CEO",
-                "duration": 1348
-            },
-            {
-                "id": "l1Rgq8UY3zo",
-                "title": "Why Bitcoin is Different - Stephan Livera",
-                "duration": 669
-            },
-            {
-                "id": "1jZQNo_rRsQ",
-                "title": "Bitcoin Poised for Cycle Top? Corporate Treasuries - Saifedean",
-                "duration": 1763
-            },
-            {
-                "id": "3YuscY1L1zE",
-                "title": "Why You Should Be a Bitcoin Maximalist",
-                "duration": 541
-            },
-            {
-                "id": "tbCVXyUGO3o",
-                "title": "I Bought This Instead of Bitcoin - Mark Moss",
-                "duration": 387
-            },
-            {
-                "id": "wBEqw-PSBlg",
-                "title": "Why Selling Bitcoin for Fiat Misses the Picture - Mark Moss",
-                "duration": 610
-            },
-            {
-                "id": "aN2G0Uvahf8",
-                "title": "What Bitcoin Did - Beginner Guide",
-                "duration": 3437
-            },
-            {
-                "id": "meCoGKugjMQ",
-                "title": "Marty Bent on the Power of Bitcoin",
-                "duration": 3155
-            },
-            {
-                "id": "nMicPEQM4HY",
-                "title": "Maximalism is Dead? | Peter McCormack",
-                "duration": 1541
-            },
-            {
-                "id": "to7FF7ZmBl0",
-                "title": "Lyn Alden: No Massive Bust or Boom? - Coin Stories",
-                "duration": 3383
-            },
-            {
-                "id": "TUO10-HcdvY",
-                "title": "The Ultimate Bitcoin vs. Everything Debate Loop",
-                "duration": 2923
-            },
-            {
-                "id": "yCtVkIEIhCg",
-                "title": "Bitcoin Can Never Go to Zero - Robert Breedlove",
-                "duration": 442
-            },
-            {
-                "id": "j89aAqfezX8",
-                "title": "Saving Bedford - Peter McCormack",
-                "duration": 6434
-            },
-            {
-                "id": "bhSGC08V47U",
-                "title": "Stephan Livera on Bitcoin Maximalism",
-                "duration": 2547
-            },
-            {
-                "id": "x0kNGaxLg18",
-                "title": "Lyn Alden: Why This Bitcoin Cycle Disappointed - Coin Stories",
-                "duration": 3320
-            },
-            {
-                "id": "0rlnVQoiVyc",
-                "title": "History of Bitcoin w/ Marty Bent",
-                "duration": 5039
-            },
-            {
-                "id": "N_qo_-QRqAM",
-                "title": "No More 4-Year Cycles? - Stephan Livera",
-                "duration": 4128
-            },
-            {
-                "id": "4Q1AasS6HLU",
-                "title": "Bitcoin 101 - Stephan Livera Podcast",
-                "duration": 799
-            },
-            {
-                "id": "J6I-OzXItfA",
-                "title": "Jack Dorsey Explains Bitcoin",
-                "duration": 125
-            },
-            {
-                "id": "ANtyYqcXR9w",
-                "title": "Marty Bent: Tales from The Crypt",
-                "duration": 5936
-            },
-            {
-                "id": "sTxdYxGqYDo",
-                "title": "Stephan Livera: Why Bitcoin Only",
-                "duration": 1708
-            },
-            {
-                "id": "unCR7k3-aoE",
-                "title": "Bitcoin Is the Apex Asset - Robert Breedlove",
-                "duration": 916
-            },
-            {
-                "id": "6WxdkRk8cs4",
-                "title": "Stephan Livera: Bitcoin Education Deep Dive",
-                "duration": 3706
-            },
-            {
-                "id": "QT_YDxTl1FQ",
-                "title": "Jack Mallers: Bitcoin Maximalist Post-GENIUS Act",
-                "duration": 1621
-            },
-            {
-                "id": "9DuhDgqx21w",
-                "title": "Peter Schiff: Bitcoin Strategy is a Fraud",
-                "duration": 3431
-            },
-            {
-                "id": "Bh7LBF9cU6w",
-                "title": "Stock-to-Flow & Power Law Debate Marathon",
-                "duration": 736
-            },
-            {
-                "id": "HwNSykjO-gI",
-                "title": "Lyn Alden: Changing World Order - Coin Stories",
-                "duration": 3630
-            },
-            {
-                "id": "oMDHTVwSRHI",
-                "title": "1 Bitcoin Is All You Need",
-                "duration": 1233
-            },
-            {
-                "id": "JaMJi1_1tkA",
-                "title": "Bitcoin Rap Battle: Hamilton vs. Satoshi - ft. EpicLloyd",
-                "duration": 362
-            },
-            {
-                "id": "227anLxQ0mU",
-                "title": "The Money Printer Is Back On with Lyn Alden - The Bitcoin Layer",
-                "duration": 3688
-            },
-            {
-                "id": "yWTLczpO808",
-                "title": "RISE of the American Empire with Brent Johnson - The Bitcoin Layer",
-                "duration": 3428
-            },
-            {
-                "id": "IYOpQ2RYhpI",
-                "title": "Inside the Global Liquidity Shift Powering Bitcoin with Dr. Jeff Ross - The Bitcoin Layer",
-                "duration": 2765
-            },
-            {
-                "id": "dkph5lF2KmA",
-                "title": "This CEO Just Raised $750 Million to Buy Bitcoin With ZERO Debt - The Bitcoin Layer",
-                "duration": 1922
-            },
-            {
-                "id": "nQ0s2exh9x8",
-                "title": "Corporations Just Surpassed ETFs in Bitcoin Buying-Here's What It Means with Matthew Sigel - The Bitcoin Layer",
-                "duration": 1629
-            },
-            {
-                "id": "3j8iFIZ4TGM",
-                "title": "I Went Down a Eurodollar Rabbit Hole with AI - The Bitcoin Layer",
-                "duration": 1969
-            },
-            {
-                "id": "sJinwqKz7zQ",
-                "title": "Global Liquidity Update with Michael Howell: The Case for a U.S. Gold Revaluation Is Building - The Bitcoin Layer",
-                "duration": 2857
-            },
-            {
-                "id": "wjMvbpBanog",
-                "title": "America's Big Reset: Kill the IRS, Split the Dollar, and Fund It All with Sovereign Wealth - The Bitcoin Layer",
-                "duration": 2282
-            },
-            {
-                "id": "TgjFQpFQ-5A",
-                "title": "Your Wealth Is Melting: Freeze It with Bitcoin - The Bitcoin Layer",
-                "duration": 2301
-            },
-            {
-                "id": "HUcjmoi7zm4",
-                "title": "Retire with Bitcoin: Leveraging IRAs, Custody, and Long-Term Wealth Strategies - The Bitcoin Layer",
-                "duration": 1347
-            },
-            {
-                "id": "DZ2c8CWkwxg",
-                "title": "Can We Really Abolish the Federal Reserve? An Interview with Peter St Onge - The Bitcoin Layer",
-                "duration": 3010
-            },
-            {
-                "id": "bCiIcbR8r9w",
-                "title": "Mastering Bitcoin Self-Custody with BTC Sessions - The Bitcoin Layer",
-                "duration": 2268
-            },
-            {
-                "id": "t-7GGhmipt0",
-                "title": "Operation Chokepoint 2.0: The Fed's Secret War on Crypto with Caitlin Long - The Bitcoin Layer",
-                "duration": 3498
-            },
-            {
-                "id": "iYLbtVutcDQ",
-                "title": "HOUSING MARKET CRISIS Is Developing with Melody Wright - The Bitcoin Layer",
-                "duration": 2044
-            },
-            {
-                "id": "iYVMX0zdp64",
-                "title": "The BITCOIN Act of 2024 with Senator Cynthia Lummis - The Bitcoin Layer",
-                "duration": 1976
-            },
-            {
-                "id": "VTCzVWgJJWs",
-                "title": "Bitcoin As The Apex Predator - Robert Breedlove (Pomp Podcast)",
-                "duration": 4176
-            },
-            {
-                "id": "HrehEWYj16s",
-                "title": "Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman",
-                "duration": 14629
-            },
-            {
-                "id": "OfWJSEmDiKI",
-                "title": "Will Bitcoin Survive the Spam Wars?",
-                "duration": 496
-            }]
+            {"id":"XJU8r6WiipM","title":"Bitcoin vs Gold - Response to Peter Schiff","duration":1690},
+            {"id":"MmdQKU0YNX4","title":"Bitcoin Will Hit $850K - Max Keiser Prediction","duration":977},
+            {"id":"K5bZ4HPpwxw","title":"Fixing Government Corruption - WBD","duration":6182},
+            {"id":"xa5iT1nklyU","title":"Brian Kelly vs Peter Schiff - Bitcoin Bull vs Bear","duration":672},
+            {"id":"2ZaMzWZyXe8","title":"Wall Street Meets Bitcoin: Orange-Pilling Finance - Strive CEO","duration":1348},
+            {"id":"l1Rgq8UY3zo","title":"Why Bitcoin is Different - Stephan Livera","duration":669},
+            {"id":"1jZQNo_rRsQ","title":"Bitcoin Poised for Cycle Top? Corporate Treasuries - Saifedean","duration":1763},
+            {"id":"3YuscY1L1zE","title":"Why You Should Be a Bitcoin Maximalist","duration":541},
+            {"id":"tbCVXyUGO3o","title":"I Bought This Instead of Bitcoin - Mark Moss","duration":387},
+            {"id":"wBEqw-PSBlg","title":"Why Selling Bitcoin for Fiat Misses the Picture - Mark Moss","duration":610},
+            {"id":"aN2G0Uvahf8","title":"What Bitcoin Did - Beginner Guide","duration":3437},
+            {"id":"meCoGKugjMQ","title":"Marty Bent on the Power of Bitcoin","duration":3155},
+            {"id":"nMicPEQM4HY","title":"Maximalism is Dead? | Peter McCormack","duration":1541},
+            {"id":"to7FF7ZmBl0","title":"Lyn Alden: No Massive Bust or Boom? - Coin Stories","duration":3383},
+            {"id":"TUO10-HcdvY","title":"The Ultimate Bitcoin vs. Everything Debate Loop","duration":2923},
+            {"id":"yCtVkIEIhCg","title":"Bitcoin Can Never Go to Zero - Robert Breedlove","duration":442},
+            {"id":"j89aAqfezX8","title":"Saving Bedford - Peter McCormack","duration":6434},
+            {"id":"bhSGC08V47U","title":"Stephan Livera on Bitcoin Maximalism","duration":2547},
+            {"id":"x0kNGaxLg18","title":"Lyn Alden: Why This Bitcoin Cycle Disappointed - Coin Stories","duration":3320},
+            {"id":"0rlnVQoiVyc","title":"History of Bitcoin w/ Marty Bent","duration":5039},
+            {"id":"N_qo_-QRqAM","title":"No More 4-Year Cycles? - Stephan Livera","duration":4128},
+            {"id":"4Q1AasS6HLU","title":"Bitcoin 101 - Stephan Livera Podcast","duration":799},
+            {"id":"J6I-OzXItfA","title":"Jack Dorsey Explains Bitcoin","duration":125},
+            {"id":"ANtyYqcXR9w","title":"Marty Bent: Tales from The Crypt","duration":5936},
+            {"id":"sTxdYxGqYDo","title":"Stephan Livera: Why Bitcoin Only","duration":1708},
+            {"id":"unCR7k3-aoE","title":"Bitcoin Is the Apex Asset - Robert Breedlove","duration":916},
+            {"id":"6WxdkRk8cs4","title":"Stephan Livera: Bitcoin Education Deep Dive","duration":3706},
+            {"id":"QT_YDxTl1FQ","title":"Jack Mallers: Bitcoin Maximalist Post-GENIUS Act","duration":1621},
+            {"id":"9DuhDgqx21w","title":"Peter Schiff: Bitcoin Strategy is a Fraud","duration":3431},
+            {"id":"Bh7LBF9cU6w","title":"Stock-to-Flow & Power Law Debate Marathon","duration":736},
+            {"id":"HwNSykjO-gI","title":"Lyn Alden: Changing World Order - Coin Stories","duration":3630},
+            {"id":"oMDHTVwSRHI","title":"1 Bitcoin Is All You Need","duration":1233},
+            {"id":"JaMJi1_1tkA","title":"Bitcoin Rap Battle: Hamilton vs. Satoshi - ft. EpicLloyd","duration":362},
+            {"id":"227anLxQ0mU","title":"The Money Printer Is Back On with Lyn Alden - The Bitcoin Layer","duration":3688},
+            {"id":"yWTLczpO808","title":"RISE of the American Empire with Brent Johnson - The Bitcoin Layer","duration":3428},
+            {"id":"IYOpQ2RYhpI","title":"Inside the Global Liquidity Shift Powering Bitcoin with Dr. Jeff Ross - The Bitcoin Layer","duration":2765},
+            {"id":"dkph5lF2KmA","title":"This CEO Just Raised $750 Million to Buy Bitcoin With ZERO Debt - The Bitcoin Layer","duration":1922},
+            {"id":"nQ0s2exh9x8","title":"Corporations Just Surpassed ETFs in Bitcoin Buying-Here's What It Means with Matthew Sigel - The Bitcoin Layer","duration":1629},
+            {"id":"3j8iFIZ4TGM","title":"I Went Down a Eurodollar Rabbit Hole with AI - The Bitcoin Layer","duration":1969},
+            {"id":"sJinwqKz7zQ","title":"Global Liquidity Update with Michael Howell: The Case for a U.S. Gold Revaluation Is Building - The Bitcoin Layer","duration":2857},
+            {"id":"wjMvbpBanog","title":"America's Big Reset: Kill the IRS, Split the Dollar, and Fund It All with Sovereign Wealth - The Bitcoin Layer","duration":2282},
+            {"id":"TgjFQpFQ-5A","title":"Your Wealth Is Melting: Freeze It with Bitcoin - The Bitcoin Layer","duration":2301},
+            {"id":"HUcjmoi7zm4","title":"Retire with Bitcoin: Leveraging IRAs, Custody, and Long-Term Wealth Strategies - The Bitcoin Layer","duration":1347},
+            {"id":"DZ2c8CWkwxg","title":"Can We Really Abolish the Federal Reserve? An Interview with Peter St Onge - The Bitcoin Layer","duration":3010},
+            {"id":"bCiIcbR8r9w","title":"Mastering Bitcoin Self-Custody with BTC Sessions - The Bitcoin Layer","duration":2268},
+            {"id":"t-7GGhmipt0","title":"Operation Chokepoint 2.0: The Fed's Secret War on Crypto with Caitlin Long - The Bitcoin Layer","duration":3498},
+            {"id":"iYLbtVutcDQ","title":"HOUSING MARKET CRISIS Is Developing with Melody Wright - The Bitcoin Layer","duration":2044},
+            {"id":"iYVMX0zdp64","title":"The BITCOIN Act of 2024 with Senator Cynthia Lummis - The Bitcoin Layer","duration":1976},
+            {"id":"VTCzVWgJJWs","title":"Bitcoin As The Apex Predator - Robert Breedlove (Pomp Podcast)","duration":4176},
+            {"id":"HrehEWYj16s","title":"Robert Breedlove: Philosophy of Bitcoin from First Principles - Lex Fridman","duration":14629},
+            {"id":"OfWJSEmDiKI","title":"Will Bitcoin Survive the Spam Wars?","duration":496},
+            {"id":"mEbfbAllsO4","title":"Twitter Spaces recording | Halloween Special - 10 Scariest Moments in #bitcoin & #crypto","duration":3353},
+            {"id":"66HRDI_Vxhc","title":"El Salvador Passes Bitcoin Law | Twitter Spaces - Hosted by Nic Carter ft. ES President Nayib Bukele","duration":7265},
+            {"id":"ti28Lq5hSVA","title":"Bitcoin, Chapter 11 & The Great Depression of the 2020s Update | X Space AMA","duration":3879},
+            {"id":"runHWEAoLnc","title":"Twitter Spaces 03.11.2022 | Emergency Broadcast - A Message To Judge Glenn on Celsius","duration":2984},
+            {"id":"rVFRWOK9Bqc","title":"Twitter Spaces AMA recording 🔴 | Emergency Broadcast - FTX Chapter 11 | 11.11.2022","duration":4315},
+            {"id":"ITvc8lgpfzk","title":"Twitter Spaces: Wizards Weekly with Peter Brandt & JK","duration":1741},
+            {"id":"lmPmRxurssU","title":"Bitcoin vs. Crypto: Why Bitcoin Only - Twitter Spaces","duration":6588},
+            {"id":"zx3nyQ3gDHQ","title":"Xapo Talks X Spaces - Bitcoin Loans  Explained! Borrow Against Your Bitcoin","duration":3009},
+            {"id":"1L1IO2Bgmrc","title":"BTCPayServer Twitter Spaces - How to become a #Bitcoin contributor","duration":4385},
+            {"id":"ta56F9sjszk","title":"Bitcoin Is Digital Energy - Michael Saylor (Twitter Spaces Replay) Dec 28, 2021","duration":4777},
+            {"id":"kkGDfuTj1Ew","title":"Bitcoin: There Is No Second Best - Michael Saylor & Greg Foss Twitter Spaces","duration":7870},
+            {"id":"Xs4YtUqhF-8","title":"Bitcoin Freedom vs. Government Servitude - Bitcoin Magazine Twitter Spaces","duration":9328},
+            {"id":"WNsVIxymEtM","title":"Bitcoin, not Slavecoins with Aleks Svetski - Twitter Spaces","duration":5927},
+            {"id":"jlVLCeHxQ2M","title":"Nic Carter - Proof of Work vs Proof of Stake: Bitcoin Magazine Spaces","duration":5588},
+            {"id":"y5e-PhaGm_4","title":"Orange Pill App Twitter Spaces Jan 2023 - Jeff Booth, Breedlove, Knut, Daniel Prince, BTC Sessions","duration":7100},
+            {"id":"KpQX-04LxJ8","title":"Mark Cuban DEBATE Vs. Bitcoiners (Preston Pysh, Pomp, Peter McCormack, and others) - Twitter Spaces","duration":5657},
+            {"id":"yLl00j5p8Nc","title":"Mark Cuban debating #Bitcoin on spaces","duration":1114},
+            {"id":"2OHTUDACasc","title":"Mark Cuban talking bitcoin on Twitter Spaces W/ Preston Pysh, Pomp, Peter McCormack + 15K listeners","duration":5663}
+        ]
     },
     {
         "id": "politics-regulation",
@@ -8778,7 +8593,12 @@ var _CHANNEL_FEATURED = {
         'Joe Rogan', 'Lex Fridman', 'Peter McCormack (WBD)', 'What Bitcoin Did',
         'Pomp Podcast', 'Tom Bilyeu (Impact Theory)', 'Stephan Livera Podcast',
         'Bitcoin Audible', 'TFTC (Marty Bent)', 'Once Bitten', 'Bitcoin Layer Podcast',
-        'Bitcoin Magazine Podcast', 'Saifedean Podcast', 'Coin Stories (Natalie Brunell)'
+        'Bitcoin Magazine Podcast', 'Saifedean Podcast', 'Coin Stories (Natalie Brunell)',
+        'X Spaces: Saylor & Greg Foss', 'X Spaces: El Salvador Law (Nic Carter)',
+        'X Spaces: Mark Cuban debates Pomp/Pysh/PeterMcCormack',
+        'X Spaces: Orange Pill App (Jeff Booth, Breedlove, Knut)',
+        'X Spaces: Bitcoin vs Crypto', 'X Spaces: Nic Carter PoW vs PoS',
+        'X Spaces: BTCPayServer, Xapo, Simon Dixon, TFTC'
     ],
     'politics-regulation': [
         'Sen. Cynthia Lummis', 'Brian Armstrong (Coinbase)', 'Caitlin Long',
@@ -10005,7 +9825,9 @@ var _TCTV_STATION_LINES = {
     'podcasts-debates': [
         "Bring the headphones next time. 🎧",
         "Great debate energy tonight. 👀",
-        "Ideas sharpen on other ideas. ⚔️"
+        "Ideas sharpen on other ideas. ⚔️",
+        "Recorded X Spaces — conversations that used to disappear. 🕊️",
+        "Saylor, Cuban, Nic Carter. Pull up a chair. 📣"
     ],
     'politics-regulation': [
         "Nobody can ban math. ✋",
