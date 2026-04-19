@@ -9527,27 +9527,54 @@ window.renderTimechainTV = function() {
            The dedicated .tctv-remote-tap-zone child IS tappable and spans the full
            visible edge for reliable touch targeting. */
         #tctv-remote-inline.collapsed {
-            transform: translateX(142px);
-            opacity: 0.5;
+            /* Show ~30px of the remote at the right edge (was 18px) so the
+               pull-tab is clearly visible. */
+            transform: translateX(130px);
+            opacity: 1;
             pointer-events: none;
             position: relative;
         }
-        /* Full-height, 50px-wide invisible tap zone on the visible edge when collapsed.
-           This is FAR larger than the 40x5px drag handle — easy to tap on tablet. */
+        /* Full-height tap zone on the VISIBLE edge of the remote.
+           The collapsed remote is translated 142px to the right (so only 18px pokes
+           into the viewport from the right edge). We anchor the tap zone to the
+           right side of the remote and make it wide enough to cover both the
+           visible strip AND ~30px into the viewport for comfortable thumb tapping. */
         .tctv-remote-tap-zone {
             display: none;
             position: absolute;
             top: 0;
             bottom: 0;
-            left: 0;
+            /* Anchor to the right edge of the collapsed (translated) remote.
+               Width = the 18px visible strip + ~32px inward = 50px reachable. */
+            right: 0;
             width: 50px;
             z-index: 5;
             cursor: pointer;
             pointer-events: auto;
-            background: linear-gradient(90deg, rgba(247,147,26,0.10) 0%, transparent 100%);
+            background: linear-gradient(270deg, rgba(247,147,26,0.25) 0%, rgba(247,147,26,0.05) 60%, transparent 100%);
+            border-left: 2px solid rgba(247,147,26,0.4);
+            box-shadow: -2px 0 12px rgba(247,147,26,0.15);
         }
         #tctv-remote-inline.collapsed .tctv-remote-tap-zone {
             display: block;
+        }
+        /* Little visual pull-tab arrow inside the tap zone to hint interactivity */
+        #tctv-remote-inline.collapsed .tctv-remote-tap-zone::before {
+            content: '◀';
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #f7931a;
+            font-size: 14px;
+            font-weight: 900;
+            opacity: 0.9;
+            text-shadow: 0 0 4px rgba(0,0,0,0.8);
+            animation: tctvRemotePulse 2s ease-in-out infinite;
+        }
+        @keyframes tctvRemotePulse {
+            0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.9; }
+            50% { transform: translateY(-50%) translateX(-4px); opacity: 1; }
         }
         /* Keep the drag handle tappable too — redundant safety net */
         #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"] {
