@@ -669,7 +669,7 @@ window.notifySelfExploration = function(channelCount, pct) {
         recipientId: auth.currentUser.uid,
         senderId: 'system', senderName: 'System',
         type: 'milestone',
-        message: '🗺️ Explored ' + channelCount + ' channels (' + pct + '%)! Keep discovering!',
+        message: '🗺️ Explored ' + channelCount + ' topics (' + pct + '%)! Keep discovering!',
         targetType: null, targetId: null,
         read: false,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()

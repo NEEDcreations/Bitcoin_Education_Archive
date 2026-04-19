@@ -6,11 +6,11 @@
 
 const BADGE_DEFS = [
     { id: 'first_channel', name: 'First Steps', emoji: '👶', desc: 'Opened your first channel', check: v => v.length >= 1, pts: 10 },
-    { id: 'explorer_10', name: 'Explorer', emoji: '🧭', desc: 'Visited 10 channels', check: v => v.length >= 10 },
-    { id: 'explorer_25', name: 'Trailblazer', emoji: '🗺️', desc: 'Visited 25 channels', check: v => v.length >= 25 },
-    { id: 'explorer_50', name: 'Pathfinder', emoji: '🏔️', desc: 'Visited 50 channels', check: v => v.length >= 50 },
-    { id: 'explorer_100', name: 'Cartographer', emoji: '🌍', desc: 'Visited 100 channels', check: v => v.length >= 100 },
-    { id: 'explorer_all', name: 'Completionist', emoji: '🏆', desc: 'Visited every single channel', check: (v, total) => v.length >= total },
+    { id: 'explorer_10', name: 'Explorer', emoji: '🧭', desc: 'Visited 10 topics', check: v => v.length >= 10 },
+    { id: 'explorer_25', name: 'Trailblazer', emoji: '🗺️', desc: 'Visited 25 topics', check: v => v.length >= 25 },
+    { id: 'explorer_50', name: 'Pathfinder', emoji: '🏔️', desc: 'Visited 50 topics', check: v => v.length >= 50 },
+    { id: 'explorer_100', name: 'Cartographer', emoji: '🌍', desc: 'Visited 100 topics', check: v => v.length >= 100 },
+    { id: 'explorer_all', name: 'Completionist', emoji: '🏆', desc: 'Visited every single topic', check: (v, total) => v.length >= total },
     { id: 'foundation_builder', name: 'Foundation Builder', emoji: '🧱', desc: 'Read all Layer 1 Properties (Orange)', check: v => {
         const orange = ['whitepaper','decentralized','scarce','secure','money','peaceful','dominant','organic','supranational','programmable','use-cases'];
         return orange.every(p => v.includes(p));
@@ -19,14 +19,14 @@ const BADGE_DEFS = [
         const purple = ['maximalism','problems-of-money','self-custody','privacy-nonkyc','nodes','mining','pow-vs-pos','energy','difficulty-adjustment','layer-2-lightning','fedi-ark','chaumian-mints','ctv-covenants','extension-blocks','op-codes','bitvm','layer-3-sidechains','stablecoins','smart-contracts','blockchain-timechain','regulation','cryptography','core-source-code','developers','investment-strategy','evidence-against-alts','consensus'];
         return purple.every(p => v.includes(p));
     }},
-    { id: 'librarian', name: 'The Librarian', emoji: '🏛️', desc: 'Read all Resource channels (Blue)', check: v => {
+    { id: 'librarian', name: 'The Librarian', emoji: '🏛️', desc: 'Read all Resource topics (Blue)', check: v => {
         const blue = ['one-stop-shop','faq-glossary','nostr','misconceptions-fud','books','videos','podcasts','articles-threads','informational-sites','curriculum','research-theses','games','music','movies-tv','hardware','poems-stories','apps-tools','projects-diy','art-inspiration','graphics','charts','swag-merch','jobs-earn','social-media','fun-facts','news-adoption','history','international','satoshi-nakamoto','giga-chad','health','web5','memes-funny'];
         return blue.every(p => v.includes(p));
     }},
     { id: 'quest_1', name: 'Quester', emoji: '⚔️', desc: 'Completed your first Quest', check: (v, t, q) => q >= 1, pts: 10 },
     { id: 'quest_3', name: 'Quest Master', emoji: '🛡️', desc: 'Completed 3 Quests', check: (v, t, q) => q >= 3 },
     { id: 'quest_5', name: 'Quest Legend', emoji: '👑', desc: 'Completed 5 Quests', check: (v, t, q) => q >= 5 },
-    { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 channels to favorites', check: () => {
+    { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 topics to favorites', check: () => {
         return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 5;
     }},
     { id: 'night_owl', name: 'Night Owl', emoji: '🦉', desc: 'Browsing between midnight and 5am', check: () => {

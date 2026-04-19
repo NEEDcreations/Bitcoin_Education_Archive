@@ -114,11 +114,11 @@
                 '<div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6366f1;margin-bottom:8px;padding-left:2px;">🔓 Apps to Unlock</div>' +
                 '<p style="font-size:0.75rem;color:#64748b;margin-bottom:10px;line-height:1.4;">Read channels to earn points and unlock these apps:</p>' +
                 unlockTier('🎵', 'Bitcoin Beats', 'Available now!', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)") +
-                unlockTier('💬', 'PlebTalk Forum', 'Read 3 channels to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
-                unlockTier('🤝', 'IRL Sync', 'Read 5 channels to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
-                unlockTier('🛒', 'Lightning Mart', 'Read 10 channels to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
+                unlockTier('💬', 'PlebTalk Forum', 'Read 3 topics to unlock', forumLocked, forumLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)") +
+                unlockTier('🤝', 'IRL Sync', 'Read 5 topics to unlock', irlLocked, irlLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)") +
+                unlockTier('🛒', 'Lightning Mart', 'Read 10 topics to unlock', marketLocked, marketLocked ? null : "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)") +
                 unlockTier('⚡', 'Lightning Tipping', 'Tap to set up your wallet', false, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('lightning')}},300)") +
-                unlockTier('🎓', 'Scholar Certification', 'Read all channels + pass the exam', true, null) +
+                unlockTier('🎓', 'Scholar Certification', 'Read all topics + pass the exam', true, null) +
             '</div>' +
 
             // ── MORE FEATURES ──

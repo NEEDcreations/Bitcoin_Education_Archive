@@ -98,16 +98,16 @@ const TIPS = [
     { pose: 'brain', text: "📜 Have you read Bitcoin's Whitepaper? It's only 9 pages and it started a revolution! <span onclick=\"go('whitepaper')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Read it here →</span> 🦌" },
     { pose: 'fire', text: "🔥 Pro tip: Read the Bitcoin Whitepaper — it's the Genesis document! Only 9 pages changed the world forever. <span onclick=\"go('whitepaper')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Check it out →</span>" },
     // Navigation & Discovery
-    { pose: 'point', text: "💡 Tip: The sidebar on the left has ALL channels organized by category. Tap a category to expand it!" },
+    { pose: 'point', text: "💡 Tip: The sidebar on the left has ALL topics organized by category. Tap a category to expand it!" },
     { pose: 'point', text: "💡 Tip: Click the 🎲 dice button to jump to a random channel — great for discovering new topics!" },
-    { pose: 'point', text: "💡 Tip: Use the 🔍 search button to find any topic across all 146+ channels instantly!" },
+    { pose: 'point', text: "💡 Tip: Use the 🔍 search button to find any subject across all 146+ topics instantly!" },
     { pose: 'point', text: "💡 Tip: Click the Bitcoin logo at the top to return to the homepage anytime!" },
     // Favorites & Progress
     { pose: 'point', text: "💡 Tip: Hit the ⭐ button on any channel to save it to your favorites for quick access!" },
     { pose: 'point', text: "💡 Tip: Your Exploration Map on the homepage shows every channel you've visited. Try to light them all up! 🗺️" },
     { pose: 'point', text: "💡 Tip: Channels you've already read get a ✓ checkmark in the sidebar. Track your progress!" },
     // Points & Ranking
-    { pose: 'brain', text: "💡 Tip: You earn points by visiting daily (+5), opening new channels (+10), and reading (+15 per 30 sec)!" },
+    { pose: 'brain', text: "💡 Tip: You earn points by visiting daily (+5), opening new topics (+10), and reading (+15 per 30 sec)!" },
     { pose: 'point', text: "💡 Tip: Check the leaderboard to see how you rank against other Bitcoiners! Click your rank bar at the bottom." },
     { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
@@ -971,7 +971,7 @@ function createNacho() {
             if (tourStep === 1) {
                 forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
                     'Here\'s what you can do here:<br>' +
-                    '📚 <strong>Read 145+ Bitcoin channels</strong> — tap any in the sidebar<br>' +
+                    '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
                     '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
                     '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
                     '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +

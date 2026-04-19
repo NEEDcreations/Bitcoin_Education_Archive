@@ -1945,7 +1945,7 @@ async function onChannelOpen(channelId) {
 
         // Bonus for exploring 10+ unique channels total
         if (allTimeChannels.size === 10) {
-            await awardPoints(POINTS.explore10, 'Explorer bonus! 10 channels 🎉');
+            await awardPoints(POINTS.explore10, 'Explorer bonus! 10 topics 🎉');
         }
     }
 
@@ -3686,7 +3686,7 @@ function showSettingsPage(tab) {
             { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
             { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days — ' + (7 - acctAgeDays) + ' more to go' },
-            { met: channelsRead >= 10, label: 'Read ≥ 10 channels', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' channels read' : channelsRead + '/10 channels — read ' + (10 - channelsRead) + ' more' },
+            { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics — read ' + (10 - channelsRead) + ' more' },
             { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more points' }
         ];
         checks.forEach(function(c) {
@@ -3731,7 +3731,7 @@ function showSettingsPage(tab) {
         html += _es('ep_read', '📚 Reading & Exploring', [
             '📖 Open a channel: <strong>10 pts</strong>',
             '⏱️ Read for 30 sec: <strong>15 pts</strong>',
-            '🧭 Explore 10+ channels/session: <strong>50 pts</strong>',
+            '🧭 Explore 10+ topics/session: <strong>50 pts</strong>',
             '🗺️ Exploration milestones: <strong>50-500 pts</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
@@ -3923,7 +3923,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
                 '🎡 <strong>Spin reminders</strong> — a couple times a week, never daily<br>' +
                 '🔥 <strong>Streak alerts</strong> — don\'t lose your streak!<br>' +
-                '📰 <strong>New content</strong> — when we add major new channels<br>' +
+                '📰 <strong>New content</strong> — when we add major new topics<br>' +
                 '🏆 <strong>Giveaway alerts</strong> — never miss a sats giveaway<br><br>' +
                 '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
@@ -3964,8 +3964,8 @@ function showSettingsPage(tab) {
             '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Navigation</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
-            shortcutRow('H','Home') + shortcutRow('/','Search') + shortcutRow('B','Last channel') +
-            shortcutRow('C','Random channel') + shortcutRow('M','Random meme') + shortcutRow('R','Random art') +
+            shortcutRow('H','Home') + shortcutRow('/','Search') + shortcutRow('B','Last topic') +
+            shortcutRow('C','Random topic') + shortcutRow('M','Random meme') + shortcutRow('R','Random art') +
             shortcutRow('G','Random graphic') + shortcutRow('T','PlebTalk') + shortcutRow('S','Lightning Mart') +
             shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
             '</div>' +

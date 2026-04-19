@@ -461,11 +461,11 @@ const NACHO_KB = [
 
     // === SITE SPECIFIC ===
     { keys: ['how to use','how does this site','help','navigate','where do i start','tutorial','guide me'],
-      answer: "Start with <strong>Nacho's Trails</strong> — guided learning modules that walk you through Bitcoin step by step! 🦌🗺️ The Meadow (intro), The Mountain (intermediate), and The Summit (advanced). Each trail has curated channels to read and a 25-question exam at the end. Or browse the sidebar to explore channels by category. Earn points, take quests, collect badges!",
+      answer: "Start with <strong>Nacho's Trails</strong> — guided learning modules that walk you through Bitcoin step by step! 🦌🗺️ The Meadow (intro), The Mountain (intermediate), and The Summit (advanced). Each trail has curated topics to read and a 25-question exam at the end. Or browse the sidebar to explore topics by category. Earn points, take quests, collect badges!",
       siteAction: "go('trails')", siteLabel: '🦌 Open Nacho\'s Trails', isSiteNav: true },
 
     { keys: ['trails','trail','modules','module','learning path','learning module','guided learning','meadow','mountain','summit','nacho trail','nachos trail'],
-      answer: "Nacho's Trails are guided learning modules, {name}! 🦌🗺️<br><br>🌿 <strong>The Meadow</strong> — Start here! 7 channels covering Bitcoin basics<br>⛰️ <strong>The Mountain</strong> — 8 channels going deeper into mining, Lightning, custody<br>🏔️ <strong>The Summit</strong> — 8 channels for advanced topics like cryptography and maximalism<br><br>Read every channel in a trail, then pass the 25-question exam (80%) to earn badges, points, and tickets! Each trail unlocks the next. 🧡",
+      answer: "Nacho's Trails are guided learning modules, {name}! 🦌🗺️<br><br>🌿 <strong>The Meadow</strong> — Start here! 7 topics covering Bitcoin basics<br>⛰️ <strong>The Mountain</strong> — 8 topics going deeper into mining, Lightning, custody<br>🏔️ <strong>The Summit</strong> — 8 topics for advanced subjects like cryptography and maximalism<br><br>Read every topic in a trail, then pass the 25-question exam (80%) to earn badges, points, and tickets! Each trail unlocks the next. 🧡",
       siteAction: "go('trails')", siteLabel: '🗺️ Start a Trail', isSiteNav: true },
 
     { keys: ['quest','quests','test','quiz','certification','exam','scholar'],
@@ -2937,13 +2937,13 @@ function matchSiteNavigation(input) {
           answer: "Flashcards are on the homepage — pick a topic and study to prepare for quests! 👩‍🎓",
           action: "goHome()", label: "🏠 Go to Flashcards" },
         { patterns: /where.*(map|exploration|progress|visited)|exploration.*map|which.*channel.*visited|my.*progress/,
-          answer: "The Exploration Map is on the homepage — it shows which channels you've visited! 🗺️",
+          answer: "The Exploration Map is on the homepage — it shows which topics you've visited! 🗺️",
           action: "goHome()", label: "🗺️ View Map" },
         { patterns: /where.*(keyboard|shortcut|hotkey)|keyboard.*short|shortcut/,
-          answer: "Press ? to see all shortcuts! ⌨️ Quick ones: H=Home, T=PlebTalk, N=Nacho Mode, X=PVP, S=Market, L=Leaderboard, A=Ask Nacho, P=Donate, C=Random Channel, D=Toggle Theme",
+          answer: "Press ? to see all shortcuts! ⌨️ Quick ones: H=Home, T=PlebTalk, N=Nacho Mode, X=PVP, S=Market, L=Leaderboard, A=Ask Nacho, P=Donate, C=Random Topic, D=Toggle Theme",
           action: "showKeyboardHelp()", label: "⌨️ View Shortcuts" },
         { patterns: /how.*(use|navigate|work).*site|how.*this.*work|what.*can.*do.*here|site.*guide|help.*navigate|tutorial/,
-          answer: "Welcome! Here's what you can do: 📚 Read 146+ Bitcoin channels, ⚡ Take quests & earn certifications, 🗣️ PlebTalk (forum + articles), ⚡ LightningMart, 🎸 Bitcoin Beats, 🤝 IRL Sync meetups, ⚔️ PVP trivia battles, 💬 DMs, ⚡ Lightning tipping, 📝 Write articles, 📚 Flashcards, 🎓 Scholar Certifications, 🔔 Notifications when people interact with your content — and of course, talk to me! 🦌",
+          answer: "Welcome! Here's what you can do: 📚 Read 146+ Bitcoin topics, ⚡ Take quests & earn certifications, 🗣️ PlebTalk (forum + articles), ⚡ LightningMart, 🎸 Bitcoin Beats, 🤝 IRL Sync meetups, ⚔️ PVP trivia battles, 💬 DMs, ⚡ Lightning tipping, 📝 Write articles, 📚 Flashcards, 🎓 Scholar Certifications, 🔔 Notifications when people interact with your content — and of course, talk to me! 🦌",
           action: "goHome()", label: "🏠 Explore the Archive" },
         { patterns: /where.*(dm|direct.*message|message|inbox|chat.*someone)|how.*(message|dm|send.*message|contact)|dm\b|direct message|inbox|message.*user|message.*someone/,
           answer: "Tap any user on the leaderboard to see their profile, then hit 💬 Message! Your inbox is in the DMs tab at the bottom. You need 50 points and a 24-hour-old account to send DMs (keeps scammers out). You can also ⚡ tip users from their profile if they have a Lightning Address! 🛡️",

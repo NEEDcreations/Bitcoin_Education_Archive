@@ -2093,7 +2093,7 @@ async function onChannelOpen(channelId) {
 
         // Bonus for exploring 10+ unique channels total
         if (allTimeChannels.size === 10) {
-            await awardPoints(POINTS.explore10, 'Explorer bonus! 10 channels 🎉');
+            await awardPoints(POINTS.explore10, 'Explorer bonus! 10 topics 🎉');
         }
     }
 
@@ -3834,7 +3834,7 @@ function showSettingsPage(tab) {
             { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
             { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days — ' + (7 - acctAgeDays) + ' more to go' },
-            { met: channelsRead >= 10, label: 'Read ≥ 10 channels', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' channels read' : channelsRead + '/10 channels — read ' + (10 - channelsRead) + ' more' },
+            { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics — read ' + (10 - channelsRead) + ' more' },
             { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats — earn ' + ((100 - satsBalance) * 10) + ' more points' }
         ];
         checks.forEach(function(c) {
@@ -3879,7 +3879,7 @@ function showSettingsPage(tab) {
         html += _es('ep_read', '📚 Reading & Exploring', [
             '📖 Open a channel: <strong>10 pts</strong>',
             '⏱️ Read for 30 sec: <strong>15 pts</strong>',
-            '🧭 Explore 10+ channels/session: <strong>50 pts</strong>',
+            '🧭 Explore 10+ topics/session: <strong>50 pts</strong>',
             '🗺️ Exploration milestones: <strong>50-500 pts</strong>'
         ]);
         html += _es('ep_daily', '✅ Daily Activities', [
@@ -4071,7 +4071,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
                 '🎡 <strong>Spin reminders</strong> — a couple times a week, never daily<br>' +
                 '🔥 <strong>Streak alerts</strong> — don\'t lose your streak!<br>' +
-                '📰 <strong>New content</strong> — when we add major new channels<br>' +
+                '📰 <strong>New content</strong> — when we add major new topics<br>' +
                 '🏆 <strong>Giveaway alerts</strong> — never miss a sats giveaway<br><br>' +
                 '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
             '</div>' +
@@ -4112,8 +4112,8 @@ function showSettingsPage(tab) {
             '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
             '<div style="font-size:0.7rem;color:var(--accent);font-weight:700;margin-bottom:4px;">Navigation</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;">' +
-            shortcutRow('H','Home') + shortcutRow('/','Search') + shortcutRow('B','Last channel') +
-            shortcutRow('C','Random channel') + shortcutRow('M','Random meme') + shortcutRow('R','Random art') +
+            shortcutRow('H','Home') + shortcutRow('/','Search') + shortcutRow('B','Last topic') +
+            shortcutRow('C','Random topic') + shortcutRow('M','Random meme') + shortcutRow('R','Random art') +
             shortcutRow('G','Random graphic') + shortcutRow('T','PlebTalk') + shortcutRow('S','Lightning Mart') +
             shortcutRow('J / K','Scroll ↓↑') + shortcutRow('Space','Page down') +
             '</div>' +
@@ -5546,11 +5546,11 @@ function getLevelFlavor(name) {
 
 const BADGE_DEFS = [
     { id: 'first_channel', name: 'First Steps', emoji: '👶', desc: 'Opened your first channel', check: v => v.length >= 1, pts: 10 },
-    { id: 'explorer_10', name: 'Explorer', emoji: '🧭', desc: 'Visited 10 channels', check: v => v.length >= 10 },
-    { id: 'explorer_25', name: 'Trailblazer', emoji: '🗺️', desc: 'Visited 25 channels', check: v => v.length >= 25 },
-    { id: 'explorer_50', name: 'Pathfinder', emoji: '🏔️', desc: 'Visited 50 channels', check: v => v.length >= 50 },
-    { id: 'explorer_100', name: 'Cartographer', emoji: '🌍', desc: 'Visited 100 channels', check: v => v.length >= 100 },
-    { id: 'explorer_all', name: 'Completionist', emoji: '🏆', desc: 'Visited every single channel', check: (v, total) => v.length >= total },
+    { id: 'explorer_10', name: 'Explorer', emoji: '🧭', desc: 'Visited 10 topics', check: v => v.length >= 10 },
+    { id: 'explorer_25', name: 'Trailblazer', emoji: '🗺️', desc: 'Visited 25 topics', check: v => v.length >= 25 },
+    { id: 'explorer_50', name: 'Pathfinder', emoji: '🏔️', desc: 'Visited 50 topics', check: v => v.length >= 50 },
+    { id: 'explorer_100', name: 'Cartographer', emoji: '🌍', desc: 'Visited 100 topics', check: v => v.length >= 100 },
+    { id: 'explorer_all', name: 'Completionist', emoji: '🏆', desc: 'Visited every single topic', check: (v, total) => v.length >= total },
     { id: 'foundation_builder', name: 'Foundation Builder', emoji: '🧱', desc: 'Read all Layer 1 Properties (Orange)', check: v => {
         const orange = ['whitepaper','decentralized','scarce','secure','money','peaceful','dominant','organic','supranational','programmable','use-cases'];
         return orange.every(p => v.includes(p));
@@ -5559,14 +5559,14 @@ const BADGE_DEFS = [
         const purple = ['maximalism','problems-of-money','self-custody','privacy-nonkyc','nodes','mining','pow-vs-pos','energy','difficulty-adjustment','layer-2-lightning','fedi-ark','chaumian-mints','ctv-covenants','extension-blocks','op-codes','bitvm','layer-3-sidechains','stablecoins','smart-contracts','blockchain-timechain','regulation','cryptography','core-source-code','developers','investment-strategy','evidence-against-alts','consensus'];
         return purple.every(p => v.includes(p));
     }},
-    { id: 'librarian', name: 'The Librarian', emoji: '🏛️', desc: 'Read all Resource channels (Blue)', check: v => {
+    { id: 'librarian', name: 'The Librarian', emoji: '🏛️', desc: 'Read all Resource topics (Blue)', check: v => {
         const blue = ['one-stop-shop','faq-glossary','nostr','misconceptions-fud','books','videos','podcasts','articles-threads','informational-sites','curriculum','research-theses','games','music','movies-tv','hardware','poems-stories','apps-tools','projects-diy','art-inspiration','graphics','charts','swag-merch','jobs-earn','social-media','fun-facts','news-adoption','history','international','satoshi-nakamoto','giga-chad','health','web5','memes-funny'];
         return blue.every(p => v.includes(p));
     }},
     { id: 'quest_1', name: 'Quester', emoji: '⚔️', desc: 'Completed your first Quest', check: (v, t, q) => q >= 1, pts: 10 },
     { id: 'quest_3', name: 'Quest Master', emoji: '🛡️', desc: 'Completed 3 Quests', check: (v, t, q) => q >= 3 },
     { id: 'quest_5', name: 'Quest Legend', emoji: '👑', desc: 'Completed 5 Quests', check: (v, t, q) => q >= 5 },
-    { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 channels to favorites', check: () => {
+    { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 topics to favorites', check: () => {
         return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 5;
     }},
     { id: 'night_owl', name: 'Night Owl', emoji: '🦉', desc: 'Browsing between midnight and 5am', check: () => {
@@ -6834,16 +6834,16 @@ const TIPS = [
     { pose: 'brain', text: "📜 Have you read Bitcoin's Whitepaper? It's only 9 pages and it started a revolution! <span onclick=\"go('whitepaper')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Read it here →</span> 🦌" },
     { pose: 'fire', text: "🔥 Pro tip: Read the Bitcoin Whitepaper — it's the Genesis document! Only 9 pages changed the world forever. <span onclick=\"go('whitepaper')\" style=\"color:var(--accent);cursor:pointer;text-decoration:underline;\">Check it out →</span>" },
     // Navigation & Discovery
-    { pose: 'point', text: "💡 Tip: The sidebar on the left has ALL channels organized by category. Tap a category to expand it!" },
+    { pose: 'point', text: "💡 Tip: The sidebar on the left has ALL topics organized by category. Tap a category to expand it!" },
     { pose: 'point', text: "💡 Tip: Click the 🎲 dice button to jump to a random channel — great for discovering new topics!" },
-    { pose: 'point', text: "💡 Tip: Use the 🔍 search button to find any topic across all 146+ channels instantly!" },
+    { pose: 'point', text: "💡 Tip: Use the 🔍 search button to find any subject across all 146+ topics instantly!" },
     { pose: 'point', text: "💡 Tip: Click the Bitcoin logo at the top to return to the homepage anytime!" },
     // Favorites & Progress
     { pose: 'point', text: "💡 Tip: Hit the ⭐ button on any channel to save it to your favorites for quick access!" },
     { pose: 'point', text: "💡 Tip: Your Exploration Map on the homepage shows every channel you've visited. Try to light them all up! 🗺️" },
     { pose: 'point', text: "💡 Tip: Channels you've already read get a ✓ checkmark in the sidebar. Track your progress!" },
     // Points & Ranking
-    { pose: 'brain', text: "💡 Tip: You earn points by visiting daily (+5), opening new channels (+10), and reading (+15 per 30 sec)!" },
+    { pose: 'brain', text: "💡 Tip: You earn points by visiting daily (+5), opening new topics (+10), and reading (+15 per 30 sec)!" },
     { pose: 'point', text: "💡 Tip: Check the leaderboard to see how you rank against other Bitcoiners! Click your rank bar at the bottom." },
     { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
@@ -7707,7 +7707,7 @@ function createNacho() {
             if (tourStep === 1) {
                 forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
                     'Here\'s what you can do here:<br>' +
-                    '📚 <strong>Read 145+ Bitcoin channels</strong> — tap any in the sidebar<br>' +
+                    '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
                     '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
                     '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
                     '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
@@ -14838,7 +14838,7 @@ const HIDDEN_BADGES = [
     { id: 'ticket_silver', name: 'Ticket Shark', emoji: '🦈', pts: 500, desc: 'Earn 50 Orange Tickets', hint: 'Keep spinning & referring!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 50; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 50) + '/50' : '0/50'; } },
     { id: 'ticket_gold', name: 'Ticket Whale', emoji: '🐋', pts: 1000, desc: 'Earn 100 Orange Tickets', hint: 'The ultimate ticket badge!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && (currentUser.orangeTickets || 0) >= 100; }, progress: function() { return typeof currentUser !== 'undefined' && currentUser ? Math.min(currentUser.orangeTickets || 0, 100) + '/100' : '0/100'; } },
     { id: 'nacho_10q', name: 'Inquisitive Buck', emoji: '🔍', pts: 200, desc: 'Ask Nacho 10 questions', hint: 'Keep asking Nacho!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 10; }, progress: function() { return Math.min(parseInt(localStorage.getItem('btc_nacho_questions') || '0'), 10) + '/10'; } },
-    { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ channels to favorites', hint: 'Star your favorite channels', hidden: false, check: function() { return safeJSON('btc_favs', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_favs', []).length, 10) + '/10'; } },
+    { id: 'collector', name: 'Collector', emoji: '💎', pts: 150, desc: 'Save 10+ topics to favorites', hint: 'Star your favorite topics', hidden: false, check: function() { return safeJSON('btc_favs', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_favs', []).length, 10) + '/10'; } },
     { id: 'first_post', name: 'Town Crier', emoji: '📣', pts: 100, desc: 'Make your first Pleb Talk post', hint: 'Post in PlebTalk!', hidden: false, check: function() { return parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 1 || (typeof currentUser !== 'undefined' && currentUser && currentUser.forumPosts >= 1); } },
     { id: 'first_reply', name: 'Conversationalist', emoji: '💬', pts: 75, desc: 'Reply to a forum post', hint: 'Join a discussion!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.forumReplies >= 1; } },
     { id: 'market_seller', name: 'Merchant', emoji: '🏪', pts: 150, desc: 'List an item on Lightning Mart', hint: 'Sell something for sats on Lightning Mart!', hidden: false, check: function() { return typeof currentUser !== 'undefined' && currentUser && currentUser.marketListings >= 1; } },
@@ -14849,11 +14849,11 @@ const HIDDEN_BADGES = [
     { id: 'scholar', name: 'Bitcoin Scholar', emoji: '🎓', pts: 300, desc: 'Pass the Scholar Certification', hidden: true, check: function() { return localStorage.getItem('btc_scholar_passed') === 'true'; } },
     { id: 'nacho_20q', name: '20 Questions', emoji: '🏅', pts: 500, desc: 'Ask Nacho 20 questions', hidden: true, check: function() { return parseInt(localStorage.getItem('btc_nacho_questions') || '0') >= 20; } },
     // === CHANNEL EXPLORATION MILESTONES ===
-    { id: 'explorer_10', name: 'Curious Pleb', emoji: '🗺️', pts: 100, desc: 'Explore 10 channels', hint: 'Keep exploring!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 10) + '/10'; } },
-    { id: 'explorer_25', name: 'Rabbit Holer', emoji: '🐇', pts: 250, desc: 'Explore 25 channels', hint: 'Dive deeper!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 25; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 25) + '/25'; } },
-    { id: 'explorer_50', name: 'Half Stack', emoji: '📚', pts: 500, desc: 'Explore 50 channels', hint: 'Halfway there!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 50; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 50) + '/50'; } },
-    { id: 'explorer_100', name: 'Century Club', emoji: '💯', pts: 1000, desc: 'Explore 100 channels', hint: 'Almost all of them!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 100; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 100) + '/100'; } },
-    { id: 'explorer_all', name: 'Archive Master', emoji: '👑', pts: 2000, desc: 'Explore every single channel', hint: 'Visit them all!', hidden: true, check: function() { return typeof CHANNELS !== 'undefined' && safeJSON('btc_visited_channels', []).length >= Object.keys(CHANNELS).length; } },
+    { id: 'explorer_10', name: 'Curious Pleb', emoji: '🗺️', pts: 100, desc: 'Explore 10 topics', hint: 'Keep exploring!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 10; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 10) + '/10'; } },
+    { id: 'explorer_25', name: 'Rabbit Holer', emoji: '🐇', pts: 250, desc: 'Explore 25 topics', hint: 'Dive deeper!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 25; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 25) + '/25'; } },
+    { id: 'explorer_50', name: 'Half Stack', emoji: '📚', pts: 500, desc: 'Explore 50 topics', hint: 'Halfway there!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 50; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 50) + '/50'; } },
+    { id: 'explorer_100', name: 'Century Club', emoji: '💯', pts: 1000, desc: 'Explore 100 topics', hint: 'Almost all of them!', hidden: false, check: function() { return safeJSON('btc_visited_channels', []).length >= 100; }, progress: function() { return Math.min(safeJSON('btc_visited_channels', []).length, 100) + '/100'; } },
+    { id: 'explorer_all', name: 'Archive Master', emoji: '👑', pts: 2000, desc: 'Explore every single topic', hint: 'Visit them all!', hidden: true, check: function() { return typeof CHANNELS !== 'undefined' && safeJSON('btc_visited_channels', []).length >= Object.keys(CHANNELS).length; } },
     // === MORE SECRET BADGES ===
     { id: 'marathon', name: 'Marathon Reader', emoji: '🏃', pts: 150, desc: 'Spent 30+ minutes reading in one session', hidden: true, check: function() { return (Date.now() - (window._sessionStart || Date.now())) > 1800000; } },
     { id: 'early_adopter', name: 'Early Adopter', emoji: '🌅', pts: 200, desc: 'Browsing between 5am and 7am', hidden: true, check: function() { var h = new Date().getHours(); return h >= 5 && h < 7; } },
@@ -14878,7 +14878,7 @@ const HIDDEN_BADGES = [
         "⚡ A pleb just completed a Lightning Network quest — 50 pts earned!",
         "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
         "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
-        "📚 A new user just explored their first 3 channels — features unlocking!",
+        "📚 A new user just explored their first 3 topics — features unlocking!",
         "🧠 Someone just asked Nacho 100 questions — Bitcoin Scholar status!",
         "🎯 A pleb just scored 5/5 on a Conversation Quest!",
         "📖 Someone just read through the entire Timechain channel!",
@@ -21645,7 +21645,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">Press <kbd style="background:var(--card-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-family:monospace;">?</kbd> to toggle this menu</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
-                kbRow('H','Go home') + kbRow('/','Search') + kbRow('C','Random channel') +
+                kbRow('H','Go home') + kbRow('/','Search') + kbRow('C','Random topic') +
                 kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('G','Random Graphic') + kbRow('B','Back to last channel') +
                 kbRow('T','PlebTalk (Forum)') + kbRow('S','Lightning Mart') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
@@ -22467,7 +22467,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
-        { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
+        { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which topics you have visited', keywords: 'exploration map progress visited topics grid complete coverage', action: 'goHome()' },
         { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
         { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining sync broadcast cinema', action: "go('timechain-tv')" },
         { id: '_djmode', title: '🎧 DJ Mode', desc: 'Go live as a DJ — broadcast music, use sound effects, crossfade, and play Bitcoin quotes', keywords: 'dj mode broadcast live music stream turntable crossfade sound effects horn airhorn scratch mixer controls', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('livestream')},300)" },
@@ -22893,10 +22893,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         var forumLock = !_isExplorer;
         var irlLock = !_isCommunity;
         var marketLock = !_isFull;
-        var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Bitcoin Beats!';
-        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Pleb Talk!';
-        var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more channels to unlock IRL Sync!';
-        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more channels or sign in to unlock Lightning Mart!';
+        var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more topics to unlock Bitcoin Beats!';
+        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more topics to unlock Pleb Talk!';
+        var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more topics to unlock IRL Sync!';
+        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more topics or sign in to unlock Lightning Mart!';
 
         var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +
@@ -24453,7 +24453,7 @@ window.playSpinWin = function() {
                     '<div class="badge-progress-fill" style="width:' + Math.round((availableChannels.length / totalChannels) * 100) + '%;"></div>' +
                 '</div>' +
             '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);line-height:1.5;">Visit more channels to unlock new quests! Each channel you read adds its questions to your quest pool.</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);line-height:1.5;">Visit more topics to unlock new quests! Each topic you read adds its questions to your quest pool.</div>' +
         '</div>';
 
         return html;

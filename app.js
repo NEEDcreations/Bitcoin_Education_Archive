@@ -2886,7 +2886,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.8rem;color:var(--text-faint);margin-bottom:12px;">Press <kbd style="background:var(--card-bg);border:1px solid var(--border);padding:2px 6px;border-radius:4px;font-family:monospace;">?</kbd> to toggle this menu</div>' +
             '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:0.85rem;">' +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:8px;border-bottom:1px solid var(--border);padding-bottom:4px;">Navigation</div>' +
-                kbRow('H','Go home') + kbRow('/','Search') + kbRow('C','Random channel') +
+                kbRow('H','Go home') + kbRow('/','Search') + kbRow('C','Random topic') +
                 kbRow('M','Random Meme') + kbRow('R','Random Art') + kbRow('G','Random Graphic') + kbRow('B','Back to last channel') +
                 kbRow('T','PlebTalk (Forum)') + kbRow('S','Lightning Mart') +
                 '<div style="color:var(--accent);font-weight:700;grid-column:1/-1;margin-top:12px;border-bottom:1px solid var(--border);padding-bottom:4px;">Actions</div>' +
@@ -3708,7 +3708,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
-        { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which channels you have visited', keywords: 'exploration map progress visited channels grid complete coverage', action: 'goHome()' },
+        { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which topics you have visited', keywords: 'exploration map progress visited topics grid complete coverage', action: 'goHome()' },
         { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
         { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining sync broadcast cinema', action: "go('timechain-tv')" },
         { id: '_djmode', title: '🎧 DJ Mode', desc: 'Go live as a DJ — broadcast music, use sound effects, crossfade, and play Bitcoin quotes', keywords: 'dj mode broadcast live music stream turntable crossfade sound effects horn airhorn scratch mixer controls', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('livestream')},300)" },
@@ -4134,10 +4134,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         var forumLock = !_isExplorer;
         var irlLock = !_isCommunity;
         var marketLock = !_isFull;
-        var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Bitcoin Beats!';
-        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more channels to unlock Pleb Talk!';
-        var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more channels to unlock IRL Sync!';
-        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more channels or sign in to unlock Lightning Mart!';
+        var beatsMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more topics to unlock Bitcoin Beats!';
+        var forumMsg = '🔒 Visit ' + Math.max(0, 3 - _exploredN) + ' more topics to unlock Pleb Talk!';
+        var irlMsg = '🔒 Explore ' + Math.max(0, 5 - _exploredN) + ' more topics to unlock IRL Sync!';
+        var marketMsg = '🔒 Explore ' + Math.max(0, 10 - _exploredN) + ' more topics or sign in to unlock Lightning Mart!';
 
         var html = '<div id="appsMenu" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:var(--bg-side,#141425);border:1px solid var(--border);border-radius:24px;padding:16px;z-index:100001;box-shadow:0 20px 50px rgba(0,0,0,0.6);backdrop-filter:blur(10px);">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:12px;text-align:center;">Explore</div>' +

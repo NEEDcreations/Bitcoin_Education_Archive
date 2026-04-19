@@ -982,7 +982,7 @@
                     '<div class="badge-progress-fill" style="width:' + Math.round((availableChannels.length / totalChannels) * 100) + '%;"></div>' +
                 '</div>' +
             '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);line-height:1.5;">Visit more channels to unlock new quests! Each channel you read adds its questions to your quest pool.</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);line-height:1.5;">Visit more topics to unlock new quests! Each topic you read adds its questions to your quest pool.</div>' +
         '</div>';
 
         return html;

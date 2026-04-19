@@ -637,7 +637,7 @@
             <span id="mobileUserInfo" onclick="if(auth&&auth.currentUser&&!auth.currentUser.isAnonymous){showUsernamePrompt()}else{toggleMenu()}" style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;display:none;"></span>
             <button onclick="toggleTheme()" id="mobileThemeBtn" style="background:none;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;" title="Light/Dark mode"><script>document.write(localStorage.getItem('theme')==='light'?'☀️':'🌙')</script></button>
             <button onclick="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();" style="background:var(--accent);color:#fff;border:none;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;">🔍</button>
-            <button onclick="toggleMenu()">☰ Channels</button>
+            <button onclick="toggleMenu()">☰ Topics</button>
         </div>
     </div>
 
@@ -661,13 +661,13 @@
                 <span id="ticker-label" style="color:#f7931a;font-weight:900;font-size:0.6rem;text-transform:uppercase;background:rgba(0,0,0,0.9);padding:3px 10px;border-radius:4px;flex-shrink:0;z-index:2;position:relative;border:1px solid rgba(247,147,26,0.3);box-shadow:8px 0 12px rgba(0,0,0,0.9);">🔴 Live</span>
                 <div id="ticker-content" style="flex:1;overflow:hidden;text-overflow:ellipsis;">Loading activity...</div>
             </div>
-            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all channels..." oninput="doSearch(this.value)" onfocus="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search all topics..." oninput="doSearch(this.value)" onfocus="document.getElementById('searchOverlay').style.display='flex';document.getElementById('searchOverlayInput').focus();">
 
         </div>
         <div class="channels" id="channelList">
 
             <div id="favsSection" style="display:none;">
-                <div class="cat-label">⭐ Your Saved Channels</div>
+                <div class="cat-label">⭐ Your Saved Topics</div>
                 <div id="favsList"></div>
                 <div id="bookmarksList" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;"></div>
             </div>
@@ -1065,7 +1065,7 @@
                         <p><strong>Other Contributors:</strong> Hundreds of Bitcoiners from Bitcoin Twitter, Bitcoin X, and the Bitcoin Education Discord community</p>
                     </div>
                     <div id="appStatsPanel" class="home-stats" style="display:none;margin-top:10px;">
-                        <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Channels</span></div>
+                        <div class="home-stat"><span class="home-stat-num">146</span><span class="home-stat-label">Topics</span></div>
                         <div class="home-stat"><span class="home-stat-num">7</span><span class="home-stat-label">Mini Apps</span></div>
                         <div class="home-stat"><span class="home-stat-num">8,800+</span><span class="home-stat-label">Messages</span></div>
                         <div class="home-stat"><span class="home-stat-num">5,485</span><span class="home-stat-label">Images</span></div>
