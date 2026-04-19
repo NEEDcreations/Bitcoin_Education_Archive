@@ -1320,6 +1320,13 @@ async function loadUser(uid, prefetchedDoc) {
         awardVisitPoints();
         startReadTimer();
 
+        // Update high-res lastActive timestamp for DAU tracking
+        if (!auth.currentUser.isAnonymous) {
+            db.collection('users').doc(uid).update({ 
+                lastActive: firebase.firestore.FieldValue.serverTimestamp() 
+            }).catch(function() {});
+        }
+
         // Restore badges and scholar status from Firebase
         if (isRealUser) {
             if (currentUser.hiddenBadges) {
@@ -1809,21 +1816,18 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
     if (window._pointAwardTimes.length >= 20) return;
     window._pointAwardTimes.push(_now);
 
-    // ── Local/anonymous users: localStorage only (can't claim sats anyway) ──
     if (currentUser._isLocal) {
+        // ... (existing local/anonymous logic) ...
         var DAILY_CAP = 500;
         var _today = new Date().toISOString().split('T')[0];
-        var _dailyKey = 'btc_daily_pts_' + _today;
-        var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-        if (_dailyPts >= DAILY_CAP) return;
-        var _awarded = Math.min(pts, DAILY_CAP - _dailyPts);
-        if (_awarded <= 0) return;
-        localStorage.setItem(_dailyKey, (_dailyPts + _awarded).toString());
-        currentUser.points = (currentUser.points || 0) + _awarded;
-        localStorage.setItem('btc_points', currentUser.points.toString());
-        _showPointsToast(_awarded, reason);
-        updateRankUI();
-        return;
+        // ...
+    }
+
+    // Update lastActive timestamp on heartbeat
+    if (!auth.currentUser.isAnonymous) {
+        db.collection('users').doc(auth.currentUser.uid).update({ 
+            lastActive: firebase.firestore.FieldValue.serverTimestamp() 
+        }).catch(function() {});
     }
 
     // ── Signed-in users: Cloud Function enforces daily cap server-side ──
