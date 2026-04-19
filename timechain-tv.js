@@ -8367,19 +8367,27 @@ function updateViewerBadges() {
     if (_currentStation && !effectiveCounts[_currentStation]) {
         effectiveCounts[_currentStation] = 1;
     }
+    // Per-channel counts AND running total across ALL stations
+    var totalLive = 0;
     STATIONS.forEach(function(s) {
+        var count = effectiveCounts[s.id] || 0;
+        totalLive += count;
         var el = document.getElementById('tctv-viewers-' + s.id);
         if (el) {
-            var count = effectiveCounts[s.id] || 0;
             el.textContent = count > 0 ? count + ' watching' : '';
         }
     });
+    // Header counter = total live viewers across ALL channels (not just current)
     var mainCount = document.getElementById('tctv-main-viewers');
-    if (mainCount && _currentStation) {
-        var c = effectiveCounts[_currentStation] || 1;
-        mainCount.textContent = '👁 ' + c + ' live';
-    } else if (mainCount) {
-        mainCount.textContent = '';
+    if (mainCount) {
+        if (totalLive > 0) {
+            mainCount.textContent = '👁 ' + totalLive + (totalLive === 1 ? ' live' : ' live');
+        } else if (_currentStation) {
+            // At minimum the current viewer should count as 1
+            mainCount.textContent = '👁 1 live';
+        } else {
+            mainCount.textContent = '';
+        }
     }
 }
 
