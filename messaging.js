@@ -415,7 +415,7 @@ window.showUserProfile = function(uid) {
     // Settings is still accessible via the ⚙️ tab
 
     // Show loading
-    var loadingHtml = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
+    var loadingHtml = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">' +
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;text-align:center;">' +
         '<div style="color:var(--text-muted);font-size:0.9rem;">Loading profile...</div></div></div>';
     var d = document.createElement('div');
@@ -457,7 +457,7 @@ window.showUserProfile = function(uid) {
         var canMessage = auth && auth.currentUser && !auth.currentUser.isAnonymous && auth.currentUser.uid !== uid;
         var dmEligibility = canMessage ? _canAccountDM() : { ok: false };
 
-        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
+        var html = '<div id="userProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:400000;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this){event.stopPropagation();this.remove()}">' +
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:30px;max-width:360px;width:100%;" onclick="event.stopPropagation()">' +
             // Close button
             '<button onclick="event.stopPropagation();document.getElementById(\'userProfileModal\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
