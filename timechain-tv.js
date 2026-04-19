@@ -9673,13 +9673,8 @@ function _advanceToNextVideo() {
     var state = getPlaybackState(station);
     if (!state.video) return;
 
-    // Update NOW PLAYING text
-    var np = document.getElementById('tctv-now-playing');
-    if (np) {
-        np.textContent = state.video.title;
-        np.setAttribute('data-current-vid', state.video.id);
-    }
-    _updateChNum();
+    // Update NOW PLAYING (single source of truth)
+    _setNP(station.id, state.video);
 
     // Reuse existing YT player if possible (avoids autoplay restrictions)
     if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById && _ytPlayer.playVideo) {
@@ -10303,30 +10298,37 @@ window._tctvRestoreSpriteNacho = function() {
 })();
 
 // ── Master UI Update Functions ──
-function _updateHeader(stationObj, videoObj) {
-    if (!stationObj) return;
-    
-    // Update Channel Number Element
-    var chEl = document.getElementById('tctv-now-ch');
-    if (chEl) {
-        var idx = STATIONS.findIndex(function(s) { return s.id === stationObj.id; });
-        var expected = idx >= 0 ? ('CH. ' + (idx + 1) + ' · ' + (stationObj.emoji ? stationObj.emoji + ' ' : '') + stationObj.name) : '';
-        if (chEl.textContent !== expected) chEl.textContent = expected;
-    }
+// ── NOW PLAYING — Single Source of Truth ──
+// All writes to the header go through _setNP(). State lives in this object;
+// the DOM is a view of this state. Any stale write is impossible because
+// _renderNP() always renders from _np, not from ad-hoc parameters.
+var _np = { stationId: null, videoId: null, videoTitle: null };
 
-    // Update Video Title Element
-    var np = document.getElementById('tctv-now-playing');
-    if (np) {
-        var newTitle = videoObj ? videoObj.title : (stationObj.emoji + ' ' + stationObj.name);
-        var newVidId = videoObj ? videoObj.id : '';
-        var expectedSig = stationObj.id + '|' + newVidId;
-        
-        if (np.getAttribute('data-current-sig') !== expectedSig || np.textContent !== newTitle) {
-            np.textContent = newTitle;
-            np.setAttribute('data-current-vid', newVidId);
-            np.setAttribute('data-current-sig', expectedSig);
-        }
+function _renderNP() {
+    var chEl = document.getElementById('tctv-now-ch');
+    var npEl = document.getElementById('tctv-now-playing');
+    if (!_np.stationId) {
+        if (chEl) chEl.textContent = '';
+        if (npEl) npEl.textContent = '';
+        return;
     }
+    var idx = STATIONS.findIndex(function(s) { return s.id === _np.stationId; });
+    if (idx < 0) return;
+    var station = STATIONS[idx];
+    if (chEl) chEl.textContent = 'CH. ' + (idx + 1) + ' · ' + (station.emoji ? station.emoji + ' ' : '') + station.name;
+    if (npEl) npEl.textContent = _np.videoTitle || (station.emoji + ' ' + station.name);
+}
+
+// Update state + re-render. Only triggers DOM writes when something changed.
+// stationId: string (required), videoObj: { id, title } or null.
+function _setNP(stationId, videoObj) {
+    var videoId = videoObj ? videoObj.id : null;
+    var videoTitle = videoObj ? videoObj.title : null;
+    if (_np.stationId === stationId && _np.videoId === videoId && _np.videoTitle === videoTitle) return;
+    _np.stationId = stationId;
+    _np.videoId = videoId;
+    _np.videoTitle = videoTitle;
+    _renderNP();
 }
 
 window.syncPlayer = function() {
@@ -10341,8 +10343,8 @@ window.syncPlayer = function() {
     _updatePauseButtons(false);
     _showSyncButtons(false);
 
-    // Update Header
-    _updateHeader(station, state.video);
+    // Update Header (single source of truth)
+    _setNP(station.id, state.video);
 
     // Jump to live: reuse existing player when possible
     if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById && _ytPlayer.playVideo) {
@@ -10360,17 +10362,18 @@ window.syncPlayer = function() {
 }
 
 // ── Timeline & Moving EPG ──
-var _tctvSwitching = false;
-function updateTimeline(force) {
+function updateTimeline() {
     if (!_currentStation) return;
-    if (_tctvSwitching && !force) return;
     var nowMs = Date.now();
     var station = STATIONS.find(function(s) { return s.id === _currentStation; });
     if (!station) return;
     var state = getPlaybackState(station);
 
-    // Sync Header
-    _updateHeader(station, state.video);
+    // Sync Header — only update title if station matches. Prevents old
+    // station's video from showing during a switch.
+    if (_np.stationId === _currentStation) {
+        _setNP(_currentStation, state.video);
+    }
 
     var bar = document.getElementById('tctv-progress');
     if (bar && state.video) {
@@ -10883,19 +10886,17 @@ window.renderTimechainTV = function() {
 window.switchStation = function(stationId, forceUpdate) {
     if (stationId === _currentStation && !forceUpdate) return;
     
-    _tctvSwitching = true;
     _lastStation = _currentStation;
     var stationObj = STATIONS.find(function(s) { return s.id === stationId; });
-    if (!stationObj) { _tctvSwitching = false; return; }
+    if (!stationObj) return;
 
     var state = null;
     try { state = getPlaybackState(stationObj); } catch(e) {}
     
-    // Commit new station
+    // Commit new station + NOW PLAYING in one synchronous block.
+    // After this line, _currentStation and _np.stationId are in lockstep.
     _currentStation = stationId;
-
-    // Update Header IMMEDIATELY (Unified)
-    _updateHeader(stationObj, state ? state.video : null);
+    _setNP(stationId, state && state.video ? state.video : null);
 
     showChannelNoise(stationObj.emoji + ' ' + stationObj.name);
     saveStation(stationId);
@@ -10915,16 +10916,6 @@ window.switchStation = function(stationId, forceUpdate) {
     });
 
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
-    
-    // Run authoritative header snap (bypassing lock)
-    updateTimeline(true);
-
-    // Release lock after 500ms (lets YT events and UI settle)
-    setTimeout(function() {
-        _tctvSwitching = false;
-        // Final re-snap after unlock to correct any drift during the lock window
-        updateTimeline();
-    }, 500);
 
     // Couch Nacho reacts to the channel change (after a short beat for the noise overlay)
     setTimeout(function() { try { _couchReactToStationChange(); } catch(e) {} }, 1500);
@@ -11194,6 +11185,7 @@ window.cleanupTimechainTV = function() {
     var iframe = document.getElementById('tctv-player');
     if (iframe) iframe.src = '';
     _currentVideoId = null;
+    _np = { stationId: null, videoId: null, videoTitle: null };
     window._tctvActive = false;
     document.body.classList.remove('tctv-active');
     var s = document.getElementById('tctv-remote-styles');
