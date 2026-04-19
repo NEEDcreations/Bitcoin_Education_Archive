@@ -9653,8 +9653,16 @@ window.renderTimechainTV = function() {
                pull-tab is clearly visible. */
             transform: translateX(130px);
             opacity: 1;
-            pointer-events: none;
+            /* Remote itself stays hit-testable so the tap zone works.
+               Individual buttons inside are disabled via the rule below so
+               they don't intercept clicks on the YouTube player when the
+               remote is collapsed. */
+            pointer-events: auto;
             position: relative;
+        }
+        /* When collapsed, disable all interactive descendants EXCEPT the tap zone */
+        #tctv-remote-inline.collapsed *:not(.tctv-remote-tap-zone):not(.tctv-remote-tap-zone *) {
+            pointer-events: none !important;
         }
         /* Full-height tap zone on the VISIBLE edge of the remote.
            The collapsed remote is translated 142px to the right (so only 18px pokes
