@@ -39,7 +39,7 @@
     <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
     <link rel="dns-prefetch" href="https://mempool.space">
-    <link rel="preload" href="bundle.js?v=20260420_banner_x" as="script">
+    <link rel="preload" href="bundle.js?v=20260420_tctv_buttons" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -677,7 +677,8 @@
                 <div id="bookmarksList" style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;"></div>
             </div>
             <div style="padding:8px 12px;margin-bottom:8px;">
-                <button onclick="go('trails')" style="width:100%;padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,88,12,0.06));border:1px solid var(--accent);border-radius:10px;color:var(--accent);font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,88,12,0.06))';this.style.color='var(--accent)'">🦌🗺️ Nacho's Trails: Guided Learning</button>
+                <button onclick="go('timechain-tv')" style="width:100%;padding:12px 14px;background:linear-gradient(135deg,rgba(168,85,247,0.18),rgba(236,72,153,0.10));border:1px solid #a855f7;border-radius:10px;color:#e9d5ff;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:8px;position:relative;overflow:hidden;" onmouseover="this.style.background='linear-gradient(135deg,#a855f7,#ec4899)';this.style.color='#fff'" onmouseout="this.style.background='linear-gradient(135deg,rgba(168,85,247,0.18),rgba(236,72,153,0.10))';this.style.color='#e9d5ff'">📺 Timechain TV <span style="margin-left:auto;font-size:0.6rem;font-weight:900;letter-spacing:1px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:6px;box-shadow:0 0 8px rgba(239,68,68,0.6);">LIVE</span></button>
+                <button onclick="go('trails')" style="width:100%;padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,88,12,0.06));border:1px solid var(--accent);border-radius:10px;color:var(--accent);font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:8px;margin-top:6px;" onmouseover="this.style.background='var(--accent)';this.style.color='#fff'" onmouseout="this.style.background='linear-gradient(135deg,rgba(247,147,26,0.12),rgba(234,88,12,0.06))';this.style.color='var(--accent)'">🦌🗺️ Nacho's Trails: Guided Learning</button>
                 <button onclick="go('first-purchase')" style="width:100%;padding:12px 14px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06));border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:8px;margin-top:6px;" onmouseover="this.style.background='#22c55e';this.style.color='#fff'" onmouseout="this.style.background='linear-gradient(135deg,rgba(34,197,94,0.12),rgba(22,163,74,0.06))';this.style.color='#22c55e'">🛒 Your First Bitcoin Purchase</button>
             </div>
             <div style="padding:8px 12px;margin-bottom:4px;">
@@ -938,6 +939,7 @@
                             <!-- Learn -->
                             <button onclick="toggleSidebarMenu('homeLearnMenu')" style="padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-weight:800;font-size:0.85rem;cursor:pointer;">🎓 Learn ▼</button>
                             <div id="homeLearnMenu" style="display:none;flex-direction:column;gap:8px;padding:8px 0 8px 10px;border-left:2px solid var(--accent);margin-left:10px;">
+                                <button onclick="go('timechain-tv')" style="padding:10px 12px;background:linear-gradient(135deg,rgba(168,85,247,0.18),rgba(236,72,153,0.10));border:1px solid #a855f7;color:#e9d5ff;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:6px;">📺 Timechain TV <span style="margin-left:auto;font-size:0.55rem;font-weight:900;letter-spacing:1px;background:#ef4444;color:#fff;padding:1px 5px;border-radius:5px;">LIVE</span></button>
                                 <button onclick="go('trails')" style="padding:10px 12px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;">🦌 Nacho's Trails — Guided Learning</button>
                                 <button onclick="document.getElementById('homeNewbieMsg').style.display='block';this.style.display='none';" style="padding:10px 12px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;">🟢 Brand New to Bitcoin?</button>
                                 <button onclick="go('first-purchase')" style="padding:10px 12px;background:none;border:1px solid #22c55e;color:#22c55e;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;">🛒 Your First Bitcoin Purchase</button>
@@ -1186,10 +1188,10 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260420_banner_x" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260420_tctv_buttons" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260417tctv" defer></script>
-    <script src="timechain-tv.js?v=20260420_banner_x" defer></script>
+    <script src="timechain-tv.js?v=20260420_tctv_buttons" defer></script>
     <script src="mobile-optimize.js?v=20260411" defer></script>
     <script src="audit-fixes-v2.js?v=20260307" defer></script>
     <script src="ux-improvements.js?v=20260307" defer></script>
@@ -1206,7 +1208,7 @@
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260411','tips-integrations.js?v=20260307','wallet-router.js?v=20260307a',
             'lightning-prompt.js?v=20260307','pvp.js?v=20260405','pvp-enhance.js?v=20260405','irl-sync.js?v=20260411',
-            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260411','timechain-tv.js?v=20260420_banner_x'
+            'meetup-builder.js?v=20260401','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20260411','timechain-tv.js?v=20260420_tctv_buttons'
         ];
         var _loaded = false;
         function _loadDeferred() {

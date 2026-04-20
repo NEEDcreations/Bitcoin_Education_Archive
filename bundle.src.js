@@ -16838,6 +16838,8 @@ window.toggleMobileLearnMenu = function() {
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            // Timechain TV — surfaced as the top item so anonymous users can hop back fast.
+            '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'timechain-tv\')" style="padding:12px 14px;background:linear-gradient(135deg,rgba(168,85,247,0.18),rgba(236,72,153,0.10));border:1px solid #a855f7;color:#e9d5ff;border-radius:12px;font-weight:800;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;display:flex;align-items:center;gap:8px;">📺 Timechain TV <span style="margin-left:auto;font-size:0.6rem;font-weight:900;letter-spacing:1px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:6px;">LIVE</span></button>' +
             // Nacho's Trails
             '<button onclick="document.getElementById(\'mobileLearnMenu\').remove();go(\'trails\')" style="padding:12px 14px;background:linear-gradient(135deg,rgba(247,147,26,0.1),rgba(234,88,12,0.05));border:1px solid var(--accent);color:var(--accent);border-radius:12px;font-weight:700;cursor:pointer;font-size:0.88rem;text-align:left;font-family:inherit;touch-action:manipulation;">🦌 Nacho\'s Trails — Guided Learning</button>' +
             // Brand New to Bitcoin
