@@ -8289,12 +8289,18 @@ function _writePresence(stationId) {
 }
 
 function joinStation(stationId) {
-    var prevStation = _currentStation;
-    if (prevStation && prevStation !== stationId) _deletePresence();
+    // Track views by comparing against our OWN last-joined marker — NOT _currentStation,
+    // because callers set _currentStation BEFORE invoking us, which would mask transitions.
+    var prevJoined = window._tctvLastJoined || null;
+    if (prevJoined && prevJoined !== stationId) _deletePresence();
     _currentStation = stationId;
     _writePresence(stationId);
-    // Count a view each time we tune in to a NEW station (not re-heartbeats).
-    if (prevStation !== stationId) _bumpTctvViews();
+    // Count a view whenever we tune in to a different station than last time
+    // (including the very first tune-in when prevJoined is null).
+    if (prevJoined !== stationId) {
+        _bumpTctvViews();
+        window._tctvLastJoined = stationId;
+    }
     if (_viewerHeartbeat) clearInterval(_viewerHeartbeat);
     _viewerHeartbeat = setInterval(function() {
         if (_currentStation) _writePresence(_currentStation);
@@ -8330,6 +8336,7 @@ function _leavePresence() {
     // Full teardown: stop heartbeat, delete presence doc, unsubscribe from snapshot
     if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
     if (_currentStation) { _deletePresence(); _currentStation = null; }
+    window._tctvLastJoined = null;
     if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
     if (_tctvPeakUnsub) { try { _tctvPeakUnsub(); } catch(e) {} _tctvPeakUnsub = null; }
     if (_tctvViewsUnsub) { try { _tctvViewsUnsub(); } catch(e) {} _tctvViewsUnsub = null; }
