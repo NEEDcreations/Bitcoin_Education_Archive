@@ -4055,6 +4055,13 @@ window.renderTimechainTV = function() {
             transform: translateX(0);
             pointer-events: auto;
         }
+        /* When the sidebar is hovered/focused, the remote is visually fully out
+           and the user expects buttons to work. Restore pointer-events on ALL
+           descendants, overriding the collapsed-state disable rule above. */
+        #tctv-remote-sidebar:hover #tctv-remote-inline *,
+        #tctv-remote-sidebar:focus-within #tctv-remote-inline * {
+            pointer-events: auto !important;
+        }
 
         .remote-btn { width: 44px; height: 44px; border-radius: 50%; background: #333; border: 2px solid #444; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 0 #111; position: relative; }
         .remote-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #111; }
