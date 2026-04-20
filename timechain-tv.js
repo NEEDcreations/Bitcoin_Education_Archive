@@ -3860,9 +3860,39 @@ window.renderTimechainTV = function() {
         #nacho-couch { position: fixed; left: 20px; bottom: 140px; z-index: 200000; pointer-events: none; transition: 0.5s; display: none; }
         #nacho-couch-restore { position: fixed; left: 20px; bottom: 140px; z-index: 200001; width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #f7931a, #ea580c); border: 2px solid rgba(255,255,255,0.3); color: #fff; font-size: 1.5rem; display: none; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(247,147,26,0.4); transition: transform 0.2s, box-shadow 0.2s; touch-action: none; }
         #nacho-couch-restore:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(247,147,26,0.6); }
-        @media (max-width: 767px) { #nacho-couch-restore { left: 10px; bottom: 100px; width: 44px; height: 44px; font-size: 1.3rem; } }
         @media (min-width: 768px) {
             #nacho-couch { display: block; }
+        }
+        /* Mobile: show couch Nacho in-flow between channel list and the ad. */
+        @media (max-width: 767px) {
+            #nacho-couch {
+                display: flex !important;
+                position: static !important;
+                left: auto !important;
+                bottom: auto !important;
+                margin: 18px auto 8px !important;
+                justify-content: center !important;
+                align-items: center !important;
+                pointer-events: auto !important;
+            }
+            #nacho-couch-inner { width: 200px !important; height: 120px !important; }
+            #nacho-couch-inner > span:first-child { font-size: 6rem !important; }
+            #nacho-couch-inner > div img { width: 62px !important; height: 62px !important; }
+            /* Mobile-specific couch restore button (smaller, in-flow) */
+            #nacho-couch-restore {
+                position: static !important;
+                left: auto !important;
+                bottom: auto !important;
+                margin: 10px auto !important;
+                width: 44px !important;
+                height: 44px !important;
+                font-size: 1.3rem !important;
+            }
+        }
+        /* Hide the floating sprite Nacho toggle whenever TCTV is the active page. */
+        body.tctv-active #nacho-toggle,
+        body.tctv-active #nacho-container {
+            display: none !important;
         }
         /* Tablets and Laptops — Shrink video to leave vertical room for channel scrolling.
            Previously 66vh video + 33vh EPG = all 21 channels crammed into 33vh. Now the
@@ -4057,9 +4087,11 @@ window.renderTimechainTV = function() {
 
     html += '</div>'; // end sticky header
 
-    // Couch Nacho (floating, draggable) — dynamic bubble updates every 3-5 min with
-    // station-aware commentary driven by _tctvCouchTick (below).
-    html += '<div id="nacho-couch">' +
+    // Couch Nacho markup (shared; CSS decides desktop floating vs mobile in-flow).
+    // Placed AFTER the EPG in DOM order so that on mobile (static positioning) Nacho
+    // appears under the channel list and above the ad. On desktop he's position:fixed
+    // so DOM order doesn't matter — he floats at bottom-left as before.
+    var _couchHtml = '<div id="nacho-couch">' +
             '<div id="nacho-couch-inner" style="position:relative;width:240px;height:140px;display:flex;align-items:center;justify-content:center;pointer-events:auto;">' +
             '<span style="font-size:7rem;position:absolute;bottom:0;filter:drop-shadow(0 10px 20px rgba(0,0,0,0.5));">\ud83d\udecb\ufe0f</span>' +
             '<div style="position:absolute;bottom:35px;left:70px;transition:0.3s;animation:nachoSway 4s ease-in-out infinite;">' +
@@ -4072,6 +4104,9 @@ window.renderTimechainTV = function() {
             '</div></div>';
 
     html += _renderEPG();
+    // Couch Nacho rendered AFTER the EPG so on mobile (static pos) he sits between
+    // the channel list and the ad; on desktop he's position:fixed so DOM order is moot.
+    html += _couchHtml;
     // Ad below channel guide (all devices, minimizable)
     html += '<div id="tctv-ad-mobile" style="margin:24px auto 16px;max-width:380px;text-align:center;">' +
         '<div id="tctv-ad-mobile-content" style="padding:14px 18px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;position:relative;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
