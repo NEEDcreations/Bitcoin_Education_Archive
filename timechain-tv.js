@@ -3944,11 +3944,12 @@ window.renderTimechainTV = function() {
                 display: flex !important;
                 flex-direction: column !important;
             }
-            /* Order children so the horizontal remote sits ABOVE the video,
-               tucked into the dead black space under the title bar. The title
-               row keeps order:0 (its natural source position), the remote bumps
-               to -1 so it lands between the title bar and the video, and the
-               video row + Now Playing + progress flow naturally below. */
+            /* Order children so the horizontal remote sits directly below the
+               title row (TIMECHAIN TV + BlockSurf + live count), then the video,
+               then Now Playing and progress. The sticky header's first child is
+               the title row — pin it to order:-2, remote to order:-1, everything
+               else defaults to 0 in source order. */
+            #tctv-sticky-header > div:first-child { order: -2 !important; }
             #tctv-remote { order: -1 !important; margin: 0 !important; border-bottom: 1px solid #222 !important; background: #0a0a0a !important; }
             #tctv-video-row { padding: 0 !important; gap: 0 !important; }
             #tctv-video-container { border-radius: 0 !important; }
