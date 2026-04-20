@@ -3890,11 +3890,17 @@ window.renderTimechainTV = function() {
             }
             #tctv-epg-container { height: auto !important; min-height: auto !important; }
         }
-        /* Hide chrome that competes with TCTV on mobile (sign-up banner, user-display) */
+        /* Keep user-display hidden on mobile TCTV, but the sign-up banner (guestPointsBanner)
+           is kept visible with a minimize/expand toggle so users always stay in control. */
         @media (max-width: 767px) {
-            body.tctv-active #userDisplay,
-            body.tctv-active #signinBanner,
-            body.tctv-active .signin-banner { display: none !important; }
+            body.tctv-active #userDisplay { display: none !important; }
+            body.tctv-active #guestPointsBanner.banner-min {
+                max-width: 44px !important;
+                min-width: 44px !important;
+                padding: 6px !important;
+                overflow: hidden !important;
+            }
+            body.tctv-active #guestPointsBanner.banner-min > :not(.banner-toggle) { display: none !important; }
         }
         /* Mobile — horizontal in-flow remote bar below video (overrides the legacy fixed vertical style) */
         @media (max-width: 767px) {
@@ -3923,21 +3929,25 @@ window.renderTimechainTV = function() {
             #tctv-remote { padding: 4px 6px !important; gap: 4px !important; }
             .remote-btn { width: 32px !important; height: 32px !important; font-size: 0.8rem !important; }
 
-            /* Video: Capped at 100% width to prevent horizontal scroll */
+            /* Split (Phil spec 2026-04-20):
+               Channel list (EPG) = 1/3 of screen height.
+               Video + remote + everything else = 2/3 of screen height.
+               Subtracting ~170px for the sticky TCTV header + app header + mobile bottom nav,
+               we compute against the remaining usable height. */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: calc((100vh - 210px) * 0.62) !important;
-                max-height: calc((100vh - 210px) * 0.62) !important;
-                min-height: 200px !important;
+                height: calc((100vh - 170px) * 0.55) !important;
+                max-height: calc((100vh - 170px) * 0.55) !important;
+                min-height: 180px !important;
             }
-            #tctv-player { width: 100% !important; max-height: calc((100vh - 210px) * 0.62) !important; height: 100% !important; }
+            #tctv-player { width: 100% !important; max-height: calc((100vh - 170px) * 0.55) !important; height: 100% !important; }
 
-            /* EPG (channel guide): ~1/3 of remaining space, scrollable */
+            /* EPG (channel list): exactly 1/3 of the viewport. Always scrollable. */
             #tctv-epg-wrapper {
-                height: calc((100vh - 210px) * 0.36) !important;
-                max-height: calc((100vh - 210px) * 0.36) !important;
-                min-height: 140px !important;
+                height: 33vh !important;
+                max-height: 33vh !important;
+                min-height: 180px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;

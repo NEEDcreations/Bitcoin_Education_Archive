@@ -2144,10 +2144,20 @@ function updateGuestPointsBanner() {
         banner = document.createElement('div');
         banner.id = 'guestPointsBanner';
         banner.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;transition:0.3s;max-width:320px;';
-        banner.onclick = function() { showSignInPrompt(); };
+        banner.onclick = function(e) {
+            // Don't trigger sign-in if the click was on the minimize toggle
+            if (e && e.target && e.target.closest && e.target.closest('.banner-toggle')) return;
+            showSignInPrompt();
+        };
         document.body.appendChild(banner);
     }
+    // Restore previous minimized state so users don't have to re-minimize on every page nav
+    try {
+        if (localStorage.getItem('btc_signin_banner_min') === '1') banner.classList.add('banner-min');
+        else banner.classList.remove('banner-min');
+    } catch(e) {}
     var lv = getLevel(pts);
+    var isMin = banner.classList.contains('banner-min');
     banner.innerHTML =
         '<div style="display:flex;flex-direction:column;gap:2px;">' +
             '<div style="display:flex;align-items:center;gap:6px;">' +
@@ -2156,9 +2166,19 @@ function updateGuestPointsBanner() {
             '</div>' +
             '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & get on the leaderboard!</div>' +
         '</div>' +
-        '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>';
+        '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>' +
+        '<button class="banner-toggle" aria-label="' + (isMin ? 'Expand' : 'Minimize') + ' sign-in banner" onclick="event.stopPropagation();toggleGuestPointsBanner()" style="background:rgba(0,0,0,0.35);border:none;border-radius:8px;color:#f7931a;font-weight:900;font-size:0.95rem;line-height:1;padding:6px 9px;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">' + (isMin ? '⚡' : '–') + '</button>';
     banner.style.display = 'flex';
 }
+
+window.toggleGuestPointsBanner = function() {
+    var banner = document.getElementById('guestPointsBanner');
+    if (!banner) return;
+    var willMin = !banner.classList.contains('banner-min');
+    banner.classList.toggle('banner-min', willMin);
+    try { localStorage.setItem('btc_signin_banner_min', willMin ? '1' : '0'); } catch(e) {}
+    updateGuestPointsBanner();
+};
 
 // ── Daily Cap Visual Indicator ──
 function _updateCapIndicator(atCap) {
