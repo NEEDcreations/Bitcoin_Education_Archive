@@ -3322,6 +3322,26 @@ window.tctvRemotePause = function() {
     }
 };
 
+// Seek the YT player by `delta` seconds (negative = rewind, positive = fast-forward).
+// Clamps to [0, video duration]. Falls back silently if the player can't seek.
+window.tctvRemoteSeek = function(delta) {
+    if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
+    if (_apiFailed || !_ytPlayer || !_ytPlayer.getCurrentTime || !_ytPlayer.seekTo) return;
+    try {
+        var cur = _ytPlayer.getCurrentTime();
+        var dur = (typeof _ytPlayer.getDuration === 'function') ? _ytPlayer.getDuration() : 0;
+        var target = Math.max(0, cur + delta);
+        if (dur && target > dur - 1) target = Math.max(0, dur - 1);
+        _ytPlayer.seekTo(target, true);
+        // A manual seek puts us off the live schedule; show Jump-to-Live so the
+        // user can resync whenever they want.
+        _showSyncButtons(true);
+        if (typeof showToast === 'function') {
+            showToast((delta < 0 ? '⏪ ' : '⏩ ') + (delta < 0 ? '-' : '+') + Math.abs(delta) + 's');
+        }
+    } catch(e) { /* ignore */ }
+};
+
 window.tctvRemoteVolume = function(dir) {
     // Get current volume from app state (single source of truth)
     var current = Math.round((typeof window.audioVolume === 'number' ? window.audioVolume : 0.5) * 100);
@@ -4145,18 +4165,17 @@ window.renderTimechainTV = function() {
             }
             body.tctv-active #guestPointsBanner.banner-min > :not(.banner-toggle) { display: none !important; }
         }
-        /* Mobile — horizontal in-flow remote bar below video (overrides the legacy fixed vertical style) */
+        /* Mobile — stacked two-row remote bar below video (overrides the legacy fixed vertical style) */
         @media (max-width: 767px) {
             #tctv-remote {
                 position: static !important;
                 top: auto !important; right: auto !important;
                 width: auto !important;
-                flex-direction: row !important;
+                display: flex !important;
+                flex-direction: column !important;
                 flex-wrap: nowrap !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch !important;
                 padding: 8px 10px !important;
-                gap: 6px !important;
+                gap: 4px !important;
                 border-radius: 0 !important;
                 border-width: 0 0 1px 0 !important;
                 border-color: #222 !important;
@@ -4166,6 +4185,11 @@ window.renderTimechainTV = function() {
                 transform: none !important;
             }
             #tctv-remote.collapsed { transform: none !important; opacity: 1 !important; }
+            /* Seek row buttons keep a comfortable tap area without being square. */
+            #tctv-remote .tctv-remote-row-seek .remote-btn {
+                height: 30px !important;
+                width: auto !important;
+            }
         }
         /* Mobile — aggressive resizing for small screens. */
         @media (max-width: 767px) {
@@ -4286,6 +4310,11 @@ window.renderTimechainTV = function() {
                     '<span class="remote-label" style="margin:0">VOL</span>' +
                 '</div>' +
             '</div>' +
+            // Seek row: -15s / +15s
+            '<div style="display:flex;gap:8px;align-items:center;justify-content:center;width:100%;margin-top:2px;">' +
+                '<button class="remote-btn" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteSeek(-15)" title="Rewind 15s">-15s</button>' +
+                '<button class="remote-btn" style="border-radius:10px;font-size:0.7rem;font-weight:900;" onclick="tctvRemoteSeek(15)" title="Skip forward 15s">+15s</button>' +
+            '</div>' +
             // Bottom row: PLAY + BACK side-by-side
             '<div style="display:flex;gap:10px;align-items:center;justify-content:center;width:100%;margin-top:2px;">' +
                 '<button class="remote-btn blue" style="border-radius:10px;font-size:1.1rem;" onclick="tctvRemotePause()" id="remote-pause-btn-inline" title="Pause/Play">⏸</button>' +
@@ -4299,16 +4328,22 @@ window.renderTimechainTV = function() {
 
     // Mobile Remote - horizontal bar below video/progress, inside sticky header
     html += '<div id="tctv-remote">' +
-            '<button class="remote-btn red" style="border-radius:8px;width:32px;height:32px;font-size:0.9rem;" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">\u23fb</button>' +
-            '<button class="remote-btn" style="border-radius:8px;background:#f7931a;border-color:#fbbf24;color:#111;font-weight:900;font-size:0.9rem;" onclick="tctvOpenGuide()" title="Channel Guide">\u2630</button>' +
-            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
-            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(-1)">CH\u25bc</button>' +
-            '<input type="text" id="remote-ch-input" class="remote-input" placeholder="#" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
-            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(1)">\ud83d\udd0a</button>' +
-            '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(-1)">\ud83d\udd09</button>' +
-            '<button class="remote-btn" id="remote-mute-btn" style="border-radius:8px;" onclick="tctvRemoteMute()" title="Mute">\ud83d\udd08</button>' +
-            '<button class="remote-btn blue" style="border-radius:8px;font-size:0.9rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">\u23f8</button>' +
-            '<button class="remote-btn blue" style="border-radius:8px;font-size:0.6rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '<div class="tctv-remote-row-primary" style="display:flex;gap:4px;align-items:center;justify-content:center;flex-wrap:nowrap;">' +
+                '<button class="remote-btn red" style="border-radius:8px;width:32px;height:32px;font-size:0.9rem;" onclick="goHome()" id="remote-pwr-btn" title="Power OFF">\u23fb</button>' +
+                '<button class="remote-btn" style="border-radius:8px;background:#f7931a;border-color:#fbbf24;color:#111;font-weight:900;font-size:0.9rem;" onclick="tctvOpenGuide()" title="Channel Guide">\u2630</button>' +
+                '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(1)">CH\u25b2</button>' +
+                '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteChannel(-1)">CH\u25bc</button>' +
+                '<input type="text" id="remote-ch-input" class="remote-input" placeholder="#" maxlength="2" onkeydown="if(event.key===\'Enter\')tctvDirectChannel(this.value)" inputmode="numeric">' +
+                '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(1)">\ud83d\udd0a</button>' +
+                '<button class="remote-btn" style="border-radius:8px;" onclick="tctvRemoteVolume(-1)">\ud83d\udd09</button>' +
+                '<button class="remote-btn" id="remote-mute-btn" style="border-radius:8px;" onclick="tctvRemoteMute()" title="Mute">\ud83d\udd08</button>' +
+                '<button class="remote-btn blue" style="border-radius:8px;font-size:0.9rem;" onclick="tctvRemotePause()" id="remote-pause-btn" title="Pause/Play">\u23f8</button>' +
+                '<button class="remote-btn blue" style="border-radius:8px;font-size:0.6rem;font-weight:900;" onclick="tctvRemoteBack()">BACK</button>' +
+            '</div>' +
+            '<div class="tctv-remote-row-seek" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:6px;">' +
+                '<button class="remote-btn" style="border-radius:8px;font-size:0.72rem;font-weight:900;padding:0 10px;width:auto;min-width:64px;height:30px;" onclick="tctvRemoteSeek(-15)" title="Rewind 15s">\u23ea -15s</button>' +
+                '<button class="remote-btn" style="border-radius:8px;font-size:0.72rem;font-weight:900;padding:0 10px;width:auto;min-width:64px;height:30px;" onclick="tctvRemoteSeek(15)" title="Skip forward 15s">+15s \u23e9</button>' +
+            '</div>' +
             '</div>';
 
     html += '</div>'; // end sticky header
