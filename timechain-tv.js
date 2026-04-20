@@ -2736,7 +2736,7 @@ window.tctvShowBlockSurfTip = function(ev) {
     tip.id = 'tctv-blocksurf-tip';
     tip.innerHTML =
         '<div style="font-weight:800;color:#f7931a;margin-bottom:4px;letter-spacing:0.5px;">🏄 BLOCKSURF</div>' +
-        '<div style="color:#ddd;line-height:1.45;">Every time a new Bitcoin block is mined (~10 min), the channel automatically switches. Sit back and let the chain change the channel.</div>';
+        '<div style="color:#ddd;line-height:1.45;">Every time a new Bitcoin block is mined (~10 min), the channel automatically changes to a random channel. Sit back and let the chain change the channel.</div>';
     tip.style.cssText = 'position:fixed;z-index:300001;background:#111;color:#fff;font-size:0.75rem;padding:10px 12px;border-radius:10px;border:1px solid rgba(247,147,26,0.45);box-shadow:0 4px 14px rgba(0,0,0,0.6);pointer-events:none;max-width:230px;line-height:1.4;';
     document.body.appendChild(tip);
     var rect = el.getBoundingClientRect();
