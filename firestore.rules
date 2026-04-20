@@ -963,10 +963,11 @@ service cloud.firestore {
           (request.auth != null && viewerId == request.auth.uid)
           || (viewerId.matches('^v_[a-z0-9]{5,40}$'))
         )
-        && request.resource.data.keys().hasOnly(['station', 'ts'])
+        && request.resource.data.keys().hasOnly(['station', 'ts', 'tsClient'])
         && request.resource.data.station is string
         && request.resource.data.station.size() > 0
-        && request.resource.data.station.size() < 50;
+        && request.resource.data.station.size() < 50
+        && (!('tsClient' in request.resource.data) || request.resource.data.tsClient is number);
       // Anyone can delete their own presence doc on exit/unload.
       // Auth-uid docs: only the owning user can delete.
       // v_ anon docs: open delete (worst case: griefer evicts strangers; they'll auto-re-register in <30s).

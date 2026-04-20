@@ -2390,7 +2390,12 @@ function _writePresence(stationId) {
     var db = firebase.firestore();
     db.collection('tctv_presence').doc(_getViewerId()).set({
         station: stationId,
-        ts: firebase.firestore.FieldValue.serverTimestamp()
+        // serverTimestamp() for authoritative staleness filtering across clients, PLUS
+        // a client-side millisecond timestamp so the local snapshot (which sees ts=null
+        // while the server write is pending) can still fall back to a real value and
+        // keep the viewer counted without blinking out.
+        ts: firebase.firestore.FieldValue.serverTimestamp(),
+        tsClient: Date.now()
     }).catch(function() {});
 }
 
@@ -2421,8 +2426,15 @@ function joinStation(stationId) {
             var now = Date.now();
             snap.forEach(function(doc) {
                 var d = doc.data();
-                if (!d.station || !d.ts) return;
-                var docTime = d.ts.toMillis ? d.ts.toMillis() : 0;
+                if (!d.station) return;
+                // Prefer server timestamp; when pending (ts=null for local-only writes),
+                // fall back to the client timestamp we now also write. This avoids the
+                // "blink out" where a viewer briefly shows as 2 then drops to 1 while
+                // the server timestamp round-trips.
+                var docTime = 0;
+                if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
+                else if (typeof d.tsClient === 'number') docTime = d.tsClient;
+                if (!docTime) return;
                 if (now - docTime < 65000) {
                     counts[d.station] = (counts[d.station] || 0) + 1;
                 }
