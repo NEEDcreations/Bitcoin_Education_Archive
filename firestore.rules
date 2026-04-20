@@ -18,7 +18,8 @@ service cloud.firestore {
       allow read: if request.auth != null && (
                     request.auth.uid == userId
                     || request.query.limit <= 200  // Leaderboard list queries
-                    || !request.auth.token.firebase.sign_in_provider.matches('anonymous')  // Non-anon can view profiles
+                    || true  // Any authenticated user (incl. anonymous) can view other profiles;
+                             // write rules below still block anonymous from modifying profiles.
                   );
       allow create: if request.auth != null
                     && request.auth.uid == userId;
