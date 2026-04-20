@@ -2584,6 +2584,137 @@ window.tctvHidePeakTip = function() {
     if (window._tctvPeakTipTimer) { clearTimeout(window._tctvPeakTipTimer); window._tctvPeakTipTimer = null; }
 };
 
+// ——— BlockSurf ———
+// Auto-change the active station every time a new Bitcoin block is mined.
+// Polls mempool.space /api/blocks/tip/height every 20s while TCTV is open and
+// BlockSurf is toggled ON. First poll is used as the baseline; any subsequent
+// increase triggers window.switchStation() to a random different station.
+window._blockSurfHeight = null;
+window._blockSurfTimer = null;
+
+function _blockSurfApplyToggleStyles() {
+    var btn = document.getElementById('tctv-blocksurf-toggle');
+    var dot = document.getElementById('tctv-blocksurf-dot');
+    if (!btn) return;
+    var on = btn.getAttribute('aria-pressed') === 'true';
+    btn.style.border = '1px solid ' + (on ? '#f7931a' : '#333');
+    btn.style.background = on ? 'rgba(247,147,26,0.18)' : 'rgba(255,255,255,0.04)';
+    btn.style.color = on ? '#f7931a' : '#888';
+    if (dot) {
+        dot.style.background = on ? '#22c55e' : '#444';
+        dot.style.boxShadow = on ? '0 0 5px #22c55e' : 'none';
+    }
+}
+
+function _blockSurfFetchTip() {
+    return fetch('https://mempool.space/api/blocks/tip/height')
+        .then(function(r) { return r.text(); })
+        .then(function(t) { return parseInt(t, 10); });
+}
+
+function _blockSurfPoll() {
+    _blockSurfFetchTip().then(function(h) {
+        if (!h || isNaN(h)) return;
+        if (window._blockSurfHeight == null) {
+            // Seed baseline on first successful poll so we don't surf immediately.
+            window._blockSurfHeight = h;
+            return;
+        }
+        if (h > window._blockSurfHeight) {
+            var prev = window._blockSurfHeight;
+            window._blockSurfHeight = h;
+            try {
+                var currentId = (window._np && window._np.stationId) || window._currentStation;
+                // Pick a random station that isn't the current one.
+                var candidates = STATIONS.filter(function(s) { return s.id !== currentId; });
+                if (!candidates.length) return;
+                var next = candidates[Math.floor(Math.random() * candidates.length)];
+                // Visual signal: pulse the toggle + a toast.
+                var btn = document.getElementById('tctv-blocksurf-toggle');
+                if (btn) {
+                    btn.style.boxShadow = '0 0 0 4px rgba(247,147,26,0.35)';
+                    setTimeout(function(){ if (btn) btn.style.boxShadow = ''; }, 1200);
+                }
+                if (typeof showToast === 'function') {
+                    showToast('🏄 New block #' + h + ' — surfing to ' + next.emoji + ' ' + next.name);
+                }
+                if (typeof window.switchStation === 'function') {
+                    window.switchStation(next.id);
+                }
+            } catch(e) { /* swallow; don't break the poller */ }
+        }
+    }).catch(function() { /* ignore transient fetch errors */ });
+}
+
+function _blockSurfStart() {
+    if (window._blockSurfTimer) return;
+    // Seed baseline immediately so the very next block triggers a surf.
+    _blockSurfFetchTip().then(function(h) {
+        if (h && !isNaN(h)) window._blockSurfHeight = h;
+    }).catch(function() {});
+    window._blockSurfTimer = setInterval(_blockSurfPoll, 20000);
+}
+
+function _blockSurfStop() {
+    if (window._blockSurfTimer) { clearInterval(window._blockSurfTimer); window._blockSurfTimer = null; }
+    window._blockSurfHeight = null;
+}
+
+window.tctvToggleBlockSurf = function(ev) {
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    var btn = document.getElementById('tctv-blocksurf-toggle');
+    if (!btn) return;
+    var willBeOn = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', willBeOn ? 'true' : 'false');
+    try { localStorage.setItem('tctv_blocksurf', willBeOn ? '1' : '0'); } catch(e) {}
+    _blockSurfApplyToggleStyles();
+    if (willBeOn) {
+        _blockSurfStart();
+        if (typeof showToast === 'function') showToast('🏄 BlockSurf ON — I’ll hop channels on every new block.');
+    } else {
+        _blockSurfStop();
+        if (typeof showToast === 'function') showToast('BlockSurf OFF');
+    }
+};
+
+window.tctvShowBlockSurfTip = function(ev) {
+    var el = document.getElementById('tctv-blocksurf-toggle');
+    if (!el) return;
+    var existing = document.getElementById('tctv-blocksurf-tip');
+    if (existing) existing.remove();
+    var tip = document.createElement('div');
+    tip.id = 'tctv-blocksurf-tip';
+    tip.innerHTML =
+        '<div style="font-weight:800;color:#f7931a;margin-bottom:4px;letter-spacing:0.5px;">🏄 BLOCKSURF</div>' +
+        '<div style="color:#ddd;line-height:1.45;">Every time a new Bitcoin block is mined (~10 min), the channel automatically switches. Sit back and let the chain change the channel.</div>';
+    tip.style.cssText = 'position:fixed;z-index:300001;background:#111;color:#fff;font-size:0.75rem;padding:10px 12px;border-radius:10px;border:1px solid rgba(247,147,26,0.45);box-shadow:0 4px 14px rgba(0,0,0,0.6);pointer-events:none;max-width:230px;line-height:1.4;';
+    document.body.appendChild(tip);
+    var rect = el.getBoundingClientRect();
+    var tipW = tip.offsetWidth || 220;
+    var x = Math.max(8, Math.min(window.innerWidth - tipW - 8, rect.right - tipW));
+    var y = rect.bottom + 8;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+    if (window._tctvBlockSurfTipTimer) clearTimeout(window._tctvBlockSurfTipTimer);
+    window._tctvBlockSurfTipTimer = setTimeout(function() {
+        var t = document.getElementById('tctv-blocksurf-tip');
+        if (t) t.remove();
+    }, 5000);
+};
+
+window.tctvHideBlockSurfTip = function() {
+    var t = document.getElementById('tctv-blocksurf-tip');
+    if (t) t.remove();
+    if (window._tctvBlockSurfTipTimer) { clearTimeout(window._tctvBlockSurfTipTimer); window._tctvBlockSurfTipTimer = null; }
+};
+
+// Kick off the poller on TCTV render if the toggle was previously ON.
+window._blockSurfMaybeResume = function() {
+    try {
+        if (localStorage.getItem('tctv_blocksurf') === '1') _blockSurfStart();
+    } catch(e) {}
+};
+
 function updateViewerBadges() {
     // Lazy-subscribe to public stats docs
     _subscribeTctvStats();
@@ -3704,6 +3835,8 @@ window.renderTimechainTV = function() {
     // Add body class so CSS can hide non-TCTV chrome on mobile (sign-up banner etc.)
     document.body.classList.add('tctv-active');
     if (typeof _tctvHideSpriteNacho === 'function') _tctvHideSpriteNacho();
+    // Resume BlockSurf poller if user had it enabled last session.
+    if (typeof window._blockSurfMaybeResume === 'function') window._blockSurfMaybeResume();
 
     showWhiteNoise(function() {
         console.log('[TCTV] Initial Tuning Complete');
@@ -4001,8 +4134,17 @@ window.renderTimechainTV = function() {
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;">';
 
+    var _bsOn = false;
+    try { _bsOn = localStorage.getItem('tctv_blocksurf') === '1'; } catch(e) {}
     html += '<div id="tctv-sticky-header" style="position:sticky;top:0;z-index:200000;background:#0a0a0a;width:100%;"> ' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;">' +
+            // BlockSurf toggle — stuck to the left of viewers+LIVE, out of the way of everything else.
+            '<button id="tctv-blocksurf-toggle" onclick="tctvToggleBlockSurf(event)" onmouseenter="tctvShowBlockSurfTip(event)" onmouseleave="tctvHideBlockSurfTip()" aria-label="BlockSurf: auto-change channel every Bitcoin block" aria-pressed="' + (_bsOn ? 'true' : 'false') + '" style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;margin-right:4px;border-radius:999px;border:1px solid ' + (_bsOn ? '#f7931a' : '#333') + ';background:' + (_bsOn ? 'rgba(247,147,26,0.18)' : 'rgba(255,255,255,0.04)') + ';color:' + (_bsOn ? '#f7931a' : '#888') + ';font-size:0.65rem;font-weight:800;letter-spacing:0.5px;cursor:pointer;font-family:inherit;touch-action:manipulation;user-select:none;transition:0.18s;">' +
+                '<span style="font-size:0.8rem;line-height:1;">🏄</span>' +
+                '<span>BLOCKSURF</span>' +
+                '<span id="tctv-blocksurf-dot" style="width:6px;height:6px;border-radius:50%;background:' + (_bsOn ? '#22c55e' : '#444') + ';box-shadow:' + (_bsOn ? '0 0 5px #22c55e' : 'none') + ';"></span>' +
+            '</button>' +
+            '<span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
 
     // Desktop: side-by-side layout with couch left, video center, wide remote right
     html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
@@ -4542,6 +4684,12 @@ window.cleanupTimechainTV = function() {
     var s = document.getElementById('tctv-remote-styles');
     if (s) s.remove();
     if (typeof _tctvRestoreSpriteNacho === 'function') _tctvRestoreSpriteNacho();
+    // Stop BlockSurf poller on TCTV exit.
+    if (window._blockSurfTimer) { clearInterval(window._blockSurfTimer); window._blockSurfTimer = null; }
+    window._blockSurfHeight = null;
+    // Clean up any lingering BlockSurf tooltip.
+    var bsTip = document.getElementById('tctv-blocksurf-tip');
+    if (bsTip) bsTip.remove();
     // Remove tooltip if lingering
     var tip = document.getElementById('tctv-epg-tooltip');
     if (tip) tip.remove();
