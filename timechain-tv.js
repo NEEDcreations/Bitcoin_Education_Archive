@@ -3929,7 +3929,17 @@ window.renderTimechainTV = function() {
                The TCTV sticky header needs to sit BELOW it, not underneath. */
             #tctv-sticky-header {
                 top: calc(58px + env(safe-area-inset-top, 0px)) !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
+            /* Order children so the horizontal remote sits ABOVE the video,
+               tucked into the dead black space under the title bar. The title
+               row keeps order:0 (its natural source position), the remote bumps
+               to -1 so it lands between the title bar and the video, and the
+               video row + Now Playing + progress flow naturally below. */
+            #tctv-remote { order: -1 !important; margin: 0 !important; border-bottom: 1px solid #222 !important; background: #0a0a0a !important; }
+            #tctv-video-row { padding: 0 !important; gap: 0 !important; }
+            #tctv-video-container { border-radius: 0 !important; }
         }
         @media (max-width: 480px) {
             #tctv-sticky-header {
@@ -4143,24 +4153,28 @@ window.renderTimechainTV = function() {
             .remote-btn { width: 32px !important; height: 32px !important; font-size: 0.8rem !important; }
 
             /* Split (Phil spec 2026-04-20):
-               Channel list (EPG) = 1/3 of screen height.
-               Video + remote + everything else = 2/3 of screen height.
-               Subtracting ~170px for the sticky TCTV header + app header + mobile bottom nav,
-               we compute against the remaining usable height. */
+               Remote bar moved ABOVE the video into the previously dead black
+               space, so we can let the video shrink to a tighter aspect-ratio
+               box and hand more vertical space back to the channel list.
+               Channel list (EPG) target ~ 40vh on mobile.
+               Video container target ~ 45% of usable height (was 55%). */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: calc((100vh - 170px) * 0.55) !important;
-                max-height: calc((100vh - 170px) * 0.55) !important;
+                height: calc((100vh - 170px) * 0.48) !important;
+                max-height: calc((100vh - 170px) * 0.48) !important;
                 min-height: 180px !important;
+                margin: 0 !important;
+                box-shadow: none !important;
             }
-            #tctv-player { width: 100% !important; max-height: calc((100vh - 170px) * 0.55) !important; height: 100% !important; }
+            #tctv-player { width: 100% !important; max-height: calc((100vh - 170px) * 0.48) !important; height: 100% !important; }
 
-            /* EPG (channel list): exactly 1/3 of the viewport. Always scrollable. */
+            /* EPG (channel list): expanded to ~40vh of viewport now that the remote
+               sits above the video. Always scrollable. */
             #tctv-epg-wrapper {
-                height: 33vh !important;
-                max-height: 33vh !important;
-                min-height: 180px !important;
+                height: 40vh !important;
+                max-height: 40vh !important;
+                min-height: 200px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
@@ -4197,7 +4211,7 @@ window.renderTimechainTV = function() {
             '<span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
 
     // Desktop: side-by-side layout with couch left, video center, wide remote right
-    html += '<div style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
+    html += '<div id="tctv-video-row" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
     var _tctvAdMinimized = false;
     try { _tctvAdMinimized = localStorage.getItem('tctv_ad_minimized') === '1'; } catch(e) {}
     // Left side - TCTV Ad (desktop only)
