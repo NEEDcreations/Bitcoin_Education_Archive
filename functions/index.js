@@ -3082,4 +3082,61 @@ exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
     return { success: true, global: payload, predictions: predPayload };
 });
 
+// ───────────────────────────────────────────────────────────────
+// Daily Active Users — HTTP endpoint (GET). Returns count of users with
+// lastActive / lastLogin / lastVisit within the last 24h.
+// Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers?t=dau-2026"
+// ───────────────────────────────────────────────────────────────
+exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
+    // Lightweight token gate (readonly, but avoids drive-by polling).
+    const token = req.query.t || req.headers['x-dau-token'];
+    if (token !== 'dau-2026') {
+        res.status(403).json({ error: 'forbidden' }); return;
+    }
+    try {
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const todayStr = now.toISOString().split('T')[0];
+        const yesterdayStr = oneDayAgo.toISOString().split('T')[0];
+
+        const snap = await db.collection('users').get();
+        let dau = 0;
+        let total = snap.size;
+        let activeToday = 0;   // only today (strict)
+        let active7d = 0;
+        let active30d = 0;
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sevenAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+        const thirtyAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+        snap.forEach(doc => {
+            const d = doc.data();
+            let ts = null;
+            if (d.lastActive && d.lastActive.toDate) ts = d.lastActive.toDate();
+            else if (d.lastLogin && d.lastLogin.toDate) ts = d.lastLogin.toDate();
+            if (ts) {
+                if (ts >= oneDayAgo) dau++;
+                if (ts.toISOString().split('T')[0] === todayStr) activeToday++;
+                if (ts >= sevenDaysAgo) active7d++;
+                if (ts >= thirtyDaysAgo) active30d++;
+            } else if (d.lastVisit) {
+                if (d.lastVisit === todayStr || d.lastVisit === yesterdayStr) dau++;
+                if (d.lastVisit === todayStr) activeToday++;
+                if (d.lastVisit >= sevenAgoStr) active7d++;
+                if (d.lastVisit >= thirtyAgoStr) active30d++;
+            }
+        });
+        res.json({
+            date: now.toISOString(),
+            totalUsers: total,
+            dau,              // active within last 24h rolling
+            activeToday,      // active today (UTC calendar day)
+            active7d,         // active within last 7 days rolling
+            active30d         // active within last 30 days rolling
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 

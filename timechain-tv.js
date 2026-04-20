@@ -9625,6 +9625,16 @@ window.renderTimechainTV = function() {
         @media (max-width: 767px) {
             #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
             #tctv-remote { display: flex !important; }
+            /* On mobile the app has a position:fixed .mobile-bar at the top.
+               The TCTV sticky header needs to sit BELOW it, not underneath. */
+            #tctv-sticky-header {
+                top: calc(58px + env(safe-area-inset-top, 0px)) !important;
+            }
+        }
+        @media (max-width: 480px) {
+            #tctv-sticky-header {
+                top: calc(54px + env(safe-area-inset-top, 0px)) !important;
+            }
         }
         /* Style for the floating wide 160px remote (Desktop/Tablet) */
         #tctv-remote-inline {
@@ -9834,7 +9844,7 @@ window.renderTimechainTV = function() {
 
     var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;">';
 
-    html += '<div style="position:sticky;top:0;z-index:200000;background:#0a0a0a;width:100%;"> ' +
+    html += '<div id="tctv-sticky-header" style="position:sticky;top:0;z-index:200000;background:#0a0a0a;width:100%;"> ' +
             '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;"><span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
 
     // Desktop: side-by-side layout with couch left, video center, wide remote right
