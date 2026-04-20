@@ -62,12 +62,44 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Push to all remotes
+# Push to all remotes. Mirrors push in background so they don't block the deploy, but
+# errors are captured to /tmp and summarized after so a silent credential/access failure
+# on a mirror doesn't go unnoticed for weeks.
 git push origin gh-pages
-echo "📦 Pushing to Codeberg..."
-git push codeberg gh-pages 2>/dev/null &
-echo "📦 Pushing to GitLab..."
-git push gitlab gh-pages 2>/dev/null &
+ORIGIN_RC=$?
+
+push_mirror() {
+    local name="$1"
+    local log="/tmp/deploy_push_${name}.log"
+    echo "📦 Pushing to ${name}..."
+    # Run in background so mirrors don't block. Capture stderr for post-report.
+    ( git push "$name" gh-pages > "$log" 2>&1 ; echo $? > "${log}.rc" ) &
+}
+
+push_mirror codeberg
+push_mirror gitlab
+
+# Give the mirrors a beat to finish (or at least fail fast). We intentionally don't
+# wait forever — a stuck mirror should NOT hold up the deploy — but we do want to
+# surface failures that happen within the first few seconds.
+sleep 8
+for mirror in codeberg gitlab; do
+    rc_file="/tmp/deploy_push_${mirror}.log.rc"
+    if [ -f "$rc_file" ]; then
+        rc=$(cat "$rc_file")
+        if [ "$rc" != "0" ]; then
+            echo "⚠️  Mirror push to ${mirror} FAILED (rc=${rc}) — see /tmp/deploy_push_${mirror}.log"
+            tail -3 "/tmp/deploy_push_${mirror}.log" | sed 's/^/    /'
+        else
+            echo "✅ ${mirror} up to date"
+        fi
+    else
+        echo "⏳ Mirror push to ${mirror} still running in background (will not block deploy)."
+    fi
+done
+
+# Restore origin's success code for the Cloudflare purge decision below.
+[ $ORIGIN_RC -eq 0 ]
 
 if [ $? -eq 0 ]; then
     echo ""
