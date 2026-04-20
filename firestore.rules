@@ -922,39 +922,33 @@ service cloud.firestore {
       allow write: if false; // deprecated — use tctv_presence
     }
 
-    // TCTV stats docs — public counters for Timechain TV.
-    //   • 'peak' — all-time high concurrent viewers (monotonically increasing).
-    //   • 'views' — all-time cumulative session views (incremented per station tune-in,
-    //              client-side rate-limited; max +1 per write to prevent spikes).
-    // Anyone can read. Writes are constrained so anon/auth clients can only nudge counters
-    // in the correct direction. Not protection against a determined attacker with a console,
-    // but prevents casual abuse. Admin can reset via console if needed.
+    // TCTV public stats — 'views' (cumulative tune-ins) + 'peak' (all-time concurrent).
+    // Open to both signed-in and anonymous clients (the rules assert the value shape).
+    //   views: starts at 0 on create, +1 per update
+    //   peak:  starts at >=0 on create, monotonically increasing on update (capped 100k)
     match /tctv_stats/{docId} {
       allow read: if true;
-      // Admin seeding/reset (any value). Temporary — can be removed after initial seed.
-      allow write: if request.auth != null
-                    && (request.auth.token.email == 'needcreations@gmail.com'
-                        || request.auth.token.email == 'info.603btc@gmail.com');
-      // peak: monotonically increasing, capped.
+      // views
+      allow create: if docId == 'views'
+                    && request.resource.data.keys().hasOnly(['count', 'ts'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count >= 0
+                    && request.resource.data.count <= 5;
+      allow update: if docId == 'views'
+                    && request.resource.data.keys().hasOnly(['count', 'ts'])
+                    && request.resource.data.count is int
+                    && request.resource.data.count == resource.data.get('count', 0) + 1;
+      // peak
       allow create: if docId == 'peak'
                     && request.resource.data.keys().hasOnly(['peak', 'ts'])
                     && request.resource.data.peak is int
-                    && request.resource.data.peak >= 1
+                    && request.resource.data.peak >= 0
                     && request.resource.data.peak <= 100000;
       allow update: if docId == 'peak'
                     && request.resource.data.keys().hasOnly(['peak', 'ts'])
                     && request.resource.data.peak is int
                     && request.resource.data.peak > resource.data.get('peak', 0)
                     && request.resource.data.peak <= 100000;
-      // views: +1 per write (or seed at 1 on create).
-      allow create: if docId == 'views'
-                    && request.resource.data.keys().hasOnly(['count', 'ts'])
-                    && request.resource.data.count is int
-                    && request.resource.data.count == 1;
-      allow update: if docId == 'views'
-                    && request.resource.data.keys().hasOnly(['count', 'ts'])
-                    && request.resource.data.count is int
-                    && request.resource.data.count == resource.data.get('count', 0) + 1;
     }
 
     match /tctv_presence/{viewerId} {

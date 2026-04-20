@@ -8333,6 +8333,7 @@ function _leavePresence() {
     if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
     if (_tctvPeakUnsub) { try { _tctvPeakUnsub(); } catch(e) {} _tctvPeakUnsub = null; }
     if (_tctvViewsUnsub) { try { _tctvViewsUnsub(); } catch(e) {} _tctvViewsUnsub = null; }
+    _tctvPeakLastWriteAt = 0;
     _viewerCounts = {};
     // Hide peak tooltip if visible
     try { if (typeof window.tctvHidePeakTip === 'function') window.tctvHidePeakTip(); } catch(e) {}
@@ -8366,106 +8367,74 @@ function _leavePresence() {
     });
 })();
 
-// All-time peak concurrent viewers — subscribed live from tctv_stats/peak
+// ── TCTV Public Counters ───────────────────────────────────────────────────
+// tctv_stats/views { count: number, ts: serverTimestamp }
+// tctv_stats/peak  { peak:  number, ts: serverTimestamp }
+// Everyone (anon + auth) can write. Rules enforce value shape.
 var _tctvPeak = 0;
-var _tctvPeakUnsub = null;
-var _tctvPeakLastWriteAt = 0;
-// All-time cumulative session views — subscribed live from tctv_stats/views
 var _tctvTotalViews = 0;
+var _tctvPeakUnsub = null;
 var _tctvViewsUnsub = null;
+var _tctvPeakLastWriteAt = 0;
 
-function _subscribeTctvPeak() {
-    if (_tctvPeakUnsub) return;
+function _subscribeTctvStats() {
     if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    try {
-        _tctvPeakUnsub = firebase.firestore().collection('tctv_stats').doc('peak')
-            .onSnapshot(function(doc) {
-                if (doc.exists) {
-                    _tctvPeak = (doc.data() && doc.data().peak) || 0;
-                }
-            }, function() { /* swallow errors */ });
-    } catch (e) {}
-}
-
-function _subscribeTctvViews() {
-    if (_tctvViewsUnsub) return;
-    if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    try {
-        _tctvViewsUnsub = firebase.firestore().collection('tctv_stats').doc('views')
-            .onSnapshot(function(doc) {
-                if (doc.exists) {
-                    _tctvTotalViews = (doc.data() && doc.data().count) || 0;
-                }
-            }, function() { /* swallow errors */ });
-    } catch (e) {}
-    // Attempt auto-seed if admin
-    setTimeout(_maybeAutoSeedStats, 1500);
-}
-
-// Admin-only one-shot seeder (exposed on window so Phil can run it from the console).
-// Also auto-triggers once when admin loads TCTV if the doc is missing/zero.
-window.tctvAdminSeedStats = function(totalViews, peakViewers) {
-    totalViews = typeof totalViews === 'number' ? totalViews : 50;
-    peakViewers = typeof peakViewers === 'number' ? peakViewers : 7;
-    if (typeof firebase === 'undefined' || !firebase.functions) { console.warn('firebase not ready'); return; }
-    var user = firebase.auth().currentUser;
-    if (!user || (user.email !== 'needcreations@gmail.com' && user.email !== 'info.603btc@gmail.com')) {
-        console.warn('Admin-only.'); return;
+    var fs = firebase.firestore();
+    if (!_tctvPeakUnsub) {
+        try {
+            _tctvPeakUnsub = fs.collection('tctv_stats').doc('peak').onSnapshot(function(doc) {
+                _tctvPeak = (doc.exists && doc.data() && doc.data().peak) || 0;
+            });
+        } catch (e) {}
     }
-    // Use a Cloud Function (admin SDK bypasses rules) to guarantee persistence.
-    firebase.functions().httpsCallable('seedTctvStats')({ views: totalViews, peak: peakViewers })
-        .then(function(res) {
-            console.log('✅ Seeded tctv_stats via Cloud Function:', res && res.data);
-        }).catch(function(e) {
-            console.error('❌ Seed failed:', e && (e.message || e));
-        });
-};
-
-function _maybeAutoSeedStats() {
-    // Disabled — stats were reset to 0/0 server-side on 2026-04-19.
-    // Real counts accumulate organically from here. Admin can still manually call
-    // window.tctvAdminSeedStats(views, peak) from the console if needed.
-    return;
+    if (!_tctvViewsUnsub) {
+        try {
+            _tctvViewsUnsub = fs.collection('tctv_stats').doc('views').onSnapshot(function(doc) {
+                _tctvTotalViews = (doc.exists && doc.data() && doc.data().count) || 0;
+            });
+        } catch (e) {}
+    }
 }
 
+// Bump tctv_stats/views atomically via transaction so concurrent +1s don't clobber.
 function _bumpTctvViews() {
-    // +1 the global view counter. Rules enforce exactly +1 per write, so no batching.
     if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    try {
-        var ref = firebase.firestore().collection('tctv_stats').doc('views');
-        ref.get().then(function(doc) {
-            if (doc.exists) {
-                var cur = (doc.data() && doc.data().count) || 0;
-                ref.set({
-                    count: cur + 1,
-                    ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(function() { /* race lost — next client wins */ });
+    var fs = firebase.firestore();
+    var ref = fs.collection('tctv_stats').doc('views');
+    fs.runTransaction(function(tx) {
+        return tx.get(ref).then(function(doc) {
+            var ts = firebase.firestore.FieldValue.serverTimestamp();
+            if (!doc.exists) {
+                tx.set(ref, { count: 1, ts: ts });
             } else {
-                ref.set({
-                    count: 1,
-                    ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(function() { /* exists now — ignore */ });
+                var cur = (doc.data() && doc.data().count) || 0;
+                tx.update(ref, { count: cur + 1, ts: ts });
             }
-        }).catch(function() {});
-    } catch (e) {}
+        });
+    }).catch(function() { /* race with another client — they got the +1 */ });
 }
 
 function _maybeBumpTctvPeak(currentTotal) {
-    // Only bump if we beat the current peak. Rate-limit writes so many clients
-    // don't thrash this doc. Each client at most once every 30s.
+    // Only attempt if we appear to beat the current peak. Rate-limit per client.
     if (!currentTotal || currentTotal <= _tctvPeak) return;
     var now = Date.now();
     if (now - _tctvPeakLastWriteAt < 30000) return;
     _tctvPeakLastWriteAt = now;
     if (typeof firebase === 'undefined' || !firebase.firestore) return;
-    try {
-        firebase.firestore().collection('tctv_stats').doc('peak').set({
-            peak: currentTotal,
-            ts: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(function() { /* rules reject if not greater — that's expected */ });
-        // Optimistically update local copy so we don't re-write immediately on next tick
-        _tctvPeak = currentTotal;
-    } catch (e) {}
+    var fs = firebase.firestore();
+    var ref = fs.collection('tctv_stats').doc('peak');
+    // Use a transaction so we only bump if our value is still greater than latest server state.
+    fs.runTransaction(function(tx) {
+        return tx.get(ref).then(function(doc) {
+            var ts = firebase.firestore.FieldValue.serverTimestamp();
+            var existing = (doc.exists && doc.data() && doc.data().peak) || 0;
+            if (currentTotal > existing) {
+                if (!doc.exists) tx.set(ref, { peak: currentTotal, ts: ts });
+                else tx.update(ref, { peak: currentTotal, ts: ts });
+                _tctvPeak = currentTotal;
+            }
+        });
+    }).catch(function() { /* another client raised it first — fine */ });
 }
 
 window.tctvShowPeakTip = function(ev) {
@@ -8503,9 +8472,8 @@ window.tctvHidePeakTip = function() {
 };
 
 function updateViewerBadges() {
-    // Lazy-subscribe to stats docs once
-    if (!_tctvPeakUnsub) _subscribeTctvPeak();
-    if (!_tctvViewsUnsub) _subscribeTctvViews();
+    // Lazy-subscribe to public stats docs
+    _subscribeTctvStats();
 
     // Ensure the current viewer is always counted on THEIR current station,
     // even before the Firestore snapshot comes back with their own write.

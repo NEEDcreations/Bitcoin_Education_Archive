@@ -3082,23 +3082,4 @@ exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
     return { success: true, global: payload, predictions: predPayload };
 });
 
-// ─────────────────────────────────────────────────────────────
-// seedTctvStats — admin-only. Sets tctv_stats/views and tctv_stats/peak.
-// Usage (from browser console while signed in as admin):
-//   firebase.functions().httpsCallable('seedTctvStats')({ views: 50, peak: 7 })
-//     .then(r => console.log(r.data)).catch(e => console.error(e));
-// ─────────────────────────────────────────────────────────────
-exports.seedTctvStats = functions.https.onCall(async (data, context) => {
-    const email = context.auth && context.auth.token && context.auth.token.email;
-    if (!email || (email !== 'needcreations@gmail.com' && email !== 'info.603btc@gmail.com')) {
-        throw new functions.https.HttpsError('permission-denied', 'Admin only');
-    }
-    const views = typeof data.views === 'number' ? Math.max(0, Math.min(1e8, data.views)) : 50;
-    const peak = typeof data.peak === 'number' ? Math.max(0, Math.min(100000, data.peak)) : 7;
-    const sts = admin.firestore.FieldValue.serverTimestamp();
-    await Promise.all([
-        db.collection('tctv_stats').doc('views').set({ count: views, ts: sts }),
-        db.collection('tctv_stats').doc('peak').set({ peak: peak, ts: sts })
-    ]);
-    return { success: true, views, peak };
-});
+
