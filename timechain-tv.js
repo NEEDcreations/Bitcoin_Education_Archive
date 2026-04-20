@@ -754,7 +754,7 @@ var STATIONS = [
         },
         {
             "id": "freedom-sovereignty",
-            "name": "Freedom, Sovereignty & Self-Custody",
+            "name": "Freedom, Sovereign & Self-Custody",
             "emoji": "🗽",
             "desc": "Human rights, financial freedom, self-custody & sovereignty",
             "color": "#0ea5e9",
