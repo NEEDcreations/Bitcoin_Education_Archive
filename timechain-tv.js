@@ -2613,51 +2613,101 @@ function _blockSurfFetchTip() {
 }
 
 function _blockSurfPoll() {
-    _blockSurfFetchTip().then(function(h) {
-        if (!h || isNaN(h)) return;
-        if (window._blockSurfHeight == null) {
-            // Seed baseline on first successful poll so we don't surf immediately.
-            window._blockSurfHeight = h;
-            return;
+    _blockSurfFetchTip().then(_blockSurfHandleHeight).catch(function() { /* ignore transient fetch errors */ });
+}
+
+// WebSocket handle for real-time block push from mempool.space. When connected,
+// we hear about new blocks within ~1–2 seconds of discovery — orders of magnitude
+// faster than polling. We keep a short interval as a fallback in case the socket
+// drops.
+window._blockSurfWS = null;
+window._blockSurfWSRetry = 0;
+
+function _blockSurfHandleHeight(h) {
+    if (!h || isNaN(h)) return;
+    if (window._blockSurfHeight == null) { window._blockSurfHeight = h; return; }
+    if (h > window._blockSurfHeight) {
+        window._blockSurfHeight = h;
+        _blockSurfSurfNow(h);
+    }
+}
+
+function _blockSurfSurfNow(h) {
+    try {
+        var currentId = (window._np && window._np.stationId) || window._currentStation;
+        var candidates = STATIONS.filter(function(s) { return s.id !== currentId; });
+        if (!candidates.length) return;
+        var next = candidates[Math.floor(Math.random() * candidates.length)];
+        var btn = document.getElementById('tctv-blocksurf-toggle');
+        if (btn) {
+            btn.style.boxShadow = '0 0 0 4px rgba(247,147,26,0.35)';
+            setTimeout(function(){ if (btn) btn.style.boxShadow = ''; }, 1200);
         }
-        if (h > window._blockSurfHeight) {
-            var prev = window._blockSurfHeight;
-            window._blockSurfHeight = h;
+        if (typeof showToast === 'function') {
+            showToast('🏄 New block #' + h + ' — surfing to ' + next.emoji + ' ' + next.name);
+        }
+        if (typeof window.switchStation === 'function') window.switchStation(next.id);
+    } catch(e) { /* swallow */ }
+}
+
+function _blockSurfConnectWS() {
+    if (window._blockSurfWS) return; // already connected / connecting
+    try {
+        var ws = new WebSocket('wss://mempool.space/api/v1/ws');
+        window._blockSurfWS = ws;
+        ws.onopen = function() {
+            window._blockSurfWSRetry = 0;
+            // Subscribe to the blocks feed. mempool.space expects `{ "action": "want", "data": ["blocks"] }`.
+            try { ws.send(JSON.stringify({ action: 'want', data: ['blocks'] })); } catch(e) {}
+            // Also ask for the current block so we seed baseline immediately.
+            try { ws.send(JSON.stringify({ action: 'init' })); } catch(e) {}
+        };
+        ws.onmessage = function(ev) {
             try {
-                var currentId = (window._np && window._np.stationId) || window._currentStation;
-                // Pick a random station that isn't the current one.
-                var candidates = STATIONS.filter(function(s) { return s.id !== currentId; });
-                if (!candidates.length) return;
-                var next = candidates[Math.floor(Math.random() * candidates.length)];
-                // Visual signal: pulse the toggle + a toast.
-                var btn = document.getElementById('tctv-blocksurf-toggle');
-                if (btn) {
-                    btn.style.boxShadow = '0 0 0 4px rgba(247,147,26,0.35)';
-                    setTimeout(function(){ if (btn) btn.style.boxShadow = ''; }, 1200);
+                var msg = JSON.parse(ev.data);
+                // mempool.space sends { block: { height, ... } } on new blocks and
+                // { blocks: [...] } on init. Handle both shapes.
+                if (msg && msg.block && typeof msg.block.height === 'number') {
+                    _blockSurfHandleHeight(msg.block.height);
+                } else if (msg && Array.isArray(msg.blocks) && msg.blocks.length) {
+                    var top = msg.blocks[0];
+                    if (top && typeof top.height === 'number') _blockSurfHandleHeight(top.height);
                 }
-                if (typeof showToast === 'function') {
-                    showToast('🏄 New block #' + h + ' — surfing to ' + next.emoji + ' ' + next.name);
+            } catch(e) { /* ignore malformed */ }
+        };
+        ws.onclose = function() {
+            window._blockSurfWS = null;
+            // Exponential backoff, capped at 30s. Only retry while user still has BlockSurf on.
+            try {
+                if (localStorage.getItem('tctv_blocksurf') === '1') {
+                    var delay = Math.min(30000, 1000 * Math.pow(2, Math.min(5, window._blockSurfWSRetry++)));
+                    setTimeout(_blockSurfConnectWS, delay);
                 }
-                if (typeof window.switchStation === 'function') {
-                    window.switchStation(next.id);
-                }
-            } catch(e) { /* swallow; don't break the poller */ }
-        }
-    }).catch(function() { /* ignore transient fetch errors */ });
+            } catch(e) {}
+        };
+        ws.onerror = function() { try { ws.close(); } catch(e) {} };
+    } catch(e) { /* WebSocket not available — fall back to polling only */ }
 }
 
 function _blockSurfStart() {
-    if (window._blockSurfTimer) return;
-    // Seed baseline immediately so the very next block triggers a surf.
+    if (window._blockSurfTimer || window._blockSurfWS) return;
+    // Seed baseline immediately so the very next block triggers a surf, even if
+    // the WS init message is slow.
     _blockSurfFetchTip().then(function(h) {
-        if (h && !isNaN(h)) window._blockSurfHeight = h;
+        if (h && !isNaN(h) && window._blockSurfHeight == null) window._blockSurfHeight = h;
     }).catch(function() {});
-    window._blockSurfTimer = setInterval(_blockSurfPoll, 20000);
+    // Primary: WebSocket push from mempool.space (near-instant on new blocks).
+    _blockSurfConnectWS();
+    // Fallback: poll every 5s in case the socket stalls or is blocked by a network.
+    // The WS path will usually fire first; this just keeps us honest if it doesn't.
+    window._blockSurfTimer = setInterval(_blockSurfPoll, 5000);
 }
 
 function _blockSurfStop() {
     if (window._blockSurfTimer) { clearInterval(window._blockSurfTimer); window._blockSurfTimer = null; }
+    if (window._blockSurfWS) { try { window._blockSurfWS.close(); } catch(e) {} window._blockSurfWS = null; }
     window._blockSurfHeight = null;
+    window._blockSurfWSRetry = 0;
 }
 
 window.tctvToggleBlockSurf = function(ev) {
@@ -4685,8 +4735,7 @@ window.cleanupTimechainTV = function() {
     if (s) s.remove();
     if (typeof _tctvRestoreSpriteNacho === 'function') _tctvRestoreSpriteNacho();
     // Stop BlockSurf poller on TCTV exit.
-    if (window._blockSurfTimer) { clearInterval(window._blockSurfTimer); window._blockSurfTimer = null; }
-    window._blockSurfHeight = null;
+    if (typeof _blockSurfStop === 'function') _blockSurfStop();
     // Clean up any lingering BlockSurf tooltip.
     var bsTip = document.getElementById('tctv-blocksurf-tip');
     if (bsTip) bsTip.remove();
