@@ -2167,7 +2167,7 @@ function updateGuestPointsBanner() {
             '<div style="color:#ccc;font-size:0.75rem;">Sign in to keep your points & get on the leaderboard!</div>' +
         '</div>' +
         '<div style="background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;flex-shrink:0;">Sign Up Free →</div>' +
-        '<button class="banner-toggle" aria-label="' + (isMin ? 'Expand' : 'Minimize') + ' sign-in banner" onclick="event.stopPropagation();toggleGuestPointsBanner()" style="background:rgba(0,0,0,0.35);border:none;border-radius:8px;color:#f7931a;font-weight:900;font-size:0.95rem;line-height:1;padding:6px 9px;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;">' + (isMin ? '⚡' : '–') + '</button>';
+        '<button class="banner-toggle" aria-label="' + (isMin ? 'Expand' : 'Close') + ' sign-in banner" onclick="event.stopPropagation();toggleGuestPointsBanner()" style="' + (isMin ? 'background:rgba(0,0,0,0.35);border:none;border-radius:8px;color:#f7931a;font-weight:900;font-size:1.1rem;line-height:1;padding:6px 9px;cursor:pointer;font-family:inherit;flex-shrink:0;touch-action:manipulation;' : 'position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#111;border:1.5px solid #f7931a;color:#f7931a;font-weight:900;font-size:0.8rem;line-height:1;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation;box-shadow:0 2px 6px rgba(0,0,0,0.5);') + '">' + (isMin ? '⚡' : '✕') + '</button>';
     banner.style.display = 'flex';
 }
 
