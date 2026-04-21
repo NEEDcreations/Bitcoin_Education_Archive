@@ -5422,7 +5422,11 @@ window.renderTimechainTV = function() {
             #tctv-player { width: 100% !important; max-height: calc((100vh - 170px) * 0.48) !important; height: 100% !important; }
 
             /* EPG (channel list): expanded to ~40vh of viewport now that the remote
-               sits above the video. Always scrollable. */
+               sits above the video. Always scrollable.
+               iOS fix: explicit touch-action so vertical swipes always scroll the
+               channel list, and horizontal swipes scroll the timeline only when on
+               the timeline. Without this, iOS gets confused between the wrapper's
+               Y-scroll and the inner container's X-scroll and locks both. */
             #tctv-epg-wrapper {
                 height: 40vh !important;
                 max-height: 40vh !important;
@@ -5430,12 +5434,19 @@ window.renderTimechainTV = function() {
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
+                touch-action: pan-y !important;
                 background: #0a0a0a !important;
                 position: relative !important;
                 z-index: 5 !important;
                 margin-top: 4px !important;
+                overscroll-behavior: contain !important;
             }
-            #tctv-epg-container { height: auto !important; min-height: 100% !important; }
+            #tctv-epg-container {
+                height: auto !important;
+                min-height: 100% !important;
+                touch-action: pan-x !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
         }
         /* Very short screens (landscape phones) — pull video down to keep EPG visible */
         @media (max-width: 768px) and (max-height: 600px) {
