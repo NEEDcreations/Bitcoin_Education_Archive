@@ -3409,7 +3409,7 @@ document.body.appendChild(overlay);
         node.buffer = buf;
         node.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.045;
+        gain.gain.value = 0.034; // -25% per Phil
         node.connect(gain);
         gain.connect(audioCtx.destination);
         node.start();
@@ -5318,7 +5318,7 @@ function showChannelNoise(stationName) {
         node.buffer = buf;
         node.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.045;
+        gain.gain.value = 0.034; // -25% per Phil
         node.connect(gain);
         gain.connect(audioCtx.destination);
         node.start();
