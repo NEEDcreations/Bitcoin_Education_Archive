@@ -2800,7 +2800,6 @@ var STATIONS = [
                 {"id":"9OHeub2XLwU","title":"Strategy ($MSTR) Balance Sheet UPDATE","duration":339},
                 {"id":"4QM0PwPOg90","title":"Strategy's ($MSTR) Bitcoin Backed Credit Products","duration":2692},
                 {"id":"VkHQHu5vYHs","title":"Bitcoin, AI and The New QE | The Hurdle Rate Podcast Ep.53","duration":3615},
-                {"id":"uITVZDN9AMs","title":"🔴 LIVE :  STOCK MARKET LIVE TRADING - 21ST  April  #MSTR #SPX #QQQ #NVDA  #IWM #OIL","duration":0},
                 {"id":"07MA4bVy_tM","title":"Strategy ($MSTR) Balance Sheet & Digital Credit","duration":642},
                 {"id":"8893dpSiNiE","title":"How to Value Bitcoin Treasury Companies w/ Andrew Webley, Matt Cole & Gurpreet Oberoi","duration":1280},
                 {"id":"Gy0ySjTc8p4","title":"LIVE: Strategy (MSTR) Q3 2025 Earnings Call","duration":6755},
