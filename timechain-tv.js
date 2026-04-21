@@ -5399,27 +5399,31 @@ window.renderTimechainTV = function() {
                 width: auto !important;
             }
         }
-        /* Mobile — aggressive resizing for small screens. */
+        /* Mobile — aggressive resizing for small screens.
+           Phil's spec (firm): Video + remote + chrome = 2/3 of viewport,
+           Channel guide = 1/3. The math below is carefully sized so the three
+           chrome bars (mobile-bar at top ~58px, title row ~32px, now-playing ~38px,
+           progress 3px) + the two-row remote (~64px) add up to about 195px, and
+           the remaining 2/3 is filled by the video. EPG gets a fixed 33vh. */
         @media (max-width: 767px) {
-            #tctv-remote { padding: 4px 6px !important; gap: 4px !important; }
-            .remote-btn { width: 32px !important; height: 32px !important; font-size: 0.8rem !important; }
+            /* Shrink the remote vertically so it takes less of the 2/3 budget. */
+            #tctv-remote { padding: 3px 6px !important; gap: 3px !important; }
+            .remote-btn { width: 30px !important; height: 28px !important; font-size: 0.72rem !important; }
+            #tctv-remote .tctv-remote-row-seek .remote-btn { height: 26px !important; }
+            #tctv-remote input.remote-input { height: 28px !important; }
 
-            /* Split (Phil spec 2026-04-20):
-               Remote bar moved ABOVE the video into the previously dead black
-               space, so we can let the video shrink to a tighter aspect-ratio
-               box and hand more vertical space back to the channel list.
-               Channel list (EPG) target ~ 40vh on mobile.
-               Video container target ~ 45% of usable height (was 55%). */
+            /* Video + chrome fills 2/3 of viewport minus fixed overheads. */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: calc((100vh - 170px) * 0.48) !important;
-                max-height: calc((100vh - 170px) * 0.48) !important;
+                /* 2/3 of viewport minus: 58px app top bar + ~135px sticky chrome (title+remote+nowplay+progress) */
+                height: calc(66vh - 135px) !important;
+                max-height: calc(66vh - 135px) !important;
                 min-height: 180px !important;
                 margin: 0 !important;
                 box-shadow: none !important;
             }
-            #tctv-player { width: 100% !important; max-height: calc((100vh - 170px) * 0.48) !important; height: 100% !important; }
+            #tctv-player { width: 100% !important; max-height: calc(66vh - 135px) !important; height: 100% !important; }
 
             /* EPG (channel list): expanded to ~40vh of viewport now that the remote
                sits above the video. Always scrollable.
@@ -5428,9 +5432,10 @@ window.renderTimechainTV = function() {
                the timeline. Without this, iOS gets confused between the wrapper's
                Y-scroll and the inner container's X-scroll and locks both. */
             #tctv-epg-wrapper {
-                height: 40vh !important;
-                max-height: 40vh !important;
-                min-height: 200px !important;
+                /* Phil spec: 1/3 of viewport for the channel guide. */
+                height: 33vh !important;
+                max-height: 33vh !important;
+                min-height: 180px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
