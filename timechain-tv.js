@@ -607,7 +607,10 @@ var STATIONS = [
                 {"id":"IOzCrgCDSy8","title":"4. Is Bitcoin Just for Criminals?","duration":182},
                 {"id":"TIkqBZnrKJM","title":"EVERYTHING will fail. Except...","duration":465},
                 {"id":"qlU_6USlQEU","title":"Shitcoin Apologism Steelmanned & Bitcoin Scaling Panel with Adam Back at Baltic Honeybadger 2019","duration":2422},
-                {"id":"djw0zYXyAlo","title":"Percent of the Network  #bitcoin","duration":89}
+                {"id":"djw0zYXyAlo","title":"Percent of the Network  #bitcoin","duration":89},
+                {"id":"3fjKKApmAKM","title":"Alternative Education Meets Global Bitcoin Adventures - Michael From Trailblazer Academy - #011","duration":3746},
+                {"id":"9WJgukEL168","title":"Hockey, Homeschooling, and Bitcoin - Brandon Gentile - #009","duration":5295},
+                {"id":"YR50A20lNzo","title":"Bitcoin's Family Revolution - Seb Bunney - #018","duration":4333}
             ]
         },
         {
@@ -1013,7 +1016,8 @@ var STATIONS = [
                 {"id":"lxgDRK5cRhA","title":"Episode 2: Bitcoin vs Gold: Why Digital Gold is Better","duration":481},
                 {"id":"VssN8B0NWqY","title":"286. The Fiat Standard: Lecture 5 - Fiat Balances: Universal Debt Slavery","duration":2853},
                 {"id":"lmfx960EQkY","title":"Mike Maloney - The best video series ever made about money.  Must watch for everyone!","duration":1766},
-                {"id":"mKNojhzp_oY","title":"Can NVIDIA’s EARNINGS JOLT Spark a Bitcoin Reversal?","duration":1751}
+                {"id":"mKNojhzp_oY","title":"Can NVIDIA’s EARNINGS JOLT Spark a Bitcoin Reversal?","duration":1751},
+                {"id":"Qr49drtKtbk","title":"Digital Gold Becomes A 'Danger Zone' | Why SEBI Is Warning Against Digital Gold Buying | Explained","duration":281}
             ]
         },
         {
@@ -1272,7 +1276,6 @@ var STATIONS = [
                 {"id":"_0axyH2X6mI","title":"Morgan Spurlock Living with Bitcoin 2015. The Future of Bitcoin","duration":2516},
                 {"id":"m7_WDzPyoqU","title":"I Live 500 Feet From A Bitcoin Mine. My Life Is Hell.","duration":1270},
                 {"id":"chcASJW1pMs","title":"Satoshi Nakamoto - The Beginning of Bitcoin Documentary 2019","duration":5021},
-                {"id":"0r6zMdHcpW0","title":"Was Bitcoin a CIA Project? The Hidden Origins of Satoshi Nakamoto | #BitcoinHardTalk Ep.103","duration":10222},
                 {"id":"W03SVhhOaEU","title":"The Bitcoin Full Node Sculpture 7.0 - A Cypherpunk Chronometer - MirrorNode","duration":53},
                 {"id":"0rlnVQoiVyc","title":"Beginner’s Guide #5: The History of Bitcoin with Marty Bent","duration":5039},
                 {"id":"DGNhX8nz7Eg","title":"Seeking Satoshi - The Mystery Bitcoin Creator /part 2/","duration":2884},
@@ -1342,7 +1345,6 @@ var STATIONS = [
                 {"id":"MdC_0X71n88","title":"Scott Sibley  - SHAmory Bitcoin Card Game","duration":2164},
                 {"id":"qyCXpr-ZDhE","title":"What are Taxes? A Simple Explanation for Teens and Beginners","duration":129},
                 {"id":"61G4YhJsSNo","title":"What is BITCOIN (Bitcoin explained to kids, teens and adults.)","duration":837},
-                {"id":"3fjKKApmAKM","title":"Alternative Education Meets Global Bitcoin Adventures - Michael From Trailblazer Academy - #011","duration":3746},
                 {"id":"zY_T-FNDgaM","title":"EP92: Bitcoin Karma with Scott, Mallory and Charlotte Sibley","duration":2671},
                 {"id":"mwSAuNb44lU","title":"How Money Works Explained in One Minute","duration":71},
                 {"id":"zJHeIJGVCKI","title":"How War Makes Millionaires?! | Economics Explained","duration":274},
@@ -1350,7 +1352,6 @@ var STATIONS = [
                 {"id":"lDNem8PxfT8","title":"Equity vs. Equality - Meet Thomas Sowell | Tuttle Twins","duration":324},
                 {"id":"9CchpWy29es","title":"Investing & Stocks | Cash Course | PragerU Kids","duration":365},
                 {"id":"RzjCvabZ4QU","title":"Why are Entry Level Workers Losing Jobs? - Tuttle Twins","duration":323},
-                {"id":"9WJgukEL168","title":"Hockey, Homeschooling, and Bitcoin - Brandon Gentile - #009","duration":5295},
                 {"id":"rT4ThQ55SD8","title":"Who Invented Bitcoin? (for kids)","duration":229},
                 {"id":"FtaUelnAXrc","title":"Tuttle Twins S1E6 Full Episode \\\"The Inflation Monster\\\" | Angel","duration":1434},
                 {"id":"t0ZAXwV1CI8","title":"Cryptocurrency Explained For Kids","duration":324},
@@ -1369,7 +1370,6 @@ var STATIONS = [
                 {"id":"qVGWCJJcDXM","title":"60 Minutes Tuttle Twins | Wholesome Cartoon Compilation for Family","duration":3627},
                 {"id":"cv7SRW_kYLk","title":"How to Teach Kids Where Money Comes From (5 Different Places)","duration":438},
                 {"id":"lV9aSAIVYok","title":"Kids Finance - Inflation explained ","duration":67},
-                {"id":"ikVMo6-lf3M","title":"Hockey, Homeschooling, and Bitcoin - Brandon Gentile - 009","duration":5295},
                 {"id":"qnyqQvIii0U","title":"Cryptocurrency Explained for Kids & Beginners: A Simple & Fun Guide","duration":141},
                 {"id":"tQ1_8M1K0tM","title":"Cryptocurrency Explained To Kids","duration":1268},
                 {"id":"7olIXRL79sw","title":"Scott Sibley: Our Kids will pay EVERYTHING in Bitcoin!","duration":3332},
@@ -1382,7 +1382,6 @@ var STATIONS = [
                 {"id":"Aul03GabnhY","title":"What happens when money isn’t backed by anything? #goldstandard","duration":76},
                 {"id":"DuR0KMBefj0","title":"🔴 Livestream Premiere - S2 E2 - Don't Trash Success | Tuttle Twins | Full Episode on the Angel App |","duration":2827},
                 {"id":"hSZyUI6rbC8","title":"A Bitcoin Bash & Corrupted Cash - Full Episode | Tuttle Twins |","duration":1345},
-                {"id":"YR50A20lNzo","title":"Bitcoin's Family Revolution - Seb Bunney - #018","duration":4333},
                 {"id":"Bwc46DAEGcA","title":"Fun Ways to Teach Kids About Bitcoin","duration":3695},
                 {"id":"PwPoT5Adc6M","title":"STEM Meets Bitcoin: Fun, Educational Tools for Kids - Scott Sibley","duration":1702},
                 {"id":"94I9L90h0_s","title":"What is cryptocurrency? Bitcoin, blockchain & how it works","duration":117},
@@ -1398,14 +1397,15 @@ var STATIONS = [
                 {"id":"J7mMQ3ERNdg","title":"Tuttle Twins S1E11 Full Episode \\\"Free Speech Freestyle\\\" | Angel","duration":1337},
                 {"id":"DQhF_4J2GKo","title":"What is Cryptocurrency? Learn with Jess in the STEM Kids Clubhouse","duration":704},
                 {"id":"o-PNlhhVhZ8","title":"Hyperinflation Explained in One Minute","duration":71},
-                {"id":"4FUJHRihK1o","title":"Bitcoin's Family Revolution - Seb Bunney - 018","duration":4333},
                 {"id":"_ekzsZZGfsk","title":"The World’s First Kids Cartoon about Bitcoin! ⚡️ 🔴 Livestream Premiere | S2 E3 - Tuttle Twins |","duration":3501},
                 {"id":"Y9RdoOBVmbI","title":"Is School Failing You? - Albert Einstein | Tuttle Twins |","duration":228},
                 {"id":"nqdv6Ad9Nt4","title":"What is Bitcoin? (for kids)","duration":221},
                 {"id":"O3Vf2m-DIh0","title":"When money is easy to make, society begins to break. #goldstandard","duration":50},
                 {"id":"rIYfipLBp2w","title":"Isn’t it just made up money? 🤔","duration":60},
                 {"id":"GZ7y-yFdX9M","title":"Who Invented Money? | The History of Money | Barter System of Exchange | The Dr Binocs Show","duration":336},
-                {"id":"ZxEqoaFT73c","title":"BITCOIN IS THE EVOLUTION OF MONEY!!! My kids kids won't know coins & notes or the word change!","duration":221}
+                {"id":"ZxEqoaFT73c","title":"BITCOIN IS THE EVOLUTION OF MONEY!!! My kids kids won't know coins & notes or the word change!","duration":221},
+                {"id":"D3JCOzq9qFE","title":"Ep. 10 Scott Sibley of SHAmory - Kids Can Grasp Bitcoin Through This Simple Card Game","duration":2457},
+                {"id":"mQ9Y_KoOldU","title":"Bottomshelf Bitcoin ep. 56 - Scott Sibley and SHAmory","duration":2089}
             ]
         },
         {
@@ -1787,7 +1787,6 @@ var STATIONS = [
                 {"id":"OJ62RzJkYUo","title":"Pixies - Where Is My Mind? (Official Lyric Video)","duration":230},
                 {"id":"vtwJ00ck0nI","title":"Swiss Bank Bitcoin (Bitcoin Anthem)","duration":198},
                 {"id":"9EeRN2qwDU0","title":"Bitcoin Anthem","duration":245},
-                {"id":"Qr49drtKtbk","title":"Digital Gold Becomes A 'Danger Zone' | Why SEBI Is Warning Against Digital Gold Buying | Explained","duration":281},
                 {"id":"mR8_ldc9lag","title":"Criminal","duration":320},
                 {"id":"M3TzVgGyBFs","title":"Lil Nas X - Old Town Road (Bitcoin Version) Lil Bubble","duration":165},
                 {"id":"chPDTUjnWgA","title":"POWER (Album Version (Edited))","duration":293},
@@ -1830,7 +1829,6 @@ var STATIONS = [
                 {"id":"s3UtbslfqS8","title":"Gary Gensler, isn't that true? Bitcoin Heavy Metal - Annonymal","duration":315},
                 {"id":"bC-hvPM6JbA","title":"Lil Bubble - Half On The Block (Happy Bitcoin Halving!)","duration":100},
                 {"id":"hjhVos8L3Kg","title":"Love Anthem","duration":240},
-                {"id":"D3JCOzq9qFE","title":"Ep. 10 Scott Sibley of SHAmory - Kids Can Grasp Bitcoin Through This Simple Card Game","duration":2457},
                 {"id":"eqxNbGvNamY","title":"Lovesong for Satoshi Nakamoto Bitcoin Whitepaper (\\\"Everything Has Changed\\\", Taylor Swift cover)","duration":257},
                 {"id":"8n5k714GOlA","title":"Chris Record - BACK TO MY CRYPTO - Bitcoin Rap Remix #HODLGANG","duration":179},
                 {"id":"9IclmVdWNbI","title":"Green Day - Know Your Enemy [Official Music Video]","duration":193},
@@ -1916,7 +1914,6 @@ var STATIONS = [
                 {"id":"S99tOmXywZU","title":"Let Me Escape","duration":107},
                 {"id":"KnIozPJWTPM","title":"Glory (From the Motion Picture \\\"Selma\\\") - Common & John Legend","duration":262},
                 {"id":"LBsYqETjc8c","title":"Empowering Bitcoin Literacy: SHAmory's Educational Journey","duration":791},
-                {"id":"mQ9Y_KoOldU","title":"Bottomshelf Bitcoin ep. 56 - Scott Sibley and SHAmory","duration":2089},
                 {"id":"s88r_q7oufE","title":"Queens Of The Stone Age - No One Knows (Official Music Video)","duration":259},
                 {"id":"CbElk8D3-e8","title":"Oflow - Bitcoin (The Anthem) Audio","duration":154},
                 {"id":"eH9b_qNbjEU","title":"Teejay - Bitcoin (Official Music Video)","duration":227},
@@ -2676,7 +2673,8 @@ var STATIONS = [
                 {"id":"runHWEAoLnc","title":"Twitter Spaces 03.11.2022 | Emergency Broadcast - A Message To Judge Glenn on Celsius","duration":2984},
                 {"id":"aN2G0Uvahf8","title":"Beginner’s Guide #4: What is Bitcoin with Stephan Livera","duration":3437},
                 {"id":"VnDIvyRAF34","title":"Dylan LeClair Bitcoin Market Overview (BTC155)","duration":5182},
-                {"id":"iVym9wtopqs","title":"Bitcoin: The Future of Money? | Bitcoiner Book Club | EP 186","duration":5367}
+                {"id":"iVym9wtopqs","title":"Bitcoin: The Future of Money? | Bitcoiner Book Club | EP 186","duration":5367},
+                {"id":"0r6zMdHcpW0","title":"Was Bitcoin a CIA Project? The Hidden Origins of Satoshi Nakamoto | #BitcoinHardTalk Ep.103","duration":10222}
             ]
         },
         {
