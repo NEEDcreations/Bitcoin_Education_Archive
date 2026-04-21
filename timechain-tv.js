@@ -3984,7 +3984,8 @@ document.body.appendChild(overlay);
         noiseNode.buffer = buffer;
         noiseNode.loop = true;
         var gain = audioCtx.createGain();
-        gain.gain.value = 0.06;
+        // Lowered 25% from 0.06 per Phil — initial-load static was too loud.
+        gain.gain.value = 0.045;
         noiseNode.connect(gain);
         gain.connect(audioCtx.destination);
         noiseNode.start();
