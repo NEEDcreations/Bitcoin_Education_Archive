@@ -142,7 +142,8 @@ var STATIONS = [
                 {"id":"ilhxlFUOSzk","title":"Web5 Explained... By a Bitcoin Maximalist","duration":1020},
                 {"id":"4kOBPE63eUc","title":"Quick start with Web5.js","duration":1123},
                 {"id":"XoGntcN5mh0","title":"When This Goes Viral, It's Too Late (Nostr 2025 Guide) - Miljan Braticevic","duration":5348},
-                {"id":"0BvU0nC2BcM","title":"Web5 - A simplified look into becoming a walking Human API #web5","duration":268}
+                {"id":"0BvU0nC2BcM","title":"Web5 - A simplified look into becoming a walking Human API #web5","duration":268},
+                {"id":"R_KTRRlZ-7c","title":"Web5 Open to Build - Bitcoin 2023","duration":1071}
             ]
         },
         {
@@ -233,7 +234,8 @@ var STATIONS = [
                 {"id":"MRnmP7pbR0s","title":"Creating Meaningful Art with FractalEncrypt - Bitcoin Infinity Show 121","duration":3582},
                 {"id":"pcVCt2utTW4","title":"How to Make a Bitcoin Ordinal Inscription in Under Two Minutes | Bitcoin Ordinals","duration":369},
                 {"id":"tgM5wwpwpzA","title":"Ariel B., Flo M., Antonio B. & Psyfer on Stories & Myths | The Movement of Art w/ Yonat Vaks Ep. 2","duration":4436},
-                {"id":"KxTWC3ShYDE","title":"Just-B on Airbrush Mastery, Collector Culture & BTC Art | Bitcoin Art Podcast w/ Asanoha X Spaces v1","duration":7385}
+                {"id":"KxTWC3ShYDE","title":"Just-B on Airbrush Mastery, Collector Culture & BTC Art | Bitcoin Art Podcast w/ Asanoha X Spaces v1","duration":7385},
+                {"id":"occ9L0dMMO4","title":"Bitcoin2024 Art Exhibit as narrated by Bitcoin Bob","duration":543}
             ]
         },
         {
@@ -628,7 +630,6 @@ var STATIONS = [
                 {"id":"HVKq5qfZSqU","title":"FractalEncrypt Bitcoin Full Node book and canvas at Bitcoin 2022 Conference","duration":48},
                 {"id":"SFUiGTayVL8","title":"Saifedean Ammous: Bitcoin & Tether - Drinking The Dollar Milkshake | Bitcoin 2025","duration":858},
                 {"id":"Hp-HlJ0PbpI","title":"Bitcoin Thailand 2024 | Day 1","duration":33617},
-                {"id":"occ9L0dMMO4","title":"Bitcoin2024 Art Exhibit as narrated by Bitcoin Bob","duration":543},
                 {"id":"M-PIOaHxX4c","title":"BitVM Creator Explains: This Breakthrough Will REVOLUTIONIZE Bitcoin w/ Robin Linus","duration":1032},
                 {"id":"dWaHWT15sOQ","title":"Paolo Ardoino: Why Tether Loves Bitcoin | Bitcoin 2025","duration":1030},
                 {"id":"SVJCpnSANG4","title":"Building Bitcoin Insurance for Financial Institutions w/ Anchorwatch | MIT Bitcoin Expo 2025","duration":1001},
@@ -656,7 +657,6 @@ var STATIONS = [
                 {"id":"tO1QTCLrbB8","title":"Matt Odell: Bitcoin-Native Venture Capital | MIT Bitcoin Expo 2025","duration":1724},
                 {"id":"9e5JejAWrwY","title":"The Bitcoin Conference 2025 | Day 1 Livestream","duration":42898},
                 {"id":"TTHU_N_n5Ks","title":"PlanB Forum Lugano 2024 interviews SLP612","duration":2854},
-                {"id":"0XnB_ZqL6fo","title":"MassAdoption presents : Freedom Festival 2024","duration":41},
                 {"id":"6fgFyQEWiK4","title":"Saifedean Ammous Bitcoin Amsterdam 2025 Keynote Speech","duration":1692},
                 {"id":"M2zGs2E-pfs","title":"The Future of Corporate Bitcoin Adoption | MIT Bitcoin Expo 2025","duration":2437},
                 {"id":"XT-B9k9t5B8","title":"LIVE: The MIT Bitcoin Expo 2025 | Day 2","duration":30819},
@@ -664,7 +664,6 @@ var STATIONS = [
                 {"id":"rSSnyJpFNZU","title":"Bitcoin 2021: Banking The Unbanked | Jack Dorsey & Alex Gladstein","duration":1821},
                 {"id":"xCyPbFx0Ktg","title":"Why Bitcoin Must Change — Or Be Left Behind w/ Jameson Lopp","duration":1439},
                 {"id":"pt-Wv-M5uNA","title":"Bitcoin MENA 2025 | Day 1 Livestream","duration":34980},
-                {"id":"z9Li4I2onqk","title":"Sparrow Desktop Workshop - Bitcoin 2023","duration":1647},
                 {"id":"2qiJIFBJPIU","title":"The Bitcoin Conference 2025 | Day 3 Livestream","duration":36592},
                 {"id":"L0Yh6VP6vxU","title":"Open Source Stage - #Bitcoin 2022 Conference - DAY 2","duration":16817},
                 {"id":"LsLKr_dWdpU","title":"The Eric Semler Interview | MIT Bitcoin Expo 2025","duration":704},
@@ -674,7 +673,6 @@ var STATIONS = [
                 {"id":"jc4lkDeozCQ","title":"WATCH LIVE: Eric Trump speaks at Bitcoin Asia conference","duration":2448},
                 {"id":"e_yg6cLsQHE","title":"Bitcoin Address Poisoning Attacks w/ Jameson Lopp | MIT Bitcoin Expo 2025","duration":1548},
                 {"id":"-NlgxiLgqZo","title":"Why Nostr Feels Like Bitcoin in 2012: Vitor Pamplona | MIT Bitcoin Expo 2025","duration":957},
-                {"id":"R_KTRRlZ-7c","title":"Web5 Open to Build - Bitcoin 2023","duration":1071},
                 {"id":"p6kBKSZqjn4","title":"2024/2025 Bitcoin Bull Market Overview w/ James Check (BTC210)","duration":3916},
                 {"id":"M6LhYlKOrVI","title":"Web5: Explained by Daniel Buchner (Block) - Bitcoin 2023 Conference in Miami","duration":798},
                 {"id":"veIuDwQTunw","title":"Olaoluwa Osuntokun: Keynote - Open Source Stage - Bitcoin 2022 Conference","duration":1064},
@@ -729,7 +727,6 @@ var STATIONS = [
                 {"id":"eQRUoMFFjsU","title":"The Bitcoin Cheat Code | Mark Moss","duration":4387},
                 {"id":"WoN0SVY73zo","title":"You can live on #bitcoin in Lugano - Documentary with Joe Nakamoto - Cointelegraph","duration":1018},
                 {"id":"kKSFh5Xxe3w","title":"Surviving on BITCOIN for 48 Hours in El Salvador 🇸🇻","duration":1272},
-                {"id":"FLmW_czpXXg","title":"BITCOIN: A TROJAN HORSE FOR FREEDOM w/ Alex Gladstein","duration":5717},
                 {"id":"d5RiLf9LdSo","title":"Simply Bitcoin Interview by Nico Moran at Plan B El Salvador 2026","duration":1798},
                 {"id":"u5EQ92mNK5U","title":"🌀 The Age of Truth: Bitcoin, Nihilism & The End of Fiat Delusions | High Hash Rate Podcast","duration":3976},
                 {"id":"k-lnRLOY43o","title":"Eric Weiss: The Future of Crypto, Institutions vs Plebs and the Threats to Bitcoin","duration":4305},
@@ -747,7 +744,6 @@ var STATIONS = [
                 {"id":"2iHqeCy16os","title":"How to build your own Bitcoin Citadel","duration":5299},
                 {"id":"LRSQSkiil0M","title":"INSIDE THE BITCOIN REVOLUTION IN AFRICA'S LARGEST SLUM","duration":1068},
                 {"id":"qoGuqqrXowY","title":"André Loja on Bringing Bitcoin to Madeira","duration":3404},
-                {"id":"PHYCAE2n55M","title":"🔥 ISABELLA SANTOS ON BITCOIN MEDIA, FREEDOM & BUILDING A CIRCULAR ECONOMY!","duration":2271},
                 {"id":"QV-m5lNLxeM","title":"Interview with Julian Figueroa From Get Based","duration":4741},
                 {"id":"0xcYAr-UtZk","title":"#26 Anita Posch - Bitcoin Education in Africa","duration":3331},
                 {"id":"eNOYnGtIm9E","title":"Paco de la India (Running on Bitcoin) | My Latin Life Podcast 210 🌴","duration":3489},
@@ -889,7 +885,12 @@ var STATIONS = [
                 {"id":"njNcv50dVGg","title":"Bitcoin Follows Geopolitics Short-Term, Decorrelates Long-Term - Adam Back on CNBC","duration":58},
                 {"id":"IYnzBVMJhTI","title":"Beer for Bitcoin over Tor","duration":32},
                 {"id":"JujTD58xTZU","title":"Bitcoin Outperformed EVERY Asset Class for 15 Years — Why It Beats Gold","duration":36},
-                {"id":"yAwKISWTMvM","title":"Lightning Speed Bitcoin Payments Without Giving Up Custody","duration":52}
+                {"id":"yAwKISWTMvM","title":"Lightning Speed Bitcoin Payments Without Giving Up Custody","duration":52},
+                {"id":"vPMUGP3Opy8","title":"This Is The PERFECT Bitcoin Security and Privacy Setup!","duration":2324},
+                {"id":"52pSd3I1nac","title":"WASABI - Coinjoin Wallet For Bitcoin Privacy TUTORIAL","duration":5071},
+                {"id":"s2bVOVdSrN0","title":"Digital IDs Just Went Live — Say Goodbye To Your Privacy & Money","duration":2231},
+                {"id":"UYUfXWlAleA","title":"01 - myNode series - Why run a Bitcoin node","duration":594},
+                {"id":"jMf6Gqo3J4I","title":"WHAT IS A BITCOIN NODE? & 5 Reasons To Run A Bitcoin Full Node!","duration":338}
             ]
         },
         {
@@ -1017,7 +1018,10 @@ var STATIONS = [
                 {"id":"VssN8B0NWqY","title":"286. The Fiat Standard: Lecture 5 - Fiat Balances: Universal Debt Slavery","duration":2853},
                 {"id":"lmfx960EQkY","title":"Mike Maloney - The best video series ever made about money.  Must watch for everyone!","duration":1766},
                 {"id":"mKNojhzp_oY","title":"Can NVIDIA’s EARNINGS JOLT Spark a Bitcoin Reversal?","duration":1751},
-                {"id":"Qr49drtKtbk","title":"Digital Gold Becomes A 'Danger Zone' | Why SEBI Is Warning Against Digital Gold Buying | Explained","duration":281}
+                {"id":"Qr49drtKtbk","title":"Digital Gold Becomes A 'Danger Zone' | Why SEBI Is Warning Against Digital Gold Buying | Explained","duration":281},
+                {"id":"LSvOFKf9okk","title":"Secret  monetary system explained by Mike Maloney","duration":1289},
+                {"id":"DyV0OfU3-FU","title":"Money vs Currency - Hidden Secrets Of Money Episode 1 - Mike Maloney","duration":1556},
+                {"id":"d9DqvX7CJOc","title":"302. The Fiat Standard Chapter 18: Can Bitcoin Fix This?","duration":5592}
             ]
         },
         {
@@ -1056,12 +1060,10 @@ var STATIONS = [
                 {"id":"cdiVmxRaOoA","title":"Making self-custody safe with Jameson Lopp. Trezor Twitter Spaces","duration":6167},
                 {"id":"2xRp4-9pZmM","title":"The Economic Philosophy of Bitcoin, Part I with Bitstein | The Bitcoin Layer","duration":3333},
                 {"id":"jk89usrtNEk","title":"Bitcoin 101 - Getting Your BTCs out of Your Paper Wallets & Cold Storage - Fun with Sloppy Wallets","duration":654},
-                {"id":"vPMUGP3Opy8","title":"This Is The PERFECT Bitcoin Security and Privacy Setup!","duration":2324},
                 {"id":"RNHi8Qj2KrY","title":"Ethereum - How A Lie Became Worth Billions","duration":696},
                 {"id":"YeEy7pOre04","title":"The Best Bitcoin Hardware Wallet | ColdCard MK4 Setup Tutorial","duration":1084},
                 {"id":"28PadE9ARDg","title":"MusicSnake - Cold Storage [Hardware Wallet Crypto Song]","duration":206},
                 {"id":"pJF_PAki4N8","title":"COLDCARD + Bull Bitcoin","duration":119},
-                {"id":"52pSd3I1nac","title":"WASABI - Coinjoin Wallet For Bitcoin Privacy TUTORIAL","duration":5071},
                 {"id":"ABvcLlv457k","title":"Blockstream App 5.2.0: Lightning Payments From Cold Storage","duration":122},
                 {"id":"cNiO_nbdq3Y","title":"Danger: 7 Bitcoin Blind Spots That Will Wipe Out 99% in 2026 | BTC Sessions","duration":1609},
                 {"id":"TeZiAhwkvKU","title":"EP8: Good for Bitcoiners, Good for Bitcoin w/ SeedSigner","duration":3782},
@@ -1077,7 +1079,6 @@ var STATIONS = [
                 {"id":"i72_p2hdtnw","title":"The HRF's Fight for Freedom: Tools and Challenges for Activists- Alex Gladstein","duration":2300},
                 {"id":"8xurGFoKfjo","title":"Episode 6: Bitcoin Self Custody: Financial Freedom","duration":250},
                 {"id":"5fOhkHbZz_8","title":"Your Bitcoin Deserves Better Than an Exchange — Take Self-Custody with Blockstream Jade","duration":72},
-                {"id":"s2bVOVdSrN0","title":"Digital IDs Just Went Live — Say Goodbye To Your Privacy & Money","duration":2231},
                 {"id":"CNkgi1DU7xc","title":"Bitcoin 10-of-10 Multisig Testing with Sparrow and Nunchuk Wallet","duration":830},
                 {"id":"Y5wgZ3rFayQ","title":"Lightning for Financial Freedom - Carla Kirk-Cohen","duration":521},
                 {"id":"Ir1frVs1gNE","title":"Secure Passwords","duration":219},
@@ -1096,7 +1097,6 @@ var STATIONS = [
                 {"id":"A-QpLdoDF14","title":"CFF UFM HRF | Financial Freedom Against Tyranny · Anna Chekhovich","duration":572},
                 {"id":"ZYN4X_l1ZXg","title":"Financial Freedom and Bitcoin","duration":2695},
                 {"id":"H6PM4mbGwp8","title":"Bitcoin Hardware Wallet Unboxing - Setting Up Blockstream Jade Plus in Rose Gold","duration":63},
-                {"id":"8Aofh-rx_l8","title":"This is Why Bitcoin BEATS Stocks — Michael Saylor","duration":353},
                 {"id":"dP5xdXj0Bp4","title":"Are ETFs better than self custody? Currency Wars 2 and VR Class (1 min video)","duration":68},
                 {"id":"isiy70T-rKE","title":"The Economic Philosophy of Bitcoin, Part II with Marty Bent | The Bitcoin Layer","duration":3554},
                 {"id":"lfPZteWuH3k","title":"Crypto-Friendly Countries🚩Nomad Capitalist INTERVIEW","duration":2008},
@@ -1175,7 +1175,13 @@ var STATIONS = [
                 {"id":"l3VjHwheLX8","title":"Assembling Coldcard Mk4 3D printed battery case from BeansBulletsBTC","duration":126},
                 {"id":"b3nk4bj4vEA","title":"Bitcoin Seed Phrase Metal Backup Comparison & Demonstration","duration":1567},
                 {"id":"H-fQ7i8q5C8","title":"Edward Snowden On Bitcoin","duration":1723},
-                {"id":"6QiDB-RwGGw","title":"Top 5 Most Underrated Countries You Might Want to Live in","duration":821}
+                {"id":"6QiDB-RwGGw","title":"Top 5 Most Underrated Countries You Might Want to Live in","duration":821},
+                {"id":"0XnB_ZqL6fo","title":"MassAdoption presents : Freedom Festival 2024","duration":41},
+                {"id":"FLmW_czpXXg","title":"BITCOIN: A TROJAN HORSE FOR FREEDOM w/ Alex Gladstein","duration":5717},
+                {"id":"PHYCAE2n55M","title":"🔥 ISABELLA SANTOS ON BITCOIN MEDIA, FREEDOM & BUILDING A CIRCULAR ECONOMY!","duration":2271},
+                {"id":"pR4t4dRdajw","title":"Banking on Freedom - How Bitcoin Enforces Human Rights","duration":1266},
+                {"id":"kSbMU5CbFM0","title":"Alex Gladstein: Bitcoin, Authoritarianism, and Human Rights | Lex Fridman Podcast #231","duration":9217},
+                {"id":"_6PvTUqyRt8","title":"Bitcoin For Human Rights | Backstage w/ Christian Keroles & Alex Gladstein","duration":599}
             ]
         },
         {
@@ -1233,14 +1239,12 @@ var STATIONS = [
                 {"id":"f39jflibxH4","title":"Oppenheimer vs Nakamoto","duration":590},
                 {"id":"xw9VshkgxJ4","title":"The Great Reset and the Rise of Bitcoin | Award Winning Documentary","duration":4668},
                 {"id":"tWU3O3X5kKE","title":"The story behind \\\"Bitcoin Pizza Day\\\"","duration":119},
-                {"id":"d9DqvX7CJOc","title":"302. The Fiat Standard Chapter 18: Can Bitcoin Fix This?","duration":5592},
                 {"id":"gcwnpvODd-8","title":"The Rise and Rise of Bitcoin | Official Trailer (2014)","duration":143},
                 {"id":"q7CgCdwJCqU","title":"Hal Finney's contributions to Bitcoin","duration":41},
                 {"id":"QTyzyP2Afys","title":"Cryptocurrencies - The future of money? | DW Documentary","duration":2547},
                 {"id":"vjGhiac85h4","title":"The History of Crypto Goes Further Back Than You Think","duration":603},
                 {"id":"pbFEexyOwkw","title":"Finding Satoshi","duration":793},
                 {"id":"ao9SdxPtuIE","title":"Satoshi Nakamoto & The Origins of Bitcoin","duration":167},
-                {"id":"LSvOFKf9okk","title":"Secret  monetary system explained by Mike Maloney","duration":1289},
                 {"id":"GZI0qo3diUo","title":"Unlocking Crypto | The Bitcoin Field Guide | Full Documentary Movie | Free Movie","duration":6500},
                 {"id":"S70MSDaLAKw","title":"Why Bitcoin’s Creator Disappeared Forever…","duration":1379},
                 {"id":"f-4Rs3Sqlhc","title":"the most important video on bitcoin i will ever make....","duration":602},
@@ -1252,7 +1256,6 @@ var STATIONS = [
                 {"id":"M1JKLXxFDZc","title":"BITCOIN ONLY: Saifedean's \\\"Unconditional\\\" Advice for the Next Decade","duration":1283},
                 {"id":"3Rnqst5qCgA","title":"Bitcoin is Generational Wealth - A Short Film","duration":883},
                 {"id":"kyija0bPeIY","title":"Behind Silk Road: How Ross Ulbricht Brought Black Market to the Web | SLICE WHO | FULL DOCUMENTARY","duration":3263},
-                {"id":"DyV0OfU3-FU","title":"Money vs Currency - Hidden Secrets Of Money Episode 1 - Mike Maloney","duration":1556},
                 {"id":"9vM0oIEhMag","title":"Cypherpunks Write Code","duration":2635},
                 {"id":"3XEuqixD2Zg","title":"God Bless Bitcoin | Full HD Movie | Documentary | Why Bitcoin is the Best Form of Money","duration":5359},
                 {"id":"IFVrVI4rZHM","title":"What Happened To Bitcoin's Founder?","duration":624},
@@ -1428,7 +1431,6 @@ var STATIONS = [
                 {"id":"XBrQ4veNyOI","title":"Masterclass su Lightning Network alla BWR23","duration":5694},
                 {"id":"NchsNf7Zfp4","title":"The Mechanics of Bitcoins's Lightning Network","duration":3726},
                 {"id":"39KpscRXyXY","title":"Buying Coffee Using Bitcoin - Lightning Network","duration":34},
-                {"id":"GSTnvQyuXEE","title":"Setup Core Lightning And Zeus Bitcoin Wallet","duration":4473},
                 {"id":"rXsRvBXbZyU","title":"Lightning Network Co-Inventor Tadge Dryja: Here Comes the Hornet's Nest | MIT Bitcoin Expo 2025","duration":1463},
                 {"id":"Z9KDghxOaa8","title":"Men who can be both right and sit tight are uncommon","duration":77},
                 {"id":"CG69c71aSLQ","title":"BITCOIN LIGHTNING NETWORK EXPLAINED ⚡ - Easy Guide to Use & Join.","duration":346},
@@ -1451,7 +1453,6 @@ var STATIONS = [
                 {"id":"3SExtDDAh2g","title":"Understanding Lightning Network with @Jestopher_BTC | Value Stack 20","duration":4525},
                 {"id":"hFpZmQmQJJw","title":"The Lightning Network: Non-Custodial Mobile Wallets (Blixt, lnurl, bolt11, & bolt12) - Spaces","duration":3865},
                 {"id":"tLZc-NLmV20","title":"Lightning Network Deep Dive with Laolu 'Roasbeef' Osuntokun","duration":2891},
-                {"id":"GKXQiDhRy34","title":"LIGHTNING SESSION: How To Back Up A Bitcoin Wallet","duration":130},
                 {"id":"RQDfd86yWL0","title":"Is the United States government silently stacking bitcoin?","duration":112},
                 {"id":"JpmkIvB7rDE","title":"LIGHTNING SESSION: Send From Any Exchange Direct To A Lightning Wallet","duration":136},
                 {"id":"5SbpyInuIJk","title":"MUUN BITCOIN WALLET - On Chain and Lightning Combined!","duration":1295},
@@ -1475,7 +1476,6 @@ var STATIONS = [
                 {"id":"LLH2QYnyDZg","title":"Ben Carman on Lightning Privacy, Building Mutiny, and Browser-Based Lightning Wallets | E89","duration":4492},
                 {"id":"7QAmlcrZD2U","title":"The Lightning Network Explained in Under 3 Minutes","duration":171},
                 {"id":"ldUwf_s44Zg","title":"LIGHTNING SESSION: Bitcoin Wallets Explained","duration":108},
-                {"id":"TpwnoPUyumA","title":"Phoenix BITCOIN Wallet: Lightning Self Custody MADE EASY! FULL TUTORIAL 2025","duration":4158},
                 {"id":"JGOzIUG2Rwk","title":"LIGHTNING SESSION: How To Get Your Bitcoin Onto The Lightning Network","duration":140},
                 {"id":"OQ2o5LUgOqE","title":"Mutiny Wallet Tutorial  - Bitcoin Lightning Wallet (self-custody)","duration":1312},
                 {"id":"6C4Vsq1LF4o","title":"Bitcoin's Lightning Network Is EXPLODING","duration":2493},
@@ -1721,7 +1721,9 @@ var STATIONS = [
                 {"id":"la4Aj2RrR64","title":"What I WISH I KNEW Before I Started Mining Bitcoin BTC...","duration":1113},
                 {"id":"5v-t9NOkExU","title":"This NEW Home BITCOIN Miner could Earn you 3.125 BTC!","duration":1232},
                 {"id":"SNSkRFY0QeI","title":"Free Bitcoin ebooks from Braiins","duration":36},
-                {"id":"M7PRiPHM4BU","title":"Importance of Capital in Bitcoin mining","duration":42}
+                {"id":"M7PRiPHM4BU","title":"Importance of Capital in Bitcoin mining","duration":42},
+                {"id":"jfUX8d80ifw","title":"NEW: \\\"THE MINED IN AMERICA ACT\\\" CHANGES BITCOIN MINING FOREVER FT. DENNIS PORTER","duration":2432},
+                {"id":"BXhJ18kcZEo","title":"The COOLEST Home BITCOIN Miner Right Now!","duration":928}
             ]
         },
         {
@@ -2685,7 +2687,6 @@ var STATIONS = [
             "color": "#64748b",
             "videos": [
                 {"id":"boZ7yJOFBk0","title":"Crushing Anti-Bitcoin Legislation with Dennis Porter","duration":2933},
-                {"id":"pR4t4dRdajw","title":"Banking on Freedom - How Bitcoin Enforces Human Rights","duration":1266},
                 {"id":"tWWb0-A0Rdk","title":"Dennis Porter: Bitcoin Laws Are Changing, Here's What You Need to Know","duration":4003},
                 {"id":"UVg4AjuPBQU","title":"Sen. Lummis on Crypto Oversight Bill, and why stablecoins need to be backed by hard assets","duration":470},
                 {"id":"kqOx7PjbNOw","title":"Shootin Straight Episode 3: Senator Cynthia Lummis","duration":2778},
@@ -2703,13 +2704,10 @@ var STATIONS = [
                 {"id":"iOrbrNwUtfI","title":"SEC Clears path to CBDC","duration":214},
                 {"id":"pnG86iyRsbA","title":"The Trump Doctrine Has ARRIVED, Here’s What It Means for 2026","duration":2072},
                 {"id":"lh7tYnOk3AU","title":"EP3: Bitcoin Is Good w/ David Zell, Founder & Co-Executive Director of the Bitcoin Policy Institute","duration":3125},
-                {"id":"kSbMU5CbFM0","title":"Alex Gladstein: Bitcoin, Authoritarianism, and Human Rights | Lex Fridman Podcast #231","duration":9217},
                 {"id":"YwZseBZOc6U","title":"The Bitcoin strategic Reserve","duration":1855},
                 {"id":"-C13zU-ZsT8","title":"EUROPEAN BREAKING POINT: Italy Takes Gold Back, Sovereign Bond Crisis, & Bitcoin w/ Matt Dines","duration":3099},
                 {"id":"pCDyEsZJVLI","title":"America’s Grand Strategy: Repo, China, Jensen Huang, & Bitcoin’s Next Move","duration":3239},
                 {"id":"3f170IT1nQU","title":"Bitcoin Reacts to Tariff Tensions: What’s Next for Price & Liquidity","duration":1943},
-                {"id":"jfUX8d80ifw","title":"NEW: \\\"THE MINED IN AMERICA ACT\\\" CHANGES BITCOIN MINING FOREVER FT. DENNIS PORTER","duration":2432},
-                {"id":"_6PvTUqyRt8","title":"Bitcoin For Human Rights | Backstage w/ Christian Keroles & Alex Gladstein","duration":599},
                 {"id":"pBMnPec4AC4","title":"Congressman Tom Emmer SLAMS SEC Chair Gary Gensler","duration":341},
                 {"id":"V82emH4q6o0","title":"Claude Eclipses Trump as the Most Important Force in Global Macro - The Bitcoin Layer","duration":2697},
                 {"id":"jjl_kp9v-Eg","title":"Washington's Crypto Awakening: The Lawmaker Town Hall","duration":3188},
@@ -3243,7 +3241,8 @@ var STATIONS = [
                 {"id":"mEHJYJg5mew","title":"Bitcoin’s 13% Yield: The Digital Credit Revolution w/ Strive's Matt Cole, Ben Werkman, & Jeff Walton","duration":518},
                 {"id":"_N7fZFcPjcc","title":"\"2026 the year of digital credit\" | True North Podcast | Ep. 44","duration":4614},
                 {"id":"LL2040c-DKU","title":"Equity Analysts Roundtable | Strategy World 2026","duration":1913},
-                {"id":"aJPByFnBcNg","title":"BTC Opportunity Cost EVERYWHERE | True North Podcast | Ep. 27","duration":7598}
+                {"id":"aJPByFnBcNg","title":"BTC Opportunity Cost EVERYWHERE | True North Podcast | Ep. 27","duration":7598},
+                {"id":"8Aofh-rx_l8","title":"This is Why Bitcoin BEATS Stocks — Michael Saylor","duration":353}
             ]
         },
         {
@@ -3365,7 +3364,6 @@ var STATIONS = [
                 {"id":"5GCBWyHkklc","title":"EP2: Bringing Bitcoin to the World w/ Ben Price, Co-Founder & CEO The Bitcoin Company","duration":3272},
                 {"id":"tuUO-Q4_b5c","title":"How to Buy Bitcoins in 2024? (4 different methods reviewed)","duration":590},
                 {"id":"cBKrrKzZSd4","title":"EP18: Stay Humble, Stack Stats w/ Matt Odell, Bitcoiner","duration":3521},
-                {"id":"UYUfXWlAleA","title":"01 - myNode series - Why run a Bitcoin node","duration":594},
                 {"id":"SPP81mGYeZw","title":"If I Wanted to Secure My Crypto in 2026, I’d Do THIS","duration":923},
                 {"id":"EARJ_b1C1HU","title":"$25 USB Nerd Miner Setup | Bitcoin Merch Guide","duration":269},
                 {"id":"iU2I1TchOB8","title":"Bitcoin UTXO Count Back Below 170m","duration":41},
@@ -3378,7 +3376,6 @@ var STATIONS = [
                 {"id":"-wB6Si4jZYc","title":"How the Bitcoin Halving Works (Code Walkthrough)","duration":737},
                 {"id":"qLHewsI_iqA","title":"\\\"If It Stays Closed, They Know It's Over\\\" — Trump Can't Execute Global Reset | Simon Dixon & Lepard","duration":1193},
                 {"id":"9FE4mTr_6EI","title":"How to Set Up a Bitcoin Node with Raspberry Pi & MyNode (Step-by-Step Guide)","duration":1062},
-                {"id":"BXhJ18kcZEo","title":"The COOLEST Home BITCOIN Miner Right Now!","duration":928},
                 {"id":"VpDhVS79eG0","title":"The Quantum 'Fix' Is A Backdoor To Bitcoin — And BlackRock Knows It","duration":1250},
                 {"id":"4Lsr7lsy6Tk","title":"Unlocking the World: How Cryptocurrency is Transforming Travel for the Modern Explorer","duration":79},
                 {"id":"XFoJUhxBAPQ","title":"EP1: Meet Me in the Mempool w/ @wiz, Co-Founder & CEO Mempool.space","duration":2941},
@@ -3398,7 +3395,6 @@ var STATIONS = [
                 {"id":"dy3vzz9pa3g","title":"SegWit and BIP-110 Signaling Dashboard — Walkthrough","duration":469},
                 {"id":"QTmI7PXNZhI","title":"CH1: Post-Show Recap w/ Justine Harper, VP, BD - Unchained Capital","duration":2561},
                 {"id":"c8ytiynbnpk","title":"Your First Bitcoin Wallet - BTC Sessions","duration":2555},
-                {"id":"jMf6Gqo3J4I","title":"WHAT IS A BITCOIN NODE? & 5 Reasons To Run A Bitcoin Full Node!","duration":338},
                 {"id":"RhPf4toA79A","title":"HARDWARE-WALLET ERKLÄRT! 🔐 SO verwahrst DU BITCOIN SICHER!","duration":773},
                 {"id":"nCaGVYx3rgo","title":"How to get your Amazon ESP32 2432S028 to work as a NerdMiner","duration":1144},
                 {"id":"_ZnTkrCjavs","title":"How To Play the Bitcoin Lottery (It’s Easier Than You Think)","duration":597},
@@ -3455,7 +3451,11 @@ var STATIONS = [
                 {"id":"ZpX1wNchiD4","title":"EP17: Bitcoin Just Works w/ Harry Sudock, VP, Strategy - Griid","duration":3087},
                 {"id":"l0dzOwyPqFI","title":"How to make passive income running blockchain nodes","duration":576},
                 {"id":"LxTkLwpV1Po","title":"Permissionless Bitcoin Wallets - They Cannot Be Stopped!","duration":3492},
-                {"id":"Ld2s9MyMKMU","title":"Fastest way to build a Bitcoin Node in 2024!","duration":532}
+                {"id":"Ld2s9MyMKMU","title":"Fastest way to build a Bitcoin Node in 2024!","duration":532},
+                {"id":"z9Li4I2onqk","title":"Sparrow Desktop Workshop - Bitcoin 2023","duration":1647},
+                {"id":"GSTnvQyuXEE","title":"Setup Core Lightning And Zeus Bitcoin Wallet","duration":4473},
+                {"id":"GKXQiDhRy34","title":"LIGHTNING SESSION: How To Back Up A Bitcoin Wallet","duration":130},
+                {"id":"TpwnoPUyumA","title":"Phoenix BITCOIN Wallet: Lightning Self Custody MADE EASY! FULL TUTORIAL 2025","duration":4158}
             ]
         }
     ];
