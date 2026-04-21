@@ -1096,7 +1096,6 @@ var STATIONS = [
                 {"id":"ZKwqNgG-Sv4","title":"Bitcoin: The End of Money As We Know It","duration":1471},
                 {"id":"jsccmbOT6FU","title":"Biggest Bitcoin Holders 2024","duration":228},
                 {"id":"_0axyH2X6mI","title":"Morgan Spurlock Living with Bitcoin 2015. The Future of Bitcoin","duration":2516},
-                {"id":"V-TeANzcKAA","title":"Bee Money | Teen Titans Go! | Cartoon Network","duration":125},
                 {"id":"EcYnz29l8_0","title":"Who ACTUALLY Created Bitcoin","duration":767},
                 {"id":"GZI0qo3diUo","title":"Unlocking Crypto - The Bitcoin Field Guide","duration":6500},
                 {"id":"hk3OLML16xY","title":"History of Bitcoin: 16 Year Anniversary","duration":611},
@@ -1269,7 +1268,8 @@ var STATIONS = [
                 {"id":"RqJOqyzOmjw","title":"Understanding Inflation - The Basics Explained (It's a Money Thing)","duration":198},
                 {"id":"BIh5OyZiHgA","title":"Teach Your Kids About Bitcoin With This Card Game! (BWP117)","duration":2199},
                 {"id":"9NZTMmVBfK4","title":"What My Kids Think of Bitcoin","duration":271},
-                {"id":"ZxEqoaFT73c","title":"Bitcoin Is The Evolution Of Money - My Kids Won't Know Coins!","duration":221}
+                {"id":"ZxEqoaFT73c","title":"Bitcoin Is The Evolution Of Money - My Kids Won't Know Coins!","duration":221},
+                {"id":"V-TeANzcKAA","title":"Bee Money | Teen Titans Go! | Cartoon Network","duration":125}
             ]
         },
         {
