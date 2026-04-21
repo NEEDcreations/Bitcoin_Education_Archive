@@ -219,7 +219,8 @@ var STATIONS = [
                 {"id":"PqFz8R1CZYo","title":"Bitcoin as a Kardashev-Scale Technology - Robert Breedlove","duration":755},
                 {"id":"Mqc6M8rZRi8","title":"BITCOIN TRADING CARDS?","duration":1066},
                 {"id":"83mw71TLYjY","title":"Leveling Up Your Collection: PSA Grading for Bitcoin Trading Cards","duration":1891},
-                {"id":"pcVCt2utTW4","title":"How to Make a Bitcoin Ordinal Inscription in Under Two Minutes","duration":369}
+                {"id":"pcVCt2utTW4","title":"How to Make a Bitcoin Ordinal Inscription in Under Two Minutes","duration":369},
+                {"id":"btiN4DabrRk","title":"Bitcoin, 'Christian Anarchy', and the Logic of Belief","duration":6256}
             ]
         },
         {
@@ -1091,7 +1092,6 @@ var STATIONS = [
                 {"id":"6zFglF1aMKc","title":"Will 1 Bitcoin Be Generational Wealth? Whales Selling, Legacy Planning & Price Drivers","duration":3443},
                 {"id":"S7LV9xJLz4Q","title":"The Fastest Asset Ever Built (0 to $1 Trillion Bitcoin Bedtime Story)","duration":7670},
                 {"id":"GZ7y-yFdX9M","title":"Who Invented Money? History of Money & Barter System - Dr Binocs Show","duration":336},
-                {"id":"btiN4DabrRk","title":"Bitcoin, 'Christian Anarchy', and the Logic of Belief","duration":6256},
                 {"id":"LuboVKBFnl0","title":"When Money Is Controlled, Money Is Corrupted - Full Song (Tuttle Twins)","duration":159},
                 {"id":"fTTGALaRZoc","title":"Banking Explained - Money and Credit","duration":370},
                 {"id":"ip646IX-WrA","title":"HISTORY FOR SLEEP | 💰 From Salt to Bitcoin | Bedtime Stories for Adults | Soft-Spoken","duration":5537},
