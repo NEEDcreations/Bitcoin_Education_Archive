@@ -511,7 +511,12 @@ var STATIONS = [
                 {"id":"kBoSO7612v0","title":"Top 10 Cryptocurrencies By Market Cap & Bitcoin Dominance (9/18/25 Update)","duration":80},
                 {"id":"zpNlG3VtcBM","title":"Bitcoin - The End of Money As We Know It | Award-Winning | Full Documentary","duration":3604},
                 {"id":"UlKZ83REIkA","title":"Bitcoin for Beginners: Bitcoin Explained in Simple Terms","duration":1792},
-                {"id":"4bHAQOevZrI","title":"Bitcoin: Everything a trade","duration":413}
+                {"id":"4bHAQOevZrI","title":"Bitcoin: Everything a trade","duration":413},
+                {"id":"9sK--GhseBE","title":"He Left 1,000,000 BTC and Disappeared – Satoshi Claus (Bitcoin Bedtime Story)","duration":4807},
+                {"id":"7ro85G6kclk","title":"Bedtime Finance: The Story of Bitcoin and Cryptocurrency","duration":8405},
+                {"id":"ip646IX-WrA","title":"HISTORY FOR SLEEP | 💰 From Salt to Bitcoin | Bedtime Stories for Adults | Soft-Spoken","duration":5537},
+                {"id":"hRHkmrmrQCA","title":"The History of Money: From Barter to Bitcoin | Relaxing Sleep Story","duration":8505},
+                {"id":"S7LV9xJLz4Q","title":"The Fastest Asset Ever Built (0 to $1 Trillion Bitcoin Bedtime Story)","duration":7670}
             ]
         },
         {
@@ -825,7 +830,11 @@ var STATIONS = [
                 {"id":"D2DLuDfYbRU","title":"Bitcoin Annualized Issuance Rate (Monetary Inflation) (9/17/24 Update)","duration":99},
                 {"id":"GbLndO2XfuI","title":"Where Does Money Come From - Hidden Secrets Of Money Ep 5","duration":1799},
                 {"id":"CZKA01K3vig","title":"The Dollar is Crashing in Bitcoin Terms (7/17/25 Update)","duration":93},
-                {"id":"lB3mQImM-5Y","title":"The Fiat Standard by Saifedean Ammous (Full Presentation)","duration":273}
+                {"id":"lB3mQImM-5Y","title":"The Fiat Standard by Saifedean Ammous (Full Presentation)","duration":273},
+                {"id":"jdYzif981SQ","title":"Bitcoin Dad: The Window for Generational Wealth Is Closing","duration":5104},
+                {"id":"ImIP0izB6SY","title":"Bitcoin is Generational Wealth | Peter Dunworth","duration":4166},
+                {"id":"Yo1yIuRTLko","title":"Why Bitcoin is Generational Wealth","duration":2283},
+                {"id":"0fQ5k1q8FVo","title":"Bitcoin and Stocks vs the Dollar  - [Rich Dad's StockCast]","duration":1926}
             ]
         },
         {
@@ -938,7 +947,8 @@ var STATIONS = [
                 {"id":"6QiDB-RwGGw","title":"Best Countries for Digital Nomads","duration":821},
                 {"id":"EqoYtMS8FZU","title":"Hack-Proof Bitcoin in 15 min: Coldcard Q Setup for Total Beginners","duration":993},
                 {"id":"p8vLlp67UnA","title":"Why I Moved to Dubai - Nomad Capitalist","duration":533},
-                {"id":"o-iDeLZ4BiE","title":"PAYNYMS In Sparrow Wallet - Privacy Preserving Public Bitcoin IDs","duration":1271}
+                {"id":"o-iDeLZ4BiE","title":"PAYNYMS In Sparrow Wallet - Privacy Preserving Public Bitcoin IDs","duration":1271},
+                {"id":"n_bU0bSJglw","title":"Don’t Lose Your Bitcoin Generational Wealth | BTC Sessions","duration":4336}
             ]
         },
         {
@@ -1089,12 +1099,9 @@ var STATIONS = [
                 {"id":"rT4ThQ55SD8","title":"Who Invented Bitcoin? (for kids)","duration":229},
                 {"id":"qVGWCJJcDXM","title":"60 Minutes Tuttle Twins - Wholesome Cartoon Compilation for Family","duration":3627},
                 {"id":"o-PNlhhVhZ8","title":"Hyperinflation Explained in One Minute","duration":71},
-                {"id":"6zFglF1aMKc","title":"Will 1 Bitcoin Be Generational Wealth? Whales Selling, Legacy Planning & Price Drivers","duration":3443},
-                {"id":"S7LV9xJLz4Q","title":"The Fastest Asset Ever Built (0 to $1 Trillion Bitcoin Bedtime Story)","duration":7670},
                 {"id":"GZ7y-yFdX9M","title":"Who Invented Money? History of Money & Barter System - Dr Binocs Show","duration":336},
                 {"id":"LuboVKBFnl0","title":"When Money Is Controlled, Money Is Corrupted - Full Song (Tuttle Twins)","duration":159},
                 {"id":"fTTGALaRZoc","title":"Banking Explained - Money and Credit","duration":370},
-                {"id":"ip646IX-WrA","title":"HISTORY FOR SLEEP | 💰 From Salt to Bitcoin | Bedtime Stories for Adults | Soft-Spoken","duration":5537},
                 {"id":"DQhF_4J2GKo","title":"What is Cryptocurrency? Learn with Jess - STEM Kids Clubhouse","duration":704},
                 {"id":"X4uFSUpiifE","title":"Raising a Bilingual Bitcoin Family in NYC - Umi Miyahara - #016","duration":3040},
                 {"id":"7olIXRL79sw","title":"Scott Sibley: Our Kids will pay EVERYTHING in Bitcoin!","duration":3332},
@@ -1109,9 +1116,7 @@ var STATIONS = [
                 {"id":"gf41D0SVNWk","title":"Building a Family Bitcoin Business - Pablo & Michael (Panties For Bitcoin) - #021","duration":2654},
                 {"id":"Bwc46DAEGcA","title":"Fun Ways to Teach Kids About Bitcoin","duration":3695},
                 {"id":"3nwprNzztQE","title":"Bitcoin Explained for Kids & Teens (Parents: Show This to Your Kids!)","duration":371},
-                {"id":"n_bU0bSJglw","title":"Don’t Lose Your Bitcoin Generational Wealth | BTC Sessions","duration":4336},
                 {"id":"_jk_1LSH6rI","title":"Building a Family Bitcoin Business - Pablo & Michael (Panties For Bitcoin) - 021","duration":2654},
-                {"id":"ImIP0izB6SY","title":"Bitcoin is Generational Wealth | Peter Dunworth","duration":4166},
                 {"id":"_ekzsZZGfsk","title":"First Kids Cartoon about Bitcoin!","duration":3501},
                 {"id":"XIehKAjwCsw","title":"Scott Sibley of SHAmory - A Card Game For Bitcoin Mass Adoption","duration":2343},
                 {"id":"mwSAuNb44lU","title":"How Money Works Explained in One Minute","duration":71},
@@ -1119,7 +1124,6 @@ var STATIONS = [
                 {"id":"BIh5OyZiHgA","title":"Teach Your Kids About Bitcoin With This Card Game! (BWP117)","duration":2199},
                 {"id":"nqdv6Ad9Nt4","title":"What is Bitcoin? (for kids)","duration":221},
                 {"id":"auIOUn0ubDk","title":"What is Inflation? Explained for Kids (The Invisible Money Nibbler!)","duration":287},
-                {"id":"7ro85G6kclk","title":"Bedtime Finance: The Story of Bitcoin and Cryptocurrency","duration":8405},
                 {"id":"9CchpWy29es","title":"Investing & Stocks - Cash Course (PragerU Kids)","duration":365},
                 {"id":"Y9RdoOBVmbI","title":"Is School Failing You? - Albert Einstein (Tuttle Twins)","duration":228},
                 {"id":"tQ1_8M1K0tM","title":"Cryptocurrency Explained to Kids - Twins","duration":1268},
@@ -1133,14 +1137,11 @@ var STATIONS = [
                 {"id":"Td32UyXW9HE","title":"How to Teach a Kid About Bitcoin (and Money)","duration":2656},
                 {"id":"3fjKKApmAKM","title":"Alternative Education Meets Global Bitcoin Adventures - Michael From Trailblazer Academy - #011","duration":3746},
                 {"id":"qyCXpr-ZDhE","title":"What are Taxes? Simple Explanation for Teens and Beginners","duration":129},
-                {"id":"hRHkmrmrQCA","title":"The History of Money: From Barter to Bitcoin | Relaxing Sleep Story","duration":8505},
                 {"id":"dAujdH8Iwcg","title":"Bitcoin Explained for Kids & Beginners - Digital Money Made Easy","duration":159},
                 {"id":"uRU4ifbGolg","title":"Tuttle Twins S1E7 - Full Episode (The Miraculous Pencil)","duration":1295},
                 {"id":"EfKuZayeksI","title":"Bitcoin for Kids - Simple Explanation","duration":692},
                 {"id":"Z3xdGIyIV54","title":"How to Explain Bitcoin to Children - Dad & Daughter","duration":513},
-                {"id":"jdYzif981SQ","title":"Bitcoin Dad: The Window for Generational Wealth Is Closing","duration":5104},
                 {"id":"0SDCdQcnKuQ","title":"What Everyone Should Know About College - Tuttle Twins Full Episode","duration":1399},
-                {"id":"Yo1yIuRTLko","title":"Why Bitcoin is Generational Wealth","duration":2283},
                 {"id":"9ymZlz2l53I","title":"What is Bitcoin? For Kids and Teens","duration":107},
                 {"id":"qnyqQvIii0U","title":"Cryptocurrency Explained for Kids & Beginners","duration":141},
                 {"id":"4FUJHRihK1o","title":"Bitcoin's Family Revolution - Seb Bunney - 018","duration":4333},
@@ -1149,11 +1150,8 @@ var STATIONS = [
                 {"id":"Bv9LCSMEgGQ","title":"BITCOIN EXPLAINED FOR KIDS","duration":122},
                 {"id":"iy3n39Gnlpw","title":"Tuttle Twins S1E5 - Full Episode (The Golden Rule)","duration":1466},
                 {"id":"BL5vUVQvmX4","title":"What is Bitcoin? Explained in 3 Minutes - Tuttle Twins","duration":186},
-                {"id":"9dRKVoTaVoY","title":"Chat_132 - How to Stack More Bitcoin [THE Bitcoin Podcast]","duration":3980},
-                {"id":"9sK--GhseBE","title":"He Left 1,000,000 BTC and Disappeared – Satoshi Claus (Bitcoin Bedtime Story)","duration":4807},
                 {"id":"ikVMo6-lf3M","title":"Hockey, Homeschooling, and Bitcoin - Brandon Gentile - 009","duration":5295},
                 {"id":"s4g1XFU8Gto","title":"Bitcoin Explained and Made Simple","duration":205},
-                {"id":"AE5Qj9WEp7A","title":"Chat_142 - Ai, Bitcoin and 5th Generation Warfare with Jordan and Average Gary","duration":7688},
                 {"id":"9WJgukEL168","title":"Hockey, Homeschooling, and Bitcoin - Brandon Gentile - #009","duration":5295},
                 {"id":"bDcGUxS9DHw","title":"Tuttle Twins S1E9 - Full Episode (Fate of the Future)","duration":1275},
                 {"id":"J7mMQ3ERNdg","title":"Tuttle Twins S1E11 - Full Episode (No Free Lunch)","duration":1337},
@@ -1161,7 +1159,6 @@ var STATIONS = [
                 {"id":"B-IpiKURs3I","title":"1 Hour Tuttle Twins Compilation","duration":3969},
                 {"id":"t0ZAXwV1CI8","title":"Cryptocurrency Explained For Kids","duration":324},
                 {"id":"-PYYhxLk38g","title":"SHAmory with Scott and Mallory Sibley #bitcoin #money #crypto #cryptocurrency","duration":2865},
-                {"id":"0fQ5k1q8FVo","title":"Bitcoin and Stocks vs the Dollar  - [Rich Dad's StockCast]","duration":1926},
                 {"id":"jcu3hsaLO0Q","title":"Tuttle Twins S1E12 - Full Episode (Season Finale)","duration":1614},
                 {"id":"T83mK4jj2NE","title":"FF-140: Scott Sibley on teaching Bitcoin to children and raising kids today","duration":2800},
                 {"id":"aRcXutXvfmM","title":"Financial Literacy - Needs and Wants (Opportunity Costs)","duration":278},
@@ -2188,7 +2185,9 @@ var STATIONS = [
                 {"id":"XNS1Qs2n0Uc","title":"Eric Weinstein on Bitcoin","duration":8767},
                 {"id":"sGGg-_9Y2Lo","title":"Bitcoin Macro Hangout: Preston Pysh, James Lavish, Susie Reilly","duration":3482},
                 {"id":"j89aAqfezX8","title":"Saving Bedford - Peter McCormack","duration":6434},
-                {"id":"CEkcV28fdKY","title":"Max Keiser and Stacy Herbert Interview - Bitcoin Magazine LIVE #36","duration":9656}
+                {"id":"CEkcV28fdKY","title":"Max Keiser and Stacy Herbert Interview - Bitcoin Magazine LIVE #36","duration":9656},
+                {"id":"9dRKVoTaVoY","title":"Chat_132 - How to Stack More Bitcoin [THE Bitcoin Podcast]","duration":3980},
+                {"id":"AE5Qj9WEp7A","title":"Chat_142 - Ai, Bitcoin and 5th Generation Warfare with Jordan and Average Gary","duration":7688}
             ]
         },
         {
@@ -2745,7 +2744,8 @@ var STATIONS = [
                 {"id":"tPQs6eQ4zIU","title":"Stock to Flow - Prediciting Price?","duration":578},
                 {"id":"hzeAkfnuBKo","title":"PlanB: Bitcoin Will Hit $135k by Christmas! Stock-to-Flow Proof","duration":664},
                 {"id":"44kS3j5L8AA","title":"Bitcoin Breakout or Fade: $119,000 Test & Market Behavior - The Bitcoin Layer","duration":2495},
-                {"id":"XW1GUeBe0Rs","title":"The Bitcoin Power Law WiM509","duration":8577}
+                {"id":"XW1GUeBe0Rs","title":"The Bitcoin Power Law WiM509","duration":8577},
+                {"id":"6zFglF1aMKc","title":"Will 1 Bitcoin Be Generational Wealth? Whales Selling, Legacy Planning & Price Drivers","duration":3443}
             ]
         },
         {
