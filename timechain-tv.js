@@ -4130,9 +4130,75 @@ function loadVideo(videoId, startSeconds) {
             'onReady': function(event) {
                 event.target.playVideo();
                 _syncYTVolume();
+                _armBotWallWatchdog();
+            },
+            'onError': function(event) {
+                // YT error codes 2, 5, 100, 101, 150 — only surface if user has
+                // NEVER successfully played a video on this device. If they've
+                // played at least one, videos clearly work for them and it's a
+                // per-video issue (region lock, takedown) we shouldn't blame on
+                // the bot-wall.
+                _maybeShowBotWall('yt-error-' + event.data);
             }
         }
     });
+}
+
+// ---- YouTube bot-wall detection ----
+// Goal: show a one-time helper banner only for users who never successfully load
+// a video (likely hitting YouTube's 'Sign in to confirm you're not a bot' wall).
+// Never shows for users whose videos play fine.
+window._tctvAnyVideoPlayed = (function(){
+    try { return localStorage.getItem('tctv_any_video_played') === '1'; } catch(e) { return false; }
+})();
+window._tctvBotWallArmed = false;
+window._tctvBotWallTimer = null;
+
+function _armBotWallWatchdog() {
+    // Only ever armed once per session, and only if the user has never played
+    // a video successfully. If they have, we trust the player implicitly.
+    if (window._tctvAnyVideoPlayed) return;
+    if (window._tctvBotWallArmed) return;
+    window._tctvBotWallArmed = true;
+    // If the video doesn't reach PLAYING state within 20 seconds, surface the banner.
+    window._tctvBotWallTimer = setTimeout(function() {
+        _maybeShowBotWall('no-playback-20s');
+    }, 20000);
+}
+
+function _markVideoPlayed() {
+    if (window._tctvAnyVideoPlayed) return;
+    window._tctvAnyVideoPlayed = true;
+    try { localStorage.setItem('tctv_any_video_played', '1'); } catch(e) {}
+    // Cancel any pending bot-wall check and hide banner if shown.
+    if (window._tctvBotWallTimer) { clearTimeout(window._tctvBotWallTimer); window._tctvBotWallTimer = null; }
+    var b = document.getElementById('tctv-botwall-banner');
+    if (b) b.remove();
+}
+
+function _maybeShowBotWall(reason) {
+    if (window._tctvAnyVideoPlayed) return; // User plays videos fine, never show
+    if (document.getElementById('tctv-botwall-banner')) return; // Already showing
+    var wrap = document.getElementById('tctv-player') ? document.getElementById('tctv-player').parentElement : null;
+    if (!wrap) return;
+    var banner = document.createElement('div');
+    banner.id = 'tctv-botwall-banner';
+    banner.setAttribute('data-reason', reason);
+    banner.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;max-width:92%;background:#111;border:1px solid rgba(247,147,26,0.5);border-radius:12px;padding:14px 18px;color:#fff;font-size:0.85rem;line-height:1.4;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,0.6);';
+    banner.innerHTML =
+        '<div style="font-weight:900;color:#f7931a;margin-bottom:6px;font-size:0.95rem;">📺 Video blocked by YouTube’s bot-check</div>' +
+        '<div style="color:#ddd;margin-bottom:10px;">YouTube sometimes shows a “Sign in to confirm you’re not a bot” wall inside its player. That’s YouTube’s block, not ours. Quickest fixes:</div>' +
+        '<ul style="text-align:left;color:#ddd;margin:0 auto 10px;padding-left:20px;max-width:360px;">' +
+            '<li>Sign into Google/YouTube in this browser</li>' +
+            '<li>Turn off private/incognito mode or strict tracking protection</li>' +
+            '<li>If on a VPN, try without it</li>' +
+        '</ul>' +
+        '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
+            '<button onclick="window.open(\'https://accounts.google.com/signin\', \'_blank\')" style="background:#f7931a;color:#000;border:none;padding:7px 14px;border-radius:8px;font-weight:800;font-size:0.8rem;cursor:pointer;font-family:inherit;">Sign into YouTube</button>' +
+            '<button onclick="document.getElementById(\'tctv-botwall-banner\').remove()" style="background:transparent;color:#999;border:1px solid #444;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Dismiss</button>' +
+        '</div>';
+    wrap.style.position = 'relative';
+    wrap.appendChild(banner);
 }
 
 function onPlayerStateChange(event) {
@@ -4148,6 +4214,9 @@ function onPlayerStateChange(event) {
 
     // Video playing - check if user is at live position or drifted
     if (event.data === YT.PlayerState.PLAYING) {
+        // Successful playback: user's browser can play YT videos. Kill the bot-wall
+        // watchdog and remember so we never surface the banner for them again.
+        if (typeof _markVideoPlayed === 'function') _markVideoPlayed();
         _isPaused = false;
         _updatePauseButtons(false);
         // Check if they're actually at the live position (hide/show Jump to Live accordingly)
