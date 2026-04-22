@@ -5412,18 +5412,20 @@ window.renderTimechainTV = function() {
             #tctv-remote .tctv-remote-row-seek .remote-btn { height: 26px !important; }
             #tctv-remote input.remote-input { height: 28px !important; }
 
-            /* Video + chrome fills 2/3 of viewport minus fixed overheads. */
+            /* Video sizes to its natural 16:9 aspect ratio — no letterbox black bars
+               above or below. Whatever height the 16:9 needs is what it gets.
+               max-height acts as a safety cap on very short landscape screens. */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
-                /* 2/3 of viewport minus: 58px app top bar + ~135px sticky chrome (title+remote+nowplay+progress) */
-                height: calc(66vh - 135px) !important;
+                height: auto !important;
+                aspect-ratio: 16 / 9 !important;
                 max-height: calc(66vh - 135px) !important;
-                min-height: 180px !important;
+                min-height: 0 !important;
                 margin: 0 !important;
                 box-shadow: none !important;
             }
-            #tctv-player { width: 100% !important; max-height: calc(66vh - 135px) !important; height: 100% !important; }
+            #tctv-player { width: 100% !important; height: 100% !important; max-height: none !important; }
 
             /* EPG (channel list): expanded to ~40vh of viewport now that the remote
                sits above the video. Always scrollable.
@@ -5432,10 +5434,13 @@ window.renderTimechainTV = function() {
                the timeline. Without this, iOS gets confused between the wrapper's
                Y-scroll and the inner container's X-scroll and locks both. */
             #tctv-epg-wrapper {
-                /* Phil spec: 1/3 of viewport for the channel guide. */
-                height: 33vh !important;
-                max-height: 33vh !important;
-                min-height: 180px !important;
+                /* Phil spec: at LEAST 1/3 of viewport for the channel guide.
+                   Since the video now sizes to natural 16:9 (no more wasted black
+                   bars), the EPG expands to fill all remaining vertical space. */
+                height: auto !important;
+                min-height: 33vh !important;
+                max-height: 55vh !important;
+                flex: 1 1 auto !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
