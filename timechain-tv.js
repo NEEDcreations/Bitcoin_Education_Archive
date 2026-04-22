@@ -4157,6 +4157,23 @@ var _apiFailed = false;
 var _apiRetries = 0;
 var _API_MAX_RETRIES = 25; // ~5 seconds (25 * 200ms)
 
+// iOS autoplay policy: mobile Safari (iPhone/iPad/iPadOS) will not autoplay
+// video with sound. We detect iOS and start muted, then unmute on first user
+// interaction with the player area. Desktop + Android retain existing behavior.
+var _TCTV_IS_IOS = (function() {
+    try {
+        var ua = navigator.userAgent || '';
+        // Classic iPhone/iPad/iPod
+        if (/iPhone|iPad|iPod/i.test(ua)) return true;
+        // iPadOS 13+ reports as Mac but has touch
+        if (/Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1) return true;
+    } catch (e) {}
+    return false;
+})();
+var _tctvAutoUnmuteArmed = false; // whether we've wired the first-tap unmute hook
+var _tctvHintShown = false;       // whether we've shown the "tap to unmute" hint this session
+var _tctvIosUnmuted = false;      // iOS: has the user tapped to unmute at least once?
+
 // Load YT API once
 (function loadYTApi() {
     if (window.YT && window.YT.Player) { _apiReady = true; return; }
@@ -4178,11 +4195,14 @@ function loadVideoFallback(videoId, startSeconds) {
     iframe.style.cssText = 'width:100%;height:100%;border:none;';
     iframe.setAttribute('allow', 'autoplay; encrypted-media');
     iframe.setAttribute('allowfullscreen', '');
+    // iOS: start muted so autoplay works. Other platforms: start unmuted.
+    var muteFlag = _TCTV_IS_IOS ? '1' : '0';
     iframe.src = 'https://www.youtube.com/embed/' + videoId +
         '?start=' + Math.floor(startSeconds) +
         '&autoplay=1&controls=1&modestbranding=1&rel=0' +
-        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque&mute=0';
+        '&showinfo=0&iv_load_policy=3&playsinline=1&wmode=opaque&mute=' + muteFlag;
     wrap.appendChild(iframe);
+    if (_TCTV_IS_IOS) _showTctvUnmuteHint();
 }
 
 function loadVideo(videoId, startSeconds) {
@@ -4228,25 +4248,38 @@ function loadVideo(videoId, startSeconds) {
     playerDiv.id = 'tctv-player';
     wrap.appendChild(playerDiv);
 
+    var _playerVars = {
+        'autoplay': 1,
+        'controls': 1,
+        'modestbranding': 1,
+        'rel': 0,
+        'showinfo': 0,
+        'iv_load_policy': 3,
+        'playsinline': 1,
+        'start': Math.floor(startSeconds)
+    };
+    // iOS requires muted autoplay. User unmutes via first tap handler below.
+    if (_TCTV_IS_IOS) _playerVars.mute = 1;
+
     _ytPlayer = new YT.Player('tctv-player', {
         height: '100%',
         width: '100%',
         videoId: videoId,
-        playerVars: {
-            'autoplay': 1,
-            'controls': 1,
-            'modestbranding': 1,
-            'rel': 0,
-            'showinfo': 0,
-            'iv_load_policy': 3,
-            'playsinline': 1,
-            'start': Math.floor(startSeconds)
-        },
+        playerVars: _playerVars,
         events: {
             'onStateChange': onPlayerStateChange,
             'onReady': function(event) {
-                event.target.playVideo();
-                _syncYTVolume();
+                // On iOS, keep muted initially so autoplay fires. Desktop/Android
+                // get the user's saved volume right away.
+                if (_TCTV_IS_IOS) {
+                    try { event.target.mute(); } catch (e) {}
+                    event.target.playVideo();
+                    _showTctvUnmuteHint();
+                    _armTctvFirstTapUnmute();
+                } else {
+                    event.target.playVideo();
+                    _syncYTVolume();
+                }
                 _armBotWallWatchdog();
             },
             'onError': function(event) {
@@ -4259,6 +4292,79 @@ function loadVideo(videoId, startSeconds) {
             }
         }
     });
+}
+
+// ---- iOS muted-autoplay helpers ----
+// Shows a small "Tap to unmute" hint on top of the player once per session on
+// iOS devices. The hint disappears on any first user interaction with the player
+// (or the remote's volume/mute buttons), and the player is unmuted to the
+// user's saved volume at that moment.
+function _showTctvUnmuteHint() {
+    if (_tctvHintShown) return;
+    if (!_TCTV_IS_IOS) return;
+    _tctvHintShown = true;
+    try {
+        var wrap = document.getElementById('tctv-video-container');
+        if (!wrap) return;
+        var old = document.getElementById('tctv-unmute-hint');
+        if (old) old.remove();
+        var hint = document.createElement('button');
+        hint.id = 'tctv-unmute-hint';
+        hint.type = 'button';
+        hint.setAttribute('aria-label', 'Tap to unmute');
+        hint.innerHTML = '\ud83d\udd07 Tap to unmute';
+        hint.style.cssText = 'position:absolute;top:12px;left:50%;transform:translateX(-50%);' +
+            'z-index:9;background:rgba(0,0,0,0.78);color:#fff;font-size:0.82rem;font-weight:700;' +
+            'border:1px solid rgba(247,147,26,0.6);border-radius:999px;padding:8px 14px;' +
+            'cursor:pointer;font-family:inherit;box-shadow:0 4px 18px rgba(0,0,0,0.45);' +
+            'touch-action:manipulation;-webkit-tap-highlight-color:transparent;' +
+            'animation:tctvUnmutePulse 1.6s ease-in-out infinite;';
+        if (!document.getElementById('tctvUnmuteHintKeyframes')) {
+            var s = document.createElement('style');
+            s.id = 'tctvUnmuteHintKeyframes';
+            s.textContent = '@keyframes tctvUnmutePulse{0%,100%{box-shadow:0 4px 18px rgba(0,0,0,0.45),0 0 0 0 rgba(247,147,26,0.45);}50%{box-shadow:0 4px 18px rgba(0,0,0,0.45),0 0 0 14px rgba(247,147,26,0);}}';
+            document.head.appendChild(s);
+        }
+        hint.onclick = function(ev) {
+            if (ev) ev.stopPropagation();
+            _tctvUnmuteNow();
+        };
+        wrap.appendChild(hint);
+    } catch (e) {}
+}
+function _hideTctvUnmuteHint() {
+    var hint = document.getElementById('tctv-unmute-hint');
+    if (hint) hint.remove();
+}
+function _tctvUnmuteNow() {
+    // Called by the hint button OR any first tap on the player wrapper.
+    // If the user has explicitly muted via the remote earlier, respect that.
+    if (window._tctvMuted) { _hideTctvUnmuteHint(); return; }
+    _tctvIosUnmuted = true;
+    var vol = Math.round((typeof window.audioVolume === 'number' ? window.audioVolume : 0.5) * 100);
+    if (vol === 0) vol = 50; // default if stored volume was zero
+    try {
+        if (_ytPlayer && typeof _ytPlayer.unMute === 'function') _ytPlayer.unMute();
+        if (_ytPlayer && typeof _ytPlayer.setVolume === 'function') _ytPlayer.setVolume(vol);
+    } catch (e) {}
+    if (typeof window.setVolume === 'function') window.setVolume(vol / 100);
+    if (typeof _updateMuteButtons === 'function') _updateMuteButtons(false);
+    _hideTctvUnmuteHint();
+}
+function _armTctvFirstTapUnmute() {
+    if (_tctvAutoUnmuteArmed) return;
+    if (!_TCTV_IS_IOS) return;
+    _tctvAutoUnmuteArmed = true;
+    var wrap = document.getElementById('tctv-video-container');
+    if (!wrap) return;
+    var handler = function(ev) {
+        // Unmute on the first real interaction inside the player container.
+        _tctvUnmuteNow();
+        wrap.removeEventListener('touchend', handler, true);
+        wrap.removeEventListener('click', handler, true);
+    };
+    wrap.addEventListener('touchend', handler, true);
+    wrap.addEventListener('click', handler, true);
 }
 
 // ---- YouTube bot-wall detection ----
@@ -4676,6 +4782,8 @@ window.tctvRemoteVolume = function(dir) {
 
     // Any manual volume change exits mute
     window._tctvMuted = false;
+    // iOS: a manual volume bump counts as user gesture → unmute from now on
+    if (_TCTV_IS_IOS && !_tctvIosUnmuted) { _tctvIosUnmuted = true; _hideTctvUnmuteHint(); }
 
     // Set app volume (0-1 scale) - this persists to localStorage
     if (typeof window.setVolume === 'function') {
@@ -4707,9 +4815,22 @@ function _applyYTVolume(vol) {
     } catch(e) {}
 }
 
-// Sync YT player volume with app volume on player ready/load
+// Sync YT player volume with app volume on player ready/load.
+// IMPORTANT: on iOS, if the user has not yet tapped to unmute, we must NOT
+// restore sound — otherwise the browser will reject autoplay and playback will
+// stall. The `_tctvIosUnmuted` flag gets flipped by `_tctvUnmuteNow()` on the
+// first tap, after which volume syncs behave normally.
 function _syncYTVolume() {
     if (typeof window.audioVolume !== 'number') return;
+    if (_TCTV_IS_IOS && !_tctvIosUnmuted) {
+        // Keep muted so autoplay keeps working across channel/video switches.
+        setTimeout(function() {
+            try {
+                if (_ytPlayer && typeof _ytPlayer.mute === 'function') _ytPlayer.mute();
+            } catch (e) {}
+        }, 500);
+        return;
+    }
     var vol = Math.round(window.audioVolume * 100);
     // Delay slightly - player needs a moment after loadVideoById
     setTimeout(function() { _applyYTVolume(vol); }, 500);
@@ -4739,6 +4860,8 @@ window.tctvRemoteMute = function() {
         // UNMUTE — restore previous volume (or 50% if we don't have one)
         var restore = (typeof window._tctvPreMuteVolume === 'number' && window._tctvPreMuteVolume > 0) ? window._tctvPreMuteVolume : 50;
         window._tctvMuted = false;
+        // iOS: user tapped unmute → valid gesture, allow sound from now on
+        if (_TCTV_IS_IOS && !_tctvIosUnmuted) { _tctvIosUnmuted = true; _hideTctvUnmuteHint(); }
         // Restore app volume (persists across transitions)
         if (typeof window.setVolume === 'function') window.setVolume(restore / 100);
         // Force YT player back up
