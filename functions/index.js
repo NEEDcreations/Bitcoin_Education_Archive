@@ -1067,58 +1067,138 @@ exports.nachoFeedbackReport = onSchedule({
 // =============================================
 exports.verifyReferral = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
-    
+
     const referredUid = context.auth.uid;
-    
+
     // Find the referral doc where this user was referred
     const referralSnap = await db.collection('referrals')
         .where('referredUid', '==', referredUid)
         .where('verified', '==', false)
         .limit(1)
         .get();
-    
+
     if (referralSnap.empty) return { success: false, reason: 'No pending referral found' };
-    
+
     const referralDoc = referralSnap.docs[0];
     const referralData = referralDoc.data();
     const referrerUid = referralData.referrerUid;
-    
-    // Check if the referred user meets qualification criteria
+
     const referredUser = await db.collection('users').doc(referredUid).get();
     if (!referredUser.exists) throw new functions.https.HttpsError('not-found', 'User not found');
-    
+
+    const referrerDoc = await db.collection('users').doc(referrerUid).get();
+    if (!referrerDoc.exists) return { success: false, reason: 'Referrer not found' };
+
     const userData = referredUser.data();
+    const refData = referrerDoc.data();
     const points = userData.points || 0;
-    const channelsVisited = (userData.visitedChannels || []).length;
-    
+    const channelsVisited = (userData.visitedChannels || userData.visitedChannelsList || []).length;
+
     // Qualification: at least 100 points and 5 channels visited
     if (points < 100 || channelsVisited < 5) {
         return { success: false, reason: 'Keep learning! You need 100+ points and 5+ channels visited.' };
     }
-    
-    // Mark referral as verified and award tickets to referrer
+
+    // ===== FRAUD CHECKS =====
+    // Collect signals that this is the same person referring themselves.
+    const flags = [];
+    const lowerStr = s => (s == null ? null : String(s).toLowerCase().trim());
+
+    // 1. Same email on user doc
+    if (lowerStr(userData.email) && lowerStr(userData.email) === lowerStr(refData.email)) {
+        flags.push('same-email-user-doc');
+    }
+
+    // 2. Same Lightning address (profile field)
+    const referredLN = lowerStr(userData.lightningAddress || userData.lnAddress);
+    const referrerLN = lowerStr(refData.lightningAddress || refData.lnAddress);
+    if (referredLN && referredLN === referrerLN) flags.push('same-lightning-address');
+
+    // 3. Same giveaway Lightning address
+    try {
+        const [gA, gB] = await Promise.all([
+            db.collection('giveaway_entries').doc(referredUid).get(),
+            db.collection('giveaway_entries').doc(referrerUid).get()
+        ]);
+        if (gA.exists && gB.exists) {
+            const a = lowerStr(gA.data().lightningAddress || gA.data().lnAddress);
+            const b = lowerStr(gB.data().lightningAddress || gB.data().lnAddress);
+            if (a && a === b) flags.push('same-giveaway-lightning-address');
+        }
+    } catch (e) {}
+
+    // 4. Firebase Auth cross-checks: same provider email, accounts created within 24h.
+    try {
+        const [authA, authB] = await Promise.all([
+            admin.auth().getUser(referredUid).catch(() => null),
+            admin.auth().getUser(referrerUid).catch(() => null)
+        ]);
+        if (authA && authB) {
+            // Same displayName
+            if (authA.displayName && lowerStr(authA.displayName) === lowerStr(authB.displayName)) {
+                flags.push('same-display-name');
+            }
+            // Any provider email match
+            const emailsA = new Set();
+            const emailsB = new Set();
+            (authA.providerData || []).forEach(p => p.email && emailsA.add(lowerStr(p.email)));
+            (authB.providerData || []).forEach(p => p.email && emailsB.add(lowerStr(p.email)));
+            if (authA.email) emailsA.add(lowerStr(authA.email));
+            if (authB.email) emailsB.add(lowerStr(authB.email));
+            for (const e of emailsA) { if (emailsB.has(e)) { flags.push('same-auth-email:' + e); break; } }
+            // Accounts created within 24h of each other
+            const tA = new Date(authA.metadata.creationTime).getTime();
+            const tB = new Date(authB.metadata.creationTime).getTime();
+            if (Math.abs(tA - tB) < 86400000) flags.push('accounts-created-within-24h');
+        }
+    } catch (e) { console.error('[verifyReferral] auth cross-check failed:', e.message); }
+
+    // 5. Referral code chain: is the referrer himself referred back by this same user or vice versa?
+    if (refData.referredBy && lowerStr(refData.referredBy) === lowerStr((userData.uid || referredUid).substring(0, 8))) {
+        flags.push('circular-referral');
+    }
+
+    if (flags.length > 0) {
+        // Reject + log suspicious activity for review
+        try {
+            await db.collection('suspicious_activity').add({
+                type: 'referral-self-fraud',
+                referrerUid,
+                referredUid,
+                flags,
+                referrerEmail: refData.email || null,
+                referredEmail: userData.email || null,
+                referrerLN: refData.lightningAddress || refData.lnAddress || null,
+                referredLN: userData.lightningAddress || userData.lnAddress || null,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                action: 'referral-rejected'
+            });
+        } catch (e) {}
+        await referralDoc.ref.update({
+            verified: false,
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            rejectionFlags: flags,
+            ticketsAwarded: false
+        });
+        return { success: false, reason: 'Referral rejected: sanity check failed', flags };
+    }
+
+    // ===== Passed all checks — award tickets =====
     const batch = db.batch();
-    
-    // Update referral doc
     batch.update(referralDoc.ref, {
         verified: true,
         verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
         ticketsAwarded: true
     });
-    
-    // Award 50 tickets to the referrer (using admin SDK bypasses rules)
     batch.update(db.collection('users').doc(referrerUid), {
-        tickets: admin.firestore.FieldValue.increment(50),
+        orangeTickets: admin.firestore.FieldValue.increment(50),
         referralTicketsEarned: admin.firestore.FieldValue.increment(50)
     });
-    
-    // Award 25 tickets to the referred user too
     batch.update(db.collection('users').doc(referredUid), {
-        tickets: admin.firestore.FieldValue.increment(25)
+        orangeTickets: admin.firestore.FieldValue.increment(25)
     });
-    
     await batch.commit();
-    
+
     return { success: true, referrerTickets: 50, referredTickets: 25 };
 });
 
@@ -3236,3 +3316,249 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
 });
 
 
+
+
+// ===== INVESTIGATE SPECIFIC UIDS (admin-only) =====
+// One-shot investigation endpoint: accepts up to 20 UIDs, returns full records +
+// cross-referenced signals (same IP, same lightning address, giveaway entries,
+// points sources, account age, auth method, bestStreak sanity, etc).
+exports.investigateUsers = functions.https.onRequest(async (req, res) => {
+    const token = req.query.t || req.headers['x-dau-token'];
+    if (token !== 'dau-2026') { res.status(403).json({ error: 'forbidden' }); return; }
+    const uidsParam = req.query.uids || '';
+    const uids = uidsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+    if (!uids.length) { res.status(400).json({ error: 'Pass ?uids=UID1,UID2,...' }); return; }
+
+    try {
+        const out = [];
+        for (const uid of uids) {
+            const rec = { uid, exists: false };
+            try {
+                const doc = await db.collection('users').doc(uid).get();
+                if (!doc.exists) { rec.note = 'User doc not found'; out.push(rec); continue; }
+                const d = doc.data();
+                rec.exists = true;
+                rec.username = d.username || null;
+                rec.email = d.email || null;
+                rec.authProvider = d.authProvider || null;
+                rec.authMethod = d.authMethod || null;
+                rec.nostr = d.nostr || null;
+                rec.lightningAddress = d.lightningAddress || d.lnAddress || null;
+                rec.points = d.points || 0;
+                rec.totalVisits = d.totalVisits || 0;
+                rec.streak = d.streak || 0;
+                rec.bestStreak = d.bestStreak || 0;
+                rec.channelsVisited = d.channelsVisited || 0;
+                rec.visitedChannelsList = Array.isArray(d.visitedChannelsList) ? d.visitedChannelsList.length : (d.visitedChannelsList ? 'non-array' : 0);
+                rec.readChannels = Array.isArray(d.readChannels) ? d.readChannels.length : (d.readChannels && typeof d.readChannels === 'object' ? Object.keys(d.readChannels).length : 0);
+                rec.orangeTickets = d.orangeTickets || 0;
+                rec.created = d.created && d.created.toDate ? d.created.toDate().toISOString() : null;
+                rec.lastVisit = d.lastVisit || null;
+                rec.lastLogin = d.lastLogin && d.lastLogin.toDate ? d.lastLogin.toDate().toISOString() : null;
+                rec.referredBy = d.referredBy || null;
+                rec.referrals = d.referrals || 0;
+                rec.mergedAnon = d.mergedAnon || false;
+                rec.pvpWins = d.pvpWins || 0;
+                rec.pvpLosses = d.pvpLosses || 0;
+
+                // Firebase Auth metadata
+                try {
+                    const ur = await admin.auth().getUser(uid);
+                    rec.auth = {
+                        creationTime: ur.metadata.creationTime,
+                        lastSignInTime: ur.metadata.lastSignInTime,
+                        lastRefreshTime: ur.metadata.lastRefreshTime || null,
+                        disabled: ur.disabled,
+                        emailVerified: ur.emailVerified,
+                        displayName: ur.displayName || null,
+                        providers: (ur.providerData || []).map(p => ({ providerId: p.providerId, email: p.email, uid: p.uid }))
+                    };
+                    const ageDays = Math.max(0, Math.floor((Date.now() - new Date(ur.metadata.creationTime).getTime()) / 86400000));
+                    rec.accountAgeDays = ageDays;
+                    // Flag: streak > account age means inflated (shouldn't happen post-fix)
+                    if (rec.bestStreak > ageDays + 1) rec.flags = (rec.flags||[]).concat('bestStreak-exceeds-age');
+                    if (rec.streak > ageDays + 1) rec.flags = (rec.flags||[]).concat('streak-exceeds-age');
+                    // Points-per-day rate
+                    if (ageDays > 0) rec.pointsPerDay = Math.round((rec.points / ageDays) * 10) / 10;
+                } catch(e) { rec.authError = e.message; }
+
+                // giveaway_entries
+                try {
+                    const ge = await db.collection('giveaway_entries').doc(uid).get();
+                    if (ge.exists) {
+                        const g = ge.data();
+                        rec.giveaway = {
+                            lightningAddress: g.lightningAddress || g.lnAddress || null,
+                            createdAt: g.createdAt && g.createdAt.toDate ? g.createdAt.toDate().toISOString() : null
+                        };
+                    }
+                } catch(e) {}
+
+                // daily_points subcollection (recent 10 days)
+                try {
+                    const dp = await db.collection('users').doc(uid).collection('daily_points').orderBy('__name__','desc').limit(10).get();
+                    const daily = [];
+                    dp.forEach(x => { const v = x.data(); daily.push({ date: x.id, pts: v.total || v.points || 0, sources: v.sources || null }); });
+                    rec.recentDailyPoints = daily;
+                } catch(e) {}
+            } catch(e) { rec.error = e.message; }
+
+            out.push(rec);
+        }
+
+        // Cross-reference: which fields match across the group?
+        const crossref = {
+            sameLightningAddress: {},
+            sameEmail: {},
+            sameDisplayName: {},
+            sameReferrer: {},
+            accountsCreatedWithin5min: []
+        };
+        out.forEach(r => {
+            if (r.lightningAddress) (crossref.sameLightningAddress[r.lightningAddress] = crossref.sameLightningAddress[r.lightningAddress] || []).push(r.uid);
+            if (r.giveaway && r.giveaway.lightningAddress) (crossref.sameLightningAddress[r.giveaway.lightningAddress] = crossref.sameLightningAddress[r.giveaway.lightningAddress] || []).push(r.uid);
+            if (r.email) (crossref.sameEmail[r.email] = crossref.sameEmail[r.email] || []).push(r.uid);
+            if (r.auth && r.auth.displayName) (crossref.sameDisplayName[r.auth.displayName] = crossref.sameDisplayName[r.auth.displayName] || []).push(r.uid);
+            if (r.referredBy) (crossref.sameReferrer[r.referredBy] = crossref.sameReferrer[r.referredBy] || []).push(r.uid);
+        });
+        // Accounts created within 5 minutes of each other
+        const created = out.filter(r => r.auth && r.auth.creationTime).map(r => ({uid: r.uid, ts: new Date(r.auth.creationTime).getTime(), name: r.username}));
+        created.sort((a,b) => a.ts - b.ts);
+        for (let i = 1; i < created.length; i++) {
+            if (created[i].ts - created[i-1].ts < 300000) {
+                crossref.accountsCreatedWithin5min.push({
+                    a: created[i-1].uid, b: created[i].uid,
+                    deltaSec: Math.round((created[i].ts - created[i-1].ts) / 1000)
+                });
+            }
+        }
+
+        res.json({ users: out, crossref });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ===== WATCHLIST MONITOR =====
+// Checks a hardcoded list of suspicious UIDs + anyone in the suspicious_activity
+// collection for recent changes (points gained, new sats withdrawals, new referrals,
+// new giveaway entries). Returns a report for the daily Telegram summary.
+const WATCHLIST_UIDS = [
+    // Tadiyos multi-account ring flagged 2026-04-22
+    '4TbegMVtzYQBgqRSCpqLQwwsgPF2',
+    'AeOAPHTZ2EfRsxlsU6nDCSwTNXo2',
+    'DTXTjDL1K4afriPLcWTI4pD8JeD2',
+    'OZgypkJbY3f6ofTIzbEWKpYKkVu1',      // big account A (10.5k pts)
+    'Ol7JfqLGKJcagmMT529EgULFiYN2',
+    'cKpILLVtDxNuLBcIX8kD9sGEvhj1',
+    'VqLiZRbN0LM6bWeYPcjF6zTZJAk2'       // big account B (11k pts)
+];
+const BLACKLISTED_LN = [
+    'seedyroute27@walletofsatoshi.com'
+];
+
+exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
+    const token = req.query.t || req.headers['x-dau-token'];
+    if (token !== 'dau-2026') { res.status(403).json({ error: 'forbidden' }); return; }
+
+    try {
+        const out = { watchlist: [], suspiciousRecent: [], satsByWatchlist: [], blacklistedLnHits: [], alerts: [] };
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        // 1. For each watchlist UID, pull current state and compare to snapshot.
+        // We keep a snapshot in watchlist_snapshots/{uid} for daily-delta reporting.
+        for (const uid of WATCHLIST_UIDS) {
+            try {
+                const userDoc = await db.collection('users').doc(uid).get();
+                if (!userDoc.exists) { out.watchlist.push({ uid, status: 'deleted' }); continue; }
+                const d = userDoc.data();
+                const snapRef = db.collection('watchlist_snapshots').doc(uid);
+                const snapDoc = await snapRef.get();
+                const snap = snapDoc.exists ? snapDoc.data() : {};
+
+                const nowState = {
+                    points: d.points || 0,
+                    orangeTickets: d.orangeTickets || 0,
+                    totalVisits: d.totalVisits || 0,
+                    streak: d.streak || 0,
+                    lastVisit: d.lastVisit || null,
+                    channelsVisited: d.channelsVisited || 0,
+                    referralTicketsEarned: d.referralTicketsEarned || 0,
+                    disabled: d.disabled || false
+                };
+
+                const delta = {};
+                Object.keys(nowState).forEach(k => {
+                    if (snap[k] != null && typeof nowState[k] === 'number' && nowState[k] !== snap[k]) {
+                        delta[k] = nowState[k] - snap[k];
+                    } else if (snap[k] !== undefined && snap[k] !== nowState[k]) {
+                        delta[k] = { from: snap[k], to: nowState[k] };
+                    }
+                });
+
+                // Alert conditions
+                if (delta.points && delta.points > 0) out.alerts.push(`${uid.substring(0,8)} (${d.username || 'no-name'}) gained ${delta.points} pts since last check`);
+                if (delta.orangeTickets && delta.orangeTickets > 0) out.alerts.push(`${uid.substring(0,8)} gained ${delta.orangeTickets} tickets`);
+                if (delta.referralTicketsEarned && delta.referralTicketsEarned > 0) out.alerts.push(`${uid.substring(0,8)} earned ${delta.referralTicketsEarned} referral tickets`);
+
+                // Sats withdrawals in last 24h
+                try {
+                    const satsSnap = await db.collection('users').doc(uid).collection('sats_withdrawals').orderBy('createdAt', 'desc').limit(5).get();
+                    const recent = [];
+                    satsSnap.forEach(s => {
+                        const sd = s.data();
+                        const ts = sd.createdAt && sd.createdAt.toDate ? sd.createdAt.toDate() : null;
+                        if (ts && ts >= oneDayAgo) recent.push({ sats: sd.sats || sd.amount || 0, at: ts.toISOString() });
+                    });
+                    if (recent.length) {
+                        out.satsByWatchlist.push({ uid: uid.substring(0,8), username: d.username, withdrawals: recent });
+                        recent.forEach(w => out.alerts.push(`\u26a0\ufe0f ${uid.substring(0,8)} (${d.username}) WITHDREW ${w.sats} sats at ${w.at}`));
+                    }
+                } catch (e) {}
+
+                out.watchlist.push({ uid: uid.substring(0,8), username: d.username, delta, current: nowState });
+
+                // Save new snapshot for next run
+                await snapRef.set({ ...nowState, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+            } catch (e) {
+                out.watchlist.push({ uid: uid.substring(0,8), error: e.message });
+            }
+        }
+
+        // 2. Anything new in suspicious_activity in last 24h?
+        try {
+            const susSnap = await db.collection('suspicious_activity')
+                .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(oneDayAgo))
+                .orderBy('createdAt', 'desc').limit(20).get();
+            susSnap.forEach(s => {
+                const sd = s.data();
+                out.suspiciousRecent.push({
+                    type: sd.type, flags: sd.flags || [],
+                    referrer: sd.referrerUid ? sd.referrerUid.substring(0,8) : null,
+                    referred: sd.referredUid ? sd.referredUid.substring(0,8) : null
+                });
+                out.alerts.push(`\ud83d\udd34 Suspicious: ${sd.type} \u2014 ${(sd.flags||[]).join(', ')}`);
+            });
+        } catch (e) {}
+
+        // 3. Scan active users for new uses of blacklisted LN addresses
+        try {
+            const blSnap = await db.collection('giveaway_entries').get();
+            blSnap.forEach(g => {
+                const gd = g.data();
+                const ln = ((gd.lightningAddress || gd.lnAddress || '') + '').toLowerCase().trim();
+                if (ln && BLACKLISTED_LN.includes(ln)) {
+                    out.blacklistedLnHits.push({ uid: g.id.substring(0,8), ln });
+                }
+            });
+            if (out.blacklistedLnHits.length > BLACKLISTED_LN.length) {
+                out.alerts.push(`\ud83d\udea8 ${out.blacklistedLnHits.length} giveaway entries with blacklisted LN addresses`);
+            }
+        } catch (e) {}
+
+        res.json(out);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});

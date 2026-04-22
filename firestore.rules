@@ -245,9 +245,18 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && referralId == request.auth.uid
                     && request.resource.data.referredUserUid == request.auth.uid;
+      // Client can update their own doc BUT cannot self-verify or self-award tickets.
+      // Those fields are Cloud-Function-only (verifyReferral admin path).
       allow update: if request.auth != null
-                    && (referralId == request.auth.uid
-                        || (request.auth.token.email == 'needcreations@gmail.com' || request.auth.token.email == 'info.603btc@gmail.com'));
+                    && referralId == request.auth.uid
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                        'verified', 'verifiedAt', 'ticketsAwarded', 'rejectedAt',
+                        'rejectionFlags', 'referrerUid', 'referredUid', 'referrerCode'
+                    ]));
+      // Admin override (your personal email + ops email)
+      allow update: if request.auth != null
+                    && (request.auth.token.email == 'needcreations@gmail.com'
+                        || request.auth.token.email == 'info.603btc@gmail.com');
     }
 
     // =============================================
