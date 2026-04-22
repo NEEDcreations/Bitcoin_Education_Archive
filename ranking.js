@@ -1844,29 +1844,62 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
         }
 
-        var awarded = pts;
-        if (_dailyUsed >= DAILY_CAP) {
-            awarded = 0;
-        } else if (_dailyUsed + pts > DAILY_CAP) {
-            awarded = DAILY_CAP - _dailyUsed;
+        // Anon overflow mirror: redeem yesterday's overflow first, then award today's pts.
+        var _overflowKey = 'btc_pts_overflow';
+        var _overflowDateKey = 'btc_pts_overflow_date';
+        var _overflow = parseInt(localStorage.getItem(_overflowKey) || '0', 10) || 0;
+        var _overflowDate = localStorage.getItem(_overflowDateKey) || '';
+        var overflowRedeemed = 0;
+        if (_overflow > 0 && _overflowDate && _overflowDate !== _today) {
+            overflowRedeemed = Math.min(_overflow, DAILY_CAP);
+            _overflow -= overflowRedeemed;
+            try { localStorage.setItem(_overflowKey, String(_overflow)); } catch(e) {}
         }
 
-        if (awarded > 0) {
-            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + awarded;
+        var awarded = pts;
+        var overflowAdded = 0;
+        if (_dailyUsed >= DAILY_CAP) {
+            awarded = 0;
+            overflowAdded = pts;
+        } else if (_dailyUsed + pts > DAILY_CAP) {
+            awarded = DAILY_CAP - _dailyUsed;
+            overflowAdded = pts - awarded;
+        }
+
+        var totalAdded = awarded + overflowRedeemed;
+        if (totalAdded > 0) {
+            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + totalAdded;
             try {
                 localStorage.setItem('btc_points', String(newPoints));
-                localStorage.setItem(_capKey, String(_dailyUsed + awarded));
+                if (awarded > 0) localStorage.setItem(_capKey, String(_dailyUsed + awarded));
             } catch(e) {}
             currentUser.points = newPoints;
             _showPointsToast(awarded, reason);
+            if (overflowRedeemed > 0 && typeof showToast === 'function') {
+                setTimeout(function() {
+                    showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
+                }, 1200);
+            }
         }
 
-        // Daily cap notification (once per day)
-        if (_dailyUsed + awarded >= DAILY_CAP) {
+        if (overflowAdded > 0) {
+            _overflow += overflowAdded;
+            try {
+                localStorage.setItem(_overflowKey, String(_overflow));
+                localStorage.setItem(_overflowDateKey, _today);
+            } catch(e) {}
+            var _overflowNotifKey = 'btc_overflow_notified_' + _today;
+            if (!localStorage.getItem(_overflowNotifKey)) {
+                try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
+                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' pts banked as overflow — they roll over tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
+            }
+        } else if (_dailyUsed + awarded >= DAILY_CAP) {
+            // Daily cap notification (once per day)
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily point limit reached (500)! Sign in to keep earning and convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (500)! Further points today roll over to tomorrow. Sign in to convert to sats.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -1901,15 +1934,33 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
         }
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
-            if (awarded > 0) {
-                currentUser.points = (currentUser.points || 0) + awarded;
+            var overflowRedeemed = result.data.overflowRedeemed || 0;
+            var overflowAdded = result.data.overflowAdded || 0;
+            var pendingOverflow = result.data.pendingOverflow || 0;
+            var totalAdded = awarded + overflowRedeemed;
+            if (totalAdded > 0) {
+                currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
+                if (overflowRedeemed > 0) {
+                    setTimeout(function() {
+                        showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
+                    }, 1200);
+                }
             }
-            if (result.data.capped) {
+            if (overflowAdded > 0) {
+                var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
+                if (!localStorage.getItem(_overflowKey)) {
+                    localStorage.setItem(_overflowKey, '1');
+                    showToast('🎯 Daily cap reached (500)! +' + overflowAdded + ' pts banked as overflow — they roll over tomorrow.', 8000);
+                    _updateCapIndicator(true);
+                }
+                // Cache pendingOverflow locally for the CAP indicator tooltip
+                try { localStorage.setItem('btc_pts_overflow', String(pendingOverflow)); } catch(e) {}
+            } else if (result.data.capped) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily point limit reached (500)! Your points convert to real sats in Settings → ⚡ Sats!', 8000);
+                    showToast('🎯 Daily cap hit (500)! Further points today roll over to tomorrow.', 8000);
                     _updateCapIndicator(true);
                 }
             }

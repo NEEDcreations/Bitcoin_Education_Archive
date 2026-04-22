@@ -2031,12 +2031,46 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
             const dailyDoc = await t.get(dailyPtsRef);
             const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
 
-            // Compute awarded amount — may be 0 if capped
+            // 3a. OVERFLOW ROLLOVER (rebuilt 2026-04-22 per Phil)
+            // Users who exceed 500 pts/day now bank the excess in `pendingOverflow`
+            // and redeem up to 500 of it on their next active day. This:
+            //   - stops silently dropping points that honest users earned
+            //   - still respects the anti-abuse daily cap (max 500 redeemed per day)
+            //   - is server-authoritative (field is blocked from client writes)
+            const OVERFLOW_REDEEM_CAP = DAILY_CAP; // max overflow that can hit the balance on a single day
+            const pendingOverflow = userData.pendingOverflow || 0;
+            const lastOverflowDate = userData.lastOverflowDate || null;
+
+            // Redeem yesterday's (or older) overflow into today's balance FIRST,
+            // before counting today's new award against the cap. Redemption itself
+            // bypasses the cap check (those points were already earned legitimately
+            // on a prior day) but is capped at 500/day so a huge backlog pays out
+            // over multiple days instead of all at once.
+            let overflowRedeemed = 0;
+            let pendingOverflowAfter = pendingOverflow;
+            if (pendingOverflow > 0 && lastOverflowDate && lastOverflowDate !== today) {
+                overflowRedeemed = Math.min(pendingOverflow, OVERFLOW_REDEEM_CAP);
+                pendingOverflowAfter = pendingOverflow - overflowRedeemed;
+            }
+
+            // Compute today's award against the daily cap. Any excess is added to
+            // pendingOverflow for a future day.
             let awarded = 0;
-            if (dailyUsed < DAILY_CAP) {
-                awarded = pts;
-                if (dailyUsed + pts > DAILY_CAP) awarded = DAILY_CAP - dailyUsed;
-                if (awarded < 0) awarded = 0;
+            let capped = false;
+            let overflowAdded = 0;
+            if (pts > 0) {
+                if (dailyUsed < DAILY_CAP) {
+                    awarded = pts;
+                    if (dailyUsed + pts > DAILY_CAP) {
+                        awarded = DAILY_CAP - dailyUsed;
+                        overflowAdded = pts - awarded;
+                    }
+                    if (awarded < 0) awarded = 0;
+                } else {
+                    // Already at cap — entire award goes to overflow
+                    overflowAdded = pts;
+                }
+                capped = (dailyUsed + awarded >= DAILY_CAP);
             }
 
             // 4. Build Atomic Update — channel tracking is a visit record (not a reward),
@@ -2058,15 +2092,23 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 channelTracked = true;
             }
 
-            // Points/tickets/freezes only when cap allows
-            if (awarded > 0) {
-                userUpdate.points = admin.firestore.FieldValue.increment(awarded);
-                if (tickets) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
-                if (streakFreezes) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
+            // Points/tickets/freezes — award today's legitimate portion PLUS any
+            // overflow we're redeeming from prior days.
+            const totalPointsOut = awarded + overflowRedeemed;
+            if (totalPointsOut > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(totalPointsOut);
+                if (tickets && awarded > 0) userUpdate.orangeTickets = admin.firestore.FieldValue.increment(tickets);
+                if (streakFreezes && awarded > 0) userUpdate.streakFreezes = admin.firestore.FieldValue.increment(streakFreezes);
                 // Marks daily tickets as used (only if actually awarded)
                 if (matchedAction === 'daily_tickets' || (action && action.includes('Daily tickets'))) {
                     userUpdate.lastTicketDate = today;
                 }
+            }
+
+            // Update overflow bank. Net change = new overflow added today minus what we redeemed.
+            if (overflowAdded > 0 || overflowRedeemed > 0) {
+                userUpdate.pendingOverflow = pendingOverflowAfter + overflowAdded;
+                userUpdate.lastOverflowDate = today;
             }
 
             // Write user doc if we have anything to write (channel visit and/or points)
@@ -2074,13 +2116,15 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
                 t.update(userRef, userUpdate);
             }
 
-            // Daily points tracker only bumps when points were actually awarded
+            // Daily points tracker bumps by everything that counted against today's cap.
+            // Overflow redemption does NOT count against the cap (paying out previously-earned
+            // points), so we only track the `awarded` portion.
             if (awarded > 0) {
                 t.set(dailyPtsRef, { total: dailyUsed + awarded, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
 
             // Cooldown stamp only when points were awarded (so capped calls don't burn cooldown)
-            if (cooldownRef && awarded > 0) {
+            if (cooldownRef && (awarded > 0 || overflowAdded > 0)) {
                 t.set(cooldownRef, { ts: admin.firestore.FieldValue.serverTimestamp() });
             }
 
@@ -2095,8 +2139,11 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
 
             return {
                 awarded: awarded,
-                capped: (dailyUsed + awarded >= DAILY_CAP),
+                capped,
                 dailyUsed: dailyUsed + awarded,
+                overflowAdded,
+                overflowRedeemed,
+                pendingOverflow: pendingOverflowAfter + overflowAdded,
                 channelTracked: channelTracked
             };
         });
@@ -2967,6 +3014,16 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
 
     const uid = context.auth.uid;
     const questRef = db.collection('quest_answer_keys').doc(questId);
+    const userRef = db.collection('users').doc(uid);
+
+    // AUDIT FIX (2026-04-22): gradeQuest was writing points directly to user doc,
+    // bypassing the 500 pts/day cap. Now it routes through daily_points with a
+    // hard cap AND enforces a per-day quest grading limit to stop abuse.
+    const DAILY_QUEST_LIMIT = 3;   // max completed quests per UTC day
+    const DAILY_POINTS_CAP = 500;  // matches awardPoints cap exactly
+    const today = new Date().toISOString().split('T')[0];
+    const dailyQuestRef = userRef.collection('daily_action_counts').doc(today + '_quest');
+    const dailyPtsRef = userRef.collection('daily_points').doc(today);
 
     const result = await db.runTransaction(async (tx) => {
         const questDoc = await tx.get(questRef);
@@ -2975,6 +3032,14 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
         const quest = questDoc.data();
         if (quest.uid !== uid) throw new functions.https.HttpsError('permission-denied', 'Not your quest');
         if (quest.graded) throw new functions.https.HttpsError('already-exists', 'Quest already graded');
+
+        // Per-day quest count limit (reject before grading to conserve work)
+        const qCountDoc = await tx.get(dailyQuestRef);
+        const qCountToday = qCountDoc.exists ? (qCountDoc.data().count || 0) : 0;
+        if (qCountToday >= DAILY_QUEST_LIMIT) {
+            throw new functions.https.HttpsError('resource-exhausted',
+                `Daily quest limit reached (max ${DAILY_QUEST_LIMIT}/day). Try again tomorrow.`);
+        }
 
         // Grade server-side
         let score = 0;
@@ -2992,18 +3057,58 @@ exports.gradeQuest = functions.https.onCall(async (data, context) => {
             else if (score >= 3) pts = 50;
         }
 
-        // Mark as graded
-        tx.update(questRef, { graded: true, score, pts, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-
-        // Award points atomically
+        // Route points through daily_points cap (same as awardPoints CF).
+        // Excess goes into pendingOverflow (server-managed, redeemed on future days).
+        let awarded = 0;
+        let capped = false;
+        let overflowAdded = 0;
         if (pts > 0) {
-            const userRef = db.collection('users').doc(uid);
-            tx.update(userRef, {
-                points: admin.firestore.FieldValue.increment(pts),
-            });
+            const userDoc = await tx.get(userRef);
+            const userData = userDoc.exists ? userDoc.data() : {};
+            const dailyDoc = await tx.get(dailyPtsRef);
+            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
+            if (dailyUsed < DAILY_POINTS_CAP) {
+                awarded = pts;
+                if (dailyUsed + pts > DAILY_POINTS_CAP) {
+                    awarded = DAILY_POINTS_CAP - dailyUsed;
+                    overflowAdded = pts - awarded;
+                }
+                if (awarded < 0) awarded = 0;
+            } else {
+                overflowAdded = pts;
+            }
+            capped = (dailyUsed + awarded >= DAILY_POINTS_CAP);
+
+            const userUpdate = {};
+            if (awarded > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(awarded);
+                tx.set(dailyPtsRef, {
+                    total: dailyUsed + awarded,
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            }
+            if (overflowAdded > 0) {
+                userUpdate.pendingOverflow = admin.firestore.FieldValue.increment(overflowAdded);
+                userUpdate.lastOverflowDate = today;
+            }
+            if (Object.keys(userUpdate).length > 0) {
+                tx.update(userRef, userUpdate);
+            }
         }
 
-        return { score, pts };
+        // Always increment the per-day quest count so retries / low-score attempts still count
+        tx.set(dailyQuestRef, {
+            count: admin.firestore.FieldValue.increment(1),
+            lastAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        // Mark as graded (prevents replay on same questId)
+        tx.update(questRef, {
+            graded: true, score, pts, awarded,
+            gradedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return { score, pts, awarded, capped, questsToday: qCountToday + 1, dailyQuestLimit: DAILY_QUEST_LIMIT };
     });
 
     return result;
@@ -3360,6 +3465,29 @@ exports.investigateUsers = functions.https.onRequest(async (req, res) => {
                 rec.mergedAnon = d.mergedAnon || false;
                 rec.pvpWins = d.pvpWins || 0;
                 rec.pvpLosses = d.pvpLosses || 0;
+                // Scholar cert + quest signals — may explain point totals above daily cap
+                const certKeys = Object.keys(d).filter(k => k.startsWith('certPassed_') || k.startsWith('certPassedAt_'));
+                rec.certs = certKeys.reduce((o,k) => { o[k] = d[k]; return o; }, {});
+                rec.lastSpinDate = d.lastSpinDate || null;
+                rec.spinClosetItems = d.spinClosetItems ? (Array.isArray(d.spinClosetItems) ? d.spinClosetItems.length : 'non-array') : 0;
+                rec.questsCompleted = d.questsCompleted || 0;
+                rec.badges = Array.isArray(d.badges) ? d.badges.length : (d.badges ? 'non-array' : 0);
+                rec.forumPosts = d.forumPosts || 0;
+                rec.forumReplies = d.forumReplies || 0;
+                rec.beatsUploads = d.beatsUploads || 0;
+                // Raw dump of all numeric + boolean fields to surface anything unexpected
+                const rawSnapshot = {};
+                Object.keys(d).forEach(k => {
+                    const v = d[k];
+                    if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string') {
+                        rawSnapshot[k] = v;
+                    } else if (v && v.toDate) {
+                        rawSnapshot[k] = v.toDate().toISOString();
+                    } else if (Array.isArray(v)) {
+                        rawSnapshot[k + '_len'] = v.length;
+                    }
+                });
+                rec.raw = rawSnapshot;
 
                 // Firebase Auth metadata
                 try {
@@ -3396,11 +3524,15 @@ exports.investigateUsers = functions.https.onRequest(async (req, res) => {
 
                 // daily_points subcollection (recent 10 days)
                 try {
-                    const dp = await db.collection('users').doc(uid).collection('daily_points').orderBy('__name__','desc').limit(10).get();
+                    const dp = await db.collection('users').doc(uid).collection('daily_points').get();
                     const daily = [];
-                    dp.forEach(x => { const v = x.data(); daily.push({ date: x.id, pts: v.total || v.points || 0, sources: v.sources || null }); });
-                    rec.recentDailyPoints = daily;
-                } catch(e) {}
+                    dp.forEach(x => { const v = x.data(); daily.push({ date: x.id, pts: v.total || v.points || 0 }); });
+                    // Sort by date desc
+                    daily.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+                    rec.recentDailyPoints = daily.slice(0, 20);
+                    rec.dailyPointsTotal = daily.reduce((a,b) => a + (b.pts||0), 0);
+                    rec.dailyPointsDocCount = daily.length;
+                } catch(e) { rec.dailyPointsErr = e.message; }
             } catch(e) { rec.error = e.message; }
 
             out.push(rec);

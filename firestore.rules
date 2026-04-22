@@ -34,7 +34,8 @@ service cloud.firestore {
                         'totalVisits', 'badges', 'hiddenBadges', 'tickets',
                         'referralTicketsEarned', 'lastSpinDate', 'spinClosetItems',
                         'pvpWins', 'pvpLosses', 'forumPosts', 'forumReplies',
-                        'marketListings', 'marketMessages', 'referralCode'
+                        'marketListings', 'marketMessages', 'referralCode',
+                        'pendingOverflow', 'lastOverflowDate'
                     ]))
                     && (!('username' in request.resource.data)
                         || (request.resource.data.username is string
