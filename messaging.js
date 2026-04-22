@@ -484,7 +484,7 @@ window.showUserProfile = function(uid) {
             // Stats grid
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
                 profileStat('🏅', badgeCount, 'Badges') +
-                profileStat('📖', (u.readChannels ? u.readChannels.length : u.visitedChannelsList ? u.visitedChannelsList.length : 0), 'Channels') +
+                profileStat('📖', (Array.isArray(u.visitedChannelsList) ? u.visitedChannelsList.length : (Array.isArray(u.readChannels) ? u.readChannels.length : 0)), 'Channels') +
                 profileStat('🎟️', u.orangeTickets || 0, 'Tickets') +
             '</div>' +
             '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +

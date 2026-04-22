@@ -1983,6 +1983,11 @@ async function onChannelOpen(channelId) {
         } else {
             currentUser.readChannels = [channelId];
         }
+        // Also mirror to visitedChannelsList so the Sats requirements checklist
+        // updates immediately (the Cloud Function will add it server-side too,
+        // but we don't want the UI to lag by a round-trip).
+        if (!Array.isArray(currentUser.visitedChannelsList)) currentUser.visitedChannelsList = [];
+        if (currentUser.visitedChannelsList.indexOf(channelId) === -1) currentUser.visitedChannelsList.push(channelId);
         // Award points + track channel visit server-side (Cloud Function handles both atomically)
         await awardPoints(ptsAwarded, '📖 New channel explored', channelId);
 
@@ -3719,7 +3724,23 @@ function showSettingsPage(tab) {
             var mins = Math.floor((diff % 3600000) / 60000);
             cooldownStr = hrs + 'h ' + mins + 'm';
         }
-        var channelsRead = currentUser ? (currentUser.readChannels ? Object.keys(currentUser.readChannels).length : 0) : 0;
+        // Prefer the server-tracked arrayUnion-only field (visitedChannelsList); fall back
+        // to the legacy readChannels array for users who haven't been migrated yet.
+        // Also fall back to the localStorage list if the user doc hasn't loaded yet.
+        var channelsRead = 0;
+        if (currentUser) {
+            if (Array.isArray(currentUser.visitedChannelsList)) channelsRead = currentUser.visitedChannelsList.length;
+            else if (Array.isArray(currentUser.readChannels)) channelsRead = currentUser.readChannels.length;
+            else if (currentUser.readChannels && typeof currentUser.readChannels === 'object') channelsRead = Object.keys(currentUser.readChannels).length;
+        }
+        // If we still have 0 but localStorage has a non-empty list, use that as a
+        // last resort (covers the narrow window where the user doc hasn't synced yet).
+        if (channelsRead === 0) {
+            try {
+                var _localList = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+                if (Array.isArray(_localList) && _localList.length > channelsRead) channelsRead = _localList.length;
+            } catch(e) {}
+        }
         var acctCreated = user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
         var acctAgeDays = acctCreated ? Math.floor((now - acctCreated.getTime()) / 86400000) : 0;
         var hasEmail = user.email && user.emailVerified;
