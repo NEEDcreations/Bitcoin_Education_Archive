@@ -5663,20 +5663,49 @@ window.renderTimechainTV = function() {
             var bl = e.target.closest('[data-vid-id]');
             if (bl) hideTip(bl);
         });
+        // Mobile: long-press to reveal the full title (500ms hold, no movement).
+        // A quick tap or any swipe/scroll cancels the timer so scrolling through the
+        // channel guide is not hijacked by the tooltip. (AAR: 2026-04-22)
         var _activeTipEl = null;
+        var _lpTimer = null;
+        var _lpStartY = 0, _lpStartX = 0;
+        var _lpTarget = null;
+        var LP_DELAY = 500;       // ms to qualify as long-press
+        var LP_MOVE_THRESHOLD = 10; // px — anything beyond = user is scrolling
+        function cancelLongPress() {
+            if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+            _lpTarget = null;
+        }
         epgC.addEventListener('touchstart', function(e) {
             var bl = e.target.closest('[data-vid-id]');
-            if (bl) {
-                if (_activeTipEl === bl) { hideTip(bl); _activeTipEl = null; return; }
-                if (_activeTipEl) hideTip(_activeTipEl);
-                _activeTipEl = bl;
-                showTip(bl, e.touches[0]);
+            // Any new touch clears an open tooltip so it doesn't linger over scroll.
+            if (_activeTipEl) { hideTip(_activeTipEl); _activeTipEl = null; }
+            cancelLongPress();
+            if (!bl) return;
+            _lpTarget = bl;
+            _lpStartX = e.touches[0].clientX;
+            _lpStartY = e.touches[0].clientY;
+            _lpTimer = setTimeout(function() {
+                if (!_lpTarget) return;
+                _activeTipEl = _lpTarget;
+                showTip(_lpTarget, { clientX: _lpStartX, clientY: _lpStartY });
+                // Haptic feedback if supported, so the user knows long-press fired.
+                try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
                 if (hideTimer) clearTimeout(hideTimer);
-                hideTimer = setTimeout(function() { hideTip(bl); _activeTipEl = null; }, 3000);
-            } else {
-                if (_activeTipEl) { hideTip(_activeTipEl); _activeTipEl = null; }
-            }
+                var captured = _lpTarget;
+                hideTimer = setTimeout(function() { hideTip(captured); if (_activeTipEl === captured) _activeTipEl = null; }, 3000);
+                _lpTimer = null;
+                _lpTarget = null;
+            }, LP_DELAY);
         }, { passive: true });
+        epgC.addEventListener('touchmove', function(e) {
+            if (!_lpTimer) return;
+            var dx = Math.abs(e.touches[0].clientX - _lpStartX);
+            var dy = Math.abs(e.touches[0].clientY - _lpStartY);
+            if (dx > LP_MOVE_THRESHOLD || dy > LP_MOVE_THRESHOLD) cancelLongPress();
+        }, { passive: true });
+        epgC.addEventListener('touchend', cancelLongPress, { passive: true });
+        epgC.addEventListener('touchcancel', cancelLongPress, { passive: true });
     })();
 
     _currentStation = activeStation;

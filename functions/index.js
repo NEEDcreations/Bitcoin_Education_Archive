@@ -3105,34 +3105,130 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
         let activeToday = 0;   // only today (strict)
         let active7d = 0;
         let active30d = 0;
+        let newUsers24h = 0;
+        let newUsers7d = 0;
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         const sevenAgoStr = sevenDaysAgo.toISOString().split('T')[0];
         const thirtyAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+        // Auth method breakdown — total users & active-24h per method
+        const authTotals = { password: 0, google: 0, twitter: 0, github: 0, facebook: 0, nostr: 0, lightning: 0, anonymous: 0, unknown: 0 };
+        const authActive24h = { password: 0, google: 0, twitter: 0, github: 0, facebook: 0, nostr: 0, lightning: 0, anonymous: 0, unknown: 0 };
+        const authNew24h = { password: 0, google: 0, twitter: 0, github: 0, facebook: 0, nostr: 0, lightning: 0, anonymous: 0, unknown: 0 };
+
+        // Suspicious signals
+        const suspicious = {
+            highPointsJump24h: [],     // users with points > 5000 created in last 24h
+            duplicateLnAddresses: [],  // lightning addresses appearing in >1 giveaway entry
+            nullUsernameActive: 0,     // active users with no username
+            sameEmailDomainBurst: []   // email domains with >=5 signups in last 24h
+        };
+        const emailDomainCounts24h = {};
+
+        function classifyAuth(d) {
+            if (d.authMethod === 'lightning') return 'lightning';
+            if (d.nostr) return 'nostr';
+            if (d.email && d.email.endsWith('@needcreations-auth.local')) return 'password'; // email magic link treated as password-ish
+            if (d.authProvider) {
+                const p = String(d.authProvider).toLowerCase();
+                if (p.includes('google')) return 'google';
+                if (p.includes('twitter') || p.includes('x.com')) return 'twitter';
+                if (p.includes('github')) return 'github';
+                if (p.includes('facebook')) return 'facebook';
+                if (p.includes('password') || p.includes('email')) return 'password';
+            }
+            if (d.email) return 'password';
+            if (d.anonymous === true) return 'anonymous';
+            return 'unknown';
+        }
+
         snap.forEach(doc => {
             const d = doc.data();
+            const method = classifyAuth(d);
+            authTotals[method] = (authTotals[method] || 0) + 1;
+
             let ts = null;
             if (d.lastActive && d.lastActive.toDate) ts = d.lastActive.toDate();
             else if (d.lastLogin && d.lastLogin.toDate) ts = d.lastLogin.toDate();
+            let isActive24h = false;
             if (ts) {
-                if (ts >= oneDayAgo) dau++;
+                if (ts >= oneDayAgo) { dau++; isActive24h = true; }
                 if (ts.toISOString().split('T')[0] === todayStr) activeToday++;
                 if (ts >= sevenDaysAgo) active7d++;
                 if (ts >= thirtyDaysAgo) active30d++;
             } else if (d.lastVisit) {
-                if (d.lastVisit === todayStr || d.lastVisit === yesterdayStr) dau++;
+                if (d.lastVisit === todayStr || d.lastVisit === yesterdayStr) { dau++; isActive24h = true; }
                 if (d.lastVisit === todayStr) activeToday++;
                 if (d.lastVisit >= sevenAgoStr) active7d++;
                 if (d.lastVisit >= thirtyAgoStr) active30d++;
             }
+            if (isActive24h) authActive24h[method] = (authActive24h[method] || 0) + 1;
+
+            // Created timestamp (could be serverTimestamp or undefined on older accounts)
+            let createdTs = null;
+            if (d.created && d.created.toDate) createdTs = d.created.toDate();
+            else if (d.createdAt && d.createdAt.toDate) createdTs = d.createdAt.toDate();
+            if (createdTs) {
+                if (createdTs >= oneDayAgo) {
+                    newUsers24h++;
+                    authNew24h[method] = (authNew24h[method] || 0) + 1;
+                    if ((d.points || 0) > 5000) {
+                        suspicious.highPointsJump24h.push({ uid: doc.id.substring(0,8), points: d.points, method });
+                    }
+                    if (d.email) {
+                        const dom = String(d.email).split('@')[1] || 'unknown';
+                        emailDomainCounts24h[dom] = (emailDomainCounts24h[dom] || 0) + 1;
+                    }
+                }
+                if (createdTs >= sevenDaysAgo) newUsers7d++;
+            }
+
+            if (isActive24h && !d.username) suspicious.nullUsernameActive++;
         });
+
+        Object.keys(emailDomainCounts24h).forEach(dom => {
+            if (emailDomainCounts24h[dom] >= 5) {
+                suspicious.sameEmailDomainBurst.push({ domain: dom, count: emailDomainCounts24h[dom] });
+            }
+        });
+
+        // Giveaway entries
+        let giveawayCount = 0;
+        let giveawayNew24h = 0;
+        try {
+            const gSnap = await db.collection('giveaway_entries').get();
+            giveawayCount = gSnap.size;
+            const lnCounts = {};
+            gSnap.forEach(gd => {
+                const gData = gd.data();
+                let gts = null;
+                if (gData.createdAt && gData.createdAt.toDate) gts = gData.createdAt.toDate();
+                else if (gData.timestamp && gData.timestamp.toDate) gts = gData.timestamp.toDate();
+                if (gts && gts >= oneDayAgo) giveawayNew24h++;
+                const ln = (gData.lightningAddress || gData.lnAddress || '').toLowerCase().trim();
+                if (ln) lnCounts[ln] = (lnCounts[ln] || 0) + 1;
+            });
+            Object.keys(lnCounts).forEach(ln => {
+                if (lnCounts[ln] > 1) suspicious.duplicateLnAddresses.push({ address: ln, count: lnCounts[ln] });
+            });
+        } catch (ge) { /* collection may not exist */ }
+
         res.json({
             date: now.toISOString(),
             totalUsers: total,
-            dau,              // active within last 24h rolling
-            activeToday,      // active today (UTC calendar day)
-            active7d,         // active within last 7 days rolling
-            active30d         // active within last 30 days rolling
+            dau,
+            activeToday,
+            active7d,
+            active30d,
+            newUsers24h,
+            newUsers7d,
+            authTotals,
+            authActive24h,
+            authNew24h,
+            giveawayCount,
+            giveawayNew24h,
+            suspicious
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
