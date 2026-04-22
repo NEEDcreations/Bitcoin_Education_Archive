@@ -236,6 +236,8 @@ var STATIONS = [
                 {"id":"rYiWd-qIRQA","title":"Kontext on Writing, Music & Stoicism | Bitcoin Art Podcast w/ Asanoha Ep. 5","duration":5759},
                 {"id":"JPJyDYmovJo","title":"A FULL BOX of Bitcoin Trading Cards | w/ BTC Viking","duration":755},
                 {"id":"Q5Wxg53qu9s","title":"The Bitcoin Full Node Sculpture #2 of 10 -Updated!","duration":16}
+            ,
+                {"id":"ySPw_-09nnI","title":"Magic Internet Money","duration":636}
             ]
         },
         {
@@ -1797,7 +1799,6 @@ var STATIONS = [
                 {"id":"78QQ4L44xj0","title":"Aint Gotta Dollar (Laundry Room Edition)","duration":125},
                 {"id":"MQzXrrFvSKs","title":"MultiBoi Using Pico Flasher is INCREDIBLE","duration":112},
                 {"id":"EwEjrl13rZ0","title":"Lil Bubble - Crypto DJ Set (live from the spaceship) - July 2021","duration":608},
-                {"id":"uEFWJ4eB8Bc","title":"Bitcoin Card Game Rated Best of Stem 2021 | Scott and Mallory Sibley | Shamory","duration":1629},
                 {"id":"gZDdV4d4g4k","title":"Choyna","duration":179},
                 {"id":"GZ0YMSLZjfQ","title":"Toby + Decap - Welcome To The Blockchain (The Bitcoin Song) MUSIC VIDEO","duration":242},
                 {"id":"qfYqdSsAldc","title":"Hyperbitcoinization (You're Not Ready)","duration":151},
@@ -1883,7 +1884,6 @@ var STATIONS = [
                 {"id":"h7I_DqVzYjI","title":"Bitcoin","duration":30},
                 {"id":"5bFn9OtWQu4","title":"2023: A Debt Odyssey","duration":46},
                 {"id":"vnMBfreYTA4","title":"Lil Bubble - Dammit (Blink 182 Crypto Parody Version)","duration":157},
-                {"id":"ySPw_-09nnI","title":"Magic Internet Money","duration":636},
                 {"id":"SKnRdQiH3-k","title":"Skillet - \\\"The Resistance\\\" [Official Lyric Video]","duration":241},
                 {"id":"9Ug7udnfbcE","title":"Oliver Anthony - Rich Men North of Richmond (Lyric Video)","duration":191},
                 {"id":"tEpAmY2BCT4","title":"LoKoBTC - ₿ Party","duration":193},
@@ -1970,7 +1970,6 @@ var STATIONS = [
                 {"id":"_iGtBkLn7uM","title":"Sxtxshx Nxkxmxtx","duration":175},
                 {"id":"s_x-KGxOcRA","title":"The Vandals - Anarchy Burger (Hold The Government) (Lyrics)","duration":114},
                 {"id":"q8GPkQGMLAo","title":"My Fair Bitcoin","duration":70},
-                {"id":"LBsYqETjc8c","title":"Empowering Bitcoin Literacy: SHAmory's Educational Journey","duration":791},
                 {"id":"2lpikrpQ0yQ","title":"Lil Bubble - Have You Heard About NFTs? (Official Music Video)","duration":146},
                 {"id":"szXTJN1gmxY","title":"Lil Bubble - Bybit Games (BTC Brawl Theme Song)","duration":92},
                 {"id":"hjhVos8L3Kg","title":"Love Anthem","duration":240},
@@ -2038,10 +2037,8 @@ var STATIONS = [
                 {"id":"nvlvG18AcCo","title":"Bitcoin Bob: Money Monopoly","duration":140},
                 {"id":"U5NGVH8HDaw","title":"Bitcoin boomdeyada!","duration":66},
                 {"id":"xwP9gC5BW-E","title":"CRYPTO SUPERSTAR | CYPRESS HILL PARODY OF RAP SUPERSTAR","duration":118},
-                {"id":"G_vegzt68Xo","title":"Running a successful Bitcoin Business with Scott Sibley Of SHAmory - Voltage Twitter Spaces","duration":1634},
                 {"id":"HF9uhRqcNSo","title":"Lil Bubble - Let It Pump (Official Visualizer)","duration":111},
                 {"id":"h9vxIh1ELAo","title":"Oompa Loompa (Bitcoin Halving Remix) Lil Bubble","duration":85},
-                {"id":"Qc6-Ra2wWc8","title":"Bitcoin Children's Books & Card Game With Scott Sibley of SHAMORY w/ @jarrettcarpenter | E81 - MTB","duration":1860},
                 {"id":"jXwOd99Gcds","title":"100K ON THE WAY (Remix)","duration":148},
                 {"id":"5Uba9nQTxKM","title":"Zap Me, Mama","duration":164},
                 {"id":"MN9PAdVn7l0","title":"Lil Bubble - BTFD (House Remix) Visualizer","duration":132},
@@ -2061,7 +2058,6 @@ var STATIONS = [
                 {"id":"hRhj3lfWzrI","title":"Aurora- The Seed Haik Concert Live","duration":280},
                 {"id":"C_ptrffwUQs","title":"Freedom - Sub Focus & Wilkinson ( Audio Oficial )","duration":241},
                 {"id":"ZsXaaTgJZzI","title":"All Falls Down [Orange Pill Edition]","duration":153},
-                {"id":"bsDXHwhL3fw","title":"Leveling Up Bitcoin Education: How SHAmory Turns Learning Into a Game for All Ages with Scott Sibley","duration":2961},
                 {"id":"pFS4zYWxzNA","title":"clubbed to death - Matrix soundtrack","duration":455},
                 {"id":"4kmWR5bWHAc","title":"Andrew Tate - Buy More Bitcoin (Lil Bubble House Remix)","duration":216},
                 {"id":"2DquYAJG1hA","title":"88N8 X Lil Bubble The Bulls Is Back","duration":172},
@@ -2136,9 +2132,7 @@ var STATIONS = [
                 {"id":"oQlqCjM4tAg","title":"Government Out","duration":184},
                 {"id":"8peRa8Bxq5Y","title":"BITCOIN BALLER","duration":178},
                 {"id":"JfQycjqZK3c","title":"Kygo - Freedom w/ Zak Abel (Official Audio)","duration":199},
-                {"id":"S9DjpDY-PIY","title":"Tatiana Moroz | Inside Bitcoins Chicago","duration":3161},
                 {"id":"4J2UC3N_A_c","title":"Time To Ride Or Die","duration":134},
-                {"id":"PerQ-v7Doec","title":"John Stossel has Tatiana Moroz on to talk about Bitcoin!","duration":248},
                 {"id":"wa6Ex4Shxes","title":"Ringing of Revolution","duration":435},
                 {"id":"9Yhjcn81Xfk","title":"LoKoBTC - Freedom Ain’t Free (Official Video)","duration":233},
                 {"id":"9EuH_ZGOlIs","title":"Proof of Work: A Bitcoin Experience","duration":183},
@@ -2148,7 +2142,6 @@ var STATIONS = [
                 {"id":"s3UtbslfqS8","title":"Gary Gensler, isn't that true? Bitcoin Heavy Metal - Annonymal","duration":315},
                 {"id":"_jPFFu4gj8o","title":"Hi-Rez ft. Jimmy Levy - Welcome to the Revolution  「Lyrics」","duration":212},
                 {"id":"7pAr6B7fqyM","title":"Freedom","duration":367},
-                {"id":"d-H_Q100u74","title":"SHAmory CARD GAME and COOL KIDS PRODUCTS w/ Scott and Mallory Sibley #Bitcoin","duration":1404},
                 {"id":"xfwpAhlVALQ","title":"Gary Gensler - Smells Like Securities (Eminem - Without Me - Crypto Version) - Lil Bubble","duration":122},
                 {"id":"dUU7qGCQHmU","title":"Goldfinger - Open Your Eyes (Live Mtv)","duration":172},
                 {"id":"1_VwtHcfefg","title":"Jay Sean - Down (Crypto/Bitcoin/Stock Market Parody Version) Lil Bubble","duration":161},
@@ -2401,6 +2394,8 @@ var STATIONS = [
                 {"id":"TfjSdlopmrk","title":"Commercial Real Estate Update: Property Is DOWN 30%, Equity Is GONE","duration":1545},
                 {"id":"Z8mMQ12ej2c","title":"Bitcoin MENA 2025 | Day 2 Livestream","duration":33671},
                 {"id":"-GYg7kJFLvs","title":"Money Yield: The Perpetual Motion Machine of Finance","duration":48}
+            ,
+                {"id":"PerQ-v7Doec","title":"John Stossel has Tatiana Moroz on to talk about Bitcoin!","duration":248}
             ]
         },
         {
@@ -2777,6 +2772,20 @@ var STATIONS = [
                 {"id":"aN2G0Uvahf8","title":"Beginner’s Guide #4: What is Bitcoin with Stephan Livera","duration":3437},
                 {"id":"Z6eE5WJW-WI","title":"Is the Quantum Threat to Bitcoin Actually Real? | Alex Pruden","duration":4659},
                 {"id":"ikPnr23h7qg","title":"Proof of Stake (PoS) Versus Proof of Work (PoW) w/ Jason Lowery (BTC098)","duration":7963}
+            ,
+                {"id":"LBsYqETjc8c","title":"Empowering Bitcoin Literacy: SHAmory's Educational Journey","duration":791}
+            ,
+                {"id":"uEFWJ4eB8Bc","title":"Bitcoin Card Game Rated Best of Stem 2021 | Scott and Mallory Sibley | Shamory","duration":1629}
+            ,
+                {"id":"G_vegzt68Xo","title":"Running a successful Bitcoin Business with Scott Sibley Of SHAmory - Voltage Twitter Spaces","duration":1634}
+            ,
+                {"id":"Qc6-Ra2wWc8","title":"Bitcoin Children's Books & Card Game With Scott Sibley of SHAMORY w/ @jarrettcarpenter | E81 - MTB","duration":1860}
+            ,
+                {"id":"bsDXHwhL3fw","title":"Leveling Up Bitcoin Education: How SHAmory Turns Learning Into a Game for All Ages with Scott Sibley","duration":2961}
+            ,
+                {"id":"d-H_Q100u74","title":"SHAmory CARD GAME and COOL KIDS PRODUCTS w/ Scott and Mallory Sibley #Bitcoin","duration":1404}
+            ,
+                {"id":"S9DjpDY-PIY","title":"Tatiana Moroz | Inside Bitcoins Chicago","duration":3161}
             ]
         },
         {
