@@ -1028,6 +1028,8 @@ var STATIONS = [
                 {"id":"UIhieMtB_A0","title":"The Everything Bubble Is Over: Michael Howell’s Warning for 2026","duration":4085},
                 {"id":"y1EYoyW9fhU","title":"We Need Honest Money","duration":27},
                 {"id":"soGXgiGoMRU","title":"Broken Money  Why Our Financial System Is Failing US And How We Can Make It Better 2 06 24","duration":3968}
+            ,
+                {"id":"aHVuaASswgA","title":"The Truth About CBDCs (Central Bank Digital Currencies) | Economics Explained","duration":334}
             ]
         },
         {
@@ -1122,7 +1124,6 @@ var STATIONS = [
                 {"id":"krzoDpWfVq8","title":"BR096 - OP_RETURN Debate, Core Governance, Future Soft Forks, COLDCARD + MORE ft. Rob, Odell & Craig","duration":3984},
                 {"id":"vTllOOLlJEI","title":"COLDCARD Bag Number check #selfcustody #bitcoin","duration":15},
                 {"id":"qul5v0qopCQ","title":"Want the perfect tool to hide your dirty money? Look no further than a shell company.","duration":63},
-                {"id":"28PadE9ARDg","title":"MusicSnake - Cold Storage [Hardware Wallet Crypto Song]","duration":206},
                 {"id":"mVgPoQrbi7A","title":"Verifying Dice Roll Seed Generation with the SeedSigner, Coldcard, & Keystone","duration":840},
                 {"id":"YrKo0QGWIuY","title":"Raspberry Pi Zero Project | Cryptocurrency Hardware Wallet","duration":441},
                 {"id":"1H7FqG_FmCw","title":"Assembling Specter-DIY hardware wallet in 5 minutes","duration":338},
@@ -1366,7 +1367,6 @@ var STATIONS = [
                 {"id":"iy3n39Gnlpw","title":"Tuttle Twins S1E5 Full Episode \\\"Rising Tides & Dirty Deals\\\" | Angel","duration":1466},
                 {"id":"hSZyUI6rbC8","title":"A Bitcoin Bash & Corrupted Cash - Full Episode | Tuttle Twins |","duration":1345},
                 {"id":"9NZTMmVBfK4","title":"What my kids think of bitcoin","duration":271},
-                {"id":"aHVuaASswgA","title":"The Truth About CBDCs (Central Bank Digital Currencies) | Economics Explained","duration":334},
                 {"id":"B-IpiKURs3I","title":"1 Hour Tuttle Twins Compilation | Bitcoin, Bill of Rights & George Washington Lessons for Kids","duration":3969},
                 {"id":"ZxEqoaFT73c","title":"BITCOIN IS THE EVOLUTION OF MONEY!!! My kids kids won't know coins & notes or the word change!","duration":221},
                 {"id":"XIehKAjwCsw","title":"Scott Sibley of SHAmory - A Card Game For Bitcoin Mass Adoption","duration":2343},
@@ -2240,6 +2240,8 @@ var STATIONS = [
                 {"id":"O2r_4fAr7Zs","title":"The Aliens Are Laughing At Us","duration":87},
                 {"id":"iqbScnkmf0s","title":"Elaine Diane Taylor - Bitcoin Barbarians","duration":186},
                 {"id":"UdbOaVdIUTM","title":"The Bitcoin Song - Ohio Toast Ska Man (Official) - Song by Aled Thomas","duration":139}
+            ,
+                {"id":"28PadE9ARDg","title":"MusicSnake - Cold Storage [Hardware Wallet Crypto Song]","duration":206}
             ]
         },
         {
@@ -2597,7 +2599,6 @@ var STATIONS = [
                 {"id":"M4RPTungLqs","title":"This Bitcoin On-Chain Metric Just Flashed – What It Means for 2026 with James \\\"Checkmatey\\\"","duration":2965},
                 {"id":"a6axEr17jAw","title":"Corrupt academics and politicians w/ Peter St Onge #bitcoin #freedomtech #freedomofspeech #economics","duration":60},
                 {"id":"WNsVIxymEtM","title":"Bitcoin, not Slavecoins with Aleks Svetski - Twitter Spaces","duration":5927},
-                {"id":"CtIjpJ5-qYs","title":"They Found What The COVID Vaccines Leave Inside You Then The Cover-Up Started","duration":4024},
                 {"id":"sBZuvWUjgbM","title":"HODL Magoo, who are you?  Is he bearish, and Volcano Bond concerns - BMS 053","duration":5109},
                 {"id":"tnLS6oI9K1k","title":"Twitter Space AMA with Simon Dixon & Plan C - Discussing Celsius Chapter 11 and more | 09.09.2022","duration":11222},
                 {"id":"4Q1AasS6HLU","title":"Bitcoin 101 - Stephan Livera Podcast","duration":799},
