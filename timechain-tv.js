@@ -204,7 +204,6 @@ var STATIONS = [
                 {"id":"Z0_9Jw56l4k","title":"Opening 2 Packs Of Bitcoin Trading Cards \\\"RARE SERIES\\\" Collect Ultra Rare Cards And Learn About BTC","duration":1087},
                 {"id":"yMoVGgR6h0Y","title":"Money: The Language of Power with Robert Breedlove (WiM530)","duration":4307},
                 {"id":"h9jO1cipnc8","title":"Launch Announcement: 2024 Bitcoin Trading Cards Halving Edition Whale Packs","duration":61},
-                {"id":"cgzH1jScIn0","title":"Bitcoin NFTs - Ordinals Explained Full Guide 🎮 On Wallet Setup & Mint - English","duration":987},
                 {"id":"7DIp6D-68cQ","title":"280. Can Bitcoin Rebuild Civilization?","duration":3033},
                 {"id":"1gnIbVFnuCY","title":"This Is the Biggest Scam in Human History — And It’s Happening Right Now | Robert Breedlove","duration":5936},
                 {"id":"ImZDBBjdX6s","title":"Opening The BOX!!! 24 Packs of BTC Trading Cards | w/ Crypto Viking","duration":752},
@@ -3573,6 +3572,8 @@ var STATIONS = [
                 {"id":"krrUQGMKhPo","title":"Bitcoin UTXO Consolidation Tutorial","duration":879},
                 {"id":"IyW9Dn_--ME","title":"The BEST Home Bitcoin Miner in 2025","duration":697},
                 {"id":"c8ytiynbnpk","title":"Your First Bitcoin Wallet - BTC Sessions","duration":2555}
+            ,
+                {"id":"cgzH1jScIn0","title":"Bitcoin NFTs - Ordinals Explained Full Guide 🎮 On Wallet Setup & Mint - English","duration":987}
             ]
         }
     ];
