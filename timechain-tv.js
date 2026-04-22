@@ -5563,7 +5563,11 @@ window.renderTimechainTV = function() {
             #tctv-epg-container {
                 height: auto !important;
                 min-height: 100% !important;
-                touch-action: pan-x !important;
+                /* Allow BOTH axes so vertical finger-drags on colored video blocks bubble
+                   up to the wrapper's pan-y scroll. Previous pan-x only captured vertical
+                   drags and silently dropped them, breaking scroll when the user started
+                   the drag on a block. (AAR: 2026-04-22) */
+                touch-action: pan-x pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
             }
         }
