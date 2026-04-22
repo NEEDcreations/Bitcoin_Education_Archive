@@ -2139,7 +2139,23 @@ var STATIONS = [
                 {"id":"m1ytm0vs1v8","title":"Pay Me In Bitcoin","duration":207},
                 {"id":"Y3ywicffOj4","title":"Fleetwood Mac - Dreams (Official Music Video) [4K]","duration":264},
                 {"id":"beW981FRwd0","title":"The New Division - Opium (Official Music Video)","duration":311},
-                {"id":"bK95lWHl7js","title":"Megadeth - Dystopia (Official Music Video)","duration":316}
+                {"id":"bK95lWHl7js","title":"Megadeth - Dystopia (Official Music Video)","duration":316},
+                {"id":"BfnjX88Va4Y","title":"Endor - Pump It Up (Official Video)","duration":151},
+                {"id":"x3idGV-7kSQ","title":"Journey - Don't Stop Believin' (Official Video RCF)","duration":249},
+                {"id":"VcjzHMhBtf0","title":"Journey - Don't Stop Believin' (Escape Tour 1981: Live In Houston)","duration":252},
+                {"id":"J16lInLZRms","title":"Creed - Higher (Official HD Music Video)","duration":283},
+                {"id":"3Y71iDvCYXA","title":"Elvis Costello & The Attractions - Pump It Up","duration":194},
+                {"id":"ZaI2IlHwmgQ","title":"The Black Eyed Peas - Pump It (Official Music Video)","duration":226},
+                {"id":"9EcjWd-O4jI","title":"Technotronic - Pump Up The Jam (Official Music Video)","duration":222},
+                {"id":"9Yhjcn81Xfk","title":"LoKoBTC - Freedom Ain’t Free (Official Video)","duration":233},
+                {"id":"tEpAmY2BCT4","title":"LoKoBTC - ₿ Party","duration":193},
+                {"id":"cEiNCWBFkx0","title":"LoKoBTC - Pump It Higher (feat. AnthonyDessauer)","duration":140},
+                {"id":"sXIrST5mbSU","title":"LoKoBTC - Toxic Maxi (Official Meme Video)","duration":149},
+                {"id":"Fgd8T1XYOmA","title":"LoKoBTC - S.R.E.A.M (C.R.E.A.M. Bitcoin Remix)","duration":110},
+                {"id":"JiWMqQvXzNA","title":"LoKoBTC - Because I Got High (Stackchain Remix)","duration":105},
+                {"id":"qdIhlz53a5U","title":"LoKoBTC - Luke, The Master Orange Piller (Bitcoin Meme)","duration":411},
+                {"id":"wkSxvQHhF_4","title":"LoKoBTC - ZAP2ZAP (feat. HomerHodl)","duration":107},
+                {"id":"6WJOWloG7Gs","title":"LoKo - “Thank You” by Yellow","duration":140}
             ]
         },
         {
