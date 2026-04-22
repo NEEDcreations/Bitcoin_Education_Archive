@@ -1589,7 +1589,8 @@ var STATIONS = [
                 {"id":"exRCX38tHks","title":"Giving Away Crypto or Cash! What Will The Public Take?! (Social Experiment)","duration":556},
                 {"id":"j03aH5KQEfY","title":"The #Bitcoin #etf  didn't pump my bags!","duration":56},
                 {"id":"T-Mmud_OsEM","title":"When your homie tells you he can rap.. feat. Richard Heart (Prada Prada Prada)","duration":60},
-                {"id":"jQfowtEfbFY","title":"The greatest meme of all time","duration":1022}
+                {"id":"jQfowtEfbFY","title":"The greatest meme of all time","duration":1022},
+                {"id":"qdIhlz53a5U","title":"LoKoBTC - Luke, The Master Orange Piller (Bitcoin Meme)","duration":411}
             ]
         },
         {
@@ -1869,7 +1870,6 @@ var STATIONS = [
                 {"id":"e9kWhWgmg7E","title":"Rules That Will Survive","duration":125},
                 {"id":"JiWMqQvXzNA","title":"LoKoBTC - Because I Got High (Stackchain Remix)","duration":105},
                 {"id":"8KkDyLrgMMo","title":"Tenacious D   The Government Totally Sucks Lyrics","duration":98},
-                {"id":"qdIhlz53a5U","title":"LoKoBTC - Luke, The Master Orange Piller (Bitcoin Meme)","duration":411},
                 {"id":"HK0tFMIwut0","title":"The Bitcoin Holiday Song","duration":106},
                 {"id":"u7u1TCkiIjQ","title":"10000 Bitcoins","duration":195},
                 {"id":"CgZEKDzgJwI","title":"Avoided Wars","duration":154},
