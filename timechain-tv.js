@@ -618,6 +618,8 @@ var STATIONS = [
                 {"id":"LCM6YnCpdlE","title":"The U.S. dollar 'as we know it' will be dead in 10 yrs, bitcoin price to hit $2 million in 5 yrs","duration":1558}
             ,
                 {"id":"Vny43gBOO-4","title":"Fractional Reserve Banking, Explained in 2 Minutes","duration":127}
+            ,
+                {"id":"vUvIzshYyv8","title":"What is a Central Bank? | Back to Basics","duration":144}
             ]
         },
         {
@@ -1874,7 +1876,6 @@ var STATIONS = [
                 {"id":"dnDC3uWjhlo","title":"The Notorious B.I.G. - Ten Sats Commandments","duration":122},
                 {"id":"NQ1BBJFBjvg","title":"Madeon - Mania (Official Audio)","duration":155},
                 {"id":"Vh1uCDPOLx0","title":"Refugee (Radio Edit)","duration":227},
-                {"id":"vUvIzshYyv8","title":"What is a Central Bank? | Back to Basics","duration":144},
                 {"id":"27U4yhFqCVs","title":"WHATS DROPPIN? (Jack Harlow - WHATS POPPIN - Bitcoin, crypto, trading parody) - Lil Bubble","duration":110},
                 {"id":"tvpOdef8CCc","title":"Bitcoin Slang (Epic ₿itcoin Rap Song) MUST WATCH!!!","duration":222},
                 {"id":"FzUWMPfYV98","title":"Freedom Engine","duration":223},
