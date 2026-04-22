@@ -144,6 +144,8 @@ var STATIONS = [
                 {"id":"Q6f6bdKWqF8","title":"Nostr Explained! The Social Network That Can’t Be CENSORED!","duration":545},
                 {"id":"ZGQLy5caaxk","title":"Jack Dorsey’s TBD Is Building an 'Extra' Decentralized 'Web5' on Bitcoin","duration":168},
                 {"id":"j0eMHXx6zdg","title":"The Future of Bitcoin - Jack Dorsey","duration":1491}
+            ,
+                {"id":"HrZE4kj9ZhY","title":"NOSTR vs Twitter: What's the Difference?","duration":179}
             ]
         },
         {
@@ -615,6 +617,8 @@ var STATIONS = [
                 {"id":"IAFKJVLNVQA","title":"Wences Casares Explains Bitcoin","duration":845},
                 {"id":"YR50A20lNzo","title":"Bitcoin's Family Revolution - Seb Bunney - #018","duration":4333},
                 {"id":"LCM6YnCpdlE","title":"The U.S. dollar 'as we know it' will be dead in 10 yrs, bitcoin price to hit $2 million in 5 yrs","duration":1558}
+            ,
+                {"id":"Vny43gBOO-4","title":"Fractional Reserve Banking, Explained in 2 Minutes","duration":127}
             ]
         },
         {
@@ -1593,6 +1597,20 @@ var STATIONS = [
                 {"id":"T-Mmud_OsEM","title":"When your homie tells you he can rap.. feat. Richard Heart (Prada Prada Prada)","duration":60},
                 {"id":"jQfowtEfbFY","title":"The greatest meme of all time","duration":1022},
                 {"id":"qdIhlz53a5U","title":"LoKoBTC - Luke, The Master Orange Piller (Bitcoin Meme)","duration":411}
+            ,
+                {"id":"id3awzDq5Jw","title":"Types of People When Bitcoin Pumps","duration":61}
+            ,
+                {"id":"lFPHBiFo9Jc","title":"Types of Bitcoin Twitter Personalities","duration":57}
+            ,
+                {"id":"OTVJ6nl5uY0","title":"Types of Bitcoin Haters #shorts #bitcoin #crypto","duration":50}
+            ,
+                {"id":"1U8_cldCQus","title":"Funny Money: PROOF OF WORK — Episode 3","duration":140}
+            ,
+                {"id":"_1RIyjJXZmk","title":"Funny Money: CENSORSHIP—Episode 2","duration":134}
+            ,
+                {"id":"-MYqnJ7ygkg","title":"Funny Money: INFLATION — Episode 1","duration":140}
+            ,
+                {"id":"5bFn9OtWQu4","title":"2023: A Debt Odyssey","duration":46}
             ]
         },
         {
@@ -1804,11 +1822,9 @@ var STATIONS = [
                 {"id":"qfYqdSsAldc","title":"Hyperbitcoinization (You're Not Ready)","duration":151},
                 {"id":"PEs1Ezk9htU","title":"Lil Bubble - DeFi State Of Mind (Jay-Z ft. Alicia Keys - Empire State Of Mind - Crypto Parody)","duration":133},
                 {"id":"e2cl0_jqu4I","title":"Halvingbird (a Bitcoin Halving song)","duration":172},
-                {"id":"HrZE4kj9ZhY","title":"NOSTR vs Twitter: What's the Difference?","duration":179},
                 {"id":"dgKlBQmGQ98","title":"Most Toxic Bitcoin Maxi (Official Music Video 2023) by ROBBIE P","duration":208},
                 {"id":"idP3tyRsUrE","title":"PAY ATTENTION TO #BITCOIN","duration":47},
                 {"id":"KRopo3nofl4","title":"Laura Saggers - 10,000 Bitcoin Remix","duration":86},
-                {"id":"_1RIyjJXZmk","title":"Funny Money: CENSORSHIP—Episode 2","duration":134},
                 {"id":"NEnaxCLcSL8","title":"One Bit Wonder","duration":112},
                 {"id":"vyKA1pW0CBA","title":"BITCOIN \\\"ALL THE WAY UP\\\" - Remix - Music Video - The Dollar Vigilante feat  Freenauts & Jeff Berwick","duration":173},
                 {"id":"BifVGcvJpxc","title":"WAGMI","duration":115},
@@ -1842,11 +1858,9 @@ var STATIONS = [
                 {"id":"BHBO7dFI4nA","title":"Energy Freq","duration":166},
                 {"id":"UCENTf_LWYA","title":"Frank Sinatra - That's Life (Audio)","duration":187},
                 {"id":"r9dyTI_is-Q","title":"SAVE US - Bruised [OFFICIAL VIDEO]","duration":178},
-                {"id":"lFPHBiFo9Jc","title":"Types of Bitcoin Twitter Personalities","duration":57},
                 {"id":"Xl1f47AkroY","title":"Lil Bubble - My Bags Are Dumping (Official Visualizer)","duration":139},
                 {"id":"ILP36_0tooU","title":"K'NAAN -Wavin' FLAG (coca-cola celebration mix)  LYRICS","duration":225},
                 {"id":"x_aGUAJzv0A","title":"Bitcoin Going To Zero? GFY! (Risitas feat. Elon Musk) Lil Bubble Remix","duration":82},
-                {"id":"id3awzDq5Jw","title":"Types of People When Bitcoin Pumps","duration":61},
                 {"id":"ZAmIm2TkrUM","title":"Bitcoin's Going To The Moon (Jpop ビットコイン　月に行く)","duration":220},
                 {"id":"gGJdWNnC80s","title":"Don't Tread on Me (Remastered)","duration":241},
                 {"id":"iqn9bUc751E","title":"Ode to Satoshi","duration":181},
@@ -1860,12 +1874,10 @@ var STATIONS = [
                 {"id":"SIFN4u13FEU","title":"DIAMOND HANDS & LASER EYES (OFFICIAL MUSIC VIDEO 2024)","duration":184},
                 {"id":"dnDC3uWjhlo","title":"The Notorious B.I.G. - Ten Sats Commandments","duration":122},
                 {"id":"NQ1BBJFBjvg","title":"Madeon - Mania (Official Audio)","duration":155},
-                {"id":"1U8_cldCQus","title":"Funny Money: PROOF OF WORK — Episode 3","duration":140},
                 {"id":"Vh1uCDPOLx0","title":"Refugee (Radio Edit)","duration":227},
                 {"id":"vUvIzshYyv8","title":"What is a Central Bank? | Back to Basics","duration":144},
                 {"id":"27U4yhFqCVs","title":"WHATS DROPPIN? (Jack Harlow - WHATS POPPIN - Bitcoin, crypto, trading parody) - Lil Bubble","duration":110},
                 {"id":"tvpOdef8CCc","title":"Bitcoin Slang (Epic ₿itcoin Rap Song) MUST WATCH!!!","duration":222},
-                {"id":"Vny43gBOO-4","title":"Fractional Reserve Banking, Explained in 2 Minutes","duration":127},
                 {"id":"FzUWMPfYV98","title":"Freedom Engine","duration":223},
                 {"id":"EPQJHNXdJfM","title":"Crypto - Takeoff feat. Rich The Kid","duration":161},
                 {"id":"e9kWhWgmg7E","title":"Rules That Will Survive","duration":125},
@@ -1882,7 +1894,6 @@ var STATIONS = [
                 {"id":"3cCxzR9NjhI","title":"The Panic Is On","duration":177},
                 {"id":"a13xrgCM21s","title":"Where is My Mind [Orange Pill Edition] ft. John Vallis & American HODL (Audio Only)","duration":143},
                 {"id":"h7I_DqVzYjI","title":"Bitcoin","duration":30},
-                {"id":"5bFn9OtWQu4","title":"2023: A Debt Odyssey","duration":46},
                 {"id":"vnMBfreYTA4","title":"Lil Bubble - Dammit (Blink 182 Crypto Parody Version)","duration":157},
                 {"id":"SKnRdQiH3-k","title":"Skillet - \\\"The Resistance\\\" [Official Lyric Video]","duration":241},
                 {"id":"9Ug7udnfbcE","title":"Oliver Anthony - Rich Men North of Richmond (Lyric Video)","duration":191},
@@ -1952,7 +1963,6 @@ var STATIONS = [
                 {"id":"2M-cIEvv9N0","title":"P A R I S #bitcoin","duration":56},
                 {"id":"CbElk8D3-e8","title":"Oflow - Bitcoin (The Anthem) Audio","duration":154},
                 {"id":"1utTEIWXOhQ","title":"Lil Bubble - How Low? (Ludacris - How Low - Crypto Version)","duration":102},
-                {"id":"sSGCvS2Miic","title":"BREAKING NEWS RECAP! HEAR ALL ABOUT IT! VERY LEGIT!","duration":65},
                 {"id":"248Zbw1oPnw","title":"Enhancer","duration":203},
                 {"id":"BeiouJGHeE8","title":"Ty Dolla $ign - Ego Death (feat. Kanye West, FKA twigs & Skrillex) [Lyric Video]","duration":230},
                 {"id":"zkeuo9brMnI","title":"Theo Katzman - Corn Does Grow [Official Video]","duration":225},
@@ -1998,7 +2008,6 @@ var STATIONS = [
                 {"id":"qlJdTtSNpcI","title":"HODL On","duration":196},
                 {"id":"1VEMq8kDG68","title":"It's Math   Greg Foss & Pleb Music","duration":78},
                 {"id":"42pUCIjC6ks","title":"Lil Bubble - Pool & Chill (DeFi yield farming/impermanent loss diss)","duration":127},
-                {"id":"-MYqnJ7ygkg","title":"Funny Money: INFLATION — Episode 1","duration":140},
                 {"id":"zHxobd1WLno","title":"Imagine (Ultimate Mix)","duration":187},
                 {"id":"6yCIDkFI7ew","title":"The Black Keys - Gold On The Ceiling [Official Music Video]","duration":226},
                 {"id":"BM1IF4UoZ1Y","title":"Tatiana Moroz - Never Give Up (Live from Bitcoin Halving Party)","duration":229},
@@ -2097,7 +2106,6 @@ var STATIONS = [
                 {"id":"hCPBqWSwr7I","title":"The (time)Chain","duration":169},
                 {"id":"KglDZXcdQhk","title":"Lil Bubble - Bitcoin Song (Official Music Video)","duration":117},
                 {"id":"XS37JKYc-gA","title":"Bitcoin Baron","duration":210},
-                {"id":"OTVJ6nl5uY0","title":"Types of Bitcoin Haters #shorts #bitcoin #crypto","duration":50},
                 {"id":"K5yDgEVafg8","title":"Never Give Up (The Bitcoin Halving Song)","duration":233},
                 {"id":"v1kQaLp3U8o","title":"It's HODLin' Time","duration":139},
                 {"id":"aUp6fogcPM0","title":"Lil Bubble - The Rise of the Crypto Troopers","duration":116},
@@ -2157,7 +2165,6 @@ var STATIONS = [
                 {"id":"x3idGV-7kSQ","title":"Journey - Don't Stop Believin' (Official Video RCF)","duration":249},
                 {"id":"oZwzttexaUM","title":"Lil Bubble - All The Small Caps (Blink 182 - All The Small Things - Crypto/Bitcoin Version)","duration":140},
                 {"id":"xAVTyex_9E8","title":"Lil Bubble - BTFD (Official Music Video)","duration":124},
-                {"id":"QgELo23dwN4","title":"How ChatGPT Ruined Our Marriage","duration":168},
                 {"id":"NNBHn-cHtrI","title":"Bitcoin 101: How Do I Get Bitcoin?","duration":326},
                 {"id":"SMVEFDtAxJc","title":"Bitcoin Anthem","duration":90},
                 {"id":"gSxKJJ9k3lA","title":"🎵 Betawi CryptoCoin – The Ultimate Crypto Anthem Official Music Video","duration":395},
