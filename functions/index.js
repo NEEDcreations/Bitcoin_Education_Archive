@@ -1867,6 +1867,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'tickets_only': 0,            // Tickets only (no points)
         'feedback': 5,                // Feedback bonus
         'tctv_watch_10m': 10,          // Timechain TV: 10 points per 10 minutes watched (cooldown enforced)
+        'quiz_correct': 10,            // Nacho Mode quiz correct answer
     };
 
     // Look up max allowed points for this action using keyword matching
@@ -1914,6 +1915,7 @@ exports.awardPoints = functions.https.onCall(async (data, context) => {
         'tickets_only': ['tickets_only'],
         'feedback': ['feedback'],
         'tctv_watch_10m': ['tctv_watch', 'timechain tv', 'watching timechain'],
+        'quiz_correct': ['quiz correct', 'quiz_correct', '🎮 quiz'],
     };
 
     let pts = 0;

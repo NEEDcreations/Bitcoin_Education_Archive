@@ -2012,8 +2012,9 @@ window.nachoQuizAnswer = function(btn, correct) {
         btn.style.color = '#fff';
         btn.style.borderColor = '#22c55e';
         btn.style.opacity = '1';
+        // awardPoints() fires its own toast on CF success — don't double-toast here.
+        // If CF fails (network/cap), awardPoints() surfaces that too.
         if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!');
-        if (typeof showToast === 'function') showToast('🎮 +10 pts — Quiz correct!');
         var resultDiv = document.createElement('div');
         resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
         resultDiv.textContent = '✅ Correct! +10 pts';

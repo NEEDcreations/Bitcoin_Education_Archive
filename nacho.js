@@ -1843,8 +1843,8 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
         result.style.cssText = 'margin-top:6px;font-size:0.8rem;font-weight:700;color:#22c55e;';
         result.textContent = '✅ Correct! +5 pts';
         container.appendChild(result);
+        // awardPoints() fires its own toast on CF success — don't double-toast here.
         if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
-        if (typeof showToast === 'function') showToast('🎮 +5 pts — Quiz correct!');
         if (typeof haptic === 'function') haptic('success');
     } else {
         btn.style.background = '#ef4444';
