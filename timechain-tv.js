@@ -2290,7 +2290,6 @@ var STATIONS = [
                 {"id":"KYXgxhyAiwk","title":"Dax - Oliver Anthony \\\"Rich Men North Of Richmond\\\" Remix [Official Video]","duration":183},
                 {"id":"l5-gja10qkw","title":"Highly Suspect - My Name Is Human [Official Video]","duration":259},
                 {"id":"28PadE9ARDg","title":"MusicSnake - Cold Storage [Hardware Wallet Crypto Song]","duration":206},
-                {"id":"6Ub0zbvmzNc","title":"LUCHA CONTRA EL FUD! #Bitcoin","duration":110},
                 {"id":"X_hcqAJS6sw","title":"Tatiana Moroz - Playin' The Cards","duration":553},
                 {"id":"BifVGcvJpxc","title":"WAGMI","duration":115},
                 {"id":"dUU7qGCQHmU","title":"Goldfinger - Open Your Eyes (Live Mtv)","duration":172},
