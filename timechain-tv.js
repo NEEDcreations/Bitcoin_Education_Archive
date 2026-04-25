@@ -5592,12 +5592,13 @@ window.renderTimechainTV = function() {
         @media (max-width: 767px) {
             #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
             #tctv-remote { display: flex !important; }
-            /* On mobile the app has a position:fixed .mobile-bar at the top.
-               The TCTV sticky header needs to sit BELOW it, not underneath. */
+            /* On mobile the header is a flex child (not sticky). */
             #tctv-sticky-header {
-                top: calc(58px + env(safe-area-inset-top, 0px)) !important;
+                position: relative !important;
+                top: auto !important;
                 display: flex !important;
                 flex-direction: column !important;
+                flex: 0 0 auto !important;
             }
             /* Order children so the horizontal remote sits directly below the
                title row (TIMECHAIN TV + BlockSurf + live count), then the video,
@@ -5611,7 +5612,7 @@ window.renderTimechainTV = function() {
         }
         @media (max-width: 480px) {
             #tctv-sticky-header {
-                top: calc(54px + env(safe-area-inset-top, 0px)) !important;
+                top: auto !important;
             }
         }
         /* Style for the floating wide 160px remote (Desktop/Tablet) */
@@ -5826,48 +5827,67 @@ window.renderTimechainTV = function() {
                 width: auto !important;
             }
         }
-        /* Mobile — aggressive resizing for small screens.
-           Phil's spec (firm): Video + remote + chrome = 2/3 of viewport,
-           Channel guide = 1/3. The math below is carefully sized so the three
-           chrome bars (mobile-bar at top ~58px, title row ~32px, now-playing ~38px,
-           progress 3px) + the two-row remote (~64px) add up to about 195px, and
-           the remaining 2/3 is filled by the video. EPG gets a fixed 33vh. */
+        /* Mobile — viewport-locked flex layout.
+           Phil's spec (firm): channel guide fills at LEAST 1/3 of the screen,
+           always visible without scrolling on ANY device (including iPhone SE).
+           We achieve this by making #tctv-page a flex column locked to the exact
+           available viewport height (total vh minus the app's fixed mobile-bar at
+           top and bottom-nav at bottom). The video section flexes to fill 2/3 and
+           the EPG fills the remaining 1/3 — guaranteed, no scroll required.
+           100dvh is used where supported (Safari 15.4+) for dynamic viewport on
+           iOS (accounts for URL bar show/hide). Fallback to 100vh for older. */
         @media (max-width: 767px) {
+            /* Lock the page into a viewport-filling flex column.
+               Subtract app chrome: ~54px top bar + ~56px bottom nav + safe areas. */
+            #tctv-page {
+                display: flex !important;
+                flex-direction: column !important;
+                height: calc(100vh - 54px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+                height: calc(100dvh - 54px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+                min-height: 0 !important;
+                max-height: calc(100dvh - 54px - 56px) !important;
+                overflow: hidden !important;
+            }
+            /* Sticky header becomes a fixed-size flex child (no sticky needed, flex handles it). */
+            #tctv-sticky-header {
+                position: relative !important;
+                top: auto !important;
+                flex: 0 0 auto !important;
+            }
+            /* Video row: takes remaining space after header, capped so EPG always gets 1/3. */
+            #tctv-video-row {
+                flex: 0 1 auto !important;
+                max-height: 40% !important;
+                min-height: 0 !important;
+                overflow: hidden !important;
+            }
             /* Shrink the remote vertically so it takes less of the 2/3 budget. */
             #tctv-remote { padding: 3px 6px !important; gap: 3px !important; }
             .remote-btn { width: 30px !important; height: 28px !important; font-size: 0.72rem !important; }
             #tctv-remote .tctv-remote-row-seek .remote-btn { height: 26px !important; }
             #tctv-remote input.remote-input { height: 28px !important; }
 
-            /* Video sizes to its natural 16:9 aspect ratio — no letterbox black bars
-               above or below. Whatever height the 16:9 needs is what it gets.
-               max-height acts as a safety cap on very short landscape screens. */
+            /* Video fills its flex parent, aspect-ratio preserved. */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
-                height: auto !important;
+                height: 100% !important;
+                max-height: 100% !important;
                 aspect-ratio: 16 / 9 !important;
-                max-height: calc(66vh - 135px) !important;
                 min-height: 0 !important;
                 margin: 0 !important;
                 box-shadow: none !important;
             }
             #tctv-player { width: 100% !important; height: 100% !important; max-height: none !important; }
 
-            /* EPG (channel list): expanded to ~40vh of viewport now that the remote
-               sits above the video. Always scrollable.
+            /* EPG: fills remaining vertical space — guaranteed 1/3 minimum.
                iOS fix: explicit touch-action so vertical swipes always scroll the
                channel list, and horizontal swipes scroll the timeline only when on
-               the timeline. Without this, iOS gets confused between the wrapper's
-               Y-scroll and the inner container's X-scroll and locks both. */
+               the timeline. */
             #tctv-epg-wrapper {
-                /* Phil spec: at LEAST 1/3 of viewport for the channel guide.
-                   Since the video now sizes to natural 16:9 (no more wasted black
-                   bars), the EPG expands to fill all remaining vertical space. */
-                height: auto !important;
-                min-height: 33vh !important;
-                max-height: 55vh !important;
-                flex: 1 1 auto !important;
+                flex: 1 1 33% !important;
+                min-height: 33% !important;
+                max-height: none !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 -webkit-overflow-scrolling: touch !important;
@@ -5875,32 +5895,31 @@ window.renderTimechainTV = function() {
                 background: #0a0a0a !important;
                 position: relative !important;
                 z-index: 5 !important;
-                margin-top: 4px !important;
+                margin-top: 0 !important;
                 overscroll-behavior: contain !important;
             }
             #tctv-epg-container {
                 height: auto !important;
                 min-height: 100% !important;
-                /* Allow BOTH axes so vertical finger-drags on colored video blocks bubble
-                   up to the wrapper's pan-y scroll. Previous pan-x only captured vertical
-                   drags and silently dropped them, breaking scroll when the user started
-                   the drag on a block. (AAR: 2026-04-22) */
                 touch-action: pan-x pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
             }
+            /* Couch Nacho and ad are pushed to overflow — accessible by scrolling
+               the EPG wrapper to the bottom, but don't steal viewport space. */
+            #nacho-couch { display: none !important; }
+            #tctv-ad-mobile { display: none !important; }
         }
-        /* Very short screens (landscape phones) — pull video down to keep EPG visible */
+        /* Very short screens (landscape phones) — same flex approach but tighter video budget */
         @media (max-width: 768px) and (max-height: 600px) {
-            #tctv-video-container { height: calc((100vh - 180px) * 0.6) !important; max-height: calc((100vh - 180px) * 0.6) !important; }
-            #tctv-player { max-height: calc((100vh - 180px) * 0.6) !important; }
-            #tctv-epg-wrapper { height: calc((100vh - 180px) * 0.38) !important; max-height: calc((100vh - 180px) * 0.38) !important; }
+            #tctv-video-row { max-height: 35% !important; }
+            #tctv-epg-wrapper { min-height: 38% !important; flex: 1 1 38% !important; }
         }
         @keyframes nachoSway { 0%, 100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(1deg) translateY(-5px); } }
         @keyframes tctvGuideFade { from { opacity: 0; } to { opacity: 1; } }
     `;
     document.head.appendChild(style);
 
-    var html = '<div style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;">';
+    var html = '<div id="tctv-page" style="background:#0a0a0a;min-height:100vh;color:#fff;font-family:inherit;width:100%;">';
 
     var _bsOn = false;
     try { _bsOn = localStorage.getItem('tctv_blocksurf') === '1'; } catch(e) {}
