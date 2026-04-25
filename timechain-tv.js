@@ -5758,10 +5758,22 @@ window.renderTimechainTV = function() {
                 font-size: 1.3rem !important;
             }
         }
-        /* Hide the floating sprite Nacho toggle whenever TCTV is the active page. */
+        /* Hide floating UI elements that steal space during TCTV. */
         body.tctv-active #nacho-toggle,
         body.tctv-active #nacho-container {
             display: none !important;
+        }
+        body.tctv-active #lbFloatBtn {
+            display: none !important;
+        }
+        body.tctv-active #guestPointsBanner {
+            display: none !important;
+        }
+        @media (max-width: 767px) {
+            body.tctv-active #bottomNav,
+            body.tctv-active .mobile-bar {
+                display: none !important;
+            }
         }
         /* Tablets and Laptops — Shrink video to leave vertical room for channel scrolling.
            Previously 66vh video + 33vh EPG = all 21 channels crammed into 33vh. Now the
@@ -5838,15 +5850,19 @@ window.renderTimechainTV = function() {
            iOS (accounts for URL bar show/hide). Fallback to 100vh for older. */
         @media (max-width: 767px) {
             /* Lock the page into a viewport-filling flex column.
-               Subtract app chrome: ~54px top bar + ~56px bottom nav + safe areas. */
+               Both .mobile-bar and #bottomNav are hidden via tctv-active,
+               so the page gets the full viewport. Only subtract safe areas. */
             #tctv-page {
                 display: flex !important;
                 flex-direction: column !important;
-                height: calc(100vh - 54px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
-                height: calc(100dvh - 54px - 56px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+                height: 100vh !important;
+                height: 100dvh !important;
                 min-height: 0 !important;
-                max-height: calc(100dvh - 54px - 56px) !important;
+                max-height: 100dvh !important;
                 overflow: hidden !important;
+                padding-top: env(safe-area-inset-top, 0px) !important;
+                padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+                box-sizing: border-box !important;
             }
             /* Sticky header becomes a fixed-size flex child (no sticky needed, flex handles it). */
             #tctv-sticky-header {

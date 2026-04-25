@@ -1593,13 +1593,15 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
 
             // Server-side points sanity check: max 500 pts/day × account age + 2100 (scholar)
             // Uses Firebase Auth metadata (immutable) — NOT client-writable Firestore field
+            // Points sanity check — log suspicious but do NOT block claims.
+            // All other rules (cooldown, lifetime cap, daily cap, min channels, min age)
+            // still enforce. Phil: "as long as all rules are followed, allow it." (2026-04-25)
             {
                 const authCreation = new Date(userRecord.metadata.creationTime);
                 const accountDays = Math.max(1, Math.floor((Date.now() - authCreation.getTime()) / 86400000));
                 const maxReasonablePoints = (accountDays * 500) + 2100;
                 if (userPoints > maxReasonablePoints) {
-                    console.error('[FAUCET] SUSPICIOUS: uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account (auth creation: ' + userRecord.metadata.creationTime + ')');
-                    throw new Error('Points balance flagged for review. Contact support.');
+                    console.error('[FAUCET] SUSPICIOUS (allowed): uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account (auth creation: ' + userRecord.metadata.creationTime + ')');
                 }
             }
 
