@@ -5551,6 +5551,9 @@ window.renderTimechainTV = function() {
     _isPaused = false;
     // Add body class so CSS can hide non-TCTV chrome on mobile (sign-up banner etc.)
     document.body.classList.add('tctv-active');
+    // Shrink leaderboard FAB to just 🏆 so it doesn't cover the channel guide
+    var _lbFab = document.getElementById('lbFloatBtn');
+    if (_lbFab) { _lbFab._origText = _lbFab.innerHTML; _lbFab.innerHTML = '\ud83c\udfc6'; }
     if (typeof _tctvHideSpriteNacho === 'function') _tctvHideSpriteNacho();
     // Resume BlockSurf poller if user had it enabled last session.
     if (typeof window._blockSurfMaybeResume === 'function') window._blockSurfMaybeResume();
@@ -5764,7 +5767,10 @@ window.renderTimechainTV = function() {
             display: none !important;
         }
         body.tctv-active #lbFloatBtn {
-            display: none !important;
+            padding: 10px 12px !important;
+            min-width: 0 !important;
+            font-size: 1.1rem !important;
+            line-height: 1 !important;
         }
         body.tctv-active #guestPointsBanner {
             display: none !important;
@@ -6524,6 +6530,9 @@ window.cleanupTimechainTV = function() {
     _np = { stationId: null, videoId: null, videoTitle: null };
     window._tctvActive = false;
     document.body.classList.remove('tctv-active');
+    // Restore leaderboard FAB text
+    var _lbFab = document.getElementById('lbFloatBtn');
+    if (_lbFab && _lbFab._origText) { _lbFab.innerHTML = _lbFab._origText; }
     var s = document.getElementById('tctv-remote-styles');
     if (s) s.remove();
     if (typeof _tctvRestoreSpriteNacho === 'function') _tctvRestoreSpriteNacho();
