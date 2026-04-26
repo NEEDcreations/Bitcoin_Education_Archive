@@ -4105,6 +4105,23 @@ function _blockSurfSurfNow(h) {
             showToast('🏄 New block #' + h + ' — surfing to ' + next.emoji + ' ' + next.name);
         }
         if (typeof window.switchStation === 'function') window.switchStation(next.id);
+        // Force now-playing re-render after channel noise clears (1s).
+        // switchStation sets _np immediately, but the noise overlay may cause
+        // the DOM update to appear stale on some devices. Re-rendering after
+        // the overlay fades guarantees the user sees the correct info.
+        setTimeout(function() {
+            try {
+                var st = STATIONS.find(function(s) { return s.id === window._currentStation; });
+                if (st) {
+                    var ps = getPlaybackState(st);
+                    if (ps && ps.video) {
+                        // Bypass the _setNP early-return by resetting _np first
+                        window._np = { stationId: null, videoId: null, videoTitle: null };
+                        _setNP(st.id, ps.video);
+                    }
+                }
+            } catch(e) {}
+        }, 1200);
     } catch(e) { /* swallow */ }
 }
 
