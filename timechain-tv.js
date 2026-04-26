@@ -5933,6 +5933,7 @@ window.renderTimechainTV = function() {
             #tctv-np-bar {
                 flex: 0 0 auto !important;
                 padding: 4px 10px !important;
+                margin-top: auto !important;
             }
             #tctv-np-bar * { font-size: 0.7rem !important; }
             #tctv-np-bar #tctv-now-playing { font-size: 0.75rem !important; }
