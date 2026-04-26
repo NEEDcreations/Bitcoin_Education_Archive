@@ -47,8 +47,50 @@ if [ -f sw.js ]; then
     fi
 fi
 
+# Auto-bump cache-busters for lazy-loaded files that were modified.
+# Compares each file to its last committed version; if changed, stamps
+# a fresh ?v=YYYYMMDD_HHMM suffix in index.html.
+DEPLOY_STAMP=$(date -u +%Y%m%d_%H%M)
+LAZY_FILES="timechain-tv.js nacho-qa.js scholar.js beats.js irl-sync.js pvp.js onboarding.js global-chat.js lightning.js lightning-tips.js notifications.js"
+for LFILE in $LAZY_FILES; do
+    if [ -f "$LFILE" ] && ! git diff --quiet HEAD -- "$LFILE" 2>/dev/null; then
+        OLD_BUSTER=$(grep -oP "${LFILE}\\?v=\\K[^ \"']+" index.html | head -1)
+        if [ -n "$OLD_BUSTER" ]; then
+            sed -i "s|${LFILE}?v=${OLD_BUSTER}|${LFILE}?v=${DEPLOY_STAMP}|g" index.html
+            echo "  🔄 ${LFILE}: v=${OLD_BUSTER} -> v=${DEPLOY_STAMP}"
+        fi
+    fi
+done
+
+# Also auto-bump bundle.js cache-buster if modified
+if [ -f bundle.js ] && ! git diff --quiet HEAD -- bundle.js 2>/dev/null; then
+    OLD_BB=$(grep -oP 'bundle\.js\?v=\K[^ "]+' index.html | head -1)
+    if [ -n "$OLD_BB" ]; then
+        sed -i "s|bundle.js?v=${OLD_BB}|bundle.js?v=${DEPLOY_STAMP}|g" index.html
+        echo "  🔄 bundle.js: v=${OLD_BB} -> v=${DEPLOY_STAMP}"
+    fi
+fi
+
 # Copy index to 404
 cp index.html 404.html
+
+# ---- Verify cache-busters are fresh (safety net) ----
+# Check that no lazy-loaded file has a stale buster from a previous deploy
+BUSTER_FAIL=0
+for LFILE in $LAZY_FILES; do
+    if [ -f "$LFILE" ] && ! git diff --quiet HEAD -- "$LFILE" 2>/dev/null; then
+        CURRENT_B=$(grep -oP "${LFILE}\\?v=\\K[^ \"']+" index.html | head -1)
+        if [ "$CURRENT_B" != "$DEPLOY_STAMP" ]; then
+            echo "  STALE: ${LFILE}?v=${CURRENT_B} (expected ${DEPLOY_STAMP})"
+            BUSTER_FAIL=1
+        fi
+    fi
+done
+if [ $BUSTER_FAIL -eq 1 ]; then
+    echo "Cache-buster verification FAILED. Fix index.html before deploying."
+    exit 1
+fi
+echo "Cache-busters verified."
 
 # Stage all changes
 git add -A
