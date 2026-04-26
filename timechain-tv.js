@@ -5597,20 +5597,18 @@ window.renderTimechainTV = function() {
         @media (max-width: 767px) {
             #tctv-ad-sidebar, #tctv-remote-sidebar { display: none !important; }
             #tctv-remote { display: flex !important; }
-            /* On mobile the header is a flex child (not sticky). */
+            /* On mobile the header is a capped flex child (not sticky).
+               flex/max-height set in the main mobile block below. */
             #tctv-sticky-header {
                 position: relative !important;
                 top: auto !important;
-                display: flex !important;
-                flex-direction: column !important;
-                flex: 0 0 auto !important;
             }
             /* Order children so the horizontal remote sits directly below the
                title row (TIMECHAIN TV + BlockSurf + live count), then the video,
                then Now Playing and progress. The sticky header's first child is
                the title row — pin it to order:-2, remote to order:-1, everything
                else defaults to 0 in source order. */
-            #tctv-sticky-header > div:first-child { order: -2 !important; }
+            #tctv-sticky-header > div:first-child { order: -2 !important; flex: 0 0 auto !important; }
             #tctv-remote { order: -1 !important; margin: 0 !important; border-bottom: 1px solid #222 !important; background: #0a0a0a !important; }
             #tctv-video-row { padding: 0 !important; gap: 0 !important; }
             #tctv-video-container { border-radius: 0 !important; }
@@ -5872,21 +5870,35 @@ window.renderTimechainTV = function() {
                 padding-bottom: env(safe-area-inset-bottom, 0px) !important;
                 box-sizing: border-box !important;
             }
-            /* Sticky header becomes a fixed-size flex child (no sticky needed, flex handles it). */
+            /* Sticky header becomes a capped flex child — holds title, remote,
+               video, now-playing, and progress. Capped at 67% so EPG always
+               gets its 33%. Uses flex-column internally so the video row
+               shrinks when the header hits its max. */
             #tctv-sticky-header {
                 position: relative !important;
                 top: auto !important;
-                flex: 0 0 auto !important;
+                flex: 1 1 67% !important;
+                max-height: 67% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+                min-height: 0 !important;
             }
-            /* Video row: takes remaining space after header, capped so EPG always gets 1/3. */
+            /* Video row: fills remaining space inside the header after
+               title bar, remote, now-playing and progress take their share.
+               overflow:hidden clips the video cleanly at the row boundary
+               so it never bleeds under now-playing. */
             #tctv-video-row {
-                flex: 0 1 auto !important;
-                max-height: 40% !important;
+                flex: 1 1 auto !important;
                 min-height: 0 !important;
                 overflow: hidden !important;
             }
+            /* Now-playing bar, progress, and remote are fixed-height.
+               Only the video row flexes/shrinks inside the header. */
+            #tctv-np-bar { flex: 0 0 auto !important; padding: 6px 12px !important; }
+            #tctv-progress-bar { flex: 0 0 3px !important; }
             /* Shrink the remote vertically so it takes less of the 2/3 budget. */
-            #tctv-remote { padding: 3px 6px !important; gap: 3px !important; }
+            #tctv-remote { padding: 3px 6px !important; gap: 3px !important; flex: 0 0 auto !important; }
             .remote-btn { width: 30px !important; height: 28px !important; font-size: 0.72rem !important; }
             #tctv-remote .tctv-remote-row-seek .remote-btn { height: 26px !important; }
             #tctv-remote input.remote-input { height: 28px !important; }
@@ -6029,9 +6041,9 @@ window.renderTimechainTV = function() {
             '</div>' +
             '</div></div>';
     html += '</div>';
-    html += '<div style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING <span id="tctv-now-ch" style="color:#aaa;"></span></div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
+    html += '<div id="tctv-np-bar" style="padding:10px 16px;background:#161616;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center;"><div style="flex:1;min-width:0;"><div style="font-size:0.65rem;color:#f7931a;font-weight:700;text-transform:uppercase;letter-spacing:1px;">NOW PLAYING <span id="tctv-now-ch" style="color:#aaa;"></span></div><div id="tctv-now-playing" style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ddd;">Loading...</div></div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><div id="tctv-time-left" style="font-size:0.75rem;color:#888;font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;"></div></div></div>';
-    html += '<div style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
+    html += '<div id="tctv-progress-bar" style="height:3px;background:#222;"><div id="tctv-progress" style="height:100%;background:#f7931a;width:0%;transition:width 1s linear;"></div></div>';
 
     // Mobile Remote - horizontal bar below video/progress, inside sticky header
     html += '<div id="tctv-remote">' +
