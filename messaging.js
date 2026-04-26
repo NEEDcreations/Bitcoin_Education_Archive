@@ -845,12 +845,48 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         sendNotification(recipientUid, 'dm', '💬 New message from @' + myName, 'dm', convoId);
     }
 
+    // Optimistic UI — show the sent message immediately (before Firestore round-trip).
+    // This is critical for NEW conversations where the onSnapshot listener errored
+    // on permissions (conversation doc didn't exist yet), so no live update will come.
+    var container = document.getElementById('dmMessages');
+    if (container) {
+        // Clear the "Start a conversation!" placeholder if present
+        var placeholder = container.querySelector('div[style*="text-align:center"]');
+        if (placeholder && container.children.length === 1) container.innerHTML = '';
+        var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        var dateStr = new Date().toLocaleDateString();
+        // Date separator if needed
+        var lastDateEl = container.querySelector('div[data-dm-date]:last-of-type');
+        var lastDate = lastDateEl ? lastDateEl.getAttribute('data-dm-date') : '';
+        if (dateStr !== lastDate) {
+            container.innerHTML += '<div data-dm-date="' + dateStr + '" style="text-align:center;color:var(--text-faint);font-size:0.7rem;margin:12px 0 8px;">' + dateStr + '</div>';
+        }
+        container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
+            '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
+                escapeHtml(text) +
+                '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
+            '</div></div>';
+        container.scrollTop = container.scrollHeight;
+    }
+
     // Update conversation metadata + add message
     convoRef.set(convoData, { merge: true }).then(function() {
         return convoRef.collection('messages').add(msgData);
+    }).then(function() {
+        // Re-subscribe the listener now that the conversation doc exists.
+        // This handles the case where the initial onSnapshot errored on a
+        // new conversation (Firestore rules need the conversation doc to
+        // exist for read access). The listener will replace optimistic
+        // messages with the real Firestore data.
+        if (container && document.getElementById('dmMessages')) {
+            loadDMMessages(convoId, myUid, recipientUid, recipientName);
+        }
     }).catch(function(err) {
         console.error('DM send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.code || err.message || 'Unknown error'));
+        // Remove optimistic message on failure
+        var opt = container && container.querySelector('[data-optimistic]');
+        if (opt) opt.remove();
     });
 };
 
