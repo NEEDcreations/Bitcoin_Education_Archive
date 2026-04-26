@@ -5636,9 +5636,9 @@ window.renderTimechainTV = function() {
                then Now Playing and progress. The sticky header's first child is
                the title row — pin it to order:-2, remote to order:-1, everything
                else defaults to 0 in source order. */
-            #tctv-sticky-header > div:first-child { order: -2 !important; flex: 0 0 auto !important; }
+            #tctv-sticky-header > div:first-child { order: -2 !important; flex: 0 0 auto !important; padding: 6px 12px !important; }
             #tctv-remote { order: -1 !important; margin: 0 !important; border-bottom: 1px solid #222 !important; background: #0a0a0a !important; }
-            #tctv-video-row { padding: 0 !important; gap: 0 !important; }
+            #tctv-video-row { padding: 0 !important; gap: 0 !important; align-items: stretch !important; }
             #tctv-video-container { border-radius: 0 !important; }
         }
         @media (max-width: 480px) {
@@ -5810,6 +5810,11 @@ window.renderTimechainTV = function() {
             body.tctv-active .mobile-bar {
                 display: none !important;
             }
+            /* Zero out the <main> padding that normally clears the fixed mobile-bar.
+               Without this, there's a white gap at the top of the TCTV page. */
+            body.tctv-active main {
+                padding-top: 0 !important;
+            }
         }
         /* Tablets and Laptops — Shrink video to leave vertical room for channel scrolling.
            Previously 66vh video + 33vh EPG = all 21 channels crammed into 33vh. Now the
@@ -5896,8 +5901,8 @@ window.renderTimechainTV = function() {
                 min-height: 0 !important;
                 max-height: 100dvh !important;
                 overflow: hidden !important;
-                padding-top: env(safe-area-inset-top, 0px) !important;
-                padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+                padding: 0 !important;
+                margin: 0 !important;
                 box-sizing: border-box !important;
             }
             /* Sticky header becomes a capped flex child — holds title, remote,
@@ -5925,7 +5930,12 @@ window.renderTimechainTV = function() {
             }
             /* Now-playing bar, progress, and remote are fixed-height.
                Only the video row flexes/shrinks inside the header. */
-            #tctv-np-bar { flex: 0 0 auto !important; padding: 6px 12px !important; }
+            #tctv-np-bar {
+                flex: 0 0 auto !important;
+                padding: 4px 10px !important;
+            }
+            #tctv-np-bar * { font-size: 0.7rem !important; }
+            #tctv-np-bar #tctv-now-playing { font-size: 0.75rem !important; }
             #tctv-progress-bar { flex: 0 0 3px !important; }
             /* Shrink the remote vertically so it takes less of the 2/3 budget. */
             #tctv-remote { padding: 3px 6px !important; gap: 3px !important; flex: 0 0 auto !important; }
@@ -5933,16 +5943,19 @@ window.renderTimechainTV = function() {
             #tctv-remote .tctv-remote-row-seek .remote-btn { height: 26px !important; }
             #tctv-remote input.remote-input { height: 28px !important; }
 
-            /* Video fills its flex parent, aspect-ratio preserved. */
+            /* Video fills its entire flex allocation — no aspect-ratio
+               constraint so there's zero dead space. YouTube will letterbox
+               if the video doesn't match the container shape. */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
                 height: 100% !important;
                 max-height: 100% !important;
-                aspect-ratio: 16 / 9 !important;
+                aspect-ratio: auto !important;
                 min-height: 0 !important;
                 margin: 0 !important;
                 box-shadow: none !important;
+                border-radius: 0 !important;
             }
             #tctv-player { width: 100% !important; height: 100% !important; max-height: none !important; }
 
