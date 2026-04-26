@@ -5459,6 +5459,9 @@ function updateTimeline() {
         var nowLineTargetPx = containerWidth * 0.25;
         var shiftX = nowLineTargetPx - nowOffsetPx;
         slider.style.transform = 'translateX(' + shiftX + 'px)';
+        // Sync the sticky time header slider with the main EPG slider
+        var timeSlider = document.getElementById('tctv-time-slider');
+        if (timeSlider) timeSlider.style.transform = 'translateX(' + shiftX + 'px)';
     }
 
     // Refresh block colors tracker
@@ -5494,13 +5497,28 @@ function _renderEPG() {
     var gridStartMs = nowMs - (60 * 60 * 1000);
     window._tctvGridStartMs = gridStartMs;
 
-    var html = '<div id="tctv-epg-wrapper" style="padding:8px 0 0;">';
-    // Extra bottom padding so the last channel is fully scrollable on iOS Safari
-    // where the home indicator / toolbar eats into 100dvh.
+    var html = '<div id="tctv-epg-wrapper" style="padding:0;">';
+
+    // Sticky time header row — stays visible while scrolling through channels.
+    // The inner slider syncs its translateX with the main EPG slider in updateTimeline.
+    html += '<div id="tctv-time-row" style="position:sticky;top:0;z-index:20;display:flex;background:#0a0a0a;border-bottom:1px solid #333;">';
+    html += '<div style="width:160px;flex-shrink:0;background:#0a0a0a;border-right:1px solid #222;"></div>';
+    html += '<div style="flex:1;overflow:hidden;position:relative;height:24px;">';
+    html += '<div id="tctv-time-slider" style="position:absolute;top:0;left:0;height:100%;transition:transform 1s linear;">';
+    for (var i = 0; i < 13; i++) {
+        var markMs = gridStartMs - (gridStartMs % 1800000) + (i * 1800000);
+        var markX = ((markMs - gridStartMs) / 60000) * 10;
+        var d = new Date(markMs);
+        var h = d.getHours(), m = d.getMinutes();
+        var label = (h % 12 || 12) + ":" + (m < 10 ? '0' : '') + m + (h >= 12 ? ' PM' : ' AM');
+        html += '<div style="position:absolute;left:' + markX + 'px;top:0;font-size:0.6rem;color:#777;font-weight:700;border-left:1px solid #333;padding-left:4px;height:24px;line-height:24px;">' + label + '</div>';
+    }
+    html += '</div></div></div>';
+
+    // Channel rows: labels left + timeline right
     html += '<div style="display:flex;position:relative;background:#0a0a0a;">';
 
     html += '<div style="width:160px;flex-shrink:0;z-index:10;background:#0a0a0a;border-right:1px solid #222;">';
-    html += '<div style="height:24px;"></div>';
     STATIONS.forEach(function(s, idx) {
         var isActive = s.id === _currentStation;
         html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:54px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.12)' : 'transparent') + ';">';
@@ -5515,16 +5533,6 @@ function _renderEPG() {
 
     html += '<div id="tctv-epg-container" style="flex:1;overflow-x:auto;overflow-y:hidden;position:relative;background:#0a0a0a;cursor:grab;-webkit-overflow-scrolling: touch;">';
     html += '<div id="tctv-epg-slider" style="position:absolute;top:0;left:0;height:100%;transition:transform 1s linear;">';
-    html += '<div style="height:24px;position:relative;border-bottom:1px solid #333;display:flex;">';
-    for (var i = 0; i < 13; i++) {
-        var markMs = gridStartMs - (gridStartMs % 1800000) + (i * 1800000);
-        var markX = ((markMs - gridStartMs) / 60000) * 10;
-        var d = new Date(markMs);
-        var h = d.getHours(), m = d.getMinutes();
-        var label = (h % 12 || 12) + ":" + (m < 10 ? '0' : '') + m + (h >= 12 ? ' PM' : ' AM');
-        html += '<div style="position:absolute;left:' + markX + 'px;top:0;font-size:0.6rem;color:#777;font-weight:700;border-left:1px solid #333;padding-left:4px;height:24px;line-height:24px;">' + label + '</div>';
-    }
-    html += '</div>';
 
     STATIONS.forEach(function(s) {
         html += '<div onclick="switchStation(\'' + s.id + '\')" style="height:54px;position:relative;border-bottom:1px solid #1a1a1a;">';
