@@ -5925,7 +5925,7 @@ window.renderTimechainTV = function() {
                so it never bleeds under now-playing. */
             #tctv-video-row {
                 flex: 1 1 auto !important;
-                min-height: 0 !important;
+                min-height: 80px !important;
                 overflow: hidden !important;
             }
             /* Now-playing bar, progress, and remote are fixed-height.
@@ -5943,15 +5943,14 @@ window.renderTimechainTV = function() {
             #tctv-remote .tctv-remote-row-seek .remote-btn { height: 26px !important; }
             #tctv-remote input.remote-input { height: 28px !important; }
 
-            /* Video fills its entire flex allocation — no aspect-ratio
-               constraint so there's zero dead space. YouTube will letterbox
-               if the video doesn't match the container shape. */
+            /* Video: 16:9 aspect ratio but clipped by the parent's overflow:hidden
+               so it never pushes other elements out. The container may be taller
+               than 16:9 allows — YouTube fills the extra space with black bars. */
             #tctv-video-container {
                 width: 100% !important;
                 max-width: 100% !important;
                 height: 100% !important;
                 max-height: 100% !important;
-                aspect-ratio: auto !important;
                 min-height: 0 !important;
                 margin: 0 !important;
                 box-shadow: none !important;
@@ -5991,6 +5990,8 @@ window.renderTimechainTV = function() {
                the EPG wrapper to the bottom, but don't steal viewport space. */
             #nacho-couch { display: none !important; }
             #tctv-ad-mobile { display: none !important; }
+            #tctv-disclaimer { display: none !important; }
+            #tctv-disclaimer + div { display: none !important; }
         }
         /* Very short screens (landscape phones) — same flex approach but tighter video budget */
         @media (max-width: 768px) and (max-height: 600px) {
@@ -6143,7 +6144,7 @@ window.renderTimechainTV = function() {
         '<button id="tctv-ad-restore-mobile" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:8px auto;" title="Show ad">\ud83d\udcfa</button>' +
         '</div>';
     // Legal disclaimer — very dim, bottom of TCTV, applies to all channel content
-    html += '<div style="max-width:720px;margin:18px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:#555;text-align:center;letter-spacing:0.2px;opacity:0.65;">' +
+    html += '<div id="tctv-disclaimer" style="max-width:720px;margin:18px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:#555;text-align:center;letter-spacing:0.2px;opacity:0.65;">' +
         '<div style="font-weight:700;font-size:0.58rem;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">Disclaimer</div>' +
         'Timechain TV aggregates publicly embeddable videos from third-party YouTube channels. Bitcoin Education Archive does not own, host, endorse, or verify any of the content shown. Views and opinions expressed belong solely to the original creators. ' +
         'Nothing on Timechain TV constitutes financial, investment, legal, or tax advice. Bitcoin is volatile and you can lose money — do your own research and consult licensed professionals before making any financial decisions. ' +
