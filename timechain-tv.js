@@ -5475,6 +5475,8 @@ function _renderEPG() {
     window._tctvGridStartMs = gridStartMs;
 
     var html = '<div id="tctv-epg-wrapper" style="padding:8px 0 0;">';
+    // Extra bottom padding so the last channel is fully scrollable on iOS Safari
+    // where the home indicator / toolbar eats into 100dvh.
     html += '<div style="display:flex;position:relative;background:#0a0a0a;">';
 
     html += '<div style="width:160px;flex-shrink:0;z-index:10;background:#0a0a0a;border-right:1px solid #222;">';
@@ -5919,6 +5921,10 @@ window.renderTimechainTV = function() {
                 z-index: 5 !important;
                 margin-top: 0 !important;
                 overscroll-behavior: contain !important;
+                /* Extra bottom padding so the last channel scrolls past iOS Safari
+                   bottom chrome (home indicator + toolbar). 80px covers the worst
+                   case (iPhone SE with full toolbar visible). */
+                padding-bottom: 80px !important;
             }
             #tctv-epg-container {
                 height: auto !important;
