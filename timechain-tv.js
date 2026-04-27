@@ -2427,6 +2427,7 @@ var STATIONS = [
                 {"id":"vyKA1pW0CBA","title":"BITCOIN \\\"ALL THE WAY UP\\\" - Remix - Music Video - The Dollar Vigilante feat  Freenauts & Jeff Berwick","duration":173},
                 {"id":"rDCrlgKGACo","title":"Anik The First - Be The Change (B.T.C.)","duration":209},
                 {"id":"zRDZFW4pBvw","title":"Crypto Boy ft. Lil Bubble (salem ilese TikTok duet)","duration":66},
+                {"id":"2PM-20RRUYY","title":"Salem ilese - Crypto Boy [Lyrics]","duration":144},
                 {"id":"S2hPUqdYqMs","title":"WHAT UP KING 👑 #bitcoin #music","duration":161},
                 {"id":"fG5PKg81mEQ","title":"ROBBIE P - FLIPONOMICS (MUSIC VIDEO)","duration":196},
                 {"id":"Rtc1KPPzbls","title":"F.I.A.S.O.M. Pt. 2","duration":170},
