@@ -5503,7 +5503,7 @@ function _renderEPG() {
     // The inner slider syncs its translateX with the main EPG slider in updateTimeline.
     html += '<div id="tctv-time-row" style="position:sticky;top:0;z-index:20;display:flex;background:#0a0a0a;border-bottom:1px solid #333;">';
     html += '<div style="width:160px;flex-shrink:0;background:#0a0a0a;border-right:1px solid #222;"></div>';
-    html += '<div style="flex:1;overflow:hidden;position:relative;height:24px;">';
+    html += '<div id="tctv-time-scroll" style="flex:1;overflow-x:auto;overflow-y:hidden;position:relative;height:24px;scrollbar-width:none;-ms-overflow-style:none;">';
     html += '<div id="tctv-time-slider" style="position:absolute;top:0;left:0;height:100%;transition:transform 1s linear;">';
     for (var i = 0; i < 13; i++) {
         var markMs = gridStartMs - (gridStartMs % 1800000) + (i * 1800000);
@@ -5730,6 +5730,8 @@ window.renderTimechainTV = function() {
             0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.9; }
             50% { transform: translateY(-50%) translateX(-3px); opacity: 1; }
         }
+        /* Hide scrollbar on the sticky time row */
+        #tctv-time-scroll::-webkit-scrollbar { display: none; }
         /* Keep the drag handle tappable too — redundant safety net */
         #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"] {
             pointer-events: auto;
@@ -6241,6 +6243,14 @@ window.renderTimechainTV = function() {
         }, { passive: true });
         epgC.addEventListener('touchend', cancelLongPress, { passive: true });
         epgC.addEventListener('touchcancel', cancelLongPress, { passive: true });
+
+        // Sync the sticky time header with manual horizontal scrolling.
+        // When the user drags/scrolls the EPG timeline left/right, the
+        // time row's container must scroll by the same amount.
+        epgC.addEventListener('scroll', function() {
+            var timeScroll = document.getElementById('tctv-time-scroll');
+            if (timeScroll) timeScroll.scrollLeft = epgC.scrollLeft;
+        }, { passive: true });
     })();
 
     _currentStation = activeStation;
