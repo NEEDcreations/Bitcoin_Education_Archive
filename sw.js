@@ -1,6 +1,6 @@
 // Bitcoin Education Archive - Service Worker v15
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-const CACHE_NAME = 'btc-archive-v790';
+const CACHE_NAME = 'btc-archive-v791';
 const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
@@ -89,9 +89,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // HTML/JS/CSS: network-first with cache fallback (ensures fresh deploys load immediately)
+  // HTML/JS/CSS: network-first with cache fallback.
+  // Use cache:'no-cache' so fetch() bypasses the browser HTTP cache and
+  // always validates with the server. This ensures ?v= cache-busters work
+  // even when the service worker intercepts the request. (Fix: 2026-04-27)
   event.respondWith(
-    fetch(event.request).then(response => {
+    fetch(event.request, { cache: 'no-cache' }).then(response => {
       if (response.ok) {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
