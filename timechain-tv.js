@@ -5778,8 +5778,8 @@ window.renderTimechainTV = function() {
             content: '◀';
             position: absolute;
             left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
+            top: 18px;
+            transform: none;
             color: #f7931a;
             font-size: 22px;
             font-weight: 900;
@@ -5788,8 +5788,8 @@ window.renderTimechainTV = function() {
             animation: tctvRemotePulse 2s ease-in-out infinite;
         }
         @keyframes tctvRemotePulse {
-            0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.8; }
-            50% { transform: translateY(-50%) translateX(-6px); opacity: 1; }
+            0%, 100% { transform: translateX(0); opacity: 0.8; }
+            50% { transform: translateX(-6px); opacity: 1; }
         }
         /* Hide scrollbar on the sticky time row */
         #tctv-time-scroll::-webkit-scrollbar { display: none; }
