@@ -861,7 +861,7 @@ var STATIONS = [
                 {"id":"xaj-CQntobU","title":"Everybody Buys Bitcoin at the Price They Deserve","duration":20},
                 {"id":"JsJSsbp9g3M","title":"Bitcoin Privacy is a Human Right","duration":255},
                 {"id":"6Tr4-DL1c1s","title":"Freedom Money: Der Gigi l Episode 1","duration":3092},
-                {"id":"6ArUlNTsooM","title":"Bitcoin must be secure against powerful adversaries. Not just "what if"","duration":41},
+                {"id":"6ArUlNTsooM","title":"Bitcoin must be secure against powerful adversaries. Not just \"what if\"","duration":41},
                 {"id":"JXTFPKmF3Fs","title":"We are all Satoshi.","duration":14},
                 {"id":"mDyBbGCiBUU","title":"Nic Carter: Bitcoin Core Values, Layered Scaling, and Blocksize Debates | Lex Fridman Podcast #173","duration":8835},
                 {"id":"Fa9AvF4jk1o","title":"UMBREL - How To Use Your Bitcoin and Lightning Node (NEW)","duration":3272},
@@ -879,7 +879,7 @@ var STATIONS = [
                 {"id":"KNaOeLlD6NA","title":"How To Build and Run a Bitcoin Node: Raspberry Pi & Umbrel","duration":1675},
                 {"id":"6BIAgpzmNGY","title":"Soundbite: What is money, and why do we need a parallel form of it in Bitcoin and/or Monero?","duration":52},
                 {"id":"fgAKXfVzc7c","title":"Start9 OS Bitcoin Node Tutorial - DIY Hardware, How To Set Up, Download & Why I Moved from Umbrel.","duration":827},
-                {"id":"nvBsNKsZ6uY","title":""From 10% to 50%\\\" The Bitcoin Moment Everyone Has - Adam Back","duration":72},
+                {"id":"nvBsNKsZ6uY","title":"From 10% to 50% - The Bitcoin Moment Everyone Has - Adam Back","duration":72},
                 {"id":"7fvG11BByD4","title":"Running Bitcoin Knots On Start9","duration":538},
                 {"id":"-LGpW2PKwHA","title":"Bitcoin Core Developer Interview: Antoine Poinsot | MIT Bitcoin Expo 2025","duration":2141},
                 {"id":"JtzwTd9Ur5c","title":"Competing with Free | DerGigi","duration":1192},
@@ -948,7 +948,7 @@ var STATIONS = [
                 {"id":"bs_pYdK8CU8","title":"Broken Money w/ Lyn Alden (TIP574)","duration":5223},
                 {"id":"soGXgiGoMRU","title":"Broken Money  Why Our Financial System Is Failing US And How We Can Make It Better 2 06 24","duration":3968},
                 {"id":"k3NN_NZOdhY","title":"Lyn Alden's Full Broken Money Thesis in under 50min","duration":3087},
-                {"id":"_T4K9fJ-DMA","title":"Your Savings Are at Risk | \\\"The Bitcoin Standard" Microcourse, in Partnership with Genius Academy.","duration":60},
+                {"id":"_T4K9fJ-DMA","title":"Your Savings Are at Risk | The Bitcoin Standard Microcourse, in Partnership with Genius Academy.","duration":60},
                 {"id":"TwQugFm2qoo","title":"Why STRATEGY Stands Alone & Why Most Bitcoin Treasury Companies Cannot Last","duration":2348},
                 {"id":"Jv7616ZV4CA","title":"$50 Weekly DCA: Gold vs Bitcoin (12/24/24 Update)","duration":46},
                 {"id":"VN3h0gmsuL4","title":"Bitcoin Annualized Issuance Rate (Monetary Inflation) (9/21/25 Update)","duration":106},
@@ -1024,7 +1024,7 @@ var STATIONS = [
                 {"id":"Hob0-KYPqEg","title":"Bitcoin is financial freedom","duration":59},
                 {"id":"Ih0e8AXT_-s","title":"Lyn Alden | Broken Money","duration":1200},
                 {"id":"ImIP0izB6SY","title":"Bitcoin is Generational Wealth | Peter Dunworth","duration":4166},
-                {"id":"8rYl8wEotZk","title":"Why Bitcoin Is "Farm-to-Table Money" | Phong Le, CEO of Strategy","duration":4025},
+                {"id":"8rYl8wEotZk","title":"Why Bitcoin Is 'Farm-to-Table Money' | Phong Le, CEO of Strategy","duration":4025},
                 {"id":"eBTHI27B5rY","title":"Bitcoin & The Return To Prosperity Through Deflation with Jeff Booth | The Bitcoin Layer","duration":2765},
                 {"id":"X8IAeTu8Irs","title":"The truth of fiat money","duration":78},
                 {"id":"wzxydNI2-Go","title":"INTEREST EXPENSE EXPLODES: Why The Fed Must Cut & What It Means For Bitcoin","duration":1288},
@@ -1050,7 +1050,7 @@ var STATIONS = [
                 {"id":"zr4eD3g5uQE","title":"You Will Never Look At Bitcoin The Same Way Again - Jeff Booth","duration":4215},
                 {"id":"7LcxJzUrGd8","title":"Saifedean Ammous - Principles of Economics, The Bitcoin Standard & The Fiat Standard","duration":3011},
                 {"id":"0fQ5k1q8FVo","title":"Bitcoin and Stocks vs the Dollar  - [Rich Dad's StockCast]","duration":1926},
-                {"id":"nvVR_fVU7Bc","title":"Argentina just told China: no thanks. They want the U.S. as their "partner of choice."","duration":125},
+                {"id":"nvVR_fVU7Bc","title":"Argentina just told China: no thanks. They want the U.S. as their 'partner of choice.'","duration":125},
                 {"id":"2xW6Mg9k9l8","title":"11 - The Coming Dollar Collapse","duration":1158},
                 {"id":"P5tVGJCHDoQ","title":"Why gold, not platinum?","duration":58},
                 {"id":"csGEhR7JNVU","title":"Bitcoin to 100,000,000 dollars?","duration":435},
@@ -1417,7 +1417,7 @@ var STATIONS = [
                 {"id":"D3JCOzq9qFE","title":"Ep. 10 Scott Sibley of SHAmory - Kids Can Grasp Bitcoin Through This Simple Card Game","duration":2457},
                 {"id":"aRcXutXvfmM","title":"Financial Literacy-Needs and Wants | Learn about needs, wants, and opportunity costs","duration":278},
                 {"id":"MdC_0X71n88","title":"Scott Sibley  - SHAmory Bitcoin Card Game","duration":2164},
-                {"id":"IHVVVaMY10c","title":""When money is controlled, money is corrupted!" #tuttletwins","duration":39},
+                {"id":"IHVVVaMY10c","title":"'When money is controlled, money is corrupted!' #tuttletwins","duration":39},
                 {"id":"O3Vf2m-DIh0","title":"When money is easy to make, society begins to break. #goldstandard","duration":50},
                 {"id":"T83mK4jj2NE","title":"FF-140: Scott Sibley on teaching Bitcoin to children and raising kids today","duration":2800},
                 {"id":"FtaUelnAXrc","title":"Tuttle Twins S1E6 Full Episode \\\"The Inflation Monster\\\" | Angel","duration":1434},
@@ -1619,7 +1619,7 @@ var STATIONS = [
                 {"id":"E6mK2aZbuSo","title":"Recovery of a Lost Bitcoin Wallet from 2010","duration":144},
                 {"id":"T-Mmud_OsEM","title":"When your homie tells you he can rap.. feat. Richard Heart (Prada Prada Prada)","duration":60},
                 {"id":"iA-fJl5TqLc","title":"Happy Spooky Saylor Halloween Everyone! 👻🎃🪓","duration":241},
-                {"id":"D4XYQcLPNKk","title":""Number Go Up" - the new fragrance by Saylor. Smell the Conviction.","duration":37},
+                {"id":"D4XYQcLPNKk","title":"'Number Go Up' - the new fragrance by Saylor. Smell the Conviction.","duration":37},
                 {"id":"MqqFFxZcrQw","title":"\"hex hex heeex\"","duration":68},
                 {"id":"Zai5F2_KMjA","title":"THE END OF CRYPTO!? The crypto titanic goes down","duration":151},
                 {"id":"08kwAmgQt0w","title":"FTX/Sam Bankman-Fried - That's a scam! (Meme song/interview drill rap remix)","duration":86},
@@ -1881,7 +1881,7 @@ var STATIONS = [
                 {"id":"El3y8AME8oA","title":"Breaking Down How Bitcoin Mining Really Happens - Explained Like You're Five","duration":599},
                 {"id":"au7LAQ0-3NI","title":"E31: The Game Theory of Mining Stacks & Bitcoin - Twitter Spaces with Xan Ditkoff","duration":3399},
                 {"id":"T2KgXsmD10Y","title":"EP19: The State of Mining and Media w/ Colin Harper, Writer and Researcher - Luxor Technologies","duration":3132},
-                {"id":"mi319LxnFYo","title":""A New, Different, Wave of Bitcoin Adopters" (SoB#049) - Daniel Batten","duration":3118},
+                {"id":"mi319LxnFYo","title":"'A New, Different, Wave of Bitcoin Adopters' (SoB#049) - Daniel Batten","duration":3118},
                 {"id":"MOXZAjI-arY","title":"POW Summit - The Hunt for the Real Bitcoin Hashrate","duration":2121},
                 {"id":"y3dqhixzGVo","title":"Mining Bitcoin with pencil and paper","duration":472},
                 {"id":"i4XV7Yq9GCM","title":"The Future of Bitcoin Mining: Home Miners, Pools, & Open Source Innovation","duration":2888},
@@ -2444,7 +2444,7 @@ var STATIONS = [
                 {"id":"hRhj3lfWzrI","title":"Aurora- The Seed Haik Concert Live","duration":280},
                 {"id":"nrtFeKuiAHA","title":"Lil Bubble - Rug Star (Smash Mouth - All Star) Crypto Parody","duration":129},
                 {"id":"IpCJ5ct_pgk","title":"Evolution to Revolution - \\\"Love and Liberty\\\" - Tatiana Moroz","duration":201},
-                {"id":"6WJOWloG7Gs","title":"LoKo - "Thank You" by Yellow","duration":140},
+                {"id":"6WJOWloG7Gs","title":"LoKo - 'Thank You' by Yellow","duration":140},
                 {"id":"ImfZTycPzbE","title":"Muse - Compliance (Live) - Turku Rockfest 14.6.2025 Finland","duration":250},
                 {"id":"ILP36_0tooU","title":"K'NAAN -Wavin' FLAG (coca-cola celebration mix)  LYRICS","duration":225},
                 {"id":"i4gtFm0NBLY","title":"SPEND SATS IN TZ {843962}","duration":208},
@@ -3331,7 +3331,7 @@ var STATIONS = [
                 {"id":"nXAfbiZFvjM","title":"$MSTR True North - $STRF ATM - Investment Grade Analysis & Market Comp Simulation","duration":4321},
                 {"id":"ioM33qIAfdY","title":"Michael Saylor calls them poor!? (Lil Bubble House Remix) #bitcoin","duration":56},
                 {"id":"wE7RPLCr7_M","title":"Michael Saylor: Bitcoin Volatility Is Satoshi's Gift to You","duration":54},
-                {"id":"oPbHTD3vCEU","title":"Strategy Launches STRE ("Stream") Euro-Denominated Perpetual Preferred Stock Offering with 10% Yield","duration":1709},
+                {"id":"oPbHTD3vCEU","title":"Strategy Launches STRE ('Stream') Euro-Denominated Perpetual Preferred Stock Offering with 10% Yield","duration":1709},
                 {"id":"NWgDhtCXNWA","title":"Analyst Q&A: MSTR Q3 2025 Earnings Call","duration":2179},
                 {"id":"fAldRInw4EA","title":"The Mechanics of Capital and Digital Credit | True North Podcast | Ep. 61","duration":6879},
                 {"id":"Tr2DBZIzrwQ","title":"Zoom Out - We're Early | The Hurdle Rate Ep. 26","duration":2582},
@@ -3371,7 +3371,7 @@ var STATIONS = [
                 {"id":"IdFlPrpi5cc","title":"Build The Structure | The Hurdle Rate Ep.46","duration":2971},
                 {"id":"flQRjxe7zpg","title":"Michael Saylor's Massive $49 Billion Bitcoin Purchase!","duration":87},
                 {"id":"mTeqO63hGI4","title":"Michael Saylor Dismantles the Strongest Argument *Against* Bitcoin","duration":50},
-                {"id":"4Buu1h_89hY","title":"Michael Saylor "Bitcoin Is As Risky As Crossing a Street"","duration":667},
+                {"id":"4Buu1h_89hY","title":"Michael Saylor 'Bitcoin Is As Risky As Crossing a Street'","duration":667},
                 {"id":"DrxZJY9EhWM","title":"MSTR Q4 2025 Earnings Call Analysis: The Digital Credit Stress Test | BFC Show Ep. 25","duration":4536},
                 {"id":"VSB_lXxJbDA","title":"Rewiring The Credit Curve | True North Podcast | Ep. 32","duration":6868},
                 {"id":"IdPKzulKdFI","title":"Is Michael Saylor a Threat For Owning So Much Bitcoin?","duration":257},
@@ -3427,7 +3427,7 @@ var STATIONS = [
                 {"id":"BYk1Id2j7_8","title":"Michael Saylor's Deep-Dive on Bitcoin Energy Misconceptions (BTC099)","duration":10450},
                 {"id":"-7Sw3rbIxvI","title":"Pure Play vs Operating Cash Flows: What's the Optimal Bitcoin Treasury Strategy? #BTC #Markets","duration":92},
                 {"id":"LP5W_BUXnEw","title":"Bitcoin, Economics, & Mimetics with Robert Breedlove","duration":4891},
-                {"id":"Mz1LhRXwY1Q","title":"\"Wall Street Has Woken Up" w/ Matt Hougan of Bitwise | BFC Show Ep. 34","duration":2968},
+                {"id":"Mz1LhRXwY1Q","title":"'Wall Street Has Woken Up' w/ Matt Hougan of Bitwise | BFC Show Ep. 34","duration":2968},
                 {"id":"_QN0RcQFf6w","title":"Michael Saylor on Bitcoin Principles (SLP536)","duration":10225},
                 {"id":"Ib33Jy5cOP4","title":"Why Digital Credit is the Future of Global Finance #mstr #bitcoin #finance","duration":60},
                 {"id":"003pvQdffr4","title":"Strategic Risk Taking | The Hurlde Rate Ep. 23","duration":3175},
@@ -3452,7 +3452,7 @@ var STATIONS = [
                 {"id":"bjvMt0xaSUQ","title":"The Saylor Series | Part 4: The Future of Bitcoin & Civilization","duration":831},
                 {"id":"yxEq_g5BIjg","title":"\"High Powered Digital Money\" | True North Podcast | Ep. 48","duration":3932},
                 {"id":"7hyoONj4nEY","title":"What One Billionaire Knows About Outlasting a Dollar Collapse - Jordan Peterson EP 554","duration":5245},
-                {"id":"GrYXPqnyHdc","title":""This Is the Product." - Why Bitcoin Treasury Companies Actually Work","duration":220},
+                {"id":"GrYXPqnyHdc","title":"'This Is the Product.' - Why Bitcoin Treasury Companies Actually Work","duration":220},
                 {"id":"uFTqXnEym04","title":"How MicroStrategy is Changing Credit Markets Forever","duration":522},
                 {"id":"yl2q52XWG6s","title":"Michael Saylor Predicts $400T Bitcoin After Buying $1B in a Single Day!","duration":1215},
                 {"id":"tkFnDInGouA","title":"Wealth and Treasury Management in the Bitcoin and AI Era | Strategy World 2026","duration":726},
@@ -3789,7 +3789,7 @@ var STATIONS = [
                 {"id":"mOCUqbFQ57o","title":"Bitcoin Daily DCA & HODL Animation Walkthrough","duration":695},
                 {"id":"gLCyRFZOdGQ","title":"How to Run a Bitcoin Lightning Node","duration":2813},
                 {"id":"95FonGULBtc","title":"EP6: Bitcoin, Beef, and Building Locally w/ Texas Slim, Founder - The Beef Initiative","duration":3002},
-                {"id":"aAf0rilUfe4","title":""There's 0% Chance My Bitcoin Can Be Stolen" - Terrence Michael","duration":99},
+                {"id":"aAf0rilUfe4","title":"'There's 0% Chance My Bitcoin Can Be Stolen' - Terrence Michael","duration":99},
                 {"id":"qeBpYPcx1wg","title":"Build & Run Your Own Bitcoin Node On A Raspberry Pi","duration":516},
                 {"id":"W6uYVBAuYq0","title":"Do Not Download This Fake Bitcoin App ($Millions Already Stolen)","duration":1243},
                 {"id":"281Gal2xztI","title":"Bitcoin Quantum Exposure Dashboard (FULL) - Download & Walkthrough","duration":1419},
@@ -4256,7 +4256,7 @@ window.tctvToggleBlockSurf = function(ev) {
     _blockSurfApplyToggleStyles();
     if (willBeOn) {
         _blockSurfStart();
-        if (typeof showToast === 'function') showToast('🏄 BlockSurf ON - I'll hop channels on every new block.');
+        if (typeof showToast === 'function') showToast('🏄 BlockSurf ON - I\'ll hop channels on every new block.');
     } else {
         _blockSurfStop();
         if (typeof showToast === 'function') showToast('BlockSurf OFF');
@@ -4676,8 +4676,8 @@ function _maybeShowBotWall(reason) {
     banner.setAttribute('data-reason', reason);
     banner.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;max-width:92%;background:#111;border:1px solid rgba(247,147,26,0.5);border-radius:12px;padding:14px 18px;color:#fff;font-size:0.85rem;line-height:1.4;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,0.6);';
     banner.innerHTML =
-        '<div style="font-weight:900;color:#f7931a;margin-bottom:6px;font-size:0.95rem;">📺 Video blocked by YouTube's bot-check</div>' +
-        '<div style="color:#ddd;margin-bottom:10px;">YouTube sometimes shows a "Sign in to confirm you're not a bot" wall inside its player. That's YouTube's block, not ours. Quickest fixes:</div>' +
+        '<div style="font-weight:900;color:#f7931a;margin-bottom:6px;font-size:0.95rem;">📺 Video blocked by YouTube\'s bot-check</div>' +
+        '<div style="color:#ddd;margin-bottom:10px;">YouTube sometimes shows a "Sign in to confirm you\'re not a bot" wall inside its player. That\'s YouTube\'s block, not ours. Quickest fixes:</div>' +
         '<ul style="text-align:left;color:#ddd;margin:0 auto 10px;padding-left:20px;max-width:360px;">' +
             '<li>Sign into Google/YouTube in this browser</li>' +
             '<li>Turn off private/incognito mode or strict tracking protection</li>' +
