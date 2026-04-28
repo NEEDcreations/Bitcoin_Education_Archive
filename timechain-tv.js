@@ -5665,9 +5665,9 @@ window.renderTimechainTV = function() {
            The dedicated .tctv-remote-tap-zone child IS tappable and spans the full
            visible edge for reliable touch targeting. */
         #tctv-remote-inline.collapsed {
-            /* Show ~30px of the remote at the right edge (was 18px) so the
-               pull-tab is clearly visible. */
-            transform: translateX(130px);
+            /* Show ~50px of the remote at the right edge so the
+               pull-tab is clearly visible on all screen sizes. */
+            transform: translateX(110px);
             opacity: 1;
             /* Remote itself stays hit-testable so the tap zone works.
                Individual buttons inside are disabled via the rule below so
@@ -5687,26 +5687,25 @@ window.renderTimechainTV = function() {
             pointer-events: auto !important;
         }
         /* Full-height tap zone on the VISIBLE edge of the remote.
-           The collapsed remote is translated 142px to the right (so only 18px pokes
-           into the viewport from the right edge). We anchor the tap zone to the
-           right side of the remote and make it wide enough to cover both the
-           visible strip AND ~30px into the viewport for comfortable thumb tapping. */
+           The collapsed remote is translated 110px to the right (so ~50px pokes
+           into the viewport from the right edge). Tap zone covers the visible
+           strip for comfortable tapping. */
         .tctv-remote-tap-zone {
             display: none;
             position: absolute;
             top: 0;
             bottom: 0;
             /* Anchor to the LEFT (visible) edge of the collapsed remote.
-               When collapsed the remote is translated 130px right, so ~30px
+               When collapsed the remote is translated 110px right, so ~50px
                of its left side pokes into the viewport. */
             left: 0;
-            width: 36px;
+            width: 50px;
             z-index: 5;
             cursor: pointer;
             pointer-events: auto;
-            background: linear-gradient(90deg, rgba(247,147,26,0.3) 0%, rgba(247,147,26,0.08) 70%, transparent 100%);
-            border-right: 2px solid rgba(247,147,26,0.4);
-            box-shadow: 2px 0 12px rgba(247,147,26,0.15);
+            background: linear-gradient(90deg, rgba(247,147,26,0.5) 0%, rgba(247,147,26,0.15) 70%, transparent 100%);
+            border-right: 2px solid rgba(247,147,26,0.6);
+            box-shadow: 2px 0 16px rgba(247,147,26,0.3);
             border-radius: 8px 0 0 8px;
         }
         #tctv-remote-inline.collapsed .tctv-remote-tap-zone {
@@ -5716,22 +5715,26 @@ window.renderTimechainTV = function() {
         #tctv-remote-inline.collapsed .tctv-remote-tap-zone::before {
             content: '◀';
             position: absolute;
-            left: 8px;
+            left: 12px;
             top: 50%;
             transform: translateY(-50%);
             color: #f7931a;
-            font-size: 16px;
+            font-size: 22px;
             font-weight: 900;
-            opacity: 0.9;
-            text-shadow: 0 0 6px rgba(0,0,0,0.8);
+            opacity: 1;
+            text-shadow: 0 0 8px rgba(247,147,26,0.4), 0 0 4px rgba(0,0,0,0.8);
             animation: tctvRemotePulse 2s ease-in-out infinite;
         }
         @keyframes tctvRemotePulse {
-            0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.9; }
-            50% { transform: translateY(-50%) translateX(-3px); opacity: 1; }
+            0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.8; }
+            50% { transform: translateY(-50%) translateX(-6px); opacity: 1; }
         }
         /* Hide scrollbar on the sticky time row */
         #tctv-time-scroll::-webkit-scrollbar { display: none; }
+        /* Thin scrollbar for EPG channel list */
+        #tctv-epg-wrapper::-webkit-scrollbar { width: 6px; }
+        #tctv-epg-wrapper::-webkit-scrollbar-track { background: #111; }
+        #tctv-epg-wrapper::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
         /* Keep the drag handle tappable too — redundant safety net */
         #tctv-remote-inline.collapsed > [onclick*="tctvToggleRemote"] {
             pointer-events: auto;
@@ -5833,16 +5836,27 @@ window.renderTimechainTV = function() {
             #tctv-player { height: 100% !important; max-height: 45vh !important; }
             /* Let the EPG flow naturally (native page scroll takes it from here) */
             #tctv-epg-wrapper { 
-                height: auto !important; 
-                max-height: none !important;
-                min-height: auto !important;
-                overflow: visible !important; 
+                max-height: 50vh !important; 
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
                 background: #0a0a0a !important;
                 position: relative !important;
                 z-index: 5 !important;
                 margin-top: 10px !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: #444 #111 !important;
             }
             #tctv-epg-container { height: auto !important; min-height: auto !important; }
+        }
+        /* Large desktops: EPG scroll container for sticky time row */
+        @media (min-width: 1281px) {
+            #tctv-epg-wrapper {
+                max-height: 50vh !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: #444 #111 !important;
+            }
         }
         /* Keep user-display hidden on mobile TCTV, but the sign-up banner (guestPointsBanner)
            is kept visible with a minimize/expand toggle so users always stay in control. */
