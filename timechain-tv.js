@@ -1224,7 +1224,7 @@ var STATIONS = [
         },
         {
             "id": "health-fitness",
-            "name": "Health & Fitness",
+            "name": "Health, Fitness & Mindfulness",
             "emoji": "💪",
             "desc": "Lifting form, sleep science, mindfulness & low time preference",
             "color": "#16a34a",
