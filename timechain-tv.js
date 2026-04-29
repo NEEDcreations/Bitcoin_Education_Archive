@@ -5992,7 +5992,7 @@ window.renderTimechainTV = function() {
             #tctv-epg-wrapper {
                 max-height: 50vh !important;
                 overflow-y: auto !important;
-                overflow-x: hidden !important;
+                overflow-x: auto !important;
                 background: #0a0a0a !important;
                 position: relative !important;
                 z-index: 5 !important;
@@ -6000,17 +6000,18 @@ window.renderTimechainTV = function() {
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
             }
-            #tctv-epg-container { height: auto !important; min-height: auto !important; }
+            #tctv-epg-container { height: auto !important; min-height: auto !important; overflow-x: visible !important; }
         }
         /* Large desktops: EPG scroll container for sticky time row */
         @media (min-width: 1281px) {
             #tctv-epg-wrapper {
                 max-height: 50vh !important;
                 overflow-y: auto !important;
-                overflow-x: hidden !important;
+                overflow-x: auto !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
             }
+            #tctv-epg-container { overflow-x: visible !important; }
         }
         /* Keep user-display hidden on mobile TCTV, but the sign-up banner (guestPointsBanner)
            is kept visible with a minimize/expand toggle so users always stay in control. */
