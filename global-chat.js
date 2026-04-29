@@ -702,8 +702,10 @@ window.sendGlobalChat = function() {
         return;
     }
 
-    // Link filter — strip all URLs from chat messages
-    if (/https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(text)) {
+    // Link filter — strip all URLs from chat messages (admins exempt)
+    var _linkAdminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+    var _isLinkAdmin = typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email && _linkAdminEmails.indexOf(auth.currentUser.email) !== -1;
+    if (!_isLinkAdmin && /https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(text)) {
         text = text.replace(/https?:\/\/\S+/gi, '[link removed]').replace(/www\.\S+/gi, '[link removed]').replace(/\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\S*/gi, '[link removed]');
         if (typeof showToast === 'function') showToast('🔗 Links are not allowed in chat.', 4000);
         if (text.replace(/\[link removed\]/g, '').trim().length === 0) return; // message was only a link
