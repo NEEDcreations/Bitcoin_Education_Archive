@@ -320,7 +320,8 @@
 
         @media (max-width: 900px) {
             #leaderboard { right: 10px; left: 10px; bottom: 70px; width: auto; }
-            #lbFloatBtn { bottom: 70px !important; right: 16px !important; padding: 10px 14px !important; font-size: 0.85rem !important; z-index: 9990; }
+            #lbFloatBtn { bottom: 70px !important; right: 16px !important; padding: 0 !important; font-size: 1.4rem !important; z-index: 9990; width: 48px !important; height: 48px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+            #lbFloatBtn .lb-fab-text { display: none !important; }
             #lbFloatBtn.chat-shifted { bottom: 120px !important; }
             #floatingRandomBtn { bottom: 120px !important; right: auto !important; left: 16px !important; transform: none !important; }
             /* RESTORE MOBILE VISIBILITY */ #userDisplay { display: flex !important; }
@@ -1111,7 +1112,7 @@
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
-    <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:110px;z-index:9990;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆 Leaderboard</button>
+    <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:110px;z-index:9990;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆<span class="lb-fab-text"> Leaderboard</span></button>
     <div id="leaderboard"></div>
     <button onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:20px;z-index:9989;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px 18px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;" id="desktopDMBtn">💬 Chat</button>
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
@@ -1203,7 +1204,7 @@
     (function(){
         var _lazyScripts = [
             'nacho-qa.js?v=20260404','scholar.js?v=20260417sec','beats.js?v=20260417mindur',
-            'global-chat.js?v=20260429_0011','lightning.js?v=20260330b','lightning-tips.js?v=20260330a',
+            'global-chat.js?v=20260429_1624','lightning.js?v=20260330b','lightning-tips.js?v=20260330a',
             'notifications.js?v=20260328c','guide.js?v=20260409d','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260411','tips-integrations.js?v=20260307','wallet-router.js?v=20260307a',
