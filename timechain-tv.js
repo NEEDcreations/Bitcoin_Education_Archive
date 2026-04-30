@@ -5770,9 +5770,10 @@ function updateTimeline() {
     if (!station) return;
     var state = getPlaybackState(station);
 
-    // Sync Header - only update title if station matches. Prevents old
-    // station's video from showing during a switch.
-    if (_np.stationId === _currentStation) {
+    // Sync Header - only update if the video in the player matches what clock says.
+    // If they differ, the player is still finishing the current video — don't
+    // overwrite the title until the video actually changes (via ENDED event).
+    if (_np.stationId === _currentStation && state.video && state.video.id === _currentVideoId) {
         _setNP(_currentStation, state.video);
     }
 
@@ -5817,8 +5818,13 @@ function updateTimeline() {
         });
     });
 
+    // Only update Now Playing text if clock says different video.
+    // Do NOT force video change here — let YouTube's ENDED event handle transitions.
+    // Forcing advance based on clock causes desync when stored durations don't
+    // exactly match YouTube's actual video length.
     if (state.video && state.video.id !== _currentVideoId) {
-        _advanceToNextVideo();
+        // Just update the title display, don't force a video load
+        _setNP(_currentStation, state.video);
     }
 
     // Periodic drift check (every ~3 seconds)
