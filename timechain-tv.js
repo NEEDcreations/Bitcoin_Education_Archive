@@ -4406,6 +4406,7 @@ function _blockSurfFetchTip() {
 }
 
 function _blockSurfPoll() {
+    try { if (localStorage.getItem('tctv_blocksurf') !== '1') return; } catch(e) {}
     _blockSurfFetchTip().then(_blockSurfHandleHeight).catch(function() { /* ignore transient fetch errors */ });
 }
 
@@ -4418,6 +4419,8 @@ window._blockSurfWSRetry = 0;
 
 function _blockSurfHandleHeight(h) {
     if (!h || isNaN(h)) return;
+    // Guard: don't surf if BlockSurf was turned off (race between WS message and close)
+    try { if (localStorage.getItem('tctv_blocksurf') !== '1') return; } catch(e) {}
     if (window._blockSurfHeight == null) { window._blockSurfHeight = h; return; }
     if (h > window._blockSurfHeight) {
         window._blockSurfHeight = h;
