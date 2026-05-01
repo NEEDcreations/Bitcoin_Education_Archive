@@ -6927,7 +6927,18 @@ window.switchStation = function(stationId, forceUpdate) {
     joinStation(stationId);
 
     if (state && state.video) {
-        loadVideo(state.video.id, state.offset);
+        // Reuse existing player if available (much faster than destroy+rebuild)
+        if (!_apiFailed && _ytPlayer && _ytPlayer.loadVideoById && _ytPlayer.playVideo) {
+            _currentVideoId = state.video.id;
+            try {
+                _ytPlayer.loadVideoById(state.video.id, Math.floor(state.offset));
+                _ytPlayer.playVideo();
+            } catch(e) {
+                loadVideo(state.video.id, state.offset);
+            }
+        } else {
+            loadVideo(state.video.id, state.offset);
+        }
         setTimeout(function() { _syncYTVolume(); }, 200);
     }
 
