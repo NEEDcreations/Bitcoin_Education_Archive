@@ -6186,9 +6186,9 @@ window.renderTimechainTV = function() {
     // Resume BlockSurf poller if user had it enabled last session.
     if (typeof window._blockSurfMaybeResume === 'function') window._blockSurfMaybeResume();
 
-    showWhiteNoise(function() {
-        console.log('[TCTV] Initial Tuning Complete');
-    });
+    // Skip white noise overlay — load video immediately for faster render.
+    // Returning users: restore last station. New users: random station.
+    console.log('[TCTV] Loading video immediately (no noise overlay)...');
 
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function() {}); } catch(e) {}
 
