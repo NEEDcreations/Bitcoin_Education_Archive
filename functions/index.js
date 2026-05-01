@@ -3698,3 +3698,66 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+// =============================================
+// TCTV Presence Aggregation — Scalable Live Viewer Counter
+// Runs every 10 seconds, aggregates presence docs into per-station counts
+// =============================================
+exports.tctvAggregatePresence = onSchedule({
+    schedule: 'every 10 seconds',
+    timeZone: 'UTC',
+    retryCount: 0,
+}, async (event) => {
+    try {
+        const now = Date.now();
+        const staleThreshold = 65000; // 65 seconds (matches client-side filter)
+        
+        // Get all presence docs
+        const presenceSnap = await db.collection('tctv_presence').get();
+        
+        // Aggregate by station
+        const counts = {};
+        presenceSnap.forEach(doc => {
+            const d = doc.data();
+            if (!d.station) return;
+            
+            // Check staleness (same logic as client)
+            let docTime = 0;
+            if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
+            else if (typeof d.tsClient === 'number') docTime = d.tsClient;
+            
+            if (!docTime) return;
+            if (now - docTime > staleThreshold) return; // Stale
+            
+            counts[d.station] = (counts[d.station] || 0) + 1;
+        });
+        
+        // Write aggregated counts to tctv_counts (one doc per station)
+        const batch = db.batch();
+        for (const [stationId, count] of Object.entries(counts)) {
+            const countRef = db.collection('tctv_counts').doc(stationId);
+            batch.set(countRef, {
+                count: count,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+        
+        // Handle stations with 0 viewers (delete the doc or set count to 0)
+        // Get existing count docs to find ones that should be 0
+        const existingSnap = await db.collection('tctv_counts').get();
+        existingSnap.forEach(doc => {
+            if (!counts[doc.id]) {
+                // No viewers on this station anymore
+                batch.delete(doc.ref);
+            }
+        });
+        
+        await batch.commit();
+        
+        console.log('[TCTV] Aggregated presence:', Object.keys(counts).length + ' stations, total viewers:', Object.values(counts).reduce((a,b)=>a+b, 0));
+        return null;
+    } catch (e) {
+        console.error('[TCTV] Aggregation error:', e.message);
+        return null;
+    }
+});
