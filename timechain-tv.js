@@ -6673,7 +6673,9 @@ window.renderTimechainTV = function() {
     saveStation(activeStation);
     joinStation(activeStation);
 
-    // Initial station switch (population of DOM)
+    // Initial station switch — skip noise on first load for faster video render.
+    // Set a flag so switchStation skips showChannelNoise on this first call.
+    window._tctvSkipFirstNoise = true;
     switchStation(activeStation, true);
 
     if (_syncInterval) clearInterval(_syncInterval);
@@ -6718,7 +6720,12 @@ window.switchStation = function(stationId, forceUpdate) {
     _currentStation = stationId;
     _setNP(stationId, state && state.video ? state.video : null);
 
-    showChannelNoise(stationObj.emoji + ' ' + stationObj.name);
+    // Skip noise on very first load for faster video render
+    if (window._tctvSkipFirstNoise) {
+        window._tctvSkipFirstNoise = false;
+    } else {
+        showChannelNoise(stationObj.emoji + ' ' + stationObj.name);
+    }
     saveStation(stationId);
     joinStation(stationId);
 
