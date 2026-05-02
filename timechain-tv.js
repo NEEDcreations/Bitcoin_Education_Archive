@@ -7243,117 +7243,98 @@ window.cleanupTimechainTV = function() {
 };
 
 // ── TikTok-Style Swipe Navigation for Mobile ──
+// YouTube iframes absorb all touch events (cross-origin). 
+// Solution: Place a transparent overlay on top of the video that captures swipes.
+// Quick taps pass through to the iframe (play/pause). Only vertical swipes trigger channel change.
 (function installTikTokSwipes() {
     if (typeof window === 'undefined') return;
     if (window._tctvSwipeInstalled) return;
     window._tctvSwipeInstalled = true;
     
+    var SWIPE_THRESHOLD = 50; // min pixels for a swipe
+    var SWIPE_TIME_MAX = 600; // max ms
+    var TAP_THRESHOLD = 10; // max pixels for a tap (pass through)
+    var TAP_TIME_MAX = 250; // max ms for a tap
+    
     var touchStartY = 0;
     var touchStartX = 0;
     var touchStartTime = 0;
-    var isSwiping = false;
-    var SWIPE_THRESHOLD = 60; // min pixels (reduced for easier triggering)
-    var SWIPE_TIME_MAX = 500; // max ms (more forgiving)
-    var HORIZONTAL_TOLERANCE = 120; // allow more horizontal drift
+    var hasMoved = false;
     
-    function handleTouchStart(e) {
-        // Only when TCTV is active
-        if (!window._tctvActive && window.currentChannelId !== 'timechain-tv') return;
+    function createOverlay() {
+        var container = document.getElementById('tctv-video-container');
+        if (!container) return;
+        if (document.getElementById('tctv-swipe-overlay')) return; // Already exists
         
-        var touch = e.touches[0];
-        touchStartY = touch.clientY;
-        touchStartX = touch.clientX;
-        touchStartTime = Date.now();
-        isSwiping = true;
+        var overlay = document.createElement('div');
+        overlay.id = 'tctv-swipe-overlay';
+        overlay.style.cssText = 'position:absolute;inset:0;z-index:5;background:transparent;touch-action:none;';
+        container.appendChild(overlay);
+        
+        overlay.addEventListener('touchstart', function(e) {
+            var touch = e.touches[0];
+            touchStartY = touch.clientY;
+            touchStartX = touch.clientX;
+            touchStartTime = Date.now();
+            hasMoved = false;
+        }, { passive: true });
+        
+        overlay.addEventListener('touchmove', function(e) {
+            var touch = e.touches[0];
+            var deltaY = Math.abs(touch.clientY - touchStartY);
+            var deltaX = Math.abs(touch.clientX - touchStartX);
+            
+            if (deltaY > TAP_THRESHOLD || deltaX > TAP_THRESHOLD) {
+                hasMoved = true;
+            }
+            
+            // Prevent page scroll when swiping on video
+            if (deltaY > 20) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        overlay.addEventListener('touchend', function(e) {
+            var touch = e.changedTouches[0];
+            var deltaY = touch.clientY - touchStartY;
+            var deltaX = touch.clientX - touchStartX;
+            var deltaTime = Date.now() - touchStartTime;
+            
+            // TAP: Pass through to iframe (play/pause)
+            if (!hasMoved && deltaTime < TAP_TIME_MAX) {
+                // Briefly hide overlay so the tap reaches the iframe
+                overlay.style.pointerEvents = 'none';
+                setTimeout(function() {
+                    overlay.style.pointerEvents = 'auto';
+                }, 300);
+                return;
+            }
+            
+            // SWIPE: Check if vertical swipe is valid
+            if (Math.abs(deltaY) < SWIPE_THRESHOLD) return;
+            if (deltaTime > SWIPE_TIME_MAX) return;
+            if (Math.abs(deltaX) > Math.abs(deltaY)) return; // Horizontal dominated
+            
+            // Channel change!
+            if (deltaY < 0) {
+                _tctvSwipeChannel('next');
+            } else {
+                _tctvSwipeChannel('prev');
+            }
+        }, { passive: true });
     }
     
-    function handleTouchMove(e) {
-        if (!isSwiping) return;
-        
-        var touch = e.touches[0];
-        var deltaY = touch.clientY - touchStartY;
-        var deltaX = touch.clientX - touchStartX;
-        
-        // If horizontal movement dominates, let it pass (timeline scrolling)
-        if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-            isSwiping = false;
-            return;
+    // Attach overlay when TCTV renders
+    // Use MutationObserver to detect when the player container appears
+    var observer = new MutationObserver(function(mutations) {
+        if (document.getElementById('tctv-video-container') && !document.getElementById('tctv-swipe-overlay')) {
+            createOverlay();
         }
-        
-        // Aggressive preventDefault on vertical swipes over the player
-        // This stops page scrolling when swiping on the video
-        if (Math.abs(deltaY) > 20) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
     
-    function handleTouchEnd(e) {
-        if (!isSwiping) return;
-        isSwiping = false;
-        
-        var touch = e.changedTouches[0];
-        var deltaY = touch.clientY - touchStartY;
-        var deltaX = touch.clientX - touchStartX;
-        var deltaTime = Date.now() - touchStartTime;
-        
-        // Check if it's a valid swipe
-        if (Math.abs(deltaY) < SWIPE_THRESHOLD) return; // Too short
-        if (deltaTime > SWIPE_TIME_MAX) return; // Too slow
-        if (Math.abs(deltaX) > HORIZONTAL_TOLERANCE) return; // Too much horizontal drift
-        
-        // Stop propagation to prevent other handlers
-        e.stopPropagation();
-        
-        // Determine direction and switch channel
-        if (deltaY < 0) {
-            // Swipe UP → next channel (like TikTok)
-            _tctvSwipeChannel('next');
-        } else {
-            // Swipe DOWN → previous channel
-            _tctvSwipeChannel('prev');
-        }
-    }
-    
-    // Attach to player element directly, with capture to grab it before page scroll
-    function attachToPlayer() {
-        var player = document.getElementById('tctv-player');
-        if (!player) {
-            // Retry in 500ms if player not ready
-            setTimeout(attachToPlayer, 500);
-            return;
-        }
-        
-        // Use capture phase to intercept before page scrolling
-        player.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-        player.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-        player.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-        
-        // Also attach to the player wrapper/container for better coverage
-        var wrapper = document.getElementById('tctv-mobile-player-container') || 
-                      document.getElementById('tctv-player-container');
-        if (wrapper && wrapper !== player) {
-            wrapper.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-            wrapper.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-            wrapper.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-        }
-    }
-    
-    // Start attaching when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', attachToPlayer);
-    } else {
-        attachToPlayer();
-    }
-    
-    // Also re-attach when TCTV renders (since it's SPA)
-    var origRender = window.renderTimechainTV;
-    if (origRender) {
-        window.renderTimechainTV = function() {
-            origRender.apply(this, arguments);
-            setTimeout(attachToPlayer, 100);
-        };
-    }
+    // Also try immediately in case TCTV is already rendered
+    createOverlay();
 })();
 
 // Channel switching via swipe with visual feedback
