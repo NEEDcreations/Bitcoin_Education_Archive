@@ -248,7 +248,7 @@ var STATIONS = [
         },
         {
             "id": "orange-pill",
-            "name": "Beginners 101, Orange-pill & Self-Custody",
+            "name": "Beginners 101, Orange-Pill & Self-Custody",
             "emoji": "🟠",
             "desc": "Start here - Bitcoin basics + the orange pill journey",
             "color": "#f7931a",
