@@ -1761,7 +1761,7 @@ var STATIONS = [
         },
         {
             "id": "lightning",
-            "name": "Lightning, Ecash & other L2s",
+            "name": "Lightning, Ecash & Other L2s",
             "emoji": "⚡",
             "desc": "Lightning Network, Ecash, Cashu, Fedimint & Bitcoin Layer 2 solutions",
             "color": "#7c3aed",
