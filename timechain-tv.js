@@ -7252,21 +7252,9 @@ window.cleanupTimechainTV = function() {
     var touchStartX = 0;
     var touchStartTime = 0;
     var isSwiping = false;
-    var SWIPE_THRESHOLD = 80; // min pixels to count as swipe
-    var SWIPE_TIME_MAX = 400; // max ms for a quick swipe
-    var HORIZONTAL_TOLERANCE = 100; // allow some horizontal drift
-    
-    // Get the player container for touch target
-    function getPlayerContainer() {
-        // Prefer the actual video player element
-        var player = document.getElementById('tctv-player');
-        if (player) return player;
-        // Fallback to mobile player container
-        var mobileContainer = document.getElementById('tctv-mobile-player-container');
-        if (mobileContainer) return mobileContainer;
-        // Fallback to video row
-        return document.getElementById('tctv-video-row');
-    }
+    var SWIPE_THRESHOLD = 60; // min pixels (reduced for easier triggering)
+    var SWIPE_TIME_MAX = 500; // max ms (more forgiving)
+    var HORIZONTAL_TOLERANCE = 120; // allow more horizontal drift
     
     function handleTouchStart(e) {
         // Only when TCTV is active
@@ -7292,9 +7280,11 @@ window.cleanupTimechainTV = function() {
             return;
         }
         
-        // Prevent default scrolling if we're doing a vertical swipe
-        if (Math.abs(deltaY) > 30) {
+        // Aggressive preventDefault on vertical swipes over the player
+        // This stops page scrolling when swiping on the video
+        if (Math.abs(deltaY) > 20) {
             e.preventDefault();
+            e.stopPropagation();
         }
     }
     
@@ -7312,6 +7302,9 @@ window.cleanupTimechainTV = function() {
         if (deltaTime > SWIPE_TIME_MAX) return; // Too slow
         if (Math.abs(deltaX) > HORIZONTAL_TOLERANCE) return; // Too much horizontal drift
         
+        // Stop propagation to prevent other handlers
+        e.stopPropagation();
+        
         // Determine direction and switch channel
         if (deltaY < 0) {
             // Swipe UP → next channel (like TikTok)
@@ -7322,10 +7315,45 @@ window.cleanupTimechainTV = function() {
         }
     }
     
-    // Attach to document and filter by target
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    // Attach to player element directly, with capture to grab it before page scroll
+    function attachToPlayer() {
+        var player = document.getElementById('tctv-player');
+        if (!player) {
+            // Retry in 500ms if player not ready
+            setTimeout(attachToPlayer, 500);
+            return;
+        }
+        
+        // Use capture phase to intercept before page scrolling
+        player.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+        player.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+        player.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+        
+        // Also attach to the player wrapper/container for better coverage
+        var wrapper = document.getElementById('tctv-mobile-player-container') || 
+                      document.getElementById('tctv-player-container');
+        if (wrapper && wrapper !== player) {
+            wrapper.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+            wrapper.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+            wrapper.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+        }
+    }
+    
+    // Start attaching when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachToPlayer);
+    } else {
+        attachToPlayer();
+    }
+    
+    // Also re-attach when TCTV renders (since it's SPA)
+    var origRender = window.renderTimechainTV;
+    if (origRender) {
+        window.renderTimechainTV = function() {
+            origRender.apply(this, arguments);
+            setTimeout(attachToPlayer, 100);
+        };
+    }
 })();
 
 // Channel switching via swipe with visual feedback
