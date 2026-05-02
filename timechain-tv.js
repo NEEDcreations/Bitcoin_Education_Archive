@@ -4441,17 +4441,24 @@ function joinStation(stationId) {
     // Render the viewer badges immediately so the user sees themselves as a viewer
     // without waiting for the Firestore snapshot round-trip.
     try { updateViewerBadges(); } catch(e) {}
-    
-    // Listens to pre-aggregated counts (Cloud Function updates these every 10s)
-    // This scales infinitely — cost is 1 read per station, not 1 read per viewer.
     if (!_viewerUnsub && typeof firebase !== 'undefined' && firebase.firestore) {
         var db = firebase.firestore();
-        _viewerUnsub = db.collection('tctv_counts').onSnapshot(function(snap) {
+        _viewerUnsub = db.collection('tctv_presence').onSnapshot(function(snap) {
             var counts = {};
+            var now = Date.now();
             snap.forEach(function(doc) {
                 var d = doc.data();
-                if (typeof d.count === 'number') {
-                    counts[doc.id] = d.count;
+                if (!d.station) return;
+                // Prefer server timestamp; when pending (ts=null for local-only writes),
+                // fall back to the client timestamp we now also write. This avoids the
+                // "blink out" where a viewer briefly shows as 2 then drops to 1 while
+                // the server timestamp round-trips.
+                var docTime = 0;
+                if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
+                else if (typeof d.tsClient === 'number') docTime = d.tsClient;
+                if (!docTime) return;
+                if (now - docTime < 65000) {
+                    counts[d.station] = (counts[d.station] || 0) + 1;
                 }
             });
             _viewerCounts = counts;
