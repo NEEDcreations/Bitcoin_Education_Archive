@@ -7242,4 +7242,138 @@ window.cleanupTimechainTV = function() {
     if (tip) tip.remove();
 };
 
+// ── TikTok-Style Swipe Navigation for Mobile ──
+(function installTikTokSwipes() {
+    if (typeof window === 'undefined') return;
+    if (window._tctvSwipeInstalled) return;
+    window._tctvSwipeInstalled = true;
+    
+    var touchStartY = 0;
+    var touchStartX = 0;
+    var touchStartTime = 0;
+    var isSwiping = false;
+    var SWIPE_THRESHOLD = 80; // min pixels to count as swipe
+    var SWIPE_TIME_MAX = 400; // max ms for a quick swipe
+    var HORIZONTAL_TOLERANCE = 100; // allow some horizontal drift
+    
+    // Get the player container for touch target
+    function getPlayerContainer() {
+        // Prefer the actual video player element
+        var player = document.getElementById('tctv-player');
+        if (player) return player;
+        // Fallback to mobile player container
+        var mobileContainer = document.getElementById('tctv-mobile-player-container');
+        if (mobileContainer) return mobileContainer;
+        // Fallback to video row
+        return document.getElementById('tctv-video-row');
+    }
+    
+    function handleTouchStart(e) {
+        // Only when TCTV is active
+        if (!window._tctvActive && window.currentChannelId !== 'timechain-tv') return;
+        
+        var touch = e.touches[0];
+        touchStartY = touch.clientY;
+        touchStartX = touch.clientX;
+        touchStartTime = Date.now();
+        isSwiping = true;
+    }
+    
+    function handleTouchMove(e) {
+        if (!isSwiping) return;
+        
+        var touch = e.touches[0];
+        var deltaY = touch.clientY - touchStartY;
+        var deltaX = touch.clientX - touchStartX;
+        
+        // If horizontal movement dominates, let it pass (timeline scrolling)
+        if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+            isSwiping = false;
+            return;
+        }
+        
+        // Prevent default scrolling if we're doing a vertical swipe
+        if (Math.abs(deltaY) > 30) {
+            e.preventDefault();
+        }
+    }
+    
+    function handleTouchEnd(e) {
+        if (!isSwiping) return;
+        isSwiping = false;
+        
+        var touch = e.changedTouches[0];
+        var deltaY = touch.clientY - touchStartY;
+        var deltaX = touch.clientX - touchStartX;
+        var deltaTime = Date.now() - touchStartTime;
+        
+        // Check if it's a valid swipe
+        if (Math.abs(deltaY) < SWIPE_THRESHOLD) return; // Too short
+        if (deltaTime > SWIPE_TIME_MAX) return; // Too slow
+        if (Math.abs(deltaX) > HORIZONTAL_TOLERANCE) return; // Too much horizontal drift
+        
+        // Determine direction and switch channel
+        if (deltaY < 0) {
+            // Swipe UP → next channel (like TikTok)
+            _tctvSwipeChannel('next');
+        } else {
+            // Swipe DOWN → previous channel
+            _tctvSwipeChannel('prev');
+        }
+    }
+    
+    // Attach to document and filter by target
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+})();
+
+// Channel switching via swipe with visual feedback
+function _tctvSwipeChannel(direction) {
+    if (typeof STATIONS === 'undefined' || !window._currentStation) return;
+    
+    var currentIdx = -1;
+    for (var i = 0; i < STATIONS.length; i++) {
+        if (STATIONS[i].id === window._currentStation) {
+            currentIdx = i;
+            break;
+        }
+    }
+    if (currentIdx < 0) return;
+    
+    var newIdx;
+    if (direction === 'next') {
+        newIdx = (currentIdx + 1) % STATIONS.length;
+    } else {
+        newIdx = (currentIdx - 1 + STATIONS.length) % STATIONS.length;
+    }
+    
+    // Show brief visual hint
+    _showSwipeHint(direction);
+    
+    // Switch station
+    if (typeof window.switchStation === 'function') {
+        window.switchStation(STATIONS[newIdx].id);
+    }
+}
+
+// Visual feedback for swipe
+function _showSwipeHint(direction) {
+    var hint = document.createElement('div');
+    hint.id = 'tctv-swipe-hint';
+    hint.textContent = direction === 'next' ? '▲' : '▼';
+    hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;color:#f7931a;font-size:4rem;font-weight:900;text-shadow:0 0 30px rgba(247,147,26,0.8);pointer-events:none;opacity:0;transition:opacity 0.15s;';
+    document.body.appendChild(hint);
+    
+    // Fade in
+    requestAnimationFrame(function() {
+        hint.style.opacity = '1';
+        // Fade out and remove
+        setTimeout(function() {
+            hint.style.opacity = '0';
+            setTimeout(function() { hint.remove(); }, 150);
+        }, 200);
+    });
+}
+
 })();
