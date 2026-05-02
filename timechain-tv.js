@@ -7272,6 +7272,11 @@ window.cleanupTimechainTV = function() {
     var hasMoved = false;
     
     function createOverlay() {
+        // MOBILE ONLY — never add the overlay on desktop (breaks YouTube controls/clicks)
+        if (!('ontouchstart' in window) && !navigator.maxTouchPoints) return;
+        // Also skip if screen is wide (tablet in landscape / desktop)
+        if (window.innerWidth > 768) return;
+        
         var container = document.getElementById('tctv-video-container');
         if (!container) return;
         if (document.getElementById('tctv-swipe-overlay')) return;
