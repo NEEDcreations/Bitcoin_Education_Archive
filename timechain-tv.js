@@ -7243,9 +7243,13 @@ window.cleanupTimechainTV = function() {
 };
 
 // ── TikTok-Style Swipe Navigation for Mobile ──
-// YouTube iframes absorb all touch events (cross-origin). 
-// Solution: Place a transparent overlay on top of the video that captures swipes.
-// Quick taps pass through to the iframe (play/pause). Only vertical swipes trigger channel change.
+// YouTube iframes absorb all touch events (cross-origin), so we CANNOT intercept
+// touches on the iframe itself without breaking YouTube's native controls.
+// 
+// Solution: Use a transparent overlay that covers ONLY the top 70% of the video.
+// The bottom 30% is left uncovered so YouTube's progress bar and controls work.
+// Taps on the overlay toggle play/pause via the YT API (no passthrough needed).
+// Vertical swipes on the overlay change the channel.
 (function installTikTokSwipes() {
     if (typeof window === 'undefined') return;
     if (window._tctvSwipeInstalled) return;
@@ -7253,8 +7257,7 @@ window.cleanupTimechainTV = function() {
     
     var SWIPE_THRESHOLD = 50; // min pixels for a swipe
     var SWIPE_TIME_MAX = 600; // max ms
-    var TAP_THRESHOLD = 10; // max pixels for a tap (pass through)
-    var TAP_TIME_MAX = 250; // max ms for a tap
+    var TAP_THRESHOLD = 12; // max movement for a tap
     
     var touchStartY = 0;
     var touchStartX = 0;
@@ -7264,11 +7267,12 @@ window.cleanupTimechainTV = function() {
     function createOverlay() {
         var container = document.getElementById('tctv-video-container');
         if (!container) return;
-        if (document.getElementById('tctv-swipe-overlay')) return; // Already exists
+        if (document.getElementById('tctv-swipe-overlay')) return;
         
+        // Overlay covers top 70% of video — bottom 30% left for YT controls
         var overlay = document.createElement('div');
         overlay.id = 'tctv-swipe-overlay';
-        overlay.style.cssText = 'position:absolute;inset:0;z-index:5;background:transparent;touch-action:none;';
+        overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;height:70%;z-index:5;background:transparent;touch-action:none;';
         container.appendChild(overlay);
         
         overlay.addEventListener('touchstart', function(e) {
@@ -7288,7 +7292,7 @@ window.cleanupTimechainTV = function() {
                 hasMoved = true;
             }
             
-            // Prevent page scroll when swiping on video
+            // Prevent page scroll when vertical swiping on video
             if (deltaY > 20) {
                 e.preventDefault();
             }
@@ -7300,13 +7304,9 @@ window.cleanupTimechainTV = function() {
             var deltaX = touch.clientX - touchStartX;
             var deltaTime = Date.now() - touchStartTime;
             
-            // TAP: Pass through to iframe (play/pause)
-            if (!hasMoved && deltaTime < TAP_TIME_MAX) {
-                // Briefly hide overlay so the tap reaches the iframe
-                overlay.style.pointerEvents = 'none';
-                setTimeout(function() {
-                    overlay.style.pointerEvents = 'auto';
-                }, 300);
+            // TAP: Toggle play/pause via YT API (don't need to pass through)
+            if (!hasMoved && deltaTime < 300) {
+                _tctvTogglePlayPause();
                 return;
             }
             
@@ -7324,18 +7324,28 @@ window.cleanupTimechainTV = function() {
         }, { passive: true });
     }
     
-    // Attach overlay when TCTV renders
-    // Use MutationObserver to detect when the player container appears
-    var observer = new MutationObserver(function(mutations) {
+    // Detect when TCTV video container appears
+    var observer = new MutationObserver(function() {
         if (document.getElementById('tctv-video-container') && !document.getElementById('tctv-swipe-overlay')) {
             createOverlay();
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    
-    // Also try immediately in case TCTV is already rendered
     createOverlay();
 })();
+
+// Toggle play/pause via YouTube API (called by tap on overlay)
+function _tctvTogglePlayPause() {
+    try {
+        if (!_ytPlayer || !_ytPlayer.getPlayerState) return;
+        var state = _ytPlayer.getPlayerState();
+        if (state === 1) { // Playing
+            _ytPlayer.pauseVideo();
+        } else {
+            _ytPlayer.playVideo();
+        }
+    } catch(e) {}
+}
 
 // Channel switching via swipe with visual feedback
 function _tctvSwipeChannel(direction) {
