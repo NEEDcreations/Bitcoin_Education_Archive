@@ -3479,15 +3479,6 @@ function showSettingsPage(tab) {
         }
         _acctDetailsHtml += '</div>';
 
-        // Change username — ALWAYS VISIBLE (not inside Advanced Account)
-        const currentName = currentUser ? currentUser.username || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
-            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
-            '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
-            '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
-            '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
-
         // --- START: content that goes inside Advanced Account ---
         html += '<div id="advAcctContent" style="display:none;">';
         html += _acctDetailsHtml;
@@ -3528,7 +3519,16 @@ function showSettingsPage(tab) {
             }
         }
 
-        html += '</div>'; // close advAcctContent — Account Details + Badge chooser are inside
+        // Change username
+        const currentName = currentUser ? currentUser.username || '' : '';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
+            '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
+            '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
+            '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
+            '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
+
+        html += '</div>'; // close advAcctContent — Account Details + Badge chooser + Change username are inside
 
         // Profile section (OUTSIDE advAcctContent — always visible)
         var bio = currentUser ? currentUser.bio || '' : '';
