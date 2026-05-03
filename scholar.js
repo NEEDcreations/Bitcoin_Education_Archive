@@ -4044,9 +4044,9 @@ function renderScholarQuestion(idx) {
         '<canvas id="examQCanvas" width="600" height="120" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;"></canvas>' +
         '<div style="display:flex;flex-direction:column;gap:10px;">';
     
-        choices.forEach(val => {
+        choices.forEach((val, ci) => {
             const selected = scholarAnswers[idx] === val;
-            html += '<button onclick="selectScholarAnswer(' + idx + ', \'' + val.replace(/[\\'"]/g, "") + '\')" style="text-align:left;padding:15px;background:' + (selected ? 'var(--accent)' : 'var(--bg-side)') + ';color:' + (selected ? '#fff' : 'var(--text)') + ';border:1px solid ' + (selected ? 'var(--accent)' : 'var(--border)' ) + ';border-radius:10px;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + val + '</button>';
+            html += '<button data-ci="' + ci + '" onclick="selectScholarAnswer(' + idx + ', ' + ci + ')" style="text-align:left;padding:15px;background:' + (selected ? 'var(--accent)' : 'var(--bg-side)') + ';color:' + (selected ? '#fff' : 'var(--text)') + ';border:1px solid ' + (selected ? 'var(--accent)' : 'var(--border)' ) + ';border-radius:10px;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + escapeHtml(val) + '</button>';
         });
     html += '</div>' +
         '<div style="margin-top:30px;display:flex;justify-content:space-between;">' +
@@ -4102,7 +4102,12 @@ function renderScholarQuestion(idx) {
     }
 }
 
-function selectScholarAnswer(idx, val) {
+function selectScholarAnswer(idx, choiceIndex) {
+    // Resolve choice index to actual answer text
+    var q = scholarQuestions[idx];
+    var choices = q.shuffled || [q.a].concat(q.w);
+    var val = choices[choiceIndex];
+    if (!val) return;
     scholarAnswers[idx] = val;
     const keyPrefix = scholarType === 'technical' ? 'tech' : 'prop';
     try {
