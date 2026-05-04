@@ -6620,8 +6620,8 @@ window.renderTimechainTV = function() {
                the EPG wrapper to the bottom, but don't steal viewport space. */
             #nacho-couch { display: none !important; }
             #tctv-ad-mobile { display: none !important; }
-            #tctv-disclaimer { display: none !important; }
-            #tctv-disclaimer + div { display: none !important; }
+            #tctv-disclaimer { font-size: 0.7rem !important; padding: 12px 16px !important; margin: 12px auto 8px !important; }
+            #tctv-disclaimer + div { height: 60px !important; }
         }
         /* Very short screens (landscape phones) - same flex approach but tighter video budget */
         @media (max-width: 768px) and (max-height: 600px) {
@@ -6773,13 +6773,14 @@ window.renderTimechainTV = function() {
         '</div>' +
         '<button id="tctv-ad-restore-mobile" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:8px auto;" title="Show ad">\ud83d\udcfa</button>' +
         '</div>';
-    // Legal disclaimer - very dim, bottom of TCTV, applies to all channel content
-    html += '<div id="tctv-disclaimer" style="max-width:720px;margin:18px auto 8px;padding:14px 22px;font-size:0.62rem;line-height:1.55;color:#555;text-align:center;letter-spacing:0.2px;opacity:0.65;">' +
-        '<div style="font-weight:700;font-size:0.58rem;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.2px;">Disclaimer</div>' +
-        'Timechain TV aggregates publicly embeddable videos from third-party YouTube channels. Bitcoin Education Archive does not own, host, endorse, or verify any of the content shown. Views and opinions expressed belong solely to the original creators. ' +
-        'Nothing on Timechain TV constitutes financial, investment, legal, or tax advice. Bitcoin is volatile and you can lose money - do your own research and consult licensed professionals before making any financial decisions. ' +
-        'Price predictions, strategies, and endorsements shown are the opinions of the speakers, not ours. ' +
-        '<a href="/tctv-terms.html" style="color:#777;text-decoration:underline;">Terms</a> · <a href="/dmca.html" style="color:#777;text-decoration:underline;">DMCA</a> · <a href="/privacy.html" style="color:#777;text-decoration:underline;">Privacy</a>' +
+    // Legal disclaimer - bottom of TCTV, applies to all channel content
+    html += '<div id="tctv-disclaimer" style="max-width:720px;margin:24px auto 12px;padding:20px 24px;font-size:0.82rem;line-height:1.7;color:#ccc;text-align:center;background:rgba(255,255,255,0.03);border:1px solid #222;border-radius:12px;">' +
+        '<div style="font-weight:800;font-size:0.75rem;color:#f7931a;margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px;">Powered by YouTube Embeds</div>' +
+        '<div style="font-size:0.78rem;color:#aaa;margin-bottom:14px;">All content is subject to creators\' rights and <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener" style="color:#f7931a;text-decoration:underline;">YouTube Terms of Service</a>.</div>' +
+        '<div style="font-size:0.8rem;color:#ddd;margin-bottom:12px;">Timechain TV is a <strong>free, non-monetized, open-source</strong> educational platform. We do not run ads, sell data, or profit from the content shown. Our sole mission is curating publicly available Bitcoin education for the community.</div>' +
+        '<div style="font-size:0.78rem;color:#aaa;margin-bottom:12px;">We do not own, host, store, copy, or redistribute any video files. All videos are streamed directly from YouTube via their official embedded player. Views, opinions, and claims expressed in videos belong solely to the original creators — not to Bitcoin Education Archive.</div>' +
+        '<div style="font-size:0.78rem;color:#aaa;margin-bottom:14px;">Nothing shown constitutes financial, investment, legal, or tax advice. Bitcoin is volatile — do your own research and consult licensed professionals before making financial decisions.</div>' +
+        '<div style="font-size:0.75rem;color:#888;"><a href="/tctv-terms.html" style="color:#f7931a;text-decoration:underline;">Terms of Service</a> · <a href="/dmca.html" style="color:#f7931a;text-decoration:underline;">DMCA Policy</a> · <a href="/privacy.html" style="color:#f7931a;text-decoration:underline;">Privacy Policy</a></div>' +
     '</div>';
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
