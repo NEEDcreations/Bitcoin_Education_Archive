@@ -6779,7 +6779,7 @@ window.renderTimechainTV = function() {
         'Timechain TV aggregates publicly embeddable videos from third-party YouTube channels. Bitcoin Education Archive does not own, host, endorse, or verify any of the content shown. Views and opinions expressed belong solely to the original creators. ' +
         'Nothing on Timechain TV constitutes financial, investment, legal, or tax advice. Bitcoin is volatile and you can lose money - do your own research and consult licensed professionals before making any financial decisions. ' +
         'Price predictions, strategies, and endorsements shown are the opinions of the speakers, not ours. ' +
-        '<a href="/terms.html" style="color:#777;text-decoration:underline;">Terms</a> · <a href="/privacy.html" style="color:#777;text-decoration:underline;">Privacy</a>' +
+        '<a href="/tctv-terms.html" style="color:#777;text-decoration:underline;">Terms</a> · <a href="/dmca.html" style="color:#777;text-decoration:underline;">DMCA</a> · <a href="/privacy.html" style="color:#777;text-decoration:underline;">Privacy</a>' +
     '</div>';
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
