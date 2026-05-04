@@ -5542,16 +5542,26 @@ window.tctvCloseGuide = function() {
 window.tctvRemotePause = function() {
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
 
-    if (!_isPaused) {
-        // Pause the video - onPlayerStateChange will handle UI
+    // Check actual player state (not just our flag) to avoid desync
+    var actuallyPaused = false;
+    try {
+        if (_ytPlayer && typeof _ytPlayer.getPlayerState === 'function') {
+            var state = _ytPlayer.getPlayerState();
+            actuallyPaused = (state === 2); // YT.PlayerState.PAUSED = 2
+        }
+    } catch(e) {}
+
+    if (!_isPaused && !actuallyPaused) {
+        // Pause the video
         if (_ytPlayer && _ytPlayer.pauseVideo) _ytPlayer.pauseVideo();
-        // Fallback for iframe mode
         _isPaused = true;
         _updatePauseButtons(true);
         _showSyncButtons(true);
     } else {
-        // Resume - jump to live (sync to global clock)
-        syncPlayer();
+        // Resume from current position (not jump to live)
+        if (_ytPlayer && _ytPlayer.playVideo) _ytPlayer.playVideo();
+        _isPaused = false;
+        _updatePauseButtons(false);
     }
 };
 
@@ -5559,8 +5569,10 @@ window.tctvRemotePause = function() {
 // Clamps to [0, video duration]. Falls back silently if the player can't seek.
 window.tctvRemoteSeek = function(delta) {
     if (typeof window.nachoPlaySound === 'function') window.nachoPlaySound('tctv-beep');
-    if (_apiFailed || !_ytPlayer || !_ytPlayer.getCurrentTime || !_ytPlayer.seekTo) return;
+    if (_apiFailed || !_ytPlayer) return;
     try {
+        // Ensure player methods exist (they might not if API partially loaded)
+        if (typeof _ytPlayer.getCurrentTime !== 'function' || typeof _ytPlayer.seekTo !== 'function') return;
         var cur = _ytPlayer.getCurrentTime();
         var dur = (typeof _ytPlayer.getDuration === 'function') ? _ytPlayer.getDuration() : 0;
         var target = Math.max(0, cur + delta);
@@ -5606,9 +5618,8 @@ window.tctvRemoteVolume = function(dir) {
 function _applyYTVolume(vol) {
     try {
         if (!_ytPlayer) return;
-        // Check player state - getPlayerState returns -1 if unstarted
-        var state = typeof _ytPlayer.getPlayerState === 'function' ? _ytPlayer.getPlayerState() : -1;
-        if (state === -1) return; // Player not ready
+        // Apply volume regardless of player state — the YT API accepts setVolume
+        // even when buffering/unstarted and it takes effect once playback begins.
         if (typeof _ytPlayer.setVolume === 'function') _ytPlayer.setVolume(vol);
         if (vol === 0 && typeof _ytPlayer.mute === 'function') _ytPlayer.mute();
         else if (vol > 0 && typeof _ytPlayer.unMute === 'function') _ytPlayer.unMute();
