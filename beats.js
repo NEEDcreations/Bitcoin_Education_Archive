@@ -1179,6 +1179,101 @@ window.beatsReportTrack = function(trackId) {
     }).catch(function() { showToast('Error submitting report'); });
 };
 
+// ---- Edit Track (title, cover, release date) ----
+window.beatsEditTrack = function(trackId, artistUid) {
+    if (!auth || !auth.currentUser || auth.currentUser.uid !== artistUid) { showToast('Not authorized'); return; }
+    db.collection('beats_tracks').doc(trackId).get().then(function(doc) {
+        if (!doc.exists) { showToast('Track not found'); return; }
+        var t = doc.data();
+        var overlay = document.createElement('div');
+        overlay.id = 'beatsEditOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:400px;width:100%;">' +
+            '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:16px;">✏️ Edit Track</div>' +
+            '<label style="display:block;margin-bottom:12px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Title</span>' +
+                '<input type="text" id="beatsEditTitle" value="' + escapeHtml(t.title || '') + '" maxlength="100" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
+            '<label style="display:block;margin-bottom:12px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Genre</span>' +
+                '<input type="text" id="beatsEditGenre" value="' + escapeHtml(t.genre || '') + '" maxlength="30" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
+            '<label style="display:block;margin-bottom:12px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Release Date</span>' +
+                '<input type="date" id="beatsEditDate" value="' + (t.releaseDate || '') + '" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
+            '<label style="display:block;margin-bottom:16px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Cover Art (optional new image)</span>' +
+                '<input type="file" id="beatsEditCover" accept="image/*" style="display:block;margin-top:4px;font-size:0.8rem;color:var(--text-muted);"></label>' +
+            '<div style="display:flex;gap:8px;">' +
+                '<button onclick="document.getElementById(\'beatsEditOverlay\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:0.85rem;">Cancel</button>' +
+                '<button onclick="beatsSaveTrackEdit(\'' + trackId + '\',\'' + artistUid + '\')" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">💾 Save</button>' +
+            '</div>' +
+        '</div>';
+        document.body.appendChild(overlay);
+    });
+};
+
+window.beatsSaveTrackEdit = function(trackId, artistUid) {
+    var title = (document.getElementById('beatsEditTitle').value || '').trim();
+    var genre = (document.getElementById('beatsEditGenre').value || '').trim();
+    var releaseDate = document.getElementById('beatsEditDate').value || '';
+    var coverFile = document.getElementById('beatsEditCover').files[0];
+    if (!title) { showToast('Title is required'); return; }
+
+    var updates = { title: title.substring(0, 100) };
+    if (genre) updates.genre = genre.substring(0, 30);
+    if (releaseDate) updates.releaseDate = releaseDate;
+
+    function doUpdate(coverUrl) {
+        if (coverUrl) updates.coverUrl = coverUrl;
+        db.collection('beats_tracks').doc(trackId).update(updates).then(function() {
+            showToast('✅ Track updated!');
+            document.getElementById('beatsEditOverlay').remove();
+            // Refresh artist page
+            var artOv = document.getElementById('beatsArtistOverlay');
+            if (artOv) artOv.remove();
+            beatsShowArtistPage(artistUid);
+        }).catch(function(e) { showToast('Error saving: ' + e.message); });
+    }
+
+    if (coverFile) {
+        // Upload new cover
+        var storage = firebase.storage();
+        var path = 'beats_covers/' + auth.currentUser.uid + '/' + Date.now() + '_' + coverFile.name;
+        storage.ref(path).put(coverFile).then(function(snap) {
+            return snap.ref.getDownloadURL();
+        }).then(function(url) { doUpdate(url); }).catch(function(e) { showToast('Cover upload failed: ' + e.message); });
+    } else {
+        doUpdate(null);
+    }
+};
+
+// ---- Upload custom artist profile image ----
+window.beatsUploadArtistImage = function() {
+    if (!auth || !auth.currentUser) { showToast('Sign in first'); return; }
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function() {
+        var file = input.files[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Image too large (max 2MB)'); return; }
+        showToast('Uploading artist image...');
+        var storage = firebase.storage();
+        var path = 'artist_images/' + auth.currentUser.uid + '/' + Date.now() + '_' + file.name;
+        storage.ref(path).put(file).then(function(snap) {
+            return snap.ref.getDownloadURL();
+        }).then(function(url) {
+            // Save to user's artistProfile.artistImage
+            return db.collection('users').doc(auth.currentUser.uid).update({
+                'artistProfile.artistImage': url
+            });
+        }).then(function() {
+            showToast('✅ Artist image updated!');
+            // Refresh the artist page
+            var artOv = document.getElementById('beatsArtistOverlay');
+            if (artOv) artOv.remove();
+            beatsShowArtistPage(auth.currentUser.uid);
+        }).catch(function(e) { showToast('Upload failed: ' + e.message); });
+    };
+    input.click();
+};
+
 // ---- DMCA modal ----
 window.beatsShowDMCA = function() {
     var overlay = document.createElement('div');
@@ -2145,6 +2240,8 @@ window.beatsShowArtistPage = function(uid) {
         var artistName = ap.stageName || u.username || tracks[0] && (tracks[0].artist || tracks[0].authorName) || 'Unknown Artist';
         var artistBio = ap.bio || u.bio || '';
         var artistGenres = ap.genres ? ap.genres.split(',').map(function(g) { return g.trim(); }).filter(Boolean) : [];
+        var artistImage = ap.artistImage || ''; // custom artist profile image
+        var isOwner = auth && auth.currentUser && auth.currentUser.uid === uid;
 
         // Collect music links
         var musicLinks = [];
@@ -2156,7 +2253,10 @@ window.beatsShowArtistPage = function(uid) {
         var html = '<div style="max-width:500px;margin:40px auto;background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;animation:fadeSlideIn 0.3s ease-out;">' +
             '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove()" style="float:right;background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             '<div style="text-align:center;margin-bottom:20px;">' +
-                '<div style="font-size:2.5rem;margin-bottom:8px;">' + lvl.emoji + '</div>' +
+                // Artist image (custom or fallback to level emoji)
+                (artistImage
+                    ? '<div style="width:80px;height:80px;border-radius:50%;margin:0 auto 10px;overflow:hidden;border:3px solid var(--accent);box-shadow:0 0 20px rgba(247,147,26,0.3);' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Change artist image"' : '') + '><img src="' + escapeHtml(artistImage) + '" style="width:100%;height:100%;object-fit:cover;"></div>'
+                    : '<div style="font-size:2.5rem;margin-bottom:8px;' + (isOwner ? 'cursor:pointer;' : '') + '" ' + (isOwner ? 'onclick="beatsUploadArtistImage()" title="Upload artist image"' : '') + '>' + lvl.emoji + (isOwner ? '<div style="font-size:0.6rem;color:var(--text-faint);margin-top:2px;">📷 Add Photo</div>' : '') + '</div>') +
                 '<div style="color:var(--heading);font-weight:800;font-size:1.3rem;">' + escapeHtml(artistName) + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + lvl.name + ' · ' + (u.points || 0).toLocaleString() + ' pts</div>' +
                 // Genre tags
@@ -2245,13 +2345,16 @@ window.beatsShowArtistPage = function(uid) {
                 alb.tracks.forEach(function(t) {
                     // Find the track's index in the original tracks array for playback
                     var origIdx = tracks.indexOf(t);
-                    html += '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:0.15s;margin-bottom:3px;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
-                        '<div style="width:22px;color:var(--text-faint);font-size:0.7rem;text-align:center;flex-shrink:0;">' + (t.trackNumber || '') + '</div>' +
-                        '<div style="flex:1;min-width:0;">' +
-                            '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                            '<div style="color:var(--text-faint);font-size:0.6rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + '</div>' +
+                    html += '<div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:0.15s;margin-bottom:3px;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
+                        '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
+                            '<div style="width:22px;color:var(--text-faint);font-size:0.7rem;text-align:center;flex-shrink:0;">' + (t.trackNumber || '') + '</div>' +
+                            '<div style="flex:1;min-width:0;">' +
+                                '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                                '<div style="color:var(--text-faint);font-size:0.6rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.releaseDate ? ' · ' + t.releaseDate : '') + '</div>' +
+                            '</div>' +
+                            '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.68rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
                         '</div>' +
-                        '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.68rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
+                        (isOwner ? '<button onclick="event.stopPropagation();beatsEditTrack(\'' + t.id + '\',\'' + uid + '\')" style="flex-shrink:0;width:26px;height:26px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--text-faint);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Edit">✏️</button>' : '') +
                     '</div>';
                 });
                 html += '</div></div>';
@@ -2264,13 +2367,16 @@ window.beatsShowArtistPage = function(uid) {
             if (albumList.length > 0) html += '<div style="font-weight:700;color:var(--heading);font-size:0.8rem;margin-bottom:8px;">Singles</div>';
             singles.forEach(function(t) {
                 var origIdx = tracks.indexOf(t);
-                html += '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                    '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+                html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                    '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
+                        '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + t.genre : '') + (t.releaseDate ? ' · ' + t.releaseDate : '') + '</div>' +
+                        '</div>' +
+                        '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
                     '</div>' +
-                    '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
+                    (isOwner ? '<button onclick="event.stopPropagation();beatsEditTrack(\'' + t.id + '\',\'' + uid + '\')" style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--text-faint);font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Edit track">✏️</button>' : '') +
                 '</div>';
             });
         }
