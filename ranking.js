@@ -1043,23 +1043,36 @@ async function signInWithProvider(provider) {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
     if (isMobileDevice || isStandalone) {
-        // Mobile: go straight to redirect (popups don't work reliably on mobile browsers)
+        // Mobile: try popup first (works on most modern mobile browsers),
+        // fall back to redirect if popup fails.
         try {
             showToast('⏳ Opening sign-in...');
+            // Save anon data BEFORE anything async (non-blocking fire-and-forget)
             const anonUser = auth.currentUser;
             if (anonUser && anonUser.isAnonymous) {
                 localStorage.setItem('btc_anon_uid', anonUser.uid);
-                try {
-                    const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                    if (anonDoc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                } catch(e2) {}
+                db.collection('users').doc(anonUser.uid).get().then(function(doc) {
+                    if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
+                }).catch(function() {});
             }
-            sessionStorage.setItem('btc_redirect_pending', '1');
-            localStorage.setItem('btc_pwa_auth_pending', '1'); // survives cross-origin redirect
-            await auth.signInWithRedirect(provider);
-            return;
+            // Try popup first (faster, doesn't lose page context)
+            try {
+                const result = await auth.signInWithPopup(provider);
+                if (result && result.user) {
+                    const { anonUid, anonData } = await saveAnonData();
+                    await handleSignInResult(result.user, anonUid, anonData);
+                    return;
+                }
+            } catch(popupErr) {
+                console.log('[Auth] Mobile popup failed, falling back to redirect:', popupErr.code);
+                // Popup failed — use redirect
+                sessionStorage.setItem('btc_redirect_pending', '1');
+                localStorage.setItem('btc_pwa_auth_pending', '1');
+                await auth.signInWithRedirect(provider);
+                return;
+            }
         } catch(e) {
-            console.error('Redirect sign-in error:', e);
+            console.error('Mobile sign-in error:', e);
             showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
             return;
         }
