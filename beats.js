@@ -2182,19 +2182,98 @@ window.beatsShowArtistPage = function(uid) {
                 ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();showTipOverlay({recipientName:\'' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',recipientUid:\'' + uid + '\',label:\'Tip ' + escapeHtml(artistName).replace(/[\\'"]/g, "") + '\',context:\'Artist page\'})" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
                 '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">👤 Full Profile</button>' +
             '</div>' +
-            // Discography
+            // Discography — grouped by album, then singles
             '<div style="font-weight:800;color:var(--heading);font-size:0.9rem;margin-bottom:12px;">🎵 Discography (' + tracks.length + ' tracks)</div>';
 
-        tracks.forEach(function(t, i) {
-            html += '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + i + ')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
-                '<div style="flex:1;min-width:0;">' +
-                    '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
-                '</div>' +
-                '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
-            '</div>';
+        // Group tracks: albums/EPs vs singles
+        var albums = {}; // albumId -> { title, type, year, cover, tracks[] }
+        var singles = [];
+        tracks.forEach(function(t) {
+            if (t.albumId) {
+                if (!albums[t.albumId]) {
+                    albums[t.albumId] = {
+                        title: t.albumTitle || 'Untitled Album',
+                        type: t.albumType || 'album',
+                        year: t.albumYear || '',
+                        cover: t.coverUrl || t.coverArt || '',
+                        tracks: [],
+                        createdAt: t.createdAt
+                    };
+                }
+                albums[t.albumId].tracks.push(t);
+            } else {
+                singles.push(t);
+            }
         });
+
+        // Sort album tracks by trackNumber ascending (Track 1 first)
+        Object.keys(albums).forEach(function(aid) {
+            albums[aid].tracks.sort(function(a, b) { return (a.trackNumber || 0) - (b.trackNumber || 0); });
+        });
+
+        // Sort albums by creation date (oldest first)
+        var albumList = Object.keys(albums).map(function(aid) { return { id: aid, ...albums[aid] }; });
+        albumList.sort(function(a, b) {
+            var aT = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+            var bT = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
+            return aT - bT;
+        });
+
+        // Sort singles by creation date ascending (oldest first)
+        singles.sort(function(a, b) {
+            var aT = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime()) : 0;
+            var bT = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
+            return aT - bT;
+        });
+
+        // Render albums
+        if (albumList.length > 0) {
+            html += '<div style="margin-bottom:16px;">';
+            albumList.forEach(function(alb) {
+                var albumUid = 'album_' + alb.id.replace(/[^a-zA-Z0-9]/g, '');
+                var typeLabel = (alb.type === 'ep' ? 'EP' : 'Album');
+                html += '<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card-bg);">' +
+                    '<div onclick="var el=document.getElementById(\'' + albumUid + '\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=el.style.display===\'none\'?\'▸\':\'▾\'" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
+                        '<div style="width:52px;height:52px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + (alb.cover ? '<img src="' + _safeCover(alb.cover) + '" style="width:100%;height:100%;object-fit:cover;">' : '💿') + '</div>' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(alb.title) + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.7rem;">' + typeLabel + ' · ' + alb.tracks.length + ' tracks' + (alb.year ? ' · ' + alb.year : '') + '</div>' +
+                        '</div>' +
+                        '<span style="color:var(--text-faint);font-size:1.1rem;flex-shrink:0;">▸</span>' +
+                    '</div>' +
+                    '<div id="' + albumUid + '" style="display:none;padding:0 12px 12px;">';
+                alb.tracks.forEach(function(t) {
+                    // Find the track's index in the original tracks array for playback
+                    var origIdx = tracks.indexOf(t);
+                    html += '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:0.15s;margin-bottom:3px;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
+                        '<div style="width:22px;color:var(--text-faint);font-size:0.7rem;text-align:center;flex-shrink:0;">' + (t.trackNumber || '') + '</div>' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.6rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + '</div>' +
+                        '</div>' +
+                        '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.68rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
+                    '</div>';
+                });
+                html += '</div></div>';
+            });
+            html += '</div>';
+        }
+
+        // Render singles
+        if (singles.length > 0) {
+            if (albumList.length > 0) html += '<div style="font-weight:700;color:var(--heading);font-size:0.8rem;margin-bottom:8px;">Singles</div>';
+            singles.forEach(function(t) {
+                var origIdx = tracks.indexOf(t);
+                html += '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                    '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + (t.likes ? ' · ❤ ' + t.likes : '') + (t.genre ? ' · ' + t.genre : '') + '</div>' +
+                    '</div>' +
+                    '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
+                '</div>';
+            });
+        }
 
         if (tracks.length === 0) html += '<div style="text-align:center;padding:20px;color:var(--text-faint);">No tracks uploaded yet</div>';
         html += '</div>';
@@ -2205,7 +2284,7 @@ window.beatsShowArtistPage = function(uid) {
     });
 };
 
-// Play track from artist page (loads their catalog)
+// Play track from artist page (loads their catalog in same order as artist page display)
 window.beatsArtistPlayTrack = function(uid, idx) {
     if (typeof db === 'undefined') return;
     db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'desc').limit(50).get().then(function(snap) {
