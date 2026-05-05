@@ -5476,7 +5476,10 @@ window.initSatsClaim = function() {
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10002;display:flex;align-items:center;justify-content:center;padding:16px;';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    // Delay dismiss listener to prevent the originating button click from immediately closing it
+    setTimeout(function() {
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    }, 200);
 
     var html = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">';
     html += '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:2rem;">⚡</span><div style="font-size:1.1rem;font-weight:800;color:var(--accent);margin-top:4px;">Claim Sats</div></div>';
