@@ -5453,7 +5453,9 @@ function showSignInPrompt() {
 
 // ===== SATS CLAIM FLOW =====
 window.initSatsClaim = function() {
+    console.log('[SATS] initSatsClaim called', { currentUser: !!currentUser, auth: !!auth, authUser: !!auth?.currentUser, isAnon: auth?.currentUser?.isAnonymous });
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        console.log('[SATS] BLOCKED: auth check failed');
         showToast('Sign in to claim sats');
         return;
     }
@@ -5463,10 +5465,13 @@ window.initSatsClaim = function() {
     var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
     var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 500, lifetimeLeft);
+    console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
+        console.log('[SATS] BLOCKED: maxClaim < 100');
         showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed points) to withdraw. Keep earning!', 5000);
         return;
     }
+    console.log('[SATS] Passed all checks, showing overlay');
 
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
