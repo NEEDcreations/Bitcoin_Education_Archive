@@ -211,21 +211,23 @@ function initRanking() {
                 } else if (user && user.isAnonymous) {
                     // If we're pending a redirect, DON'T load anon yet — wait longer for auth to resolve
                     if (_pendingRedirect) {
-                        console.log('[Auth] Anon user but pending redirect — waiting 5s for real auth...');
+                        console.log('[Auth] Anon user but pending redirect — waiting 8s for real auth...');
                         // Give Firebase extra time to restore the redirect session
+                        // (mobile redirects can be slow due to cross-origin ITP/partitioning)
                         var _redirectTimeout = setTimeout(function() {
                             // Check one more time if a real user appeared
                             if (auth.currentUser && !auth.currentUser.isAnonymous) {
                                 console.log('[Auth] Real user appeared after wait:', auth.currentUser.uid);
                                 loadUser(auth.currentUser.uid);
                             } else {
-                                console.log('[Auth] No real user after 5s — loading anon');
+                                console.log('[Auth] No real user after 8s — loading anon');
                                 loadUserLocal(user.uid);
                             }
                             localStorage.removeItem('btc_anon_uid');
                             localStorage.removeItem('btc_anon_data');
+                            localStorage.removeItem('btc_pwa_auth_pending');
                             sessionStorage.removeItem('btc_redirect_pending');
-                        }, 5000);
+                        }, 8000);
                         // But if getRedirectResult resolves with a user, use that immediately
                         redirectResultPromise.then(function(redirectUser) {
                             if (redirectUser) { clearTimeout(_redirectTimeout); return; }
@@ -240,8 +242,17 @@ function initRanking() {
                         // Redirect already resolved (no redirect happened) — safe to go anonymous
                         auth.signInAnonymously().then(() => {});
                     } else {
-                        // Wait for redirect result to resolve first
+                        // Wait for redirect result to resolve first, with extra timeout for mobile
+                        var _nullUserTimeout = setTimeout(function() {
+                            // After 10s if still no user, go anonymous
+                            if (!auth.currentUser) {
+                                console.log('[Auth] 10s timeout with no user — going anonymous');
+                                localStorage.removeItem('btc_pwa_auth_pending');
+                                auth.signInAnonymously().then(() => {});
+                            }
+                        }, 10000);
                         redirectResultPromise.then(function(redirectUser) {
+                            clearTimeout(_nullUserTimeout);
                             // If redirect gave us a real user, onAuthStateChanged already fired for them
                             if (!redirectUser && !auth.currentUser) {
                                 auth.signInAnonymously().then(() => {});
@@ -1044,6 +1055,7 @@ async function signInWithProvider(provider) {
                 } catch(e2) {}
             }
             sessionStorage.setItem('btc_redirect_pending', '1');
+            localStorage.setItem('btc_pwa_auth_pending', '1'); // survives cross-origin redirect
             await auth.signInWithRedirect(provider);
             return;
         } catch(e) {
@@ -1080,6 +1092,7 @@ async function signInWithProvider(provider) {
                         }
                     } catch(e2) {}
                 }
+                localStorage.setItem('btc_pwa_auth_pending', '1');
                 await auth.signInWithRedirect(provider);
                 return;
             } catch(redirectErr) {
