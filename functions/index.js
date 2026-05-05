@@ -1558,6 +1558,11 @@ exports.claimSats = functions.https.onCall(async (data, context) => {
             if (!userDoc.exists) throw new Error('User profile not found.');
             const user = userDoc.data();
 
+            // SATS DISABLED CHECK — admin ban for farming/abuse
+            if (user.satsDisabled === true) {
+                throw new Error('Sats withdrawals are disabled on this account. Contact support if you believe this is an error.');
+            }
+
             // L1: Check if a previous claim is still pending
             if (user._pendingClaim === true) {
                 throw new Error('A previous claim is still processing. Try again in a minute.');
@@ -3332,8 +3337,10 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
             return 'unknown';
         }
 
+        const allUserEmails = []; // for pattern matching
         snap.forEach(doc => {
             const d = doc.data();
+            if (d.email) allUserEmails.push({ uid: doc.id, email: d.email, username: d.username || '', points: d.points || 0 });
             const method = classifyAuth(d);
             authTotals[method] = (authTotals[method] || 0) + 1;
 
@@ -3379,6 +3386,30 @@ exports.dailyActiveUsers = functions.https.onRequest(async (req, res) => {
         Object.keys(emailDomainCounts24h).forEach(dom => {
             if (emailDomainCounts24h[dom] >= 5) {
                 suspicious.sameEmailDomainBurst.push({ domain: dom, count: emailDomainCounts24h[dom] });
+            }
+        });
+
+        // Known bad actor email pattern detection (Tadiyos ring + similar)
+        const KNOWN_PATTERNS = [
+            /tadi.*reta|reta.*tadi/i,  // Tadiyos anagram pattern
+            /retata/i,
+            /roberm.*arch|robert.*march/i, // Robert March variants
+        ];
+        suspicious.knownPatternMatches = [];
+        allUserEmails.forEach(entry => {
+            for (const pat of KNOWN_PATTERNS) {
+                if (pat.test(entry.email)) {
+                    suspicious.knownPatternMatches.push({ uid: entry.uid.substring(0,8), email: entry.email, pattern: pat.source });
+                    break;
+                }
+            }
+        });
+
+        // Default username farming detection ("Bitcoiner" accounts with high points)
+        suspicious.defaultUsernameFarmers = [];
+        allUserEmails.forEach(entry => {
+            if (entry.username === 'Bitcoiner' && entry.points > 2000) {
+                suspicious.defaultUsernameFarmers.push({ uid: entry.uid.substring(0,8), email: entry.email, points: entry.points });
             }
         });
 
