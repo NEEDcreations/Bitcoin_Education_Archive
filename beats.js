@@ -1274,6 +1274,110 @@ window.beatsUploadArtistImage = function() {
     input.click();
 };
 
+// ---- Create Album from existing singles ----
+window.beatsCreateAlbumFromSingles = function() {
+    if (!auth || !auth.currentUser) { showToast('Sign in first'); return; }
+    var uid = auth.currentUser.uid;
+    // Fetch user's singles (tracks without albumId)
+    db.collection('beats_tracks').where('authorId', '==', uid).orderBy('createdAt', 'asc').limit(50).get().then(function(snap) {
+        var singles = [];
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (!d.albumId) singles.push({ id: doc.id, ...d });
+        });
+        if (singles.length < 2) { showToast('You need at least 2 singles to create an album'); return; }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'beatsAlbumGroupOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+        var html = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:24px;max-width:440px;width:100%;max-height:80vh;overflow-y:auto;">' +
+            '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:4px;">💿 Create Album / EP</div>' +
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-bottom:16px;">Select tracks to group together. Drag to reorder.</div>' +
+            '<label style="display:block;margin-bottom:10px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Album Title</span>' +
+                '<input type="text" id="beatsGroupAlbumTitle" maxlength="80" placeholder="My Album" style="display:block;width:100%;padding:10px 12px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
+            '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+                '<label style="flex:1;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Type</span>' +
+                    '<select id="beatsGroupAlbumType" style="display:block;width:100%;padding:10px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-top:4px;"><option value="album">Album</option><option value="ep">EP</option></select></label>' +
+                '<label style="flex:1;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Release Date</span>' +
+                    '<input type="date" id="beatsGroupAlbumDate" style="display:block;width:100%;padding:10px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-top:4px;box-sizing:border-box;"></label>' +
+            '</div>' +
+            '<label style="display:block;margin-bottom:14px;"><span style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Cover Art (optional)</span>' +
+                '<input type="file" id="beatsGroupAlbumCover" accept="image/*" style="display:block;margin-top:4px;font-size:0.8rem;color:var(--text-muted);"></label>' +
+            '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Select Tracks (check to include, order = track number)</div>';
+
+        singles.forEach(function(t, i) {
+            html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);cursor:pointer;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                '<input type="checkbox" value="' + t.id + '" class="beatsGroupCheck" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;">' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.title || 'Untitled') + '</div>' +
+                    '<div style="color:var(--text-faint);font-size:0.6rem;">' + (t.genre || '') + (t.duration ? ' · ' + beatsFormatTime(t.duration) : '') + '</div>' +
+                '</div>' +
+            '</label>';
+        });
+
+        html += '<div style="display:flex;gap:8px;margin-top:16px;">' +
+            '<button onclick="document.getElementById(\'beatsAlbumGroupOverlay\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:0.85rem;">Cancel</button>' +
+            '<button onclick="beatsSaveAlbumGroup()" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">💿 Save Album</button>' +
+        '</div></div>';
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+    });
+};
+
+window.beatsSaveAlbumGroup = function() {
+    var title = (document.getElementById('beatsGroupAlbumTitle').value || '').trim();
+    var type = document.getElementById('beatsGroupAlbumType').value;
+    var releaseDate = document.getElementById('beatsGroupAlbumDate').value || '';
+    var coverFile = document.getElementById('beatsGroupAlbumCover').files[0];
+    if (!title) { showToast('Please enter an album title'); return; }
+
+    var checks = document.querySelectorAll('.beatsGroupCheck:checked');
+    if (checks.length < 2) { showToast('Select at least 2 tracks'); return; }
+
+    var trackIds = [];
+    checks.forEach(function(c) { trackIds.push(c.value); });
+
+    var albumId = 'album_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    var albumYear = releaseDate ? releaseDate.substring(0, 4) : '';
+
+    function doGroup(coverUrl) {
+        // Update each track with album metadata
+        var batch = db.batch();
+        trackIds.forEach(function(tid, i) {
+            var ref = db.collection('beats_tracks').doc(tid);
+            var update = {
+                albumId: albumId,
+                albumTitle: title,
+                albumType: type,
+                trackNumber: i + 1
+            };
+            if (albumYear) update.albumYear = parseInt(albumYear);
+            if (releaseDate) update.releaseDate = releaseDate;
+            if (coverUrl) update.coverUrl = coverUrl;
+            batch.update(ref, update);
+        });
+        batch.commit().then(function() {
+            showToast('✅ Album "' + title + '" created with ' + trackIds.length + ' tracks!');
+            document.getElementById('beatsAlbumGroupOverlay').remove();
+            var artOv = document.getElementById('beatsArtistOverlay');
+            if (artOv) artOv.remove();
+            beatsShowArtistPage(auth.currentUser.uid);
+        }).catch(function(e) { showToast('Error: ' + e.message); });
+    }
+
+    if (coverFile) {
+        var storage = firebase.storage();
+        var path = 'beats_covers/' + auth.currentUser.uid + '/' + Date.now() + '_' + coverFile.name;
+        storage.ref(path).put(coverFile).then(function(snap) {
+            return snap.ref.getDownloadURL();
+        }).then(function(url) { doGroup(url); }).catch(function(e) { showToast('Cover upload failed: ' + e.message); });
+    } else {
+        doGroup(null);
+    }
+};
+
 // ---- DMCA modal ----
 window.beatsShowDMCA = function() {
     var overlay = document.createElement('div');
@@ -2283,7 +2387,7 @@ window.beatsShowArtistPage = function(uid) {
                 '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">👤 Full Profile</button>' +
             '</div>' +
             // Discography — grouped by album, then singles
-            '<div style="font-weight:800;color:var(--heading);font-size:0.9rem;margin-bottom:12px;">🎵 Discography (' + tracks.length + ' tracks)</div>';
+            '';
 
         // Group tracks: albums/EPs vs singles
         var albums = {}; // albumId -> { title, type, year, cover, tracks[] }
@@ -2325,6 +2429,12 @@ window.beatsShowArtistPage = function(uid) {
             var bT = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime()) : 0;
             return aT - bT;
         });
+
+        // Discography header (after grouping so we know singles count)
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+            '<div style="font-weight:800;color:var(--heading);font-size:0.9rem;">🎵 Discography (' + tracks.length + ' tracks)</div>' +
+            (isOwner && singles.length > 1 ? '<button onclick="beatsCreateAlbumFromSingles()" style="padding:6px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">💿 Create Album</button>' : '') +
+        '</div>';
 
         // Render albums
         if (albumList.length > 0) {
