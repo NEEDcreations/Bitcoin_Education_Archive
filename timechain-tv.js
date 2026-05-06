@@ -6620,7 +6620,9 @@ window.renderTimechainTV = function() {
                the EPG wrapper to the bottom, but don't steal viewport space. */
             #nacho-couch { display: none !important; }
             #tctv-ad-mobile { display: none !important; }
-            #tctv-disclaimer { font-size: 0.7rem !important; padding: 12px 16px !important; margin: 12px auto 8px !important; }
+            #tctv-disclaimer { font-size: 0.65rem !important; padding: 10px 12px !important; margin: 8px 12px !important; max-height: 36px; overflow: hidden; cursor: pointer; position: relative; }
+            #tctv-disclaimer.expanded { max-height: none; cursor: auto; }
+            #tctv-disclaimer:not(.expanded)::after { content: 'Tap to read full disclaimer ▼'; display: block; position: absolute; bottom: 0; left: 0; right: 0; text-align: center; padding: 6px; background: linear-gradient(transparent, #0a0a0a 60%); color: #888; font-size: 0.6rem; font-weight: 600; }
             #tctv-disclaimer + div { height: 60px !important; }
         }
         /* Very short screens (landscape phones) - same flex approach but tighter video budget */
@@ -6774,7 +6776,7 @@ window.renderTimechainTV = function() {
         '<button id="tctv-ad-restore-mobile" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:8px auto;" title="Show ad">\ud83d\udcfa</button>' +
         '</div>';
     // Legal disclaimer - bottom of TCTV, applies to all channel content
-    html += '<div id="tctv-disclaimer" style="max-width:720px;margin:24px auto 12px;padding:20px 24px;font-size:0.82rem;line-height:1.7;color:#ccc;text-align:center;background:rgba(255,255,255,0.03);border:1px solid #222;border-radius:12px;">' +
+    html += '<div id="tctv-disclaimer" onclick="this.classList.toggle(\'expanded\')" style="max-width:720px;margin:24px auto 12px;padding:20px 24px;font-size:0.82rem;line-height:1.7;color:#ccc;text-align:center;background:rgba(255,255,255,0.03);border:1px solid #222;border-radius:12px;">' +
         '<div style="font-weight:800;font-size:0.75rem;color:#f7931a;margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px;">Powered by YouTube Embeds</div>' +
         '<div style="font-size:0.78rem;color:#aaa;margin-bottom:14px;">All content is subject to creators\' rights and <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener" style="color:#f7931a;text-decoration:underline;">YouTube Terms of Service</a>.</div>' +
         '<div style="font-size:0.8rem;color:#ddd;margin-bottom:12px;">Timechain TV is a <strong>free, non-monetized, open-source</strong> educational platform. We do not run ads, sell data, or profit from the content shown. Our sole mission is curating publicly available Bitcoin education for the community.</div>' +
