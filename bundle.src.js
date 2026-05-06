@@ -23769,7 +23769,7 @@ window.toggleAITools = function() {
         btn.onclick = toggleAITools;
         btn.title = 'AI Tools';
         btn.setAttribute('aria-label', 'Open AI Tools');
-        btn.style.cssText = 'position:fixed;bottom:10px;right:200px;z-index:9990;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;gap:6px;transition:0.2s;';
+        btn.style.cssText = 'position:fixed;bottom:10px;right:110px;z-index:9990;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;gap:6px;transition:0.2s;';
         btn.innerHTML = '🤖<span class="ai-fab-text"> AI Tools</span>';
         document.body.appendChild(btn);
 
@@ -23778,7 +23778,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:128px!important;padding:0!important;font-size:1.4rem!important;width:48px!important;height:48px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;}#aiToolsBtn .ai-fab-text{display:none!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:72px!important;padding:0!important;font-size:1.4rem!important;width:48px!important;height:48px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;}#aiToolsBtn .ai-fab-text{display:none!important;}}';
             document.head.appendChild(style);
         }
     }

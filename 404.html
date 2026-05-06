@@ -41,7 +41,7 @@
     <link rel="dns-prefetch" href="https://mempool.space">
     <link rel="dns-prefetch" href="https://www.youtube.com">
     <link rel="preconnect" href="https://www.youtube.com" crossorigin>
-    <link rel="preload" href="bundle.js?v=20260506_1954" as="script">
+    <link rel="preload" href="bundle.js?v=20260506_2031" as="script">
     <link rel="preload" href="images/btc-grad-logo-sm.jpg" as="image">
     <meta name="description" content="A curated Bitcoin education archive with 146 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -1117,9 +1117,9 @@
     </main>
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
-    <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:110px;z-index:9990;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆<span class="lb-fab-text"> Leaderboard</span></button>
+    <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:20px;z-index:9990;background:var(--accent);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;">🏆<span class="lb-fab-text"> Leaderboard</span></button>
     <div id="leaderboard"></div>
-    <button onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:20px;z-index:9989;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px 18px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;" id="desktopDMBtn">💬 Chat</button>
+    <button onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:200px;z-index:9989;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:12px 18px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:6px;transition:0.2s;" id="desktopDMBtn">💬 Chat</button>
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
         <div class="username-box glass-dark">
             <h2>⚡ Join the Leaderboard</h2>
@@ -1194,7 +1194,7 @@
     <script>setTimeout(function(){var s=document.createElement('script');s.src='https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js';s.integrity='sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK';s.crossOrigin='anonymous';s.onload=function(){try{firebase.appCheck().activate('6LcTlnYsAAAAAMR0KkaRoCrIlvceClMGkWXr9ahv',true);console.log('[AppCheck] Activated')}catch(e){console.warn('[AppCheck] Init failed:',e)}};document.head.appendChild(s)},4000);</script>
     <!-- Critical: needed for initial page render -->
     <script src="security-patches.js?v=20260307" defer></script>
-    <script src="bundle.js?v=20260506_1954" defer fetchpriority="high"></script>
+    <script src="bundle.js?v=20260506_2031" defer fetchpriority="high"></script>
     <script src="event-cleanup.js?v=20260307" defer></script>
     <script src="onboarding.js?v=20260417tctv" defer></script>
     <script src="timechain-tv.js?v=20260504_1609" defer></script>
@@ -1209,7 +1209,7 @@
     (function(){
         var _lazyScripts = [
             'nacho-qa.js?v=20260404','scholar.js?v=20260503_2353','beats.js?v=20260506_1737',
-            'global-chat.js?v=20260429_1624','lightning.js?v=20260330b','lightning-tips.js?v=20260330a',
+            'global-chat.js?v=20260506_2031','lightning.js?v=20260330b','lightning-tips.js?v=20260330a',
             'notifications.js?v=20260328c','guide.js?v=20260409d','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260411','tips-integrations.js?v=20260307','wallet-router.js?v=20260307a',
