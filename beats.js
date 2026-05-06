@@ -29,6 +29,7 @@ window.renderBitcoinBeats = function() {
             <button onclick="beatsTab('artists')" id="beatsTabArtists" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">🎤 Artists</button>
             <button onclick="beatsTab('upload')" id="beatsTabUpload" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">🎸 Upload</button>
             <button onclick="beatsTab('livestream')" id="beatsTabLivestream" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">📡 Live</button>
+            <button onclick="beatsTab('pumpit')" id="beatsTabPumpit" class="beats-tab" style="padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit;">🚀 Pump It!</button>
         </div>
 
         <!-- Search Bar -->
@@ -220,7 +221,7 @@ window.beatsTab = function(tab) {
     // Remove old sort bar when leaving discover
     if (tab !== 'discover') { var sb = document.getElementById('beatsSortBar'); if (sb) sb.remove(); }
     if (tab !== 'search') { var sr = document.getElementById('beatsSearchResults'); if (sr) sr.remove(); }
-    ['discover','library','artists','upload','livestream'].forEach(function(t) {
+    ['discover','library','artists','upload','livestream','pumpit'].forEach(function(t) {
         var btn = document.getElementById('beatsTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) {
             btn.style.borderBottomColor = (t === tab) ? 'var(--accent)' : 'transparent';
@@ -235,6 +236,8 @@ window.beatsTab = function(tab) {
         beatsRenderLibrary();
     } else if (tab === 'artists') {
         beatsRenderArtists();
+    } else if (tab === 'pumpit') {
+        beatsRenderPumpIt();
     } else if (tab === 'search') {
         // handled by beatsPerformSearch
     } else {
@@ -3128,7 +3131,7 @@ window.beatsPerformSearch = function() {
     if (!query) { if(typeof showToast==='function') showToast('Type something to search'); return; }
 
     window._beatsCurrentTab = 'search';
-    ['discover','library','artists','upload','livestream'].forEach(function(t) {
+    ['discover','library','artists','upload','livestream','pumpit'].forEach(function(t) {
         var btn = document.getElementById('beatsTab' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) { btn.style.borderBottomColor='transparent'; btn.style.color='var(--text-muted)'; }
     });
@@ -3200,4 +3203,18 @@ window.beatsRenderArtists=function(){
 
 // NOTE: Artist Catalog is already rendered by the original beatsShowArtistPage
 // (see "Discography" section). No override needed.
+
+// ================================================================
+// PUMP IT! — Embedded price game
+// ================================================================
+window.beatsRenderPumpIt = function() {
+    var listEl = document.getElementById('beatsTrackList');
+    if (!listEl) return;
+    listEl.innerHTML = '<div style="position:relative;width:100%;padding-top:75%;border-radius:12px;overflow:hidden;background:#000;">'
+        + '<iframe src="https://leo-mattes.com/pump-it-up/" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allow="autoplay" allowfullscreen></iframe>'
+        + '</div>'
+        + '<div style="text-align:center;margin-top:12px;">'
+        + '<a href="https://leo-mattes.com/pump-it-up/" target="_blank" rel="noopener" style="color:var(--text-faint);font-size:0.72rem;text-decoration:none;">Open in new tab ↗</a>'
+        + '</div>';
+};
 

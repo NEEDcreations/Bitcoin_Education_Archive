@@ -23364,6 +23364,13 @@ window.nachoQuizAnswer = function(btn, correct) {
                 return;
             }
 
+            // Meetup Builder
+            if (hash === 'meetup-builder' || state.channel === 'meetup-builder') {
+                // Stay on IRL sync page, just scroll to section
+                if (typeof go === 'function') go('irl-sync', null, true);
+                return;
+            }
+
             // Forum listing
             if (hash === 'forum' || (state.channel && state.channel.indexOf('forum') === 0)) {
                 go('forum', null, true);
