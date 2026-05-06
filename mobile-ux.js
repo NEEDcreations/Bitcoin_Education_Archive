@@ -109,9 +109,7 @@ function initBottomNav() {
     var nav = document.createElement('div');
     nav.id = 'bottomNav';
     nav.className = 'mobile-nav';
-    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px);display:none;';
-    // Show immediately on mobile
-    if (window.innerWidth <= 900) nav.style.display = 'block';
+    nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,0.1);padding:10px 0 env(safe-area-inset-bottom,10px);display:block;transition:transform 0.25s ease;';
     nav.innerHTML =
         '<div style="display:flex;justify-content:space-around;align-items:stretch;max-width:500px;margin:0 auto;">' +
             '<button onclick="goHome()" class="bnav-btn" id="bnavHome"><span class="bnav-icon">🏠</span><span class="bnav-label">Home</span></button>' +
@@ -153,9 +151,10 @@ function initReadingProgress() {
 
         // Dynamic Bottom Nav: Hide on scroll down, show on scroll up
         if (bnav && window.innerWidth <= 900) {
-            if (scrollTop > lastScrollTop && scrollTop > 60) {
+            var scrollDelta = scrollTop - lastScrollTop;
+            if (scrollDelta > 10 && scrollTop > 200) {
                 bnav.classList.add('nav-hidden');
-            } else {
+            } else if (scrollDelta < -5 || scrollTop <= 10) {
                 bnav.classList.remove('nav-hidden');
             }
         }

@@ -2641,6 +2641,10 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.goHome = function goHome(fromPopState) {
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
         
+        // Ensure bottom nav is visible on home
+        var _bnav = document.getElementById('bottomNav');
+        if (_bnav) _bnav.classList.remove('nav-hidden');
+
         // Update SEO metrics
         if (typeof _updateSEO === 'function') _updateSEO('home', 'Learn Bitcoin', 'A curated Bitcoin education archive with 146 topics, 8800+ messages, and community tools.');
         var fb = document.getElementById('floatingRandomBtn');
@@ -3340,6 +3344,10 @@ window.nachoQuizAnswer = function(btn, correct) {
 
     window.go = async function go(id, btn, fromPopState) {
         if (typeof _tctvStopTracker === 'function') _tctvStopTracker();
+        // Ensure bottom nav is visible on navigation
+        var _bnav = document.getElementById('bottomNav');
+        if (_bnav) _bnav.classList.remove('nav-hidden');
+
         if (window._nachoMode && !fromPopState) {
             if (typeof nachoChatSave === 'function') nachoChatSave();
             window._nachoReturnPending = true;
