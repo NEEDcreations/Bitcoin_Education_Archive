@@ -987,6 +987,16 @@ service cloud.firestore {
         || viewerId.matches('^v_[a-z0-9]{5,40}$');
     }
 
+    // AI Tools open tracking — anyone can create, no reads/updates/deletes
+    match /ai_tools_opens/{docId} {
+      allow create: if
+        request.resource.data.keys().hasOnly(['uid', 'openedAt'])
+        && request.resource.data.uid is string
+        && request.resource.data.uid.size() > 0
+        && request.resource.data.uid.size() < 60;
+      allow read, update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

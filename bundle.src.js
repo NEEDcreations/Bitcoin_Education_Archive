@@ -23711,6 +23711,83 @@ window.playSpinWin = function() {
         });
     } catch(e) {}
 };
+
+// ================================================================
+// 🤖 AI Tools Panel (ppq.ai) — Global floating button + slide-up panel
+// ================================================================
+window._aiToolsOpen = false;
+
+window.toggleAITools = function() {
+    var panel = document.getElementById('aiToolsPanel');
+    if (!panel) {
+        // Create panel on first open
+        panel = document.createElement('div');
+        panel.id = 'aiToolsPanel';
+        panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:100000;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s ease;box-shadow:0 -10px 40px rgba(0,0,0,0.6);';
+        panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
+            '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
+            '</div>' +
+            '<iframe src="https://ppq.ai" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
+        document.body.appendChild(panel);
+
+        // Responsive style for desktop
+        var style = document.createElement('style');
+        style.id = 'aiToolsPanelCSS';
+        style.textContent = '@media(min-width:901px){#aiToolsPanel{max-width:480px;right:16px;left:auto;border-radius:16px 16px 0 0;}}@media(max-width:900px){#aiToolsPanel iframe{height:calc(70vh - 56px);}}';
+        document.head.appendChild(style);
+    }
+
+    window._aiToolsOpen = !window._aiToolsOpen;
+    panel.style.transform = window._aiToolsOpen ? 'translateY(0)' : 'translateY(100%)';
+
+    // Update button appearance
+    var btn = document.getElementById('aiToolsBtn');
+    if (btn) {
+        btn.style.background = window._aiToolsOpen ? 'var(--card-bg)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+        btn.style.borderColor = window._aiToolsOpen ? 'var(--accent)' : 'transparent';
+    }
+
+    // Track opens in Firestore
+    if (window._aiToolsOpen && typeof db !== 'undefined' && db) {
+        try {
+            var uid = (auth && auth.currentUser) ? auth.currentUser.uid : 'anon_' + (localStorage.getItem('visitorId') || 'unknown');
+            db.collection('ai_tools_opens').add({
+                uid: uid,
+                openedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch(e) { console.warn('[AI Tools] tracking error', e); }
+    }
+};
+
+// Inject AI Tools button on DOM ready
+(function() {
+    function injectAIToolsBtn() {
+        if (document.getElementById('aiToolsBtn')) return;
+        var btn = document.createElement('button');
+        btn.id = 'aiToolsBtn';
+        btn.onclick = toggleAITools;
+        btn.title = 'AI Tools';
+        btn.setAttribute('aria-label', 'Open AI Tools');
+        btn.style.cssText = 'position:fixed;bottom:10px;right:200px;z-index:9990;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;gap:6px;transition:0.2s;';
+        btn.innerHTML = '🤖<span class="ai-fab-text"> AI Tools</span>';
+        document.body.appendChild(btn);
+
+        // Mobile: icon-only FAB
+        var style = document.getElementById('aiToolsBtnCSS');
+        if (!style) {
+            style = document.createElement('style');
+            style.id = 'aiToolsBtnCSS';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:64px!important;padding:0!important;font-size:1.4rem!important;width:48px!important;height:48px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;}#aiToolsBtn .ai-fab-text{display:none!important;}}';
+            document.head.appendChild(style);
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectAIToolsBtn);
+    } else {
+        injectAIToolsBtn();
+    }
+})();
 // =============================================
 // Bitcoin Education Archive — UX Improvement Patches
 // Implements all 24 tasks from the UX Review Report
