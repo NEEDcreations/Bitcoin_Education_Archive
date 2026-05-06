@@ -21,6 +21,13 @@
         if ((m = path.match(/^\/channels\/(.+)$/))) return m[1];
         if ((m = path.match(/^\/app\/(.+)$/))) return m[1];
         if (path === '/timechain-tv' || path === '/tv') return 'timechain-tv';
+        if (path === '/meetup-builder') return 'meetup-builder';
+        if (path === '/irl-sync' || path === '/meet') return 'irl-sync';
+        if (path === '/forum') return 'forum';
+        if (path === '/marketplace') return 'marketplace';
+        if (path === '/bitcoin-beats' || path === '/beats') return 'bitcoin-beats';
+        if (path === '/chat') return 'chat';
+        if (path === '/pvp') return 'pvp';
         // Also check hash for backwards compat
         var hash = window.location.hash.replace('#', '');
         return hash || null;
