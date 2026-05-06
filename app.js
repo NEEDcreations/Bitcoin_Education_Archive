@@ -4799,7 +4799,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:64px!important;padding:0!important;font-size:1.4rem!important;width:48px!important;height:48px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;}#aiToolsBtn .ai-fab-text{display:none!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:128px!important;padding:0!important;font-size:1.4rem!important;width:48px!important;height:48px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;}#aiToolsBtn .ai-fab-text{display:none!important;}}';
             document.head.appendChild(style);
         }
     }
