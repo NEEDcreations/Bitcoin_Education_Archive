@@ -6616,13 +6616,15 @@ window.renderTimechainTV = function() {
                 touch-action: pan-x pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
             }
-            /* Couch Nacho and ad are pushed to overflow - accessible by scrolling
-               the EPG wrapper to the bottom, but don't steal viewport space. */
+            /* Couch Nacho hidden on mobile to save space */
             #nacho-couch { display: none !important; }
-            #tctv-ad-mobile { display: none !important; }
-            #tctv-disclaimer { font-size: 0.65rem !important; padding: 10px 12px !important; margin: 8px 12px !important; max-height: 36px; overflow: hidden; cursor: pointer; position: relative; }
-            #tctv-disclaimer.expanded { max-height: none; cursor: auto; }
-            #tctv-disclaimer:not(.expanded)::after { content: 'Tap to read full disclaimer ▼'; display: block; position: absolute; bottom: 0; left: 0; right: 0; text-align: center; padding: 6px; background: linear-gradient(transparent, #0a0a0a 60%); color: #888; font-size: 0.6rem; font-weight: 600; }
+            /* Ad compact on mobile */
+            #tctv-ad-mobile { margin: 12px auto 8px !important; max-width: 320px !important; }
+            #tctv-ad-mobile-content { padding: 10px 14px !important; }
+            /* Disclaimer: collapsed by default, fully scrollable when expanded */
+            #tctv-disclaimer { font-size: 0.72rem !important; padding: 10px 12px !important; margin: 8px 12px !important; max-height: 36px; overflow: hidden; cursor: pointer; position: relative; }
+            #tctv-disclaimer.expanded { max-height: 400px !important; overflow-y: auto !important; cursor: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+            #tctv-disclaimer:not(.expanded)::after { content: 'Tap to read full disclaimer ▼'; display: block; position: absolute; bottom: 0; left: 0; right: 0; text-align: center; padding: 6px; background: linear-gradient(transparent, #0a0a0a 60%); color: #888; font-size: 0.65rem; font-weight: 600; }
             #tctv-disclaimer + div { height: 60px !important; }
         }
         /* Very short screens (landscape phones) - same flex approach but tighter video budget */
@@ -6763,8 +6765,9 @@ window.renderTimechainTV = function() {
     // Couch Nacho rendered AFTER the EPG so on mobile (static pos) he sits between
     // the channel list and the ad; on desktop he's position:fixed so DOM order is moot.
     html += _couchHtml;
-    // Ad below channel guide (all devices, minimizable)
-    html += '<div id="tctv-ad-mobile" style="margin:24px auto 16px;max-width:380px;text-align:center;">' +
+    // Ad below channel guide (all devices, minimizable) — inside EPG wrapper on mobile
+    // so it's scrollable. Injected into epg-wrapper after render via JS below.
+    var _adHtml = '<div id="tctv-ad-mobile" style="margin:24px auto 16px;max-width:380px;text-align:center;">' +
         '<div id="tctv-ad-mobile-content" style="padding:14px 18px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.15);border-radius:12px;position:relative;' + (_tctvAdMinimized ? 'display:none;' : '') + '">' +
             '<button onclick="tctvMinimizeAd()" style="position:absolute;top:6px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid #333;color:#666;font-size:0.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;" title="Minimize">\u2715</button>' +
             '<div style="font-size:1.3rem;margin-bottom:4px;">\ud83d\udcfa</div>' +
@@ -6776,16 +6779,28 @@ window.renderTimechainTV = function() {
         '<button id="tctv-ad-restore-mobile" onclick="tctvRestoreAd()" style="' + (_tctvAdMinimized ? 'display:flex;' : 'display:none;') + 'width:36px;height:36px;border-radius:50%;background:#1a1a1a;border:1px solid rgba(247,147,26,0.3);color:#f7931a;font-size:1.1rem;cursor:pointer;align-items:center;justify-content:center;margin:8px auto;" title="Show ad">\ud83d\udcfa</button>' +
         '</div>';
     // Legal disclaimer - bottom of TCTV, applies to all channel content
-    html += '<div id="tctv-disclaimer" onclick="this.classList.toggle(\'expanded\')" style="max-width:720px;margin:24px auto 12px;padding:20px 24px;font-size:0.82rem;line-height:1.7;color:#ccc;text-align:center;background:rgba(255,255,255,0.03);border:1px solid #222;border-radius:12px;">' +
-        '<div style="font-weight:800;font-size:0.75rem;color:#f7931a;margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px;">Powered by YouTube Embeds</div>' +
+    var _disclaimerHtml = '<div id="tctv-disclaimer" onclick="this.classList.toggle(\'expanded\')" style="max-width:720px;margin:24px auto 12px;padding:20px 24px;font-size:0.82rem;line-height:1.7;color:#ccc;text-align:center;background:rgba(255,255,255,0.03);border:1px solid #222;border-radius:12px;">' +
+        '<div style="font-weight:800;font-size:0.85rem;color:#f7931a;margin-bottom:10px;text-transform:uppercase;letter-spacing:1.5px;">Powered by YouTube Embeds</div>' +
         '<div style="font-size:0.78rem;color:#aaa;margin-bottom:14px;">All content is subject to creators\' rights and <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener" style="color:#f7931a;text-decoration:underline;">YouTube Terms of Service</a>.</div>' +
         '<div style="font-size:0.8rem;color:#ddd;margin-bottom:12px;">Timechain TV is a <strong>free, non-monetized, open-source</strong> educational platform. We do not run ads, sell data, or profit from the content shown. Our sole mission is curating publicly available Bitcoin education for the community.</div>' +
         '<div style="font-size:0.78rem;color:#aaa;margin-bottom:12px;">We do not own, host, store, copy, or redistribute any video files. All videos are streamed directly from YouTube via their official embedded player. Views, opinions, and claims expressed in videos belong solely to the original creators — not to Bitcoin Education Archive.</div>' +
         '<div style="font-size:0.78rem;color:#aaa;margin-bottom:14px;">Nothing shown constitutes financial, investment, legal, or tax advice. Bitcoin is volatile — do your own research and consult licensed professionals before making financial decisions.</div>' +
         '<div style="font-size:0.75rem;color:#888;"><a href="/tctv-terms.html" style="color:#f7931a;text-decoration:underline;">Terms of Service</a> · <a href="/dmca.html" style="color:#f7931a;text-decoration:underline;">DMCA Policy</a> · <a href="/privacy.html" style="color:#f7931a;text-decoration:underline;">Privacy Policy</a></div>' +
     '</div>';
+    // On mobile, ad + disclaimer go INSIDE epg-wrapper so they're scrollable.
+    // On desktop, they sit outside as siblings (page scrolls naturally).
+    html += _adHtml + _disclaimerHtml;
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
+
+    // On mobile, move ad + disclaimer inside epg-wrapper so they're scrollable
+    if (window.innerWidth <= 767) {
+        var _epgW = document.getElementById('tctv-epg-wrapper');
+        var _adEl = document.getElementById('tctv-ad-mobile');
+        var _disEl = document.getElementById('tctv-disclaimer');
+        if (_epgW && _adEl) _epgW.appendChild(_adEl);
+        if (_epgW && _disEl) _epgW.appendChild(_disEl);
+    }
 
     // ── EPG Tooltip (mobile tap + desktop hover) ──
     (function() {
