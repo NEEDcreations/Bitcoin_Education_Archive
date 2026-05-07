@@ -342,9 +342,36 @@ async function handleTelegramWebhook(request, env) {
   var gifUrl = null;
 
   if (msg.photo && msg.photo.length > 0) {
-    var photo = msg.photo[msg.photo.length - 1];
+    // Pick a mid-quality photo (index -2 if available, capped at ~800px) to keep Firestore doc small
+    var photoIdx = msg.photo.length >= 3 ? msg.photo.length - 2 : msg.photo.length - 1;
+    var photo = msg.photo[photoIdx];
     var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-    if (fileInfo.ok) imageUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
+    if (fileInfo.ok) {
+      var tmpUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
+      // Download and convert to base64 data URL for permanent storage
+      try {
+        var imgResp = await fetch(tmpUrl);
+        if (imgResp.ok) {
+          var imgBuf = await imgResp.arrayBuffer();
+          // Only inline if under 500KB (Firestore 1MB doc limit)
+          if (imgBuf.byteLength < 500000) {
+            var ext = (fileInfo.result.file_path || '').split('.').pop() || 'jpg';
+            var mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+            var bytes = new Uint8Array(imgBuf);
+            var binary = '';
+            for (var bi = 0; bi < bytes.length; bi++) binary += String.fromCharCode(bytes[bi]);
+            var b64 = btoa(binary);
+            imageUrl = 'data:' + mime + ';base64,' + b64;
+          } else {
+            imageUrl = tmpUrl;
+          }
+        } else {
+          imageUrl = tmpUrl;
+        }
+      } catch(e) {
+        imageUrl = tmpUrl;
+      }
+    }
   }
 
   if (msg.animation) {

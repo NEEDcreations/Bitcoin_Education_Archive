@@ -3731,6 +3731,101 @@ exports.watchlistCheck = functions.https.onRequest(async (req, res) => {
 });
 
 // =============================================
+// AUDIT WITHDRAWALS — Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
+// =============================================
+exports.auditWithdrawals = functions.https.onRequest(async (req, res) => {
+    const token = req.query.t || req.headers['x-dau-token'];
+    if (token !== 'dau-2026') { res.status(403).json({ error: 'forbidden' }); return; }
+
+    try {
+        const out = { blockedAccounts: [], recentWithdrawals: [], ipClusters: [], fingerprintClusters: [] };
+
+        // 1. Find all satsDisabled accounts and their withdrawal history
+        const blockedSnap = await db.collection('users').where('satsDisabled', '==', true).get();
+        for (const doc of blockedSnap.docs) {
+            const d = doc.data();
+            const uid = doc.id;
+            const record = {
+                uid: uid.substring(0, 8),
+                uidFull: uid,
+                username: d.username || null,
+                email: d.email || null,
+                points: d.points || 0,
+                satsDisabled: true,
+                withdrawals: []
+            };
+            // Pull ALL withdrawal history for this blocked account
+            const wSnap = await db.collection('users').doc(uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').limit(50).get();
+            wSnap.forEach(w => {
+                const wd = w.data();
+                record.withdrawals.push({
+                    amount: wd.amount || wd.sats || 0,
+                    pointsUsed: wd.pointsUsed || 0,
+                    timestamp: wd.timestamp && wd.timestamp.toDate ? wd.timestamp.toDate().toISOString() : null,
+                    invoice: wd.invoice || null,
+                    preimage: wd.preimage ? wd.preimage.substring(0, 16) + '...' : null
+                });
+            });
+            out.blockedAccounts.push(record);
+        }
+
+        // 2. Query recent withdrawals from faucet_invoices (global log)
+        const daysBack = parseInt(req.query.days || '7');
+        const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+        const invoiceSnap = await db.collection('faucet_invoices').where('ts', '>=', since).orderBy('ts', 'desc').limit(200).get();
+        invoiceSnap.forEach(inv => {
+            const id = inv.data();
+            out.recentWithdrawals.push({
+                uid: id.uid ? id.uid.substring(0, 8) : 'unknown',
+                uidFull: id.uid || 'unknown',
+                amount: id.amount || 0,
+                timestamp: id.ts && id.ts.toDate ? id.ts.toDate().toISOString() : null
+            });
+        });
+
+        // 3. Check faucet_ip_log for multi-account IPs
+        const ipSnap = await db.collection('faucet_ip_log').where('claimCount', '>=', 3).limit(50).get();
+        ipSnap.forEach(ip => {
+            const ipd = ip.data();
+            out.ipClusters.push({
+                ip: ip.id.replace(/_/g, '.'),
+                uids: (ipd.uids || []).map(u => u.substring(0, 8)),
+                uidsFull: ipd.uids || [],
+                claimCount: ipd.claimCount || 0,
+                lastClaim: ipd.lastClaim && ipd.lastClaim.toDate ? ipd.lastClaim.toDate().toISOString() : null
+            });
+        });
+
+        // 4. Check faucet_fingerprints for multi-account fingerprints
+        const fpSnap = await db.collection('faucet_fingerprints').where('claimCount', '>=', 3).limit(50).get();
+        fpSnap.forEach(fp => {
+            const fpd = fp.data();
+            out.fingerprintClusters.push({
+                fingerprint: fp.id.substring(0, 12) + '...',
+                uids: (fpd.uids || []).map(u => u.substring(0, 8)),
+                uidsFull: fpd.uids || [],
+                claimCount: fpd.claimCount || 0,
+                lastClaim: fpd.lastClaim && fpd.lastClaim.toDate ? fpd.lastClaim.toDate().toISOString() : null
+            });
+        });
+
+        // 5. Summary
+        out.summary = {
+            totalBlockedAccounts: blockedSnap.size,
+            totalWithdrawalsInPeriod: out.recentWithdrawals.length,
+            blockedAccountsWithWithdrawals: out.blockedAccounts.filter(a => a.withdrawals.length > 0).length,
+            multiAccountIPs: out.ipClusters.length,
+            multiAccountFingerprints: out.fingerprintClusters.length,
+            periodDays: daysBack
+        };
+
+        res.json(out);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// =============================================
 // TCTV Presence Aggregation — Scalable Live Viewer Counter
 // Runs every 10 seconds, aggregates presence docs into per-station counts
 // =============================================
