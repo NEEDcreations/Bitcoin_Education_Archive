@@ -965,7 +965,7 @@ function createChatOverlay() {
     var panel = document.createElement('div');
     panel.id = 'chatOverlay';
     var _isMobChat = window.innerWidth <= 900;
-    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:299;height:' + (_isMobChat ? '92vh' : '80vh') + ';max-height:' + (_isMobChat ? '100vh' : '700px') + ';background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
+    panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:250000;height:' + (_isMobChat ? '92vh' : '80vh') + ';max-height:' + (_isMobChat ? '100vh' : '700px') + ';background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;box-shadow:0 -8px 32px rgba(0,0,0,0.5);';
 
     // Header bar with drag handle
     var header = document.createElement('div');

@@ -23730,7 +23730,7 @@ window.toggleAITools = function() {
         // Create panel on first open
         panel = document.createElement('div');
         panel.id = 'aiToolsPanel';
-        panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:100000;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s ease;box-shadow:0 -10px 40px rgba(0,0,0,0.6);';
+        panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:250000;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s ease;box-shadow:0 -10px 40px rgba(0,0,0,0.6);';
         panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">' +
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
             '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
@@ -23776,8 +23776,8 @@ window.toggleAITools = function() {
         btn.onclick = toggleAITools;
         btn.title = 'AI Tools';
         btn.setAttribute('aria-label', 'Open AI Tools');
-        btn.style.cssText = 'position:fixed;bottom:10px;right:110px;z-index:9990;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:14px;padding:12px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;gap:6px;transition:0.2s;';
-        btn.innerHTML = '🤖<span class="ai-fab-text"> AI Tools</span>';
+        btn.style.cssText = 'position:fixed;bottom:10px;right:76px;z-index:9990;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:2px solid transparent;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(99,102,241,0.4);display:flex;align-items:center;justify-content:center;transition:0.2s;';
+        btn.innerHTML = '🤖';
         document.body.appendChild(btn);
 
         // Mobile: icon-only FAB
@@ -23785,7 +23785,7 @@ window.toggleAITools = function() {
         if (!style) {
             style = document.createElement('style');
             style.id = 'aiToolsBtnCSS';
-            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:72px!important;padding:0!important;font-size:1.4rem!important;width:48px!important;height:48px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;}#aiToolsBtn .ai-fab-text{display:none!important;}}';
+            style.textContent = '@media(max-width:900px){#aiToolsBtn{bottom:70px!important;right:72px!important;}}';
             document.head.appendChild(style);
         }
     }
