@@ -6853,8 +6853,14 @@ function getHalvingInfo() {
 window.nachoLiveAnswer = function(q) {
     var lower = q.toLowerCase();
     if (/price|how much is|what.?s bitcoin at|current price|btc price|bitcoin worth|bitcoin cost/.test(lower)) {
-        if (!nachoLiveData.price) return null;
-        var p = formatPrice(nachoLiveData.price);
+        var livePrice = nachoLiveData.price;
+        // Fallback: check localStorage cache if live data hasn't loaded yet
+        if (!livePrice) {
+            var cached = parseFloat(localStorage.getItem('btc_last_price'));
+            if (cached && cached > 0) livePrice = cached;
+        }
+        if (!livePrice) return null;
+        var p = formatPrice(livePrice);
         var msgs = [ "Bitcoin is currently at " + p + "! Still early, {name}. 📈🦌", "The current BTC price is " + p + ". Number go up technology! 📊", "Right now, 1 BTC = " + p + ". How many sats are you stacking, {name}? ⚡" ];
         return { answer: msgs[Math.floor(Math.random() * msgs.length)], channel: 'charts', channelName: 'Charts' };
     }
