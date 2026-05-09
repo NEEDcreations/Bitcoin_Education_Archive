@@ -1526,7 +1526,8 @@ function updateAuthButton() {
         var name = displayName || 'My Account';
         btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> — Settings';
         btn.onclick = function() { showSettings(); };
-        btn.style.display = 'block';
+        // Hide on mobile — mobile top bar already shows username + Topics
+        btn.style.display = (window.innerWidth <= 900) ? 'none' : 'block';
         btn.style.background = 'none';
         btn.style.border = '2px solid #22c55e';
         btn.style.color = '#22c55e';
