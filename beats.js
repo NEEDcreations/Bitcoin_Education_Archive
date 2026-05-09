@@ -2320,10 +2320,17 @@ window.beatsTipCurrentArtistById = function(uid, name, trackTitle) {
 window.beatsShowArtistPage = function(uid) {
     if (!uid || typeof db === 'undefined') return;
 
+    // Close any existing beats overlays first
+    var existingOverlays = ['beatsEditOverlay', 'beatsAlbumGroupOverlay', 'beatsPlaylistPicker', 'beatsDetailOverlay', 'beatsMenuOverlay', 'beatsDMCAOverlay'];
+    existingOverlays.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.remove();
+    });
+
     // Create overlay
     var overlay = document.createElement('div');
     overlay.id = 'beatsArtistOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = '<div style="max-width:500px;margin:40px auto;text-align:center;"><div style="color:var(--text-muted);">Loading artist...</div></div>';
     document.body.appendChild(overlay);

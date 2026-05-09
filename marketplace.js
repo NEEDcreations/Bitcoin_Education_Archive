@@ -78,6 +78,7 @@ function isMarketAdmin() {
 var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
     { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
+    { id: 'merchants', name: 'Other Bitcoin Merchants', emoji: '🏪', desc: 'Browse other Bitcoin merchants' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
@@ -233,6 +234,16 @@ function _actualRenderMarketplace(options) {
             'style="flex:1;padding:10px 8px;background:' + (secActive ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (secActive ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.8rem;font-weight:' + (secActive ? '700' : '500') + ';cursor:pointer;font-family:inherit;transition:0.2s;">' + sec.emoji + ' ' + sec.name + '</button>';
     }
     html += '</div>';
+
+    // If "Other Bitcoin Merchants" tab is active, show iframe and return early
+    if (activeSection === 'merchants') {
+        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">' +
+            '<iframe src="https://galaxymind.space/" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
+        '</div>';
+        html += '</div>';
+        container.innerHTML = html;
+        return;
+    }
 
     // Subcategory pills (filtered by active section)
     var visibleCats = activeSection === 'all' ? MARKETPLACE_CATEGORIES : MARKETPLACE_CATEGORIES.filter(function(c) { return c.section === activeSection; });
