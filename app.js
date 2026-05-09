@@ -3407,7 +3407,7 @@ window.nachoQuizAnswer = function(btn, correct) {
 
         // Forum route
         // Special App Routes (Non-channel content)
-        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv') {
+        if (id === 'forum' || id === 'marketplace' || id === 'bitcoin-beats' || id === 'irl-sync' || id === 'dms' || id === 'lightning' || id === 'chat' || id === 'first-purchase' || id === 'timechain-tv' || id === 'trails') {
             if (window._nachoMode) exitNachoMode(true);
             document.getElementById('home').classList.add('hidden');
             document.getElementById('hero').innerHTML = '';
@@ -3435,6 +3435,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                 else if (id === 'dms' && typeof showInbox === 'function') showInbox();
                 else if (id === 'lightning' && typeof renderLightning === 'function') renderLightning();
                 else if (id === 'chat' && typeof renderChatHub === 'function') renderChatHub('global');
+                else if (id === 'trails' && typeof renderModules === 'function') renderModules();
                 else if (id === 'forum' && typeof renderForum === 'function') renderForum();
                 else if (attempt < 20) {
                     // Script not loaded yet — retry (lazy scripts load in batches)
