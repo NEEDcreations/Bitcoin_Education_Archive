@@ -10937,7 +10937,7 @@ function _showQuestTopicPicker() {
     // Build the modal
     var modal = document.getElementById('questModal');
     if (!modal) return;
-    var box = modal.querySelector('.quest-box');
+    var box = document.getElementById('questInner');
     if (!box) return;
 
     var html = '<div style="text-align:center;margin-bottom:16px;">' +
