@@ -2633,6 +2633,9 @@ function updateUserDisplay(lv) {
         } else {
             el.style.cssText = 'position:fixed;top:12px;right:20px;z-index:200;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
         }
+
+        // Clicking the user display opens settings (except block height link)
+        el.onclick = function(e) { if (e.target.closest('a')) return; showSettings(); };
         
         var displayName = currentUser.username || (auth.currentUser && auth.currentUser.displayName) || 'Anon';
         
@@ -2660,7 +2663,7 @@ function updateUserDisplay(lv) {
                     if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) ch = nachoLiveData.blockHeight;
                     var s = '<div id="userDisplayLive" style="display:flex;align-items:center;gap:12px;font-size:0.7rem;opacity:0.8;">';
                     if (cp) s += '<div style="display:flex;align-items:center;gap:4px;"><span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(cp).toLocaleString() + '</span></div>';
-                    if (ch) s += '<div style="display:flex;align-items:center;gap:4px;color:#aaa;"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></div>';
+                    if (ch) s += '<a href="https://mempool.space" target="_blank" rel="noopener" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:4px;color:#aaa;text-decoration:none;" title="View on mempool.space"><span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + ch.toLocaleString() + '</span></a>';
                     s += '<span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
                     return s + '</div>';
                 })() +

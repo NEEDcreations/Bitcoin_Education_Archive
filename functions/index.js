@@ -2424,7 +2424,8 @@ exports.recordDailyVisit = functions.https.onCall(async (data, context) => {
             try {
                 const userRecord = await admin.auth().getUser(uid);
                 const creationDate = new Date(userRecord.metadata.creationTime);
-                accountAgeDays = Math.max(1, Math.floor((Date.now() - creationDate.getTime()) / 86400000));
+                // +1 because creation day counts as day 1 (a 3-hour-old account is still on day 1)
+                accountAgeDays = Math.max(1, Math.floor((Date.now() - creationDate.getTime()) / 86400000) + 1);
             } catch(e) {}
 
             // Calculate streak
