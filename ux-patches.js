@@ -1563,6 +1563,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             window.enterPVPMode = function() {
                 _origEnterPVP.apply(this, arguments);
                 setTimeout(patchPvpAnswer, 500);
+                // Announce PVP lobby entry in Global Chat
+                var _pvpName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+                if (_pvpName && typeof window.nachoGlobalAnnounce === 'function') {
+                    window.nachoGlobalAnnounce('\u2694\uFE0F @' + _pvpName + ' just entered the PVP arena! Think you can beat them? \uD83D\uDC49 bitcoineducation.quest/#pvp');
+                }
             };
         }
     }, 3000);

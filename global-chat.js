@@ -2569,5 +2569,25 @@ if (localStorage.getItem('hasUsedChat')) {
     }, 10000); // Delay 10s to let more critical loads go first
 }
 
+// ---- Nacho Global Announcements (callable from other modules) ----
+window.nachoGlobalAnnounce = function(text) {
+    if (!text || typeof db === 'undefined' || !db) return;
+    var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'nacho-bot';
+    // Rate limit: max 1 announcement per 30s per type
+    var now = Date.now();
+    var key = '_nachoAnnounce_' + text.substring(0, 20);
+    if (window[key] && now - window[key] < 30000) return;
+    window[key] = now;
+    db.collection(CHAT_COLLECTION).add({
+        uid: uid,
+        name: '\uD83E\uDD8C Nacho',
+        text: text,
+        isNachoAuto: true,
+        ts: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+        bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
+    }).catch(function(e) { console.error('[CHAT] Nacho announce failed:', e); });
+};
+
 console.log('[CHAT] Global chat module loaded');
 }();
