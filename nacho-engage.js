@@ -469,4 +469,105 @@ setTimeout(function() {
     }
 }, 30000); // show after 30 seconds on page
 
+// ---- Smart Notifications — Nacho nudges for badge/streak/milestone proximity ----
+(function() {
+    var NUDGE_KEY = 'btc_smart_nudges';
+    var NUDGE_COOLDOWN = 3600000; // 1 hour between nudges
+    
+    function getNudgeState() {
+        try { return JSON.parse(localStorage.getItem(NUDGE_KEY) || '{}'); } catch(e) { return {}; }
+    }
+    function setNudge(id) {
+        var state = getNudgeState();
+        state[id] = Date.now();
+        localStorage.setItem(NUDGE_KEY, JSON.stringify(state));
+    }
+    function canNudge(id) {
+        var state = getNudgeState();
+        return !state[id] || (Date.now() - state[id]) > NUDGE_COOLDOWN * 24; // 24h cooldown per nudge type
+    }
+    
+    function checkSmartNudges() {
+        if (typeof forceShowBubble !== 'function') return;
+        // Don't nudge during first 30s of session
+        if (Date.now() - (window._sessionStart || Date.now()) < 30000) return;
+        // Don't nudge if Nacho is already talking
+        var bubble = document.getElementById('nacho-bubble');
+        if (bubble && bubble.classList.contains('show')) return;
+        if (window._nachoBusy) return;
+        
+        var nudges = [];
+        
+        // Badge proximity nudges
+        if (typeof BADGE_DEFS !== 'undefined' && typeof earnedBadges !== 'undefined') {
+            // Explorer badges
+            var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+            if (!earnedBadges.has('explorer_10') && visited >= 7 && canNudge('near_explorer_10')) {
+                nudges.push({ id: 'near_explorer_10', text: 'You\'ve visited ' + visited + ' topics \u2014 just ' + (10 - visited) + ' more to earn the Explorer badge! \ud83e\udded Keep exploring!' });
+            }
+            if (!earnedBadges.has('explorer_25') && visited >= 20 && visited < 25 && canNudge('near_explorer_25')) {
+                nudges.push({ id: 'near_explorer_25', text: 'Only ' + (25 - visited) + ' more topics to unlock Trailblazer! \ud83d\uddfa\ufe0f You\'re so close!' });
+            }
+            
+            // Streak nudges
+            var streak = typeof currentUser !== 'undefined' && currentUser ? (currentUser.streak || 0) : 0;
+            if (!earnedBadges.has('streak_7') && streak >= 5 && streak < 7 && canNudge('near_streak_7')) {
+                nudges.push({ id: 'near_streak_7', text: streak + '-day streak! \ud83d\udd25 Just ' + (7 - streak) + ' more days for the Week Warrior badge! Don\'t break it!' });
+            }
+            if (!earnedBadges.has('streak_30') && streak >= 25 && streak < 30 && canNudge('near_streak_30')) {
+                nudges.push({ id: 'near_streak_30', text: streak + '-day streak! \ud83d\udcaa ' + (30 - streak) + ' more days to Monthly Maxi! That\'s legendary dedication!' });
+            }
+            if (!earnedBadges.has('streak_100') && streak >= 90 && streak < 100 && canNudge('near_streak_100')) {
+                nudges.push({ id: 'near_streak_100', text: streak + '-day streak! \ud83d\udc8e ' + (100 - streak) + ' days from Diamond Hands! You\'re in the top tier!' });
+            }
+            
+            // Chat nudges
+            var chatMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
+            if (!earnedBadges.has('chat_50') && chatMsgs >= 40 && chatMsgs < 50 && canNudge('near_chat_50')) {
+                nudges.push({ id: 'near_chat_50', text: chatMsgs + ' chat messages! Just ' + (50 - chatMsgs) + ' more to become a Conversationalist! \ud83c\udfa4 Head to Global Chat!' });
+            }
+            
+            // PVP nudges
+            var pvpWins = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
+            if (!earnedBadges.has('pvp_5') && pvpWins >= 3 && pvpWins < 5 && canNudge('near_pvp_5')) {
+                nudges.push({ id: 'near_pvp_5', text: pvpWins + ' PVP wins! \u2694\ufe0f ' + (5 - pvpWins) + ' more to unlock Contender! Ready for a battle?' });
+            }
+            
+            // Quest nudges
+            var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size || 0 : 0;
+            if (!earnedBadges.has('quest_3') && questsDone >= 2 && questsDone < 3 && canNudge('near_quest_3')) {
+                nudges.push({ id: 'near_quest_3', text: 'You\'ve completed ' + questsDone + ' quests! One more for the Quest Master badge! \u2694\ufe0f Try a quest after reading!' });
+            }
+            
+            // TCTV nudge
+            var tctvMin = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0');
+            if (!earnedBadges.has('tctv_couch_potato') && tctvMin >= 45 && tctvMin < 60 && canNudge('near_tctv_60')) {
+                nudges.push({ id: 'near_tctv_60', text: tctvMin + ' minutes of Timechain TV! \ud83d\udcfa Just ' + (60 - tctvMin) + ' more for Couch Potato! Grab some popcorn! \ud83c\udf7f' });
+            }
+            
+            // Spin wheel reminder
+            var lastSpin = localStorage.getItem('btc_last_spin_date');
+            var today = new Date().toDateString();
+            if (lastSpin !== today && canNudge('daily_spin')) {
+                nudges.push({ id: 'daily_spin', text: 'You haven\'t spun the daily wheel yet! \ud83c\udfa1 Free tickets and prizes await!' });
+            }
+        }
+        
+        // Pick one nudge at random (don't spam)
+        if (nudges.length > 0) {
+            var picked = nudges[Math.floor(Math.random() * nudges.length)];
+            setNudge(picked.id);
+            forceShowBubble(picked.text);
+        }
+    }
+    
+    // Check smart nudges every 5 minutes after initial 2 min delay
+    setTimeout(function() {
+        checkSmartNudges();
+        setInterval(checkSmartNudges, 300000); // 5 min
+    }, 120000); // 2 min initial delay
+    
+    window.checkSmartNudges = checkSmartNudges;
+})();
+
 })();

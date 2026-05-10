@@ -4378,6 +4378,66 @@ function showSettingsPage(tab) {
                 html += statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
             }
         }
+        // ---- Enhanced Stats ----
+        // Time on site (approximate from session starts)
+        var _totalSessions = currentUser ? (currentUser.totalVisits || 0) : 0;
+        var _estMinutes = _totalSessions * 8; // estimate 8 min avg session
+        var _timeStr = _estMinutes >= 60 ? Math.floor(_estMinutes / 60) + 'h ' + (_estMinutes % 60) + 'm' : _estMinutes + ' min';
+        html += statRow('Est. Time Learning', _timeStr, '⏱️');
+        
+        // Chat messages
+        var _chatMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
+        if (_chatMsgs > 0) html += statRow('Chat Messages Sent', _chatMsgs, '💬');
+        
+        // DMs sent
+        var _dmsSent = parseInt(localStorage.getItem('btc_dms_sent') || '0');
+        if (_dmsSent > 0) html += statRow('DMs Sent', _dmsSent, '✉️');
+        
+        // Tips given/received
+        var _tipsSent = parseInt(localStorage.getItem('btc_tips_sent') || '0');
+        var _tipsReceived = parseInt(localStorage.getItem('btc_tips_received') || '0');
+        var _tipsSatsSent = parseInt(localStorage.getItem('btc_tips_total_sats') || '0');
+        if (_tipsSent > 0 || _tipsReceived > 0) {
+            html += statRow('Tips Given', _tipsSent + (_tipsSatsSent > 0 ? ' (' + _tipsSatsSent.toLocaleString() + ' sats)' : ''), '⚡');
+            html += statRow('Tips Received', _tipsReceived, '🙏');
+        }
+        
+        // Spin wheel stats
+        var _spinCount = parseInt(localStorage.getItem('btc_spin_count') || '0');
+        if (_spinCount > 0) html += statRow('Daily Spins', _spinCount + ' total', '🎡');
+        
+        // TCTV watch time
+        var _tctvMinutes = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0');
+        if (_tctvMinutes > 0) {
+            var _tctvStr = _tctvMinutes >= 60 ? Math.floor(_tctvMinutes / 60) + 'h ' + (_tctvMinutes % 60) + 'm' : _tctvMinutes + ' min';
+            html += statRow('Timechain TV Watched', _tctvStr, '📺');
+        }
+        
+        // Beats interactions
+        var _beatsUploads = parseInt(localStorage.getItem('btc_beats_uploads') || '0');
+        if (_beatsUploads > 0) html += statRow('Songs Uploaded', _beatsUploads, '🎵');
+        
+        // DJ stats
+        var _djSets = parseInt(localStorage.getItem('btc_dj_sets') || '0');
+        if (_djSets > 0) html += statRow('DJ Sets', _djSets, '🎧');
+        
+        // Referrals
+        var _referralCount = currentUser ? (currentUser.referralCount || 0) : 0;
+        if (_referralCount > 0) html += statRow('Friends Referred', _referralCount, '🔗');
+        
+        // Badges earned count
+        var _badgeCount = typeof earnedBadges !== 'undefined' ? earnedBadges.size || 0 : JSON.parse(localStorage.getItem('btc_badges') || '[]').length;
+        var _totalBadges = typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 63;
+        html += statRow('Badges Earned', _badgeCount + ' / ' + _totalBadges, '🏅');
+        
+        // Reading progress
+        try {
+            var _readProg = JSON.parse(localStorage.getItem('btc_channel_progress') || '{}');
+            var _readComplete = Object.values(_readProg).filter(function(v) { return v >= 100; }).length;
+            var _readStarted = Object.keys(_readProg).length;
+            if (_readStarted > 0) html += statRow('Channels Read (100%)', _readComplete + ' complete, ' + _readStarted + ' started', '📖');
+        } catch(e) {}
+
         if (typeof getNachoFriendship === 'function') {
             var f = getNachoFriendship();
             var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');

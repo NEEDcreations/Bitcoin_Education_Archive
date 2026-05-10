@@ -108,6 +108,39 @@ const BADGE_DEFS = [
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
+
+    // ---- Trail Badges ----
+    { id: 'trail_meadow', name: 'Meadow Walker', emoji: '🌿', desc: 'Completed The Meadow trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 200 },
+    { id: 'trail_mountain', name: 'Mountain Climber', emoji: '⛰️', desc: 'Completed The Mountain trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('mountain'); } catch(e) { return false; } }, pts: 400 },
+    { id: 'trail_summit', name: 'Summit Conqueror', emoji: '🏔️', desc: 'Completed The Summit trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('summit'); } catch(e) { return false; } }, pts: 750 },
+    { id: 'trail_all', name: 'Trail Master', emoji: '🦌', desc: 'Completed all three Nacho\'s Trails', check: () => { try { var p = JSON.parse(localStorage.getItem('btc_trail_passed') || '[]'); return p.includes('meadow') && p.includes('mountain') && p.includes('summit'); } catch(e) { return false; } }, pts: 500 },
+
+    // ---- Lightning Tipping Badges ----
+    { id: 'tip_first', name: 'First Tip', emoji: '⚡', desc: 'Sent your first Lightning tip', check: () => parseInt(localStorage.getItem('btc_tips_sent') || '0') >= 1, pts: 25 },
+    { id: 'tip_10', name: 'Generous Pleb', emoji: '💛', desc: 'Tipped 10 times', check: () => parseInt(localStorage.getItem('btc_tips_sent') || '0') >= 10, pts: 75 },
+    { id: 'tip_whale', name: 'Whale Tipper', emoji: '🐳', desc: 'Tipped 1,000+ sats total', check: () => parseInt(localStorage.getItem('btc_tips_total_sats') || '0') >= 1000, pts: 150 },
+    { id: 'tip_magnet', name: 'Tip Magnet', emoji: '🧲', desc: 'Received 10 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 10, pts: 100 },
+
+    // ---- Referral Badges ----
+    { id: 'referral_1', name: 'First Referral', emoji: '🔗', desc: 'Got 1 friend to sign up via your link', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 1, pts: 50 },
+    { id: 'referral_10', name: 'Network Effect', emoji: '🌐', desc: 'Referred 10 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 10, pts: 200 },
+    { id: 'referral_50', name: 'Super Spreader', emoji: '📡', desc: 'Referred 50 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50, pts: 1000 },
+
+    // ---- DM / Social Badges ----
+    { id: 'dm_first', name: 'DM Starter', emoji: '✉️', desc: 'Sent your first direct message', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 1, pts: 15 },
+    { id: 'react_50', name: 'Reaction King', emoji: '❤️', desc: 'Reacted to 50 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 50, pts: 50 },
+
+    // ---- Prediction Streaks (expand existing) ----
+    { id: 'predict_streak_3', name: 'Oracle Streak', emoji: '🎯', desc: '3 correct predictions in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.bestStreak || 0 : 0) >= 3, pts: 50 },
+    { id: 'predict_streak_10', name: 'Nostradamus', emoji: '🔮', desc: '10 correct predictions in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.bestStreak || 0 : 0) >= 10, pts: 250 },
+
+    // ---- Spin Wheel Badges ----
+    { id: 'spin_30', name: 'Lucky Spinner', emoji: '🎰', desc: 'Spun the wheel 30 days total', check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 30, pts: 75 },
+    { id: 'spin_streak_7', name: 'Spin Streak', emoji: '🎡', desc: 'Spun 7 days in a row', check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 7, pts: 50 },
+    { id: 'spin_jackpot', name: 'Jackpot Winner', emoji: '💎', desc: 'Hit the RARE drop on the spin wheel', check: () => localStorage.getItem('btc_spin_hit_rare') === 'true', pts: 100 },
+
+    // ---- Double Scholar Badge ----
+    { id: 'cert_double', name: 'Double Scholar', emoji: '🏛️', desc: 'Earned both Scholar AND Protocol Expert certifications', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true' && localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 250 },
 ];
 
 let earnedBadges = new Set();
@@ -389,6 +422,7 @@ function getBadgeHTML() {
     const categories = {
         '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
+        '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
         '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
@@ -397,9 +431,11 @@ function getBadgeHTML() {
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
-        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_')),
-        '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup'),
+        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_')),
+        '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
+        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
+        '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };

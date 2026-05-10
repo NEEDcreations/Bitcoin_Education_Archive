@@ -1572,3 +1572,73 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
         }
     }, 3000);
 })();
+
+// ---- Sidebar Reading Progress Indicators ----
+(function() {
+    // Add subtle progress bars to sidebar channel buttons
+    // Runs after channels render and on navigation
+    
+    function updateSidebarProgress() {
+        try {
+            var progress = JSON.parse(localStorage.getItem('btc_channel_progress') || '{}');
+            var buttons = document.querySelectorAll('.ch-btn');
+            buttons.forEach(function(btn) {
+                var onclick = btn.getAttribute('onclick') || '';
+                var match = onclick.match(/go\('([^']+)'\)/);
+                if (!match) return;
+                var channelId = match[1];
+                var pct = progress[channelId] || 0;
+                
+                // Remove existing progress bar if any
+                var existing = btn.querySelector('.ch-progress');
+                if (existing) existing.remove();
+                
+                if (pct > 0) {
+                    var bar = document.createElement('div');
+                    bar.className = 'ch-progress';
+                    bar.style.cssText = 'position:absolute;bottom:0;left:0;height:2px;background:' + 
+                        (pct >= 100 ? '#22c55e' : 'var(--accent,#f7931a)') + 
+                        ';width:' + Math.min(pct, 100) + '%;border-radius:0 1px 0 0;transition:width 0.3s;opacity:0.7;';
+                    btn.style.position = 'relative';
+                    btn.style.overflow = 'hidden';
+                    btn.appendChild(bar);
+                    
+                    // Add checkmark for 100%
+                    if (pct >= 100 && !btn.querySelector('.ch-done')) {
+                        var check = document.createElement('span');
+                        check.className = 'ch-done';
+                        check.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:0.6rem;opacity:0.5;';
+                        check.textContent = '\u2713';
+                        btn.appendChild(check);
+                    }
+                }
+            });
+        } catch(e) {}
+    }
+    
+    // Run on initial load
+    setTimeout(updateSidebarProgress, 2000);
+    
+    // Re-run when navigating home or after channel loads
+    var _origGoHome = window.goHome;
+    if (_origGoHome) {
+        window.goHome = function() {
+            var result = _origGoHome.apply(this, arguments);
+            setTimeout(updateSidebarProgress, 500);
+            return result;
+        };
+    }
+    
+    // Also update after each channel visit
+    var _origGoProg = window.go;
+    if (_origGoProg) {
+        window.go = function() {
+            var result = _origGoProg.apply(this, arguments);
+            setTimeout(updateSidebarProgress, 1000);
+            return result;
+        };
+    }
+    
+    // Expose for manual refresh
+    window.updateSidebarProgress = updateSidebarProgress;
+})();

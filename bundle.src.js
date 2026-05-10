@@ -4526,6 +4526,66 @@ function showSettingsPage(tab) {
                 html += statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
             }
         }
+        // ---- Enhanced Stats ----
+        // Time on site (approximate from session starts)
+        var _totalSessions = currentUser ? (currentUser.totalVisits || 0) : 0;
+        var _estMinutes = _totalSessions * 8; // estimate 8 min avg session
+        var _timeStr = _estMinutes >= 60 ? Math.floor(_estMinutes / 60) + 'h ' + (_estMinutes % 60) + 'm' : _estMinutes + ' min';
+        html += statRow('Est. Time Learning', _timeStr, '⏱️');
+        
+        // Chat messages
+        var _chatMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
+        if (_chatMsgs > 0) html += statRow('Chat Messages Sent', _chatMsgs, '💬');
+        
+        // DMs sent
+        var _dmsSent = parseInt(localStorage.getItem('btc_dms_sent') || '0');
+        if (_dmsSent > 0) html += statRow('DMs Sent', _dmsSent, '✉️');
+        
+        // Tips given/received
+        var _tipsSent = parseInt(localStorage.getItem('btc_tips_sent') || '0');
+        var _tipsReceived = parseInt(localStorage.getItem('btc_tips_received') || '0');
+        var _tipsSatsSent = parseInt(localStorage.getItem('btc_tips_total_sats') || '0');
+        if (_tipsSent > 0 || _tipsReceived > 0) {
+            html += statRow('Tips Given', _tipsSent + (_tipsSatsSent > 0 ? ' (' + _tipsSatsSent.toLocaleString() + ' sats)' : ''), '⚡');
+            html += statRow('Tips Received', _tipsReceived, '🙏');
+        }
+        
+        // Spin wheel stats
+        var _spinCount = parseInt(localStorage.getItem('btc_spin_count') || '0');
+        if (_spinCount > 0) html += statRow('Daily Spins', _spinCount + ' total', '🎡');
+        
+        // TCTV watch time
+        var _tctvMinutes = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0');
+        if (_tctvMinutes > 0) {
+            var _tctvStr = _tctvMinutes >= 60 ? Math.floor(_tctvMinutes / 60) + 'h ' + (_tctvMinutes % 60) + 'm' : _tctvMinutes + ' min';
+            html += statRow('Timechain TV Watched', _tctvStr, '📺');
+        }
+        
+        // Beats interactions
+        var _beatsUploads = parseInt(localStorage.getItem('btc_beats_uploads') || '0');
+        if (_beatsUploads > 0) html += statRow('Songs Uploaded', _beatsUploads, '🎵');
+        
+        // DJ stats
+        var _djSets = parseInt(localStorage.getItem('btc_dj_sets') || '0');
+        if (_djSets > 0) html += statRow('DJ Sets', _djSets, '🎧');
+        
+        // Referrals
+        var _referralCount = currentUser ? (currentUser.referralCount || 0) : 0;
+        if (_referralCount > 0) html += statRow('Friends Referred', _referralCount, '🔗');
+        
+        // Badges earned count
+        var _badgeCount = typeof earnedBadges !== 'undefined' ? earnedBadges.size || 0 : JSON.parse(localStorage.getItem('btc_badges') || '[]').length;
+        var _totalBadges = typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS.length : 63;
+        html += statRow('Badges Earned', _badgeCount + ' / ' + _totalBadges, '🏅');
+        
+        // Reading progress
+        try {
+            var _readProg = JSON.parse(localStorage.getItem('btc_channel_progress') || '{}');
+            var _readComplete = Object.values(_readProg).filter(function(v) { return v >= 100; }).length;
+            var _readStarted = Object.keys(_readProg).length;
+            if (_readStarted > 0) html += statRow('Channels Read (100%)', _readComplete + ' complete, ' + _readStarted + ' started', '📖');
+        } catch(e) {}
+
         if (typeof getNachoFriendship === 'function') {
             var f = getNachoFriendship();
             var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
@@ -5838,6 +5898,39 @@ const BADGE_DEFS = [
     // ---- Milestone Badges ----
     { id: 'first_purchase', name: 'Bitcoiner', emoji: '🛒', desc: 'Completed the First Bitcoin Purchase guide', check: () => localStorage.getItem('btc_fp_completed') === 'true', pts: 100 },
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
+
+    // ---- Trail Badges ----
+    { id: 'trail_meadow', name: 'Meadow Walker', emoji: '🌿', desc: 'Completed The Meadow trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('meadow'); } catch(e) { return false; } }, pts: 200 },
+    { id: 'trail_mountain', name: 'Mountain Climber', emoji: '⛰️', desc: 'Completed The Mountain trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('mountain'); } catch(e) { return false; } }, pts: 400 },
+    { id: 'trail_summit', name: 'Summit Conqueror', emoji: '🏔️', desc: 'Completed The Summit trail', check: () => { try { return JSON.parse(localStorage.getItem('btc_trail_passed') || '[]').includes('summit'); } catch(e) { return false; } }, pts: 750 },
+    { id: 'trail_all', name: 'Trail Master', emoji: '🦌', desc: 'Completed all three Nacho\'s Trails', check: () => { try { var p = JSON.parse(localStorage.getItem('btc_trail_passed') || '[]'); return p.includes('meadow') && p.includes('mountain') && p.includes('summit'); } catch(e) { return false; } }, pts: 500 },
+
+    // ---- Lightning Tipping Badges ----
+    { id: 'tip_first', name: 'First Tip', emoji: '⚡', desc: 'Sent your first Lightning tip', check: () => parseInt(localStorage.getItem('btc_tips_sent') || '0') >= 1, pts: 25 },
+    { id: 'tip_10', name: 'Generous Pleb', emoji: '💛', desc: 'Tipped 10 times', check: () => parseInt(localStorage.getItem('btc_tips_sent') || '0') >= 10, pts: 75 },
+    { id: 'tip_whale', name: 'Whale Tipper', emoji: '🐳', desc: 'Tipped 1,000+ sats total', check: () => parseInt(localStorage.getItem('btc_tips_total_sats') || '0') >= 1000, pts: 150 },
+    { id: 'tip_magnet', name: 'Tip Magnet', emoji: '🧲', desc: 'Received 10 tips from others', check: () => parseInt(localStorage.getItem('btc_tips_received') || '0') >= 10, pts: 100 },
+
+    // ---- Referral Badges ----
+    { id: 'referral_1', name: 'First Referral', emoji: '🔗', desc: 'Got 1 friend to sign up via your link', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 1, pts: 50 },
+    { id: 'referral_10', name: 'Network Effect', emoji: '🌐', desc: 'Referred 10 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 10, pts: 200 },
+    { id: 'referral_50', name: 'Super Spreader', emoji: '📡', desc: 'Referred 50 users', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.referralCount || 0) >= 50, pts: 1000 },
+
+    // ---- DM / Social Badges ----
+    { id: 'dm_first', name: 'DM Starter', emoji: '✉️', desc: 'Sent your first direct message', check: () => parseInt(localStorage.getItem('btc_dms_sent') || '0') >= 1, pts: 15 },
+    { id: 'react_50', name: 'Reaction King', emoji: '❤️', desc: 'Reacted to 50 messages in Global Chat', check: () => parseInt(localStorage.getItem('btc_chat_reactions') || '0') >= 50, pts: 50 },
+
+    // ---- Prediction Streaks (expand existing) ----
+    { id: 'predict_streak_3', name: 'Oracle Streak', emoji: '🎯', desc: '3 correct predictions in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.bestStreak || 0 : 0) >= 3, pts: 50 },
+    { id: 'predict_streak_10', name: 'Nostradamus', emoji: '🔮', desc: '10 correct predictions in a row', check: () => typeof currentUser !== 'undefined' && currentUser && (currentUser.predictions ? currentUser.predictions.bestStreak || 0 : 0) >= 10, pts: 250 },
+
+    // ---- Spin Wheel Badges ----
+    { id: 'spin_30', name: 'Lucky Spinner', emoji: '🎰', desc: 'Spun the wheel 30 days total', check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 30, pts: 75 },
+    { id: 'spin_streak_7', name: 'Spin Streak', emoji: '🎡', desc: 'Spun 7 days in a row', check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 7, pts: 50 },
+    { id: 'spin_jackpot', name: 'Jackpot Winner', emoji: '💎', desc: 'Hit the RARE drop on the spin wheel', check: () => localStorage.getItem('btc_spin_hit_rare') === 'true', pts: 100 },
+
+    // ---- Double Scholar Badge ----
+    { id: 'cert_double', name: 'Double Scholar', emoji: '🏛️', desc: 'Earned both Scholar AND Protocol Expert certifications', check: () => localStorage.getItem('btc_scholar_prop_passed') === 'true' && localStorage.getItem('btc_scholar_tech_passed') === 'true', pts: 250 },
 ];
 
 let earnedBadges = new Set();
@@ -6119,6 +6212,7 @@ function getBadgeHTML() {
     const categories = {
         '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
         '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_')),
+        '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
         '🦌 Nacho': _cat(BADGE_DEFS, b => b.id.startsWith('nacho_')),
         '📺 Timechain TV': _cat(BADGE_DEFS, b => b.id.startsWith('tctv_')),
@@ -6127,9 +6221,11 @@ function getBadgeHTML() {
         '⚔️ PVP': _cat(BADGE_DEFS, b => b.id.startsWith('pvp_')),
         '📝 Forum': _cat(BADGE_DEFS, b => b.id.startsWith('forum_') || b.id.startsWith('article_')),
         '🔥 Streaks': _cat(BADGE_DEFS, b => b.id.startsWith('streak_')),
-        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_')),
-        '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup'),
+        '🤝 Community': _cat(BADGE_DEFS, b => b.id.startsWith('irl_') || b.id.startsWith('referral_')),
+        '⚡ Sats & Lightning': _cat(BADGE_DEFS, b => b.id.startsWith('sats_') || b.id === 'lightning_setup' || b.id.startsWith('tip_')),
         '🔮 Predictions': _cat(BADGE_DEFS, b => b.id.startsWith('predict_')),
+        '💬 Social': _cat(BADGE_DEFS, b => b.id.startsWith('dm_') || b.id === 'react_50'),
+        '🎡 Spin Wheel': _cat(BADGE_DEFS, b => b.id.startsWith('spin_')),
         '🌙 Fun': _cat(BADGE_DEFS, b => b.id === 'night_owl' || b.id === 'early_bird'),
         '🏆 Milestones': _cat(BADGE_DEFS, b => !_used[b.id])
     };
@@ -9886,6 +9982,107 @@ setTimeout(function() {
         localStorage.setItem('btc_ln_prompt_dismissed', '1');
     }
 }, 30000); // show after 30 seconds on page
+
+// ---- Smart Notifications — Nacho nudges for badge/streak/milestone proximity ----
+(function() {
+    var NUDGE_KEY = 'btc_smart_nudges';
+    var NUDGE_COOLDOWN = 3600000; // 1 hour between nudges
+    
+    function getNudgeState() {
+        try { return JSON.parse(localStorage.getItem(NUDGE_KEY) || '{}'); } catch(e) { return {}; }
+    }
+    function setNudge(id) {
+        var state = getNudgeState();
+        state[id] = Date.now();
+        localStorage.setItem(NUDGE_KEY, JSON.stringify(state));
+    }
+    function canNudge(id) {
+        var state = getNudgeState();
+        return !state[id] || (Date.now() - state[id]) > NUDGE_COOLDOWN * 24; // 24h cooldown per nudge type
+    }
+    
+    function checkSmartNudges() {
+        if (typeof forceShowBubble !== 'function') return;
+        // Don't nudge during first 30s of session
+        if (Date.now() - (window._sessionStart || Date.now()) < 30000) return;
+        // Don't nudge if Nacho is already talking
+        var bubble = document.getElementById('nacho-bubble');
+        if (bubble && bubble.classList.contains('show')) return;
+        if (window._nachoBusy) return;
+        
+        var nudges = [];
+        
+        // Badge proximity nudges
+        if (typeof BADGE_DEFS !== 'undefined' && typeof earnedBadges !== 'undefined') {
+            // Explorer badges
+            var visited = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]').length;
+            if (!earnedBadges.has('explorer_10') && visited >= 7 && canNudge('near_explorer_10')) {
+                nudges.push({ id: 'near_explorer_10', text: 'You\'ve visited ' + visited + ' topics \u2014 just ' + (10 - visited) + ' more to earn the Explorer badge! \ud83e\udded Keep exploring!' });
+            }
+            if (!earnedBadges.has('explorer_25') && visited >= 20 && visited < 25 && canNudge('near_explorer_25')) {
+                nudges.push({ id: 'near_explorer_25', text: 'Only ' + (25 - visited) + ' more topics to unlock Trailblazer! \ud83d\uddfa\ufe0f You\'re so close!' });
+            }
+            
+            // Streak nudges
+            var streak = typeof currentUser !== 'undefined' && currentUser ? (currentUser.streak || 0) : 0;
+            if (!earnedBadges.has('streak_7') && streak >= 5 && streak < 7 && canNudge('near_streak_7')) {
+                nudges.push({ id: 'near_streak_7', text: streak + '-day streak! \ud83d\udd25 Just ' + (7 - streak) + ' more days for the Week Warrior badge! Don\'t break it!' });
+            }
+            if (!earnedBadges.has('streak_30') && streak >= 25 && streak < 30 && canNudge('near_streak_30')) {
+                nudges.push({ id: 'near_streak_30', text: streak + '-day streak! \ud83d\udcaa ' + (30 - streak) + ' more days to Monthly Maxi! That\'s legendary dedication!' });
+            }
+            if (!earnedBadges.has('streak_100') && streak >= 90 && streak < 100 && canNudge('near_streak_100')) {
+                nudges.push({ id: 'near_streak_100', text: streak + '-day streak! \ud83d\udc8e ' + (100 - streak) + ' days from Diamond Hands! You\'re in the top tier!' });
+            }
+            
+            // Chat nudges
+            var chatMsgs = parseInt(localStorage.getItem('btc_chat_msgs') || '0');
+            if (!earnedBadges.has('chat_50') && chatMsgs >= 40 && chatMsgs < 50 && canNudge('near_chat_50')) {
+                nudges.push({ id: 'near_chat_50', text: chatMsgs + ' chat messages! Just ' + (50 - chatMsgs) + ' more to become a Conversationalist! \ud83c\udfa4 Head to Global Chat!' });
+            }
+            
+            // PVP nudges
+            var pvpWins = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
+            if (!earnedBadges.has('pvp_5') && pvpWins >= 3 && pvpWins < 5 && canNudge('near_pvp_5')) {
+                nudges.push({ id: 'near_pvp_5', text: pvpWins + ' PVP wins! \u2694\ufe0f ' + (5 - pvpWins) + ' more to unlock Contender! Ready for a battle?' });
+            }
+            
+            // Quest nudges
+            var questsDone = typeof completedQuests !== 'undefined' ? completedQuests.size || 0 : 0;
+            if (!earnedBadges.has('quest_3') && questsDone >= 2 && questsDone < 3 && canNudge('near_quest_3')) {
+                nudges.push({ id: 'near_quest_3', text: 'You\'ve completed ' + questsDone + ' quests! One more for the Quest Master badge! \u2694\ufe0f Try a quest after reading!' });
+            }
+            
+            // TCTV nudge
+            var tctvMin = parseInt(localStorage.getItem('btc_tctv_watch_time') || '0');
+            if (!earnedBadges.has('tctv_couch_potato') && tctvMin >= 45 && tctvMin < 60 && canNudge('near_tctv_60')) {
+                nudges.push({ id: 'near_tctv_60', text: tctvMin + ' minutes of Timechain TV! \ud83d\udcfa Just ' + (60 - tctvMin) + ' more for Couch Potato! Grab some popcorn! \ud83c\udf7f' });
+            }
+            
+            // Spin wheel reminder
+            var lastSpin = localStorage.getItem('btc_last_spin_date');
+            var today = new Date().toDateString();
+            if (lastSpin !== today && canNudge('daily_spin')) {
+                nudges.push({ id: 'daily_spin', text: 'You haven\'t spun the daily wheel yet! \ud83c\udfa1 Free tickets and prizes await!' });
+            }
+        }
+        
+        // Pick one nudge at random (don't spam)
+        if (nudges.length > 0) {
+            var picked = nudges[Math.floor(Math.random() * nudges.length)];
+            setNudge(picked.id);
+            forceShowBubble(picked.text);
+        }
+    }
+    
+    // Check smart nudges every 5 minutes after initial 2 min delay
+    setTimeout(function() {
+        checkSmartNudges();
+        setInterval(checkSmartNudges, 300000); // 5 min
+    }, 120000); // 2 min initial delay
+    
+    window.checkSmartNudges = checkSmartNudges;
+})();
 
 })();
 window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname")||"Nacho"};function getEquippedItems(){try{return JSON.parse(localStorage.getItem("btc_nacho_equipped_multi")||"{}")}catch(e){return{}}}function getEquippedItem(){var e=getEquippedItems();return Object.values(e)[0]||localStorage.getItem("btc_nacho_equipped")||null}!function(){const e=[{id:"orange_scarf",category:"shirt",name:"Bitcoin Scarf",emoji:"🧣",desc:"A cozy orange scarf with the ₿ symbol.",level:1,overlay:{top:"68%",left:"50.5%",transform:"translateX(-50%)",fontSize:"1.8em"},hidden:!1,colorable:!0},{id:"sunglasses",category:"glasses",name:"Cool Shades",emoji:"🕶️",desc:"Sunglasses so cool, even the blockchain can't see through them.",level:1,overlay:{top:"43%",left:"50%",transform:"translateX(-50%)",fontSize:"1.4em"},hidden:!1},{id:"bowtie",category:"shirt",name:"Fancy Bowtie",emoji:"🎀",desc:"A dapper bowtie for a distinguished buck. Class and sats.",level:1,overlay:{top:"64%",left:"50%",transform:"translateX(-50%)",fontSize:"1.3em"},hidden:!1,colorable:!0},{id:"mining_helmet",category:"hat",name:"Mining Helmet",emoji:"⛑️",desc:"A safety helmet for a hardworking miner. Ready to find the next block!",level:2,overlay:{top:"5%",left:"50%",transform:"translateX(-50%)",fontSize:"2.2em"},hidden:!1},{id:"lightning_chain",category:"glasses",name:"Lightning Chain",emoji:"⚡",desc:"A chain necklace with a Lightning bolt pendant.",level:2,overlay:{top:"65%",left:"50%",transform:"translateX(-50%)",fontSize:"1.4em"},hidden:!1},{id:"party_hat",category:"hat",name:"Party Hat",emoji:"🎉",desc:"Every day is a party when you're stacking sats!",level:2,overlay:{top:"2%",left:"58%",transform:"translateX(-50%) rotate(15deg)",fontSize:"1.8em"},hidden:!1,colorable:!0},{id:"hodl_hoodie",category:"shirt",name:"HODL Hoodie",emoji:"🧥",desc:"A hoodie that says HODL on the back. For diamond-handed deer.",level:3,overlay:{top:"72%",left:"50%",transform:"translateX(-50%)",fontSize:"2.2em"},hidden:!1,colorable:!0},{id:"laser_eyes",category:"glasses",name:"Laser Eyes",emoji:"🔴",desc:"The legendary Bitcoin laser eyes. Number go up!",level:3,overlay:{top:"43%",left:"50.5%",transform:"translateX(-50%)",fontSize:"0.9em",custom:"🔴  🔴"},hidden:!1,colorable:!0},{id:"wizard_hat",category:"hat",name:"Wizard Hat",emoji:"🪄",desc:"A mystical wizard hat. Nacho casts spells of financial sovereignty!",level:3,overlay:{top:"-5%",left:"50%",transform:"translateX(-50%)",fontSize:"2.4em"},hidden:!1,colorable:!0},{id:"crown",category:"hat",name:"Royal Crown",emoji:"👑",desc:"Fit for the king of cryptocurrency. There is no second best!",level:3,overlay:{top:"3%",left:"50%",transform:"translateX(-50%)",fontSize:"2.2em"},hidden:!1},{id:"steak",category:"glasses",name:"Proof of Steak",emoji:"🥩",desc:"A juicy steak for a hardworking buck. Proof of Steak > Proof of Stake!",level:4,overlay:{top:"58%",right:"-18%",fontSize:"1.8em",transform:"rotate(20deg)"},hidden:!1},{id:"diamond_hooves",category:"glasses",name:"Diamond Hooves",emoji:"💎",desc:"Diamond hooves for a deer with diamond hands. Never selling!",level:4,overlay:{bottom:"2%",left:"50%",transform:"translateX(-50%)",fontSize:"1.4em",custom:"💎💎"},hidden:!1},{id:"astronaut",category:"hat",name:"Moon Helmet",emoji:"🪖",desc:"To the moon! A space helmet for the ultimate HODLer.",level:4,overlay:{top:"8%",left:"50%",transform:"translateX(-50%)",fontSize:"2.8em"},hidden:!1},{id:"cape_permanent",category:"shirt",name:"Hero Cape",emoji:"🦸",desc:"A permanent cape for a Bitcoin hero. Earned, not given!",level:4,overlay:{top:"55%",right:"-15%",fontSize:"2.4em",transform:"rotate(-12deg)"},hidden:!1,colorable:!0},{id:"golden_antlers",category:"hat",name:"???",emoji:"✨",desc:"Reach Best Buds friendship to reveal this item!",level:5,overlay:{top:"0.5%",left:"50%",transform:"translateX(-50%)",fontSize:"2.4em"},hidden:!0,revealName:"Golden Antlers",revealEmoji:"✨",revealDesc:"Antlers plated in pure gold. Only the closest friends get to see these shine!"},{id:"satoshi_cloak",category:"shirt",name:"???",emoji:"🧥",desc:"Reach Best Buds friendship to reveal this item!",level:5,overlay:{top:"68%",left:"50%",transform:"translateX(-50%)",fontSize:"2.4em"},hidden:!0,revealName:"Satoshi's Cloak",revealEmoji:"🧥",revealDesc:"A mysterious cloak worn by Satoshi himself. Legend says it grants anonymity to any deer who wears it."},{id:"flame_aura",category:"glasses",name:"???",emoji:"🔥",desc:"Reach Best Buds friendship to reveal this item!",level:5,overlay:{top:"25%",left:"50%",transform:"translateX(-50%)",fontSize:"3.5em"},hidden:!0,revealName:"Flame Aura",revealEmoji:"🔥",revealDesc:"A blazing aura of pure Bitcoin energy. The ultimate flex for Nacho's best friend!"},{id:"rainbow_antlers",category:"hat",name:"???",emoji:"🌈",desc:"Reach Best Buds friendship to reveal this item!",level:5,overlay:{top:"2%",left:"50%",transform:"translateX(-50%)",fontSize:"2.8em"},hidden:!0,revealName:"Rainbow Antlers",revealEmoji:"🌈",revealDesc:"Prismatic rainbow antlers that shimmer in every color. Legendary!"},{id:"bitcoin_eyes",category:"glasses",name:"???",emoji:"₿",desc:"How do you find this one?",level:1,overlay:{top:"43%",left:"50.5%",transform:"translateX(-50%)",fontSize:"1.2em",custom:"₿  ₿"},hidden:!0,revealName:"Bitcoin Eyes",revealEmoji:"₿",revealDesc:"Eyes made of pure Bitcoin. You found the secret! Nacho sees everything in sats now."},{id:"santa_hat",category:"hat",name:"Santa Hat",emoji:"🎅",desc:"Ho ho HODL! A festive Santa hat for the holiday season.",level:1,overlay:{top:"1%",left:"54%",transform:"translateX(-50%) rotate(15deg)",fontSize:"2.2em"},hidden:!1,seasonal:"december"},{id:"pumpkin",category:"hat",name:"Pumpkin Head",emoji:"🎃",desc:"Spooky season! A jack-o-lantern for Halloween.",level:1,overlay:{top:"8%",left:"50%",transform:"translateX(-50%)",fontSize:"2.8em"},hidden:!1,seasonal:"october"},{id:"halving_pickaxe",category:"glasses",name:"Golden Pickaxe",emoji:"⛏️",desc:"A golden pickaxe to celebrate the halving! Limited edition.",level:1,overlay:{top:"22%",right:"-15%",fontSize:"2.2em",transform:"rotate(30deg)"},hidden:!1,seasonal:"april"}];var t=document.createElement("style");function o(){var e=parseInt(localStorage.getItem("btc_nacho_interactions")||"0");return e>=750?5:e>=350?4:e>=100?3:e>=10?2:e>=1?1:0}t.textContent="\n    @keyframes nachoEquipPop {\n        0% { transform: scale(0) rotate(-45deg); opacity: 0; }\n        50% { transform: scale(1.5) rotate(10deg); opacity: 1; }\n        70% { transform: scale(0.9) rotate(-5deg); }\n        100% { transform: scale(1) rotate(0deg); opacity: 1; }\n    }\n    @keyframes nachoEquipGlow {\n        0% { filter: drop-shadow(0 0 0px transparent); }\n        30% { filter: drop-shadow(0 0 12px rgba(247,147,26,0.8)); }\n        100% { filter: drop-shadow(0 0 4px rgba(247,147,26,0.3)); }\n    }\n    @keyframes nachoUnequip {\n        0% { transform: scale(1); opacity: 1; }\n        40% { transform: scale(1.3) rotate(15deg); opacity: 0.8; }\n        100% { transform: scale(0) rotate(-30deg); opacity: 0; }\n    }\n    @keyframes nachoItemFloat {\n        0%, 100% { transform: translateY(0); }\n        50% { transform: translateY(-3px); }\n    }\n    @keyframes nachoLaserPulse {\n        0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 4px #ff0000); }\n        50% { opacity: 1; filter: drop-shadow(0 0 10px #ff0000) drop-shadow(0 0 20px #ff3300); }\n    }\n    @keyframes nachoSparkle {\n        0%, 100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.3)); }\n        50% { filter: drop-shadow(0 0 10px rgba(255,215,0,0.8)) drop-shadow(0 0 20px rgba(255,215,0,0.4)); }\n    }\n    @keyframes nachoCloakWave {\n        0%, 100% { transform: translateX(-50%) rotate(-2deg); }\n        50% { transform: translateX(-50%) rotate(2deg); }\n    }\n    .nacho-overlay-item {\n        position: absolute;\n        pointer-events: none;\n        z-index: 3;\n    }\n    .nacho-overlay-item.equipping {\n        animation: nachoEquipPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,\n                   nachoEquipGlow 0.8s ease-out forwards;\n    }\n    .nacho-overlay-item.unequipping {\n        animation: nachoUnequip 0.35s ease-in forwards;\n    }\n    .nacho-overlay-item.idle-float {\n        animation: nachoItemFloat 3s ease-in-out infinite;\n    }\n    .nacho-overlay-item.idle-laser {\n        animation: nachoLaserPulse 1.5s ease-in-out infinite;\n    }\n    .nacho-overlay-item.idle-sparkle {\n        animation: nachoSparkle 2s ease-in-out infinite;\n    }\n    .nacho-overlay-item.idle-wave {\n        animation: nachoCloakWave 4s ease-in-out infinite;\n    }\n",document.head.appendChild(t),window.equipNachoItem=function(t){if(!t)return localStorage.removeItem("btc_nacho_equipped_multi"),void renderNachoOverlay();var a=o(),n=e.find(function(e){return e.id===t}),r=JSON.parse(localStorage.getItem("btc_spin_closet_items")||"[]");if(n&&n.level>a&&-1===r.indexOf(t))showToast("🔒 Need a higher friendship level to wear this!");else{var i=getEquippedItems(),l=n&&n.category||"misc";if(i[l]===t)delete i[l],"function"==typeof forceShowBubble&&forceShowBubble("Back to natural in the "+l+" department! 🦌");else if(i[l]=t,"function"==typeof forceShowBubble){forceShowBubble({orange_scarf:"Looking cozy! This scarf really brings out my orange. 🧣🦌",mining_helmet:"Safety first! Time to mine some blocks! ⛑️⛏️",lightning_chain:"Bling bling! Fast as Lightning! ⚡🦌",hodl_hoodie:"HODL gang! This hoodie makes me feel unstoppable! 🧥💎",laser_eyes:"LASER EYES ACTIVATED! Number go up! 🔴🔴🚀",steak:"Mmm, Proof of Steak! Way better than Proof of Stake! 🥩😋",golden_antlers:"These golden antlers are MAGNIFICENT! Only for my best friends! 👑✨",satoshi_cloak:"Who am I? Nobody knows... I am Satoshi Nachoamoto! 🧙🦌"}[t]||"Looking fresh with my "+(n.hidden?n.revealName:n.name)+"! 🦌")}localStorage.setItem("btc_nacho_equipped_multi",JSON.stringify(i)),renderNachoOverlay(!0),"function"==typeof nachoPlaySound&&nachoPlaySound("coin"),document.getElementById("nachoClosetGrid")&&renderNachoClosetUI(document.getElementById("nachoClosetGrid").parentElement)}},window.renderNachoOverlay=function(t){document.querySelectorAll(".nacho-overlay-item").forEach(e=>e.remove());var o=getEquippedItems(),a=document.getElementById("nacho-avatar");a&&(Object.values(o).forEach(function(o){var n=e.find(function(e){return e.id===o});if(n){var r=n.hidden?n.revealEmoji:n.emoji,i=function(e){switch(e){case"laser_eyes":return"idle-laser";case"golden_antlers":case"diamond_hooves":return"idle-sparkle";case"satoshi_cloak":return"idle-wave";default:return"idle-float"}}(n.id),l=document.createElement("span");for(var s in l.className="nacho-overlay-item"+(t?" equipping":" "+i),l.id="nacho-overlay-"+n.id,l.textContent=n.overlay.custom||r,n.overlay.custom&&(l.style.letterSpacing="-0.1em",l.style.whiteSpace="nowrap"),n.overlay)"filter"!==s&&"custom"!==s&&(l.style[s]=n.overlay[s]);if(n.colorable){var d=localStorage.getItem("btc_closet_color_"+n.id);d&&"0deg"!==d&&(l.style.filter="hue-rotate("+d+")")}t&&l.addEventListener("animationend",function e(){l.classList.remove("equipping"),l.classList.add(i),l.removeEventListener("animationend",e)},{once:!0}),a.appendChild(l)}}),t&&function(e){for(var t=e.getBoundingClientRect(),o=["✨","⭐","💫","🌟"],a=0;a<6;a++)(function(e){setTimeout(function(){var a=document.createElement("div");a.className="nacho-trail",a.textContent=o[e%o.length],a.style.left=t.left+Math.random()*t.width+"px",a.style.top=t.top+Math.random()*t.height+"px",a.style.fontSize=.8+.8*Math.random()+"rem",document.body.appendChild(a),setTimeout(function(){a.parentNode&&a.remove()},800)},80*e)})(a)}(a))},window.getNachoFriendship=function(){const e=parseInt(localStorage.getItem("btc_nacho_interactions")||"0"),t=[{name:"Stranger",emoji:"🦌",min:0},{name:"Acquaintance",emoji:"🤝",min:10},{name:"Pleb Friend",emoji:"🧡",min:50},{name:"HODL Buddy",emoji:"💎",min:150},{name:"Maxi Mentor",emoji:"👑",min:500}];let o=t[0];for(const a of t)e>=a.min&&(o=a);return o},window.renderNachoClosetUI=function(t){for(var a=o(),n=getEquippedItems(),r=parseInt(localStorage.getItem("btc_nacho_interactions")||"0"),i="function"==typeof getNachoFriendship?getNachoFriendship():{level:0,name:"Strangers",emoji:"❓"},l=[1,10,100,350,750],s="",d=0;d<l.length;d++)if(r<l[d]){s='<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Next level in '+(l[d]-r)+" more interactions</div>";break}var c="",m=[];Object.values(n).forEach(function(t){var o=e.find(function(e){return e.id===t});if(o){var a=o.hidden?o.revealEmoji:o.emoji;o.overlay.custom&&(a=o.overlay.custom);var n="position:absolute;font-size:"+(o.overlay.fontSize||"1.5rem")+";";if(o.overlay.top&&(n+="top:"+o.overlay.top+";"),o.overlay.bottom&&(n+="bottom:"+o.overlay.bottom+";"),o.overlay.left&&(n+="left:"+o.overlay.left+";"),o.overlay.right&&(n+="right:"+o.overlay.right+";"),o.overlay.transform&&(n+="transform:"+o.overlay.transform+";"),n+="z-index:5;pointer-events:none;",o.colorable){var r=localStorage.getItem("btc_closet_color_"+o.id);r&&"0deg"!==r&&(n+="filter:hue-rotate("+r+");")}c+='<span style="'+n+'">'+a+"</span>",m.push(o.hidden?o.revealName:o.name)}});var h="function"==typeof nachoNickname?nachoNickname():"Nacho",f='<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:1px;margin-bottom:10px;font-weight:700;">🦌 '+escapeHtml(h)+"'s Closet</div>";f+='<div id="nachoClosetPreview" style="text-align:center;margin-bottom:16px;background:radial-gradient(circle,rgba(247,147,26,0.08) 0%,transparent 70%);border-radius:16px;padding:16px 0 8px;"><div style="position:relative;display:inline-block;width:120px;height:120px;"><img src="nacho-deer.svg" alt="Nacho" style="width:120px;height:120px;position:relative;z-index:2;">'+c+'</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:4px;">'+(m.length>0?'✨ Wearing: <strong style="color:var(--accent);">'+m.join(", ")+"</strong>":"No item equipped — tap one below!")+"</div></div>",f+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="color:var(--text);font-size:0.85rem;">Friendship: <strong style="color:var(--accent);">'+i.emoji+" "+i.name+'</strong></span><span style="color:var(--text-muted);font-size:0.8rem;">'+r+" interactions</span></div>"+s;f+='<div style="height:4px;background:var(--border);border-radius:4px;margin:10px 0 16px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#f97316,#eab308);width:'+Math.min(100,Math.round(r/750*100))+'%;border-radius:4px;transition:width 0.5s;"></div></div>',f+='<div id="nachoClosetGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';for(var p=(new Date).toLocaleString("en",{month:"long"}).toLowerCase(),u=0;u<e.length;u++){var g=e[u];if(!g.seasonal||-1!==p.indexOf(g.seasonal)){var v=g.level<=a,y=Object.values(n).includes(g.id),b=g.hidden&&!v,x=b?"???":g.hidden&&v?g.revealName:g.name,w=b?"❓":g.hidden&&v?g.revealEmoji:g.emoji;f+='<div onclick="'+(v?"equipNachoItem('"+g.id+"')":"")+'" style="background:'+(y?"var(--accent-bg,rgba(247,147,26,0.15))":"var(--card-bg,#1a1a2e)")+";border:2px solid "+(y?"#f7931a":v?"var(--border,#333)":"rgba(100,100,100,0.2)")+";border-radius:12px;padding:12px 8px;text-align:center;cursor:"+(v?"pointer":"default")+";opacity:"+(v?"1":"0.4")+';transition:all 0.2s;position:relative;"'+(v?" onmouseover=\"this.style.transform='scale(1.05)';this.style.borderColor='#f7931a'\" onmouseout=\"this.style.transform='scale(1)';this.style.borderColor='"+(y?"#f7931a":"var(--border,#333)")+"'\"":"")+'><div style="font-size:1.8rem;margin-bottom:4px;'+(y?"animation:nachoItemFloat 2s ease-in-out infinite;":"")+'">'+w+'</div><div style="font-size:0.7rem;color:'+(v?"var(--text)":"var(--text-faint)")+';font-weight:600;line-height:1.3;">'+x+"</div>"+(y?'<div style="font-size:0.6rem;color:#f7931a;font-weight:700;margin-top:2px;">✓ EQUIPPED</div>':"")+(y&&g.colorable?"<div onclick=\"event.stopPropagation();if(typeof showColorPicker==='function')showColorPicker('"+g.id+'\')" style="font-size:0.65rem;color:var(--accent);cursor:pointer;margin-top:4px;font-weight:600;padding:2px 6px;background:var(--accent-bg,rgba(247,147,26,0.1));border-radius:4px;display:inline-block;">🎨 Color</div>':"")+(v||b?"":'<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">Lvl '+g.level+"</div>")+(b?'<div style="font-size:0.55rem;color:var(--text-faint);margin-top:2px;">🔒</div>':"")+(g.seasonal?'<div style="font-size:0.5rem;color:var(--accent);margin-top:2px;">🗓️ '+g.seasonal+"</div>":"")+"</div>"}}f+="</div>",f+='<div style="margin-top:12px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;min-height:40px;"><div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;" id="nachoItemDesc">'+(Object.keys(n).length>0?function(){var t=e.find(function(e){return e.id===Object.values(n)[0]});if(!t)return"Tap an item to equip it on "+escapeHtml(h)+"!";var o=t.hidden?t.revealDesc:t.desc;return'<strong style="color:var(--accent);">'+(t.hidden?t.revealName:t.name)+":</strong> "+o}():"Tap an unlocked item to equip it on "+escapeHtml(h)+"!<br>Tap again to unequip.")+"</div></div>",t.innerHTML=f};var a="function"==typeof nachoNickname?nachoNickname():"Nacho";window.NACHO_CLOSET_TIPS=[{pose:"cool",text:"Did you know I have a whole closet of outfits, {name}? Check Settings → Stats → "+escapeHtml(a)+"'s Closet to dress me up! 👔🦌"},{pose:"celebrate",text:"The more we interact, the more items you unlock for me to wear! Check my closet in Settings! 🧣⚡"},{pose:"eyes",text:"I heard there are some mystery items in my closet that only my closest friends get to see... 👀🔒"},{pose:"fire",text:"Proof of Steak > Proof of Stake. Ask me about it... or better yet, unlock it in my closet! 🥩🦌"},{pose:"cheese",text:"Fashion tip from a deer: orange goes with everything. Especially Bitcoin orange. Check my closet in Settings! 🟠"}],window.checkNachoNewItems=function(){var t=o(),a=JSON.parse(localStorage.getItem("btc_nacho_items_notified")||"[]"),n=e.filter(function(e){return e.level<=t&&!a.includes(e.id)});if(n.length>0){for(var r=0;r<n.length;r++)a.push(n[r].id);localStorage.setItem("btc_nacho_items_notified",JSON.stringify(a));if(typeof syncCelebratedState==="function")syncCelebratedState();var i=n[0],l=i.hidden?i.revealName:i.name,s=i.hidden?i.revealEmoji:i.emoji,d="function"==typeof nachoNickname?nachoNickname():"Nacho";var _r={pose:"celebrate",text:"🎁 New item unlocked: "+s+" "+l+"! Go to Settings → Stats → "+escapeHtml(d)+"'s Closet to try it on, {name}! 🦌"};if(typeof notifySelfClosetItem==='function')notifySelfClosetItem(l,s);return _r}return null},"loading"===document.readyState?document.addEventListener("DOMContentLoaded",function(){setTimeout(renderNachoOverlay,1500)}):setTimeout(renderNachoOverlay,1500)}(),window.earnNachoClosetItem=function(){var e=getFriendLevel(),t=JSON.parse(localStorage.getItem("btc_spin_closet_items")||"[]"),o=NACHO_ITEMS.filter(function(o){var a=o.level<=e,n=t.includes(o.id);return!a&&!n});if(0===o.length)return"function"==typeof showToast&&showToast("👔 You've unlocked all closet items! +10 bonus tickets!"),void("function"==typeof awardSpinPrize&&awardSpinPrize({type:"ticket",value:10}));var a=o[Math.floor(Math.random()*o.length)];t.push(a.id),localStorage.setItem("btc_spin_closet_items",JSON.stringify(t));var n=a.hidden&&a.revealName||a.name,r=a.hidden&&a.revealEmoji||a.emoji;"function"==typeof showToast&&showToast("🎁 RARE SPIN! Unlocked: "+r+" "+n+"! Check the closet!"),"function"==typeof notifySelfClosetItem&&notifySelfClosetItem(n,r),document.getElementById("nachoClosetGrid")&&"function"==typeof renderNachoClosetUI&&renderNachoClosetUI(document.getElementById("nachoClosetGrid").parentElement),"undefined"!=typeof db&&"undefined"!=typeof auth&&auth.currentUser&&!auth.currentUser.isAnonymous&&db.collection("users").doc(auth.currentUser.uid).update({spinClosetItems:t}).catch(function(){})},window.showColorPicker=function(e){var t=document.getElementById("nachoColorPicker");t&&t.remove();var o=localStorage.getItem("btc_closet_color_"+e)||"0deg",a=document.createElement("div");a.id="nachoColorPicker",a.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;",a.onclick=function(e){e.target===a&&a.remove()};var n=document.createElement("div");n.style.cssText="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center;";var r=null;"undefined"!=typeof NACHO_ITEMS&&(r=NACHO_ITEMS.find(function(t){return t.id===e}));var i='<div style="font-size:2rem;margin-bottom:8px;">'+(r?r.emoji:"🎨")+'</div><div style="color:var(--heading,#fff);font-weight:700;margin-bottom:4px;">'+(r?r.name:"Item")+'</div><div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:16px;">Choose a color</div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;">';[{name:"Default",hue:"0deg",color:"#f7931a"},{name:"Bitcoin Orange",hue:"25deg",color:"#ff8c00"},{name:"Crimson",hue:"340deg",color:"#dc2626"},{name:"Royal Purple",hue:"270deg",color:"#7c3aed"},{name:"Ocean Blue",hue:"200deg",color:"#0ea5e9"},{name:"Forest Green",hue:"120deg",color:"#16a34a"},{name:"Gold",hue:"45deg",color:"#eab308"},{name:"Hot Pink",hue:"310deg",color:"#ec4899"},{name:"Cyan",hue:"175deg",color:"#06b6d4"},{name:"Lime",hue:"90deg",color:"#84cc16"}].forEach(function(t){var a=o===t.hue;i+="<button onclick=\"window._applyClosetColor('"+e+"','"+t.hue+'\')" style="width:100%;aspect-ratio:1;border-radius:50%;border:'+(a?"3px solid var(--accent,#f7931a)":"2px solid var(--border)")+";cursor:pointer;background:"+t.color+";display:flex;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:"+(a?"0 0 12px rgba(247,147,26,0.5)":"none")+';" title="'+t.name+'">'+(r?r.emoji:"⬤")+"</button>"}),i+='</div><button onclick="document.getElementById(\'nachoColorPicker\').remove()" style="padding:10px 24px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Done</button>',n.innerHTML=i,a.appendChild(n),document.body.appendChild(a)},window._applyClosetColor=function(e,t){localStorage.setItem("btc_closet_color_"+e,t);var o=document.querySelector("#nacho-overlay");if(o&&(o.style.filter="0deg"===t?"none":"hue-rotate("+t+")"),"function"==typeof showColorPicker&&showColorPicker(e),"function"==typeof renderNachoClosetUI){var a=document.getElementById("nachoClosetContainer");a&&renderNachoClosetUI(a)}};// © 2024-2026 603BTC LLC. All rights reserved.
@@ -19594,12 +19791,12 @@ window._startHalvingTicker = function() {
         var segments = [
             { label: '🎟️ 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
             { label: '🎟️ 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
-            { label: '⭐ 10 pts', value: 'points_10', weight: 18, color: '#22c55e' },
+            { label: '⭐ 25 pts', value: 'points_25', weight: 18, color: '#22c55e' },
             { label: '🎟️ 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
-            { label: '⭐ 25 pts', value: 'points_25', weight: 8, color: '#3b82f6' },
+            { label: '⭐ 50 pts', value: 'points_50', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
-            { label: '⭐ 50 pts', value: 'points_50', weight: 3, color: '#8b5cf6' },
+            { label: '⭐ 100 pts', value: 'points_100', weight: 3, color: '#8b5cf6' },
             { label: '🎟️ 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
@@ -22734,11 +22931,11 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_quest', title: '⚡ Start a Quest', desc: 'Guided learning quests through Bitcoin topics', keywords: 'quest mission journey learn guided start challenge', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_scholar', title: '🎓 Scholar Certification', desc: 'Bitcoin Scholar & Protocol Expert Certifications', keywords: 'scholar certification exam test certificate diploma bitcoin technical protocol', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_signal', title: '📡 The Signal', desc: 'Weekly curated Bitcoin insights newsletter', keywords: 'signal newsletter weekly email updates curated insights', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
-        { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
+        { id: '_flashcards', title: '📚 Flashcards', desc: 'Study Bitcoin topics with interactive flashcards', keywords: 'flashcard study cards learn review quiz prep memorize practice drill test', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_leaderboard', title: '🏆 Leaderboard', desc: 'See top ranked Bitcoiners', keywords: 'leaderboard ranking top leaders scoreboard competition', action: 'toggleLeaderboard()' },
         { id: '_tickets', title: '🎟️ Orange Tickets', desc: 'Earn tickets for giveaways and rewards', keywords: 'tickets orange giveaway raffle prize sats reward earn', action: 'showSettings()' },
         { id: '_referral', title: '🔗 Referral Program', desc: 'Invite friends and earn 50 tickets each', keywords: 'referral invite share link friend earn bonus', action: 'showSettings()' },
-        { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
+        { id: '_closet', title: '🎽 Nacho\'s Closet', desc: 'Dress up Nacho with items you unlock', keywords: 'closet outfit clothes dress costume item equip nacho customize color hat scarf sunglasses crown hoodie accessories wardrobe', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_badges', title: '🏅 Badges', desc: 'View your earned badges and goals — chat, DJ, discovery, knowledge', keywords: 'badges achievement trophy unlock goal progress medal chat dj streak listener', action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)" },
         { id: '_story', title: '📖 Nacho\'s Story', desc: 'Read Nacho\'s Bitcoin adventure — one chapter per day', keywords: 'story chapter read book adventure nacho tale', action: 'showNachoStory()' },
         { id: '_predict', title: '📈 Price Prediction', desc: 'Predict if Bitcoin goes up or down in 24 hours', keywords: 'predict prediction price bitcoin up down forecast', action: 'showPricePrediction()' },
@@ -22747,14 +22944,14 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_art', title: '🎨 Random Art', desc: 'See random Bitcoin art and inspiration', keywords: 'art random artwork creative inspiration gallery', action: 'goRandomArt()' },
         { id: '_graphic', title: '📊 Random Graphic', desc: 'See a random Bitcoin graphic or chart', keywords: 'graphic chart data visual infographic random graphics', action: 'goRandomGraphic()' },
         { id: '_quiz', title: '🎮 Quiz Me', desc: 'Test your Bitcoin knowledge with Nacho', keywords: 'quiz question test knowledge trivia game answer', action: 'nachoQuizMe()' },
-        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
+        { id: '_pvp', title: '⚔️ PVP Battle', desc: 'Real-time Bitcoin trivia battles against other players', keywords: 'pvp battle fight 1v1 versus trivia quiz compete multiplayer arena duel challenge opponent leaderboard wins losses', action: 'enterPVPMode()' },
         { id: '_donate', title: '💛 Donate', desc: 'Support Bitcoin Education Archive with sats', keywords: 'donate support tip sats lightning contribute funding', action: 'showDonateModal()' },
         { id: '_theme', title: '🌙 Toggle Theme', desc: 'Switch between dark and light mode', keywords: 'theme dark light mode toggle switch appearance color night day', action: 'document.getElementById("themeToggle").click()' },
         { id: '_audio', title: '🔊 Toggle Audio', desc: 'Turn sound effects on or off', keywords: 'audio sound music mute volume effects toggle', action: 'toggleAudio()' },
         { id: '_keyboard', title: '⌨️ Keyboard Shortcuts', desc: 'View all keyboard shortcuts', keywords: 'keyboard shortcut hotkey key binding keys shortcuts help', action: 'showKeyboardHelp()' },
         { id: '_explore', title: '🗺️ Exploration Map', desc: 'See which topics you have visited', keywords: 'exploration map progress visited topics grid complete coverage', action: 'goHome()' },
-        { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
-        { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining sync broadcast cinema', action: "go('timechain-tv')" },
+        { id: '_globalchat', title: '🌍 Global Chat', desc: 'Live global chat room — talk with the community in real time', keywords: 'global chat room live talk community message send public chatroom online users presence dm reaction gif emoji sticker', action: "if(typeof renderChatHub==='function')renderChatHub('global');else if(typeof toggleChatOverlay==='function')toggleChatOverlay()" },
+        { id: '_timechaintv', title: '📺 Timechain TV', desc: 'Live Bitcoin television — 8 channels of curated Bitcoin videos playing 24/7', keywords: 'tv television video watch live stream channel timechain tube youtube documentary tutorial mining sync broadcast cinema epg guide schedule remote couch nacho', action: "go('timechain-tv')" },
         { id: '_djmode', title: '🎧 DJ Mode', desc: 'Go live as a DJ — broadcast music, use sound effects, crossfade, and play Bitcoin quotes', keywords: 'dj mode broadcast live music stream turntable crossfade sound effects horn airhorn scratch mixer controls', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('livestream')},300)" },
         { id: '_upload_album', title: '📀 Upload Album/EP', desc: 'Upload up to 20 songs at once — group as Album or EP with cover art', keywords: 'upload album ep discography batch bulk multiple songs tracks artist release collection', action: "go('bitcoin-beats');setTimeout(function(){beatsTab('upload')},300)" },
         { id: '_messages', title: '💬 Messages / DMs', desc: 'Direct messages — chat privately with other users', keywords: 'messages dm direct message inbox chat private conversation contact send receive talk', action: 'showInbox()' },
@@ -22764,12 +22961,19 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_trails', title: '🦌 Nacho\'s Trails', desc: 'Guided learning paths through Bitcoin education — Meadow, Mountain & Summit', keywords: 'trails nacho guided path learning course module meadow mountain summit exam test progress curriculum education beginner intermediate advanced', action: "go('trails')" },
         { id: '_dashboard', title: '📊 Top Indicators', desc: 'Live Bitcoin cycle top indicators — Pi Cycle, NUPL, Puell, Power Law & more', keywords: 'dashboard indicators top cycle signal pi cycle nupl puell mayer multiple rsi ahr999 mstr etf power law rainbow reserve risk bitcoin metrics data analytics chart', action: "if(typeof toggleDashboard==='function')toggleDashboard()" },
         { id: '_meetupbox', title: '📦 Meetup-in-a-Box', desc: 'Ready-made meetup templates with agendas and host tips', keywords: 'meetup box template agenda host tips lightning workshop self custody mining event organize plan download', action: "go('irl-sync')" },
-        { id: '_buddy', title: '🤝 Bitcoin Buddy', desc: 'Find a learning partner — teachers matched with learners', keywords: 'buddy partner match learn teach mentor mentee pair connect chat find friend study', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
+        { id: '_buddy', title: '🤝 Bitcoin Buddy', desc: 'Find a learning partner — teachers matched with learners', keywords: 'buddy partner match learn teach mentor mentee pair connect chat find friend study accountability group', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_certs', title: '📜 Shareable Certificates', desc: 'Share your Scholar Certification with a verifiable public link', keywords: 'certificate share verify link public proof scholar achievement social media url', action: "showSettings();setTimeout(function(){showSettingsPage('scholar')},100)" },
         { id: '_satsvbits', title: '⚡ Sats vs Bits', desc: 'Live community vote — sats or bits for the Bitcoin denomination?', keywords: 'sats bits vote poll denomination unit satoshi community debate live', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
         { id: '_newbie', title: '🟢 Brand New to Bitcoin?', desc: 'Quick introduction for absolute beginners', keywords: 'new beginner brand new start zero nothing know nothing introduction first time newbie noob', action: "go('one-stop-shop')" },
         { id: '_meetupbuilder', title: '🔨 Meetup Builder', desc: 'Plan, share, and discover Bitcoin meetups — resources, venues & guides', keywords: 'meetup builder create plan share venue platform resource guide community', action: "go('meetup-builder')" },
-        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw bitcoin lightning faucet earn points convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
+        { id: '_sats', title: '⚡ Claim Sats', desc: 'Convert your earned points into real Bitcoin sats via Lightning', keywords: 'sats claim withdraw cashout bitcoin lightning faucet earn points convert redeem payout real btc satoshi', action: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)" },
+        { id: '_tips', title: '⚡ Lightning Tips', desc: 'Tip other users with Lightning sats', keywords: 'tip tips lightning send sats zap reward give appreciation', action: "if(typeof showTipOverlay==='function')showTipOverlay()" },
+        { id: '_network', title: '📡 Bitcoin Network', desc: 'Live mempool, hashrate, difficulty, fees, and block explorer', keywords: 'network mempool hashrate difficulty fees block explorer transaction confirmations bitcoin network stats', action: "go('bitcoin-dashboard')" },
+        { id: '_notifications', title: '🔔 Notifications', desc: 'Enable push notifications for updates and alerts', keywords: 'notifications push alerts notify bell updates permission enable disable', action: "if(typeof requestNotificationPermission==='function')requestNotificationPermission();else showSettings()" },
+        { id: '_streakfreeze', title: '🧊 Streak Freeze', desc: 'Protect your visit streak with freeze tickets', keywords: 'streak freeze ticket protect miss save guard insurance ice', action: "showSettings();setTimeout(function(){showSettingsPage('data')},100)" },
+        { id: '_cotd', title: '📅 Channel of the Day', desc: 'Today\'s featured Bitcoin education channel', keywords: 'channel of the day daily featured recommendation today pick spotlight', action: 'goHome()' },
+        { id: '_nostr', title: '🟣 Nostr Login', desc: 'Sign in with Nostr — extension, nsec, or npub', keywords: 'nostr login sign in nip npub nsec extension relay decentralized identity', action: 'showUsernamePrompt()' },
+        { id: '_buddyfind', title: '🤝 Find a Bitcoin Buddy', desc: 'Get matched with a learning partner — teachers meet learners', keywords: 'buddy partner match learn teach mentor mentee pair connect study group accountability partner friend', action: "if(typeof renderChatHub==='function')renderChatHub('global')" },
     ];
 
     function doSearch(q) {
@@ -25411,4 +25615,74 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             };
         }
     }, 3000);
+})();
+
+// ---- Sidebar Reading Progress Indicators ----
+(function() {
+    // Add subtle progress bars to sidebar channel buttons
+    // Runs after channels render and on navigation
+    
+    function updateSidebarProgress() {
+        try {
+            var progress = JSON.parse(localStorage.getItem('btc_channel_progress') || '{}');
+            var buttons = document.querySelectorAll('.ch-btn');
+            buttons.forEach(function(btn) {
+                var onclick = btn.getAttribute('onclick') || '';
+                var match = onclick.match(/go\('([^']+)'\)/);
+                if (!match) return;
+                var channelId = match[1];
+                var pct = progress[channelId] || 0;
+                
+                // Remove existing progress bar if any
+                var existing = btn.querySelector('.ch-progress');
+                if (existing) existing.remove();
+                
+                if (pct > 0) {
+                    var bar = document.createElement('div');
+                    bar.className = 'ch-progress';
+                    bar.style.cssText = 'position:absolute;bottom:0;left:0;height:2px;background:' + 
+                        (pct >= 100 ? '#22c55e' : 'var(--accent,#f7931a)') + 
+                        ';width:' + Math.min(pct, 100) + '%;border-radius:0 1px 0 0;transition:width 0.3s;opacity:0.7;';
+                    btn.style.position = 'relative';
+                    btn.style.overflow = 'hidden';
+                    btn.appendChild(bar);
+                    
+                    // Add checkmark for 100%
+                    if (pct >= 100 && !btn.querySelector('.ch-done')) {
+                        var check = document.createElement('span');
+                        check.className = 'ch-done';
+                        check.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:0.6rem;opacity:0.5;';
+                        check.textContent = '\u2713';
+                        btn.appendChild(check);
+                    }
+                }
+            });
+        } catch(e) {}
+    }
+    
+    // Run on initial load
+    setTimeout(updateSidebarProgress, 2000);
+    
+    // Re-run when navigating home or after channel loads
+    var _origGoHome = window.goHome;
+    if (_origGoHome) {
+        window.goHome = function() {
+            var result = _origGoHome.apply(this, arguments);
+            setTimeout(updateSidebarProgress, 500);
+            return result;
+        };
+    }
+    
+    // Also update after each channel visit
+    var _origGoProg = window.go;
+    if (_origGoProg) {
+        window.go = function() {
+            var result = _origGoProg.apply(this, arguments);
+            setTimeout(updateSidebarProgress, 1000);
+            return result;
+        };
+    }
+    
+    // Expose for manual refresh
+    window.updateSidebarProgress = updateSidebarProgress;
 })();
