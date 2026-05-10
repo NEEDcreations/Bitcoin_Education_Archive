@@ -14818,6 +14818,8 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
+            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="handleDMImage(this,\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
+            '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
             '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
             '<button onclick="sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
         '</div>' +
@@ -14918,9 +14920,14 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
                 var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
                 var msgText = escapeHtml(m.text).replace(/\n/g, '<br>');
+                // Image support
+                var imgHtml = '';
+                if (m.imageUrl) {
+                    imgHtml = '<img src="' + escapeHtml(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                }
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
                     '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
-                        nachoLabel + msgText + scamWarn + piiWarn +
+                        nachoLabel + (msgText || '') + imgHtml + scamWarn + piiWarn +
                         '<div style="font-size:0.6rem;color:' + (isMe && !isNacho ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
                     '</div></div>';
             });
@@ -14939,6 +14946,116 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
 }
 
 // Send a DM
+// ---- DM Image Send ----
+window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
+    if (!input || !input.files || !input.files[0]) return;
+    var file = input.files[0];
+    input.value = ''; // Reset so same file can be re-selected
+
+    // Validate
+    if (!file.type.startsWith('image/')) {
+        if (typeof showToast === 'function') showToast('Only images are allowed');
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        if (typeof showToast === 'function') showToast('Image too large (max 5MB)');
+        return;
+    }
+
+    if (!auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('Sign in to send images');
+        return;
+    }
+
+    var storage = null;
+    try { storage = firebase.storage(); } catch(e) {}
+    if (!storage) {
+        if (typeof showToast === 'function') showToast('Image upload unavailable');
+        return;
+    }
+
+    if (typeof showToast === 'function') showToast('📷 Uploading image…');
+
+    var uid = auth.currentUser.uid;
+    var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
+    var ext = file.type.indexOf('png') > -1 ? 'png' : file.type.indexOf('gif') > -1 ? 'gif' : file.type.indexOf('webp') > -1 ? 'webp' : 'jpg';
+    var fileName = Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+    var ref = storage.ref('dm-images/' + uid + '/' + fileName);
+
+    // Optimistic UI — show loading placeholder
+    var container = document.getElementById('dmMessages');
+    if (container) {
+        var placeholder = container.querySelector('div[style*="text-align:center"]');
+        if (placeholder && container.children.length === 1) container.innerHTML = '';
+        var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        container.innerHTML += '<div data-dm-img-uploading style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
+            '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;font-size:0.85rem;text-align:center;">' +
+                '<div style="font-size:1.5rem;margin-bottom:4px;">📷</div>' +
+                '<div style="font-size:0.75rem;opacity:0.7;">Uploading…</div>' +
+            '</div></div>';
+        container.scrollTop = container.scrollHeight;
+    }
+
+    ref.put(file, { contentType: file.type })
+        .then(function(snap) { return snap.ref.getDownloadURL(); })
+        .then(function(url) {
+            // Remove optimistic placeholder
+            var uploading = container && container.querySelector('[data-dm-img-uploading]');
+            if (uploading) uploading.remove();
+
+            var convoRef = db.collection('dm_conversations').doc(convoId);
+            var msgData = {
+                senderUid: uid,
+                senderName: myName,
+                text: '',
+                imageUrl: url,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            var convoUpdateData = {
+                lastMessage: '📷 Image',
+                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+                lastSenderUid: uid
+            };
+            convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+
+            // Notify recipient
+            if (typeof sendNotification === 'function') {
+                sendNotification(recipientUid, 'dm', '📷 Image from @' + myName, 'dm', convoId);
+            }
+
+            return convoRef.update(convoUpdateData).catch(function(err) {
+                if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
+                    var createData = {
+                        participants: [uid, recipientUid],
+                        lastMessage: '📷 Image',
+                        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastSenderUid: uid
+                    };
+                    createData.participantNames = {};
+                    createData.participantNames[uid] = myName;
+                    createData.participantNames[recipientUid] = recipientName;
+                    createData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+                    return convoRef.set(createData);
+                }
+                throw err;
+            }).then(function() {
+                return convoRef.collection('messages').add(msgData);
+            }).then(function() {
+                if (typeof showToast === 'function') showToast('📷 Image sent!');
+                if (container && document.getElementById('dmMessages')) {
+                    loadDMMessages(convoId, uid, recipientUid, recipientName);
+                }
+            });
+        })
+        .catch(function(e) {
+            console.error('[DM Image] Upload failed:', e);
+            if (typeof showToast === 'function') showToast('Failed to send image: ' + (e.message || 'upload error'));
+            var uploading = container && container.querySelector('[data-dm-img-uploading]');
+            if (uploading) uploading.remove();
+        });
+};
+
 window.sendDM = function(convoId, recipientUid, recipientName) {
     var inp = document.getElementById('dmInput');
     if (!inp) return;

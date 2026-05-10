@@ -425,9 +425,10 @@ service cloud.firestore {
                       && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
                       && request.resource.data.senderUid == request.auth.uid
                       && request.resource.data.text is string
-                      && request.resource.data.text.size() >= 1
                       && request.resource.data.text.size() <= 1000
-                      && !('isNachoAuto' in request.resource.data);
+                      && !('isNachoAuto' in request.resource.data)
+                      && (request.resource.data.text.size() >= 1 || ('imageUrl' in request.resource.data && request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
+                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')));
       }
     }
 

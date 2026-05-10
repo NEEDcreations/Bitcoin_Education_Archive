@@ -49,6 +49,14 @@ service firebase.storage {
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
     }
+    // DM image uploads (private messages)
+    match /dm-images/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|png|gif|webp)');
+    }
     // Default: deny
     match /{allPaths=**} {
       allow read, write: if false;
