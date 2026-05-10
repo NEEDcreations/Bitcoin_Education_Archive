@@ -1760,101 +1760,29 @@ window.beatsRenderLivestream = function() {
 // ---- DJ Sound Effects & Quotes ----
 window._djCrossfadeSec = 0;
 
+// DJ SFX file map — real audio clips in /sfx/
+var DJ_SFX_FILES = {
+    horn: 'sfx/horn.mp3',
+    airhorn: 'sfx/airhorn.mp3',
+    scratch: 'sfx/scratch.mp3',
+    rewind: 'sfx/rewind.wav',
+    boom: 'sfx/boom.mp3',
+    applause: 'sfx/applause.mp3'
+};
+var _djSfxCache = {}; // Cache Audio objects for instant replay
+
 window.djPlaySFX = function(type) {
     try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-        var osc, gain;
-
-        if (type === 'horn' || type === 'airhorn') {
-            // DJ horn — frequency sweep
-            osc = ctx.createOscillator();
-            gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = type === 'airhorn' ? 'sawtooth' : 'square';
-            osc.frequency.setValueAtTime(400, ctx.currentTime);
-            osc.frequency.linearRampToValueAtTime(type === 'airhorn' ? 800 : 600, ctx.currentTime + 0.15);
-            osc.frequency.linearRampToValueAtTime(type === 'airhorn' ? 600 : 400, ctx.currentTime + 0.3);
-            if (type === 'airhorn') { osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.5); osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.8); }
-            gain.gain.setValueAtTime(0.4, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + (type === 'airhorn' ? 0.8 : 0.4));
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + (type === 'airhorn' ? 0.8 : 0.4));
-        } else if (type === 'scratch') {
-            osc = ctx.createOscillator();
-            gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.1);
-            osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
-            osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.3);
-            osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.4);
-            gain.gain.setValueAtTime(0.3, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.4);
-        } else if (type === 'rewind') {
-            osc = ctx.createOscillator();
-            gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(3000, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.6);
-            gain.gain.setValueAtTime(0.25, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.6);
-        } else if (type === 'boom') {
-            osc = ctx.createOscillator();
-            gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(150, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.6, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.5);
-            // Add noise burst
-            var bufSize = ctx.sampleRate * 0.15;
-            var buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
-            var data = buf.getChannelData(0);
-            for (var i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
-            var noise = ctx.createBufferSource();
-            noise.buffer = buf;
-            var ng = ctx.createGain();
-            ng.gain.setValueAtTime(0.4, ctx.currentTime);
-            ng.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
-            noise.connect(ng);
-            ng.connect(ctx.destination);
-            noise.start(ctx.currentTime);
-        } else if (type === 'applause') {
-            // White noise burst shaped like applause
-            var duration = 1.5;
-            var bufLen = ctx.sampleRate * duration;
-            var buf2 = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-            var ch = buf2.getChannelData(0);
-            for (var j = 0; j < bufLen; j++) ch[j] = (Math.random() * 2 - 1) * 0.2;
-            var src = ctx.createBufferSource();
-            src.buffer = buf2;
-            var env = ctx.createGain();
-            env.gain.setValueAtTime(0, ctx.currentTime);
-            env.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
-            env.gain.setValueAtTime(0.3, ctx.currentTime + 0.8);
-            env.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
-            // Bandpass for applause character
-            var bp = ctx.createBiquadFilter();
-            bp.type = 'bandpass';
-            bp.frequency.value = 3000;
-            bp.Q.value = 0.5;
-            src.connect(bp);
-            bp.connect(env);
-            env.connect(ctx.destination);
-            src.start(ctx.currentTime);
+        var file = DJ_SFX_FILES[type];
+        if (file) {
+            // Use real audio file
+            if (!_djSfxCache[type]) _djSfxCache[type] = new Audio(file);
+            var audio = _djSfxCache[type];
+            audio.currentTime = 0;
+            // Respect app volume
+            var vol = parseFloat(localStorage.getItem('btc_volume') || '1');
+            audio.volume = Math.min(1, vol * 0.7);
+            audio.play().catch(function() {});
         }
 
         // Broadcast SFX event to listeners
