@@ -700,31 +700,35 @@ window.sendGlobalChat = function() {
         return;
     }
 
-    // Profanity check
-    if (containsProfanity(text)) {
-        if (typeof showToast === 'function') showToast('🚫 Message contains inappropriate language.');
-        return;
-    }
+    // Admin bypass — admins skip all content restrictions
+    var _chatAdminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
+    var _isChatAdmin = typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email && _chatAdminEmails.indexOf(auth.currentUser.email) !== -1;
 
-    // Link filter — strip all URLs from chat messages (admins exempt)
-    var _linkAdminEmails = ['needcreations@gmail.com', 'info.603btc@gmail.com'];
-    var _isLinkAdmin = typeof auth !== 'undefined' && auth.currentUser && auth.currentUser.email && _linkAdminEmails.indexOf(auth.currentUser.email) !== -1;
-    if (!_isLinkAdmin && /https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(text)) {
-        text = text.replace(/https?:\/\/\S+/gi, '[link removed]').replace(/www\.\S+/gi, '[link removed]').replace(/\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\S*/gi, '[link removed]');
-        if (typeof showToast === 'function') showToast('🔗 Links are not allowed in chat.', 4000);
-        if (text.replace(/\[link removed\]/g, '').trim().length === 0) return; // message was only a link
-    }
+    if (!_isChatAdmin) {
+        // Profanity check
+        if (containsProfanity(text)) {
+            if (typeof showToast === 'function') showToast('🚫 Message contains inappropriate language.');
+            return;
+        }
 
-    // Spam check
-    if (isSpammy(text)) {
-        if (typeof showToast === 'function') showToast('🚫 Message flagged as spam. Please write normally.');
-        return;
-    }
+        // Link filter — strip all URLs from chat messages
+        if (/https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(text)) {
+            text = text.replace(/https?:\/\/\S+/gi, '[link removed]').replace(/www\.\S+/gi, '[link removed]').replace(/\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\S*/gi, '[link removed]');
+            if (typeof showToast === 'function') showToast('🔗 Links are not allowed in chat.', 4000);
+            if (text.replace(/\[link removed\]/g, '').trim().length === 0) return;
+        }
 
-    // PII check — block phone numbers and email addresses in public chat
-    if (/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(text) || /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) {
-        if (typeof showToast === 'function') showToast('🔒 For your safety, phone numbers and email addresses are not allowed in public chat. Use DMs instead.', 6000);
-        return;
+        // Spam check
+        if (isSpammy(text)) {
+            if (typeof showToast === 'function') showToast('🚫 Message flagged as spam. Please write normally.');
+            return;
+        }
+
+        // PII check — block phone numbers and email addresses in public chat
+        if (/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(text) || /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) {
+            if (typeof showToast === 'function') showToast('🔒 For your safety, phone numbers and email addresses are not allowed in public chat. Use DMs instead.', 6000);
+            return;
+        }
     }
 
     // Auth check
