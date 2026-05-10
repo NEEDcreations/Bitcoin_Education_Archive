@@ -1120,6 +1120,7 @@
     <div class="lightbox" id="lb" onclick="this.classList.remove('open')"><img id="lb-img"></div>
     <div id="questModal" onclick="if(event.target===this){ if(window._scholarExamActive) { cancelScholar(); } else { closeQuest(); } }"><div id="questInner"></div></div>
     <button id="lbFloatBtn" onclick="toggleLeaderboard()" style="position:fixed;bottom:10px;right:20px;z-index:9990;background:var(--accent);color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:0.2s;">🏆</button>
+    <button id="chatOverlayBtn" onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else showToast('Chat loading...')" style="position:fixed;bottom:10px;right:128px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;">💬</button>
     <div id="leaderboard"></div>
     <button onclick="if(typeof toggleChatOverlay==='function')toggleChatOverlay();else if(typeof renderChatHub==='function')renderChatHub('global');else go('dms')" style="position:fixed;bottom:10px;right:132px;z-index:9989;background:var(--card-bg);border:1px solid var(--border);border-radius:50%;width:48px;height:48px;color:var(--text);font-size:1.4rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:0.2s;" id="desktopDMBtn">🗨️</button>
     <div id="usernameModal" onclick="if(event.target===this)hideUsernamePrompt()">
@@ -1211,7 +1212,7 @@
     (function(){
         var _lazyScripts = [
             'nacho-qa.js?v=20260404','scholar.js?v=20260503_2353','beats.js?v=20260510_1749',
-            'global-chat.js?v=20260510_2141','lightning.js?v=20260330b','lightning-tips.js?v=20260330a',
+            'global-chat.js?v=20260510_2159','lightning.js?v=20260330b','lightning-tips.js?v=20260330a',
             'notifications.js?v=20260510_2134','guide.js?v=20260409d','modules.js?v=20260331',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20260401',
             'sats-vs-bits.js?v=20260411','tips-integrations.js?v=20260307','wallet-router.js?v=20260307a',

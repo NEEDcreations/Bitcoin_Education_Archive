@@ -974,14 +974,17 @@ var _overlayOpen = false;
 function createChatOverlay() {
     if (document.getElementById('chatOverlay')) return;
 
-    // Floating chat button (bottom-right, above bottom nav)
-    var btn = document.createElement('button');
-    btn.id = 'chatOverlayBtn';
-    btn.innerHTML = '💬';
-    btn.title = 'Open Chat';
-    btn.style.cssText = 'position:fixed;bottom:10px;right:128px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    // Floating chat button — reuse the one from index.html if it exists, otherwise create
+    var btn = document.getElementById('chatOverlayBtn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'chatOverlayBtn';
+        btn.style.cssText = 'position:fixed;bottom:10px;right:128px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;';
+        btn.innerHTML = '💬';
+        document.body.appendChild(btn);
+    }
     btn.onclick = toggleChatOverlay;
-    // Start visible on all screen sizes
+    btn.title = 'Open Chat';
 
     // Overlay panel
     var panel = document.createElement('div');
@@ -1007,7 +1010,6 @@ function createChatOverlay() {
     panel.appendChild(header);
     panel.appendChild(body);
     document.body.appendChild(panel);
-    document.body.appendChild(btn);
 
     // Unread badge on the button
     var badge = document.createElement('span');
