@@ -79,7 +79,7 @@ window.beatsEnsureGlobalPlayer = function() {
     if (!document.getElementById('beatsPlayerCSS')) {
         var css = document.createElement('style');
         css.id = 'beatsPlayerCSS';
-        css.textContent = '@media(min-width:901px){#beatsGlobalPlayer{bottom:0!important;}}';
+        css.textContent = '@media(min-width:901px){#beatsGlobalPlayer{bottom:0!important;}}@media(max-width:900px){#beatsGlobalPlayer{bottom:56px!important;}}';
         document.head.appendChild(css);
     }
     gp.innerHTML =
@@ -87,10 +87,10 @@ window.beatsEnsureGlobalPlayer = function() {
             '<div id="beatsProgressBar" style="height:100%;background:linear-gradient(90deg,var(--accent),#ea580c);width:0%;transition:width 0.3s linear;border-radius:0 2px 2px 0;"></div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;">' +
-            '<div id="beatsNowArt" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;">🎵</div>' +
+            '<div id="beatsNowArt" onclick="if(window._beatsCurrentAuthorId&&typeof showUserProfile===\'function\')showUserProfile(window._beatsCurrentAuthorId)" style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#1a1a2e,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;overflow:hidden;cursor:pointer;">🎵</div>' +
             '<div onclick="if(window._beatsQueueIdx>=0){beatsShowTrackDetail(window._beatsQueueIdx)}else if(typeof go===\'function\'){go(\'bitcoin-beats\')}" style="min-width:0;max-width:140px;cursor:pointer;flex-shrink:1;">' +
                 '<div id="beatsNowTitle" style="color:#fff;font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Not Playing</div>' +
-                '<div id="beatsNowArtist" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Bitcoin Beats</div>' +
+                '<div id="beatsNowArtist" onclick="event.stopPropagation();if(window._beatsCurrentAuthorId&&typeof showUserProfile===\'function\')showUserProfile(window._beatsCurrentAuthorId)" style="color:rgba(255,255,255,0.4);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">Bitcoin Beats</div>' +
             '</div>' +
             '<div id="beatsTime" style="color:rgba(255,255,255,0.4);font-size:0.65rem;white-space:nowrap;">0:00 / 0:00</div>' +
             '<button onclick="beatsPrevTrack()" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer;padding:4px;">⏮</button>' +
@@ -128,6 +128,16 @@ window.beatsShowGlobalPlayer = function() {
     beatsEnsureGlobalPlayer();
     var gp = document.getElementById('beatsGlobalPlayer');
     if (gp) gp.style.display = 'block';
+    // Push floating buttons up on mobile when player visible
+    if (window.innerWidth <= 900) {
+        var playerH = 80; // approx player height
+        var navH = 56;
+        var baseBottom = navH + playerH;
+        ['chatOverlayBtn', 'aiToolsBtn', 'lbFloatBtn'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.bottom = (baseBottom + 10) + 'px';
+        });
+    }
 };
 
 window.beatsCollapsePlayer = function() {
@@ -172,6 +182,13 @@ window.beatsClosePlayer = function() {
     if (cp) cp.remove();
     window._beatsNowPlaying = null;
     window._beatsQueueIdx = -1;
+    // Reset floating button positions on mobile
+    if (window.innerWidth <= 900) {
+        ['chatOverlayBtn', 'aiToolsBtn', 'lbFloatBtn'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.bottom = '';
+        });
+    }
     // Clear MediaSession
     if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = null;
@@ -345,6 +362,18 @@ window.beatsPlayTrack = function(idx) {
     window._beatsAudio.volume = (document.getElementById('beatsVolume') ? document.getElementById('beatsVolume').value : 80) / 100;
     window._beatsAudio.play().catch(function(e) { console.log('Play error:', e); });
 
+    // Auto-fix incorrect Firestore durations when audio metadata loads
+    window._beatsAudio.addEventListener('loadedmetadata', function() {
+        if (window._beatsAudio && window._beatsAudio.duration && isFinite(window._beatsAudio.duration)) {
+            var storedDur = track.duration || 0;
+            var realDur = Math.round(window._beatsAudio.duration);
+            if (realDur > 0 && Math.abs(realDur - storedDur) > 5 && typeof db !== 'undefined') {
+                db.collection('beats_tracks').doc(track.id).update({ duration: realDur }).catch(function() {});
+                track.duration = realDur; // fix local cache too
+            }
+        }
+    });
+
     // Store now-playing info (survives navigation)
     window._beatsNowPlaying = {
         title: track.title || 'Untitled',
@@ -354,6 +383,7 @@ window.beatsPlayTrack = function(idx) {
         authorId: track.authorId || '',
         trackId: track.id || ''
     };
+    window._beatsCurrentAuthorId = track.authorId || track.authorUid || '';
 
     // Play count: increment after 30s of continuous listening
     if (window._beatsPlayCountTimer) { clearTimeout(window._beatsPlayCountTimer); window._beatsPlayCountTimer = null; }

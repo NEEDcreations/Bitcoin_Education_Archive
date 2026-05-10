@@ -6450,7 +6450,6 @@ window.renderTimechainTV = function() {
             display: none !important;
         }
         @media (max-width: 767px) {
-            body.tctv-active #bottomNav,
             body.tctv-active .mobile-bar {
                 display: none !important;
             }
@@ -6547,8 +6546,8 @@ window.renderTimechainTV = function() {
            iOS (accounts for URL bar show/hide). Fallback to 100vh for older. */
         @media (max-width: 767px) {
             /* Lock the page into a viewport-filling flex column.
-               Both .mobile-bar and #bottomNav are hidden via tctv-active,
-               so the page gets the full viewport. Only subtract safe areas. */
+               .mobile-bar is hidden via tctv-active; #bottomNav stays visible.
+               Only subtract safe areas. */
             #tctv-page {
                 display: flex !important;
                 flex-direction: column !important;
@@ -6632,10 +6631,9 @@ window.renderTimechainTV = function() {
                 z-index: 5 !important;
                 margin-top: 0 !important;
                 overscroll-behavior: contain !important;
-                /* Extra bottom padding so the last channel scrolls past iOS Safari
-                   bottom chrome (home indicator + toolbar). 80px covers the worst
-                   case (iPhone SE with full toolbar visible). */
-                padding-bottom: 80px !important;
+                /* Extra bottom padding so the last channel scrolls past the
+                   bottom nav bar + iOS Safari bottom chrome. */
+                padding-bottom: 140px !important;
             }
             #tctv-epg-container {
                 height: auto !important;

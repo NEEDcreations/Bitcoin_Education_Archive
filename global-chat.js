@@ -979,7 +979,7 @@ function createChatOverlay() {
     btn.id = 'chatOverlayBtn';
     btn.innerHTML = '💬';
     btn.title = 'Open Chat';
-    btn.style.cssText = 'position:fixed;bottom:calc(70px + env(safe-area-inset-bottom,0px));right:128px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--accent,#f7931a);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+    btn.style.cssText = 'position:fixed;bottom:calc(70px + env(safe-area-inset-bottom,0px));right:128px;z-index:300;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,0.4);transition:transform 0.2s,opacity 0.2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     btn.onclick = toggleChatOverlay;
     // Start visible on all screen sizes
 
