@@ -741,6 +741,15 @@ window.sendMarketMessage = function(listingId) {
         var overlay = document.getElementById('contactSellerOverlay');
         if (overlay) overlay.remove();
         showToast('💬 Message sent to seller!');
+        // Notify seller of buyer contact
+        if (typeof sendNotification === 'function') {
+            db.collection('marketplace').doc(listingId).get().then(function(ld) {
+                if (ld.exists && ld.data().sellerUid) {
+                    var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+                    sendNotification(ld.data().sellerUid, 'dm', '🛒 ' + myName + ' is interested in your listing!', 'marketplace', listingId);
+                }
+            }).catch(function() {});
+        }
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             marketMessages: firebase.firestore.FieldValue.increment(1)

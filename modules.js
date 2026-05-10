@@ -511,6 +511,11 @@ function renderTrailExamResults() {
             // Confetti!
             if (typeof launchConfetti === 'function') launchConfetti();
             if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts + 🎟️' + mod.ticketReward + ' tickets!');
+            // Notify trail completion
+            if (typeof sendNotification === 'function' && typeof auth !== 'undefined' && auth && auth.currentUser) {
+                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts + 🎟️' + mod.ticketReward + ' tickets!', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+                db.collection('notifications').add(_trailNotifData).catch(function() {});
+            }
         }
     }
 

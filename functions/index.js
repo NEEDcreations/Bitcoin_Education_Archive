@@ -3240,6 +3240,50 @@ exports.onUserDocCreated = functions.firestore
         return null;
     });
 
+// ---- Live triggers for community stats: channelVisits, questsCompleted, watchTimeMinutes ----
+
+// Channel visit → bump global channelVisits (detects channelsVisited increment on user doc)
+exports.onUserChannelVisit = functions.firestore
+    .document('users/{uid}')
+    .onUpdate(async (change, _context) => {
+        const before = change.before.data() || {};
+        const after = change.after.data() || {};
+        const beforeVisits = before.channelsVisited || 0;
+        const afterVisits = after.channelsVisited || 0;
+        if (afterVisits > beforeVisits) {
+            const diff = afterVisits - beforeVisits;
+            try {
+                await db.collection('stats').doc('global').set({
+                    channelVisits: admin.firestore.FieldValue.increment(diff)
+                }, { merge: true });
+            } catch (e) { console.error('[onUserChannelVisit] failed:', e); }
+        }
+        return null;
+    });
+
+// Quest completed → bump global questsCompleted (detects completedQuests array growth)
+exports.onUserQuestCompleted = functions.firestore
+    .document('users/{uid}')
+    .onUpdate(async (change, _context) => {
+        const before = change.before.data() || {};
+        const after = change.after.data() || {};
+        const beforeLen = Array.isArray(before.completedQuests) ? before.completedQuests.length : 0;
+        const afterLen = Array.isArray(after.completedQuests) ? after.completedQuests.length : 0;
+        if (afterLen > beforeLen) {
+            const diff = afterLen - beforeLen;
+            try {
+                await db.collection('stats').doc('global').set({
+                    questsCompleted: admin.firestore.FieldValue.increment(diff)
+                }, { merge: true });
+            } catch (e) { console.error('[onUserQuestCompleted] failed:', e); }
+        }
+        return null;
+    });
+
+// NOTE: watchTimeMinutes is already incremented client-side every minute
+// via direct Firestore set({merge:true}) in app.js TCTV watch tracker.
+// No server trigger needed — would double-count.
+
 // ---- One-shot admin reset for community stats (remove after running) ----
 exports.resetCommunityStats = functions.https.onCall(async (data, context) => {
     if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');

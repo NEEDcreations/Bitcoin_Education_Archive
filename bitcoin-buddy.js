@@ -279,11 +279,19 @@ window.submitBuddyRequest = async function() {
         // Try to find a complementary match (learner↔teacher only)
         var match = null;
         var complementaryGoal = goal === 'learn' ? 'teach' : 'learn';
+        var SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+        var now = Date.now();
 
         var candidates = [];
         allPool.forEach(function(doc) {
             var d = doc.data();
-            if (d.uid !== uid && d.goal === complementaryGoal) candidates.push({ id: doc.id, data: d });
+            if (d.uid === uid) return;
+            // Skip stale entries older than 7 days
+            if (d.joinedAt) {
+                var joinedMs = d.joinedAt.toDate ? d.joinedAt.toDate().getTime() : d.joinedAt;
+                if (now - joinedMs > SEVEN_DAYS) return;
+            }
+            if (d.goal === complementaryGoal) candidates.push({ id: doc.id, data: d });
         });
         if (candidates.length > 0) match = candidates[0];
 
@@ -453,9 +461,16 @@ function checkBuddyPoolAlert() {
     _db.collection(COLLECTION).limit(50).get().then(function(snap) {
         var waiting = [];
         var userInPool = false;
+        var SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+        var now = Date.now();
         snap.forEach(function(doc) {
             var d = doc.data();
             if (d.uid === uid) { userInPool = true; return; }
+            // Skip stale entries older than 7 days
+            if (d.joinedAt) {
+                var joinedMs = d.joinedAt.toDate ? d.joinedAt.toDate().getTime() : d.joinedAt;
+                if (now - joinedMs > SEVEN_DAYS) return;
+            }
             waiting.push(d);
         });
 
@@ -646,6 +661,32 @@ function _checkBuddyNachoReply(convoId, recipientUid, recipientName) {
             });
     }).catch(function(e) { console.error('[BUDDY] Check failed:', e); });
 }
+
+// ---- Auto-cleanup stale buddy pool entries (>7 days) ----
+setTimeout(function() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    var _db = firebase.firestore();
+    var SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    _db.collection('buddy_pool').get().then(function(snap) {
+        var batch = _db.batch();
+        var count = 0;
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (d.joinedAt) {
+                var joinedMs = d.joinedAt.toDate ? d.joinedAt.toDate().getTime() : d.joinedAt;
+                if (Date.now() - joinedMs > SEVEN_DAYS) {
+                    batch.delete(doc.ref);
+                    count++;
+                }
+            }
+        });
+        if (count > 0) {
+            batch.commit().then(function() {
+                console.log('[BUDDY] Cleaned up ' + count + ' stale pool entries');
+            }).catch(function() {});
+        }
+    }).catch(function() {});
+}, 15000); // Run 15s after page load
 
 console.log('[BUDDY] Bitcoin Buddy matching system loaded (with Nacho DM support)');
 })();
