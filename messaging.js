@@ -829,16 +829,25 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     };
 
     // Build conversation metadata (avoid computed property key issues)
-    var convoData = {
+    // For existing conversations, only update mutable fields (Firestore rules block participants/participantNames changes)
+    var convoUpdateData = {
+        lastMessage: text,
+        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSenderUid: myUid,
+    };
+    convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+
+    // Full data including participants — only used for new conversations
+    var convoCreateData = {
         participants: [myUid, recipientUid],
         lastMessage: text,
         lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
         lastSenderUid: myUid,
     };
-    convoData.participantNames = {};
-    convoData.participantNames[myUid] = myName;
-    convoData.participantNames[recipientUid] = recipientName;
-    convoData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+    convoCreateData.participantNames = {};
+    convoCreateData.participantNames[myUid] = myName;
+    convoCreateData.participantNames[recipientUid] = recipientName;
+    convoCreateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
 
     // Notify recipient of new DM
     if (typeof sendNotification === 'function') {
@@ -870,7 +879,14 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
     }
 
     // Update conversation metadata + add message
-    convoRef.set(convoData, { merge: true }).then(function() {
+    // Try update first (existing convo), fall back to create (new convo)
+    convoRef.update(convoUpdateData).catch(function(updateErr) {
+        // Document doesn't exist yet — create it with full participant data
+        if (updateErr.code === 'not-found' || updateErr.message.indexOf('NOT_FOUND') !== -1 || updateErr.message.indexOf('No document to update') !== -1) {
+            return convoRef.set(convoCreateData);
+        }
+        throw updateErr;
+    }).then(function() {
         return convoRef.collection('messages').add(msgData);
     }).then(function() {
         // Re-subscribe the listener now that the conversation doc exists.
