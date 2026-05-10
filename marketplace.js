@@ -72,7 +72,7 @@ function checkMarketRules() {
 function isMarketAdmin() {
     if (!auth || !auth.currentUser) return false;
     var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com';
+    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com';
 }
 
 var MARKETPLACE_SECTIONS = [

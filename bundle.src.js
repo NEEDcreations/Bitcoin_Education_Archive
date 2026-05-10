@@ -13189,7 +13189,7 @@ function checkMarketRules() {
 function isMarketAdmin() {
     if (!auth || !auth.currentUser) return false;
     var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com';
+    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com';
 }
 
 var MARKETPLACE_SECTIONS = [
@@ -14820,6 +14820,7 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
             '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="handleDMImage(this,\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
+            '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
             '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
             '<button onclick="sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
         '</div>' +
@@ -15054,6 +15055,165 @@ window.handleDMImage = function(input, convoId, recipientUid, recipientName) {
             var uploading = container && container.querySelector('[data-dm-img-uploading]');
             if (uploading) uploading.remove();
         });
+};
+
+// ---- DM GIF Picker ----
+window.showDMGifPicker = function(convoId, recipientUid, recipientName) {
+    var old = document.getElementById('dmGifPicker');
+    if (old) { old.remove(); return; }
+
+    var picker = document.createElement('div');
+    picker.id = 'dmGifPicker';
+    picker.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+
+    // Store convo info for the send function
+    window._dmGifConvo = { convoId: convoId, recipientUid: recipientUid, recipientName: recipientName };
+
+    picker.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+            '<input type="text" id="dmGifSearchInput" placeholder="Search GIFs..." style="flex:1;padding:8px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;" oninput="searchDMGifs(this.value)">' +
+            '<button onclick="document.getElementById(\'dmGifPicker\').remove()" style="background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;">✕</button>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">' +
+            '<button onclick="searchDMGifs(\'bitcoin\')" style="padding:4px 10px;border-radius:8px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);color:var(--accent);font-size:0.7rem;cursor:pointer;font-family:inherit;">₿ Bitcoin</button>' +
+            '<button onclick="searchDMGifs(\'lightning\')" style="padding:4px 10px;border-radius:8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#6366f1;font-size:0.7rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +
+            '<button onclick="searchDMGifs(\'celebration\')" style="padding:4px 10px;border-radius:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);color:#22c55e;font-size:0.7rem;cursor:pointer;font-family:inherit;">🎉 Celebrate</button>' +
+            '<button onclick="searchDMGifs(\'funny\')" style="padding:4px 10px;border-radius:8px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.2);color:#eab308;font-size:0.7rem;cursor:pointer;font-family:inherit;">😂 Funny</button>' +
+        '</div>' +
+        '<div id="dmGifResults" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;min-height:100px;">' +
+            '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Type to search or tap a category</div>' +
+        '</div>' +
+        '<div style="margin-top:6px;display:flex;gap:6px;">' +
+            '<input type="text" id="dmGifUrlInput" placeholder="Or paste GIF/image URL..." style="flex:1;padding:6px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;font-family:inherit;outline:none;">' +
+            '<button onclick="sendDMGifUrl()" style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Send</button>' +
+        '</div>';
+
+    document.body.appendChild(picker);
+    document.getElementById('dmGifSearchInput').focus();
+};
+
+var _dmGifSearchTimer = null;
+window.searchDMGifs = function(query) {
+    if (_dmGifSearchTimer) clearTimeout(_dmGifSearchTimer);
+    var el = document.getElementById('dmGifResults');
+    if (!el) return;
+    if (!query || query.length < 2) {
+        el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Type to search</div>';
+        return;
+    }
+    var input = document.getElementById('dmGifSearchInput');
+    if (input && input.value !== query) input.value = query;
+    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Searching...</div>';
+
+    _dmGifSearchTimer = setTimeout(function() {
+        fetch('https://g.tenor.com/v1/search?q=' + encodeURIComponent(query) + '&key=LIVDSRZULELA&limit=20&media_filter=minimal')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.results || data.results.length === 0) {
+                    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < data.results.length; i++) {
+                    var gif = data.results[i];
+                    var media = gif.media && gif.media[0] ? gif.media[0] : {};
+                    var url = media.tinygif ? media.tinygif.url : (media.nanogif ? media.nanogif.url : '');
+                    var fullUrl = media.gif ? media.gif.url : (media.mediumgif ? media.mediumgif.url : url);
+                    if (!url) continue;
+                    html += '<img src="' + url + '" onclick="sendDMGif(\'' + fullUrl.replace(/[\\\'\"]/g, '') + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                }
+                el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
+            })
+            .catch(function() {
+                el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Search failed</div>';
+            });
+    }, 400);
+};
+
+window.sendDMGifUrl = function() {
+    var inp = document.getElementById('dmGifUrlInput');
+    if (!inp || !inp.value.trim()) return;
+    sendDMGif(inp.value.trim());
+};
+
+window.sendDMGif = function(gifUrl) {
+    if (!gifUrl) return;
+    var convo = window._dmGifConvo;
+    if (!convo) { if (typeof showToast === 'function') showToast('Error: no conversation context'); return; }
+
+    // Close picker
+    var picker = document.getElementById('dmGifPicker');
+    if (picker) picker.remove();
+
+    if (!auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('Sign in to send GIFs');
+        return;
+    }
+
+    var uid = auth.currentUser.uid;
+    var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Bitcoiner';
+    var convoId = convo.convoId;
+    var recipientUid = convo.recipientUid;
+    var recipientName = convo.recipientName;
+
+    // Optimistic UI
+    var container = document.getElementById('dmMessages');
+    if (container) {
+        var nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        container.innerHTML += '<div data-optimistic style="display:flex;justify-content:flex-end;margin-bottom:6px;">' +
+            '<div style="max-width:85%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--accent);color:#fff;">' +
+                '<img src="' + escapeHtml(gifUrl) + '" style="max-width:100%;max-height:200px;border-radius:8px;display:block;" loading="lazy">' +
+                '<div style="font-size:0.6rem;color:rgba(255,255,255,0.6);margin-top:4px;text-align:right;">' + nowStr + '</div>' +
+            '</div></div>';
+        container.scrollTop = container.scrollHeight;
+    }
+
+    var convoRef = db.collection('dm_conversations').doc(convoId);
+    var msgData = {
+        senderUid: uid,
+        senderName: myName,
+        text: '',
+        imageUrl: gifUrl,
+        isGif: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    var convoUpdateData = {
+        lastMessage: 'GIF',
+        lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSenderUid: uid
+    };
+    convoUpdateData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+
+    if (typeof sendNotification === 'function') {
+        sendNotification(recipientUid, 'dm', 'GIF from @' + myName, 'dm', convoId);
+    }
+
+    convoRef.update(convoUpdateData).catch(function(err) {
+        if (err.code === 'not-found' || err.message.indexOf('NOT_FOUND') !== -1) {
+            var createData = {
+                participants: [uid, recipientUid],
+                lastMessage: 'GIF',
+                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+                lastSenderUid: uid
+            };
+            createData.participantNames = {};
+            createData.participantNames[uid] = myName;
+            createData.participantNames[recipientUid] = recipientName;
+            createData['unread_' + recipientUid] = firebase.firestore.FieldValue.increment(1);
+            return convoRef.set(createData);
+        }
+        throw err;
+    }).then(function() {
+        return convoRef.collection('messages').add(msgData);
+    }).then(function() {
+        if (container && document.getElementById('dmMessages')) {
+            loadDMMessages(convoId, uid, recipientUid, recipientName);
+        }
+    }).catch(function(e) {
+        console.error('[DM GIF] Send failed:', e);
+        if (typeof showToast === 'function') showToast('Failed to send GIF');
+    });
 };
 
 window.sendDM = function(convoId, recipientUid, recipientName) {
