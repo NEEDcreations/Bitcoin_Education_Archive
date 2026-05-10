@@ -399,10 +399,10 @@ function renderChatMessages(msgs) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
-            if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text)) + '</div>';
+            if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
             html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
         } else {
-            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || '')) + '</div>';
+            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + '</div>';
         }
         var reactions = m.reactions || {};
         var hasReactions = Object.keys(reactions).length > 0;
@@ -497,7 +497,7 @@ window.loadEarlierMessages = function() {
 };
 
 // Format chat text: links, #channels, @mentions, inline images/GIFs
-function formatChatText(text) {
+function formatChatText(text, mentionUid) {
     // Inline images/GIFs: render as image if it's a direct image URL
     text = text.replace(/(https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^\s<]*)?)/gi, function(url) {
         return '<a href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:4px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline\'"><span style="display:none;color:var(--accent);word-break:break-all;">' + url + '</span></a>';
@@ -508,8 +508,22 @@ function formatChatText(text) {
     text = text.replace(/#([a-zA-Z0-9_-]+)/g, function(match, tag) {
         return '<a href="#' + tag + '" onclick="event.preventDefault();if(typeof go===\'function\')go(\'' + tag + '\');" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + match + '</a>';
     });
-    // @mentions
-    text = text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#6366f1;font-weight:700;">@$1</span>');
+    // @mentions — clickable to open user profile
+    var _mentionHandled = false;
+    if (mentionUid) {
+        // If we have a direct uid (from level-up announcements etc), use it for the first @mention
+        text = text.replace(/@([a-zA-Z0-9_ ]+?)(?= just | leveled| earned| completed|[!.,;:?]|$)/, function(match, name) {
+            _mentionHandled = true;
+            var safeName = name.trim();
+            return '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + mentionUid + '\')" title="View profile — tap to tip!">@' + safeName + '</span>';
+        });
+    }
+    // Handle remaining @mentions without uid (user-typed)
+    text = text.replace(/@([a-zA-Z0-9_]+)/g, function(match, name) {
+        var safeName = name.replace(/[\\'"/]/g, '').trim();
+        if (!safeName) return match;
+        return '<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>';
+    });
     // H1: Post-transform sanitization
     // Block javascript:/data:/vbscript: in href/src attributes
     text = text.replace(/(?:href|src)\s*=\s*["']?\s*(?:javascript|data|vbscript):/gi, 'href="about:blank" data-blocked="');
@@ -2573,8 +2587,48 @@ if (localStorage.getItem('hasUsedChat')) {
     }, 10000); // Delay 10s to let more critical loads go first
 }
 
+// ---- Lookup User by Username (for clickable @mentions) ----
+window.lookupUserByName = function(username) {
+    if (!username) return;
+    if (typeof db === 'undefined' || !db) {
+        if (typeof showToast === 'function') showToast('Loading...');
+        return;
+    }
+    // First check the in-memory chat user cache (uid → name)
+    if (typeof _chatUsers !== 'undefined') {
+        for (var uid in _chatUsers) {
+            if (_chatUsers[uid] === username || _chatUsers[uid].toLowerCase() === username.toLowerCase()) {
+                if (typeof showUserProfile === 'function') showUserProfile(uid);
+                return;
+            }
+        }
+    }
+    // Fallback: query Firestore by username field
+    db.collection('users').where('username', '==', username).limit(1).get()
+        .then(function(snap) {
+            if (!snap.empty) {
+                var uid = snap.docs[0].id;
+                if (typeof showUserProfile === 'function') showUserProfile(uid);
+            } else {
+                // Try case-insensitive (username_lower)
+                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(1).get()
+                    .then(function(snap2) {
+                        if (!snap2.empty) {
+                            if (typeof showUserProfile === 'function') showUserProfile(snap2.docs[0].id);
+                        } else {
+                            if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                        }
+                    }).catch(function() {
+                        if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                    });
+            }
+        }).catch(function() {
+            if (typeof showToast === 'function') showToast('Could not look up user');
+        });
+};
+
 // ---- Nacho Global Announcements (callable from other modules) ----
-window.nachoGlobalAnnounce = function(text) {
+window.nachoGlobalAnnounce = function(text, mentionUid) {
     if (!text || typeof db === 'undefined' || !db) return;
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'nacho-bot';
     // Rate limit: max 1 announcement per 30s per type
@@ -2582,13 +2636,15 @@ window.nachoGlobalAnnounce = function(text) {
     var key = '_nachoAnnounce_' + text.substring(0, 20);
     if (window[key] && now - window[key] < 30000) return;
     window[key] = now;
-    db.collection(CHAT_COLLECTION).add({
+    var msgData = {
         uid: uid,
         name: '\uD83E\uDD8C Nacho',
         text: text,
         isNachoAuto: true,
         ts: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function() {
+    };
+    if (mentionUid) msgData.mentionUid = mentionUid;
+    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
         bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
     }).catch(function(e) { console.error('[CHAT] Nacho announce failed:', e); });
 };
