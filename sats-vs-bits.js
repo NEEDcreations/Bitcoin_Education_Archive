@@ -11,6 +11,7 @@ var STORAGE_KEY = 'btc_svb_today';
 var DEBOUNCE_MS = 300;
 
 var localSats = 0, localBits = 0;
+var serverSats = 0, serverBits = 0;
 var pendingSats = 0, pendingBits = 0;
 var flushTimer = null;
 var todayTaps = 0;
@@ -64,9 +65,12 @@ function flushVotes() {
             firebase.functions().httpsCallable('pollVote')({ side: side, fingerprint: fp })
                 .then(function(result) {
                     if (result.data && result.data.success) {
-                        // Update display with server-confirmed totals
-                        localSats = result.data.sats || localSats;
-                        localBits = result.data.bits || localBits;
+                        // Update server-confirmed base values
+                        serverSats = result.data.sats || serverSats;
+                        serverBits = result.data.bits || serverBits;
+                        // Display = server confirmed + any still-pending local taps
+                        localSats = serverSats + pendingSats;
+                        localBits = serverBits + pendingBits;
                         updateDisplay();
                     }
                     sendNext();
@@ -102,8 +106,9 @@ function castVote(side) {
     todayTaps++;
     saveDailyTaps();
 
-    if (side === 'sats') { localSats++; pendingSats++; }
-    else { localBits++; pendingBits++; }
+    // Optimistic local increment — display = server base + all pending
+    if (side === 'sats') { pendingSats++; localSats = serverSats + pendingSats; }
+    else { pendingBits++; localBits = serverBits + pendingBits; }
 
     updateDisplay();
     animateTap(side);
@@ -236,8 +241,11 @@ function loadLiveVotes() {
     db.doc(FIRESTORE_DOC).onSnapshot(function(doc) {
         if (doc.exists) {
             var d = doc.data();
-            localSats = d.sats || 0;
-            localBits = d.bits || 0;
+            serverSats = d.sats || 0;
+            serverBits = d.bits || 0;
+            // Display = server base + any pending optimistic taps not yet confirmed
+            localSats = serverSats + pendingSats;
+            localBits = serverBits + pendingBits;
 
             // Anti-cheat: check device limit
             var fp = getFingerprint();
