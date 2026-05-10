@@ -2128,6 +2128,8 @@ window.djTuneIn = function() {
         if (typeof showToast === 'function') showToast('Playback failed: ' + e.message);
     });
     _djListening = true;
+    // Seed the SFX timestamp so stale effects from before tune-in don't replay
+    window._lastDJSfxTime = Date.now();
 
     // Track tune-ins for listener badge
     var djListens = parseInt(localStorage.getItem('btc_dj_listens') || '0') + 1;
@@ -2214,8 +2216,11 @@ function startDJListener() {
             // Play SFX from DJ if listener is tuned in
             if (_djListening && d.sfx && d.sfxAt) {
                 var sfxTime = d.sfxAt.toDate ? d.sfxAt.toDate().getTime() : 0;
-                if (sfxTime > (window._lastDJSfxTime || 0)) {
+                var now = Date.now();
+                // Only play if: newer than last played, less than 10s old (not stale), and cooldown of 1s
+                if (sfxTime > (window._lastDJSfxTime || 0) && (now - sfxTime) < 10000 && (now - (window._lastDJSfxPlayedAt || 0)) > 1000) {
                     window._lastDJSfxTime = sfxTime;
+                    window._lastDJSfxPlayedAt = now;
                     if (typeof djPlaySFX === 'function') djPlaySFX(d.sfx);
                 }
             }
