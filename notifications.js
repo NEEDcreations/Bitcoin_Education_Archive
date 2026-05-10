@@ -158,7 +158,20 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
     // Navigate
     if (targetType === 'forum_post' && targetId) { if (typeof forumViewPost === 'function') forumViewPost(targetId); }
     else if (targetType === 'article' && targetId) { if (typeof articleView === 'function') articleView(targetId); }
-    else if (targetType === 'dm' && targetId) { if (typeof showInbox === 'function') showInbox(); }
+    else if (targetType === 'dm' && targetId) {
+        // targetId is convoId (uid1_uid2). Extract the other user's UID and open their DM directly.
+        try {
+            var notifDoc = await db.collection('notifications').doc(notifId).get();
+            var nd = notifDoc.exists ? notifDoc.data() : null;
+            if (nd && nd.senderId && typeof openDM === 'function') {
+                openDM(nd.senderId, nd.senderName || 'Bitcoiner');
+            } else if (typeof showInbox === 'function') {
+                showInbox();
+            }
+        } catch(e) {
+            if (typeof showInbox === 'function') showInbox();
+        }
+    }
 };
 
 // Mark all as read
