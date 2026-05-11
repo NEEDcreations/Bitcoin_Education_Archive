@@ -1327,6 +1327,7 @@ window.articleSubmit = async function() {
         // Awards
         if (typeof awardPoints === 'function') awardPoints(30, '📝 Article published');
         if (typeof awardTickets === 'function') awardTickets(20, '📝 Article published');
+        var _ac = parseInt(localStorage.getItem('btc_articles_published') || '0'); localStorage.setItem('btc_articles_published', String(_ac + 1));
         
         if (typeof showToast === 'function') showToast('📝 Article published!');
         forumTab = 'articles';

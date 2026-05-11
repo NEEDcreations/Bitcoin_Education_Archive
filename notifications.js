@@ -23,6 +23,12 @@ window.initNotifications = function() {
         .onSnapshot(function(snap) {
             window._notifCount = snap.size;
             updateNotifBadge();
+            // Track received tips for badge counter
+            snap.docChanges().forEach(function(change) {
+                if (change.type === 'added' && change.doc.data().type === 'tip') {
+                    var _tr = parseInt(localStorage.getItem('btc_tips_received') || '0'); localStorage.setItem('btc_tips_received', String(_tr + 1));
+                }
+            });
         }, function(err) { console.warn('[notif] Listener error:', err); });
 
     // Also check unread DMs

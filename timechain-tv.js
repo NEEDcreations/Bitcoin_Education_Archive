@@ -4475,6 +4475,12 @@ function joinStation(stationId) {
     if (prevJoined !== stationId) {
         _bumpTctvViews();
         window._tctvLastJoined = stationId;
+        // Daily challenge: track unique stations visited this session
+        try {
+            var _sv = JSON.parse(sessionStorage.getItem('btc_tctv_stations_visited') || '[]');
+            if (_sv.indexOf(stationId) === -1) _sv.push(stationId);
+            sessionStorage.setItem('btc_tctv_stations_visited', JSON.stringify(_sv));
+        } catch(e) {}
     }
     if (_viewerHeartbeat) clearInterval(_viewerHeartbeat);
     _viewerHeartbeat = setInterval(function() {

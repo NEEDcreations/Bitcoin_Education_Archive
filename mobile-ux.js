@@ -329,6 +329,17 @@ var DAILY_CHALLENGES = [
     // New: Timechain TV — watch 10 minutes (counted per-session so it's daily-fresh)
     { id: 'tctv_10m', text: '📺 Watch 10 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 10; } },
     { id: 'tctv_visit', text: '📺 Tune in to Timechain TV', check: function() { return sessionStorage.getItem('btc_tctv_visited') === 'true'; } },
+    // ---- New challenges (May 2026) — TCTV, Lightning, and engagement ----
+    { id: 'tctv_3ch', text: '📺 Watch 3 different TCTV stations', check: function() { var s = sessionStorage.getItem('btc_tctv_stations_visited'); return s ? JSON.parse(s).length >= 3 : false; } },
+    { id: 'tctv_30m', text: '📺 Watch 30 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 30; } },
+    { id: 'tip_send', text: '⚡ Send a Lightning tip to someone', check: function() { return sessionStorage.getItem('btc_tip_sent') === 'true'; } },
+    { id: 'tip_3', text: '⚡ Send 3 Lightning tips today', check: function() { return parseInt(sessionStorage.getItem('btc_tips_sent_count') || '0') >= 3; } },
+    { id: 'ln_setup', text: '⚡ Set up your Lightning wallet', check: function() { return !!(localStorage.getItem('btc_nwc_url') || localStorage.getItem('btc_ln_address') || (typeof currentUser !== 'undefined' && currentUser && currentUser.lightningAddress)); } },
+    { id: 'chat_msg', text: '🌍 Send a message in Global Chat', check: function() { return sessionStorage.getItem('btc_chat_sent') === 'true'; } },
+    { id: 'pvp_battle', text: '⚔️ Complete a PVP trivia battle', check: function() { return sessionStorage.getItem('btc_pvp_done') === 'true' || sessionStorage.getItem('_ch_pvp_answer') === '1'; } },
+    { id: 'beats_listen', text: '🎸 Listen to a track on Bitcoin Beats', check: function() { return sessionStorage.getItem('btc_beats_played') === 'true'; } },
+    { id: 'explore_5', text: '🗺️ Explore 5 different channels today', check: function() { return parseInt(sessionStorage.getItem('btc_channels_today') || '0') >= 5; } },
+    { id: 'nacho_3', text: '🦌 Ask Nacho 3 questions', check: function() { return parseInt(sessionStorage.getItem('btc_nacho_asked') || '0') >= 3; } },
 ];
 
 function getDailyChallenge() {
@@ -350,7 +361,7 @@ function renderDailyChallenge() {
         el.style.background = 'rgba(34,197,94,0.05)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">✅</span>' +
-            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +15 pts 🎉</div>' +
+            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +100 pts 🎉</div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;">' + challenge.text + ' — Done! Come back tomorrow.</div></div></div>';
     } else {
         el.style.borderColor = 'var(--border)';
@@ -370,9 +381,9 @@ window.checkDailyChallenge = function() {
     var challenge = getDailyChallenge();
     if (challenge.check()) {
         localStorage.setItem('btc_challenge_done', today);
-        if (typeof awardPoints === 'function') awardPoints(15, '🎯 Daily challenge!');
-        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(2, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +15 pts + 🎟️ 2 tickets!');
+        if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
+        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 pts + 🎟️ 5 tickets!');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention

@@ -163,15 +163,18 @@ const FIREBASE_CONFIG = {
 
 // Levels
 const LEVELS = [
-    { name: 'Normie',     emoji: '🟢', min: 0 },
-    { name: 'Curious',    emoji: '🔵', min: 10 },
-    { name: 'Pleb',       emoji: '🟠', min: 210 },
-    { name: 'Stacker',    emoji: '📦', min: 500 },
-    { name: 'Hodler',     emoji: '💎', min: 1337 },
-    { name: 'Maxi',       emoji: '🔥', min: 2100 },
-    { name: 'Cypherpunk', emoji: '🛡️', min: 4444 },
-    { name: 'Whale',      emoji: '🐋', min: 10000 },
-    { name: 'Satoshi',    emoji: '👑', min: 21000 },
+    { name: 'Normie',         emoji: '🟢', min: 0 },
+    { name: 'Curious',        emoji: '🔵', min: 10 },
+    { name: 'Pleb',           emoji: '🟠', min: 210 },
+    { name: 'Stacker',        emoji: '📦', min: 500 },
+    { name: 'Stacker II',     emoji: '📦📦', min: 1337 },
+    { name: 'Stacker III',    emoji: '📦📦📦', min: 1913 },
+    { name: 'Hodler',         emoji: '💎', min: 2016 },
+    { name: 'Maxi',           emoji: '🔥', min: 8888 },
+    { name: 'Sovereign',      emoji: '🏴', min: 21000 },
+    { name: 'Cyberhornet',    emoji: '🐝', min: 100000 },
+    { name: 'Honey Badger',   emoji: '🦡', min: 150000 },
+    { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
 // Client-side QR code generation (avoids leaking data to external API)
@@ -3925,7 +3928,7 @@ function showSettingsPage(tab) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (2,100+ pts). Verified automatically.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (8,888+ pts). Verified automatically.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
@@ -5781,10 +5784,13 @@ function getLevelFlavor(name) {
         'Curious': 'You\'re starting to see what all the fuss is about.',
         'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
         'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
+        'Stacker II': 'Double stacking! Your conviction is showing.',
+        'Stacker III': 'Triple stack mode. 1913 — the year the Fed was born. You know why that matters.',
         'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
         'Maxi': 'There is no second best. You know it.',
-        'Cypherpunk': 'Privacy. Sovereignty. Code is law. You get it.',
-        'Whale': 'Moving markets and moving minds. You\'re a force of nature.',
+        'Sovereign': 'Self-sovereign. No permission needed. You ARE the bank.',
+        'Cyberhornet': 'Bzzzz. The swarm protects the network. You\'re part of it now.',
+        'Honey Badger': 'Honey badger don\'t care. Unstoppable, just like Bitcoin.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
     return flavors[name] || 'You\'re leveling up!';
@@ -12808,6 +12814,7 @@ window.articleSubmit = async function() {
         // Awards
         if (typeof awardPoints === 'function') awardPoints(30, '📝 Article published');
         if (typeof awardTickets === 'function') awardTickets(20, '📝 Article published');
+        var _ac = parseInt(localStorage.getItem('btc_articles_published') || '0'); localStorage.setItem('btc_articles_published', String(_ac + 1));
         
         if (typeof showToast === 'function') showToast('📝 Article published!');
         forumTab = 'articles';
@@ -15365,6 +15372,7 @@ window.sendDM = function(convoId, recipientUid, recipientName) {
         if (container && document.getElementById('dmMessages')) {
             loadDMMessages(convoId, myUid, recipientUid, recipientName);
         }
+        var _dmc = parseInt(localStorage.getItem('btc_dms_sent') || '0'); localStorage.setItem('btc_dms_sent', String(_dmc + 1));
     }).catch(function(err) {
         console.error('DM send error:', err);
         if (typeof showToast === 'function') showToast('Failed to send: ' + (err.code || err.message || 'Unknown error'));
@@ -17190,6 +17198,17 @@ var DAILY_CHALLENGES = [
     // New: Timechain TV — watch 10 minutes (counted per-session so it's daily-fresh)
     { id: 'tctv_10m', text: '📺 Watch 10 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 10; } },
     { id: 'tctv_visit', text: '📺 Tune in to Timechain TV', check: function() { return sessionStorage.getItem('btc_tctv_visited') === 'true'; } },
+    // ---- New challenges (May 2026) — TCTV, Lightning, and engagement ----
+    { id: 'tctv_3ch', text: '📺 Watch 3 different TCTV stations', check: function() { var s = sessionStorage.getItem('btc_tctv_stations_visited'); return s ? JSON.parse(s).length >= 3 : false; } },
+    { id: 'tctv_30m', text: '📺 Watch 30 min of Timechain TV', check: function() { return (window._tctvMinutesSession || 0) >= 30; } },
+    { id: 'tip_send', text: '⚡ Send a Lightning tip to someone', check: function() { return sessionStorage.getItem('btc_tip_sent') === 'true'; } },
+    { id: 'tip_3', text: '⚡ Send 3 Lightning tips today', check: function() { return parseInt(sessionStorage.getItem('btc_tips_sent_count') || '0') >= 3; } },
+    { id: 'ln_setup', text: '⚡ Set up your Lightning wallet', check: function() { return !!(localStorage.getItem('btc_nwc_url') || localStorage.getItem('btc_ln_address') || (typeof currentUser !== 'undefined' && currentUser && currentUser.lightningAddress)); } },
+    { id: 'chat_msg', text: '🌍 Send a message in Global Chat', check: function() { return sessionStorage.getItem('btc_chat_sent') === 'true'; } },
+    { id: 'pvp_battle', text: '⚔️ Complete a PVP trivia battle', check: function() { return sessionStorage.getItem('btc_pvp_done') === 'true' || sessionStorage.getItem('_ch_pvp_answer') === '1'; } },
+    { id: 'beats_listen', text: '🎸 Listen to a track on Bitcoin Beats', check: function() { return sessionStorage.getItem('btc_beats_played') === 'true'; } },
+    { id: 'explore_5', text: '🗺️ Explore 5 different channels today', check: function() { return parseInt(sessionStorage.getItem('btc_channels_today') || '0') >= 5; } },
+    { id: 'nacho_3', text: '🦌 Ask Nacho 3 questions', check: function() { return parseInt(sessionStorage.getItem('btc_nacho_asked') || '0') >= 3; } },
 ];
 
 function getDailyChallenge() {
@@ -17211,7 +17230,7 @@ function renderDailyChallenge() {
         el.style.background = 'rgba(34,197,94,0.05)';
         el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">✅</span>' +
-            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +15 pts 🎉</div>' +
+            '<div><div style="color:#22c55e;font-size:0.85rem;font-weight:700;">Daily Challenge Complete! +100 pts 🎉</div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;">' + challenge.text + ' — Done! Come back tomorrow.</div></div></div>';
     } else {
         el.style.borderColor = 'var(--border)';
@@ -17231,9 +17250,9 @@ window.checkDailyChallenge = function() {
     var challenge = getDailyChallenge();
     if (challenge.check()) {
         localStorage.setItem('btc_challenge_done', today);
-        if (typeof awardPoints === 'function') awardPoints(15, '🎯 Daily challenge!');
-        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(2, '🎯 Daily challenge!');
-        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +15 pts + 🎟️ 2 tickets!');
+        if (typeof awardPoints === 'function') awardPoints(100, '🎯 Daily challenge!');
+        if (typeof awardOrangeTickets === 'function') awardOrangeTickets(5, '🎯 Daily challenge!');
+        if (typeof showToast === 'function') showToast('🎯 Daily challenge complete! +100 pts + 🎟️ 5 tickets!');
         haptic('success');
         renderDailyChallenge();
         // Pulse the card to draw attention
@@ -20339,6 +20358,18 @@ window._startHalvingTicker = function() {
 
                     // Notify spin result
                     if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
+                    
+                    // Badge tracking: spin count, streak, rare hit
+                    var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0'); localStorage.setItem('btc_spin_count', String(_sc + 1));
+                    var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
+                    var _yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                    if (_lastSpinDay === _yesterday) {
+                        var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
+                    } else if (_lastSpinDay !== today) {
+                        localStorage.setItem('btc_spin_streak', '1');
+                    }
+                    localStorage.setItem('btc_spin_last_day', today);
+                    if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
                     
                     // Mark as spun today (server-side validation)
                     localStorage.setItem('btc_last_spin_date', today);

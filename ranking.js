@@ -15,15 +15,18 @@ const FIREBASE_CONFIG = {
 
 // Levels
 const LEVELS = [
-    { name: 'Normie',     emoji: '🟢', min: 0 },
-    { name: 'Curious',    emoji: '🔵', min: 10 },
-    { name: 'Pleb',       emoji: '🟠', min: 210 },
-    { name: 'Stacker',    emoji: '📦', min: 500 },
-    { name: 'Hodler',     emoji: '💎', min: 1337 },
-    { name: 'Maxi',       emoji: '🔥', min: 2100 },
-    { name: 'Cypherpunk', emoji: '🛡️', min: 4444 },
-    { name: 'Whale',      emoji: '🐋', min: 10000 },
-    { name: 'Satoshi',    emoji: '👑', min: 21000 },
+    { name: 'Normie',         emoji: '🟢', min: 0 },
+    { name: 'Curious',        emoji: '🔵', min: 10 },
+    { name: 'Pleb',           emoji: '🟠', min: 210 },
+    { name: 'Stacker',        emoji: '📦', min: 500 },
+    { name: 'Stacker II',     emoji: '📦📦', min: 1337 },
+    { name: 'Stacker III',    emoji: '📦📦📦', min: 1913 },
+    { name: 'Hodler',         emoji: '💎', min: 2016 },
+    { name: 'Maxi',           emoji: '🔥', min: 8888 },
+    { name: 'Sovereign',      emoji: '🏴', min: 21000 },
+    { name: 'Cyberhornet',    emoji: '🐝', min: 100000 },
+    { name: 'Honey Badger',   emoji: '🦡', min: 150000 },
+    { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
 // Client-side QR code generation (avoids leaking data to external API)
@@ -3777,7 +3780,7 @@ function showSettingsPage(tab) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (2,100+ pts). Verified automatically.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (8,888+ pts). Verified automatically.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
@@ -5633,10 +5636,13 @@ function getLevelFlavor(name) {
         'Curious': 'You\'re starting to see what all the fuss is about.',
         'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
         'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
+        'Stacker II': 'Double stacking! Your conviction is showing.',
+        'Stacker III': 'Triple stack mode. 1913 — the year the Fed was born. You know why that matters.',
         'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
         'Maxi': 'There is no second best. You know it.',
-        'Cypherpunk': 'Privacy. Sovereignty. Code is law. You get it.',
-        'Whale': 'Moving markets and moving minds. You\'re a force of nature.',
+        'Sovereign': 'Self-sovereign. No permission needed. You ARE the bank.',
+        'Cyberhornet': 'Bzzzz. The swarm protects the network. You\'re part of it now.',
+        'Honey Badger': 'Honey badger don\'t care. Unstoppable, just like Bitcoin.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
     return flavors[name] || 'You\'re leveling up!';

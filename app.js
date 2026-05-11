@@ -830,6 +830,18 @@
                     // Notify spin result
                     if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
                     
+                    // Badge tracking: spin count, streak, rare hit
+                    var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0'); localStorage.setItem('btc_spin_count', String(_sc + 1));
+                    var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
+                    var _yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+                    if (_lastSpinDay === _yesterday) {
+                        var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
+                    } else if (_lastSpinDay !== today) {
+                        localStorage.setItem('btc_spin_streak', '1');
+                    }
+                    localStorage.setItem('btc_spin_last_day', today);
+                    if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
+                    
                     // Mark as spun today (server-side validation)
                     localStorage.setItem('btc_last_spin_date', today);
                     if (typeof firebase !== 'undefined' && firebase.functions) {

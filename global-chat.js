@@ -1284,7 +1284,7 @@ window.showReactPicker = function(msgId, btnEl) {
     _reactExpanded = false;
     var picker = document.createElement('div');
     picker.id = 'reactPicker';
-    picker.style.cssText = 'position:fixed;z-index:500;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:280px;';
+    picker.style.cssText = 'position:fixed;z-index:260000;background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:280px;';
 
     function renderEmojis() {
         var emojis = _reactExpanded ? REACT_EMOJIS_EXPANDED : REACT_EMOJIS_DEFAULT;
@@ -1318,14 +1318,22 @@ window.showReactPicker = function(msgId, btnEl) {
 };
 
 window.toggleReaction = function(msgId, emoji) {
-    if (!auth || !auth.currentUser) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        console.warn('[CHAT] Reaction blocked — not authenticated');
+        if (typeof showToast === 'function') showToast('Sign in to react!');
+        return;
+    }
+    if (typeof db === 'undefined' || !db) {
+        console.warn('[CHAT] Reaction blocked — Firestore not ready');
+        return;
+    }
     // Validate emoji: must be short, no HTML/script chars
     if (!emoji || emoji.length > 10 || /[<>"'\\&;(){}]/.test(emoji)) return;
     var uid = auth.currentUser.uid;
     var ref = db.collection(CHAT_COLLECTION).doc(msgId);
 
     ref.get().then(function(doc) {
-        if (!doc.exists) return;
+        if (!doc.exists) { console.warn('[CHAT] Reaction: doc not found', msgId); return; }
         var data = doc.data();
         var reactions = data.reactions || {};
         var users = reactions[emoji] || [];
@@ -1337,6 +1345,7 @@ window.toggleReaction = function(msgId, emoji) {
         } else {
             // Add reaction
             users.push(uid);
+            var _rc = parseInt(localStorage.getItem('btc_chat_reactions') || '0'); localStorage.setItem('btc_chat_reactions', String(_rc + 1));
         }
 
         if (users.length === 0) {
@@ -1345,10 +1354,11 @@ window.toggleReaction = function(msgId, emoji) {
             reactions[emoji] = users;
         }
 
-        ref.update({ reactions: reactions }).catch(function(e) {
-            console.error('[CHAT] Reaction error:', e);
-        });
-    }).catch(function() {});
+        return ref.update({ reactions: reactions });
+    }).catch(function(e) {
+        console.error('[CHAT] Reaction error:', e);
+        if (typeof showToast === 'function') showToast('⚠️ Reaction failed — try again');
+    });
 };
 
 // ---- GIF Picker ----
@@ -1358,7 +1368,7 @@ window.showGifPicker = function() {
 
     var picker = document.createElement('div');
     picker.id = 'gifPicker';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:400;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
 
     picker.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
