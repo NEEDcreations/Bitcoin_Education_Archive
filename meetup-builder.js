@@ -67,6 +67,7 @@ function injectMeetupBuilder() {
         '<div id="mbPlatforms" style="display:none;margin-bottom:16px;">' +
             '<div style="display:flex;flex-direction:column;gap:8px;padding:0 4px;">' +
                 _mbResource('🟠', 'Club Orange', 'https://www.cluborange.org', 'The #1 app for finding and hosting Bitcoin meetups. Create events, RSVP, group chats, discover local Bitcoiners. Active in 71+ countries with 19K+ members. $3.99/mo.') +
+                _mbResource('🏝️', 'Satlantis', 'https://satlantis.io', 'Bitcoin social network and community platform. Discover local Bitcoiners, join communities, find meetups, and connect with the global Bitcoin network. Free to use.') +
                 _mbResource('📅', 'Meetup.com', 'https://www.meetup.com', 'The largest event platform. Great for reaching normies who aren\'t on Bitcoin apps yet. Free to join, organizers pay ~$25/mo for groups.') +
                 _mbResource('⚡', 'Geyser Fund', 'https://geyser.fund', 'Bitcoin-native crowdfunding. Raise sats for your meetup via Lightning. Apply for Bitcoin education grants (up to 1 BTC). Non-custodial.') +
                 _mbResource('📣', 'Nostr', 'https://primal.net', 'Post meetup announcements on Nostr — the censorship-resistant social network Bitcoiners use. No algorithm, no gatekeeping.') +
