@@ -167,11 +167,33 @@ window.renderForum = function() {
     '</div>';
 
     if (forumTab === 'stacker') {
-        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">' +
-            '<iframe src="https://embed-proxy.needcreations.workers.dev/stacker-news" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
-        '</div>';
+        // Sort selector
+        var snSort = window._snSort || 'top';
+        var snWhen = window._snWhen || 'day';
+        html += '<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">';
+        // Sort pills
+        var snSorts = [{id:'top',label:'🔥 Top'},{id:'recent',label:'🕐 Recent'},{id:'random',label:'🎲 Random'}];
+        for (var ss = 0; ss < snSorts.length; ss++) {
+            var s = snSorts[ss];
+            html += '<button onclick="window._snSort=\'' + s.id + '\';renderForum()" style="padding:6px 14px;border-radius:20px;border:1px solid ' + (snSort === s.id ? 'var(--accent)' : 'var(--border)') + ';background:' + (snSort === s.id ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (snSort === s.id ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:600;">' + s.label + '</button>';
+        }
+        // Time range (only for top)
+        if (snSort === 'top') {
+            html += '<select onchange="window._snWhen=this.value;renderForum()" style="padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:0.75rem;font-family:inherit;">';
+            var whens = [{id:'day',label:'Today'},{id:'week',label:'This Week'},{id:'month',label:'This Month'},{id:'year',label:'This Year'}];
+            for (var wi = 0; wi < whens.length; wi++) {
+                html += '<option value="' + whens[wi].id + '"' + (snWhen === whens[wi].id ? ' selected' : '') + '>' + whens[wi].label + '</option>';
+            }
+            html += '</select>';
+        }
+        html += '<a href="https://stacker.news" target="_blank" rel="noopener noreferrer" style="margin-left:auto;color:var(--text-muted);font-size:0.7rem;text-decoration:none;">stacker.news ↗</a>';
+        html += '</div>';
+
+        // Feed container
+        html += '<div id="snFeed" style="min-height:200px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Loading Stacker News...</div></div>';
         html += '</div>';
         fc.innerHTML = html;
+        loadStackerNewsFeed(snSort, snWhen);
         return;
     }
 
@@ -1643,5 +1665,78 @@ window.articleDelete = async function(articleId) {
         renderForum();
     } catch(e) { if (typeof showToast === 'function') showToast('Error deleting article'); }
 };
+
+// ---- Stacker News Feed ----
+window.loadStackerNewsFeed = function(sort, when) {
+    var feed = document.getElementById('snFeed');
+    if (!feed) return;
+    var url = 'https://embed-proxy.needcreations.workers.dev/api/sn?sort=' + encodeURIComponent(sort) + '&when=' + encodeURIComponent(when) + '&limit=21';
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data || !data.data || !data.data.items || !data.data.items.items) {
+            feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Could not load Stacker News feed</div>';
+            return;
+        }
+        var items = data.data.items.items;
+        if (!items.length) {
+            feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">No posts found</div>';
+            return;
+        }
+        var h = '';
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var ago = snTimeAgo(item.createdAt);
+            var domain = '';
+            if (item.url) {
+                try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
+            }
+            var postUrl = 'https://stacker.news/items/' + item.id;
+            h += '<a href="' + postUrl + '" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;color:inherit;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+            h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
+            // Sats badge
+            h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
+            h += '<div style="font-size:1rem;font-weight:800;color:var(--accent);">' + snFormatSats(item.sats) + '</div>';
+            h += '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:1px;">sats</div>';
+            h += '</div>';
+            // Content
+            h += '<div style="flex:1;min-width:0;">';
+            h += '<div style="font-size:0.9rem;font-weight:600;color:var(--heading);line-height:1.35;word-break:break-word;">' + snEscape(item.title) + '</div>';
+            h += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:0.7rem;color:var(--text-muted);">';
+            h += '<span>@' + snEscape(item.user.name) + '</span>';
+            h += '<span>·</span>';
+            h += '<span>' + ago + '</span>';
+            if (item.ncomments > 0) {
+                h += '<span>·</span>';
+                h += '<span>💬 ' + item.ncomments + '</span>';
+            }
+            if (domain) {
+                h += '<span>·</span>';
+                h += '<span style="color:var(--accent);opacity:0.7;">' + snEscape(domain) + '</span>';
+            }
+            h += '</div></div></div></a>';
+        }
+        feed.innerHTML = h;
+    }).catch(function() {
+        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + sort + '\',\'' + when + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
+    });
+};
+
+function snTimeAgo(iso) {
+    var diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+}
+
+function snFormatSats(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+    return String(n);
+}
+
+function snEscape(str) {
+    if (!str) return '';
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 })();

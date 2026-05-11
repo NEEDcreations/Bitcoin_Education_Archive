@@ -5,8 +5,9 @@
  * Only allows embedding from bitcoineducation.quest.
  *
  * Routes:
- *   /                → galaxymind.space/embed
- *   /stacker-news    → stacker.news (via client-side redirect)
+ *   /                → galaxymind.space (full site, HTML rewritten)
+ *   /stacker-news    → stacker.news link-out page (fallback)
+ *   /api/sn          → stacker.news GraphQL API proxy (JSON)
  *   /p/gm/*          → galaxymind.space/* (asset passthrough)
  */
 
@@ -18,14 +19,55 @@ addEventListener('fetch', function(event) {
 
 async function handleRequest(request) {
   var method = request.method;
-  if (method !== 'GET' && method !== 'HEAD') {
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'POST' && method !== 'OPTIONS') {
     return new Response('Method Not Allowed', { status: 405 });
+  }
+
+  // CORS preflight
+  if (method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+      }
+    });
   }
 
   var url = new URL(request.url);
   var pathname = url.pathname;
 
-  // Asset passthrough for Galaxy Mind
+  // ---- Stacker News GraphQL API proxy ----
+  if (pathname === '/api/sn') {
+    var sort = url.searchParams.get('sort') || 'top';
+    var when = url.searchParams.get('when') || 'day';
+    var limit = Math.min(parseInt(url.searchParams.get('limit') || '21'), 42);
+
+    var query = '{ items(sort: "' + sort + '", when: "' + when + '", limit: ' + limit + ') { items { id title url sats ncomments createdAt user { name } } } }';
+
+    var snResp = await fetch('https://stacker.news/api/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'BitcoinEducationArchive/1.0',
+      },
+      body: JSON.stringify({ query: query })
+    });
+
+    var snBody = await snResp.text();
+    return new Response(snBody, {
+      status: snResp.status,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+        'Cache-Control': 'public, max-age=300',
+      }
+    });
+  }
+
+  // ---- Asset passthrough for Galaxy Mind ----
   if (pathname.indexOf('/p/gm/') === 0) {
     var assetPath = pathname.slice(5); // strip /p/gm
     var assetUrl = 'https://galaxymind.space' + assetPath + url.search;
@@ -49,9 +91,9 @@ async function handleRequest(request) {
     });
   }
 
-  // Galaxy Mind embed - full HTML rewrite
+  // ---- Galaxy Mind embed - full HTML rewrite ----
   if (pathname === '/') {
-    var upstreamResp = await fetch('https://galaxymind.space/embed', {
+    var upstreamResp = await fetch('https://galaxymind.space/', {
       method: method,
       headers: {
         'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0',
@@ -99,8 +141,7 @@ async function handleRequest(request) {
     });
   }
 
-  // Stacker News - can't proxy (WAF blocks server fetches)
-  // Use a wrapper page that loads it in a nested approach
+  // ---- Stacker News fallback link-out page ----
   if (pathname === '/stacker-news') {
     var snHeaders = new Headers();
     snHeaders.set('Content-Type', 'text/html; charset=utf-8');
