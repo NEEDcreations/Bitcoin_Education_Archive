@@ -123,7 +123,7 @@ var forumPage = 'list'; // list | post | new
 var forumCurrentPost = null;
 var forumPostsCache = [];
 var forumLastLoad = 0;
-var forumTab = 'discussions'; // discussions | articles
+var forumTab = 'discussions'; // discussions | articles | stacker
 
 // Article tags
 var ARTICLE_TAGS = [
@@ -163,7 +163,17 @@ window.renderForum = function() {
     html += '<div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
         '<button onclick="forumSwitchTab(\'discussions\')" style="flex:1;padding:10px;background:' + (forumTab === 'discussions' ? 'var(--accent)' : 'none') + ';color:' + (forumTab === 'discussions' ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">💬 Discussions</button>' +
         '<button onclick="forumSwitchTab(\'articles\')" style="flex:1;padding:10px;background:' + (forumTab === 'articles' ? 'var(--accent)' : 'none') + ';color:' + (forumTab === 'articles' ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">📝 Articles</button>' +
+        '<button onclick="forumSwitchTab(\'stacker\')" style="flex:1;padding:10px;background:' + (forumTab === 'stacker' ? 'var(--accent)' : 'none') + ';color:' + (forumTab === 'stacker' ? '#fff' : 'var(--text-muted)') + ';border:none;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Stacker News</button>' +
     '</div>';
+
+    if (forumTab === 'stacker') {
+        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">' +
+            '<iframe src="https://embed-proxy.needcreations.workers.dev/stacker-news" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
+        '</div>';
+        html += '</div>';
+        fc.innerHTML = html;
+        return;
+    }
 
     if (forumTab === 'articles') {
         renderArticlesList(html, fc);

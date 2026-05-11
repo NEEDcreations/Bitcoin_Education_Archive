@@ -1,24 +1,38 @@
 /**
  * Embed Proxy Worker
- * Reverse-proxies galaxymind.space/embed and strips iframe-blocking headers.
+ * Reverse-proxies external sites and strips iframe-blocking headers.
  * Only allows embedding from bitcoineducation.quest.
+ * 
+ * Routes:
+ *   /                → galaxymind.space/embed
+ *   /stacker-news    → stacker.news
  */
 
 var ALLOWED_ORIGIN = 'https://bitcoineducation.quest';
-var TARGET = 'https://galaxymind.space/embed';
+
+var ROUTES = {
+  '/': 'https://galaxymind.space/embed',
+  '/stacker-news': 'https://stacker.news',
+};
 
 addEventListener('fetch', function(event) {
   event.respondWith(handleRequest(event.request));
 });
 
 async function handleRequest(request) {
-  // Only allow GET
   if (request.method !== 'GET') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
+  var url = new URL(request.url);
+  var target = ROUTES[url.pathname];
+
+  if (!target) {
+    return new Response('Not Found', { status: 404 });
+  }
+
   // Fetch the upstream page
-  var upstreamResp = await fetch(TARGET, {
+  var upstreamResp = await fetch(target, {
     headers: {
       'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0',
       'Accept': request.headers.get('Accept') || 'text/html',
