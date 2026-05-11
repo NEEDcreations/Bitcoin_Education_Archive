@@ -13439,7 +13439,7 @@ function isMarketAdmin() {
 var MARKETPLACE_SECTIONS = [
     { id: 'educational', name: 'Educational Products', emoji: '🎓', desc: 'Learn Bitcoin with the best tools' },
     { id: 'general', name: 'Other Products', emoji: '🛒', desc: 'Buy & sell everything else' },
-    { id: 'merchants', name: 'Other Bitcoin Merchants', emoji: '🏪', desc: 'Browse other Bitcoin merchants' },
+    { id: 'merchants', name: 'More Bitcoin Merchants', emoji: '🏪', desc: 'Browse more Bitcoin merchants' },
 ];
 
 var MARKETPLACE_CATEGORIES = [
