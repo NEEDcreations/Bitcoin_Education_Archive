@@ -167,13 +167,15 @@ const LEVELS = [
     { name: 'Curious',        emoji: '🔵', min: 10 },
     { name: 'Pleb',           emoji: '🟠', min: 144 },
     { name: 'Stacker',        emoji: '📦', min: 500 },
-    { name: 'Stacker II',     emoji: '📦📦', min: 1337 },
-    { name: 'Stacker III',    emoji: '📦📦📦', min: 1913 },
-    { name: 'Hodler',         emoji: '💎', min: 2016 },
-    { name: 'Maxi',           emoji: '🔥', min: 8888 },
-    { name: 'Sovereign',      emoji: '🏴', min: 21000 },
-    { name: 'Cyberhornet',    emoji: '🐝', min: 100000 },
-    { name: 'Honey Badger',   emoji: '🦡', min: 150000 },
+    { name: 'Stacker II',     emoji: '📦📦', min: 1913 },
+    { name: 'Stacker III',    emoji: '📦📦📦', min: 2016 },
+    { name: 'Hodler',         emoji: '💎', min: 2140 },
+    { name: 'Maxi',           emoji: '🔥', min: 6102 },
+    { name: 'Maxi II',        emoji: '🔥🔥', min: 8888 },
+    { name: 'Maxi III',       emoji: '🔥🔥🔥', min: 10000 },
+    { name: 'Sovereign',      emoji: '🏴', min: 13337 },
+    { name: 'Cyberhornet',    emoji: '🐝', min: 50000 },
+    { name: 'Honey Badger',   emoji: '🦡', min: 100000 },
     { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
@@ -3928,7 +3930,7 @@ function showSettingsPage(tab) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (8,888+ pts). Verified automatically.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank (6,102+ pts). Verified automatically.<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 points towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
@@ -5784,11 +5786,13 @@ function getLevelFlavor(name) {
         'Curious': 'You\'re starting to see what all the fuss is about.',
         'Pleb': 'Welcome to the pleb life. You\'re one of us now.',
         'Stacker': 'Stacking sats and stacking knowledge. Impressive.',
-        'Stacker II': 'Double stacking! Your conviction is showing.',
-        'Stacker III': 'Triple stack mode. 1913 — the year the Fed was born. You know why that matters.',
-        'Hodler': 'Diamond hands. Diamond mind. You\'re in deep.',
-        'Maxi': 'There is no second best. You know it.',
-        'Sovereign': 'Self-sovereign. No permission needed. You ARE the bank.',
+        'Stacker II': 'Double stacking! 1913 — the year the Fed was born. You know why that matters.',
+        'Stacker III': 'Triple stack mode. 2016 — the year the halving changed everything.',
+        'Hodler': 'Diamond hands. Diamond mind. 2140 — when the last sat is mined. You\'re thinking long-term.',
+        'Maxi': '6102 — Executive Order 6102 banned gold. They can\'t ban Bitcoin. There is no second best.',
+        'Maxi II': 'Double the conviction. The signal only gets stronger.',
+        'Maxi III': 'Triple maxi. 10,000 BTC for two pizzas? Not anymore.',
+        'Sovereign': 'Self-sovereign. 13337 — leet speak for the elite. No permission needed. You ARE the bank.',
         'Cyberhornet': 'Bzzzz. The swarm protects the network. You\'re part of it now.',
         'Honey Badger': 'Honey badger don\'t care. Unstoppable, just like Bitcoin.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
