@@ -13579,7 +13579,7 @@ function _actualRenderMarketplace(options) {
     '</div>';
 
     // Determine active section from category
-    var activeSection = options.section || 'all';
+    var activeSection = options.section || 'merchants';
     if (activeCategory !== 'all' && activeSection === 'all') {
         var catObj = MARKETPLACE_CATEGORIES.find(function(c) { return c.id === activeCategory; });
         if (catObj) activeSection = catObj.section;
