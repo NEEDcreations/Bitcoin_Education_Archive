@@ -129,10 +129,8 @@ function injectMeetupBox() {
 
     section.innerHTML = html;
 
-    // Insert before the "Share Your Meetup" button
-    var shareBtn = mbSection.querySelector('button[onclick*="showMeetupBuilderSubmit"]');
-    if (shareBtn) mbSection.insertBefore(section, shareBtn);
-    else mbSection.appendChild(section);
+    // Insert at the bottom (after Pro Tips)
+    mbSection.appendChild(section);
 }
 
 window.showMeetupTemplate = function(idx) {
