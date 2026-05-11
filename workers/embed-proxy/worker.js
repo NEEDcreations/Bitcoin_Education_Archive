@@ -7,8 +7,9 @@
  * Routes:
  *   /                → galaxymind.space (full site, HTML rewritten)
  *   /stacker-news    → stacker.news link-out page (fallback)
- *   /api/sn          → stacker.news GraphQL API proxy (JSON)
- *   /p/gm/*          → galaxymind.space/* (asset passthrough)
+ *   /api/sn          → stacker.news GraphQL feed proxy (JSON)
+ *   /api/sn/item     → stacker.news GraphQL single item + comments (JSON)
+ *   /p/gm/*          → galaxymind.space/* (asset passthrough, cached)
  */
 
 var ALLOWED_ORIGIN = 'https://bitcoineducation.quest';
@@ -39,20 +40,17 @@ async function handleRequest(request) {
   var url = new URL(request.url);
   var pathname = url.pathname;
 
-  // ---- Stacker News GraphQL API proxy ----
+  // ---- Stacker News GraphQL feed API ----
   if (pathname === '/api/sn') {
     var sort = url.searchParams.get('sort') || 'top';
     var when = url.searchParams.get('when') || 'day';
     var limit = Math.min(parseInt(url.searchParams.get('limit') || '21'), 42);
 
-    var query = '{ items(sort: "' + sort + '", when: "' + when + '", limit: ' + limit + ') { items { id title url sats ncomments createdAt user { name } } } }';
+    var query = '{ items(sort: "' + sort + '", when: "' + when + '", limit: ' + limit + ') { items { id title url sats boost ncomments createdAt user { name } } } }';
 
     var snResp = await fetch('https://stacker.news/api/graphql', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'BitcoinEducationArchive/1.0',
-      },
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'BitcoinEducationArchive/1.0' },
       body: JSON.stringify({ query: query })
     });
 
@@ -67,9 +65,38 @@ async function handleRequest(request) {
     });
   }
 
-  // ---- Asset passthrough for Galaxy Mind ----
+  // ---- Stacker News single item + comments ----
+  if (pathname === '/api/sn/item') {
+    var itemId = url.searchParams.get('id');
+    if (!itemId || !/^\d+$/.test(itemId)) {
+      return new Response('{"error":"Missing or invalid id"}', {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': ALLOWED_ORIGIN }
+      });
+    }
+
+    var itemQuery = '{ item(id: ' + itemId + ') { id title text url sats boost ncomments createdAt user { name } comments(sort: "top") { comments { id text sats createdAt user { name } ncomments comments(sort: "top") { comments { id text sats createdAt user { name } } } } } } }';
+
+    var itemResp = await fetch('https://stacker.news/api/graphql', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'BitcoinEducationArchive/1.0' },
+      body: JSON.stringify({ query: itemQuery })
+    });
+
+    var itemBody = await itemResp.text();
+    return new Response(itemBody, {
+      status: itemResp.status,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+        'Cache-Control': 'public, max-age=120',
+      }
+    });
+  }
+
+  // ---- Asset passthrough for Galaxy Mind (aggressively cached) ----
   if (pathname.indexOf('/p/gm/') === 0) {
-    var assetPath = pathname.slice(5); // strip /p/gm
+    var assetPath = pathname.slice(5);
     var assetUrl = 'https://galaxymind.space' + assetPath + url.search;
     var assetResp = await fetch(assetUrl, {
       method: method,
@@ -85,6 +112,12 @@ async function handleRequest(request) {
     assetHeaders.delete('X-Frame-Options');
     assetHeaders.delete('Content-Security-Policy');
     assetHeaders.set('Access-Control-Allow-Origin', '*');
+
+    // Cache immutable assets aggressively (Next.js hashed chunks)
+    if (pathname.indexOf('/_next/static/') !== -1) {
+      assetHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+
     return new Response(assetResp.body, {
       status: assetResp.status,
       headers: assetHeaders,
@@ -117,17 +150,18 @@ async function handleRequest(request) {
       body = body.split('https://galaxymind.space/').join('/p/gm/');
       body = body.split('https://galaxymind.space').join('/p/gm');
 
-      // Rewrite root-relative URLs: href="/_next..." src="/_next..."
+      // Rewrite root-relative URLs
       body = body.replace(/((?:href|src|action)=["'])\/(?!\/|p\/)/g, '$1/p/gm/');
 
       // Rewrite url() in inline styles
       body = body.replace(/url\(["']?\/(?!\/|p\/|data:)/g, 'url(/p/gm/');
 
-      // Strip nonce requirements (they won't match through proxy)
+      // Strip nonces and integrity (won't match through proxy)
       body = body.replace(/ nonce="[^"]*"/g, '');
-
-      // Remove integrity checks that will fail
       body = body.replace(/ integrity="[^"]*"/g, '');
+
+      // Add preconnect hint to speed up asset loading
+      body = body.replace('<head>', '<head><link rel="preconnect" href="https://embed-proxy.needcreations.workers.dev" crossorigin>');
 
       return new Response(body, {
         status: upstreamResp.status,

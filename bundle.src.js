@@ -13176,8 +13176,7 @@ window.loadStackerNewsFeed = function(sort, when) {
             if (item.url) {
                 try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
             }
-            var postUrl = 'https://stacker.news/items/' + item.id;
-            h += '<a href="' + postUrl + '" target="_blank" rel="noopener noreferrer" style="display:block;text-decoration:none;color:inherit;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+            h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
             h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
             // Sats badge
             h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
@@ -13199,13 +13198,146 @@ window.loadStackerNewsFeed = function(sort, when) {
                 h += '<span>·</span>';
                 h += '<span style="color:var(--accent);opacity:0.7;">' + snEscape(domain) + '</span>';
             }
-            h += '</div></div></div></a>';
+            h += '</div></div></div></div>';
         }
         feed.innerHTML = h;
     }).catch(function() {
         feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + sort + '\',\'' + when + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
     });
 };
+
+// ---- Stacker News In-App Post Viewer ----
+window.snOpenPost = function(id) {
+    var fc = document.getElementById('forumContainer');
+    if (!fc) return;
+    fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">' +
+        '<div style="text-align:center;padding:60px 0;color:var(--text-muted);">' +
+            '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>' +
+            'Loading post...' +
+        '</div></div>';
+
+    fetch('https://embed-proxy.needcreations.workers.dev/api/sn/item?id=' + id)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.data || !data.data.item) {
+                fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Post not found. <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back to feed</button></div></div>';
+                return;
+            }
+            var item = data.data.item;
+            snRenderPost(fc, item);
+        })
+        .catch(function() {
+            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button onclick="snOpenPost(' + id + ')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
+        });
+};
+
+function snRenderPost(fc, item) {
+    var h = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;">';
+
+    // Back button
+    h += '<button onclick="forumTab=\'stacker\';renderForum()" style="background:none;border:none;color:var(--text-muted);font-size:0.85rem;cursor:pointer;padding:8px 0;margin-bottom:12px;font-family:inherit;touch-action:manipulation;">← Back to Stacker News</button>';
+
+    // Post card
+    h += '<div style="border:1px solid var(--border);border-radius:16px;background:var(--card-bg);padding:20px;margin-bottom:16px;">';
+
+    // Title
+    h += '<h2 style="font-size:1.2rem;font-weight:800;color:var(--heading);margin:0 0 10px;line-height:1.3;">' + snEscape(item.title) + '</h2>';
+
+    // Meta row
+    h += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;font-size:0.75rem;color:var(--text-muted);">';
+    h += '<span style="color:var(--accent);font-weight:700;">⚡ ' + snFormatSats(item.sats) + ' sats</span>';
+    h += '<span>·</span>';
+    h += '<span>@' + snEscape(item.user.name) + '</span>';
+    h += '<span>·</span>';
+    h += '<span>' + snTimeAgo(item.createdAt) + '</span>';
+    if (item.ncomments > 0) {
+        h += '<span>·</span>';
+        h += '<span>💬 ' + item.ncomments + ' comments</span>';
+    }
+    h += '</div>';
+
+    // Link if external
+    if (item.url) {
+        var domain = '';
+        try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
+        h += '<a href="' + snEscape(item.url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.8rem;text-decoration:none;margin-bottom:14px;word-break:break-all;">🔗 ' + snEscape(domain || item.url) + ' ↗</a>';
+    }
+
+    // Body text
+    if (item.text) {
+        h += '<div style="font-size:0.9rem;line-height:1.65;color:var(--text);word-break:break-word;">' + snRenderMarkdown(item.text) + '</div>';
+    }
+
+    // View on SN link
+    h += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">';
+    h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
+    h += '</div>';
+
+    h += '</div>'; // end post card
+
+    // Comments
+    if (item.comments && item.comments.comments && item.comments.comments.length > 0) {
+        h += '<div style="margin-top:4px;">';
+        h += '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);margin-bottom:12px;">💬 Comments (' + item.ncomments + ')</div>';
+        h += snRenderComments(item.comments.comments, 0);
+        h += '</div>';
+    }
+
+    h += '</div>'; // end wrapper
+    fc.innerHTML = h;
+    fc.scrollTop = 0;
+}
+
+function snRenderComments(comments, depth) {
+    var h = '';
+    var maxDepth = 3;
+    for (var i = 0; i < comments.length; i++) {
+        var c = comments[i];
+        var indent = Math.min(depth, maxDepth) * 16;
+        h += '<div style="margin-left:' + indent + 'px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--card-bg);">';
+        h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:0.7rem;color:var(--text-muted);">';
+        h += '<span style="font-weight:600;">@' + snEscape(c.user.name) + '</span>';
+        h += '<span>·</span>';
+        h += '<span>' + snTimeAgo(c.createdAt) + '</span>';
+        if (c.sats > 0) {
+            h += '<span>·</span>';
+            h += '<span style="color:var(--accent);">⚡ ' + snFormatSats(c.sats) + '</span>';
+        }
+        h += '</div>';
+        if (c.text) {
+            h += '<div style="font-size:0.82rem;line-height:1.55;color:var(--text);word-break:break-word;">' + snRenderMarkdown(c.text) + '</div>';
+        }
+        h += '</div>';
+        // Nested replies
+        if (c.comments && c.comments.comments && c.comments.comments.length > 0) {
+            h += snRenderComments(c.comments.comments, depth + 1);
+        }
+    }
+    return h;
+}
+
+// Simple markdown-ish rendering for SN post text
+function snRenderMarkdown(text) {
+    if (!text) return '';
+    var s = snEscape(text);
+    // Headers
+    s = s.replace(/^#{3}\s+(.+)$/gm, '<div style="font-size:1rem;font-weight:700;margin:14px 0 6px;color:var(--heading);">$1</div>');
+    s = s.replace(/^#{2}\s+(.+)$/gm, '<div style="font-size:1.05rem;font-weight:700;margin:16px 0 8px;color:var(--heading);">$1</div>');
+    s = s.replace(/^#{1}\s+(.+)$/gm, '<div style="font-size:1.1rem;font-weight:800;margin:18px 0 8px;color:var(--heading);">$1</div>');
+    // Bold + italic
+    s = s.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Links: [text](url)
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">$1</a>');
+    // Inline code
+    s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;font-size:0.85em;">$1</code>');
+    // Line breaks
+    s = s.replace(/\n\n/g, '</p><p style="margin:10px 0;">');
+    s = s.replace(/\n/g, '<br>');
+    s = '<p style="margin:10px 0;">' + s + '</p>';
+    return s;
+}
 
 function snTimeAgo(iso) {
     var diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -13466,8 +13598,12 @@ function _actualRenderMarketplace(options) {
 
     // If "Other Bitcoin Merchants" tab is active, show iframe and return early
     if (activeSection === 'merchants') {
-        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">' +
-            '<iframe src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
+        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card-bg);">' +
+            '<div id="gmLoadingSkeleton" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1;">' +
+                '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Galaxy Mind...</div>' +
+            '</div>' +
+            '<iframe src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'gmLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
         '</div>';
         html += '</div>';
         container.innerHTML = html;

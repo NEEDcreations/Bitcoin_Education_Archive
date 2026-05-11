@@ -237,8 +237,12 @@ function _actualRenderMarketplace(options) {
 
     // If "Other Bitcoin Merchants" tab is active, show iframe and return early
     if (activeSection === 'merchants') {
-        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">' +
-            '<iframe src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
+        html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--card-bg);">' +
+            '<div id="gmLoadingSkeleton" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:1;">' +
+                '<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;">Loading Galaxy Mind...</div>' +
+            '</div>' +
+            '<iframe src="https://embed-proxy.needcreations.workers.dev/" style="width:100%;height:100%;border:none;border-radius:12px;position:relative;z-index:2;" allow="fullscreen" onload="var s=document.getElementById(\'gmLoadingSkeleton\');if(s)s.style.display=\'none\'"></iframe>' +
         '</div>';
         html += '</div>';
         container.innerHTML = html;
