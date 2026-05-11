@@ -238,7 +238,7 @@ function _actualRenderMarketplace(options) {
     // If "Other Bitcoin Merchants" tab is active, show iframe and return early
     if (activeSection === 'merchants') {
         html += '<div style="position:relative;width:100%;height:calc(100vh - 220px);min-height:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);">' +
-            '<iframe src="https://galaxymind.space/" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
+            '<iframe src="https://galaxymind.space/embed" style="width:100%;height:100%;border:none;border-radius:12px;" allow="fullscreen" loading="lazy"></iframe>' +
         '</div>';
         html += '</div>';
         container.innerHTML = html;
