@@ -3225,31 +3225,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (curTier === 'full' && typeof showToast === 'function') showToast('🚀 ⚡ Lightning Mart unlocked! You have full access!');
         }
         
-        // Add "Next Milestone" Info
-        let milestoneEl = document.getElementById('sidebarMilestone');
-        if (!milestoneEl) {
-            milestoneEl = document.createElement('div');
-            milestoneEl.id = 'sidebarMilestone';
-            milestoneEl.style.cssText = 'padding:15px;margin:10px;background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;font-size:0.75rem;color:var(--text-muted);';
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar) sidebar.insertBefore(milestoneEl, document.querySelector('.sidebar-promo'));
-        }
-        
-        if (!isExplorer) {
-            const cLeft = Math.max(0, 3 - exploredCount);
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Visit ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' to unlock 🗣️ Pleb Talk! 🦌';
-            milestoneEl.style.display = '';
-        } else if (!isCommunity) {
-            const cLeft = Math.max(0, 5 - exploredCount);
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' to unlock 🤝 IRL Sync! 🦌';
-            milestoneEl.style.display = '';
-        } else if (!isFull) {
-            const cLeft = Math.max(0, 10 - exploredCount);
-            milestoneEl.innerHTML = '🎯 <strong>Next Goal:</strong> Explore ' + cLeft + ' more channel' + (cLeft === 1 ? '' : 's') + ' or sign in to unlock ⚡ Lightning Mart! 🚀';
-            milestoneEl.style.display = '';
-        } else {
-            milestoneEl.style.display = 'none';
-        }
+        // Remove any leftover milestone banner
+        var milestoneEl = document.getElementById('sidebarMilestone');
+        if (milestoneEl) milestoneEl.remove();
     }
 
     // Call updates
