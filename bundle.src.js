@@ -21648,9 +21648,9 @@ window._startHalvingTicker = function() {
         try { exploredCount = safeJSON('btc_visited_channels', []).length; } catch(e) {}
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
         var _a = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-        var isFull = (_a && !_a.isAnonymous) || visits >= 10 || exploredCount >= 10;
-        var isCommunity = isFull || visits >= 5 || exploredCount >= 5;
-        var isExplorer = isCommunity || visits >= 3 || exploredCount >= 3;
+        var isFull = true;
+        var isCommunity = true;
+        var isExplorer = true;
 
         var chat = document.getElementById('nachoModeChat');
         if (!chat) return;
@@ -21658,14 +21658,14 @@ window._startHalvingTicker = function() {
         var html = '<div style="font-weight:700;color:var(--heading);margin-bottom:6px;">🗺️ Your Bitcoin Journey</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:12px;">' + Math.round(progress / NACHO_LEARNING_PATH.length * 100) + '% concepts mastered</div>';
 
-        // TIER SYSTEM explanation box
+        // All apps unlocked info
         html += '<div style="background:var(--accent-bg);border:1px dashed var(--accent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:0.8rem;line-height:1.4;">' +
-            '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">🛡️ Feature Rewards System</div>' +
-            '<p style="margin:0;color:var(--text);">The Archive unlocks more powerful features as you learn to prevent Normie overload! 🦌</p>' +
+            '<div style="font-weight:800;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">✅ All Features Unlocked</div>' +
+            '<p style="margin:0;color:var(--text);">Every app and feature is available to you. Explore freely! 🦌</p>' +
             '<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (isExplorer ? '0.5' : '1') + '"><span>🔹 3 Channels:</span> <strong>🗣️ Pleb Talk</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (isCommunity ? '0.5' : '1') + '"><span>🔹 5 Channels:</span> <strong>🤝 IRL Sync</strong></div>' +
-                '<div style="display:flex;justify-content:space-between;opacity:' + (isFull ? '0.5' : '1') + '"><span>🔹 10 Channels:</span> <strong>⚡ Lightning Mart</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>🗣️ Pleb Talk</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>🤝 IRL Sync</strong></div>' +
+                '<div style="display:flex;justify-content:space-between;opacity:0.5"><span>✅</span> <strong>⚡ Lightning Mart</strong></div>' +
                 '<div style="display:flex;justify-content:space-between;opacity:' + (_a && !_a.isAnonymous ? '0.5' : '1') + '"><span>🔹 Sign Up:</span> <strong>🏁 Profile & Persistence</strong></div>' +
             '</div>' +
         '</div>';
@@ -22874,11 +22874,10 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _obProfile = (typeof getOnboardingProfile === 'function') ? getOnboardingProfile() : null;
         var _isAdvanced = _obProfile && (_obProfile.level === 'advanced' || _obProfile.level === 'full');
 
-        // Tier Logic — progressive unlock
-        // Explorer (3ch): PlebTalk | Community (5ch): IRL Sync | Full (10ch): Lightning Mart | Beats: always unlocked (no tier)
-        const isFull = _isAdvanced || isAdmin || (_cu && !_cu.isAnonymous) || (visits >= 10 || exploredCount >= 10);
-        const isCommunity = isFull || (visits >= 5 || exploredCount >= 5);
-        const isExplorer = isCommunity || (visits >= 3 || exploredCount >= 3);
+        // Tier Logic — all apps unlocked for everyone (progressive unlock removed)
+        const isFull = true;
+        const isCommunity = true;
+        const isExplorer = true;
 
         const toggleLabels = document.querySelectorAll('.cat-label.cat-toggle');
         const sidebarButtons = document.querySelectorAll('.quest-start-btn, .home-cta, #beatsBtnHome, [onclick*="go(\'forum\'"], [onclick*="go(\'marketplace\'"]');
@@ -23181,8 +23180,8 @@ window.nachoQuizAnswer = function(btn, correct) {
         // Admin Bypass Logic
         var _a = (typeof auth !== "undefined" && auth) ? auth.currentUser : null; var isAdmin = (_a && (_a.email || "") === "needcreations@gmail.com");
 
-        var isFull = isAdmin || (_a && !_a.isAnonymous) || (visits >= 10 || exploredCount >= 10);
-        var isExplorer = isFull || (visits >= 3 || exploredCount >= 3);
+        var isFull = true;
+        var isExplorer = true;
 
         // Forum and Marketplace are ALWAYS viewable — actions (post, list) require sign-in
         // No more page-level lockdown
