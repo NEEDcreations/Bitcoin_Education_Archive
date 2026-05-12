@@ -2483,10 +2483,17 @@ function updateUserDisplay(lv) {
             (!_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="background:#f7931a;color:#000;padding:6px 12px;border-radius:8px;font-weight:900;font-size:0.65rem;white-space:nowrap;cursor:pointer;">SIGN UP</div>' : '') +
             (_isMob ? '<div onclick="event.stopPropagation();showUsernamePrompt();" style="margin-left:auto;background:#f7931a;color:#000;padding:6px 14px;border-radius:10px;font-weight:800;font-size:0.8rem;white-space:nowrap;">Sign Up →</div>' : '');
     } else {
-        // Signed in user — Consistently display under sidebar for desktop/tablet
+        // Signed in user
         el.removeAttribute('data-anon');
         var _isMob = window.innerWidth <= 900;
-        
+
+        // Mobile: hide the fixed overlay entirely — user info lives in the mobile-bar instead
+        if (_isMob) {
+            el.style.display = 'none';
+            // updateRankUI will populate #mobileUserInfo in the mobile-bar
+            return;
+        }
+
         if (!_isMob) {
             var sidebarHeader = document.querySelector('.sidebar-header');
             if (sidebarHeader && !document.getElementById('userDisplayContainer')) {
@@ -2560,18 +2567,25 @@ function updateUserDisplay(lv) {
     // Hide on mobile — mobile top bar already has it
     if (window.innerWidth <= 900) dashBtn.style.display = 'none';
 
-    // Update mobile top bar user info
+    // Update mobile top bar user info (username + price + block height + pts)
     const mobileInfo = document.getElementById('mobileUserInfo');
-    if (mobileInfo) {
-        const streak = (currentUser.streak || 0) > 0 ? ' 🔥' + currentUser.streak : '';
+    if (mobileInfo && window.innerWidth <= 900) {
         var chosenBadge = currentUser.displayBadge;
         var mobileIcons = displayEmoji;
         if (chosenBadge) mobileIcons += ' ' + lv.emoji;
         var pts = (currentUser.points || 0);
-        var ptsStr = pts > 0 ? ' · ' + pts.toLocaleString() + 'pts' : '';
-        mobileInfo.innerHTML = mobileIcons + ' ' + escapeHtml(currentUser.username || (isAnon ? 'Anonymous' : 'Anon')) + ptsStr + streak +
-            ' <span onclick="event.stopPropagation();if(typeof toggleDashboard===\'function\')toggleDashboard();" style="cursor:pointer;font-size:0.85rem;opacity:0.7;margin-left:4px;" title="Bitcoin Network Metrics">📊</span>';
+        var _cp = parseFloat(localStorage.getItem('btc_last_price')) || 0;
+        var _ch = parseInt(localStorage.getItem('btc_last_height')) || 0;
+        if (typeof nachoLiveData !== 'undefined' && nachoLiveData.price) _cp = nachoLiveData.price;
+        if (typeof nachoLiveData !== 'undefined' && nachoLiveData.blockHeight) _ch = nachoLiveData.blockHeight;
+        var nameStr = escapeHtml(currentUser.username || (isAnon ? 'Anonymous' : 'Anon'));
+        var s = '<span style="cursor:pointer;" onclick="if(typeof showSettings===\'function\')showSettings()">' + mobileIcons + ' <b>' + nameStr + '</b></span>';
+        if (_cp) s += ' <span style="color:#f7931a;font-weight:900;">₿</span> <span style="font-family:monospace;">$' + Math.round(_cp).toLocaleString() + '</span>';
+        if (_ch) s += ' <span style="color:#6366f1;">⛓️</span> <span style="font-family:monospace;">' + _ch.toLocaleString() + '</span>';
+        s += ' <span style="color:#f7931a;font-weight:700;">' + pts.toLocaleString() + ' pts</span>';
+        mobileInfo.innerHTML = s;
         mobileInfo.style.display = 'inline';
+        mobileInfo.style.maxWidth = 'none';
     }
 
     // Update home page welcome banner

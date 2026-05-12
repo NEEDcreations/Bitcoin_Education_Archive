@@ -2729,6 +2729,8 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Ensure mobile top bar is always visible
             var mbar = document.querySelector('.mobile-bar');
             if (mbar) mbar.style.display = 'flex';
+            // Re-populate user info in mobile bar
+            if (typeof updateRankUI === 'function') updateRankUI();
         }
         // Show continue reading
         showContinueReading();
