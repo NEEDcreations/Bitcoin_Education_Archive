@@ -6502,7 +6502,7 @@ window.renderTimechainTV = function() {
                 scrollbar-color: #444 #111 !important;
                 padding-bottom: 0 !important;
             }
-            #tctv-epg-container { height: auto !important; min-height: auto !important; overflow-x: scroll !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
+            #tctv-epg-container { height: 1134px !important; min-height: 1134px !important; overflow-x: scroll !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
             #tctv-epg-container::-webkit-scrollbar { display: none !important; }
         }
         /* Large desktops: EPG scroll container for sticky time row */
@@ -6515,7 +6515,7 @@ window.renderTimechainTV = function() {
                 scrollbar-color: #444 #111 !important;
                 padding-bottom: 0 !important;
             }
-            #tctv-epg-container { overflow-x: scroll !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
+            #tctv-epg-container { height: 1134px !important; min-height: 1134px !important; overflow-x: scroll !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
             #tctv-epg-container::-webkit-scrollbar { display: none !important; }
             #tctv-epg-hscroll-inner::-webkit-scrollbar { height: 8px; }
             #tctv-epg-hscroll-inner::-webkit-scrollbar-track { background: #111; }
@@ -6952,6 +6952,9 @@ window.renderTimechainTV = function() {
 
         // Sticky horizontal scrollbar: size spacer + bidirectional sync
         var hScrollInner = document.getElementById('tctv-epg-hscroll-inner');
+        // Set EPG container height to match channel rows (needed for overflow-x:scroll with absolute slider)
+        epgC.style.height = (STATIONS.length * 54) + 'px';
+
         var hScrollSpacer = document.getElementById('tctv-epg-hscroll-spacer');
         if (hScrollInner && hScrollSpacer) {
             // Set spacer width to match the EPG slider's total width
