@@ -2055,6 +2055,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             } catch(e) {}
             currentUser.points = newPoints;
             _showPointsToast(awarded, reason);
+            if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
             if (overflowRedeemed > 0 && typeof showToast === 'function') {
                 setTimeout(function() {
                     showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
@@ -2121,6 +2122,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes) {
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
                 _showPointsToast(awarded, reason);
+                if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
                 if (overflowRedeemed > 0) {
                     setTimeout(function() {
                         showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);

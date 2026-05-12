@@ -578,6 +578,28 @@ if (typeof auth !== 'undefined' && auth) {
 
 // ---- Additional notification helpers ----
 
+// Notify on points earned
+window.notifySelfPoints = function(pts, reason) {
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    if (!pts || pts < 1) return;
+    // Throttle: max 1 points notification per 45 seconds to avoid spam
+    var now = Date.now();
+    window._lastPointsNotif = window._lastPointsNotif || 0;
+    if (now - window._lastPointsNotif < 45000) return;
+    window._lastPointsNotif = now;
+    var msg = '🎯 +' + pts + ' pts';
+    if (reason) msg += ' — ' + reason;
+    db.collection('notifications').add({
+        recipientId: auth.currentUser.uid,
+        senderId: 'system', senderName: 'System',
+        type: 'points',
+        message: msg,
+        targetType: null, targetId: null,
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+};
+
 // Notify on sats claim
 window.notifySelfSatsClaim = function(amount) {
     if (!auth || !auth.currentUser) return;
