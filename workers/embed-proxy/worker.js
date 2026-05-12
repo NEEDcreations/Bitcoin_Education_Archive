@@ -44,6 +44,11 @@ async function handleRequest(request) {
     return handleSNFeed(url);
   }
 
+  // ---- Stacker News search ----
+  if (pathname === '/api/sn/search') {
+    return handleSNSearch(url);
+  }
+
   // ---- Stacker News single item + comments ----
   if (pathname === '/api/sn/item') {
     return handleSNItem(url);
@@ -133,8 +138,10 @@ async function handleSNFeed(url) {
   var sort = url.searchParams.get('sort') || 'top';
   var when = url.searchParams.get('when') || 'day';
   var limit = Math.min(parseInt(url.searchParams.get('limit') || '21'), 42);
+  var sub = url.searchParams.get('sub') || '';
 
-  var query = '{ items(sort: "' + sort + '", when: "' + when + '", limit: ' + limit + ') { items { id title url sats boost ncomments createdAt user { name } } } }';
+  var subArg = sub ? ', sub: "' + sub.replace(/[^a-zA-Z0-9_-]/g, '') + '"' : '';
+  var query = '{ items(sort: "' + sort + '", when: "' + when + '", limit: ' + limit + subArg + ') { items { id title url sats boost ncomments createdAt user { name } sub { name } } } }';
 
   var resp = await fetch('https://stacker.news/api/graphql', {
     method: 'POST',
@@ -162,6 +169,33 @@ async function handleSNItem(url) {
   }
 
   var query = '{ item(id: ' + itemId + ') { id title text url sats boost ncomments createdAt user { name } comments(sort: "top") { comments { id text sats createdAt user { name } ncomments comments(sort: "top") { comments { id text sats createdAt user { name } } } } } } }';
+
+  var resp = await fetch('https://stacker.news/api/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'BitcoinEducationArchive/1.0' },
+    body: JSON.stringify({ query: query })
+  });
+
+  return new Response(await resp.text(), {
+    status: resp.status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+      'Cache-Control': 'public, max-age=120',
+    }
+  });
+}
+
+async function handleSNSearch(url) {
+  var q = url.searchParams.get('q') || '';
+  if (!q || q.length < 2) {
+    return new Response('{"error":"Query too short"}', {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': ALLOWED_ORIGIN }
+    });
+  }
+
+  var query = '{ search(q: ' + JSON.stringify(q) + ', limit: 21) { items { id title url sats boost ncomments createdAt user { name } sub { name } } } }';
 
   var resp = await fetch('https://stacker.news/api/graphql', {
     method: 'POST',

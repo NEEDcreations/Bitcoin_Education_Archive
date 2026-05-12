@@ -11687,33 +11687,62 @@ window.renderForum = function() {
     '</div>';
 
     if (forumTab === 'stacker') {
-        // Sort selector
-        var snSort = window._snSort || 'top';
-        var snWhen = window._snWhen || 'day';
-        html += '<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">';
-        // Sort pills
-        var snSorts = [{id:'top',label:'🔥 Top'},{id:'recent',label:'🕐 Recent'},{id:'random',label:'🎲 Random'}];
-        for (var ss = 0; ss < snSorts.length; ss++) {
-            var s = snSorts[ss];
-            html += '<button onclick="window._snSort=\'' + s.id + '\';renderForum()" style="padding:6px 14px;border-radius:20px;border:1px solid ' + (snSort === s.id ? 'var(--accent)' : 'var(--border)') + ';background:' + (snSort === s.id ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (snSort === s.id ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:600;">' + s.label + '</button>';
+        // Search bar
+        var snSearchQuery = window._snSearchQuery || '';
+        html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+        html += '<input id="snSearchInput" type="text" placeholder="Search Stacker News..." value="' + snEscape(snSearchQuery) + '" onkeydown="if(event.key===\'Enter\')snDoSearch()" style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;" />';
+        html += '<button onclick="snDoSearch()" style="padding:10px 16px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">🔍</button>';
+        if (snSearchQuery) {
+            html += '<button onclick="snClearSearch()" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">✕</button>';
         }
-        // Time range (only for top)
-        if (snSort === 'top') {
-            html += '<select onchange="window._snWhen=this.value;renderForum()" style="padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:0.75rem;font-family:inherit;">';
-            var whens = [{id:'day',label:'Today'},{id:'week',label:'This Week'},{id:'month',label:'This Month'},{id:'year',label:'This Year'}];
-            for (var wi = 0; wi < whens.length; wi++) {
-                html += '<option value="' + whens[wi].id + '"' + (snWhen === whens[wi].id ? ' selected' : '') + '>' + whens[wi].label + '</option>';
-            }
-            html += '</select>';
-        }
-        html += '<a href="https://stacker.news" target="_blank" rel="noopener noreferrer" style="margin-left:auto;color:var(--text-muted);font-size:0.7rem;text-decoration:none;">stacker.news ↗</a>';
         html += '</div>';
+
+        // Territory filters
+        var snSub = window._snSub || '';
+        var snTerritories = [{id:'',label:'All'},{id:'bitcoin',label:'bitcoin'},{id:'lightning',label:'lightning'},{id:'nostr',label:'nostr'},{id:'privacy',label:'privacy'},{id:'tech',label:'tech'},{id:'meta',label:'meta'}];
+        html += '<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;">';
+        for (var ti = 0; ti < snTerritories.length; ti++) {
+            var t = snTerritories[ti];
+            var isActive = snSub === t.id;
+            html += '<button onclick="window._snSub=\'' + t.id + '\';window._snSearchQuery=\'\';renderForum()" style="padding:5px 12px;border-radius:16px;border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';background:' + (isActive ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';color:' + (isActive ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;">' + snEscape(t.label) + '</button>';
+        }
+        html += '</div>';
+
+        // Sort selector (hide when searching)
+        if (!snSearchQuery) {
+            var snSort = window._snSort || 'top';
+            var snWhen = window._snWhen || 'day';
+            html += '<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">';
+            // Sort pills
+            var snSorts = [{id:'top',label:'🔥 Top'},{id:'recent',label:'🕐 Recent'},{id:'random',label:'🎲 Random'}];
+            for (var ss = 0; ss < snSorts.length; ss++) {
+                var s = snSorts[ss];
+                html += '<button onclick="window._snSort=\'' + s.id + '\';renderForum()" style="padding:6px 14px;border-radius:20px;border:1px solid ' + (snSort === s.id ? 'var(--accent)' : 'var(--border)') + ';background:' + (snSort === s.id ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (snSort === s.id ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:600;">' + s.label + '</button>';
+            }
+            // Time range (only for top)
+            if (snSort === 'top') {
+                html += '<select onchange="window._snWhen=this.value;renderForum()" style="padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-size:0.75rem;font-family:inherit;">';
+                var whens = [{id:'day',label:'Today'},{id:'week',label:'This Week'},{id:'month',label:'This Month'},{id:'year',label:'This Year'}];
+                for (var wi = 0; wi < whens.length; wi++) {
+                    html += '<option value="' + whens[wi].id + '"' + (snWhen === whens[wi].id ? ' selected' : '') + '>' + whens[wi].label + '</option>';
+                }
+                html += '</select>';
+            }
+            html += '<a href="https://stacker.news" target="_blank" rel="noopener noreferrer" style="margin-left:auto;color:var(--text-muted);font-size:0.7rem;text-decoration:none;">stacker.news ↗</a>';
+            html += '</div>';
+        } else {
+            html += '<div style="margin-bottom:14px;font-size:0.8rem;color:var(--text-muted);">Search results for: <strong style="color:var(--text);">' + snEscape(snSearchQuery) + '</strong></div>';
+        }
 
         // Feed container
         html += '<div id="snFeed" style="min-height:200px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Loading Stacker News...</div></div>';
         html += '</div>';
         fc.innerHTML = html;
-        loadStackerNewsFeed(snSort, snWhen);
+        if (snSearchQuery) {
+            snSearchFeed(snSearchQuery);
+        } else {
+            loadStackerNewsFeed(window._snSort || 'top', window._snWhen || 'day', snSub);
+        }
         return;
     }
 
@@ -13187,10 +13216,11 @@ window.articleDelete = async function(articleId) {
 };
 
 // ---- Stacker News Feed ----
-window.loadStackerNewsFeed = function(sort, when) {
+window.loadStackerNewsFeed = function(sort, when, sub) {
     var feed = document.getElementById('snFeed');
     if (!feed) return;
     var url = 'https://embed-proxy.needcreations.workers.dev/api/sn?sort=' + encodeURIComponent(sort) + '&when=' + encodeURIComponent(when) + '&limit=21';
+    if (sub) url += '&sub=' + encodeURIComponent(sub);
     fetch(url).then(function(r) { return r.json(); }).then(function(data) {
         if (!data || !data.data || !data.data.items || !data.data.items.items) {
             feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Could not load Stacker News feed</div>';
@@ -13201,43 +13231,92 @@ window.loadStackerNewsFeed = function(sort, when) {
             feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">No posts found</div>';
             return;
         }
-        var h = '';
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var ago = snTimeAgo(item.createdAt);
-            var domain = '';
-            if (item.url) {
-                try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
-            }
-            h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
-            h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
-            // Sats badge
-            h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
-            h += '<div style="font-size:1rem;font-weight:800;color:var(--accent);">' + snFormatSats(item.sats) + '</div>';
-            h += '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:1px;">sats</div>';
-            h += '</div>';
-            // Content
-            h += '<div style="flex:1;min-width:0;">';
-            h += '<div style="font-size:0.9rem;font-weight:600;color:var(--heading);line-height:1.35;word-break:break-word;">' + snEscape(item.title) + '</div>';
-            h += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:0.7rem;color:var(--text-muted);">';
-            h += '<span>@' + snEscape(item.user.name) + '</span>';
-            h += '<span>·</span>';
-            h += '<span>' + ago + '</span>';
-            if (item.ncomments > 0) {
-                h += '<span>·</span>';
-                h += '<span>💬 ' + item.ncomments + '</span>';
-            }
-            if (domain) {
-                h += '<span>·</span>';
-                h += '<span style="color:var(--accent);opacity:0.7;">' + snEscape(domain) + '</span>';
-            }
-            h += '</div></div></div></div>';
-        }
-        feed.innerHTML = h;
+        feed.innerHTML = snRenderFeedCards(items);
     }).catch(function() {
-        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + sort + '\',\'' + when + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
+        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + sort + '\',\'' + when + '\',\'' + (sub||'') + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
     });
 };
+
+// ---- Stacker News Search ----
+window.snDoSearch = function() {
+    var input = document.getElementById('snSearchInput');
+    if (!input) return;
+    var q = input.value.trim();
+    if (q.length < 2) return;
+    window._snSearchQuery = q;
+    renderForum();
+};
+
+window.snClearSearch = function() {
+    window._snSearchQuery = '';
+    renderForum();
+};
+
+function snSearchFeed(q) {
+    var feed = document.getElementById('snFeed');
+    if (!feed) return;
+    var url = 'https://embed-proxy.needcreations.workers.dev/api/sn/search?q=' + encodeURIComponent(q);
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data || !data.data || !data.data.search || !data.data.search.items) {
+            feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">No results found</div>';
+            return;
+        }
+        var items = data.data.search.items;
+        if (!items.length) {
+            feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">No results found for \"' + snEscape(q) + '\"</div>';
+            return;
+        }
+        feed.innerHTML = snRenderFeedCards(items);
+    }).catch(function() {
+        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Search failed. <button onclick="snDoSearch()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
+    });
+}
+
+// ---- Shared feed card renderer (used by feed + search) ----
+function snRenderFeedCards(items) {
+    var h = '';
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var ago = snTimeAgo(item.createdAt);
+        var domain = '';
+        if (item.url) {
+            try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
+        }
+        var subName = (item.sub && item.sub.name) ? item.sub.name : '';
+        h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+        h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
+        // Sats badge
+        h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
+        h += '<div style="font-size:1rem;font-weight:800;color:var(--accent);">' + snFormatSats(item.sats) + '</div>';
+        h += '<div style="font-size:0.6rem;color:var(--text-muted);margin-top:1px;">sats</div>';
+        h += '</div>';
+        // Content
+        h += '<div style="flex:1;min-width:0;">';
+        h += '<div style="font-size:0.9rem;font-weight:600;color:var(--heading);line-height:1.35;word-break:break-word;">' + snEscape(item.title) + '</div>';
+        h += '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px;font-size:0.7rem;color:var(--text-muted);">';
+        // Clickable username
+        h += '<a href="https://stacker.news/' + snEscape(item.user.name) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(item.user.name) + '</a>';
+        h += '<span>\u00b7</span>';
+        h += '<span>' + ago + '</span>';
+        if (item.ncomments > 0) {
+            h += '<span>\u00b7</span>';
+            h += '<span>\ud83d\udcac ' + item.ncomments + '</span>';
+        }
+        if (domain) {
+            h += '<span>\u00b7</span>';
+            h += '<span style="color:var(--accent);opacity:0.7;">' + snEscape(domain) + '</span>';
+        }
+        // Territory badge
+        if (subName) {
+            h += '<span style="padding:2px 8px;border-radius:10px;background:rgba(99,102,241,0.12);color:#818cf8;font-size:0.65rem;font-weight:600;">' + snEscape(subName) + '</span>';
+        }
+        h += '</div></div>';
+        // View on SN link
+        h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
+        h += '</div></div>';
+    }
+    return h;
+}
 
 // ---- Stacker News In-App Post Viewer ----
 window.snOpenPost = function(id) {
@@ -13280,7 +13359,7 @@ function snRenderPost(fc, item) {
     h += '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;font-size:0.75rem;color:var(--text-muted);">';
     h += '<span style="color:var(--accent);font-weight:700;">⚡ ' + snFormatSats(item.sats) + ' sats</span>';
     h += '<span>·</span>';
-    h += '<span>@' + snEscape(item.user.name) + '</span>';
+    h += '<a href="https://stacker.news/' + snEscape(item.user.name) + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(item.user.name) + '</a>';
     h += '<span>·</span>';
     h += '<span>' + snTimeAgo(item.createdAt) + '</span>';
     if (item.ncomments > 0) {
@@ -13329,7 +13408,7 @@ function snRenderComments(comments, depth) {
         var indent = Math.min(depth, maxDepth) * 16;
         h += '<div style="margin-left:' + indent + 'px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--card-bg);">';
         h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:0.7rem;color:var(--text-muted);">';
-        h += '<span style="font-weight:600;">@' + snEscape(c.user.name) + '</span>';
+        h += '<a href="https://stacker.news/' + snEscape(c.user.name) + '" target="_blank" rel="noopener noreferrer" style="font-weight:600;color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(c.user.name) + '</a>';
         h += '<span>·</span>';
         h += '<span>' + snTimeAgo(c.createdAt) + '</span>';
         if (c.sats > 0) {
