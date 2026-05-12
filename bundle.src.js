@@ -1412,7 +1412,7 @@ function loadUserLocal(uid) {
     };
     rankingReady = true;
     window._badgesReady = true;
-    if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+    if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady(); window._hiddenBadgesReady = true;
     restoreVisitedUI();
     updateRankUI();
     _checkCapOnLoad();
@@ -1509,7 +1509,10 @@ async function loadUser(uid, prefetchedDoc) {
         // Restore badges and scholar status from Firebase
         if (isRealUser) {
             if (currentUser.hiddenBadges) {
-                localStorage.setItem('btc_hidden_badges', JSON.stringify(currentUser.hiddenBadges));
+                // Merge Firebase hidden badges into localStorage (don't replace — avoids losing locally-earned badges)
+                var existingHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
+                var mergedHidden = [...new Set([...existingHidden, ...currentUser.hiddenBadges])];
+                localStorage.setItem('btc_hidden_badges', JSON.stringify(mergedHidden));
             }
             if (currentUser.visibleBadges) {
                 // Merge Firebase badges into localStorage
@@ -1598,7 +1601,7 @@ async function loadUser(uid, prefetchedDoc) {
 
         // Badges are now safe to check — Firebase data has been restored
         window._badgesReady = true;
-        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady(); window._hiddenBadgesReady = true;
 
         // Set current level BEFORE enabling level-up detection
         // This prevents false level-ups from 0→current on first load
@@ -1641,7 +1644,7 @@ async function loadUser(uid, prefetchedDoc) {
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
-        if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady();
+        if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady(); window._hiddenBadgesReady = true;
             updateRankUI();
             updateAuthButton();
         }
@@ -1858,7 +1861,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress) {
     currentUser = { uid, ...userData };
     rankingReady = true;
     window._badgesReady = true;
-        if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady();
+        if (typeof markVisibleBadgesReady === "function") markVisibleBadgesReady(); window._hiddenBadgesReady = true;
     updateRankUI();
     updateAuthButton();
     awardPoints(POINTS.visit, 'Welcome bonus!');
@@ -16909,6 +16912,8 @@ window.getNachoStoryProgress = function() {
 // checkHiddenBadges — check and award hidden badges
 window.checkHiddenBadges = function() {
     if (typeof HIDDEN_BADGES === 'undefined') return;
+    // Wait until Firebase has restored user data to avoid re-awarding badges
+    if (!window._hiddenBadgesReady) return;
     var earned = safeJSON('btc_hidden_badges', []);
     var changed = false;
     HIDDEN_BADGES.forEach(function(badge) {
@@ -16928,8 +16933,10 @@ window.checkHiddenBadges = function() {
     });
     if (changed) localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
 };
-// Check hidden badges every 30 seconds
+// Check hidden badges every 30 seconds (waits for _hiddenBadgesReady)
 setInterval(function() { if (typeof checkHiddenBadges === 'function') checkHiddenBadges(); }, 30000);
+// Safety: allow hidden badges after 20 seconds even if Firebase is slow
+setTimeout(function() { if (!window._hiddenBadgesReady) window._hiddenBadgesReady = true; }, 20000);
 
 // awardHiddenBadge — award a specific hidden badge by ID
 window.awardHiddenBadge = function(badgeId, toastMsg) {

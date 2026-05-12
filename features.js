@@ -1070,6 +1070,8 @@ window.getNachoStoryProgress = function() {
 // checkHiddenBadges — check and award hidden badges
 window.checkHiddenBadges = function() {
     if (typeof HIDDEN_BADGES === 'undefined') return;
+    // Wait until Firebase has restored user data to avoid re-awarding badges
+    if (!window._hiddenBadgesReady) return;
     var earned = safeJSON('btc_hidden_badges', []);
     var changed = false;
     HIDDEN_BADGES.forEach(function(badge) {
@@ -1089,8 +1091,10 @@ window.checkHiddenBadges = function() {
     });
     if (changed) localStorage.setItem('btc_hidden_badges', JSON.stringify(earned));
 };
-// Check hidden badges every 30 seconds
+// Check hidden badges every 30 seconds (waits for _hiddenBadgesReady)
 setInterval(function() { if (typeof checkHiddenBadges === 'function') checkHiddenBadges(); }, 30000);
+// Safety: allow hidden badges after 20 seconds even if Firebase is slow
+setTimeout(function() { if (!window._hiddenBadgesReady) window._hiddenBadgesReady = true; }, 20000);
 
 // awardHiddenBadge — award a specific hidden badge by ID
 window.awardHiddenBadge = function(badgeId, toastMsg) {
