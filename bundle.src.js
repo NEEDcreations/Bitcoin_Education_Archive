@@ -173,9 +173,9 @@ const LEVELS = [
     { name: 'Maxi II',        emoji: '🔥🔥', min: 6102 },
     { name: 'Maxi III',       emoji: '🔥🔥🔥', min: 8888 },
     { name: 'Papa John',      emoji: '🍕', min: 10000 },
-    { name: 'Sovereign',      emoji: '🏴', min: 13337 },
-    { name: 'Cyberhornet',    emoji: '🐝', min: 50000 },
-    { name: 'Honey Badger',   emoji: '🦡', min: 100000 },
+    { name: 'Cyberhornet',    emoji: '🐝', min: 13337 },
+    { name: 'Honey Badger',   emoji: '🦡', min: 50000 },
+    { name: 'Sovereign',      emoji: '🏴', min: 100000 },
     { name: 'Satoshi',        emoji: '👑', min: 210000 },
 ];
 
@@ -5792,9 +5792,9 @@ function getLevelFlavor(name) {
         'Maxi II': '6102 — Executive Order 6102 banned gold. They can\'t ban Bitcoin. Double the conviction.',
         'Maxi III': '8888 — triple maxi. The signal only gets stronger.',
         'Papa John': '10,000 BTC for two pizzas. Never forget. 🍕 You\'ve earned your slice.',
-        'Sovereign': 'Self-sovereign. 13337 — leet speak for the elite. No permission needed. You ARE the bank.',
-        'Cyberhornet': 'Bzzzz. The swarm protects the network. You\'re part of it now.',
-        'Honey Badger': 'Honey badger don\'t care. Unstoppable, just like Bitcoin.',
+        'Cyberhornet': '13337 — leet speak for the elite. Bzzzz. The swarm protects the network. You\'re part of it now.',
+        'Honey Badger': 'Honey badger don\'t care. 50,000 strong. Unstoppable, just like Bitcoin.',
+        'Sovereign': 'Self-sovereign. 100K channels deep. No permission needed. You ARE the bank.',
         'Satoshi': 'The pinnacle. You\'ve achieved legendary status.',
     };
     return flavors[name] || 'You\'re leveling up!';
