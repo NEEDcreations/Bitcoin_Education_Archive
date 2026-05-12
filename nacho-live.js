@@ -65,8 +65,17 @@ function initTicker() {
     if (window._tickerInitialized) return;
     window._tickerInitialized = true;
 
-    // Hidden by default — user must enable in Settings
-    if (localStorage.getItem('btc_ticker_enabled') !== 'true') {
+    // Desktop: ON by default. Mobile: OFF by default.
+    // If user has never toggled, use platform default.
+    var _tickerPref = localStorage.getItem('btc_ticker_enabled');
+    var _tickerOn;
+    if (_tickerPref === null) {
+        // No explicit preference — desktop defaults on, mobile defaults off
+        _tickerOn = (typeof isMobile === 'function') ? !isMobile() : (window.innerWidth > 900);
+    } else {
+        _tickerOn = (_tickerPref === 'true');
+    }
+    if (!_tickerOn) {
         // Remove ticker and adjust layout if it exists
         var existing = document.getElementById('btcTicker');
         if (existing) existing.remove();
@@ -260,7 +269,8 @@ setInterval(fetchLiveData, FETCH_INTERVAL);
 
 // Toggle ticker visibility — called from Settings
 window.toggleTickerSetting = function() {
-    var enabled = localStorage.getItem('btc_ticker_enabled') === 'true';
+    var _pref = localStorage.getItem('btc_ticker_enabled');
+    var enabled = _pref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _pref === 'true';
     if (enabled) {
         // Disable
         localStorage.setItem('btc_ticker_enabled', 'false');

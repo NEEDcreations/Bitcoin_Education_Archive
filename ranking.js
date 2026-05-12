@@ -3625,7 +3625,7 @@ function showSettingsPage(tab) {
         html += '<div id="signalPanel" style="display:none;">';
 
         // Ticker toggle
-        var _sigTickerOn = localStorage.getItem('btc_ticker_enabled') === 'true';
+        var _sigTickerPref = localStorage.getItem('btc_ticker_enabled'); var _sigTickerOn = _sigTickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _sigTickerPref === 'true';
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1rem;">📊</span><span style="color:var(--text);font-size:0.85rem;font-weight:600;">Live Ticker on Home</span></div>' +
             '<button onclick="localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'scholar\');" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (_sigTickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (_sigTickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (_sigTickerOn ? 'ON' : 'OFF') + '</button></div>';
@@ -3668,7 +3668,7 @@ function showSettingsPage(tab) {
             '</div>';
 
         // Ticker toggle (also in Prefs)
-        var _sigTickerOn = localStorage.getItem('btc_ticker_enabled') === 'true';
+        var _sigTickerPref = localStorage.getItem('btc_ticker_enabled'); var _sigTickerOn = _sigTickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _sigTickerPref === 'true';
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1rem;">📊</span><span style="color:var(--text);font-size:0.85rem;font-weight:600;">Live Ticker on Home</span></div>' +
             '<button onclick="localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'signal\');" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (_sigTickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (_sigTickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (_sigTickerOn ? 'ON' : 'OFF') + '</button></div>';
@@ -4121,7 +4121,7 @@ function showSettingsPage(tab) {
             '</div>';
 
         // Signal Ticker
-        const tickerOn = localStorage.getItem('btc_ticker_enabled') === 'true';
+        var _tickerPref = localStorage.getItem('btc_ticker_enabled'); const tickerOn = _tickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _tickerPref === 'true';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📡 Signal Ticker</div>' +
             '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Live Bitcoin price, block height, and curated news headlines scrolling at the top of the screen.</div>' +
