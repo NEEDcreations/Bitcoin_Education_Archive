@@ -4124,8 +4124,6 @@ window.nachoQuizAnswer = function(btn, correct) {
     if (window.innerWidth > 900) {
         document.getElementById('main').addEventListener('scroll', function() {
             const el = this;
-            const pct = el.scrollTop / (el.scrollHeight - el.clientHeight) * 100;
-            document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, pct)) + '%';
             document.getElementById('backToTop').classList.toggle('visible', el.scrollTop > 400);
             var nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 200;
             document.getElementById('scrollToBottom').classList.toggle('visible', !nearBottom);

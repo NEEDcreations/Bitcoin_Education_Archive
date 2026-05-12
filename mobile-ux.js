@@ -2,7 +2,7 @@
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
 // 📱 Mobile UX Enhancements
-// Pull-to-refresh, bottom nav, reading progress,
+// Bottom nav, scroll nav hide/show,
 // scroll position memory, haptic feedback,
 // page transitions, double-tap upvote,
 // streak banner, daily challenge, progress rings,
@@ -11,96 +11,7 @@
 
 (function() {
 
-// ---- #1: Pull-to-Refresh ----
-var pullStartY = 0, pullDist = 0, pullEl = null;
 
-// Check if any overlay/modal/panel is open — block pull-to-refresh when true
-function isAnyOverlayOpen() {
-    // Global chat overlay
-    if (window._chatOverlayOpen) return true;
-    var chatPanel = document.getElementById('chatOverlay');
-    if (chatPanel && chatPanel.style.transform === 'translateY(0)') return true;
-    // Notification panel
-    if (window._notifOverlayOpen) return true;
-    var notifPanel = document.getElementById('notifPanel');
-    if (notifPanel && notifPanel.style.transform === 'translateY(0)') return true;
-    // Settings/username modal
-    var um = document.getElementById('usernameModal');
-    if (um && um.classList.contains('open')) return true;
-    // Quest modal
-    var qm = document.getElementById('questModal');
-    if (qm && qm.style.display === 'flex') return true;
-    // Search overlay
-    var so = document.getElementById('searchOverlay');
-    if (so && so.style.display === 'flex') return true;
-    // Sidebar open on mobile
-    var sb = document.getElementById('sidebar');
-    if (sb && sb.classList.contains('open')) return true;
-    // Nacho live chat
-    var nl = document.getElementById('nachoLiveOverlay');
-    if (nl && nl.style.display !== 'none' && nl.style.display !== '') return true;
-    // Forum post overlay
-    var fo = document.getElementById('forumPostOverlay');
-    if (fo && fo.style.display === 'flex') return true;
-    // Marketplace overlay
-    var mo = document.getElementById('marketOverlay');
-    if (mo && mo.style.display === 'flex') return true;
-    // DM panel
-    var dm = document.getElementById('dmPanel');
-    if (dm && dm.style.display === 'flex') return true;
-    return false;
-}
-
-function initPullToRefresh() {
-    var main = document.getElementById('main');
-    if (!main) return;
-
-    // Create pull indicator
-    pullEl = document.createElement('div');
-    pullEl.id = 'pullRefreshIndicator';
-    pullEl.style.cssText = 'position:absolute;top:-50px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 16px;border-radius:20px;font-size:0.8rem;font-weight:600;z-index:60;transition:0.3s;opacity:0;pointer-events:none;';
-    pullEl.textContent = '↓ Pull to refresh';
-    main.style.position = 'relative';
-    main.insertBefore(pullEl, main.firstChild);
-
-    main.addEventListener('touchstart', function(e) {
-        if (isAnyOverlayOpen()) { pullStartY = 0; return; }
-        // Don't trigger if touch is inside a fixed overlay
-        var t = e.target;
-        while (t && t !== main) {
-            if (t.id === 'chatOverlay' || t.id === 'notifPanel' || t.id === 'chatOverlayBtn' || t.id === 'usernameModal' || t.id === 'searchOverlay' || t.id === 'onboardingOverlay') { pullStartY = 0; return; }
-            var pos = window.getComputedStyle(t).position;
-            if (pos === 'fixed' || pos === 'absolute') { pullStartY = 0; return; }
-            t = t.parentElement;
-        }
-        if (main.scrollTop <= 0) pullStartY = e.touches[0].clientY;
-        else pullStartY = 0;
-    }, { passive: true });
-
-    main.addEventListener('touchmove', function(e) {
-        if (!pullStartY || isAnyOverlayOpen()) return;
-        pullDist = e.touches[0].clientY - pullStartY;
-        if (pullDist > 0 && pullDist < 150 && main.scrollTop <= 0) {
-            pullEl.style.top = Math.min(pullDist - 50, 20) + 'px';
-            pullEl.style.opacity = Math.min(pullDist / 80, 1);
-            pullEl.textContent = pullDist > 80 ? '↑ Release to refresh' : '↓ Pull to refresh';
-        }
-    }, { passive: true });
-
-    main.addEventListener('touchend', function() {
-        if (isAnyOverlayOpen()) { pullStartY = 0; pullDist = 0; return; }
-        if (pullDist > 80 && main.scrollTop <= 0) {
-            pullEl.textContent = '🔄 Refreshing...';
-            pullEl.style.top = '10px';
-            setTimeout(function() { if (typeof currentChannelId !== 'undefined' && currentChannelId) { go(currentChannelId); } else { goHome(); } if (typeof loadUser === 'function' && auth && auth.currentUser) loadUser(auth.currentUser.uid); if (typeof showToast === 'function') showToast('✅ Refreshed'); }, 300);
-        } else {
-            pullEl.style.top = '-50px';
-            pullEl.style.opacity = '0';
-        }
-        pullStartY = 0;
-        pullDist = 0;
-    }, { passive: true });
-}
 
 // ---- #2: Bottom Navigation Bar ----
 function initBottomNav() {
@@ -133,67 +44,25 @@ function initBottomNav() {
     document.body.appendChild(nav);
 }
 
-// ---- #4: Reading Progress Indicator ----
-function initReadingProgress() {
-    // Use the existing #progressBar from index.html instead of creating a duplicate
-    var bar = document.getElementById('progressBar');
-    if (!bar) return;
-
+// ---- #4: Dynamic Bottom Nav (hide on scroll down, show on scroll up) ----
+function initScrollNav() {
     var main = document.getElementById('main');
     if (!main) return;
     var lastScrollTop = 0;
     var bnav = document.getElementById('bottomNav');
-    
-    function handleScroll(e) {
-        var target = e.target;
-        var scrollTop = target.scrollTop;
-        if (scrollTop === undefined) return;
+    if (!bnav) return;
 
-        // Dynamic Bottom Nav: Hide on scroll down, show on scroll up
-        if (bnav && window.innerWidth <= 900) {
-            var scrollDelta = scrollTop - lastScrollTop;
-            if (scrollDelta > 10 && scrollTop > 200) {
-                bnav.classList.add('nav-hidden');
-            } else if (scrollDelta < -5 || scrollTop <= 10) {
-                bnav.classList.remove('nav-hidden');
-            }
+    main.addEventListener('scroll', function() {
+        if (window.innerWidth > 900) return;
+        var scrollTop = main.scrollTop;
+        var scrollDelta = scrollTop - lastScrollTop;
+        if (scrollDelta > 10 && scrollTop > 200) {
+            bnav.classList.add('nav-hidden');
+        } else if (scrollDelta < -5 || scrollTop <= 10) {
+            bnav.classList.remove('nav-hidden');
         }
         lastScrollTop = scrollTop;
-        
-        // Update reading progress bar (only for main channel container)
-        if (target.id === 'main') {
-            var scrollHeight = target.scrollHeight - target.clientHeight;
-            if (scrollHeight <= 0) { bar.style.width = '0'; return; }
-            var pct = Math.min(100, (scrollTop / scrollHeight) * 100);
-            bar.style.width = pct + '%';
-        }
-    }
-
-    // Attach listener to all potential scrolling containers
-    main.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Also watch for dynamically added containers like Nacho Mode chat
-    var observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(m) {
-            m.addedNodes.forEach(function(node) {
-                if (node.id === 'nachoModeScreen') {
-                    setTimeout(function() {
-                        var chat = document.getElementById('nachoModeChat');
-                        if (chat) {
-                            chat.addEventListener('scroll', handleScroll, { passive: true });
-                            // Force bar to show on entering new mode
-                            if (bnav) bnav.classList.remove('nav-hidden');
-                        }
-                    }, 100);
-                }
-            });
-        });
-    });
-    observer.observe(document.body, { childList: true });
-
-    // Initial check for existing containers
-    var forum = document.getElementById('forumContainer');
-    if (forum) forum.addEventListener('scroll', handleScroll, { passive: true });
+    }, { passive: true });
 }
 
 // ---- #5: Scroll Position Memory ----
@@ -725,9 +594,8 @@ window.toggleMobileFlashcards = function() {
 
 function initMobileUX() {
     console.log('[MobileUX] Initializing...');
-    initPullToRefresh();
     initBottomNav();
-    initReadingProgress();
+    initScrollNav();
 
     // Wait for user data to load
     setTimeout(function() {
