@@ -6489,6 +6489,7 @@ window.renderTimechainTV = function() {
                 margin-top: 10px !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
+                padding-bottom: 10px !important;
             }
             #tctv-epg-container { height: auto !important; min-height: auto !important; overflow-x: visible !important; }
         }
@@ -6500,6 +6501,7 @@ window.renderTimechainTV = function() {
                 overflow-x: auto !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
+                padding-bottom: 10px !important;
             }
             #tctv-epg-container { overflow-x: visible !important; }
         }
