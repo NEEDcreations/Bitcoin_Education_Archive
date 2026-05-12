@@ -40,12 +40,6 @@ var STEPS = [
         desc: 'Not your keys, not your coins. Self-custody is the most important step.'
     },
     {
-        id: 'lightning',
-        emoji: '⚡',
-        title: 'Set Up Lightning',
-        desc: 'Instant, nearly-free payments. The future of spending Bitcoin.'
-    },
-    {
         id: 'tips',
         emoji: '🛡️',
         title: 'Pro Tips & Warnings',
@@ -54,8 +48,14 @@ var STEPS = [
     {
         id: 'done',
         emoji: '🎉',
-        title: 'You Own Bitcoin!',
-        desc: 'Welcome to the hardest money ever created. You are now a Bitcoiner.'
+        title: "You're a Bitcoiner!",
+        desc: 'Welcome to the hardest money ever created.'
+    },
+    {
+        id: 'lightning',
+        emoji: '⚡',
+        title: 'Set Up Lightning',
+        desc: 'Instant, nearly-free payments. The future of spending Bitcoin.'
     }
 ];
 
@@ -454,29 +454,8 @@ window.renderFirstPurchase = function() {
         html += _navButtons(3);
     }
 
-    // Step 4: Lightning
+    // Step 4: Pro Tips
     else if (currentStep === 4) {
-        html += _stepHeader(step);
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="color:var(--text);font-size:0.85rem;line-height:1.7;">' +
-                'The <strong>Lightning Network</strong> is Bitcoin\'s payment layer. It enables:<br><br>' +
-                '⚡ <strong>Instant</strong> payments (milliseconds, not minutes)<br>' +
-                '💸 <strong>Near-free</strong> fees (fraction of a cent)<br>' +
-                '🌍 <strong>Global</strong> reach (works everywhere, 24/7)<br>' +
-                '🪙 <strong>Tiny amounts</strong> (send 1 sat = $0.0003)<br>' +
-            '</div>' +
-        '</div>';
-        html += '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:8px;">⚡ LIGHTNING WALLETS</div>';
-        LIGHTNING_WALLETS.forEach(function(w) {
-            html += _walletCard(w);
-        });
-        html += '<div style="margin-top:12px;"><a href="#" onclick="event.preventDefault();if(typeof go===\'function\'){goHome();setTimeout(function(){go(\'lightning\')},300)}" style="color:var(--accent);font-size:0.82rem;font-weight:600;">⚡ Set up Lightning in the archive →</a></div>';
-        html += _navButtons(4);
-    }
-
-    // Step 5: Done!
-    // Step 5: Pro Tips
-    else if (currentStep === 5) {
         html += _stepHeader(step);
         var tips = [
             { emoji: '🚫', title: 'Avoid Altcoin Exchanges', text: 'Stay away from exchanges like Coinbase, Gemini, and Kraken that sell altcoins. They profit by promoting thousands of speculative tokens to newcomers. Stick to <strong>Bitcoin-only</strong> platforms like Strike, River, and Swan.' },
@@ -498,11 +477,11 @@ window.renderFirstPurchase = function() {
                     '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + tip.text + '</div></div>' +
                 '</div></div>';
         });
-        html += _navButtons(5);
+        html += _navButtons(4);
     }
 
-    // Step 6: Done!
-    else if (currentStep >= 6) {
+    // Step 5: You're a Bitcoiner!
+    else if (currentStep === 5) {
         // Award Bitcoiner badge + 100 pts (once)
         if (localStorage.getItem('btc_fp_completed') !== 'true') {
             localStorage.setItem('btc_fp_completed', 'true');
@@ -515,10 +494,11 @@ window.renderFirstPurchase = function() {
             '<div style="font-size:4rem;margin-bottom:16px;">🎉₿🎉</div>' +
             '<h2 style="color:var(--heading);font-size:1.5rem;font-weight:900;margin:0 0 8px;">You\'re a Bitcoiner!</h2>' +
             '<p style="color:var(--text-muted);font-size:0.9rem;line-height:1.6;margin-bottom:24px;">' +
-                'You\'ve bought Bitcoin, moved it to your own wallet, and set up Lightning.<br>' +
-                'Welcome to the hardest money humanity has ever created. 🧡' +
+                'You\'ve bought Bitcoin and safely moved it to your own wallet. Welcome to the hardest money humanity has ever created.<br><br>' +
+                '<strong style="color:var(--accent);">Next step, set up Lightning!</strong>' +
             '</p>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;">' +
+                '<button onclick="_fpNav(6)" style="padding:12px 24px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">⚡ Set Up Lightning</button>' +
                 '<button onclick="if(typeof go===\'function\')go(\'trails\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">🦌 Continue Learning</button>' +
                 '<button onclick="goHome()" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">🏠 Home</button>' +
             '</div>' +
@@ -529,7 +509,8 @@ window.renderFirstPurchase = function() {
                     '<button onclick="_fpNav(1)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">📱 Download App</button>' +
                     '<button onclick="_fpNav(2)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">💰 Buy Bitcoin</button>' +
                     '<button onclick="_fpNav(3)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔐 Self-Custody</button>' +
-                    '<button onclick="_fpNav(4)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' + '<button onclick="_fpNav(5)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🛡️ Pro Tips</button>' +
+                    '<button onclick="_fpNav(4)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🛡️ Pro Tips</button>' +
+                    '<button onclick="_fpNav(6)" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">⚡ Lightning</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -539,6 +520,29 @@ window.renderFirstPurchase = function() {
             localStorage.setItem('btc_first_purchase_done', '1');
             if (typeof awardOrangeTickets === 'function') awardOrangeTickets(10, '🛒 First Purchase');
         }
+    }
+
+    // Step 6: Lightning (bonus step after completion)
+    else if (currentStep >= 6) {
+        html += _stepHeader(step);
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="color:var(--text);font-size:0.85rem;line-height:1.7;">' +
+                'The <strong>Lightning Network</strong> is Bitcoin\'s payment layer. It enables:<br><br>' +
+                '⚡ <strong>Instant</strong> payments (milliseconds, not minutes)<br>' +
+                '💸 <strong>Near-free</strong> fees (fraction of a cent)<br>' +
+                '🌍 <strong>Global</strong> reach (works everywhere, 24/7)<br>' +
+                '🪙 <strong>Tiny amounts</strong> (send 1 sat = $0.0003)<br>' +
+            '</div>' +
+        '</div>';
+        html += '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:8px;">⚡ LIGHTNING WALLETS</div>';
+        LIGHTNING_WALLETS.forEach(function(w) {
+            html += _walletCard(w);
+        });
+        html += '<div style="margin-top:12px;"><a href="#" onclick="event.preventDefault();if(typeof go===\'function\'){goHome();setTimeout(function(){go(\'lightning\')},300)}" style="color:var(--accent);font-size:0.82rem;font-weight:600;">⚡ Set up Lightning in the archive →</a></div>';
+        html += '<div style="display:flex;justify-content:space-between;margin-top:20px;">' +
+            '<button onclick="_fpNav(5)" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+            '<button onclick="goHome()" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">🏠 Home</button>' +
+        '</div>';
     }
 
     html += '</div></div>';
