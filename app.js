@@ -446,6 +446,16 @@
         var randomIdx = available[Math.floor(Math.random() * available.length)];
         history.push(randomIdx);
         if (history.length > maxHistory) history.shift();
+
+        // Preload images so they're cached before we scroll to the card
+        var targetMsg = allMsgs[randomIdx];
+        if (targetMsg && targetMsg.imgs) {
+            targetMsg.imgs.forEach(function(url) {
+                var preload = new Image();
+                preload.src = url;
+            });
+        }
+
         await go(channelId);
 
         const PAGE_SIZE = 50;
@@ -461,6 +471,10 @@
         setTimeout(function() {
             const el = document.getElementById('msg-' + randomIdx);
             if (el) {
+                // Switch lazy images to eager so browser renders immediately
+                el.querySelectorAll('img[loading="lazy"]').forEach(function(img) {
+                    img.loading = 'eager';
+                });
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 el.style.transition = 'box-shadow 0.3s, border-color 0.3s';
                 el.style.boxShadow = '0 0 20px rgba(247,147,26,0.4)';
