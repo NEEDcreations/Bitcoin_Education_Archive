@@ -562,37 +562,41 @@ function generateAndShowQuest(manual, targetChannelId) {
     // Collect available questions
     let pool = [];
     
-    // Priority 1: Current Channel (highly requested)
+    // If a specific topic was selected from the picker, ONLY use that topic's questions
     if (targetChannelId && QUESTION_BANK[targetChannelId]) {
         QUESTION_BANK[targetChannelId].forEach(q => pool.push({...q, source: targetChannelId}));
     }
 
-    // Priority 2: Other visited channels
-    for (const chId of visitedForQuest) {
-        if (chId === targetChannelId) continue;
-        const questions = QUESTION_BANK[chId];
-        if (questions) {
-            questions.forEach(q => pool.push({...q, source: chId}));
+    // Only mix in other sources if no specific topic was selected
+    if (!targetChannelId) {
+        // Visited channels
+        for (const chId of visitedForQuest) {
+            const questions = QUESTION_BANK[chId];
+            if (questions) {
+                questions.forEach(q => pool.push({...q, source: chId}));
+            }
+        }
+        
+        // Always include general knowledge questions
+        if (QUESTION_BANK['_general']) {
+            QUESTION_BANK['_general'].forEach(q => pool.push({...q, source: '_general'}));
+        }
+
+        if (pool.length < 5) {
+            for (const [chId, questions] of Object.entries(QUESTION_BANK)) {
+                questions.forEach(q => {
+                    if (!pool.some(p => p.q === q.q)) {
+                        pool.push({...q, source: chId});
+                    }
+                });
+                if (pool.length >= 10) break;
+            }
         }
     }
-    
-    // Always include general knowledge questions
-    if (QUESTION_BANK['_general']) {
-        QUESTION_BANK['_general'].forEach(q => pool.push({...q, source: '_general'}));
-    }
 
-    if (pool.length < 5) {
-        for (const [chId, questions] of Object.entries(QUESTION_BANK)) {
-            questions.forEach(q => {
-                if (!pool.some(p => p.q === q.q)) {
-                    pool.push({...q, source: chId});
-                }
-            });
-            if (pool.length >= 10) break;
-        }
-    }
-
-    if (pool.length < 5) return;
+    // For topic-specific quests, allow fewer than 5 if the topic has fewer questions
+    var minQuestions = targetChannelId ? Math.min(3, pool.length) : 5;
+    if (pool.length < minQuestions) return;
 
     // Filter out already-asked questions first
     let freshPool = pool.filter(q => !askedQuestions.includes(q.q));
@@ -628,19 +632,28 @@ function generateAndShowQuest(manual, targetChannelId) {
         return text.replace(/\b(what|which|how|who|when|where|why|is|are|was|the|a|an|of|in|for|to|does|do|can|has|it)\b/g, '').trim().split(/\s+/).slice(0, 3).join('_');
     }
 
+    var maxQ = targetChannelId ? Math.min(freshPool.length, 5) : 5;
     var selected = [];
     var usedTopics = {};
-    for (var si = 0; si < freshPool.length && selected.length < 5; si++) {
-        var topic = getTopicKey(freshPool[si]);
-        if (usedTopics[topic]) continue;
-        usedTopics[topic] = true;
-        selected.push(freshPool[si]);
-    }
+    
+    // For topic-specific quests, skip topic dedup (all questions ARE the same topic)
+    if (targetChannelId) {
+        for (var si = 0; si < freshPool.length && selected.length < maxQ; si++) {
+            selected.push(freshPool[si]);
+        }
+    } else {
+        for (var si = 0; si < freshPool.length && selected.length < maxQ; si++) {
+            var topic = getTopicKey(freshPool[si]);
+            if (usedTopics[topic]) continue;
+            usedTopics[topic] = true;
+            selected.push(freshPool[si]);
+        }
 
-    // If dedup was too aggressive, fill remaining from unused pool
-    if (selected.length < 5) {
-        for (var fi = 0; fi < freshPool.length && selected.length < 5; fi++) {
-            if (selected.indexOf(freshPool[fi]) === -1) selected.push(freshPool[fi]);
+        // If dedup was too aggressive, fill remaining from unused pool
+        if (selected.length < maxQ) {
+            for (var fi = 0; fi < freshPool.length && selected.length < maxQ; fi++) {
+                if (selected.indexOf(freshPool[fi]) === -1) selected.push(freshPool[fi]);
+            }
         }
     }
 
@@ -658,7 +671,7 @@ function generateAndShowQuest(manual, targetChannelId) {
         return { q: q.q, options, answer: correctIdx };
     });
 
-    currentQuest = { id: questId, title: getQuestTitle(questCount), questions };
+    currentQuest = { id: questId, title: getQuestTitle(questCount, targetChannelId), questions };
 
     // Register quest server-side for secure grading
     window._currentQuestServerId = null;
@@ -673,7 +686,23 @@ function generateAndShowQuest(manual, targetChannelId) {
     showQuest(currentQuest, false);
 }
 
-function getQuestTitle(num) {
+function getQuestTitle(num, topicKey) {
+    // If a specific topic was selected, use its name in the title
+    if (topicKey && topicKey !== '_general') {
+        var topicEmojis = {
+            'mining': '⛏️', 'nodes': '🖥️', 'privacy-nonkyc': '🕵️', 'problems-of-money': '💸',
+            'layer-2-lightning': '⚡', 'self-custody': '🔑', 'halving': '📉', 'history': '📜',
+            'whitepaper': '📄', 'money': '💰', 'scarce': '💎', 'secure': '🛡️', 'decentralized': '🌍',
+            'programmable': '💻', 'dominant': '👑', 'energy': '🔋', 'cryptography': '🔐',
+            'consensus': '🤝', 'regulation': '⚖️', 'maximalism': '🔥', 'difficulty-adjustment': '🎯',
+            'books': '📚', 'nostr': '🟣', 'use-cases': '🛠️', 'investment-strategy': '📊',
+            'smart-contracts': '📝', 'blockchain-timechain': '⛓️', 'pow-vs-pos': '⚔️',
+            'evidence-against-alts': '⚠️', 'organic': '🌳', 'peaceful': '☮️', 'supranational': '🔔'
+        };
+        var emoji = topicEmojis[topicKey] || '⚡';
+        var label = topicKey.replace(/[-_]+/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        return emoji + ' ' + label + ' Quest';
+    }
     const titles = [
         '₿ Bitcoin Basics Quest',
         '⚡ Lightning Learner Quest',
