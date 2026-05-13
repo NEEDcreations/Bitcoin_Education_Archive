@@ -195,7 +195,7 @@ async function handleSNSearch(url) {
     });
   }
 
-  var query = '{ search(q: ' + JSON.stringify(q) + ', limit: 21) { items { id title url sats boost ncomments createdAt user { name } sub { name } } } }';
+  var query = '{ search(q: ' + JSON.stringify(q) + ') { items { id title url sats boost ncomments createdAt user { name } sub { name } } } }';
 
   var resp = await fetch('https://stacker.news/api/graphql', {
     method: 'POST',
