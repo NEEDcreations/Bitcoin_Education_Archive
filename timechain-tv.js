@@ -6215,12 +6215,6 @@ function _renderEPG() {
     html += '<div style="position:absolute;top:0;left:-14px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:900;padding:1px 4px;border-radius:2px;">NOW</div>';
     html += '</div>';
     html += '</div>';
-    // Sticky horizontal scrollbar inside wrapper — sticks to bottom of visible area
-    html += '<div id="tctv-epg-hscroll" style="position:sticky;bottom:0;z-index:15;background:#0a0a0a;border-top:1px solid #222;display:none;">';
-    html += '<div style="width:160px;flex-shrink:0;display:inline-block;"></div>';
-    html += '<div id="tctv-epg-hscroll-inner" style="display:inline-block;overflow-x:auto;overflow-y:hidden;height:12px;vertical-align:top;scrollbar-width:thin;scrollbar-color:#555 #111;">';
-    html += '<div id="tctv-epg-hscroll-spacer" style="height:1px;"></div>';
-    html += '</div></div>';
     html += '</div></div>';
     return html;
 }
@@ -6496,10 +6490,9 @@ window.renderTimechainTV = function() {
                 margin-top: 10px !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
-                padding-bottom: 0 !important;
+                padding-bottom: 10px !important;
             }
             #tctv-epg-container { height: auto !important; min-height: auto !important; overflow-x: visible !important; }
-            #tctv-epg-hscroll { display:flex !important; }
         }
         /* Large desktops: EPG scroll container for sticky time row */
         @media (min-width: 1281px) {
@@ -6509,14 +6502,9 @@ window.renderTimechainTV = function() {
                 overflow-x: auto !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
-                padding-bottom: 0 !important;
+                padding-bottom: 10px !important;
             }
             #tctv-epg-container { overflow-x: visible !important; }
-            #tctv-epg-hscroll { display:flex !important; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar { height: 8px; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar-track { background: #111; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar-thumb:hover { background: #777; }
         }
         /* Keep user-display hidden on mobile TCTV, but the sign-up banner (guestPointsBanner)
            is kept visible with a minimize/expand toggle so users always stay in control. */
@@ -6942,38 +6930,6 @@ window.renderTimechainTV = function() {
             var timeScroll = document.getElementById('tctv-time-scroll');
             if (timeScroll) timeScroll.scrollLeft = epgC.scrollLeft;
         }, { passive: true });
-
-        // Sticky horizontal scrollbar sync (desktop/tablet only)
-        var _epgWrapper = document.getElementById('tctv-epg-wrapper');
-        var _hScrollInner = document.getElementById('tctv-epg-hscroll-inner');
-        var _hScrollSpacer = document.getElementById('tctv-epg-hscroll-spacer');
-        if (_epgWrapper && _hScrollInner && _hScrollSpacer) {
-            // Size spacer to match the wrapper's full scrollable width
-            setTimeout(function() {
-                _hScrollSpacer.style.width = _epgWrapper.scrollWidth + 'px';
-                // Also set the inner container width to match the visible area minus the label column
-                _hScrollInner.style.width = (_epgWrapper.clientWidth - 160) + 'px';
-            }, 500);
-            // Wrapper scroll -> sync sticky scrollbar + time header
-            var _hSyncing = false;
-            _epgWrapper.addEventListener('scroll', function() {
-                if (_hSyncing) return;
-                _hSyncing = true;
-                _hScrollInner.scrollLeft = _epgWrapper.scrollLeft;
-                var timeScroll = document.getElementById('tctv-time-scroll');
-                if (timeScroll) timeScroll.scrollLeft = _epgWrapper.scrollLeft;
-                _hSyncing = false;
-            }, { passive: true });
-            // Sticky scrollbar scroll -> sync wrapper
-            _hScrollInner.addEventListener('scroll', function() {
-                if (_hSyncing) return;
-                _hSyncing = true;
-                _epgWrapper.scrollLeft = _hScrollInner.scrollLeft;
-                var timeScroll = document.getElementById('tctv-time-scroll');
-                if (timeScroll) timeScroll.scrollLeft = _hScrollInner.scrollLeft;
-                _hSyncing = false;
-            }, { passive: true });
-        }
     })();
 
     _currentStation = activeStation;
