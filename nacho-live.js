@@ -148,6 +148,7 @@ function initTicker() {
     setInterval(function() { fetchLiveData(); }, 60000);
 
     // Refresh Signal news every 30 minutes — use newsletter-data.json (updated by cron)
+    var _lastSignalHtml = '';
     function refreshSignalNews() {
         fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
             var itemsSets = document.querySelectorAll('.t-news-items');
@@ -158,7 +159,18 @@ function initTicker() {
                     var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
                     html += '<a href="' + safeLink + '" target="_blank" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.stopPropagation();"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
                 });
-                itemsSets.forEach(function(el) { el.innerHTML = html; });
+                // Only update DOM if content actually changed (avoids animation restart)
+                if (html !== _lastSignalHtml) {
+                    _lastSignalHtml = html;
+                    var scroller = document.getElementById('tickerScroller');
+                    itemsSets.forEach(function(el) { el.innerHTML = html; });
+                    // Seamlessly restart animation from current position
+                    if (scroller) {
+                        scroller.style.animation = 'none';
+                        scroller.offsetHeight; // force reflow
+                        scroller.style.animation = 'btcTickerScroll 25s linear infinite';
+                    }
+                }
             }
         }).catch(function() {});
     }
