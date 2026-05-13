@@ -104,6 +104,14 @@ async function main() {
     headlines.sort((a, b) => b.timestamp - a.timestamp);
     const top3 = headlines.slice(0, 3);
 
+    // Fix Google News RSS redirect URLs — convert /rss/articles/ to /articles/ 
+    // which works in browsers (shows article page with redirect to actual source)
+    for (let i = 0; i < top3.length; i++) {
+        if (top3[i].link && top3[i].link.includes('news.google.com/rss/')) {
+            top3[i].link = top3[i].link.replace('/rss/articles/', '/articles/').replace(/[?&]oc=\d+/, '');
+        }
+    }
+
     const output = {
         updated: new Date().toISOString(),
         news: top3.map(h => ({
