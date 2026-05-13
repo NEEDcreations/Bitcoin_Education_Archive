@@ -6215,12 +6215,6 @@ function _renderEPG() {
     html += '<div style="position:absolute;top:0;left:-14px;background:#ef4444;color:#fff;font-size:0.55rem;font-weight:900;padding:1px 4px;border-radius:2px;">NOW</div>';
     html += '</div>';
     html += '</div>';
-    // Sticky horizontal scrollbar — stays visible at bottom of EPG viewport while scrolling vertically
-    html += '<div id="tctv-epg-hscroll" style="position:sticky;bottom:0;z-index:15;background:#0a0a0a;border-top:1px solid #222;display:flex;">';
-    html += '<div style="width:160px;flex-shrink:0;"></div>';
-    html += '<div id="tctv-epg-hscroll-inner" style="flex:1;overflow-x:auto;overflow-y:hidden;height:14px;scrollbar-width:thin;scrollbar-color:#555 #111;">';
-    html += '<div id="tctv-epg-hscroll-spacer" style="height:1px;"></div>';
-    html += '</div></div>';
     html += '</div></div>';
     return html;
 }
@@ -6462,10 +6456,6 @@ window.renderTimechainTV = function() {
         body.tctv-active #guestPointsBanner {
             display: none !important;
         }
-        /* Hide sticky horizontal scrollbar on mobile — touch swipe handles it */
-        @media (max-width: 767px) {
-            #tctv-epg-hscroll { display: none !important; }
-        }
         @media (max-width: 767px) {
             body.tctv-active .mobile-bar {
                 display: none !important;
@@ -6493,34 +6483,28 @@ window.renderTimechainTV = function() {
             #tctv-epg-wrapper {
                 max-height: 50vh !important;
                 overflow-y: auto !important;
-                overflow-x: hidden !important;
+                overflow-x: auto !important;
                 background: #0a0a0a !important;
                 position: relative !important;
                 z-index: 5 !important;
                 margin-top: 10px !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
-                padding-bottom: 0 !important;
+                padding-bottom: 10px !important;
             }
-            #tctv-epg-container { height: 1134px !important; min-height: 1134px !important; overflow-x: scroll !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
-            #tctv-epg-container::-webkit-scrollbar { display: none !important; }
+            #tctv-epg-container { height: auto !important; min-height: auto !important; overflow-x: visible !important; }
         }
         /* Large desktops: EPG scroll container for sticky time row */
         @media (min-width: 1281px) {
             #tctv-epg-wrapper {
                 max-height: 50vh !important;
                 overflow-y: auto !important;
-                overflow-x: hidden !important;
+                overflow-x: auto !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: #444 #111 !important;
-                padding-bottom: 0 !important;
+                padding-bottom: 10px !important;
             }
-            #tctv-epg-container { height: 1134px !important; min-height: 1134px !important; overflow-x: scroll !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
-            #tctv-epg-container::-webkit-scrollbar { display: none !important; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar { height: 8px; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar-track { background: #111; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
-            #tctv-epg-hscroll-inner::-webkit-scrollbar-thumb:hover { background: #777; }
+            #tctv-epg-container { overflow-x: visible !important; }
         }
         /* Keep user-display hidden on mobile TCTV, but the sign-up banner (guestPointsBanner)
            is kept visible with a minimize/expand toggle so users always stay in control. */
@@ -6945,31 +6929,7 @@ window.renderTimechainTV = function() {
         epgC.addEventListener('scroll', function() {
             var timeScroll = document.getElementById('tctv-time-scroll');
             if (timeScroll) timeScroll.scrollLeft = epgC.scrollLeft;
-            // Sync sticky horizontal scrollbar
-            var hScroll = document.getElementById('tctv-epg-hscroll-inner');
-            if (hScroll && !hScroll._syncing) { epgC._syncing = true; hScroll.scrollLeft = epgC.scrollLeft; epgC._syncing = false; }
         }, { passive: true });
-
-        // Sticky horizontal scrollbar: size spacer + bidirectional sync
-        var hScrollInner = document.getElementById('tctv-epg-hscroll-inner');
-        // Set EPG container height to match channel rows (needed for overflow-x:scroll with absolute slider)
-        epgC.style.height = (STATIONS.length * 54) + 'px';
-
-        var hScrollSpacer = document.getElementById('tctv-epg-hscroll-spacer');
-        if (hScrollInner && hScrollSpacer) {
-            // Set spacer width to match the EPG slider's total width
-            var slider = document.getElementById('tctv-epg-slider');
-            if (slider) hScrollSpacer.style.width = slider.scrollWidth + 'px';
-            // When user scrolls the sticky scrollbar, sync EPG + time header
-            hScrollInner.addEventListener('scroll', function() {
-                if (epgC._syncing) return;
-                hScrollInner._syncing = true;
-                epgC.scrollLeft = hScrollInner.scrollLeft;
-                var timeScroll = document.getElementById('tctv-time-scroll');
-                if (timeScroll) timeScroll.scrollLeft = hScrollInner.scrollLeft;
-                hScrollInner._syncing = false;
-            }, { passive: true });
-        }
     })();
 
     _currentStation = activeStation;
