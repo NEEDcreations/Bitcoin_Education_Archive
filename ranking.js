@@ -3992,6 +3992,20 @@ function showSettingsPage(tab) {
         html += '<div id="satsHistory" style="font-size:0.78rem;color:var(--text-muted);">Loading...</div>';
         html += '</div>';
 
+        // Lightning Address section
+        var _satsLnAddr = currentUser ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;background:linear-gradient(135deg,#eab308,#f97316);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">⚡</div><div><div style="font-weight:700;font-size:0.85rem;color:var(--text);">Lightning Address</div><div style="font-size:0.72rem;color:var(--text-muted);">For receiving tips from other users</div></div></div>';
+        if (_satsLnAddr) {
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:8px;"><span style="color:#22c55e;font-size:0.9rem;">✅</span><span style="color:var(--text);font-size:0.82rem;font-weight:600;word-break:break-all;">' + escapeHtml(_satsLnAddr) + '</span></div>';
+        }
+        html += '<div style="display:flex;gap:8px;align-items:center;"><input type="text" id="satsLnAddrInput" placeholder="you@walletofsatoshi.com" value="' + escapeHtml(_satsLnAddr) + '" style="flex:1;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;outline:none;box-sizing:border-box;" onkeydown="if(event.key===\'Enter\')saveSatsLnAddress()"><button onclick="saveSatsLnAddress()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button></div>';
+        html += '<div id="satsLnAddrStatus" style="margin-top:6px;font-size:0.75rem;text-align:center;"></div>';
+        if (!_satsLnAddr) {
+            html += '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);line-height:1.5;">💡 Get one from <a href="https://walletofsatoshi.com" target="_blank" rel="noopener" style="color:var(--accent);">Wallet of Satoshi</a>, <a href="https://getalby.com" target="_blank" rel="noopener" style="color:var(--accent);">Alby</a>, <a href="https://coinos.io" target="_blank" rel="noopener" style="color:var(--accent);">Coinos</a>, or <a href="https://strike.me" target="_blank" rel="noopener" style="color:var(--accent);">Strike</a>.</div>';
+        }
+        html += '</div>';
+
     } else if (settingsTab === 'prefs') {
         // Appearance (Theme + Font Size combined)
         const isDark = document.body.getAttribute('data-theme') !== 'light';
@@ -5398,6 +5412,40 @@ function showSignInPrompt() {
 }
 
 // ===== SATS CLAIM FLOW =====
+window.saveSatsLnAddress = async function() {
+    var input = document.getElementById('satsLnAddrInput');
+    var status = document.getElementById('satsLnAddrStatus');
+    if (!input) return;
+    var addr = input.value.trim();
+    if (addr && (!addr.includes('@') || addr.length < 5)) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)</span>';
+        return;
+    }
+    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Sign in to save your Lightning Address</span>';
+        return;
+    }
+    try {
+        if (status) status.innerHTML = '<span style="color:var(--accent);">Saving…</span>';
+        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr });
+        if (typeof currentUser !== 'undefined' && currentUser) currentUser.lightning = addr;
+        if (addr) {
+            if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Lightning Address saved!</span>';
+            if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
+            if (localStorage.getItem('btc_lightning_setup') !== 'true') {
+                localStorage.setItem('btc_lightning_setup', 'true');
+                if (typeof awardPoints === 'function') awardPoints(100, '⚡ Lightning wallet setup!');
+                if (typeof showToast === 'function') setTimeout(function() { showToast('⚡🏅 Lightning Rod badge earned! +100 pts'); }, 1500);
+                if (typeof initBadges === 'function') setTimeout(initBadges, 2000);
+            }
+        } else {
+            if (status) status.innerHTML = '<span style="color:var(--text-faint);">Lightning Address removed.</span>';
+        }
+    } catch(e) {
+        if (status) status.innerHTML = '<span style="color:#ef4444;">Error saving — try again</span>';
+    }
+};
+
 window.initSatsClaim = function() {
     console.log('[SATS] initSatsClaim called', { currentUser: !!currentUser, auth: !!auth, authUser: !!auth?.currentUser, isAnon: auth?.currentUser?.isAnonymous });
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
