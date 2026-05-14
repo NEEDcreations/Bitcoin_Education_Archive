@@ -1685,10 +1685,10 @@ function updateAuthButton() {
         // Hide on mobile — mobile top bar already shows username + Topics
         btn.style.display = (window.innerWidth <= 900) ? 'none' : 'block';
         btn.style.background = 'none';
-        btn.style.border = '2px solid #22c55e';
-        btn.style.color = '#22c55e';
-        btn.onmouseover = function() { this.style.background='#22c55e'; this.style.color='#fff'; };
-        btn.onmouseout = function() { this.style.background='none'; this.style.color='#22c55e'; };
+        btn.style.border = '2px solid #3b82f6';
+        btn.style.color = '#3b82f6';
+        btn.onmouseover = function() { this.style.background='#3b82f6'; this.style.color='#fff'; };
+        btn.onmouseout = function() { this.style.background='none'; this.style.color='#3b82f6'; };
     } else if (!firebaseUser || (firebaseUser && firebaseUser.isAnonymous)) {
         // Only show "Create Account" for truly anonymous/no-auth users
         btn.textContent = 'Create Free Account / Sign In';
