@@ -8063,12 +8063,12 @@ function _renderEPG() {
     html += '<div style="width:160px;flex-shrink:0;z-index:10;background:#0a0a0a;border-right:1px solid #222;">';
     STATIONS.forEach(function(s, idx) {
         var isActive = s.id === _currentStation;
-        html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:54px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.12)' : 'transparent') + ';">';
-        html += '<span style="font-size:0.65rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#666') + ';min-width:16px;text-align:right;">' + idx + '</span>';
-        html += '<span style="font-size:1.1rem;">' + s.emoji + '</span>';
-        html += '<div style="min-width:0;">';
-        html += '<div data-ch-name style="font-size:0.72rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';line-height:1.1;">' + s.name + '</div>';
-        html += '<span id="tctv-viewers-' + s.id + '" style="font-size:0.55rem;color:#22c55e;font-weight:600;"></span>';
+        html += '<div onclick="switchStation(\'' + s.id + '\')" data-station-id="' + s.id + '" style="height:54px;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;border-bottom:1px solid #1a1a1a;background:' + (isActive ? 'rgba(247,147,26,0.12)' : 'transparent') + ';overflow:hidden;box-sizing:border-box;">';
+        html += '<span style="font-size:0.65rem;font-weight:800;color:' + (isActive ? '#f7931a' : '#666') + ';min-width:16px;text-align:right;flex-shrink:0;">' + idx + '</span>';
+        html += '<span style="font-size:1rem;flex-shrink:0;">' + s.emoji + '</span>';
+        html += '<div style="min-width:0;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:0;">';
+        html += '<div data-ch-name style="font-size:0.65rem;font-weight:700;color:' + (isActive ? '#f7931a' : '#ccc') + ';line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + s.name + '</div>';
+        html += '<span id="tctv-viewers-' + s.id + '" style="font-size:0.5rem;color:#22c55e;font-weight:600;line-height:1;"></span>';
         html += '</div></div>';
     });
     html += '</div>';
