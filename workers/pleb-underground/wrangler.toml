@@ -1,0 +1,16 @@
+name = "pleb-underground-sync"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Cron triggers:
+#   Every 5 minutes: check for live status + new uploads
+[triggers]
+crons = ["*/5 * * * *"]
+
+# KV namespace for state persistence
+[[kv_namespaces]]
+binding = "PU_STATE"
+id = ""  # Set after creating: wrangler kv namespace create PU_STATE
+
+# Secrets (set via `wrangler secret put`):
+# YT_API_KEY — YouTube Data API v3 key
