@@ -31,17 +31,48 @@ window.initNotifications = function() {
             });
         }, function(err) { console.warn('[notif] Listener error:', err); });
 
-    // Also check unread DMs
-    checkUnreadDMs();
-    setInterval(checkUnreadDMs, 30000); // every 30s
+    // Listen for unread DMs via onSnapshot (replaces 30s polling — saves ~2800 reads/user/day)
+    startDMListener(uid);
 };
 
-function checkUnreadDMs() {
+function startDMListener(uid) {
+    if (window._dmUnsub) { window._dmUnsub(); window._dmUnsub = null; }
+    if (!uid || typeof db === 'undefined') return;
+    try {
+        window._dmUnsub = db.collection('conversations')
+            .where('participants', 'array-contains', uid)
+            .where('lastMessageAt', '>', new Date(Date.now() - 86400000))
+            .onSnapshot(function(snap) {
+                var unread = 0;
+                snap.forEach(function(doc) {
+                    var d = doc.data();
+                    var lastRead = d['lastRead_' + uid];
+                    if (d.lastMessageAt && (!lastRead || d.lastMessageAt.toMillis() > lastRead.toMillis())) {
+                        unread++;
+                    }
+                });
+                window._dmUnreadCount = unread;
+                updateDMBadge();
+            }, function(err) {
+                console.warn('[notif] DM listener error:', err);
+                // Fallback: one-time read, no retry loop
+                checkUnreadDMsOnce();
+            });
+    } catch(e) {
+        checkUnreadDMsOnce();
+    }
+    // Refresh the 24h window every 30 min so stale conversations drop off
+    if (window._dmRefreshTimer) clearInterval(window._dmRefreshTimer);
+    window._dmRefreshTimer = setInterval(function() { startDMListener(uid); }, 1800000);
+}
+
+// One-time fallback (no interval) — used only if onSnapshot fails
+function checkUnreadDMsOnce() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
     var uid = auth.currentUser.uid;
     db.collection('conversations')
         .where('participants', 'array-contains', uid)
-        .where('lastMessageAt', '>', new Date(Date.now() - 86400000)) // last 24h
+        .where('lastMessageAt', '>', new Date(Date.now() - 86400000))
         .get().then(function(snap) {
             var unread = 0;
             snap.forEach(function(doc) {

@@ -2,24 +2,28 @@
  * Pleb Underground Sync Worker
  * Bitcoin Education Archive — TCTV Channel 0
  *
- * Architecture:
- *   - KV store (PU_STATE) holds live status + pending video queue
- *   - Cron (every 5 min): checks YouTube for live status + new uploads
- *   - HTTP endpoints served to the TCTV client for live override
+ * Two cron schedules:
+ *   every 15 min — live stream detection (Cache API only, zero KV)
+ *   daily 22:00 UTC (6 PM EST) — new upload sync (KV for pending queue)
+ *
+ * KV Budget (free tier: 1,000 writes/day, 100,000 reads/day):
+ *   Live detection: 0 KV ops — uses CF Cache API exclusively
+ *   Daily upload sync: ~4 KV ops (2 reads + 2 writes)
+ *   /live client polls: 0 KV ops — served from edge cache
+ *   Target: <10 KV writes/day, <50 KV reads/day
  *
  * HTTP Routes:
- *   GET  /live          — Current live status (polled by TCTV client every 60s)
- *   GET  /pending       — List new videos not yet in timechain-tv.js
- *   GET  /status        — Full worker status (live + sync state)
- *   POST /force-check   — Force an immediate check (admin, requires YT_API_KEY header)
+ *   GET  /live          — Live status (edge-cached, 0 KV reads)
+ *   GET  /pending       — New videos queue (KV read)
+ *   GET  /status        — Full status
+ *   POST /force-check   — Force immediate YouTube check
+ *   POST /clear-pending — Clear pending queue after ingestion
  *
- * Secrets (via wrangler secret put):
- *   YT_API_KEY — YouTube Data API v3 key
+ * Secrets: YT_API_KEY
  *
- * KV Keys:
- *   live_status    — JSON: { isLive, videoId, title, checkedAt }
- *   sync_state     — JSON: { lastChecked, runCount }
- *   pending_videos — JSON: [ { id, title, duration, publishedAt } ]
+ * KV Keys (PU_STATE):
+ *   sync_state     — { lastChecked, lastNewCount }
+ *   pending_videos — [ { id, title, duration, publishedAt } ]
  */
 
 const YT_CHANNEL_ID = 'UCVfMv5xEfrafk1rSthJ0t9g';
@@ -28,8 +32,10 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
-  'Cache-Control': 'no-cache, no-store'
 };
+
+// Cache key URL for live status — must be a valid URL for Cache API
+const LIVE_CACHE_KEY = 'https://pleb-underground-sync.needcreations.workers.dev/__internal/live-cache';
 
 // ── YouTube API helpers ──
 
@@ -49,7 +55,7 @@ function parseISO8601Duration(iso) {
   return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseInt(m[3] || 0);
 }
 
-// ── KV Helpers ──
+// ── KV Helpers (used ONLY for upload sync) ──
 
 async function kvGet(kv, key) {
   const val = await kv.get(key);
@@ -58,16 +64,35 @@ async function kvGet(kv, key) {
   catch { return null; }
 }
 
-async function kvSet(kv, key, value, ttl) {
-  const opts = ttl ? { expirationTtl: ttl } : {};
-  await kv.put(key, JSON.stringify(value), opts);
+async function kvSet(kv, key, value) {
+  await kv.put(key, JSON.stringify(value));
 }
 
-// ── Live Check ──
+// ── Cache API helpers (used for live status — zero KV) ──
 
-async function checkLiveStatus(apiKey, kv) {
-  // Search for active live broadcasts from the channel
-  // YouTube search.list costs 100 quota units
+async function cacheGetLive() {
+  const cache = caches.default;
+  const resp = await cache.match(new Request(LIVE_CACHE_KEY));
+  if (!resp) return null;
+  try { return await resp.json(); }
+  catch { return null; }
+}
+
+async function cacheSetLive(data, ttlSeconds) {
+  const cache = caches.default;
+  const body = JSON.stringify(data);
+  const resp = new Response(body, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': `public, max-age=${ttlSeconds}`,
+    }
+  });
+  await cache.put(new Request(LIVE_CACHE_KEY), resp);
+}
+
+// ── Live Check (Cache API only — no KV) ──
+
+async function checkLiveStatus(apiKey) {
   const data = await ytFetch(
     `search?part=snippet&channelId=${YT_CHANNEL_ID}&eventType=live&type=video&maxResults=1`,
     apiKey
@@ -76,35 +101,30 @@ async function checkLiveStatus(apiKey, kv) {
   const liveItem = data.items && data.items[0];
   const now = new Date().toISOString();
 
-  if (liveItem) {
-    const status = {
-      isLive: true,
-      videoId: liveItem.id.videoId,
-      title: liveItem.snippet.title,
-      channelName: 'Pleb Underground',
-      startedAt: now,
-      checkedAt: now
-    };
-    await kvSet(kv, 'live_status', status, 600); // 10 min TTL
-    return status;
-  } else {
-    const status = {
-      isLive: false,
-      videoId: '',
-      title: '',
-      channelName: 'Pleb Underground',
-      checkedAt: now
-    };
-    await kvSet(kv, 'live_status', status, 600);
-    return status;
-  }
+  const status = liveItem ? {
+    isLive: true,
+    videoId: liveItem.id.videoId,
+    title: liveItem.snippet.title,
+    channelName: 'Pleb Underground',
+    startedAt: now,
+    checkedAt: now
+  } : {
+    isLive: false,
+    videoId: '',
+    title: '',
+    channelName: 'Pleb Underground',
+    checkedAt: now
+  };
+
+  // Store in CF edge cache for 10 min (covers gap between 15-min cron runs)
+  // If live, use shorter TTL so end-of-stream resolves faster
+  await cacheSetLive(status, liveItem ? 300 : 600);
+  return status;
 }
 
-// ── New Uploads Check ──
+// ── New Uploads Check (KV — runs once daily) ──
 
 async function checkNewUploads(apiKey, kv) {
-  // Get latest 10 uploads (most recent first)
-  // playlistItems.list costs 1 quota unit
   const data = await ytFetch(
     `playlistItems?part=contentDetails,snippet&playlistId=${UPLOADS_PLAYLIST}&maxResults=10`,
     apiKey
@@ -115,7 +135,6 @@ async function checkNewUploads(apiKey, kv) {
   const syncState = await kvGet(kv, 'sync_state') || {};
   const lastChecked = syncState.lastChecked || '2026-05-15T00:00:00Z';
 
-  // Find videos published after our last check
   const newIds = [];
   for (const item of data.items) {
     const publishedAt = item.contentDetails.videoPublishedAt || item.snippet.publishedAt;
@@ -129,7 +148,6 @@ async function checkNewUploads(apiKey, kv) {
     return { checked: data.items.length, added: 0 };
   }
 
-  // Verify video details — videos.list costs 1 quota unit per request
   const details = await ytFetch(
     `videos?part=snippet,contentDetails,status&id=${newIds.join(',')}`,
     apiKey
@@ -142,11 +160,9 @@ async function checkNewUploads(apiKey, kv) {
   for (const item of (details.items || [])) {
     if (item.status.privacyStatus !== 'public') continue;
     if (!item.status.embeddable) continue;
-
     const duration = parseISO8601Duration(item.contentDetails.duration);
-    if (duration === 0) continue; // Skip live-in-progress or upcoming
-
-    if (existingIds.has(item.id)) continue; // Already queued
+    if (duration === 0) continue;
+    if (existingIds.has(item.id)) continue;
 
     pending.push({
       id: item.id,
@@ -158,57 +174,47 @@ async function checkNewUploads(apiKey, kv) {
     added++;
   }
 
-  await kvSet(kv, 'pending_videos', pending);
+  if (added > 0) {
+    await kvSet(kv, 'pending_videos', pending);
+  }
   await kvSet(kv, 'sync_state', {
     ...syncState,
     lastChecked: new Date().toISOString(),
-    lastNewCount: added,
-    runCount: (syncState.runCount || 0) + 1
+    lastNewCount: added
   });
 
   return { checked: data.items.length, added };
 }
 
 // ── Cron Handler ──
-// YouTube API quota: 10,000 units/day
-// search.list = 100 units, playlistItems.list = 1, videos.list = 1
-// At 5-min intervals = 288 runs/day
-// Live check every run: 288 × 100 = 28,800 units — OVER QUOTA!
-// Solution: check live every 3rd run (~15 min) = 96 × 100 = 9,600 units
-// Upload check every 3rd run: 96 × 2 = 192 units
-// Total: ~9,792 units/day — fits within 10K quota
 
-async function handleCron(env) {
+async function handleCron(event, env) {
   const apiKey = env.YT_API_KEY;
   const kv = env.PU_STATE;
-  if (!apiKey || !kv) return { error: 'Missing YT_API_KEY or PU_STATE KV' };
+  if (!apiKey) return { error: 'Missing YT_API_KEY' };
 
-  const syncState = await kvGet(kv, 'sync_state') || {};
-  const runCount = (syncState.runCount || 0) + 1;
+  const results = {};
 
-  const results = { runCount };
+  // Determine which cron fired based on time
+  // Daily upload sync: only at 22:xx UTC (6 PM EST)
+  const hour = new Date(event.scheduledTime).getUTCHours();
+  const isDailySync = (hour === 22);
 
-  // Check live every 3rd run (~15 min) to stay under YouTube quota
-  if (runCount % 3 === 0) {
-    try {
-      results.live = await checkLiveStatus(apiKey, kv);
-    } catch (e) {
-      results.live = { error: e.message };
-    }
+  // Live check runs on EVERY cron trigger (every 15 min)
+  try {
+    results.live = await checkLiveStatus(apiKey);
+  } catch (e) {
+    results.live = { error: e.message };
+  }
 
-    // Also check uploads on the same run
+  // Upload check only on the daily sync run
+  if (isDailySync && kv) {
     try {
       results.uploads = await checkNewUploads(apiKey, kv);
     } catch (e) {
       results.uploads = { error: e.message };
     }
-  } else {
-    results.skipped = true;
-    results.nextCheckIn = `${(3 - (runCount % 3)) * 5} min`;
   }
-
-  // Update run count
-  await kvSet(kv, 'sync_state', { ...syncState, runCount, lastRun: new Date().toISOString() });
 
   return results;
 }
@@ -218,7 +224,6 @@ async function handleCron(env) {
 async function handleRequest(request, env) {
   const url = new URL(request.url);
 
-  // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS });
   }
@@ -226,9 +231,14 @@ async function handleRequest(request, env) {
   const kv = env.PU_STATE;
 
   if (url.pathname === '/live') {
-    const live = kv ? await kvGet(kv, 'live_status') : null;
+    // Serve from edge cache — zero KV reads
+    const live = await cacheGetLive();
     return new Response(JSON.stringify(live || { isLive: false, checkedAt: null }), {
-      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=60',
+        ...CORS_HEADERS
+      }
     });
   }
 
@@ -240,7 +250,7 @@ async function handleRequest(request, env) {
   }
 
   if (url.pathname === '/status') {
-    const live = kv ? await kvGet(kv, 'live_status') : null;
+    const live = await cacheGetLive();
     const sync = kv ? await kvGet(kv, 'sync_state') : null;
     const pending = kv ? await kvGet(kv, 'pending_videos') : [];
     return new Response(JSON.stringify({ live, sync, pendingCount: (pending || []).length }, null, 2), {
@@ -250,19 +260,18 @@ async function handleRequest(request, env) {
 
   if (url.pathname === '/force-check' && request.method === 'POST') {
     const apiKey = env.YT_API_KEY;
-    if (!apiKey || !kv) {
-      return new Response(JSON.stringify({ error: 'YT_API_KEY or KV not configured' }), {
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'YT_API_KEY not configured' }), {
         status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
       });
     }
-    const live = await checkLiveStatus(apiKey, kv);
-    const uploads = await checkNewUploads(apiKey, kv);
+    const live = await checkLiveStatus(apiKey);
+    const uploads = kv ? await checkNewUploads(apiKey, kv) : { skipped: 'no KV' };
     return new Response(JSON.stringify({ live, uploads }, null, 2), {
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS }
     });
   }
 
-  // Clear pending (after ingesting into timechain-tv.js)
   if (url.pathname === '/clear-pending' && request.method === 'POST') {
     if (kv) await kvSet(kv, 'pending_videos', []);
     return new Response(JSON.stringify({ cleared: true }), {
@@ -272,11 +281,12 @@ async function handleRequest(request, env) {
 
   return new Response(
     'Pleb Underground Sync Worker — TCTV Channel 0\n\n' +
-    'GET  /live          — Live stream status (polled by TCTV)\n' +
+    'Cron: live check every 15 min (Cache API), upload sync daily 6 PM EST (KV)\n\n' +
+    'GET  /live          — Live status (edge-cached, 0 KV)\n' +
     'GET  /pending       — New videos queue\n' +
-    'GET  /status        — Full worker status\n' +
+    'GET  /status        — Full status\n' +
     'POST /force-check   — Force YouTube check\n' +
-    'POST /clear-pending — Clear pending queue after ingestion\n',
+    'POST /clear-pending — Clear pending queue\n',
     { headers: { 'Content-Type': 'text/plain', ...CORS_HEADERS } }
   );
 }
@@ -295,7 +305,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const result = await handleCron(env);
+    const result = await handleCron(event, env);
     console.log('Pleb Underground cron:', JSON.stringify(result));
   }
 };

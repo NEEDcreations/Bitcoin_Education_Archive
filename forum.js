@@ -262,55 +262,21 @@ window.renderForum = function() {
 };
 
 // ---- Load Posts ----
-// Real-time forum listener
-window._forumUnsubscribe = null;
+// Forum post loading — cached one-time .get() (saves thousands of reads/day vs onSnapshot)
+window._forumUnsubscribe = null; // kept for compat
 
 window.forumLoadPosts = async function() {
     var container = document.getElementById('forumPosts');
     if (!container || typeof db === 'undefined') return;
 
-    // Unsubscribe previous listener if any
+    // Unsubscribe any legacy listener
     if (window._forumUnsubscribe) {
         window._forumUnsubscribe();
         window._forumUnsubscribe = null;
     }
 
-    try {
-        var sortField = forumSort === 'top' ? 'upvotes' : forumSort === 'discussed' ? 'replyCount' : 'createdAt';
-        var query;
-
-        if (forumCategory !== 'all') {
-            query = db.collection('forum_posts')
-                .where('category', '==', forumCategory)
-                .orderBy(sortField, 'desc')
-                .limit(50);
-        } else {
-            query = db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
-        }
-
-        // Use onSnapshot for real-time updates
-        window._forumUnsubscribe = query.onSnapshot(function(snap) {
-            var posts = [];
-            snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
-            forumPostsCache = posts;
-            forumLastLoad = Date.now();
-
-            // Re-render only if we're on the forum list view (not viewing a single post)
-            var container = document.getElementById('forumPosts');
-            if (container && !document.getElementById('forumPostView')) {
-                forumRenderPosts(posts, container);
-            }
-        }, function(err) {
-            console.log('Forum listener error:', err);
-            // Fallback to one-time read
-            forumLoadPostsFallback();
-        });
-
-        // Initial load is handled by the first onSnapshot callback
-    } catch(e) {
-        console.log('Forum load error:', e);
-        forumLoadPostsFallback();
-    }
+    // Use cached .get() with 2-min TTL
+    forumLoadPostsFallback();
 };
 
 // Fallback: one-time read if real-time listener fails
@@ -328,8 +294,8 @@ async function forumLoadPostsFallback() {
             return;
         }
         var query = forumCategory !== 'all'
-            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(20)
-            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(20);
+            ? db.collection('forum_posts').where('category', '==', forumCategory).orderBy(sortField, 'desc').limit(50)
+            : db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
         var snap = await query.get();
         var posts = [];
         snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
@@ -430,6 +396,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             var bodyHtml = fEsc(p.body).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
             // Auto-link URLs
             bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
+            bodyHtml = forumRenderMentions(bodyHtml);
             html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;">' + bodyHtml + '</div>';
         }
 
@@ -497,6 +464,7 @@ async function forumLoadReplies(postId) {
             var hasVotedR = r.voters && auth && auth.currentUser && r.voters.indexOf(auth.currentUser.uid) !== -1;
             var bodyHtml = fEsc(r.body).replace(/\n/g, '<br>');
             bodyHtml = bodyHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>');
+            bodyHtml = forumRenderMentions(bodyHtml);
 
             var canDeleteReply = (auth && auth.currentUser && r.authorId === auth.currentUser.uid) || isForumAdmin();
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;">' +
@@ -656,7 +624,7 @@ window.forumSubmitPost = async function() {
         var userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Anon';
         var userPts = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.points || 0 : 0;
 
-        await db.collection('forum_posts').add({
+        var postRef = await db.collection('forum_posts').add({
             title: title,
             body: body.substring(0, 2000),
             link: link.substring(0, 200) || null,
@@ -675,6 +643,8 @@ window.forumSubmitPost = async function() {
 
         if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
         if (typeof awardTickets === 'function') awardTickets(5, '📝 Forum post');
+        // Notify @mentioned users
+        forumNotifyMentions(body, 'forum_post', postRef.id, title);
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumPosts: firebase.firestore.FieldValue.increment(1)
@@ -733,6 +703,8 @@ window.forumSubmitReply = async function(postId) {
             var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
             sendNotification(forumCurrentPost.authorId, 'reply', _un + ' replied to your post "' + (forumCurrentPost.title || '').substring(0, 40) + '"', 'forum_post', postId);
         }
+        // Notify @mentioned users
+        forumNotifyMentions(body, 'forum_post', postId, forumCurrentPost ? forumCurrentPost.title : '');
         // Track for badge
         db.collection('users').doc(auth.currentUser.uid).update({
             forumReplies: firebase.firestore.FieldValue.increment(1)
@@ -894,6 +866,7 @@ function mdToHtml(md) {
     h = h.replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">');
     h = h.replace(/\n{2,}/g, '</p><p style="margin:12px 0;line-height:1.8;">');
     h = '<p style="margin:12px 0;line-height:1.8;">' + h + '</p>';
+    h = forumRenderMentions(h);
     return h;
 }
 
@@ -1554,7 +1527,7 @@ async function articleLoadReplies(articleId) {
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
                     (canDel ? '<button onclick="articleDeleteReply(\'' + doc.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;">🗑️</button>' : '') +
                 '</div>' +
-                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;">' + fEsc(r.body) + '</div>' +
+                '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;">' + forumRenderMentions(fEsc(r.body).replace(/\n/g, '<br>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);">$1</a>')) + '</div>' +
             '</div>';
         });
         container.innerHTML = html;
@@ -1577,13 +1550,14 @@ window.articleSubmitReply = async function(articleId) {
         });
         await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
         if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
-        // Notify article author
+        // Notify article author + @mentioned users
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
             if (_aDoc.exists && _aDoc.data().authorId && typeof sendNotification === 'function') {
                 var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
                 sendNotification(_aDoc.data().authorId, 'comment', _un + ' commented on your article "' + (_aDoc.data().title || '').substring(0, 40) + '"', 'article', articleId);
             }
+            forumNotifyMentions(body, 'article', articleId, _aDoc && _aDoc.exists ? _aDoc.data().title : '');
         } catch(e) {}
         input.value = '';
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Comment posted!</span>';
@@ -1948,6 +1922,311 @@ function snFormatSats(n) {
 function snEscape(str) {
     if (!str) return '';
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// =============================================
+// @ Mention System — Autocomplete + Render + Notifications
+// =============================================
+
+// ---- Render @mentions as clickable links ----
+// Call AFTER fEsc() and AFTER URL linkification on already-escaped HTML
+function forumRenderMentions(html) {
+    if (!html || html.indexOf('@') === -1) return html;
+    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes)
+    return html.replace(/(<[^>]+>)|(@([a-zA-Z0-9_\-\.]{2,20}))/g, function(match, tag, mention, username) {
+        if (tag) return tag; // HTML tag — pass through unchanged
+        // It's an @mention in a text node
+        return '<span class="forum-mention" onclick="forumMentionClick(\'' + username.replace(/'/g, '') + '\')">' + mention + '</span>';
+    });
+}
+
+// ---- Click handler for @mention ----
+window.forumMentionClick = function(username) {
+    if (!username || typeof db === 'undefined') return;
+    // Try exact match first
+    db.collection('users').where('username', '==', username).limit(1).get()
+        .then(function(snap) {
+            if (!snap.empty) {
+                if (typeof showUserProfile === 'function') showUserProfile(snap.docs[0].id);
+            } else {
+                // Fallback: case-insensitive
+                db.collection('users').where('username_lower', '==', username.toLowerCase()).limit(1).get()
+                    .then(function(snap2) {
+                        if (!snap2.empty) {
+                            if (typeof showUserProfile === 'function') showUserProfile(snap2.docs[0].id);
+                        } else {
+                            if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                        }
+                    }).catch(function() {});
+            }
+        }).catch(function() {});
+};
+
+// ---- Notify mentioned users on submit ----
+// body = raw text, contextType = 'forum_post'|'article', contextId = doc id, contextTitle = post/article title
+window.forumNotifyMentions = async function(body, contextType, contextId, contextTitle) {
+    if (!body || typeof db === 'undefined' || !auth || !auth.currentUser) return;
+    var mentions = body.match(/@([a-zA-Z0-9_\-\.]{2,20})/g);
+    if (!mentions) return;
+    // Deduplicate
+    var seen = {};
+    var unique = [];
+    mentions.forEach(function(m) {
+        var name = m.substring(1).toLowerCase();
+        if (!seen[name]) { seen[name] = true; unique.push(m.substring(1)); }
+    });
+    var myUid = auth.currentUser.uid;
+    var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
+    var titleSnip = (contextTitle || '').substring(0, 40);
+    for (var i = 0; i < unique.length; i++) {
+        try {
+            var snap = await db.collection('users').where('username', '==', unique[i]).limit(1).get();
+            if (snap.empty) {
+                snap = await db.collection('users').where('username_lower', '==', unique[i].toLowerCase()).limit(1).get();
+            }
+            if (!snap.empty) {
+                var uid = snap.docs[0].id;
+                if (uid !== myUid && typeof sendNotification === 'function') {
+                    sendNotification(uid, 'mention', myName + ' mentioned you in "' + titleSnip + '"', contextType, contextId);
+                }
+            }
+        } catch(e) { console.warn('[forum] Mention notify error:', e); }
+    }
+};
+
+// ---- Autocomplete Dropdown ----
+var _mentionState = {
+    activeTextarea: null,
+    dropdown: null,
+    results: [],
+    selectedIdx: -1,
+    debounceTimer: null,
+    query: ''
+};
+
+function mentionGetCursorMention(textarea) {
+    var pos = textarea.selectionStart;
+    var text = textarea.value.substring(0, pos);
+    // Find the last @ that isn't preceded by a word char
+    var match = text.match(/(^|[\s(])@([a-zA-Z0-9_\-\.]{1,20})$/);
+    if (match) return { prefix: match[2], start: pos - match[2].length - 1 };
+    // Also match @ at very start
+    if (text.match(/^@([a-zA-Z0-9_\-\.]{1,20})$/)) {
+        var m = text.match(/^@([a-zA-Z0-9_\-\.]{1,20})$/);
+        return { prefix: m[1], start: 0 };
+    }
+    return null;
+}
+
+function mentionShowDropdown(textarea, users) {
+    mentionHideDropdown();
+    if (!users || users.length === 0) return;
+    _mentionState.results = users;
+    _mentionState.selectedIdx = 0;
+
+    var dd = document.createElement('div');
+    dd.id = 'mentionDropdown';
+    dd.style.cssText = 'position:absolute;z-index:9999;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.4);overflow:hidden;max-height:220px;overflow-y:auto;min-width:200px;';
+
+    users.forEach(function(u, idx) {
+        var item = document.createElement('div');
+        item.className = 'mention-item';
+        item.setAttribute('data-idx', idx);
+        var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '🟢' };
+        item.innerHTML = '<span style="font-size:0.85rem;">' + lv.emoji + '</span> ' +
+            '<span style="font-weight:700;">' + fEsc(u.username) + '</span>' +
+            (u.points ? '<span style="color:var(--text-faint);font-size:0.7rem;margin-left:6px;">' + (u.points || 0).toLocaleString() + ' pts</span>' : '');
+        item.style.cssText = 'padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text);transition:background 0.15s;' +
+            (idx === 0 ? 'background:var(--accent-bg);' : '');
+        item.onmouseenter = function() {
+            _mentionState.selectedIdx = idx;
+            mentionHighlight();
+        };
+        item.onmousedown = function(e) {
+            e.preventDefault(); // prevent textarea blur
+            mentionSelect(idx);
+        };
+        dd.appendChild(item);
+    });
+
+    // Position below textarea
+    var rect = textarea.getBoundingClientRect();
+    var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    dd.style.position = 'fixed';
+    dd.style.left = rect.left + 'px';
+    dd.style.top = (rect.bottom + 4) + 'px';
+    dd.style.width = Math.min(rect.width, 320) + 'px';
+
+    document.body.appendChild(dd);
+    _mentionState.dropdown = dd;
+}
+
+function mentionHighlight() {
+    var dd = _mentionState.dropdown;
+    if (!dd) return;
+    var items = dd.querySelectorAll('.mention-item');
+    items.forEach(function(el, i) {
+        el.style.background = i === _mentionState.selectedIdx ? 'var(--accent-bg)' : '';
+    });
+}
+
+function mentionHideDropdown() {
+    if (_mentionState.dropdown) {
+        _mentionState.dropdown.remove();
+        _mentionState.dropdown = null;
+    }
+    _mentionState.results = [];
+    _mentionState.selectedIdx = -1;
+}
+
+function mentionSelect(idx) {
+    var user = _mentionState.results[idx];
+    var textarea = _mentionState.activeTextarea;
+    if (!user || !textarea) return;
+
+    var info = mentionGetCursorMention(textarea);
+    if (!info) { mentionHideDropdown(); return; }
+
+    var before = textarea.value.substring(0, info.start);
+    var after = textarea.value.substring(textarea.selectionStart);
+    var insert = '@' + user.username + ' ';
+    textarea.value = before + insert + after;
+    var newPos = before.length + insert.length;
+    textarea.selectionStart = textarea.selectionEnd = newPos;
+    textarea.focus();
+    mentionHideDropdown();
+}
+
+function mentionQueryUsers(prefix) {
+    if (!prefix || prefix.length < 2 || typeof db === 'undefined') {
+        mentionHideDropdown();
+        return;
+    }
+    var low = prefix.toLowerCase();
+    // Use username field with range query for prefix search
+    db.collection('users')
+        .where('username', '>=', prefix)
+        .where('username', '<=', prefix + '\uf8ff')
+        .limit(5)
+        .get()
+        .then(function(snap) {
+            var users = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                if (d.username) users.push({ uid: doc.id, username: d.username, points: d.points || 0 });
+            });
+            // Also try lowercase prefix if no results (usernames may have mixed case)
+            if (users.length === 0 && prefix !== low) {
+                db.collection('users')
+                    .where('username', '>=', low)
+                    .where('username', '<=', low + '\uf8ff')
+                    .limit(5)
+                    .get()
+                    .then(function(snap2) {
+                        var users2 = [];
+                        snap2.forEach(function(doc) {
+                            var d = doc.data();
+                            if (d.username) users2.push({ uid: doc.id, username: d.username, points: d.points || 0 });
+                        });
+                        if (_mentionState.activeTextarea) mentionShowDropdown(_mentionState.activeTextarea, users2);
+                    }).catch(function() {});
+            } else {
+                if (_mentionState.activeTextarea) mentionShowDropdown(_mentionState.activeTextarea, users);
+            }
+        }).catch(function() { mentionHideDropdown(); });
+}
+
+function mentionBindTextarea(textarea) {
+    if (!textarea || textarea._mentionBound) return;
+    textarea._mentionBound = true;
+
+    textarea.addEventListener('input', function() {
+        _mentionState.activeTextarea = textarea;
+        var info = mentionGetCursorMention(textarea);
+        if (!info || info.prefix.length < 2) {
+            mentionHideDropdown();
+            return;
+        }
+        // Debounce
+        clearTimeout(_mentionState.debounceTimer);
+        _mentionState.debounceTimer = setTimeout(function() {
+            mentionQueryUsers(info.prefix);
+        }, 300);
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+        if (!_mentionState.dropdown) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            _mentionState.selectedIdx = Math.min(_mentionState.selectedIdx + 1, _mentionState.results.length - 1);
+            mentionHighlight();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            _mentionState.selectedIdx = Math.max(_mentionState.selectedIdx - 1, 0);
+            mentionHighlight();
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (_mentionState.results.length > 0 && _mentionState.selectedIdx >= 0) {
+                e.preventDefault();
+                mentionSelect(_mentionState.selectedIdx);
+            }
+        } else if (e.key === 'Escape') {
+            mentionHideDropdown();
+        }
+    });
+
+    textarea.addEventListener('blur', function() {
+        // Delay to allow mousedown on dropdown item
+        setTimeout(mentionHideDropdown, 200);
+    });
+}
+
+// ---- Auto-bind textareas via MutationObserver ----
+function mentionObserveForTextareas() {
+    var targetIds = ['forumNewBody', 'forumReplyInput', 'articleReplyInput'];
+    // Bind any already in DOM
+    targetIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) mentionBindTextarea(el);
+    });
+    // Watch for new ones
+    if (typeof MutationObserver !== 'undefined') {
+        var observer = new MutationObserver(function() {
+            targetIds.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) mentionBindTextarea(el);
+            });
+        });
+        var fc = document.getElementById('forumContainer');
+        if (fc) {
+            observer.observe(fc, { childList: true, subtree: true });
+        } else {
+            // Forum container may not exist yet — watch body briefly
+            var bodyObs = new MutationObserver(function() {
+                var fc2 = document.getElementById('forumContainer');
+                if (fc2) {
+                    bodyObs.disconnect();
+                    observer.observe(fc2, { childList: true, subtree: true });
+                    targetIds.forEach(function(id) {
+                        var el = document.getElementById(id);
+                        if (el) mentionBindTextarea(el);
+                    });
+                }
+            });
+            bodyObs.observe(document.body, { childList: true, subtree: true });
+        }
+    }
+}
+
+// Inject mention CSS
+var _mentionStyle = document.createElement('style');
+_mentionStyle.textContent = '.forum-mention{color:var(--accent);cursor:pointer;font-weight:600;transition:opacity 0.15s;}.forum-mention:hover{opacity:0.8;text-decoration:underline;}';
+document.head.appendChild(_mentionStyle);
+
+// Init
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(mentionObserveForTextareas, 1000); });
+} else {
+    setTimeout(mentionObserveForTextareas, 1000);
 }
 
 })();

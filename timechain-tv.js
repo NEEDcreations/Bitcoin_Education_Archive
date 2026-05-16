@@ -6240,6 +6240,30 @@ function _writePresence(stationId) {
     }).catch(function() {});
 }
 
+var _viewerPollInterval = null;
+
+function _pollViewerCounts() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) return;
+    var db = firebase.firestore();
+    db.collection('tctv_presence').get().then(function(snap) {
+        var counts = {};
+        var now = Date.now();
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (!d.station) return;
+            var docTime = 0;
+            if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
+            else if (typeof d.tsClient === 'number') docTime = d.tsClient;
+            if (!docTime) return;
+            if (now - docTime < 65000) {
+                counts[d.station] = (counts[d.station] || 0) + 1;
+            }
+        });
+        _viewerCounts = counts;
+        updateViewerBadges();
+    }).catch(function() {});
+}
+
 function joinStation(stationId) {
     // Track views by comparing against our OWN last-joined marker - NOT _currentStation,
     // because callers set _currentStation BEFORE invoking us, which would mask transitions.
@@ -6264,31 +6288,12 @@ function joinStation(stationId) {
         if (_currentStation) _writePresence(_currentStation);
     }, 30000);
     // Render the viewer badges immediately so the user sees themselves as a viewer
-    // without waiting for the Firestore snapshot round-trip.
     try { updateViewerBadges(); } catch(e) {}
-    if (!_viewerUnsub && typeof firebase !== 'undefined' && firebase.firestore) {
-        var db = firebase.firestore();
-        _viewerUnsub = db.collection('tctv_presence').onSnapshot(function(snap) {
-            var counts = {};
-            var now = Date.now();
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                if (!d.station) return;
-                // Prefer server timestamp; when pending (ts=null for local-only writes),
-                // fall back to the client timestamp we now also write. This avoids the
-                // "blink out" where a viewer briefly shows as 2 then drops to 1 while
-                // the server timestamp round-trips.
-                var docTime = 0;
-                if (d.ts && d.ts.toMillis) docTime = d.ts.toMillis();
-                else if (typeof d.tsClient === 'number') docTime = d.tsClient;
-                if (!docTime) return;
-                if (now - docTime < 65000) {
-                    counts[d.station] = (counts[d.station] || 0) + 1;
-                }
-            });
-            _viewerCounts = counts;
-            updateViewerBadges();
-        });
+    // Poll presence counts every 60s instead of onSnapshot on entire collection
+    // (onSnapshot on N docs fires N reads per heartbeat per viewer — scales as O(N²))
+    _pollViewerCounts();
+    if (!_viewerPollInterval) {
+        _viewerPollInterval = setInterval(_pollViewerCounts, 60000);
     }
 }
 
@@ -6298,10 +6303,11 @@ function _deletePresence() {
 }
 
 function _leavePresence() {
-    // Full teardown: stop heartbeat, delete presence doc, unsubscribe from snapshot
+    // Full teardown: stop heartbeat, delete presence doc, stop polling
     if (_viewerHeartbeat) { clearInterval(_viewerHeartbeat); _viewerHeartbeat = null; }
     if (_currentStation) { _deletePresence(); _currentStation = null; }
     window._tctvLastJoined = null;
+    if (_viewerPollInterval) { clearInterval(_viewerPollInterval); _viewerPollInterval = null; }
     if (_viewerUnsub) { try { _viewerUnsub(); } catch(e) {} _viewerUnsub = null; }
     if (_tctvPeakUnsub) { try { _tctvPeakUnsub(); } catch(e) {} _tctvPeakUnsub = null; }
     if (_tctvViewsUnsub) { try { _tctvViewsUnsub(); } catch(e) {} _tctvViewsUnsub = null; }
@@ -6867,7 +6873,7 @@ function _showPlebLiveBadge(show) {
 function _startPlebLivePolling() {
     if (_plebLivePollInterval) return;
     _plebLiveCheck(); // Immediate first check
-    _plebLivePollInterval = setInterval(_plebLiveCheck, 60000); // Check every 60s
+    _plebLivePollInterval = setInterval(_plebLiveCheck, 300000); // Check every 5 min (edge-cached)
 }
 
 function _stopPlebLivePolling() {
