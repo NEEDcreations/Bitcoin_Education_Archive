@@ -8170,6 +8170,10 @@ window.renderTimechainTV = function() {
     var style = document.createElement('style');
     style.id = 'tctv-remote-styles';
     style.textContent = `
+        @keyframes tctvLivePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
         /* Desktop & Tablet: Floating wide remote on the right edge */
         @media (min-width: 768px) {
             /* Old sidebar ad hidden (moved below channel list) */
@@ -8195,6 +8199,11 @@ window.renderTimechainTV = function() {
             #tctv-ad-sidebar, #tctv-remote-sidebar, #tctv-sponsor-sidebar { display: none !important; }
             #tctv-sponsor-mobile { display: flex !important; }
             #tctv-remote { display: flex !important; }
+            /* Compact title bar on mobile so BlockSurf + viewers + LIVE all fit */
+            #tctv-title-bar { padding: 6px 10px !important; gap: 2px 0 !important; }
+            #tctv-title-bar span[style*="letter-spacing:2px"] { font-size: 0.85rem !important; letter-spacing: 1px !important; }
+            #tctv-blocksurf-toggle { padding: 2px 6px !important; font-size: 0.55rem !important; }
+            #tctv-blocksurf-toggle span:first-child { font-size: 0.7rem !important; }
             /* On mobile the header is a capped flex child (not sticky).
                flex/max-height set in the main mobile block below. */
             #tctv-sticky-header {
@@ -8600,14 +8609,20 @@ window.renderTimechainTV = function() {
     var _bsOn = false;
     try { _bsOn = localStorage.getItem('tctv_blocksurf') === '1'; } catch(e) {}
     html += '<div id="tctv-sticky-header" style="position:sticky;top:0;z-index:200000;background:#0a0a0a;width:100%;"> ' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;"><div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div><div style="display:flex;align-items:center;gap:6px;">' +
-            // BlockSurf toggle - stuck to the left of viewers+LIVE, out of the way of everything else.
-            '<button id="tctv-blocksurf-toggle" onclick="tctvToggleBlockSurf(event)" onmouseenter="tctvShowBlockSurfTip(event)" onmouseleave="tctvHideBlockSurfTip()" aria-label="BlockSurf: auto-change channel every Bitcoin block" aria-pressed="' + (_bsOn ? 'true' : 'false') + '" style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;margin-right:4px;border-radius:999px;border:1px solid ' + (_bsOn ? '#f7931a' : '#333') + ';background:' + (_bsOn ? 'rgba(247,147,26,0.18)' : 'rgba(255,255,255,0.04)') + ';color:' + (_bsOn ? '#f7931a' : '#888') + ';font-size:0.65rem;font-weight:800;letter-spacing:0.5px;cursor:pointer;font-family:inherit;touch-action:manipulation;user-select:none;transition:0.18s;">' +
-                '<span style="font-size:0.8rem;line-height:1;">🏄</span>' +
-                '<span>BLOCKSURF</span>' +
-                '<span id="tctv-blocksurf-dot" style="width:6px;height:6px;border-radius:50%;background:' + (_bsOn ? '#22c55e' : '#444') + ';box-shadow:' + (_bsOn ? '0 0 5px #22c55e' : 'none') + ';"></span>' +
-            '</button>' +
-            '<span id="tctv-main-viewers" style="font-size:0.7rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;"></span><span style="color:#ef4444;font-size:0.7rem;font-weight:800;letter-spacing:1px;">LIVE</span></div></div>';
+            '<div id="tctv-title-bar" style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:#111;border-bottom:1px solid rgba(247,147,26,0.3);width:100%;box-sizing:border-box;flex-wrap:wrap;gap:4px 0;">' +
+            '<div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-muted);font-size:0.8rem;">←</span><span style="color:#f7931a;font-weight:900;font-size:1rem;letter-spacing:2px;">TIMECHAIN TV</span></div>' +
+            '<div style="display:flex;align-items:center;gap:6px;">' +
+                // BlockSurf toggle
+                '<button id="tctv-blocksurf-toggle" onclick="tctvToggleBlockSurf(event)" onmouseenter="tctvShowBlockSurfTip(event)" onmouseleave="tctvHideBlockSurfTip()" aria-label="BlockSurf: auto-change channel every Bitcoin block" aria-pressed="' + (_bsOn ? 'true' : 'false') + '" style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;border:1px solid ' + (_bsOn ? '#f7931a' : '#333') + ';background:' + (_bsOn ? 'rgba(247,147,26,0.18)' : 'rgba(255,255,255,0.04)') + ';color:' + (_bsOn ? '#f7931a' : '#888') + ';font-size:0.6rem;font-weight:800;letter-spacing:0.5px;cursor:pointer;font-family:inherit;touch-action:manipulation;user-select:none;transition:0.18s;">' +
+                    '<span style="font-size:0.75rem;line-height:1;">🏄</span>' +
+                    '<span>BLOCKSURF</span>' +
+                    '<span id="tctv-blocksurf-dot" style="width:6px;height:6px;border-radius:50%;background:' + (_bsOn ? '#22c55e' : '#444') + ';box-shadow:' + (_bsOn ? '0 0 5px #22c55e' : 'none') + ';"></span>' +
+                '</button>' +
+                // Live viewer count
+                '<span id="tctv-main-viewers" style="font-size:0.65rem;color:#22c55e;font-weight:600;cursor:pointer;user-select:none;touch-action:manipulation;" onclick="tctvShowPeakTip(event)" onmouseenter="tctvShowPeakTip(event)" onmouseleave="tctvHidePeakTip()"></span>' +
+                // Red LIVE dot + text
+                '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="width:7px;height:7px;background:#ef4444;border-radius:50%;display:inline-block;box-shadow:0 0 6px #ef4444;animation:tctvLivePulse 2s infinite;"></span><span style="color:#ef4444;font-size:0.65rem;font-weight:800;letter-spacing:1px;">LIVE</span></span>' +
+            '</div></div>';
 
     // Desktop: side-by-side layout with couch left, video center, wide remote right
     html += '<div id="tctv-video-row" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#0a0a0a;padding:6px 10px;flex-wrap:wrap;">';
