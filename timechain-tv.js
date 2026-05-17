@@ -8174,8 +8174,9 @@ window.renderTimechainTV = function() {
         @media (min-width: 768px) {
             /* Old sidebar ad hidden (moved below channel list) */
             #tctv-ad-sidebar { display: none !important; }
-            /* Sponsor sidebar visible on desktop */
+            /* Sponsor sidebar visible on desktop, mobile banner hidden */
             #tctv-sponsor-sidebar { display: block !important; }
+            #tctv-sponsor-mobile { display: none !important; }
             /* Show the below-EPG ad on all screen sizes */
             #tctv-ad-mobile { display: block !important; }
             #tctv-remote-sidebar {
@@ -8192,6 +8193,7 @@ window.renderTimechainTV = function() {
         }
         @media (max-width: 767px) {
             #tctv-ad-sidebar, #tctv-remote-sidebar, #tctv-sponsor-sidebar { display: none !important; }
+            #tctv-sponsor-mobile { display: flex !important; }
             #tctv-remote { display: flex !important; }
             /* On mobile the header is a capped flex child (not sticky).
                flex/max-height set in the main mobile block below. */
@@ -8750,6 +8752,23 @@ window.renderTimechainTV = function() {
             '<div id="couchNachoDragHandle" style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:40px;height:16px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:6;touch-action:none;-webkit-touch-callout:none;box-shadow:0 2px 6px rgba(0,0,0,0.4);" title="Drag to move Nacho"><span style="font-size:0.6rem;color:#888;pointer-events:none;letter-spacing:1px;">\u283f</span></div>' +
             '</div></div>';
 
+    // Mobile sponsor banner — slim horizontal bar above the channel guide
+    var _sponsorBannerHtml = '';
+    if (_tctvSponsor) {
+        _sponsorBannerHtml = '<a id="tctv-sponsor-mobile" href="' + _tctvSponsor.url + '" target="_blank" rel="noopener sponsored" style="display:none;margin:0 8px 4px;padding:8px 12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.12);border-radius:10px;text-decoration:none;align-items:center;gap:10px;" class="mobile-only">' +
+            (_tctvSponsor.logo ? '<img src="' + _tctvSponsor.logo + '" alt="' + _tctvSponsor.name + '" style="width:36px;height:36px;border-radius:6px;object-fit:contain;flex-shrink:0;">' : '') +
+            '<div style="flex:1;min-width:0;"><div style="font-size:0.7rem;color:#eee;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _tctvSponsor.name + '</div><div style="font-size:0.55rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _tctvSponsor.tagline + '</div></div>' +
+            '<div style="font-size:0.5rem;color:#666;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;">Sponsor</div>' +
+        '</a>';
+    } else {
+        _sponsorBannerHtml = '<a id="tctv-sponsor-mobile" href="mailto:info.603btc@gmail.com" style="display:none;margin:0 8px 4px;padding:8px 12px;background:rgba(247,147,26,0.04);border:1px solid rgba(247,147,26,0.08);border-radius:10px;text-decoration:none;align-items:center;gap:10px;" class="mobile-only">' +
+            '<div style="font-size:1.2rem;flex-shrink:0;">\ud83c\udf1f</div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:0.7rem;color:#eee;font-weight:700;">Sponsor Timechain TV</div><div style="font-size:0.55rem;color:#888;">Reach Bitcoiners watching 24/7 content</div></div>' +
+            '<div style="font-size:0.55rem;color:#f7931a;font-weight:700;flex-shrink:0;">Inquire \u2192</div>' +
+        '</a>';
+    }
+    html += _sponsorBannerHtml;
+
     html += _renderEPG();
     // Couch Nacho rendered AFTER the EPG so on mobile (static pos) he sits between
     // the channel list and the ad; on desktop he's position:fixed so DOM order is moot.
@@ -8782,9 +8801,12 @@ window.renderTimechainTV = function() {
     html += '<div style="height:120px;"></div></div>';
     fc.innerHTML = html;
 
-    // On mobile, move ad + disclaimer inside epg-wrapper so they're scrollable
+    // On mobile, move sponsor banner + ad + disclaimer inside epg-wrapper so they're scrollable
     if (window.innerWidth <= 767) {
         var _epgW = document.getElementById('tctv-epg-wrapper');
+        var _sponsorMob = document.getElementById('tctv-sponsor-mobile');
+        // Sponsor banner goes at the TOP of the EPG (before station rows)
+        if (_epgW && _sponsorMob) _epgW.insertBefore(_sponsorMob, _epgW.children[1] || null);
         var _adEl = document.getElementById('tctv-ad-mobile');
         var _disEl = document.getElementById('tctv-disclaimer');
         if (_epgW && _adEl) _epgW.appendChild(_adEl);
